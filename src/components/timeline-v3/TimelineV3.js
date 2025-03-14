@@ -258,13 +258,30 @@ function TimelineV3() {
     
     // Calculate the range of visible markers
     const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
-    const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount);
-    const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount);
+    
+    // Add a small buffer to ensure we capture all visible markers
+    // This helps account for any rounding or calculation discrepancies
+    const buffer = 1; // Add 1 marker buffer on each side
+    
+    const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount - buffer);
+    const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount + buffer);
+    
+    console.log('Visible markers calculation:', {
+      screenWidth,
+      markerWidth,
+      visibleMarkerCount,
+      centerMarkerPosition,
+      halfVisibleCount,
+      minVisibleMarker,
+      maxVisibleMarker
+    });
     
     // Filter markers to only include those in the visible range
     const currentVisibleMarkers = markers.filter(
       marker => marker >= minVisibleMarker && marker <= maxVisibleMarker
     );
+    
+    console.log('Current visible markers:', currentVisibleMarkers);
     
     setVisibleMarkers(currentVisibleMarkers);
   }, [timelineOffset, markers]);
