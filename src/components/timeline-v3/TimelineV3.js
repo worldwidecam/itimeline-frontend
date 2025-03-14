@@ -629,13 +629,90 @@ function TimelineV3() {
       return;
     }
     
-    // Press the button using our direct function instead of the handler
-    performButtonPress(direction);
+    // For smoother animation, use smooth scrolling for longer distances
+    if (totalPresses > 3) {
+      // Use smooth animation for longer distances
+      smoothScrollTimeline(direction, totalPresses);
+      return;
+    } else {
+      // For short distances, use the original button press method
+      // Press the button using our direct function instead of the handler
+      performButtonPress(direction);
+      
+      // Schedule the next button press after delay
+      setTimeout(() => {
+        executeButtonPresses(direction, totalPresses, pressCount + 1);
+      }, 300); // 300ms delay between presses
+    }
+  };
+
+  // Smooth scrolling animation for the timeline
+  const smoothScrollTimeline = (direction, distance) => {
+    console.log(`Starting smooth scroll: ${direction}, distance: ${distance}`);
     
-    // Schedule the next button press after delay
-    setTimeout(() => {
-      executeButtonPresses(direction, totalPresses, pressCount + 1);
-    }, 300); // 300ms delay between presses
+    // Calculate the target offset
+    const targetOffset = direction === 'left' 
+      ? timelineOffset + (distance * 100) 
+      : timelineOffset - (distance * 100);
+    
+    // Preload markers in the direction we're scrolling
+    if (direction === 'left') {
+      const minMarker = Math.min(...markers);
+      const newMarkers = Array.from(
+        { length: distance + 2 }, // Add a couple extra for buffer
+        (_, i) => minMarker - (i + 1)
+      );
+      setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
+    } else {
+      const maxMarker = Math.max(...markers);
+      const newMarkers = Array.from(
+        { length: distance + 2 }, // Add a couple extra for buffer
+        (_, i) => maxMarker + (i + 1)
+      );
+      setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
+    }
+    
+    // Set up animation variables
+    const startTime = performance.now();
+    const startOffset = timelineOffset;
+    const totalDistance = Math.abs(targetOffset - startOffset);
+    
+    // Animation duration based on distance (longer for greater distances, but with a cap)
+    const baseDuration = 500; // Base duration in ms
+    const maxDuration = 1500; // Maximum duration in ms
+    const durationPerMarker = 100; // Additional ms per marker
+    const duration = Math.min(baseDuration + (distance * durationPerMarker), maxDuration);
+    
+    // Use easeInOutCubic for a natural feel
+    const easeInOutCubic = t => t < 0.5 
+      ? 4 * t * t * t 
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    
+    // Animation frame function
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeInOutCubic(progress);
+      
+      // Calculate the new offset
+      const newOffset = startOffset + ((targetOffset - startOffset) * easedProgress);
+      
+      // Update the timeline offset
+      setTimelineOffset(newOffset);
+      
+      // Continue animation if not complete
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        // Ensure we end exactly at the target offset
+        setTimelineOffset(targetOffset);
+        console.log('Smooth scroll complete');
+        setIsNavigating(false);
+      }
+    };
+    
+    // Start the animation
+    requestAnimationFrame(animate);
   };
 
   const markerStyles = {
