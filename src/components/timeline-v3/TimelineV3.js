@@ -13,6 +13,7 @@ import EventCounter from './events/EventCounter';
 import EventList from './events/EventList';
 import EventDialog from './events/EventDialog';
 import AddIcon from '@mui/icons-material/Add';
+import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 
 const API_BASE_URL = '/api';
 
@@ -267,6 +268,9 @@ function TimelineV3() {
     
     setVisibleMarkers(currentVisibleMarkers);
   }, [timelineOffset, markers]);
+
+  // Add state to track filtered events count
+  const [filteredEventsCount, setFilteredEventsCount] = useState(0);
 
   const handleEventSelect = (event) => {
     setSelectedEventId(event.id);
@@ -775,6 +779,10 @@ function TimelineV3() {
     }, 400); // Match the transition duration
   };
 
+  const handleFilteredEventsCount = (count) => {
+    setFilteredEventsCount(count);
+  };
+
   return (
     <Box sx={{ 
       display: 'flex',
@@ -833,9 +841,49 @@ function TimelineV3() {
           </Stack>
 
           <Stack direction="row" spacing={2} alignItems="center">
+            {/* Event Counter - Now shows filtered events count */}
             <EventCounter
-              count={events.length}
-              events={events}
+              count={filteredEventsCount}
+              events={events.filter(event => {
+                // Apply the same filtering logic as in EventList
+                if (viewMode === 'position') return true;
+                
+                if (!event.event_date) return false;
+                
+                const currentDate = new Date();
+                let startDate, endDate;
+                
+                switch (viewMode) {
+                  case 'day': {
+                    startDate = new Date(currentDate);
+                    startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+                    
+                    endDate = new Date(currentDate);
+                    endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'week': {
+                    startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addDays(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'month': {
+                    startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'year': {
+                    startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addYears(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  default:
+                    return true;
+                }
+                
+                const eventDate = new Date(event.event_date);
+                return eventDate >= startDate && eventDate <= endDate;
+              })}
               currentIndex={currentEventIndex}
               onChangeIndex={setCurrentEventIndex}
               onDotClick={handleDotClick}
@@ -845,7 +893,6 @@ function TimelineV3() {
               sortOrder={sortOrder}
               selectedType={selectedType}
             />
-            
             <Stack direction="row" spacing={1}>
               <Button
                 variant={viewMode === 'day' ? "contained" : "outlined"}
@@ -989,6 +1036,7 @@ function TimelineV3() {
           viewMode={viewMode}
           minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : Math.min(...markers)}
           maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : Math.max(...markers)}
+          onFilteredEventsCount={handleFilteredEventsCount}
         />
       </Box>
 

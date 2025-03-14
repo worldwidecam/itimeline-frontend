@@ -56,7 +56,8 @@ const EventList = ({
   shouldScrollToEvent = true,
   viewMode = 'position', // Add viewMode prop with default value
   minMarker = -10, // Default visible marker range
-  maxMarker = 10 // Default visible marker range
+  maxMarker = 10, // Default visible marker range
+  onFilteredEventsCount // Callback to report filtered events count
 }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -317,6 +318,13 @@ const EventList = ({
       const dateB = new Date(b.event_date);
       return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
+
+  // Report the filtered events count to the parent component
+  useEffect(() => {
+    if (onFilteredEventsCount) {
+      onFilteredEventsCount(filteredAndSortedEvents.length);
+    }
+  }, [filteredAndSortedEvents.length, onFilteredEventsCount]);
 
   return (
     <Stack spacing={2} sx={{ px: 3 }}>
