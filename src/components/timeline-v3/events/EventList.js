@@ -32,6 +32,20 @@ import RemarkCard from './cards/RemarkCard';
 import NewsCard from './cards/NewsCard';
 import MediaCard from './cards/MediaCard';
 import EventCounter from './EventCounter';
+import { 
+  isSameDay, 
+  isSameMonth, 
+  isSameYear, 
+  startOfWeek, 
+  endOfWeek, 
+  isWithinInterval,
+  addDays,
+  addMonths,
+  addYears,
+  subDays,
+  subMonths,
+  subYears
+} from 'date-fns';
 
 const EventList = ({ 
   events, 
@@ -39,7 +53,10 @@ const EventList = ({
   onEventDelete, 
   selectedEventId, 
   onEventSelect,
-  shouldScrollToEvent = true // Default to true for backward compatibility
+  shouldScrollToEvent = true,
+  viewMode = 'position', // Add viewMode prop with default value
+  minMarker = -10, // Default visible marker range
+  maxMarker = 10 // Default visible marker range
 }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -227,8 +244,68 @@ const EventList = ({
     );
   };
 
+  // Filter events based on the current view mode and visible marker range
+  const filterEventsByViewMode = (events) => {
+    if (!events || events.length === 0) return [];
+    
+    // In base coordinate view, show all events
+    if (viewMode === 'position') return events;
+    
+    const currentDate = new Date();
+    
+    // Calculate the date range based on visible markers
+    let startDate, endDate;
+    
+    switch (viewMode) {
+      case 'day': {
+        // In day view, each marker represents an hour
+        // minMarker is hours before current time, maxMarker is hours after
+        startDate = new Date(currentDate);
+        startDate.setHours(startDate.getHours() + minMarker);
+        
+        endDate = new Date(currentDate);
+        endDate.setHours(endDate.getHours() + maxMarker);
+        break;
+      }
+      
+      case 'week': {
+        // In week view, each marker represents a day
+        startDate = subDays(currentDate, Math.abs(minMarker));
+        endDate = addDays(currentDate, maxMarker);
+        break;
+      }
+      
+      case 'month': {
+        // In month view, each marker represents a month
+        startDate = subMonths(currentDate, Math.abs(minMarker));
+        endDate = addMonths(currentDate, maxMarker);
+        break;
+      }
+      
+      case 'year': {
+        // In year view, each marker represents a year
+        startDate = subYears(currentDate, Math.abs(minMarker));
+        endDate = addYears(currentDate, maxMarker);
+        break;
+      }
+      
+      default:
+        return events;
+    }
+    
+    console.log(`Filtering events between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+    
+    // Filter events to only include those within the visible date range
+    return events.filter(event => {
+      if (!event.event_date) return false;
+      
+      const eventDate = new Date(event.event_date);
+      return eventDate >= startDate && eventDate <= endDate;
+    });
+  };
+
   // Filter and sort events
-  const filteredAndSortedEvents = events
+  const filteredAndSortedEvents = filterEventsByViewMode(events)
     .filter(event => {
       const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.description.toLowerCase().includes(searchQuery.toLowerCase());

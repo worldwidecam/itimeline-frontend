@@ -242,6 +242,32 @@ function TimelineV3() {
   const [isRecentering, setIsRecentering] = useState(false);
   const [isFullyFaded, setIsFullyFaded] = useState(false);
 
+  // Add new state to track visible markers
+  const [visibleMarkers, setVisibleMarkers] = useState([]);
+
+  // Update visible markers when timeline offset or markers change
+  useEffect(() => {
+    // Calculate which markers are currently visible on screen
+    const screenWidth = window.innerWidth;
+    const markerWidth = 100;
+    const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
+    
+    // Calculate the center marker based on the timeline offset
+    const centerMarkerPosition = -timelineOffset / markerWidth;
+    
+    // Calculate the range of visible markers
+    const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
+    const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount);
+    const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount);
+    
+    // Filter markers to only include those in the visible range
+    const currentVisibleMarkers = markers.filter(
+      marker => marker >= minVisibleMarker && marker <= maxVisibleMarker
+    );
+    
+    setVisibleMarkers(currentVisibleMarkers);
+  }, [timelineOffset, markers]);
+
   const handleEventSelect = (event) => {
     setSelectedEventId(event.id);
     setShouldScrollToEvent(true);
@@ -960,6 +986,9 @@ function TimelineV3() {
           selectedEventId={selectedEventId}
           onEventSelect={handleEventSelect}
           shouldScrollToEvent={shouldScrollToEvent}
+          viewMode={viewMode}
+          minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : Math.min(...markers)}
+          maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : Math.max(...markers)}
         />
       </Box>
 
