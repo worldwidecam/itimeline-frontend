@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:5000
+      # - REACT_APP_CLOUDINARY_CLOUD_NAME=your_cloud_name
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped

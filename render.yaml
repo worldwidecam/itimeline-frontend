@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: itimeline-frontend
+    env: static
+    buildCommand: chmod +x build.sh && ./build.sh
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://api.i-timeline.com
+      - key: REACT_APP_CLOUDINARY_CLOUD_NAME
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
