@@ -14,7 +14,8 @@ const EventCounter = ({
   timelineOffset = 0,
   markerSpacing = 100,
   sortOrder,
-  selectedType 
+  selectedType,
+  style
 }) => {
   // State to track day view current event index
   const [dayViewIndex, setDayViewIndex] = useState(0);
@@ -133,59 +134,56 @@ const EventCounter = ({
   return (
     <Box 
       sx={{
-        position: 'absolute',
-        top: 16,
-        left: 16,
-        zIndex: 2,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
         bgcolor: 'background.paper',
         borderRadius: 2,
-        p: 1.5,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 0.5,
-        boxShadow: 2,
+        p: 1,
+        boxShadow: 1,
         border: '1px solid',
-        borderColor: 'divider'
+        borderColor: 'divider',
+        height: '40px',
+        ...style
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          Event Counter
+        <Typography variant="subtitle2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+          Events
         </Typography>
         <Badge
           badgeContent={count}
           color="primary"
           sx={{
             '& .MuiBadge-badge': {
-              fontSize: '0.9rem',
-              height: '24px',
-              minWidth: '24px',
-              borderRadius: '12px'
+              fontSize: '0.8rem',
+              height: '20px',
+              minWidth: '20px',
+              borderRadius: '10px'
             }
           }}
         >
-          <EventIcon color="action" />
+          <EventIcon color="action" fontSize="small" />
         </Badge>
       </Box>
       
       {/* Day View Event Counter */}
       {viewMode === 'day' && (
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {dayViewEvents.length > 0 ? (
-            <>
-              <EventCarousel 
-                events={dayViewEvents} 
-                currentIndex={dayViewIndex} 
-                onChangeIndex={handleDayViewChange}
-                onDotClick={handleDayViewDotClick}
-                goToPrevious={goToPrevious}
-                goToNext={goToNext}
-              />
-            </>
+            <EventCarousel 
+              events={dayViewEvents} 
+              currentIndex={dayViewIndex} 
+              onChangeIndex={handleDayViewChange}
+              onDotClick={handleDayViewDotClick}
+              goToPrevious={goToPrevious}
+              goToNext={goToNext}
+              compact={true}
+            />
           ) : (
             <Typography variant="caption" color="text.secondary">
-              No events match the current filter
+              No events
             </Typography>
           )}
         </Box>
@@ -193,21 +191,20 @@ const EventCounter = ({
 
       {/* Position View Event Counter */}
       {viewMode !== 'day' && (
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {positionViewEvents.length > 0 ? (
-            <>
-              <EventCarousel 
-                events={positionViewEvents} 
-                currentIndex={currentIndex} 
-                onChangeIndex={onChangeIndex}
-                onDotClick={onDotClick}
-                goToPrevious={goToPreviousPosition}
-                goToNext={goToNextPosition}
-              />
-            </>
+            <EventCarousel 
+              events={positionViewEvents} 
+              currentIndex={currentIndex} 
+              onChangeIndex={onChangeIndex}
+              onDotClick={onDotClick}
+              goToPrevious={goToPreviousPosition}
+              goToNext={goToNextPosition}
+              compact={true}
+            />
           ) : (
             <Typography variant="caption" color="text.secondary">
-              No events match the current filter
+              No events
             </Typography>
           )}
         </Box>

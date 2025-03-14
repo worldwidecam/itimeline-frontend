@@ -788,81 +788,94 @@ function TimelineV3() {
       mb: 3
     }}>
       <Container maxWidth={false}>
-        <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-          <Box sx={{ flex: 1 }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Typography variant="h4" component="div" sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
-                {!isLoading && `# ${timelineName}`}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {getViewDescription()}
-              </Box>
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h4" component="div" sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
+              {!isLoading && `# ${timelineName}`}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {getViewDescription()}
+            </Box>
+            <Button
+              onClick={() => {
+                setEditingEvent(null);
+                setDialogOpen(true);
+              }}
+              variant="contained"
+              startIcon={<AddIcon />}
+              sx={{
+                bgcolor: theme.palette.success.main,
+                color: 'white',
+                '&:hover': {
+                  bgcolor: theme.palette.success.dark,
+                },
+                boxShadow: 2
+              }}
+            >
+              Add Event
+            </Button>
+            <Fade in={timelineOffset !== 0}>
               <Button
-                onClick={() => {
-                  setEditingEvent(null);
-                  setDialogOpen(true);
-                }}
+                onClick={handleRecenter}
                 variant="contained"
-                startIcon={<AddIcon />}
                 sx={{
-                  bgcolor: theme.palette.success.main,
+                  bgcolor: theme.palette.primary.main,
                   color: 'white',
                   '&:hover': {
-                    bgcolor: theme.palette.success.dark,
+                    bgcolor: theme.palette.primary.dark,
                   },
                   boxShadow: 2
                 }}
               >
-                Add Event
+                Back to Present
               </Button>
-              <Fade in={timelineOffset !== 0}>
-                <Button
-                  onClick={handleRecenter}
-                  variant="contained"
-                  sx={{
-                    bgcolor: theme.palette.primary.main,
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: theme.palette.primary.dark,
-                    },
-                    boxShadow: 2
-                  }}
-                >
-                  Back to Present
-                </Button>
-              </Fade>
-            </Stack>
-          </Box>
+            </Fade>
+          </Stack>
 
-          <Stack direction="row" spacing={1}>
-            <Button
-              variant={viewMode === 'day' ? "contained" : "outlined"}
-              size="small"
-              onClick={() => setViewMode(viewMode === 'day' ? 'position' : 'day')}
-            >
-              Day
-            </Button>
-            <Button
-              variant={viewMode === 'week' ? "contained" : "outlined"}
-              size="small"
-              onClick={() => setViewMode(viewMode === 'week' ? 'position' : 'week')}
-            >
-              Week
-            </Button>
-            <Button
-              variant={viewMode === 'month' ? "contained" : "outlined"}
-              size="small"
-              onClick={() => setViewMode(viewMode === 'month' ? 'position' : 'month')}
-            >
-              Month
-            </Button>
-            <Button
-              variant={viewMode === 'year' ? "contained" : "outlined"}
-              size="small"
-              onClick={() => setViewMode(viewMode === 'year' ? 'position' : 'year')}
-            >
-              Year
-            </Button>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <EventCounter
+              count={events.length}
+              events={events}
+              currentIndex={currentEventIndex}
+              onChangeIndex={setCurrentEventIndex}
+              onDotClick={handleDotClick}
+              viewMode={viewMode}
+              timelineOffset={timelineOffset}
+              markerSpacing={100}
+              sortOrder={sortOrder}
+              selectedType={selectedType}
+            />
+            
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant={viewMode === 'day' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setViewMode(viewMode === 'day' ? 'position' : 'day')}
+              >
+                Day
+              </Button>
+              <Button
+                variant={viewMode === 'week' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setViewMode(viewMode === 'week' ? 'position' : 'week')}
+              >
+                Week
+              </Button>
+              <Button
+                variant={viewMode === 'month' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setViewMode(viewMode === 'month' ? 'position' : 'month')}
+              >
+                Month
+              </Button>
+              <Button
+                variant={viewMode === 'year' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setViewMode(viewMode === 'year' ? 'position' : 'year')}
+              >
+                Year
+              </Button>
+            </Stack>
           </Stack>
         </Stack>
         
@@ -885,19 +898,6 @@ function TimelineV3() {
             minMarker={Math.min(...markers)}
             maxMarker={Math.max(...markers)}
             theme={theme}
-            style={timelineTransitionStyles}
-          />
-          <EventCounter
-            count={events.length}
-            events={events}
-            currentIndex={currentEventIndex}
-            onChangeIndex={setCurrentEventIndex}
-            onDotClick={handleDotClick}
-            viewMode={viewMode}
-            timelineOffset={timelineOffset}
-            markerSpacing={100}
-            sortOrder={sortOrder}
-            selectedType={selectedType}
             style={timelineTransitionStyles}
           />
           {/* Event Markers - only show in time-based views */}

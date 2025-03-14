@@ -6,14 +6,14 @@ import { EVENT_TYPE_COLORS } from './EventTypes';
 import EventTooltip from './EventTooltip';
 
 // Empty state component (no hooks)
-const EmptyEventCarousel = () => {
+const EmptyEventCarousel = ({ compact }) => {
   return (
     <Box
       sx={{
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        mt: 1
+        mt: compact ? 0 : 1
       }}
     >
       <Typography variant="caption" color="text.secondary">
@@ -30,7 +30,8 @@ const PopulatedEventCarousel = ({
   onChangeIndex,
   onDotClick,
   goToPrevious,
-  goToNext
+  goToNext,
+  compact = false
 }) => {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -106,8 +107,8 @@ const PopulatedEventCarousel = ({
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
-        mt: 1 // Reduced margin top
+        gap: compact ? 0.5 : 1,
+        mt: compact ? 0 : 1
       }}
     >
       <IconButton 
@@ -115,10 +116,10 @@ const PopulatedEventCarousel = ({
         onClick={handlePrevious}
         sx={{ 
           color: eventColor,
-          padding: '4px'
+          padding: compact ? '2px' : '4px'
         }}
       >
-        <ChevronLeftIcon fontSize="small" />
+        <ChevronLeftIcon fontSize={compact ? 'inherit' : 'small'} />
       </IconButton>
 
       <Box
@@ -126,8 +127,8 @@ const PopulatedEventCarousel = ({
         onMouseLeave={handleMouseLeave}
         onClick={handleDotClick}
         sx={{
-          width: '12px',
-          height: '12px',
+          width: compact ? '10px' : '12px',
+          height: compact ? '10px' : '12px',
           borderRadius: '50%',
           backgroundColor: eventColor,
           cursor: 'pointer',
@@ -145,10 +146,10 @@ const PopulatedEventCarousel = ({
         onClick={handleNext}
         sx={{ 
           color: eventColor,
-          padding: '4px'
+          padding: compact ? '2px' : '4px'
         }}
       >
-        <ChevronRightIcon fontSize="small" />
+        <ChevronRightIcon fontSize={compact ? 'inherit' : 'small'} />
       </IconButton>
 
       <Popper
@@ -183,11 +184,11 @@ const PopulatedEventCarousel = ({
 
 // Main component that decides which version to render
 const EventCarousel = (props) => {
-  const { events = [] } = props;
+  const { events = [], compact = false } = props;
   
   // No conditional hooks here - just conditional rendering
   if (!events || events.length === 0) {
-    return <EmptyEventCarousel />;
+    return <EmptyEventCarousel compact={compact} />;
   }
   
   return <PopulatedEventCarousel {...props} />;
