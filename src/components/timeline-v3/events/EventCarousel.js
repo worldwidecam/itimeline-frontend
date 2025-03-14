@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Box, IconButton, useTheme, Paper, Fade, Popper, Typography } from '@mui/material';
+import { Box, IconButton, useTheme, Paper, Fade, Popper, Typography, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { EVENT_TYPE_COLORS } from './EventTypes';
@@ -31,7 +31,8 @@ const PopulatedEventCarousel = ({
   onDotClick,
   goToPrevious,
   goToNext,
-  compact = false
+  compact = false,
+  showEventInfo = false
 }) => {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -101,6 +102,14 @@ const PopulatedEventCarousel = ({
 
   const eventColor = getEventTypeColor();
   const eventHoverColor = getEventTypeHoverColor();
+  
+  // Format event title for display
+  const getEventTitle = () => {
+    if (!currentEvent?.title) return "Untitled Event";
+    return currentEvent.title.length > 20 
+      ? `${currentEvent.title.substring(0, 20)}...` 
+      : currentEvent.title;
+  };
 
   return (
     <Box
@@ -111,16 +120,18 @@ const PopulatedEventCarousel = ({
         mt: compact ? 0 : 1
       }}
     >
-      <IconButton 
-        size="small"
-        onClick={handlePrevious}
-        sx={{ 
-          color: eventColor,
-          padding: compact ? '2px' : '4px'
-        }}
-      >
-        <ChevronLeftIcon fontSize={compact ? 'inherit' : 'small'} />
-      </IconButton>
+      <Tooltip title="Previous event" arrow placement="top">
+        <IconButton 
+          size="small"
+          onClick={handlePrevious}
+          sx={{ 
+            color: eventColor,
+            padding: compact ? '2px' : '4px'
+          }}
+        >
+          <ChevronLeftIcon fontSize={compact ? 'inherit' : 'small'} />
+        </IconButton>
+      </Tooltip>
 
       <Box
         onMouseEnter={handleMouseEnter}
@@ -140,17 +151,39 @@ const PopulatedEventCarousel = ({
           }
         }}
       />
+      
+      {/* Event info (title) - only shown when showEventInfo is true */}
+      {showEventInfo && (
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ 
+            maxWidth: '120px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+            '&:hover': { color: 'text.primary' }
+          }}
+          onClick={handleDotClick}
+        >
+          {getEventTitle()}
+        </Typography>
+      )}
 
-      <IconButton 
-        size="small"
-        onClick={handleNext}
-        sx={{ 
-          color: eventColor,
-          padding: compact ? '2px' : '4px'
-        }}
-      >
-        <ChevronRightIcon fontSize={compact ? 'inherit' : 'small'} />
-      </IconButton>
+      <Tooltip title="Next event" arrow placement="top">
+        <IconButton 
+          size="small"
+          onClick={handleNext}
+          sx={{ 
+            color: eventColor,
+            padding: compact ? '2px' : '4px'
+          }}
+        >
+          <ChevronRightIcon fontSize={compact ? 'inherit' : 'small'} />
+        </IconButton>
+      </Tooltip>
 
       <Popper
         open={isHovered}

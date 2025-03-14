@@ -16,6 +16,9 @@ Frontend application for the iTimeline platform, a modern web application for cr
 - Modern UI with animations and transitions
 - Responsive search functionality
 - Smooth scrolling to selected events
+- Dynamic Event Counter that reflects the number of visible events in the current view
+  - Updates automatically as users navigate through different timeline views
+  - Accounts for partially visible markers at screen edges
 
 ## Technical Stack
 

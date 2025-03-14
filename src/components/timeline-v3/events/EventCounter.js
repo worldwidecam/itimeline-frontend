@@ -180,6 +180,7 @@ const EventCounter = ({
               goToPrevious={goToPrevious}
               goToNext={goToNext}
               compact={true}
+              showEventInfo={true}
             />
           ) : (
             <Typography variant="caption" color="text.secondary">
@@ -201,6 +202,7 @@ const EventCounter = ({
               goToPrevious={goToPreviousPosition}
               goToNext={goToNextPosition}
               compact={true}
+              showEventInfo={true}
             />
           ) : (
             <Typography variant="caption" color="text.secondary">

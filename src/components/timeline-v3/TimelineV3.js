@@ -683,6 +683,14 @@ function TimelineV3() {
     console.log('Calculating temporal distance:');
     console.log(`Event date: ${eventDateObj.toLocaleString()}`);
     console.log(`Current date: ${currentDate.toLocaleString()}`);
+    console.log(`Current timeline offset: ${timelineOffset}`);
+    console.log(`Current view mode: ${viewMode}`);
+    
+    // Calculate the current position on the timeline based on the offset
+    // A negative offset means we've moved right (into the future)
+    // A positive offset means we've moved left (into the past)
+    const currentPosition = -timelineOffset / 100; // Each marker is 100px
+    console.log(`Current position (in markers): ${currentPosition}`);
     
     let distance = 0;
     
@@ -700,12 +708,17 @@ function TimelineV3() {
         const eventMinute = eventDateObj.getMinutes();
         
         // Position calculation (same as in EventMarker)
-        distance = (dayDiff * 24) + eventHour - currentHour + (eventMinute / 60);
+        const absoluteDistance = (dayDiff * 24) + eventHour - currentHour + (eventMinute / 60);
+        
+        // Adjust for current timeline position
+        distance = absoluteDistance - currentPosition;
         
         console.log(`Day diff: ${dayDiff}`);
         console.log(`Current hour: ${currentHour}`);
         console.log(`Event hour: ${eventHour}`);
         console.log(`Event minute: ${eventMinute}`);
+        console.log(`Absolute distance: ${absoluteDistance}`);
+        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -717,10 +730,11 @@ function TimelineV3() {
         
         const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
         
+        let absoluteDistance;
         if (dayDiff === 0) {
           const totalMinutesInDay = 24 * 60;
           const eventMinutesIntoDay = eventDateObj.getHours() * 60 + eventDateObj.getMinutes();
-          distance = eventMinutesIntoDay / totalMinutesInDay;
+          absoluteDistance = eventMinutesIntoDay / totalMinutesInDay;
         } else {
           const eventHour = eventDateObj.getHours();
           const eventMinute = eventDateObj.getMinutes();
@@ -729,8 +743,14 @@ function TimelineV3() {
           const eventMinutesIntoDay = eventHour * 60 + eventMinute;
           const eventFractionOfDay = eventMinutesIntoDay / totalMinutesInDay;
           
-          distance = Math.floor(dayDiff) + eventFractionOfDay;
+          absoluteDistance = Math.floor(dayDiff) + eventFractionOfDay;
         }
+        
+        // Adjust for current timeline position
+        distance = absoluteDistance - currentPosition;
+        
+        console.log(`Absolute distance: ${absoluteDistance}`);
+        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -747,7 +767,13 @@ function TimelineV3() {
         
         const monthDayFraction = (eventDay - 1) / daysInMonth;
         
-        distance = monthDiff + monthDayFraction;
+        const absoluteDistance = monthDiff + monthDayFraction;
+        
+        // Adjust for current timeline position
+        distance = absoluteDistance - currentPosition;
+        
+        console.log(`Absolute distance: ${absoluteDistance}`);
+        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -758,7 +784,13 @@ function TimelineV3() {
         const yearDayFraction = (eventDateObj.getDate() - 1) / new Date(eventDateObj.getFullYear(), eventDateObj.getMonth() + 1, 0).getDate();
         const yearDayContribution = yearDayFraction / 12;
         
-        distance = yearDiff + yearMonthContribution + yearDayContribution;
+        const absoluteDistance = yearDiff + yearMonthContribution + yearDayContribution;
+        
+        // Adjust for current timeline position
+        distance = absoluteDistance - currentPosition;
+        
+        console.log(`Absolute distance: ${absoluteDistance}`);
+        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -766,7 +798,7 @@ function TimelineV3() {
         distance = 0;
     }
     
-    console.log(`Calculated distance: ${distance}`);
+    console.log(`Final calculated distance: ${distance}`);
     return distance;
   };
   
