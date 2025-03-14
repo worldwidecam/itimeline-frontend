@@ -24,6 +24,7 @@ Frontend application for the iTimeline platform, a modern web application for cr
 - **State Management**: React Context API
 - **HTTP Client**: Axios
 - **Styling**: CSS with Tailwind CSS
+- **Deployment**: Docker containerization for Render.com
 
 ## Key Dependencies
 
@@ -32,6 +33,11 @@ Frontend application for the iTimeline platform, a modern web application for cr
 - `axios`: HTTP requests
 - `react-router-dom`: Client-side routing
 - `date-fns`: Date formatting and manipulation
+- `tailwindcss`: Utility-first CSS framework
+
+## Repository Structure
+
+This repository contains only the frontend code for the iTimeline application. The backend code is maintained in a separate repository at [itimeline-backend](https://github.com/worldwidecam/itimeline-backend).
 
 ## Core Architecture
 
@@ -52,9 +58,11 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Setup and Installation
 
+### Local Development
+
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/itimeline-frontend.git
+   git clone https://github.com/worldwidecam/itimeline-frontend.git
    cd itimeline-frontend
    ```
 
@@ -63,33 +71,66 @@ Frontend application for the iTimeline platform, a modern web application for cr
    npm install
    ```
 
-3. Configure the API URL:
-   - Edit `src/config.js` to point to your backend API
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables:
+   ```
+   REACT_APP_API_URL=http://localhost:5000
+   REACT_APP_CLOUDINARY_CLOUD_NAME=your_cloud_name
+   ```
 
 4. Start the development server:
    ```
    npm start
    ```
 
-5. Build for production:
+### Using Docker for Local Development
+
+1. Build and start the container:
    ```
-   npm run build
+   docker-compose up
    ```
 
 ## Deployment
 
-This application is designed to be deployed on Render as a Static Site.
+The application is configured for deployment on Render.com with the following setup:
 
-## Environment Variables for Production
+1. **Static Site**:
+   - Build Command: `chmod +x build.sh && ./build.sh`
+   - Publish Directory: `build`
+   - Environment Variables:
+     - `REACT_APP_API_URL`: Your backend URL (e.g., https://api.i-timeline.com)
+     - `REACT_APP_CLOUDINARY_CLOUD_NAME`: Your Cloudinary cloud name
 
-- `REACT_APP_API_URL` - URL of the backend API
-- `REACT_APP_ENV` - Set to 'production'
+## Configuration
 
-## Future Enhancements
+The application uses environment variables for configuration. These can be set in a `.env` file for local development or in the Render dashboard for production:
 
-1. **Profile Personalization**: Users can customize their profile backgrounds
-2. Timeline filters (day/week/month/year)
-3. Enhanced hashtag system
-4. Social features (comments, likes, sharing)
-5. Additional timeline type support
-6. Online Mailbox Feature: Users can send and receive mail visually, using themed stationery
+- `REACT_APP_API_URL`: URL of the backend API
+- `REACT_APP_CLOUDINARY_CLOUD_NAME`: Cloudinary cloud name for image optimization
+
+## Best Practices
+
+### Environment-Specific Configuration
+- The application uses environment variables to avoid hardcoded values
+- API URLs are configured based on the environment
+- Configuration is centralized in `src/config.js`
+
+### API Communication
+- All API calls are made through the Axios client
+- API base URL is configured through environment variables
+- Authentication tokens are handled by interceptors
+
+## Troubleshooting
+
+- **API Connection Issues**: Verify that `REACT_APP_API_URL` is correctly set and the backend is running
+- **Authentication Problems**: Check that the JWT token is being properly stored and sent with requests
+- **Image Loading Issues**: Confirm that Cloudinary is properly configured
+- **Cross-Origin Errors**: Ensure that CORS is properly configured on the backend
+
+## Browser Compatibility
+
+The application is tested and compatible with:
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
