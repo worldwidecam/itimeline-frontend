@@ -81,54 +81,202 @@ const EventCounter = ({
 
   // Position view cycling functions
   const goToPreviousPosition = () => {
-    if (positionViewEvents.length === 0) return;
+    if (!positionViewEvents || positionViewEvents.length === 0) return;
     
-    if (sortOrder === 'newest') {
-      onChangeIndex(currentIndex < positionViewEvents.length - 1 ? currentIndex + 1 : 0);
+    // Make sure currentIndex is valid
+    if (currentIndex < 0 || currentIndex >= positionViewEvents.length) {
+      // Reset to a valid index if current is invalid
+      onChangeIndex(0);
+      return;
+    }
+    
+    // Always navigate to chronologically older event (left on timeline)
+    const currentEvent = positionViewEvents[currentIndex];
+    if (!currentEvent || !currentEvent.event_date) {
+      console.error('Current event or event date is undefined', { currentIndex, currentEvent });
+      return;
+    }
+    
+    const currentDate = new Date(currentEvent.event_date);
+    
+    // Find the next older event
+    let olderEvents = positionViewEvents.filter(event => 
+      event && event.event_date && new Date(event.event_date) < currentDate
+    );
+    
+    if (olderEvents.length > 0) {
+      // Sort by date descending to get the closest older event
+      olderEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+      const closestOlderEvent = olderEvents[0];
+      const newIndex = positionViewEvents.findIndex(e => e && e.id === closestOlderEvent.id);
+      if (newIndex !== -1) {
+        onChangeIndex(newIndex);
+      }
     } else {
-      onChangeIndex(currentIndex > 0 ? currentIndex - 1 : positionViewEvents.length - 1);
+      // If no older events, wrap around to the oldest event
+      const validEvents = positionViewEvents.filter(event => event && event.event_date);
+      if (validEvents.length === 0) return;
+      
+      const sortedByDate = [...validEvents].sort((a, b) => 
+        new Date(b.event_date) - new Date(a.event_date)
+      );
+      const oldestEvent = sortedByDate[sortedByDate.length - 1]; // Get the oldest event
+      const newIndex = positionViewEvents.findIndex(e => e && e.id === oldestEvent.id);
+      if (newIndex !== -1) {
+        onChangeIndex(newIndex);
+      }
     }
   };
 
   const goToNextPosition = () => {
-    if (positionViewEvents.length === 0) return;
+    if (!positionViewEvents || positionViewEvents.length === 0) return;
     
-    if (sortOrder === 'newest') {
-      onChangeIndex(currentIndex > 0 ? currentIndex - 1 : positionViewEvents.length - 1);
+    // Make sure currentIndex is valid
+    if (currentIndex < 0 || currentIndex >= positionViewEvents.length) {
+      // Reset to a valid index if current is invalid
+      onChangeIndex(0);
+      return;
+    }
+    
+    // Always navigate to chronologically newer event (right on timeline)
+    const currentEvent = positionViewEvents[currentIndex];
+    if (!currentEvent || !currentEvent.event_date) {
+      console.error('Current event or event date is undefined', { currentIndex, currentEvent });
+      return;
+    }
+    
+    const currentDate = new Date(currentEvent.event_date);
+    
+    // Find the next newer event
+    let newerEvents = positionViewEvents.filter(event => 
+      event && event.event_date && new Date(event.event_date) > currentDate
+    );
+    
+    if (newerEvents.length > 0) {
+      // Sort by date ascending to get the closest newer event
+      newerEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+      const closestNewerEvent = newerEvents[0];
+      const newIndex = positionViewEvents.findIndex(e => e && e.id === closestNewerEvent.id);
+      if (newIndex !== -1) {
+        onChangeIndex(newIndex);
+      }
     } else {
-      onChangeIndex(currentIndex < positionViewEvents.length - 1 ? currentIndex + 1 : 0);
+      // If no newer events, wrap around to the newest event
+      const validEvents = positionViewEvents.filter(event => event && event.event_date);
+      if (validEvents.length === 0) return;
+      
+      const sortedByDate = [...validEvents].sort((a, b) => 
+        new Date(a.event_date) - new Date(b.event_date)
+      );
+      const newestEvent = sortedByDate[0]; // Get the newest event
+      const newIndex = positionViewEvents.findIndex(e => e && e.id === newestEvent.id);
+      if (newIndex !== -1) {
+        onChangeIndex(newIndex);
+      }
     }
   };
 
   // Day view cycling functions
   const goToPrevious = () => {
-    if (dayViewEvents.length === 0) return;
+    if (!dayViewEvents || dayViewEvents.length === 0) return;
     
-    let newIndex;
-    if (sortOrder === 'newest') {
-      newIndex = dayViewIndex < dayViewEvents.length - 1 ? dayViewIndex + 1 : 0;
-    } else {
-      newIndex = dayViewIndex > 0 ? dayViewIndex - 1 : dayViewEvents.length - 1;
+    // Make sure dayViewIndex is valid
+    if (dayViewIndex < 0 || dayViewIndex >= dayViewEvents.length) {
+      // Reset to a valid index if current is invalid
+      setDayViewIndex(0);
+      onChangeIndex(0);
+      return;
     }
     
-    setDayViewIndex(newIndex);
-    // Also update the main index to ensure event markers are highlighted
-    onChangeIndex(newIndex);
+    // Always navigate to chronologically older event (left on timeline)
+    const currentEvent = dayViewEvents[dayViewIndex];
+    if (!currentEvent || !currentEvent.event_date) {
+      console.error('Current event or event date is undefined', { dayViewIndex, currentEvent });
+      return;
+    }
+    
+    const currentDate = new Date(currentEvent.event_date);
+    
+    // Find the next older event
+    let olderEvents = dayViewEvents.filter(event => 
+      event && event.event_date && new Date(event.event_date) < currentDate
+    );
+    
+    if (olderEvents.length > 0) {
+      // Sort by date descending to get the closest older event
+      olderEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+      const closestOlderEvent = olderEvents[0];
+      const newIndex = dayViewEvents.findIndex(e => e && e.id === closestOlderEvent.id);
+      if (newIndex !== -1) {
+        setDayViewIndex(newIndex);
+        onChangeIndex(newIndex);
+      }
+    } else {
+      // If no older events, wrap around to the oldest event
+      const validEvents = dayViewEvents.filter(event => event && event.event_date);
+      if (validEvents.length === 0) return;
+      
+      const sortedByDate = [...validEvents].sort((a, b) => 
+        new Date(b.event_date) - new Date(a.event_date)
+      );
+      const oldestEvent = sortedByDate[sortedByDate.length - 1]; // Get the oldest event
+      const newIndex = dayViewEvents.findIndex(e => e && e.id === oldestEvent.id);
+      if (newIndex !== -1) {
+        setDayViewIndex(newIndex);
+        onChangeIndex(newIndex);
+      }
+    }
   };
 
   const goToNext = () => {
-    if (dayViewEvents.length === 0) return;
+    if (!dayViewEvents || dayViewEvents.length === 0) return;
     
-    let newIndex;
-    if (sortOrder === 'newest') {
-      newIndex = dayViewIndex > 0 ? dayViewIndex - 1 : dayViewEvents.length - 1;
-    } else {
-      newIndex = dayViewIndex < dayViewEvents.length - 1 ? dayViewIndex + 1 : 0;
+    // Make sure dayViewIndex is valid
+    if (dayViewIndex < 0 || dayViewIndex >= dayViewEvents.length) {
+      // Reset to a valid index if current is invalid
+      setDayViewIndex(0);
+      onChangeIndex(0);
+      return;
     }
     
-    setDayViewIndex(newIndex);
-    // Also update the main index to ensure event markers are highlighted
-    onChangeIndex(newIndex);
+    // Always navigate to chronologically newer event (right on timeline)
+    const currentEvent = dayViewEvents[dayViewIndex];
+    if (!currentEvent || !currentEvent.event_date) {
+      console.error('Current event or event date is undefined', { dayViewIndex, currentEvent });
+      return;
+    }
+    
+    const currentDate = new Date(currentEvent.event_date);
+    
+    // Find the next newer event
+    let newerEvents = dayViewEvents.filter(event => 
+      event && event.event_date && new Date(event.event_date) > currentDate
+    );
+    
+    if (newerEvents.length > 0) {
+      // Sort by date ascending to get the closest newer event
+      newerEvents.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+      const closestNewerEvent = newerEvents[0];
+      const newIndex = dayViewEvents.findIndex(e => e && e.id === closestNewerEvent.id);
+      if (newIndex !== -1) {
+        setDayViewIndex(newIndex);
+        onChangeIndex(newIndex);
+      }
+    } else {
+      // If no newer events, wrap around to the newest event
+      const validEvents = dayViewEvents.filter(event => event && event.event_date);
+      if (validEvents.length === 0) return;
+      
+      const sortedByDate = [...validEvents].sort((a, b) => 
+        new Date(a.event_date) - new Date(b.event_date)
+      );
+      const newestEvent = sortedByDate[0]; // Get the newest event
+      const newIndex = dayViewEvents.findIndex(e => e && e.id === newestEvent.id);
+      if (newIndex !== -1) {
+        setDayViewIndex(newIndex);
+        onChangeIndex(newIndex);
+      }
+    }
   };
 
   return (
@@ -180,7 +328,7 @@ const EventCounter = ({
               goToPrevious={goToPrevious}
               goToNext={goToNext}
               compact={true}
-              showEventInfo={true}
+              showEventInfo={false}
             />
           ) : (
             <Typography variant="caption" color="text.secondary">
@@ -202,7 +350,7 @@ const EventCounter = ({
               goToPrevious={goToPreviousPosition}
               goToNext={goToNextPosition}
               compact={true}
-              showEventInfo={true}
+              showEventInfo={false}
             />
           ) : (
             <Typography variant="caption" color="text.secondary">

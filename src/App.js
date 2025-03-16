@@ -226,20 +226,12 @@ const Homepage = () => {
                     </CardContent>
                     <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
                       <Button 
-                        size="small" 
+                        size="small"
                         variant="contained"
                         color="primary"
                         onClick={() => navigate(`/timeline-v3/${timeline.id}`)}
                       >
                         Open Timeline
-                      </Button>
-                      <Button 
-                        size="small"
-                        variant="contained"
-                        color="error"
-                        onClick={() => handleDeleteClick(timeline)}
-                      >
-                        Delete
                       </Button>
                     </CardActions>
                   </Card>
