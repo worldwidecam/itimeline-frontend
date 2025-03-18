@@ -113,15 +113,16 @@ const EventCounter = ({
         onChangeIndex(newIndex);
       }
     } else {
-      // If no older events, wrap around to the oldest event
+      // If no older events, wrap around to the NEWEST event (far right)
       const validEvents = positionViewEvents.filter(event => event && event.event_date);
       if (validEvents.length === 0) return;
       
+      // Sort by date ascending to get the newest event
       const sortedByDate = [...validEvents].sort((a, b) => 
-        new Date(b.event_date) - new Date(a.event_date)
+        new Date(a.event_date) - new Date(b.event_date)
       );
-      const oldestEvent = sortedByDate[sortedByDate.length - 1]; // Get the oldest event
-      const newIndex = positionViewEvents.findIndex(e => e && e.id === oldestEvent.id);
+      const newestEvent = sortedByDate[sortedByDate.length - 1]; // Get the newest event
+      const newIndex = positionViewEvents.findIndex(e => e && e.id === newestEvent.id);
       if (newIndex !== -1) {
         onChangeIndex(newIndex);
       }
@@ -161,15 +162,16 @@ const EventCounter = ({
         onChangeIndex(newIndex);
       }
     } else {
-      // If no newer events, wrap around to the newest event
+      // If no newer events, wrap around to the oldest event (far left)
       const validEvents = positionViewEvents.filter(event => event && event.event_date);
       if (validEvents.length === 0) return;
       
+      // Sort by date ascending to get the oldest event
       const sortedByDate = [...validEvents].sort((a, b) => 
         new Date(a.event_date) - new Date(b.event_date)
       );
-      const newestEvent = sortedByDate[0]; // Get the newest event
-      const newIndex = positionViewEvents.findIndex(e => e && e.id === newestEvent.id);
+      const oldestEvent = sortedByDate[0]; // Get the oldest event
+      const newIndex = positionViewEvents.findIndex(e => e && e.id === oldestEvent.id);
       if (newIndex !== -1) {
         onChangeIndex(newIndex);
       }
@@ -212,15 +214,16 @@ const EventCounter = ({
         onChangeIndex(newIndex);
       }
     } else {
-      // If no older events, wrap around to the oldest event
+      // If no older events, wrap around to the NEWEST event (far right)
       const validEvents = dayViewEvents.filter(event => event && event.event_date);
       if (validEvents.length === 0) return;
       
+      // Sort by date ascending to get the newest event
       const sortedByDate = [...validEvents].sort((a, b) => 
-        new Date(b.event_date) - new Date(a.event_date)
+        new Date(a.event_date) - new Date(b.event_date)
       );
-      const oldestEvent = sortedByDate[sortedByDate.length - 1]; // Get the oldest event
-      const newIndex = dayViewEvents.findIndex(e => e && e.id === oldestEvent.id);
+      const newestEvent = sortedByDate[sortedByDate.length - 1]; // Get the newest event
+      const newIndex = dayViewEvents.findIndex(e => e && e.id === newestEvent.id);
       if (newIndex !== -1) {
         setDayViewIndex(newIndex);
         onChangeIndex(newIndex);
@@ -263,15 +266,16 @@ const EventCounter = ({
         onChangeIndex(newIndex);
       }
     } else {
-      // If no newer events, wrap around to the newest event
+      // If no newer events, wrap around to the OLDEST event (far left)
       const validEvents = dayViewEvents.filter(event => event && event.event_date);
       if (validEvents.length === 0) return;
       
+      // Sort by date ascending to get the oldest event
       const sortedByDate = [...validEvents].sort((a, b) => 
         new Date(a.event_date) - new Date(b.event_date)
       );
-      const newestEvent = sortedByDate[0]; // Get the newest event
-      const newIndex = dayViewEvents.findIndex(e => e && e.id === newestEvent.id);
+      const oldestEvent = sortedByDate[0]; // Get the oldest event
+      const newIndex = dayViewEvents.findIndex(e => e && e.id === oldestEvent.id);
       if (newIndex !== -1) {
         setDayViewIndex(newIndex);
         onChangeIndex(newIndex);
