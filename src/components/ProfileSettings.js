@@ -240,7 +240,18 @@ const ProfileSettings = () => {
     }
   };
 
-  const handleMusicSubmit = async () => {
+  const handleMusicSubmit = async (e) => {
+    if (e) e.preventDefault();
+    
+    if (!musicFile) {
+      setError('Please select a music file to upload');
+      return;
+    }
+    
+    setError('');
+    setSuccess('');
+    setIsUploading(true);
+    
     try {
       const formData = new FormData();
       formData.append('music', musicFile);
@@ -251,13 +262,24 @@ const ProfileSettings = () => {
         {
           headers: {
             'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            const progress = (progressEvent.loaded / progressEvent.total) * 100;
+            setUploadProgress(progress);
           }
         }
       );
+      console.log('Music update response:', response.data);
       setSuccess('Music updated successfully');
       setMusicData(response.data);
+      // Clear the file input
+      setMusicFile(null);
+      setFileInfo(prev => ({ ...prev, music: null }));
     } catch (error) {
+      console.error('Music update error:', error);
       setError(error.response?.data?.error || 'Failed to update music');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -340,7 +362,7 @@ const ProfileSettings = () => {
           />
         </Box>
         
-        {error && (
+        {error && !error.includes('music') && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
@@ -518,6 +540,18 @@ const ProfileSettings = () => {
                   <InfoIcon color="action" sx={{ fontSize: 20 }} />
                 </Tooltip>
               </Typography>
+              
+              {/* Music upload error message */}
+              {error && error.includes('music') && (
+                <Alert 
+                  severity="error" 
+                  sx={{ mb: 2 }}
+                  onClose={() => setError('')}
+                >
+                  {error}
+                </Alert>
+              )}
+              
               <Box {...getMusicRootProps()}
                 sx={{ 
                   border: '2px dashed',
@@ -560,6 +594,17 @@ const ProfileSettings = () => {
                   <MusicPlayer url={musicPreview || musicData?.music_url} />
                 </Box>
               )}
+              
+              {/* Music-specific success message */}
+              {success && success.includes('Music') && (
+                <Alert 
+                  severity="success" 
+                  sx={{ mt: 2, mb: 2 }}
+                  onClose={() => setSuccess('')}
+                >
+                  {success}
+                </Alert>
+              )}
             </Grid>
 
             {isUploading && (
@@ -601,7 +646,7 @@ const ProfileSettings = () => {
         </Box>
         
         <Snackbar
-          open={Boolean(success)}
+          open={Boolean(success) && !success.includes('Music')}
           autoHideDuration={6000}
           onClose={() => setSuccess('')}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}

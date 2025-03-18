@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, IconButton, Typography, Slider } from '@mui/material';
+import { Box, IconButton, Typography, Slider, Tooltip } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
+import LoopIcon from '@mui/icons-material/Loop';
 
 const MusicPlayer = ({ url, platform }) => {
   const audioRef = useRef(null);
   const fadeInterval = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [error, setError] = useState(null);
 
@@ -61,6 +63,7 @@ const MusicPlayer = ({ url, platform }) => {
         
         if (currentVol >= targetVol) {
           clearInterval(fadeInterval.current);
+          fadeInterval.current = null;
         }
       }, intervalTime);
     } catch (err) {
@@ -69,15 +72,44 @@ const MusicPlayer = ({ url, platform }) => {
     }
   };
 
+  const fadeOutVolume = (callback) => {
+    if (!audioRef.current || !isPlaying) {
+      if (callback) callback();
+      return;
+    }
+    
+    let currentVol = audioRef.current.volume;
+    const steps = 20; // Number of steps in fade
+    const decrement = currentVol / steps;
+    const intervalTime = 50; // Time between steps in ms
+    
+    // Clear any existing fade interval
+    if (fadeInterval.current) {
+      clearInterval(fadeInterval.current);
+    }
+    
+    // Create new fade out interval
+    fadeInterval.current = setInterval(() => {
+      currentVol = Math.max(0, currentVol - decrement);
+      if (audioRef.current) {
+        audioRef.current.volume = currentVol;
+      }
+      
+      if (currentVol <= 0) {
+        clearInterval(fadeInterval.current);
+        fadeInterval.current = null;
+        if (callback) callback();
+      }
+    }, intervalTime);
+  };
+
   const handlePlayPause = () => {
     if (audioRef.current) {
       if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-        // Clear any ongoing fade
-        if (fadeInterval.current) {
-          clearInterval(fadeInterval.current);
-        }
+        fadeOutVolume(() => {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        });
       } else {
         fadeInVolume();
       }
@@ -102,6 +134,20 @@ const MusicPlayer = ({ url, platform }) => {
     }
   };
 
+  const handleLoopToggle = () => {
+    if (audioRef.current) {
+      audioRef.current.loop = !isLooping;
+      setIsLooping(!isLooping);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    // If not looping, set isPlaying to false
+    if (!isLooping) {
+      setIsPlaying(false);
+    }
+  };
+
   if (!url) return null;
 
   return (
@@ -119,8 +165,9 @@ const MusicPlayer = ({ url, platform }) => {
       <audio
         ref={audioRef}
         src={url}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={handleAudioEnded}
         onError={() => setError('Unable to play audio. Please check the URL.')}
+        loop={isLooping}
       />
       
       <IconButton 
@@ -143,6 +190,16 @@ const MusicPlayer = ({ url, platform }) => {
           aria-label="Volume"
           sx={{ width: 100 }}
         />
+        
+        <Tooltip title={isLooping ? "Disable loop" : "Enable loop"}>
+          <IconButton 
+            onClick={handleLoopToggle} 
+            size="small"
+            color={isLooping ? "primary" : "default"}
+          >
+            <LoopIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {error && (
