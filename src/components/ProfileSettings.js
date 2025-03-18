@@ -215,14 +215,25 @@ const ProfileSettings = () => {
       console.log('Profile update response:', response.data);
 
       if (updateProfile) {
-        updateProfile(response.data);
+        try {
+          // Update the user data in the auth context
+          await updateProfile(response.data);
+          setSuccess('Profile updated successfully');
+          
+          // Don't reload the page, just update the UI
+          // This prevents the token refresh issues that cause logout
+          setPreviewUrl(response.data.avatar_url);
+        } catch (updateError) {
+          console.error('Error updating profile in context:', updateError);
+          // Even if context update fails, we still have the updated data from the API
+          setSuccess('Profile updated successfully, but there was an issue refreshing the page data');
+        }
+      } else {
+        setSuccess('Profile updated successfully');
+        setPreviewUrl(response.data.avatar_url);
       }
-      setSuccess('Profile updated successfully');
-      
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
     } catch (err) {
+      console.error('Profile update error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to update profile');
     } finally {
       setIsUploading(false);

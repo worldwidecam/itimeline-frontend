@@ -141,10 +141,15 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updatedData) => {
     try {
-      const response = await api.put('/api/auth/profile', updatedData);
-      setUser(response.data);
+      // Don't make a separate API call here since the profile update
+      // was already done in the ProfileSettings component
+      setUser(prevUser => ({
+        ...prevUser,
+        ...updatedData
+      }));
+      return updatedData;
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error updating profile in context:', error);
       throw new Error(error.response?.data?.error || 'Failed to update profile');
     }
   };
