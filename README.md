@@ -20,6 +20,15 @@ Frontend application for the iTimeline platform, a modern web application for cr
   - Updates automatically as users navigate through different timeline views
   - Accounts for partially visible markers at screen edges
 
+### Date and Time Handling
+- **Raw Date String Storage**: Stores event dates as raw strings in the format `MM.DD.YYYY.HH.MM.AMPM`
+- **Exact User Time Preservation**: Uses the `is_exact_user_time` flag to indicate user-selected times
+- **Timezone-Independent Display**: Ensures accurate representation of user-inputted event dates regardless of server timezone
+- **Dual Timestamp System**:
+  - **Event Date**: The user-selected date and time for the event (what happened when)
+  - **Published Date**: The server timestamp when the event was created (when it was recorded)
+- **Backward Compatibility**: Maintains ISO date format support for legacy features
+
 ## Technical Stack
 
 - **Framework**: React.js
