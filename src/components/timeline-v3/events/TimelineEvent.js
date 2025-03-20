@@ -47,8 +47,67 @@ const TimelineEvent = ({ event, position = 'left', onDelete }) => {
 
   const formatEventDate = (date) => {
     try {
-      return format(new Date(date), 'PPP p'); // e.g., "April 29, 1945 at 3:30 PM"
+      console.log('===== EVENT DATE FORMATTING DEBUG =====');
+      console.log('Original date string:', date);
+      console.log('is_exact_user_time flag:', event.is_exact_user_time);
+      console.log('Raw event date:', event.raw_event_date);
+      
+      // NEW APPROACH: If we have a raw date string, use it directly
+      if (event.raw_event_date && event.is_exact_user_time === true) {
+        try {
+          // Parse the raw date string format: MM.DD.YYYY.HH.MM.AMPM
+          const parts = event.raw_event_date.split('.');
+          if (parts.length >= 6) {
+            const month = parseInt(parts[0]);
+            const day = parseInt(parts[1]);
+            const year = parseInt(parts[2]);
+            const hour = parseInt(parts[3]);
+            const minute = parts[4].padStart(2, '0');
+            const ampm = parts[5].toUpperCase();
+            
+            // Format the date in a user-friendly way
+            const monthNames = [
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            
+            const formattedDate = `${monthNames[month-1]} ${day}, ${year} at ${hour}:${minute} ${ampm}`;
+            console.log('Formatted date from raw string:', formattedDate);
+            console.log('=======================================');
+            return formattedDate;
+          }
+        } catch (error) {
+          console.error('Error parsing raw date string:', error);
+          // Fall back to the next method
+        }
+      }
+      
+      // Check if this event has the exact user time flag (fallback to old method)
+      if (event.is_exact_user_time === true) {
+        // For user-selected times, parse the date components directly
+        // This ensures we display exactly what the user selected
+        const dateObj = new Date(date);
+        
+        // Check if it's a valid date
+        if (isNaN(dateObj.getTime())) {
+          console.error('Invalid date:', date);
+          return 'Date unknown';
+        }
+        
+        // Format the date using date-fns
+        const formattedDate = format(dateObj, 'PPP p'); // e.g., "April 29, 1945 at 3:30 PM"
+        console.log('Formatted date with exact user time:', formattedDate);
+        console.log('=======================================');
+        return formattedDate;
+      } else {
+        // For non-exact times, use the server's time
+        const formattedDate = format(new Date(date), 'PPP p');
+        console.log('Formatted date with server time:', formattedDate);
+        console.log('=======================================');
+        return formattedDate;
+      }
     } catch (e) {
+      console.error('Error formatting event date:', e, date);
       return 'Date unknown';
     }
   };

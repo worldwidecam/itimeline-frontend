@@ -391,15 +391,35 @@ function TimelineV3() {
       const originalDate = new Date(eventData.event_date);
       console.log('Original date before adjustment:', originalDate);
       
-      // Subtract 8 hours to counteract the timezone issue
-      const adjustedDate = new Date(originalDate.getTime() - (8 * 60 * 60 * 1000));
-      console.log('Adjusted date (8 hours subtracted):', adjustedDate);
+      // Extract date components for raw date string
+      const year = originalDate.getFullYear();
+      const month = originalDate.getMonth() + 1; // Month is 0-indexed in JS
+      const day = originalDate.getDate();
+      const hours = originalDate.getHours();
+      const minutes = String(originalDate.getMinutes()).padStart(2, '0');
       
-      // Use the adjusted date in the request
+      // Determine AM/PM
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      
+      // Convert to 12-hour format for display
+      const displayHours = hours % 12;
+      const displayHoursFormatted = displayHours ? displayHours : 12; // Convert 0 to 12
+      
+      // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
+      const rawDateString = `${month}.${day}.${year}.${displayHoursFormatted}.${minutes}.${ampm}`;
+      
+      console.log('===== EVENT SUBMISSION DEBUG =====');
+      console.log('Original date object:', originalDate);
+      console.log('Created raw date string:', rawDateString);
+      console.log('=================================');
+      
+      // Use the original date in the request along with the raw date string
       const response = await api.post(`/api/timeline-v3/${timelineId}/events`, {
         title: eventData.title,
         description: eventData.description,
-        event_date: adjustedDate.toISOString(), // Use adjusted date
+        event_date: originalDate.toISOString(), // Use original date
+        raw_event_date: rawDateString, // Add raw date string
+        is_exact_user_time: true, // Flag to indicate this is a user-selected time
         type: eventData.type,
         url: eventData.url || '',
         url_title: eventData.url_title || '',

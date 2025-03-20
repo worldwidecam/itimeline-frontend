@@ -132,23 +132,59 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null }) => {
   };
 
   const handleSave = () => {
+    if (!title.trim()) {
+      // Show error or validation message
+      return;
+    }
+
+    // Format the date directly from the components
+    const year = eventDate.getFullYear();
+    const month = eventDate.getMonth() + 1; // Month is 0-indexed in JS
+    const day = eventDate.getDate();
+    const hours = eventDate.getHours();
+    const minutes = eventDate.getMinutes();
+    
+    // Determine AM/PM
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format for display
+    const displayHours = hours % 12;
+    const displayHoursFormatted = displayHours ? displayHours : 12; // Convert 0 to 12
+    
+    // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
+    const rawDateString = `${month}.${day}.${year}.${displayHoursFormatted}.${String(minutes).padStart(2, '0')}.${ampm}`;
+    
+    console.log('===== EVENT SAVE DEBUG =====');
+    console.log('Event date object:', eventDate);
+    console.log('Created raw date string:', rawDateString);
+    console.log('============================');
+
     const eventData = {
-      type: eventType,
       title,
       description,
+      type: eventType,
       event_date: eventDate.toISOString(),
-      tags,
-      ...(url && { url }),
-      ...(mediaFile && { mediaFile }),
-      ...(urlPreview && {
-        url_title: urlPreview.title,
-        url_description: urlPreview.description,
-        url_image: urlPreview.image,
-        url_source: urlPreview.source,
-      }),
+      raw_event_date: rawDateString,
+      is_exact_user_time: true
     };
+
+    if (eventType === EVENT_TYPES.NEWS && urlPreview) {
+      eventData.url = url;
+      eventData.url_title = urlPreview.title || '';
+      eventData.url_description = urlPreview.description || '';
+      eventData.url_image = urlPreview.image || '';
+    }
+
+    if (eventType === EVENT_TYPES.MEDIA && mediaFile) {
+      eventData.media_url = mediaPreview;
+      eventData.media_type = mediaFile.type;
+    }
+
+    if (tags.length > 0) {
+      eventData.tags = tags;
+    }
+
     onSave(eventData);
-    resetForm();
   };
 
   const getTypeColor = () => {

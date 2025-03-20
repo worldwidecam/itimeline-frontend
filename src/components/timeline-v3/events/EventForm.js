@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -30,24 +29,44 @@ import {
   Newspaper as NewsIcon,
   Movie as MediaIcon,
 } from '@mui/icons-material';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { useState, useEffect } from 'react';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_METADATA } from './EventTypes';
 
 const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    event_date: new Date().toISOString(),
-    type: EVENT_TYPES.REMARK, // Default to remark
-    url: '',
-    url_title: '',
-    url_description: '',
-    url_image: '',
-    media_url: '',
-    media_type: '',
-    tags: []
+  const [formData, setFormData] = useState(() => {
+    // Get current date and time components directly without timezone conversions
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed in JS
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    const localDate = `${year}-${month}-${day}`; // YYYY-MM-DD format
+    const localTime = `${hours}:${minutes}`; // HH:MM format (24-hour)
+    
+    console.log('===== FORM INITIALIZATION =====');
+    console.log('Current date object:', now);
+    console.log('Formatted date:', localDate);
+    console.log('Formatted time:', localTime);
+    console.log('===============================');
+    
+    return {
+      title: '',
+      description: '',
+      event_date: localDate, // YYYY-MM-DD format
+      event_time: localTime, // HH:MM format
+      type: EVENT_TYPES.REMARK, // Default to remark
+      url: '',
+      url_title: '',
+      url_description: '',
+      url_image: '',
+      media_url: '',
+      media_type: '',
+      tags: []
+    };
   });
 
   const [loading, setLoading] = useState(false);
@@ -58,10 +77,21 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   useEffect(() => {
     if (open) {
       // Reset form when opened
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed in JS
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      const localDate = `${year}-${month}-${day}`; // YYYY-MM-DD format
+      const localTime = `${hours}:${minutes}`; // HH:MM format (24-hour)
+      
       setFormData({
         title: '',
         description: '',
-        event_date: new Date().toISOString(),
+        event_date: localDate,
+        event_time: localTime,
         type: EVENT_TYPES.REMARK,
         url: '',
         url_title: '',
@@ -71,8 +101,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         media_type: '',
         tags: []
       });
-      setError('');
       setActiveTab(0);
+      setError('');
       setUrlData(null);
     }
   }, [open]);
@@ -92,37 +122,6 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         ...prev,
         type: newType
       }));
-    }
-  };
-
-  const handleDateChange = (newDate) => {
-    if (newDate && !isNaN(newDate)) {
-        // Store the date in ISO format
-        const isoString = newDate.toISOString();
-        
-        // Get timezone offset in minutes
-        // Note: getTimezoneOffset returns minutes WEST of UTC
-        // For PST (UTC-8), it returns +480 minutes
-        const tzOffset = newDate.getTimezoneOffset();
-        const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        
-        console.log('Selected date:', newDate);
-        console.log('ISO string:', isoString);
-        console.log('Timezone offset (minutes):', tzOffset);
-        console.log('Local timezone:', tzName);
-        
-        // For debugging, show what the date would look like in UTC
-        const utcDate = new Date(newDate.valueOf() + tzOffset * 60000);
-        console.log('Date in UTC:', utcDate);
-        
-        setFormData(prev => ({
-            ...prev,
-            event_date: isoString,
-            // Include timezone info for the backend
-            timezone_offset: tzOffset,
-            timezone_name: tzName
-        }));
-        setError('');
     }
   };
 
@@ -164,8 +163,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       setError('Title is required');
       return false;
     }
-    if (!formData.event_date) {
-      setError('Date is required');
+    if (!formData.event_date || !formData.event_time) {
+      setError('Date and time are required');
       return false;
     }
     if (formData.url && !formData.url.startsWith('http')) {
@@ -178,39 +177,90 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
 
     try {
       setLoading(true);
       setError('');
 
-      // Use the event_date directly from formData, which is already in ISO format
-      // from the DateTimePicker component
-      const eventData = {
-        ...formData
-      };
-
-      const response = await api.post(
-        `/api/timeline-v3/${timelineId}/events`,
-        eventData,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
-
-      if (onEventCreated) {
-        onEventCreated(response.data);
+      // Create a copy of the form data for submission
+      const eventData = { ...formData };
+      
+      // Log the raw input values
+      console.log('===== RAW INPUT VALUES =====');
+      console.log('Raw event_date:', eventData.event_date);
+      console.log('Raw event_time:', eventData.event_time);
+      console.log('=============================');
+      
+      // COMPLETELY NEW APPROACH: Format the date as a simple string
+      // Format: MM.DD.YYYY.HH.MM.AMPM
+      if (eventData.event_date && eventData.event_time) {
+        // Parse date components
+        const [year, month, day] = eventData.event_date.split('-');
+        
+        // Parse time components
+        let [hours, minutes] = eventData.event_time.split(':');
+        hours = parseInt(hours);
+        
+        // Determine AM/PM
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        
+        // Convert to 12-hour format for display
+        const displayHours = hours % 12;
+        const displayHoursFormatted = displayHours ? displayHours : 12; // Convert 0 to 12
+        
+        // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
+        const rawDateString = `${parseInt(month)}.${parseInt(day)}.${year}.${displayHoursFormatted}.${minutes}.${ampm}`;
+        
+        console.log('Created raw date string:', rawDateString);
+        
+        // Add to event data
+        eventData.raw_event_date = rawDateString;
+        eventData.is_exact_user_time = true;
+        
+        // Also create a datetime object for backward compatibility
+        // But use the EXACT values from the form without any manipulation
+        const userSelectedDate = new Date(
+          parseInt(year),
+          parseInt(month) - 1, // Month is 0-indexed in JS Date
+          parseInt(day),
+          hours, // Use the exact hour value (24-hour format)
+          parseInt(minutes)
+        );
+        
+        console.log('Created Date object:', userSelectedDate);
+        console.log('Date object ISO string:', userSelectedDate.toISOString());
+        console.log('Date object local string:', userSelectedDate.toString());
+        
+        eventData.event_datetime = userSelectedDate.toISOString();
       }
-
+      
+      console.log('===== FORM SUBMISSION DEBUG =====');
+      console.log('Form data before submission:', formData);
+      console.log('Event date from form:', formData.event_date);
+      console.log('Event time from form:', formData.event_time);
+      console.log('Raw date string:', eventData.raw_event_date);
+      console.log('Final event data being sent:', eventData);
+      console.log('API endpoint:', `/api/timeline-v3/${timelineId}/events`);
+      console.log('================================');
+      
+      // Create the final event data for submission
+      const response = await api.post(`/api/timeline-v3/${timelineId}/events`, eventData);
+      
+      console.log('===== RESPONSE DEBUG =====');
+      console.log('Response from server:', response.data);
+      console.log('Event date from response:', response.data.event_date);
+      console.log('Raw event date from response:', response.data.raw_event_date);
+      console.log('is_exact_user_time in response:', response.data.is_exact_user_time);
+      console.log('================================');
+      
+      onEventCreated(response.data);
       onClose();
     } catch (error) {
       console.error('Error creating event:', error);
-      setError(
-        error.response?.data?.error || 
-        'Failed to create event. Please try again.'
-      );
+      setError(error.response?.data?.error || 'Failed to create event');
     } finally {
       setLoading(false);
     }
@@ -228,6 +278,12 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         return null;
     }
   };
+
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const years = Array.from({ length: 100 }, (_, i) => 2023 - i);
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
   return (
     <Dialog 
@@ -313,12 +369,85 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
               rows={4}
               fullWidth
             />
-            <DateTimePicker
-              label="Event Date & Time"
-              value={new Date(formData.event_date)}
-              onChange={handleDateChange}
-              renderInput={(params) => <TextField {...params} fullWidth />}
-            />
+            <Stack direction="row" spacing={2}>
+              <FormControl fullWidth>
+                <InputLabel>Day</InputLabel>
+                <Select
+                  value={formData.event_date.split('-')[2]}
+                  label="Day"
+                  onChange={(e) => {
+                    const newDate = `${formData.event_date.split('-')[0]}-${formData.event_date.split('-')[1]}-${e.target.value}`;
+                    setFormData(prev => ({ ...prev, event_date: newDate }));
+                  }}
+                >
+                  {days.map((day) => (
+                    <MenuItem key={day} value={String(day).padStart(2, '0')}>{day}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Month</InputLabel>
+                <Select
+                  value={formData.event_date.split('-')[1]}
+                  label="Month"
+                  onChange={(e) => {
+                    const newDate = `${formData.event_date.split('-')[0]}-${e.target.value}-${formData.event_date.split('-')[2]}`;
+                    setFormData(prev => ({ ...prev, event_date: newDate }));
+                  }}
+                >
+                  {months.map((month) => (
+                    <MenuItem key={month} value={String(month).padStart(2, '0')}>{month}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Year</InputLabel>
+                <Select
+                  value={formData.event_date.split('-')[0]}
+                  label="Year"
+                  onChange={(e) => {
+                    const newDate = `${e.target.value}-${formData.event_date.split('-')[1]}-${formData.event_date.split('-')[2]}`;
+                    setFormData(prev => ({ ...prev, event_date: newDate }));
+                  }}
+                >
+                  {years.map((year) => (
+                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
+            <Stack direction="row" spacing={2}>
+              <FormControl fullWidth>
+                <InputLabel>Hour</InputLabel>
+                <Select
+                  value={formData.event_time.split(':')[0]}
+                  label="Hour"
+                  onChange={(e) => {
+                    const newTime = `${e.target.value}:${formData.event_time.split(':')[1]}`;
+                    setFormData(prev => ({ ...prev, event_time: newTime }));
+                  }}
+                >
+                  {hours.map((hour) => (
+                    <MenuItem key={hour} value={hour}>{hour}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Minute</InputLabel>
+                <Select
+                  value={formData.event_time.split(':')[1]}
+                  label="Minute"
+                  onChange={(e) => {
+                    const newTime = `${formData.event_time.split(':')[0]}:${e.target.value}`;
+                    setFormData(prev => ({ ...prev, event_time: newTime }));
+                  }}
+                >
+                  {minutes.map((minute) => (
+                    <MenuItem key={minute} value={minute}>{minute}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
           </Stack>
         )}
 
