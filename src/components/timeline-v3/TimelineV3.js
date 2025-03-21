@@ -486,9 +486,29 @@ function TimelineV3() {
 
       // Add the new event to state and close form
       const newEvent = response.data;
-      setEvents(prev => [...prev, newEvent]);
+      
+      // Add the new event to the events array
+      const updatedEvents = [...events, newEvent];
+      setEvents(updatedEvents);
+      
+      // Select the new event
+      setSelectedEventId(newEvent.id);
+      
+      // Update the current event index to point to the new event
+      setCurrentEventIndex(updatedEvents.length - 1);
+      
+      // Ensure the timeline is refreshed to show the new event marker
+      // This forces a re-render of the event markers
+      window.timelineEventPositions = window.timelineEventPositions || [];
+      
+      // Close the dialog
       setDialogOpen(false);
       setEditingEvent(null);
+      
+      // After a short delay, navigate to the new event to ensure it's visible
+      setTimeout(() => {
+        navigateToEvent(newEvent);
+      }, 300);
     } catch (error) {
       console.error('Error creating event:', error);
       console.error('Error response:', error.response);

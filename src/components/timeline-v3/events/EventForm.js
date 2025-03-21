@@ -113,6 +113,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       const localDate = `${year}-${month}-${day}`; // YYYY-MM-DD format
       const localTime = `${hours}:${minutes}`; // HH:MM format (24-hour)
       
+      // Reset all form state
       setFormData({
         title: '',
         description: '',
@@ -127,9 +128,19 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         media_type: '',
         tags: []
       });
+      
+      // Reset all URL-related state
       setActiveTab(0);
       setError('');
       setUrlData(null);
+      setUrlPreviewFetched(false);
+      previousUrl.current = '';
+      
+      // Clear any pending URL fetch
+      if (urlDebounceTimer.current) {
+        clearTimeout(urlDebounceTimer.current);
+        urlDebounceTimer.current = null;
+      }
     }
   }, [open]);
 
@@ -324,7 +335,50 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       console.log('is_exact_user_time in response:', response.data.is_exact_user_time);
       console.log('================================');
       
+      // Pass the created event back to the parent component
       onEventCreated(response.data);
+      
+      // Reset form state before closing
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      const localDate = `${year}-${month}-${day}`;
+      const localTime = `${hours}:${minutes}`;
+      
+      // Reset all form state
+      setFormData({
+        title: '',
+        description: '',
+        event_date: localDate,
+        event_time: localTime,
+        type: EVENT_TYPES.REMARK,
+        url: '',
+        url_title: '',
+        url_description: '',
+        url_image: '',
+        media_url: '',
+        media_type: '',
+        tags: []
+      });
+      
+      // Reset all URL-related state
+      setActiveTab(0);
+      setError('');
+      setUrlData(null);
+      setUrlPreviewFetched(false);
+      previousUrl.current = '';
+      
+      // Clear any pending URL fetch
+      if (urlDebounceTimer.current) {
+        clearTimeout(urlDebounceTimer.current);
+        urlDebounceTimer.current = null;
+      }
+      
+      // Close the form
       onClose();
     } catch (error) {
       console.error('Error creating event:', error);
