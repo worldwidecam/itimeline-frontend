@@ -13,6 +13,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Paper
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -23,6 +24,8 @@ import {
   Language as LanguageIcon,
   MoreVert as MoreVertIcon,
   Info as InfoIcon,
+  Launch as LaunchIcon,
+  Link as LinkIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -100,15 +103,57 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
     return words.slice(0, 15).join(' ') + '...';
   };
 
+  const truncateDescription = (text) => {
+    if (!text) return '';
+    const words = text.split(/\s+/);
+    if (words.length <= 50) return text;
+    return words.slice(0, 50).join(' ') + '...';
+  };
+
+  // Common sites with known logos
+  const domainLogos = {
+    'facebook.com': 'https://www.facebook.com/images/fb_icon_325x325.png',
+    'instagram.com': 'https://www.instagram.com/static/images/ico/favicon-192.png/68d99ba29cc8.png',
+    'twitter.com': 'https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png',
+    'x.com': 'https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png',
+    'linkedin.com': 'https://static.licdn.com/sc/h/al2o9zrvru7aqj8e1x2rzsrca',
+    'youtube.com': 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png',
+    'youtu.be': 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png',
+    'reddit.com': 'https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png',
+    'google.com': 'https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png',
+    'spotify.com': 'https://open.scdn.co/cdn/images/favicon.5cb2bd30.ico',
+    'open.spotify.com': 'https://open.scdn.co/cdn/images/favicon32.8e66b099.png',
+    'github.com': 'https://github.githubassets.com/favicons/favicon.svg',
+    'medium.com': 'https://miro.medium.com/v2/1*m-R_BkNf1Qjr1YbyOIJY2w.png',
+    'amazon.com': 'https://www.amazon.com/favicon.ico',
+    'netflix.com': 'https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2016.ico',
+    'apple.com': 'https://www.apple.com/favicon.ico',
+    'microsoft.com': 'https://c.s-microsoft.com/favicon.ico',
+    'twitch.tv': 'https://static.twitchcdn.net/assets/favicon-32-e29e246c157142c94346.png'
+  };
+
   // Extract domain from URL and format it nicely
   const getSourceName = (url) => {
     if (!url) return '';
     try {
-      const domain = new URL(url).hostname;
-      // Remove www. and .com/.org/etc to get a cleaner name
+      // Add https:// if missing to make the URL valid for parsing
+      const urlToProcess = url.startsWith('http') ? url : `https://${url}`;
+      const domain = new URL(urlToProcess).hostname;
+      
+      // Remove www. and extract the domain name
       let sourceName = domain.replace(/^www\./i, '');
+      
+      // Handle special cases
+      if (sourceName.includes('facebook.com')) return 'Facebook';
+      if (sourceName.includes('instagram.com')) return 'Instagram';
+      if (sourceName.includes('twitter.com') || sourceName.includes('x.com')) return 'Twitter';
+      if (sourceName.includes('linkedin.com')) return 'LinkedIn';
+      if (sourceName.includes('youtube.com') || sourceName.includes('youtu.be')) return 'YouTube';
+      if (sourceName.includes('google.com')) return 'Google';
+      
       // Split by dots and take the first part (e.g., "nytimes" from "nytimes.com")
       sourceName = sourceName.split('.')[0];
+      
       // Capitalize first letter of each word
       return sourceName
         .split(/[-_]/)
@@ -116,12 +161,112 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
         .join(' ');
     } catch (error) {
       console.error('Error extracting domain:', error);
+      // Return a fallback value instead of empty string
+      return 'Web Link';
+    }
+  };
+
+  // Get fallback image for domain if no specific image is provided
+  const getFallbackImage = (url) => {
+    if (!url) return '';
+    try {
+      const urlToProcess = url.startsWith('http') ? url : `https://${url}`;
+      const domain = new URL(urlToProcess).hostname.toLowerCase();
+      
+      // Check if the domain or any of its parts match known domains
+      for (const [knownDomain, logoUrl] of Object.entries(domainLogos)) {
+        if (domain.includes(knownDomain)) {
+          return logoUrl;
+        }
+      }
+      
+      // Try to construct a favicon URL as fallback
+      return `https://${domain}/favicon.ico`;
+    } catch (error) {
+      console.error('Error getting fallback image:', error);
       return '';
     }
   };
 
-  // Check if we have URL preview data
-  const hasUrlPreview = event.url_image || event.url_title || event.url_description;
+  // Determine if the image is from YouTube
+  const isYouTubeImage = (url) => {
+    if (!url) return false;
+    try {
+      return url.includes('youtube.com') || 
+             url.includes('youtu.be') || 
+             url.includes('ytimg.com') || 
+             url.includes('yt');
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // Determine if the image is a logo (fallback)
+  const isLogoImage = (url) => {
+    if (!url) return false;
+    try {
+      // First check if the image URL itself matches any of our known logo URLs
+      for (const logoUrl of Object.values(domainLogos)) {
+        if (url.includes(logoUrl) || logoUrl.includes(url)) {
+          return true;
+        }
+      }
+      
+      // Check if the URL contains common logo indicators
+      if (url.includes('favicon') || 
+          url.includes('logo') || 
+          url.includes('icon') || 
+          url.includes('brand')) {
+        return true;
+      }
+      
+      // Check if the URL is from a known domain with logos
+      try {
+        const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
+        const domain = urlObj.hostname.toLowerCase();
+        
+        // Check if the domain matches any of our known domains with logos
+        for (const [knownDomain] of Object.entries(domainLogos)) {
+          if (domain.includes(knownDomain)) {
+            return true;
+          }
+        }
+      } catch (error) {
+        // If URL parsing fails, just continue with other checks
+        console.error('Error parsing URL in isLogoImage:', error);
+      }
+      
+      // Check if the image is likely a small icon/logo based on filename
+      const filename = url.split('/').pop().toLowerCase();
+      if (filename.includes('favicon') || 
+          filename.includes('logo') || 
+          filename.includes('icon') || 
+          filename.includes('brand')) {
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking if logo image:', error);
+      return false;
+    }
+  };
+
+  // Check if the image is an actual content image vs a fallback logo
+  const isActualImage = (url) => {
+    if (!url) return false;
+    try {
+      return !isLogoImage(url);
+    } catch (error) {
+      console.error('Error checking if actual image:', error);
+      return false;
+    }
+  };
+
+  // Determine if we have enough data to show a URL preview
+  const hasUrlPreview = Boolean(
+    event.url && (event.url_title || event.url_description || event.url_image)
+  );
 
   return (
     <>
@@ -220,123 +365,166 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
           </Box>
 
           {/* URL Preview Card */}
-          {event.url && (
+          {hasUrlPreview && (
             <Link 
-              href={event.url} 
+              href={event.url.startsWith('http') ? event.url : `https://${event.url}`} 
               target="_blank" 
               rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+              underline="none"
               sx={{ 
-                textDecoration: 'none',
-                display: 'block',
-                mb: 2,
-                maxWidth: '100%',
+                display: 'block', 
+                mb: 1, 
+                color: 'inherit',
+                '&:hover': { 
+                  textDecoration: 'none',
+                  '& .MuiPaper-root': {
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+                  }
+                }
               }}
             >
-              {hasUrlPreview ? (
-                <Card 
-                  sx={{ 
-                    display: 'flex', 
-                    flexDirection: { xs: 'column', sm: event.url_image ? 'column' : 'row' },
-                    overflow: 'hidden',
-                    maxWidth: '100%',
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      boxShadow: theme.shadows[4],
-                      transform: 'translateY(-2px)'
-                    }
-                  }}
-                >
-                  {event.url_image && (
-                    <CardMedia
-                      component="img"
-                      height="140"
-                      image={event.url_image}
-                      alt={event.url_title || "Link preview image"}
-                      sx={{ 
-                        objectFit: 'cover',
-                        width: '100%',
-                        maxHeight: '140px',
-                      }}
-                    />
-                  )}
-                  <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                      <Chip 
-                        icon={<LanguageIcon />} 
-                        label={getSourceName(event.url)}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  overflow: 'hidden',
+                  transition: 'box-shadow 0.2s ease-in-out',
+                  backgroundColor: 'background.paper'
+                }}
+              >
+                {/* For YouTube and Logo images, use side-by-side layout */}
+                {(isYouTubeImage(event.url_image) || isLogoImage(event.url_image)) ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'row' }}>
+                    {/* Image on the left */}
+                    <Box sx={{
+                      width: isLogoImage(event.url_image) ? '120px' : '180px',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: isLogoImage(event.url_image) ? 'background.paper' : 'transparent',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      padding: isLogoImage(event.url_image) ? 1 : 0,
+                    }}>
+                      <CardMedia
+                        component="img"
+                        height="auto"
+                        image={event.url_image || getFallbackImage(event.url)}
+                        alt={event.url_title || getSourceName(event.url) || "Link preview image"}
                         sx={{ 
-                          height: 24,
-                          '& .MuiChip-label': { px: 1 },
-                          '& .MuiChip-icon': { fontSize: 16 }
+                          objectFit: 'contain',
+                          width: 'auto',
+                          maxHeight: isLogoImage(event.url_image) ? '100px' : '180px',
+                          display: 'block',
+                          margin: 'auto',
+                          maxWidth: isLogoImage(event.url_image) ? '100px' : '180px'
+                        }}
+                        onError={(e) => {
+                          console.error('Error loading image:', e);
+                          if (event.url_image && getFallbackImage(event.url)) {
+                            e.target.src = getFallbackImage(event.url);
+                            e.target.style.objectFit = 'contain';
+                            e.target.style.maxHeight = '100px';
+                            e.target.style.maxWidth = '100px';
+                            e.target.style.margin = 'auto';
+                            e.target.style.width = 'auto';
+                            e.target.parentElement.style.width = '120px';
+                          } else {
+                            e.target.style.display = 'none';
+                          }
                         }}
                       />
                     </Box>
-                    {event.url_title && (
-                      <Typography 
-                        variant="subtitle1" 
-                        component="div" 
-                        sx={{ 
-                          fontWeight: 'medium', 
-                          mb: 0.5,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {event.url_title}
-                      </Typography>
+                    
+                    {/* Content on the right */}
+                    <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
+                      {event.url_title && (
+                        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                          {event.url_title}
+                        </Typography>
+                      )}
+                      {event.url_description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                          {truncateDescription(event.url_description)}
+                        </Typography>
+                      )}
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                          <LinkIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                          {getSourceName(event.url)}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Box>
+                ) : (
+                  /* For news articles, keep the original stacked layout */
+                  <>
+                    {(event.url_image || getFallbackImage(event.url)) && (
+                      <Box sx={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: 'transparent',
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        height: 'auto',
+                        padding: 0,
+                      }}>
+                        <CardMedia
+                          component="img"
+                          height="240"
+                          image={event.url_image || getFallbackImage(event.url)}
+                          alt={event.url_title || getSourceName(event.url) || "Link preview image"}
+                          sx={{ 
+                            objectFit: 'cover',
+                            width: '100%',
+                            maxHeight: '240px',
+                            display: 'block',
+                            margin: '0',
+                            maxWidth: '100%'
+                          }}
+                          onError={(e) => {
+                            console.error('Error loading image:', e);
+                            if (event.url_image && getFallbackImage(event.url)) {
+                              e.target.src = getFallbackImage(event.url);
+                              e.target.style.objectFit = 'contain';
+                              e.target.style.maxHeight = '100px';
+                              e.target.style.maxWidth = '180px';
+                              e.target.style.margin = 'auto';
+                              e.target.style.width = 'auto';
+                              e.target.parentElement.style.height = '120px';
+                              e.target.parentElement.style.backgroundColor = 'var(--background-paper, #f5f5f5)';
+                              e.target.parentElement.style.padding = '8px';
+                            } else {
+                              e.target.style.display = 'none';
+                            }
+                          }}
+                        />
+                      </Box>
                     )}
-                    {event.url_description && (
-                      <Typography 
-                        variant="body2" 
-                        color="text.secondary" 
-                        sx={{ 
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {event.url_description}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  p: 1, 
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 1,
-                  maxWidth: '100%',
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover
-                  }
-                }}>
-                  <Chip 
-                    icon={<LanguageIcon />} 
-                    label={getSourceName(event.url)}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                    sx={{ 
-                      height: 24,
-                      '& .MuiChip-label': { px: 1 },
-                      '& .MuiChip-icon': { fontSize: 16 }
-                    }}
-                  />
-                </Box>
-              )}
+                    <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
+                      {event.url_title && (
+                        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                          {event.url_title}
+                        </Typography>
+                      )}
+                      {event.url_description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                          {truncateDescription(event.url_description)}
+                        </Typography>
+                      )}
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                          <LinkIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                          {getSourceName(event.url)}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </>
+                )}
+              </Paper>
             </Link>
           )}
-
           <Box sx={{ mt: 'auto' }}>
             <TagList tags={event.tags} />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>

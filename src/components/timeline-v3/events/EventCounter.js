@@ -30,6 +30,13 @@ const EventCounter = ({
     setDayViewIndex(0);
   }, [sortOrder]);
 
+  // Sync dayViewIndex with currentIndex when a marker is clicked
+  useEffect(() => {
+    if (viewMode === 'day') {
+      setDayViewIndex(currentIndex);
+    }
+  }, [currentIndex, viewMode]);
+
   // Get color based on event type
   const getEventColor = (event) => {
     if (!event?.type) return 'primary.main';

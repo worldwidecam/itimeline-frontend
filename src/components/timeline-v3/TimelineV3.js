@@ -261,7 +261,7 @@ function TimelineV3() {
     
     // Add a small buffer to ensure we capture all visible markers
     // This helps account for any rounding or calculation discrepancies
-    const buffer = 1; // Add 1 marker buffer on each side
+    const buffer = 0; // Reduced buffer to show only exactly visible markers
     
     const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount - buffer);
     const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount + buffer);
@@ -327,14 +327,66 @@ function TimelineV3() {
   const handleMarkerClick = (event, index) => {
     console.log('Marker clicked for event:', event, 'at index:', index);
     
-    // Update the current event index to keep the carousel in sync
-    setCurrentEventIndex(index);
-    
     // Set the selected event ID to highlight it in the list
     setSelectedEventId(event.id);
     
     // Don't scroll to the event in the list
     setShouldScrollToEvent(false);
+    
+    // Get the filtered events array that's used by the EventCounter
+    const filteredEvents = events.filter(e => {
+      // Apply the same filtering logic as in EventCounter
+      if (viewMode === 'position') return true;
+      
+      if (!e.event_date) return false;
+      
+      const currentDate = new Date();
+      let startDate, endDate;
+      
+      switch (viewMode) {
+        case 'day': {
+          startDate = new Date(currentDate);
+          startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+          
+          endDate = new Date(currentDate);
+          endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+          break;
+        }
+        case 'week': {
+          startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addDays(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        case 'month': {
+          startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        case 'year': {
+          startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addYears(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        default:
+          return true;
+      }
+      
+      const eventDate = new Date(e.event_date);
+      return eventDate >= startDate && eventDate <= endDate;
+    });
+    
+    // Find the index of the clicked event in the filtered events array
+    const filteredIndex = filteredEvents.findIndex(e => e.id === event.id);
+    
+    // Update the current event index to keep the carousel in sync
+    if (filteredIndex !== -1) {
+      console.log('Setting currentEventIndex to filtered index:', filteredIndex);
+      setCurrentEventIndex(filteredIndex);
+    } else {
+      // If the event isn't in the filtered array, keep the original index
+      console.log('Event not found in filtered array, using original index:', index);
+      setCurrentEventIndex(index);
+    }
   };
 
   // Fetch events when timeline ID changes
@@ -542,7 +594,7 @@ function TimelineV3() {
     
     // Calculate how many steps (button presses) we need
     // Each button press moves by 1 marker, which is 100px
-    // For day view, each marker is an hour, so we need to round to the nearest hour
+    // For day view, each marker represents an hour
     let stepsNeeded;
     
     if (viewMode === 'day') {
@@ -682,6 +734,7 @@ function TimelineV3() {
         { length: distance + 2 }, // Add a couple extra for buffer
         (_, i) => minMarker - (i + 1)
       );
+      console.log(`Preloading left markers: ${minMarker} to ${minMarker - distance - 2}`);
       setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
     } else {
       const maxMarker = Math.max(...markers);
@@ -689,6 +742,7 @@ function TimelineV3() {
         { length: distance + 2 }, // Add a couple extra for buffer
         (_, i) => maxMarker + (i + 1)
       );
+      console.log(`Preloading right markers: ${maxMarker} to ${maxMarker + distance + 2}`);
       setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
     }
     
@@ -998,6 +1052,9 @@ function TimelineV3() {
                 
                 const currentDate = new Date();
                 let startDate, endDate;
+                
+                // Use only the visible markers without any buffer
+                // This ensures we only show events that are actually visible on screen
                 
                 switch (viewMode) {
                   case 'day': {
