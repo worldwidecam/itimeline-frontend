@@ -1171,23 +1171,35 @@ function TimelineV3() {
             style={timelineTransitionStyles}
           />
           {/* Event Markers - only show in time-based views */}
-          {viewMode !== 'position' && events.map((event, index) => (
-            <EventMarker
-              key={event.id}
-              event={event}
-              timelineOffset={timelineOffset}
-              markerSpacing={100}
-              viewMode={viewMode}
-              index={index}
-              totalEvents={events.length}
-              currentIndex={currentEventIndex}
-              onChangeIndex={setCurrentEventIndex}
-              minMarker={Math.min(...markers)}
-              maxMarker={Math.max(...markers)}
-              onClick={handleMarkerClick}
-              style={timelineTransitionStyles}
-            />
-          ))}
+          {viewMode !== 'position' && (
+            <>
+              {/* Initialize the global event positions array for overlapping detection */}
+              {(() => {
+                // Initialize or reset the global event positions array at render time
+                window.timelineEventPositions = window.timelineEventPositions || [];
+                return null;
+              })()}
+              
+              {/* Render event markers */}
+              {events.map((event, index) => (
+                <EventMarker
+                  key={`${event.id}-${event.updated_at || 'new'}`}
+                  event={event}
+                  timelineOffset={timelineOffset}
+                  markerSpacing={100}
+                  viewMode={viewMode}
+                  index={index}
+                  totalEvents={events.length}
+                  currentIndex={currentEventIndex}
+                  onChangeIndex={setCurrentEventIndex}
+                  minMarker={Math.min(...markers)}
+                  maxMarker={Math.max(...markers)}
+                  onClick={handleMarkerClick}
+                  style={timelineTransitionStyles}
+                />
+              ))}
+            </>
+          )}
           <TimeMarkers 
             timelineOffset={timelineOffset}
             markerSpacing={100}

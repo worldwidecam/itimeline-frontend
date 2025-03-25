@@ -176,6 +176,7 @@ const EventList = ({
       event,
       onEdit: onEventEdit,
       onDelete: handleDeleteClick,
+      isSelected, // Pass the isSelected state to the card components
     };
 
     const card = (() => {

@@ -38,34 +38,54 @@ const PageCorner = styled(Box)(({ theme, color }) => ({
   }
 }));
 
+// Styled component for the invisible larger clickable area
+const ClickableOverlay = styled(Box)({
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  width: '70px',  // Larger than the visible corner
+  height: '70px', // Larger than the visible corner
+  background: 'transparent',
+  cursor: 'pointer',
+  zIndex: 9, // Lower than the visual corner but still above other elements
+});
+
 const PageCornerButton = ({ onClick, tooltip = "Details", color }) => {
   const theme = useTheme();
   
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (onClick) onClick(e);
+  };
+  
   return (
     <Tooltip title={tooltip} placement="left">
-      <PageCorner 
-        color={color}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onClick) onClick(e);
-        }}
-      >
-        <motion.div
-          whileTap={{ scale: 0.9 }}
-          style={{
-            position: 'absolute',
-            top: '5px',
-            right: '5px',
-            zIndex: 11,
-            color: theme.palette.mode === 'dark' ? '#fff' : '#fff',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
+      <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
+        {/* Invisible larger clickable area */}
+        <ClickableOverlay onClick={handleClick} />
+        
+        {/* Visual corner element */}
+        <PageCorner 
+          color={color}
+          onClick={handleClick}
         >
-          <MenuIcon fontSize="small" />
-        </motion.div>
-      </PageCorner>
+          <motion.div
+            whileTap={{ scale: 0.9 }}
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '5px',
+              zIndex: 11,
+              color: theme.palette.mode === 'dark' ? '#fff' : '#fff',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <MenuIcon fontSize="small" />
+          </motion.div>
+        </PageCorner>
+      </Box>
     </Tooltip>
   );
 };

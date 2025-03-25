@@ -34,15 +34,24 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 
-const NewsCard = ({ event, onEdit, onDelete }) => {
+const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.NEWS];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
-  const handleMenuOpen = (event) => {
-    setMenuAnchorEl(event.currentTarget);
+  const handleMenuOpen = (e) => {
+    // Prevent the click event from bubbling up to the card
+    e.stopPropagation();
+    
+    // Only open the menu if the card is already selected
+    if (isSelected) {
+      setMenuAnchorEl(e.currentTarget);
+    } else {
+      // If not selected, we need to select it first
+      // The parent component will handle the selection
+    }
   };
 
   const handleMenuClose = () => {
@@ -296,49 +305,6 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
             color={color}
           />
           
-          {/* Menu for edit and delete options */}
-          <Box 
-            sx={{ 
-              position: 'absolute', 
-              top: 8, 
-              right: 45, 
-              zIndex: 10 
-            }}
-          >
-            <IconButton 
-              size="small" 
-              onClick={handleMenuOpen}
-              sx={{ 
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                '&:hover': {
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                }
-              }}
-            >
-              <MoreVertIcon fontSize="small" />
-            </IconButton>
-            <Menu
-              anchorEl={menuAnchorEl}
-              open={Boolean(menuAnchorEl)}
-              onClose={handleMenuClose}
-              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            >
-              <MenuItem onClick={handleEdit}>
-                <ListItemIcon>
-                  <EditIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Edit</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={handleDelete}>
-                <ListItemIcon>
-                  <DeleteIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Delete</ListItemText>
-              </MenuItem>
-            </Menu>
-          </Box>
-
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2, pr: 8 }}>
             <NewsIcon sx={{ color, mt: 0.5 }} />
             <Box sx={{ flex: 1 }}>
@@ -528,6 +494,40 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
           <Box sx={{ mt: 'auto' }}>
             <TagList tags={event.tags} />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
+              <IconButton 
+                size="small" 
+                onClick={handleMenuOpen}
+                sx={{ 
+                  mr: 1,
+                  p: 0.5,
+                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                  }
+                }}
+              >
+                <MoreVertIcon fontSize="small" sx={{ fontSize: '1rem' }} />
+              </IconButton>
+              <Menu
+                anchorEl={menuAnchorEl}
+                open={Boolean(menuAnchorEl)}
+                onClose={handleMenuClose}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              >
+                <MenuItem onClick={handleEdit}>
+                  <ListItemIcon>
+                    <EditIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Edit</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleDelete}>
+                  <ListItemIcon>
+                    <DeleteIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Delete</ListItemText>
+                </MenuItem>
+              </Menu>
               <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
               <Typography 
                 variant="caption" 

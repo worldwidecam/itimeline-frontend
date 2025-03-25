@@ -67,14 +67,16 @@ const EventMarker = ({
           id: event.id,
           x: position.x,
           viewMode,
-          type: event.type
+          type: event.type,
+          eventData: event // Store the full event data for more accurate comparison
         };
       } else {
         eventPositions.push({
           id: event.id,
           x: position.x,
           viewMode,
-          type: event.type
+          type: event.type,
+          eventData: event // Store the full event data for more accurate comparison
         });
       }
       window.timelineEventPositions = eventPositions;
@@ -83,7 +85,7 @@ const EventMarker = ({
       // Larger views (year, month) need larger thresholds
       let proximityThreshold = 10; // Default
       if (viewMode === 'month') proximityThreshold = 15;
-      if (viewMode === 'year') proximityThreshold = 30; // Increased from 20 to 30 for year view
+      if (viewMode === 'year') proximityThreshold = 40; // Increased from 30 to 40 for year view
       
       // Find nearby events with more sophisticated collision detection
       let nearbyEvents = [];
@@ -106,15 +108,43 @@ const EventMarker = ({
             const sameMonth = eventDate.getMonth() === otherEventDate.getMonth();
             const adjacentMonth = Math.abs(eventDate.getMonth() - otherEventDate.getMonth()) <= 1;
             
-            return isClose || (sameMonth && Math.abs(ep.x - position.x) < 50) || 
-                   (adjacentMonth && Math.abs(ep.x - position.x) < 35);
+            return isClose || (sameMonth && Math.abs(ep.x - position.x) < 60) || 
+                   (adjacentMonth && Math.abs(ep.x - position.x) < 45);
           }
           
           // If we can't compare dates, just use horizontal proximity
           return isClose;
         });
+      } else if (viewMode === 'month') {
+        // For month view, consider events in the same week as nearby
+        nearbyEvents = eventPositions.filter(ep => {
+          if (ep.id === event.id || ep.viewMode !== viewMode) return false;
+          
+          // Check if events are close horizontally
+          const isClose = Math.abs(ep.x - position.x) < proximityThreshold;
+          
+          // Compare dates if available
+          if (event && event.event_date && ep.eventData && ep.eventData.event_date) {
+            const eventDate = new Date(event.event_date);
+            const otherEventDate = new Date(ep.eventData.event_date);
+            
+            // Check if events are in the same week
+            const sameWeek = Math.abs(eventDate.getDate() - otherEventDate.getDate()) < 7;
+            
+            return isClose || (sameWeek && Math.abs(ep.x - position.x) < 40);
+          }
+          
+          return isClose;
+        });
+      } else if (viewMode === 'week') {
+        // For week view, use a standard proximity check with slightly increased threshold
+        nearbyEvents = eventPositions.filter(ep => 
+          ep.id !== event.id && 
+          ep.viewMode === viewMode &&
+          Math.abs(ep.x - position.x) < (proximityThreshold + 5)
+        );
       } else {
-        // For other views, use the standard proximity detection
+        // For day view and other views, use the standard proximity detection
         nearbyEvents = eventPositions.filter(ep => 
           ep.id !== event.id && 
           ep.viewMode === viewMode &&
@@ -125,7 +155,14 @@ const EventMarker = ({
       // Calculate overlapping factor with diminishing returns
       // First few overlaps have more impact, then it tapers off
       const baseGrowth = 1;
-      const maxGrowth = 6.0; // Increased maximum growth significantly to make differences more noticeable
+      // Use different max growth values based on view mode
+      let maxGrowth = 6.0; // Default max growth
+      
+      if (viewMode === 'year') {
+        maxGrowth = 10.0; // Significantly higher max growth for year view
+      } else if (viewMode === 'month') {
+        maxGrowth = 7.0; // Slightly higher for month view
+      }
       
       if (nearbyEvents.length === 0) {
         setOverlappingFactor(1);
@@ -133,7 +170,15 @@ const EventMarker = ({
       } else {
         // Logarithmic growth function to prevent excessive height
         // Use a more aggressive logarithmic base for faster growth
-        const factor = baseGrowth + (Math.log(nearbyEvents.length + 1) / Math.log(3));
+        let factor;
+        
+        if (viewMode === 'year') {
+          // More aggressive growth for year view
+          factor = baseGrowth + (Math.log(nearbyEvents.length + 1) / Math.log(2.0));
+        } else {
+          factor = baseGrowth + (Math.log(nearbyEvents.length + 1) / Math.log(2.5));
+        }
+        
         setOverlappingFactor(Math.min(factor, maxGrowth));
         
         // Calculate a subtle horizontal offset based on event ID to prevent perfect alignment
@@ -151,7 +196,7 @@ const EventMarker = ({
         setHorizontalOffset(nearbyEvents.length > 0 ? offsetBase : 0);
       }
     }
-  }, [event.id, event.type, viewMode, position]);
+  }, [event.id, event.type, viewMode, position, event.event_date]);
 
   useEffect(() => {
     if (index === currentIndex && markerRef.current) {
