@@ -146,3 +146,37 @@ The application is tested and compatible with:
 - Firefox (latest)
 - Safari (latest)
 - Edge (latest)
+
+## Known Issues
+
+### Media Display in Event Cards
+
+**Issue Description**: Media files uploaded through the EventForm are not displaying correctly in MediaCard and EventPopup components.
+
+**Current Status**: As of March 25, 2025, we've attempted several approaches to fix this issue:
+
+1. Updated URL construction in the EventForm to store relative URLs in the database
+2. Modified MediaCard and EventPopup components to consistently handle media URLs
+3. Added explicit cache control headers in the backend
+4. Created a dedicated route for serving uploaded files
+5. Added detailed logging throughout the media upload and display process
+
+**Troubleshooting Findings**:
+- Media files are successfully uploaded to the server (confirmed via logs)
+- The backend returns the correct URL path for the uploaded files
+- The frontend correctly constructs the full URL for display
+- Despite these changes, media is still not displaying in the cards
+
+**Possible Causes**:
+- There might be a disconnect between how the MediaCard component expects to receive media URLs and how they're being stored
+- The issue could be related to how the event data is being saved or retrieved from the database
+- There might be browser caching issues preventing the media from displaying
+- The media type detection logic might not be correctly identifying the uploaded files
+
+**Next Steps**:
+- Investigate how the profile avatar and music uploads are implemented, as these are working correctly
+- Check the network requests in the browser to see if the media files are being requested correctly
+- Consider implementing a completely different approach to media handling
+- Review the database schema to ensure media URLs are being stored correctly
+
+This issue is a high priority for the next development sprint.

@@ -10,6 +10,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Avatar,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -19,9 +20,11 @@ import {
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
   MoreVert as MoreVertIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
+import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import TagList from './TagList';
 import EventPopup from '../EventPopup';
@@ -205,6 +208,46 @@ const RemarkCard = ({ event, onEdit, onDelete, isSelected }) => {
                   <ListItemText>Delete</ListItemText>
                 </MenuItem>
               </Menu>
+              <Box sx={{ display: 'flex', alignItems: 'center', mr: 'auto' }}>
+                {event.created_by_avatar ? (
+                  <Avatar 
+                    src={event.created_by_avatar} 
+                    alt={event.created_by_username || "User"} 
+                    sx={{ 
+                      width: 16, 
+                      height: 16, 
+                      mr: 0.5, 
+                      fontSize: '0.75rem' 
+                    }} 
+                  />
+                ) : (
+                  <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
+                )}
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  By{' '}
+                  <Link
+                    component={RouterLink}
+                    to={`/profile/${event.created_by}`}
+                    color="text.secondary"
+                    sx={{ 
+                      ml: 0.5,
+                      textDecoration: 'none',
+                      '&:hover': {
+                        textDecoration: 'underline'
+                      }
+                    }}
+                  >
+                    {event.created_by_username || "Unknown"}
+                  </Link>
+                </Typography>
+              </Box>
               <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
               <Typography variant="caption" color="text.secondary">
                 {formatDate(event.created_at)}

@@ -9,6 +9,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
+import UserProfileView from './components/UserProfileView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { 
@@ -335,6 +336,11 @@ function App() {
                     <Route path="/profile/settings" element={
                       <ProtectedRoute>
                         <ProfileSettings />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/profile/:userId" element={
+                      <ProtectedRoute>
+                        <UserProfileView />
                       </ProtectedRoute>
                     } />
                   </Routes>

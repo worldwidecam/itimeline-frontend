@@ -21,6 +21,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Paper,
+  Link,
 } from '@mui/material';
 import { 
   Close as CloseIcon, 
@@ -29,8 +30,13 @@ import {
   Newspaper as NewsIcon,
   Movie as MediaIcon,
   Link as LinkIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  AudioFile as AudioFileIcon,
+  VideoFile as VideoFileIcon,
 } from '@mui/icons-material';
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useDropzone } from 'react-dropzone';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_METADATA } from './EventTypes';
 
@@ -271,6 +277,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       console.log('===== RAW INPUT VALUES =====');
       console.log('Raw event_date:', eventData.event_date);
       console.log('Raw event_time:', eventData.event_time);
+      console.log('Media URL:', eventData.media_url);
+      console.log('Media Type:', eventData.media_type);
       console.log('=============================');
       
       // COMPLETELY NEW APPROACH: Format the date as a simple string
@@ -314,6 +322,18 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         console.log('Date object local string:', userSelectedDate.toString());
         
         eventData.event_datetime = userSelectedDate.toISOString();
+      }
+      
+      // For Media type events, ensure media_url is used correctly
+      if (eventData.type === EVENT_TYPES.MEDIA && eventData.media_url) {
+        // If we have a media_url from file upload, make sure it's properly included
+        console.log('Media event detected with media_url:', eventData.media_url);
+        
+        // We'll keep both url and media_url for backward compatibility,
+        // but media_url will be the primary source for media content
+        if (!eventData.url) {
+          eventData.url = eventData.media_url;
+        }
       }
       
       console.log('===== FORM SUBMISSION DEBUG =====');
@@ -603,6 +623,76 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
     );
   }, [urlData, formData.url]);
 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: async (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        const file = acceptedFiles[0];
+        console.log('File selected for upload:', {
+          name: file.name,
+          type: file.type,
+          size: `${(file.size / 1024).toFixed(2)} KB`,
+          lastModified: new Date(file.lastModified).toISOString()
+        });
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          setLoading(true);
+          console.log('Starting media upload to /api/upload-media');
+          const response = await api.post('/api/upload-media', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+          
+          console.log('Media upload successful. Response data:', response.data);
+          console.log('Media URL from response:', response.data.url);
+          console.log('Media type from response:', response.data.type);
+          
+          // Create the full URL by combining API_URL with the relative path
+          // IMPORTANT: Store only the relative URL in the database, but use the full URL for display
+          const relativeMediaUrl = response.data.url;
+          const fullMediaUrl = response.data.url.startsWith('http') 
+            ? response.data.url 
+            : `${api.defaults.baseURL}${response.data.url.startsWith('/') ? response.data.url : `/${response.data.url}`}`;
+            
+          console.log('Media upload response:', response.data);
+          console.log('Relative media URL:', relativeMediaUrl);
+          console.log('Full media URL constructed:', fullMediaUrl);
+          
+          // Update the form data with the media information
+          setFormData(prev => {
+            const updatedData = { 
+              ...prev, 
+              media_url: relativeMediaUrl, // Store the relative URL in the database
+              media_type: response.data.type,
+              mediaCategory: response.data.category || '',
+              // If there's no title yet, use the filename as a default title
+              title: prev.title || file.name.split('.')[0].replace(/_/g, ' ')
+            };
+            
+            console.log('Updated form data with media info:', updatedData);
+            return updatedData;
+          });
+          
+          setLoading(false);
+        } catch (error) {
+          console.error('Error uploading media:', error);
+          console.error('Error details:', error.response ? error.response.data : 'No response data');
+          setError('Failed to upload media file. Please try again.');
+          setLoading(false);
+        }
+      }
+    },
+    accept: {
+      'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'],
+      'video/*': ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.wmv', '.flv', '.mkv'],
+      'audio/*': ['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a']
+    },
+    maxSize: 20 * 1024 * 1024, // 20MB max size
+    multiple: false
+  });
+
   return (
     <Dialog 
       open={open} 
@@ -832,6 +922,104 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 )
               }}
             />
+
+            {formData.type === EVENT_TYPES.MEDIA && (
+              <>
+                {formData.media_url ? (
+                  <Box sx={{ 
+                    mt: 2, 
+                    p: 2, 
+                    borderRadius: 1,
+                    backgroundColor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="subtitle1">Media Preview</Typography>
+                      <IconButton 
+                        size="small" 
+                        color="error" 
+                        onClick={() => setFormData(prev => ({ ...prev, media_url: '', media_type: '' }))}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                    
+                    {/* Media preview based on type */}
+                    {formData.media_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(formData.media_url) ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <img 
+                          src={formData.media_url} 
+                          alt="Media preview" 
+                          style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '200px',
+                            objectFit: 'contain',
+                            borderRadius: 4
+                          }} 
+                        />
+                      </Box>
+                    ) : formData.media_type?.startsWith('video/') || /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(formData.media_url) ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <video
+                          controls
+                          style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '200px',
+                            borderRadius: 4
+                          }}
+                        >
+                          <source src={formData.media_url} type={formData.media_type || "video/mp4"} />
+                          Your browser does not support the video tag.
+                        </video>
+                      </Box>
+                    ) : formData.media_type?.startsWith('audio/') || /\.(mp3|wav|ogg|aac|flac|m4a)$/i.test(formData.media_url) ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <audio
+                          controls
+                          style={{ width: '100%' }}
+                        >
+                          <source src={formData.media_url} type={formData.media_type || "audio/mpeg"} />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <Link 
+                          href={formData.media_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        >
+                          <MediaIcon />
+                          View Media
+                        </Link>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <Box {...getRootProps()} sx={{ 
+                    p: 2, 
+                    mt: 2, 
+                    borderRadius: 1,
+                    backgroundColor: 'background.paper',
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    flexDirection: 'column'
+                  }}>
+                    <input {...getInputProps()} />
+                    {
+                      isDragActive ? <p>Drop the media here ...</p> : <p>Drag 'n' drop or click to upload media</p>
+                    }
+                    <CloudUploadIcon sx={{ fontSize: 48, mb: 1 }} />
+                  </Box>
+                )}
+              </>
+            )}
           </Stack>
         )}
 
