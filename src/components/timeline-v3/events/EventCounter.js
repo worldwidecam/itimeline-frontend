@@ -61,16 +61,13 @@ const EventCounter = ({
   // Get filtered events for day view (events with valid dates)
   const getDayViewEvents = () => {
     return events.filter(event => 
-      event.event_date && 
-      (!selectedType || event.type === selectedType)
+      event.event_date
     );
   };
 
   // Get filtered events for position view
   const getPositionViewEvents = () => {
-    return events.filter(event => 
-      !selectedType || event.type === selectedType
-    );
+    return events;
   };
 
   const dayViewEvents = getDayViewEvents();
@@ -169,7 +166,7 @@ const EventCounter = ({
         onChangeIndex(newIndex);
       }
     } else {
-      // If no newer events, wrap around to the oldest event (far left)
+      // If no newer events, wrap around to the OLDEST event (far left)
       const validEvents = positionViewEvents.filter(event => event && event.event_date);
       if (validEvents.length === 0) return;
       

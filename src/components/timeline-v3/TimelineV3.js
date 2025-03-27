@@ -1196,6 +1196,7 @@ function TimelineV3() {
                   maxMarker={Math.max(...markers)}
                   onClick={handleMarkerClick}
                   style={timelineTransitionStyles}
+                  selectedType={selectedType}
                 />
               ))}
             </>

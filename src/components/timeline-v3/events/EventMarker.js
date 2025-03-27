@@ -37,7 +37,8 @@ const EventMarker = ({
   onChangeIndex,
   minMarker,
   maxMarker,
-  onClick
+  onClick,
+  selectedType
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -390,6 +391,27 @@ const EventMarker = ({
   // Determine if this marker should be visible
   const isVisible = position !== null;
   
+  // Calculate opacity based on selected filter type
+  const getMarkerOpacity = () => {
+    // If no filter is selected (All), show all markers at full opacity
+    if (!selectedType) return 1;
+    
+    // If this event matches the selected type, show at full opacity
+    if (event.type === selectedType) return 1;
+    
+    // Otherwise, show at reduced opacity
+    return 0.35;
+  };
+  
+  // Calculate height adjustment based on selected filter type
+  const getMarkerHeightMultiplier = () => {
+    // If no filter is selected (All) or this event matches the selected type, use full height
+    if (!selectedType || event.type === selectedType) return 1;
+    
+    // Otherwise, reduce height by 3/4 (to 1/4 of original)
+    return 0.25;
+  };
+  
   // Add a debug class to help identify markers in different states
   const markerClass = isSelected ? 'selected-marker' : 'normal-marker';
 
@@ -413,7 +435,7 @@ const EventMarker = ({
             onClick={handleMarkerClick}
             sx={{
               width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-              height: `${40 * overlappingFactor}px`, // Adjust height based on overlapping factor
+              height: `${40 * overlappingFactor * getMarkerHeightMultiplier()}px`, // Adjust height based on overlapping factor and filter type
               cursor: 'pointer',
               position: 'relative',
               // Increased click area with pseudo-element
@@ -433,6 +455,7 @@ const EventMarker = ({
                 borderRadius: '4px',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 boxShadow: `0 0 10px ${getColor()}40`,
+                opacity: getMarkerOpacity(),
               },
               '&:hover::after': {
                 transform: 'scaleY(1.1) scaleX(1.5)',
@@ -502,12 +525,12 @@ const EventMarker = ({
             left: `${position.x + horizontalOffset}px`, // Add horizontal offset
             bottom: `${position.y}px`,
             width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-            height: `${24 * overlappingFactor}px`, // Adjust height based on overlapping factor
+            height: `${24 * overlappingFactor * getMarkerHeightMultiplier()}px`, // Adjust height based on overlapping factor and selected filter type
             borderRadius: '2px',
             background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
             transform: 'translateX(-50%)',
             cursor: 'pointer',
-            transition: 'all 0.2s ease-in-out',
+            transition: 'all 0.3s ease-in-out', // Smooth transition for height and opacity changes
             // Enhanced visual appearance for all filter views (day, week, month, year)
             ...(viewMode !== 'position' && {
               boxShadow: `0 0 6px ${getColor()}40`,
@@ -537,6 +560,7 @@ const EventMarker = ({
               })
             },
             zIndex: 800, // Reduced from 1000 to 800 (below hover marker at 900)
+            opacity: getMarkerOpacity()
           }}
           onClick={handleMarkerClick}
         />
