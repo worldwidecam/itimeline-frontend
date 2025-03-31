@@ -6,7 +6,14 @@ import api from '../../../../utils/api';
 
 const TagList = ({ tags }) => {
   const theme = useTheme();
-  if (!tags || tags.length === 0) return null;
+  
+  // Add debugging to understand the tags data
+  console.log('TagList received tags:', tags);
+  
+  if (!tags || tags.length === 0) {
+    console.log('No tags to display');
+    return null;
+  }
 
   // Function to handle tag click - opens the respective timeline in a new tab
   const handleTagClick = async (e, tagName) => {
@@ -41,7 +48,9 @@ const TagList = ({ tags }) => {
         mt: 2,
       }}
     >
-      {tags.map((tag) => {
+      {tags.map((tag, index) => {
+        console.log(`Rendering tag ${index}:`, tag);
+        
         // Generate a unique color based on the tag name
         const stringToColor = (str) => {
           let hash = 0;
@@ -52,11 +61,15 @@ const TagList = ({ tags }) => {
           return `hsl(${hue}, 30%, 50%)`;
         };
 
-        const tagColor = stringToColor(tag.name);
+        // Handle potential issues with tag format
+        const tagName = typeof tag === 'string' ? tag : (tag && tag.name ? tag.name : 'unknown');
+        const tagId = typeof tag === 'string' ? tag : (tag && tag.id ? tag.id : 'unknown-id');
+        
+        const tagColor = stringToColor(tagName);
 
         return (
           <Chip
-            key={tag.id}
+            key={tagId}
             icon={
               <TagIcon 
                 sx={{ 
@@ -65,9 +78,9 @@ const TagList = ({ tags }) => {
                 }} 
               />
             }
-            label={tag.name}
+            label={tagName}
             size="small"
-            onClick={(e) => handleTagClick(e, tag.name)}
+            onClick={(e) => handleTagClick(e, tagName)}
             sx={{
               height: '24px',
               backgroundColor: theme.palette.mode === 'dark' 
