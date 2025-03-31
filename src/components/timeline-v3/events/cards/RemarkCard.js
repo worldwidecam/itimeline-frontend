@@ -28,27 +28,50 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 
-const RemarkCard = ({ event, onEdit, onDelete }) => {
+const RemarkCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
-  const handleMenuOpen = (event) => {
-    setMenuAnchorEl(event.currentTarget);
+  // Debug log for event data
+  console.log('RemarkCard event data:', event);
+  console.log('RemarkCard tags:', event.tags);
+
+  const handleMenuOpen = (e) => {
+    e.stopPropagation(); // Prevent event bubbling to parent (card click)
+    
+    // If the card is not already selected, select it first
+    if (!isSelected && onEdit && typeof onEdit === 'function') {
+      // We're using onEdit as a proxy to get to the parent component's onEventSelect
+      // This is a bit of a hack, but it works because onEdit is passed from the same parent
+      // that would handle selection
+      onEdit({ type: 'select', event });
+      
+      // Delay opening the menu slightly to allow the card to move into position
+      setTimeout(() => {
+        setMenuAnchorEl(e.currentTarget);
+      }, 300);
+    } else {
+      // If already selected, just open the menu
+      setMenuAnchorEl(e.currentTarget);
+    }
   };
 
-  const handleMenuClose = () => {
+  const handleMenuClose = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     setMenuAnchorEl(null);
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onEdit(event);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onDelete(event);
   };

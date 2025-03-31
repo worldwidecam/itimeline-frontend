@@ -499,6 +499,14 @@ function TimelineV3() {
   };
 
   const handleEventEdit = (event) => {
+    // Check if this is a selection action from the menu click
+    if (event && event.type === 'select' && event.event) {
+      // This is a selection action, so just select the event
+      setSelectedEventId(event.event.id);
+      return;
+    }
+    
+    // Normal edit behavior
     setEditingEvent(event);
     setDialogOpen(true);
   };

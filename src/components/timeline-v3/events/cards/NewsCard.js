@@ -39,7 +39,7 @@ import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import { alpha } from '@mui/material/styles';
 
-const NewsCard = ({ event, onEdit, onDelete }) => {
+const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -50,20 +50,39 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
   console.log('NewsCard event data:', event);
   console.log('NewsCard tags:', event.tags);
 
-  const handleMenuOpen = (event) => {
-    setMenuAnchorEl(event.currentTarget);
+  const handleMenuOpen = (e) => {
+    e.stopPropagation(); // Prevent event bubbling to parent (card click)
+    
+    // If the card is not already selected, select it first
+    if (!isSelected && onEdit && typeof onEdit === 'function') {
+      // We're using onEdit as a proxy to get to the parent component's onEventSelect
+      // This is a bit of a hack, but it works because onEdit is passed from the same parent
+      // that would handle selection
+      onEdit({ type: 'select', event });
+      
+      // Delay opening the menu slightly to allow the card to move into position
+      setTimeout(() => {
+        setMenuAnchorEl(e.currentTarget);
+      }, 300);
+    } else {
+      // If already selected, just open the menu
+      setMenuAnchorEl(e.currentTarget);
+    }
   };
 
-  const handleMenuClose = () => {
+  const handleMenuClose = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     setMenuAnchorEl(null);
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onEdit(event);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onDelete(event);
   };
