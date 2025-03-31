@@ -332,6 +332,11 @@ function App() {
                         <Profile />
                       </ProtectedRoute>
                     } />
+                    <Route path="/profile/:userId" element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/profile/settings" element={
                       <ProtectedRoute>
                         <ProfileSettings />
