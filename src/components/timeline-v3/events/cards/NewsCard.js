@@ -364,25 +364,6 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
                     sx={{ mr: 1 }}
                   />
                 )}
-                {event.created_by_username && (
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar 
-                      src={event.created_by_avatar} 
-                      alt={event.created_by_username}
-                      sx={{ 
-                        width: 24, 
-                        height: 24,
-                        mr: 0.5,
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      {event.created_by_username.charAt(0).toUpperCase()}
-                    </Avatar>
-                    <Typography variant="caption" color="text.secondary">
-                      {event.created_by_username}
-                    </Typography>
-                  </Box>
-                )}
               </Box>
             </Box>
           </Box>
@@ -550,14 +531,49 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
           )}
           <Box sx={{ mt: 'auto' }}>
             <TagList tags={event.tags} />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
-              <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
-              <Typography 
-                variant="caption" 
-                color="text.secondary"
-              >
-                {formatDate(event.created_at)}
-              </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+              {event.created_by_username && (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Avatar 
+                    src={event.created_by_avatar} 
+                    alt={event.created_by_username}
+                    sx={{ 
+                      width: 24, 
+                      height: 24,
+                      mr: 0.5,
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {event.created_by_username.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                    By
+                  </Typography>
+                  <Link
+                    component={RouterLink}
+                    to={`/profile/${event.created_by}`}
+                    variant="caption"
+                    color="primary"
+                    sx={{ 
+                      textDecoration: 'none',
+                      '&:hover': {
+                        textDecoration: 'underline'
+                      }
+                    }}
+                  >
+                    {event.created_by_username}
+                  </Link>
+                </Box>
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                >
+                  {formatDate(event.created_at)}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </motion.div>
