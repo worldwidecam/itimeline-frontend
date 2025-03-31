@@ -13,7 +13,8 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Paper
+  Paper,
+  Avatar
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -25,14 +26,18 @@ import {
   MoreVert as MoreVertIcon,
   Info as InfoIcon,
   Launch as LaunchIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Person as PersonIcon,
+  Label as TagIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
+import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
+import { alpha } from '@mui/material/styles';
 
 const NewsCard = ({ event, onEdit, onDelete }) => {
   const theme = useTheme();
@@ -40,6 +45,10 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.NEWS];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+
+  // Debug log for event data
+  console.log('NewsCard event data:', event);
+  console.log('NewsCard tags:', event.tags);
 
   const handleMenuOpen = (event) => {
     setMenuAnchorEl(event.currentTarget);
@@ -342,23 +351,37 @@ const NewsCard = ({ event, onEdit, onDelete }) => {
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2, pr: 8 }}>
             <NewsIcon sx={{ color, mt: 0.5 }} />
             <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography 
-                  variant="h6" 
-                  component="div" 
-                  sx={{ 
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {event.title}
-                </Typography>
+              <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                {event.title}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
                 {event.event_date && (
                   <Chip
                     icon={<EventIcon />}
                     label={formatEventDate(event.event_date)}
                     size="small"
                     color="primary"
+                    sx={{ mr: 1 }}
                   />
+                )}
+                {event.created_by_username && (
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar 
+                      src={event.created_by_avatar} 
+                      alt={event.created_by_username}
+                      sx={{ 
+                        width: 24, 
+                        height: 24,
+                        mr: 0.5,
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      {event.created_by_username.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Typography variant="caption" color="text.secondary">
+                      {event.created_by_username}
+                    </Typography>
+                  </Box>
                 )}
               </Box>
             </Box>

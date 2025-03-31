@@ -10,8 +10,19 @@ const TagList = ({ tags }) => {
   // Add debugging to understand the tags data
   console.log('TagList received tags:', tags);
   
-  if (!tags || tags.length === 0) {
-    console.log('No tags to display');
+  // Handle various potential issues with tags data
+  if (!tags) {
+    console.log('Tags is null or undefined');
+    return null;
+  }
+  
+  // Ensure tags is an array
+  const tagsArray = Array.isArray(tags) ? tags : 
+                   (typeof tags === 'string' ? [tags] : 
+                   (tags && typeof tags === 'object' ? [tags] : []));
+  
+  if (tagsArray.length === 0) {
+    console.log('Tags array is empty');
     return null;
   }
 
@@ -48,7 +59,7 @@ const TagList = ({ tags }) => {
         mt: 2,
       }}
     >
-      {tags.map((tag, index) => {
+      {tagsArray.map((tag, index) => {
         console.log(`Rendering tag ${index}:`, tag);
         
         // Generate a unique color based on the tag name
@@ -61,15 +72,30 @@ const TagList = ({ tags }) => {
           return `hsl(${hue}, 30%, 50%)`;
         };
 
-        // Handle potential issues with tag format
-        const tagName = typeof tag === 'string' ? tag : (tag && tag.name ? tag.name : 'unknown');
-        const tagId = typeof tag === 'string' ? tag : (tag && tag.id ? tag.id : 'unknown-id');
+        // Handle different tag formats
+        let tagName, tagId;
+        
+        if (typeof tag === 'string') {
+          tagName = tag;
+          tagId = tag;
+        } else if (tag && typeof tag === 'object') {
+          tagName = tag.name || tag.tag_name || '';
+          tagId = tag.id || tag.tag_id || `tag-${index}`;
+        } else {
+          // Skip invalid tags
+          return null;
+        }
+        
+        // Skip empty tag names
+        if (!tagName) {
+          return null;
+        }
         
         const tagColor = stringToColor(tagName);
 
         return (
           <Chip
-            key={tagId}
+            key={`${tagId}-${index}`}
             icon={
               <TagIcon 
                 sx={{ 

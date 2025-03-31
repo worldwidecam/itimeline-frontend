@@ -10,6 +10,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Avatar
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -33,6 +34,10 @@ const MediaCard = ({ event, onEdit, onDelete }) => {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+
+  // Debug log for event data
+  console.log('MediaCard event data:', event);
+  console.log('MediaCard tags:', event.tags);
 
   const handleMenuOpen = (event) => {
     setMenuAnchorEl(event.currentTarget);
@@ -263,15 +268,36 @@ const MediaCard = ({ event, onEdit, onDelete }) => {
               >
                 {event.title}
               </Typography>
-              {event.event_date && (
-                <Chip
-                  icon={<EventIcon />}
-                  label={formatEventDate(event.event_date)}
-                  size="small"
-                  color="primary"
-                  sx={{ mb: 1 }}
-                />
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                {event.event_date && (
+                  <Chip
+                    icon={<EventIcon />}
+                    label={formatEventDate(event.event_date)}
+                    size="small"
+                    color="primary"
+                    sx={{ mr: 1 }}
+                  />
+                )}
+                {event.created_by_username && (
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar 
+                      src={event.created_by_avatar} 
+                      alt={event.created_by_username}
+                      sx={{ 
+                        width: 24, 
+                        height: 24,
+                        mr: 0.5,
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      {event.created_by_username.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Typography variant="caption" color="text.secondary">
+                      {event.created_by_username}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
             </Box>
           </Box>
 
