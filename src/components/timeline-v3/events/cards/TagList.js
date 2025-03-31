@@ -6,7 +6,25 @@ import api from '../../../../utils/api';
 
 const TagList = ({ tags }) => {
   const theme = useTheme();
-  if (!tags || tags.length === 0) return null;
+  
+  // Add debugging to understand the tags data
+  console.log('TagList received tags:', tags);
+  
+  // Handle various potential issues with tags data
+  if (!tags) {
+    console.log('Tags is null or undefined');
+    return null;
+  }
+  
+  // Ensure tags is an array
+  const tagsArray = Array.isArray(tags) ? tags : 
+                   (typeof tags === 'string' ? [tags] : 
+                   (tags && typeof tags === 'object' ? [tags] : []));
+  
+  if (tagsArray.length === 0) {
+    console.log('Tags array is empty');
+    return null;
+  }
 
   // Function to handle tag click - opens the respective timeline in a new tab
   const handleTagClick = async (e, tagName) => {
@@ -41,7 +59,9 @@ const TagList = ({ tags }) => {
         mt: 2,
       }}
     >
-      {tags.map((tag) => {
+      {tagsArray.map((tag, index) => {
+        console.log(`Rendering tag ${index}:`, tag);
+        
         // Generate a unique color based on the tag name
         const stringToColor = (str) => {
           let hash = 0;
@@ -52,11 +72,30 @@ const TagList = ({ tags }) => {
           return `hsl(${hue}, 30%, 50%)`;
         };
 
-        const tagColor = stringToColor(tag.name);
+        // Handle different tag formats
+        let tagName, tagId;
+        
+        if (typeof tag === 'string') {
+          tagName = tag;
+          tagId = tag;
+        } else if (tag && typeof tag === 'object') {
+          tagName = tag.name || tag.tag_name || '';
+          tagId = tag.id || tag.tag_id || `tag-${index}`;
+        } else {
+          // Skip invalid tags
+          return null;
+        }
+        
+        // Skip empty tag names
+        if (!tagName) {
+          return null;
+        }
+        
+        const tagColor = stringToColor(tagName);
 
         return (
           <Chip
-            key={tag.id}
+            key={`${tagId}-${index}`}
             icon={
               <TagIcon 
                 sx={{ 
@@ -65,9 +104,9 @@ const TagList = ({ tags }) => {
                 }} 
               />
             }
-            label={tag.name}
+            label={tagName}
             size="small"
-            onClick={(e) => handleTagClick(e, tag.name)}
+            onClick={(e) => handleTagClick(e, tagName)}
             sx={{
               height: '24px',
               backgroundColor: theme.palette.mode === 'dark' 

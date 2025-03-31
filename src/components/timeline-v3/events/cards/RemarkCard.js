@@ -16,7 +16,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Comment as RemarkIcon,
-  Link as LinkIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
   MoreVert as MoreVertIcon,
@@ -37,29 +36,43 @@ const RemarkCard = ({ event, onEdit, onDelete, isSelected }) => {
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
+  // Debug log for event data
+  console.log('RemarkCard event data:', event);
+  console.log('RemarkCard tags:', event.tags);
+
   const handleMenuOpen = (e) => {
-    // Prevent the click event from bubbling up to the card
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent event bubbling to parent (card click)
     
-    // Only open the menu if the card is already selected
-    if (isSelected) {
-      setMenuAnchorEl(e.currentTarget);
+    // If the card is not already selected, select it first
+    if (!isSelected && onEdit && typeof onEdit === 'function') {
+      // We're using onEdit as a proxy to get to the parent component's onEventSelect
+      // This is a bit of a hack, but it works because onEdit is passed from the same parent
+      // that would handle selection
+      onEdit({ type: 'select', event });
+      
+      // Delay opening the menu slightly to allow the card to move into position
+      setTimeout(() => {
+        setMenuAnchorEl(e.currentTarget);
+      }, 300);
     } else {
-      // If not selected, we need to select it first
-      // The parent component will handle the selection
+      // If already selected, just open the menu
+      setMenuAnchorEl(e.currentTarget);
     }
   };
 
-  const handleMenuClose = () => {
+  const handleMenuClose = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     setMenuAnchorEl(null);
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onEdit(event);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onDelete(event);
   };
@@ -142,15 +155,17 @@ const RemarkCard = ({ event, onEdit, onDelete, isSelected }) => {
               <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
                 {event.title}
               </Typography>
-              {event.event_date && (
-                <Chip
-                  icon={<EventIcon />}
-                  label={formatEventDate(event.event_date)}
-                  size="small"
-                  color="primary"
-                  sx={{ mb: 1 }}
-                />
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                {event.event_date && (
+                  <Chip
+                    icon={<EventIcon />}
+                    label={formatEventDate(event.event_date)}
+                    size="small"
+                    color="primary"
+                    sx={{ mr: 1 }}
+                  />
+                )}
+              </Box>
             </Box>
           </Box>
 
@@ -173,7 +188,46 @@ const RemarkCard = ({ event, onEdit, onDelete, isSelected }) => {
 
           <Box sx={{ mt: 'auto' }}>
             <TagList tags={event.tags} />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+              {event.created_by_username && (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Avatar 
+                    src={event.created_by_avatar} 
+                    alt={event.created_by_username}
+                    sx={{ 
+                      width: 24, 
+                      height: 24,
+                      mr: 0.5,
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {event.created_by_username.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                    By
+                  </Typography>
+                  <Link
+                    component={RouterLink}
+                    to={`/profile/${event.created_by}`}
+                    variant="caption"
+                    color="primary"
+                    sx={{ 
+                      textDecoration: 'none',
+                      '&:hover': {
+                        textDecoration: 'underline'
+                      }
+                    }}
+                  >
+                    {event.created_by_username}
+                  </Link>
+                </Box>
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(event.created_at)}
+                </Typography>
+              </Box>
               <IconButton 
                 size="small" 
                 onClick={handleMenuOpen}
@@ -208,50 +262,6 @@ const RemarkCard = ({ event, onEdit, onDelete, isSelected }) => {
                   <ListItemText>Delete</ListItemText>
                 </MenuItem>
               </Menu>
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: 'auto' }}>
-                {event.created_by_avatar ? (
-                  <Avatar 
-                    src={event.created_by_avatar} 
-                    alt={event.created_by_username || "User"} 
-                    sx={{ 
-                      width: 16, 
-                      height: 16, 
-                      mr: 0.5, 
-                      fontSize: '0.75rem' 
-                    }} 
-                  />
-                ) : (
-                  <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
-                )}
-                <Typography 
-                  variant="caption" 
-                  color="text.secondary"
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  By{' '}
-                  <Link
-                    component={RouterLink}
-                    to={`/profile/${event.created_by}`}
-                    color="text.secondary"
-                    sx={{ 
-                      ml: 0.5,
-                      textDecoration: 'none',
-                      '&:hover': {
-                        textDecoration: 'underline'
-                      }
-                    }}
-                  >
-                    {event.created_by_username || "Unknown"}
-                  </Link>
-                </Typography>
-              </Box>
-              <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
-              <Typography variant="caption" color="text.secondary">
-                {formatDate(event.created_at)}
-              </Typography>
             </Box>
           </Box>
         </motion.div>

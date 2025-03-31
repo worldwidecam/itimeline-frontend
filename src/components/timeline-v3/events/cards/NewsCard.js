@@ -27,7 +27,8 @@ import {
   Info as InfoIcon,
   Launch as LaunchIcon,
   Link as LinkIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Label as TagIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -36,6 +37,7 @@ import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
+import { alpha } from '@mui/material/styles';
 
 const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
@@ -44,29 +46,43 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.NEWS];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
+  // Debug log for event data
+  console.log('NewsCard event data:', event);
+  console.log('NewsCard tags:', event.tags);
+
   const handleMenuOpen = (e) => {
-    // Prevent the click event from bubbling up to the card
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent event bubbling to parent (card click)
     
-    // Only open the menu if the card is already selected
-    if (isSelected) {
-      setMenuAnchorEl(e.currentTarget);
+    // If the card is not already selected, select it first
+    if (!isSelected && onEdit && typeof onEdit === 'function') {
+      // We're using onEdit as a proxy to get to the parent component's onEventSelect
+      // This is a bit of a hack, but it works because onEdit is passed from the same parent
+      // that would handle selection
+      onEdit({ type: 'select', event });
+      
+      // Delay opening the menu slightly to allow the card to move into position
+      setTimeout(() => {
+        setMenuAnchorEl(e.currentTarget);
+      }, 300);
     } else {
-      // If not selected, we need to select it first
-      // The parent component will handle the selection
+      // If already selected, just open the menu
+      setMenuAnchorEl(e.currentTarget);
     }
   };
 
-  const handleMenuClose = () => {
+  const handleMenuClose = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     setMenuAnchorEl(null);
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onEdit(event);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e) => {
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
     onDelete(event);
   };
@@ -311,22 +327,17 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2, pr: 8 }}>
             <NewsIcon sx={{ color, mt: 0.5 }} />
             <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography 
-                  variant="h6" 
-                  component="div" 
-                  sx={{ 
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {event.title}
-                </Typography>
+              <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                {event.title}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
                 {event.event_date && (
                   <Chip
                     icon={<EventIcon />}
                     label={formatEventDate(event.event_date)}
                     size="small"
                     color="primary"
+                    sx={{ mr: 1 }}
                   />
                 )}
               </Box>
@@ -496,88 +507,49 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
           )}
           <Box sx={{ mt: 'auto' }}>
             <TagList tags={event.tags} />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
-              <IconButton 
-                size="small" 
-                onClick={handleMenuOpen}
-                sx={{ 
-                  mr: 1,
-                  p: 0.5,
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                  }
-                }}
-              >
-                <MoreVertIcon fontSize="small" sx={{ fontSize: '1rem' }} />
-              </IconButton>
-              <Menu
-                anchorEl={menuAnchorEl}
-                open={Boolean(menuAnchorEl)}
-                onClose={handleMenuClose}
-                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-              >
-                <MenuItem onClick={handleEdit}>
-                  <ListItemIcon>
-                    <EditIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>Edit</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={handleDelete}>
-                  <ListItemIcon>
-                    <DeleteIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>Delete</ListItemText>
-                </MenuItem>
-              </Menu>
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: 'auto' }}>
-                {event.created_by_avatar ? (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+              {event.created_by_username && (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar 
                     src={event.created_by_avatar} 
-                    alt={event.created_by_username || "User"} 
+                    alt={event.created_by_username}
                     sx={{ 
-                      width: 16, 
-                      height: 16, 
-                      mr: 0.5, 
-                      fontSize: '0.75rem' 
-                    }} 
-                  />
-                ) : (
-                  <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
-                )}
-                <Typography 
-                  variant="caption" 
-                  color="text.secondary"
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  By{' '}
+                      width: 24, 
+                      height: 24,
+                      mr: 0.5,
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {event.created_by_username.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                    By
+                  </Typography>
                   <Link
                     component={RouterLink}
                     to={`/profile/${event.created_by}`}
-                    color="text.secondary"
+                    variant="caption"
+                    color="primary"
                     sx={{ 
-                      ml: 0.5,
                       textDecoration: 'none',
                       '&:hover': {
                         textDecoration: 'underline'
                       }
                     }}
                   >
-                    {event.created_by_username || "Unknown"}
+                    {event.created_by_username}
                   </Link>
+                </Box>
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                >
+                  {formatDate(event.created_at)}
                 </Typography>
               </Box>
-              <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
-              <Typography 
-                variant="caption" 
-                color="text.secondary"
-              >
-                {formatDate(event.created_at)}
-              </Typography>
             </Box>
           </Box>
         </motion.div>
