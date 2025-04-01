@@ -33,6 +33,7 @@ import {
 } from '@mui/material';
 import PageTransition from './components/PageTransition';
 import api from './utils/api';
+import setupKeepAlive from './utils/keepAlive';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -329,6 +330,11 @@ const Homepage = () => {
 };
 
 function App() {
+  // Set up keep-alive ping to prevent backend from spinning down
+  React.useEffect(() => {
+    setupKeepAlive();
+  }, []);
+
   return (
     <CustomThemeProvider>
       <AuthProvider>
