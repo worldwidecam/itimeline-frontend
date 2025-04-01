@@ -126,22 +126,27 @@ const LandingPage = () => {
   const { user } = useAuth();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
+  // Define neon effect styles
+  const neonEffect = {
+    textShadow: theme.palette.mode === 'dark'
+      ? '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff9a9e, 0 0 30px #ff9a9e, 0 0 40px #ff9a9e, 0 0 55px #ff9a9e, 0 0 75px #ff9a9e'
+      : '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #4568dc, 0 0 30px #4568dc, 0 0 40px #4568dc, 0 0 55px #4568dc, 0 0 75px #4568dc',
+    color: theme.palette.mode === 'dark' ? '#fff' : '#fff',
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff9a9e, 0 0 30px #ff9a9e, 0 0 40px #ff9a9e'
+      : '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #4568dc, 0 0 30px #4568dc, 0 0 40px #4568dc'
+  };
+
   // Define neon flicker animation
   const neonFlicker = keyframes`
-    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
-      text-shadow: 
-        ${theme.palette.mode === 'dark'
-          ? '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #ff9a9e, 0 0 20px #ff9a9e, 0 0 25px #ff9a9e, 0 0 30px #ff9a9e, 0 0 35px #ff9a9e'
-          : '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #4568dc, 0 0 20px #4568dc, 0 0 25px #4568dc, 0 0 30px #4568dc, 0 0 35px #4568dc'};
-      opacity: 1;
+    0%, 18%, 22%, 25%, 53%, 57%, 100% {
+      text-shadow: ${neonEffect.textShadow};
+      box-shadow: ${neonEffect.boxShadow};
     }
+    
     20%, 24%, 55% {
       text-shadow: none;
-      opacity: 0.8;
-    }
-    80%, 85% {
-      text-shadow: none;
-      opacity: 0.9;
+      box-shadow: none;
     }
   `;
 
@@ -150,8 +155,8 @@ const LandingPage = () => {
       sx={{ 
         minHeight: 'calc(100vh - 64px)',
         background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(135deg, rgba(18, 18, 50, 0.9) 0%, rgba(33, 33, 78, 0.9) 100%)' 
-          : 'linear-gradient(135deg, rgba(240, 245, 255, 0.9) 0%, rgba(220, 230, 255, 0.9) 100%)',
+          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)' 
+          : 'linear-gradient(180deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%)',
         pt: 6,
         pb: 8
       }}
@@ -166,20 +171,36 @@ const LandingPage = () => {
               fontFamily: "'Lobster', cursive",
               fontSize: { xs: '3rem', sm: '4rem', md: '5rem' },
               mb: 2,
+              padding: '0.5rem 1.5rem',
               background: theme.palette.mode === 'dark'
-                ? 'linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%)'
-                : 'linear-gradient(45deg, #4568dc 0%, #b06ab3 100%)',
-              backgroundClip: 'text',
-              textFillColor: 'transparent',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: theme.palette.mode === 'dark'
-                ? '0 0 30px rgba(255, 154, 158, 0.5)'
-                : '0 0 30px rgba(69, 104, 220, 0.3)',
+                ? 'rgba(0, 0, 0, 0.6)'
+                : 'rgba(255, 255, 255, 0.6)',
+              color: theme.palette.mode === 'dark' ? '#fff' : '#fff',
+              borderRadius: '8px',
               border: '2px solid',
               borderColor: theme.palette.mode === 'dark' ? '#ff9a9e' : '#4568dc',
-              borderRadius: 1,
-              animation: `${neonFlicker} 5s infinite alternate-reverse`
+              position: 'relative',
+              display: 'inline-block',
+              textShadow: neonEffect.textShadow,
+              boxShadow: neonEffect.boxShadow,
+              animation: `${neonFlicker} 5s infinite alternate-reverse`,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: '6px',
+                padding: '2px',
+                background: theme.palette.mode === 'dark'
+                  ? 'linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%)'
+                  : 'linear-gradient(45deg, #4568dc 0%, #b06ab3 100%)',
+                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                WebkitMaskComposite: 'xor',
+                maskComposite: 'exclude',
+                pointerEvents: 'none'
+              }
             }}
           >
             iTimeline
