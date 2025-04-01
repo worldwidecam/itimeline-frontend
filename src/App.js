@@ -10,6 +10,7 @@ import Register from './components/Register';
 import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
+import LandingPage from './components/LandingPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { 
@@ -47,6 +48,25 @@ const ProtectedRoute = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  return children;
+};
+
+// Auth Route component - Shows Homepage for authenticated users, LandingPage for non-authenticated
+const AuthRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return <LandingPage />;
   }
 
   return children;
@@ -322,7 +342,11 @@ function App() {
                   <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    <Route path="/" element={<Homepage />} />
+                    <Route path="/" element={
+                      <AuthRoute>
+                        <Homepage />
+                      </AuthRoute>
+                    } />
                     <Route path="/timeline-v3/:id" element={
                       <ProtectedRoute>
                         <TimelineV3 />
@@ -346,6 +370,11 @@ function App() {
                     <Route path="/profile/:userId" element={
                       <ProtectedRoute>
                         <UserProfileView />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/home" element={
+                      <ProtectedRoute>
+                        <Homepage />
                       </ProtectedRoute>
                     } />
                   </Routes>
