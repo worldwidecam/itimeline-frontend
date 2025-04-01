@@ -38,6 +38,34 @@ Frontend application for the iTimeline platform, a modern web application for cr
 - **Styling**: CSS with Tailwind CSS
 - **Deployment**: Docker containerization for Render.com
 
+## Design Standards
+
+### Theme Quality Standard
+- **Neon Effect**: The application uses sophisticated neon effects for key elements like the logo, with multi-layered text shadows and box shadows
+- **Gradient Backgrounds**: Dark theme uses a vertical gradient from black to dark blue (#000000 → #0a1128 → #1a2456)
+- **Animation**: Subtle flicker animations are used to enhance the neon effect
+- **Contrast**: High contrast between text and background ensures readability while maintaining visual appeal
+- **Responsive Design**: All visual elements adapt to different screen sizes while preserving the aesthetic quality
+
+### Landing Page
+- **Clean Interface**: The landing page appears without the top navigation bar for a distraction-free introduction
+- **Interactive Timeline Demo**: Features a fully functional timeline with different view modes (day, week, month, year)
+- **Context-Specific Events**: Each view mode displays different types of example events appropriate for that time scale
+- **Direct Authentication**: Sign in and registration buttons are prominently displayed for easy access
+- **Automatic Redirection**: Authenticated users are automatically redirected to the home page
+
+### Navigation Structure
+- **Conditional Navigation**: The top navigation bar appears on all pages except the landing page
+- **Consistent Layout**: All authenticated pages maintain the same navigation structure for familiarity
+- **Protected Routes**: Secure routes require authentication and redirect unauthenticated users to the login page
+- **Logical Flow**: The application follows a natural flow from landing → authentication → home → timeline creation
+
+### Website Terminology
+- **Event**: A single entry on the timeline, which can be a remark, news, or media
+- **Timeline**: A collection of events, which can be filtered, sorted, and shared
+- **View Mode**: The different ways to display the timeline, such as day, week, month, or year
+- **Marker**: A visual representation of an event on the timeline
+
 ## Key Dependencies
 
 - `@mui/material`: UI components

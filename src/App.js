@@ -66,10 +66,10 @@ const AuthRoute = ({ children }) => {
   }
 
   if (!user) {
-    return <LandingPage />;
+    return children;
   }
 
-  return children;
+  return <Navigate to="/home" />;
 };
 
 // Homepage component
@@ -336,50 +336,69 @@ function App() {
           <CssBaseline />
           <PageTransition>
             <Router>
-              <Navbar />
-              <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-                <Box sx={{ flex: 1, pt: 8 }}>
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/" element={
-                      <AuthRoute>
-                        <Homepage />
-                      </AuthRoute>
-                    } />
-                    <Route path="/timeline-v3/:id" element={
-                      <ProtectedRoute>
-                        <TimelineV3 />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/profile" element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/profile/:userId" element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/profile/settings" element={
-                      <ProtectedRoute>
-                        <ProfileSettings />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/profile/:userId" element={
-                      <ProtectedRoute>
-                        <UserProfileView />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/home" element={
-                      <ProtectedRoute>
-                        <Homepage />
-                      </ProtectedRoute>
-                    } />
-                  </Routes>
-                </Box>
-              </Box>
+              {/* Conditional Navbar - only show on non-landing pages */}
+              <Routes>
+                <Route path="/" element={null} />
+                <Route path="*" element={<Navbar />} />
+              </Routes>
+              
+              <Routes>
+                {/* Landing page route without navbar */}
+                <Route path="/" element={
+                  <AuthRoute>
+                    <LandingPage />
+                  </AuthRoute>
+                } />
+                
+                {/* Login/Register routes */}
+                <Route path="/login" element={
+                  <Box sx={{ pt: 8 }}>
+                    <Login />
+                  </Box>
+                } />
+                <Route path="/register" element={
+                  <Box sx={{ pt: 8 }}>
+                    <Register />
+                  </Box>
+                } />
+                
+                {/* Protected routes */}
+                <Route path="/home" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <Homepage />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:id" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <TimelineV3 />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/profile" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/profile/:userId" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/profile/settings" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <ProfileSettings />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+              </Routes>
             </Router>
           </PageTransition>
         </LocalizationProvider>

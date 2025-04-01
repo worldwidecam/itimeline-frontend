@@ -377,12 +377,12 @@ function LandingTimelineV3() {
       sx={{ 
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '450px',
+        height: '500px', 
         width: '100%',
-        maxWidth: '1400px', // Increased max width
-        margin: '0 auto', // Center the timeline
-        bgcolor: 'black',
-        overflowX: 'hidden',
+        maxWidth: '1400px', 
+        margin: '0 auto', 
+        overflow: 'hidden',
+        backgroundColor: 'black',
         borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
         position: 'relative',
@@ -519,7 +519,7 @@ function LandingTimelineV3() {
         ref={timelineBarRef}
         sx={{ 
           position: 'relative',
-          height: 200,
+          height: 220, 
           cursor: isDragging ? 'grabbing' : 'grab',
           mt: 'auto',
           mb: 4
