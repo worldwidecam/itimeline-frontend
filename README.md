@@ -4,6 +4,14 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Features
 
+### Diagnostic Tools
+- **MediaUploader Component**: A standalone component on the homepage for testing and diagnosing media uploads
+  - Direct upload to Cloudinary with detailed logging
+  - Support for images, videos, and audio files
+  - Preview functionality for uploaded media
+  - Created to help troubleshoot media upload functionality in the main application
+  - Serves as a reference implementation for proper media handling
+
 ### Timeline V3
 - Interactive timeline with event cards
 - Event types: Remarks, News, and Media

@@ -166,36 +166,136 @@ const TimelineEvent = ({ event, position = 'left', onDelete }) => {
         {/* Media Section */}
         {event.media_url && (
           <Box sx={{ width: '100%', position: 'relative' }}>
-            {event.media_type === 'image' ? (
-              <Box
-                component="img"
-                src={event.media_url}
-                alt={event.title}
-                sx={{
-                  width: '100%',
-                  height: '200px',
-                  objectFit: 'cover',
-                  borderTopLeftRadius: '12px',
-                  borderTopRightRadius: '12px',
-                }}
-              />
-            ) : event.media_type === 'audio' ? (
-              <Box
-                sx={{
-                  p: 2,
-                  backgroundColor: theme.palette.grey[100],
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                }}
-              >
-                <AudiotrackIcon color="primary" />
-                <audio controls style={{ width: '100%' }}>
-                  <source src={event.media_url} type="audio/mpeg" />
-                  Your browser does not support the audio element.
-                </audio>
-              </Box>
-            ) : null}
+            {/* Enhanced media type detection */}
+            {(() => {
+              // Determine media type from media_type field or URL
+              const mediaType = event.media_type || '';
+              const mediaUrl = event.media_url;
+              const fileExt = mediaUrl.split('.').pop()?.toLowerCase();
+              
+              // Check if it's a Cloudinary URL
+              const isCloudinaryUrl = 
+                mediaUrl.includes('cloudinary.com') || 
+                mediaUrl.includes('res.cloudinary') ||
+                (mediaType && mediaType.includes('cloudinary'));
+              
+              // Check if it's an image
+              const isImage = 
+                mediaType.includes('image') || 
+                ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(fileExt) ||
+                (isCloudinaryUrl && !mediaType.includes('video') && !mediaType.includes('audio'));
+              
+              // Check if it's a video
+              const isVideo = 
+                mediaType.includes('video') || 
+                ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'flv', 'mkv'].includes(fileExt);
+              
+              // Check if it's audio
+              const isAudio = 
+                mediaType.includes('audio') || 
+                ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(fileExt);
+              
+              console.log('TimelineEvent media detection:', { 
+                isImage, isVideo, isAudio, mediaType, fileExt, isCloudinaryUrl 
+              });
+              
+              // Render based on media type
+              if (isImage) {
+                return (
+                  <Box
+                    component="img"
+                    src={mediaUrl}
+                    alt={event.title}
+                    onError={(e) => {
+                      console.log(`Image failed to load: ${mediaUrl}`);
+                      e.target.style.display = 'none';
+                      e.target.parentNode.innerHTML = `
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '200px',
+                          backgroundColor: theme.palette.grey[100],
+                        }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Image not available
+                          </Typography>
+                        </Box>
+                      `;
+                    }}
+                    sx={{
+                      width: '100%',
+                      height: '200px',
+                      objectFit: 'cover',
+                      borderTopLeftRadius: '12px',
+                      borderTopRightRadius: '12px',
+                    }}
+                  />
+                );
+              } else if (isVideo) {
+                return (
+                  <Box
+                    sx={{
+                      height: '200px',
+                      backgroundColor: theme.palette.grey[100],
+                      borderTopLeftRadius: '12px',
+                      borderTopRightRadius: '12px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <video 
+                      controls 
+                      width="100%" 
+                      height="100%"
+                      style={{ objectFit: 'cover' }}
+                    >
+                      <source src={mediaUrl} type={`video/${fileExt || 'mp4'}`} />
+                      Your browser does not support the video tag.
+                    </video>
+                  </Box>
+                );
+              } else if (isAudio) {
+                return (
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: theme.palette.grey[100],
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      borderTopLeftRadius: '12px',
+                      borderTopRightRadius: '12px',
+                    }}
+                  >
+                    <AudiotrackIcon color="primary" />
+                    <audio controls style={{ width: '100%' }}>
+                      <source src={mediaUrl} type={`audio/${fileExt || 'mpeg'}`} />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </Box>
+                );
+              } else {
+                // Default for unknown media types
+                return (
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: theme.palette.grey[100],
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '200px',
+                      borderTopLeftRadius: '12px',
+                      borderTopRightRadius: '12px',
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      Media file: {mediaUrl.split('/').pop()}
+                    </Typography>
+                  </Box>
+                );
+              }
+            })()}
           </Box>
         )}
 
@@ -239,7 +339,7 @@ const TimelineEvent = ({ event, position = 'left', onDelete }) => {
           >
             <Chip
               icon={<PersonIcon />}
-              label={`Created by User ${event.created_by}`}
+              label={`Created by ${event.created_by_username || `User ${event.created_by}`}`}
               size="small"
               variant="outlined"
             />
