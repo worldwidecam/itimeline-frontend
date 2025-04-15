@@ -11,6 +11,7 @@ import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
 import LandingPage from './components/LandingPage';
+import MediaUploader from './components/MediaUploader';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { 
@@ -267,6 +268,16 @@ const Homepage = () => {
               </Typography>
             </Box>
           )}
+          
+          {/* Media Uploader Section */}
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="h5" sx={{ mb: 3 }}>
+            Media Uploader Test
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Use this tool to test media uploads without creating an event. This helps diagnose any issues with the upload functionality.
+          </Typography>
+          <MediaUploader />
         </>
       )}
 
