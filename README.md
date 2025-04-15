@@ -100,6 +100,8 @@ This repository contains only the frontend code for the iTimeline application. T
 
 ### Local Development
 
+#### Frontend Setup
+
 1. Clone the repository:
    ```
    git clone https://github.com/worldwidecam/itimeline-frontend.git
@@ -122,6 +124,36 @@ This repository contains only the frontend code for the iTimeline application. T
    ```
    npm start
    ```
+
+#### Backend Setup
+
+1. Clone the backend repository:
+   ```
+   git clone https://github.com/worldwidecam/itimeline-backend.git
+   cd itimeline-backend
+   ```
+
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables:
+   ```
+   DATABASE_URL=sqlite:///timeline_forum.db
+   JWT_SECRET_KEY=your-local-secret-key
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+4. Start the development server:
+   ```
+   python app.py
+   ```
+
+#### Database Configuration
+
+For local development, the backend uses SQLite by default. This provides a simple, file-based database that requires no additional setup. The database file will be created automatically when you start the backend server.
 
 ### Using Docker for Local Development
 
@@ -162,10 +194,17 @@ The application uses environment variables for configuration. These can be set i
 
 ## Troubleshooting
 
+### Common Issues
+
 - **API Connection Issues**: Verify that `REACT_APP_API_URL` is correctly set and the backend is running
 - **Authentication Problems**: Check that the JWT token is being properly stored and sent with requests
 - **Image Loading Issues**: Confirm that Cloudinary is properly configured
 - **Cross-Origin Errors**: Ensure that CORS is properly configured on the backend
+
+### Database Connection Issues
+
+- **Local Development**: If you're having issues with the SQLite database, check that the database file has been created in the backend directory and has proper permissions
+- **Production**: Currently, the production database is not available as the Render PostgreSQL instance has expired. Development will continue locally until a new production database solution is implemented
 
 ## Browser Compatibility
 

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -35,7 +37,7 @@ const TimelinePosts = ({ timelineId }) => {
 
   const fetchPosts = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/timeline/${timelineId}/posts`);
+      const response = await api.get(`/api/timeline/${timelineId}/posts`);
       setPosts(response.data);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -56,8 +58,8 @@ const TimelinePosts = ({ timelineId }) => {
       //   return;
       // }
 
-      const response = await axios.post(
-        `http://localhost:5000/api/timeline/${timelineId}/posts`,
+      const response = await api.post(
+        `/api/timeline/${timelineId}/posts`,
         newPost,
         {
           // headers: { 'Authorization': `Bearer ${token}` }

@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -551,7 +553,7 @@ function TimelineView() {
   useEffect(() => {
     const fetchTimelineInfo = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/timeline/${id}`);
+        const response = await api.get(`/api/timeline/${id}`);
         setTimelineInfo(response.data);
       } catch (error) {
         console.error('Error fetching timeline info:', error);
@@ -564,7 +566,7 @@ function TimelineView() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/timeline/${id}/events`);
+        const response = await api.get(`/api/timeline/${id}/events`);
         const sortedEvents = response.data.sort((a, b) => 
           new Date(a.event_date) - new Date(b.event_date)
         );
@@ -727,9 +729,9 @@ function TimelineView() {
 
   const handleDeleteEvent = async (eventId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/event/${eventId}`);
+      await api.delete(`/api/event/${eventId}`);
       // Refresh events
-      const response = await axios.get(`http://localhost:5000/api/timeline/${id}/events`);
+      const response = await api.get(`/api/timeline/${id}/events`);
       setEvents(response.data);
       setSelectedEvent(null);
     } catch (error) {

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -102,7 +104,7 @@ const Timeline = ({ timelineId }) => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/timelines/${timelineId}/posts`);
+        const response = await api.get(`/api/timelines/${timelineId}/posts`);
         setPosts(response.data);
         setLoading(false);
       } catch (err) {
@@ -116,7 +118,7 @@ const Timeline = ({ timelineId }) => {
 
   const handleLike = async (postId) => {
     try {
-      await axios.post(`http://localhost:5000/api/posts/${postId}/like`);
+      await api.post(`/api/posts/${postId}/like`);
       // Update posts state to reflect the new like
       setPosts(posts.map(post => 
         post.id === postId 

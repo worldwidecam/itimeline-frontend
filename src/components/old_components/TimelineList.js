@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -22,7 +24,7 @@ function TimelineList() {
   useEffect(() => {
     const fetchTimelines = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/timelines');
+        const response = await api.get('/api/timelines');
         setTimelines(response.data);
       } catch (error) {
         console.error('Error fetching timelines:', error);

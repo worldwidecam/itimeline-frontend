@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import {
   Badge,
   IconButton,
@@ -22,7 +24,7 @@ function NotificationSystem() {
   const fetchNotifications = async () => {
     if (!user) return;
     try {
-      const response = await axios.get('http://localhost:5000/api/notifications');
+      const response = await api.get('/api/notifications');
       setNotifications(response.data);
       setUnreadCount(response.data.filter(n => !n.read).length);
     } catch (error) {
@@ -32,7 +34,7 @@ function NotificationSystem() {
 
   const markAsRead = async (notificationId) => {
     try {
-      await axios.post(`http://localhost:5000/api/notifications/${notificationId}/read`);
+      await api.post(`/api/notifications/${notificationId}/read`);
       setNotifications(notifications.map(n => 
         n.id === notificationId ? { ...n, read: true } : n
       ));

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -23,7 +25,7 @@ const EventDisplay = ({ event, onEdit, onDelete, currentUserId }) => {
       if (event.url) {
         console.log('Fetching preview for URL:', event.url);  // Debug log
         try {
-          const response = await axios.post('http://localhost:5000/api/link-preview', {
+          const response = await api.post('/api/link-preview', {
             url: event.url
           });
           console.log('Link preview response:', response.data);  // Debug log

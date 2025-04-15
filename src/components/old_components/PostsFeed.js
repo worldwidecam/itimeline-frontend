@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Box,
@@ -38,7 +40,7 @@ function PostsFeed() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/posts?page=${page}&sort=${sortBy}`);
+      const response = await api.get(`/api/posts?page=${page}&sort=${sortBy}`);
       setPosts(response.data.posts);
       setTotalPages(response.data.pages);
     } catch (error) {
@@ -60,7 +62,7 @@ function PostsFeed() {
   const handleUpvote = async (postId) => {
     if (!user) return;
     try {
-      await axios.post(`http://localhost:5000/api/post/${postId}/upvote`);
+      await api.post(`/api/post/${postId}/upvote`);
       fetchPosts();
     } catch (error) {
       console.error('Error upvoting post:', error);
@@ -70,7 +72,7 @@ function PostsFeed() {
   const handlePromoteVote = async (postId) => {
     if (!user) return;
     try {
-      await axios.post(`http://localhost:5000/api/post/${postId}/promote-vote`);
+      await api.post(`/api/post/${postId}/promote-vote`);
       fetchPosts();
     } catch (error) {
       console.error('Error voting for promotion:', error);
@@ -170,7 +172,7 @@ function PostsFeed() {
                       }}
                     >
                       <img
-                        src={post.image ? `http://localhost:5000${post.image}` : post.url_image}
+                        src={post.image ? `${post.image}` : post.url_image}
                         alt={post.title}
                         style={{
                           width: '100%',

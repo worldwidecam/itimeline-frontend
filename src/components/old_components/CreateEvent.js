@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React
+import api from '../utils/api';
+, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Container,
@@ -31,8 +33,8 @@ function CreateEvent() {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `http://localhost:5000/api/timeline/${id}/event`,
+      const response = await api.post(
+        `/api/timeline/${id}/event`,
         formData,
         {
           headers: {

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
@@ -41,7 +43,7 @@ const CommentSection = ({ eventId }) => {
       if (!token) {
         return;
       }
-      const response = await axios.get('http://localhost:5000/api/user/current', {
+      const response = await api.get('/api/user/current', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setCurrentUser(response.data);
@@ -54,7 +56,7 @@ const CommentSection = ({ eventId }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`http://localhost:5000/api/event/${eventId}/comments`);
+      const response = await api.get(`/api/event/${eventId}/comments`);
       setComments(response.data);
     } catch (error) {
       setError('Failed to load comments. Please try again later.');
@@ -79,8 +81,8 @@ const CommentSection = ({ eventId }) => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `http://localhost:5000/api/event/${eventId}/comments`,
+      await api.post(
+        `/api/event/${eventId}/comments`,
         { content: newComment },
         {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -100,8 +102,8 @@ const CommentSection = ({ eventId }) => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/comments/${commentId}`,
+      await api.put(
+        `/api/comments/${commentId}`,
         { content: editContent },
         {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -120,8 +122,8 @@ const CommentSection = ({ eventId }) => {
   const handleDelete = async (commentId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(
-        `http://localhost:5000/api/comments/${commentId}`,
+      await api.delete(
+        `/api/comments/${commentId}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }

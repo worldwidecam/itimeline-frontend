@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React
+import api from '../utils/api';
+, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -76,7 +78,7 @@ function CreatePost() {
         size: file.size
       });
 
-      const response = await fetch('http://localhost:5000/api/upload', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
         headers: {
@@ -103,7 +105,7 @@ function CreatePost() {
       }
 
       if (data && data.url) {
-        const fullUrl = `http://localhost:5000${data.url}`;
+        const fullUrl = `${data.url}`;
         setImage(fullUrl);
         setError('');
         console.log('Upload successful, image URL:', fullUrl);
@@ -132,7 +134,7 @@ function CreatePost() {
         image: image || null
       };
 
-      await fetch('http://localhost:5000/api/posts', {
+      await fetch('/api/posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -224,7 +226,7 @@ function CreatePost() {
                 <CardMedia
                   component="img"
                   height="200"
-                  image={imagePreview || `http://localhost:5000${image}`}
+                  image={imagePreview || `${image}`}
                   alt="Post cover"
                 />
                 <IconButton

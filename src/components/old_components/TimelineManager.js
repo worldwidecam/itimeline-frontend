@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React
+import api from '../utils/api';
+, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -35,7 +37,7 @@ function TimelineManager() {
 
   const fetchTimelines = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/timelines');
+      const response = await api.get('/api/timelines');
       setTimelines(response.data);
     } catch (error) {
       setError('Error fetching timelines');
@@ -49,7 +51,7 @@ function TimelineManager() {
 
   const handleDelete = async (timelineId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/timelines/${timelineId}`);
+      await api.delete(`/api/timelines/${timelineId}`);
       setSuccess('Timeline deleted successfully');
       fetchTimelines();
     } catch (error) {
@@ -65,7 +67,7 @@ function TimelineManager() {
     }
 
     try {
-      await axios.post('http://localhost:5000/api/timelines/merge', {
+      await api.post('/api/timelines/merge', {
         source_id: selectedTimeline,
         target_id: targetTimeline
       });
