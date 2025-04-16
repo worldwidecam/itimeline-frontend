@@ -562,12 +562,37 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
               </Box>
               
               {/* Author */}
-              {event.created_by && (
+              {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.875rem' }} />
-                  <Typography variant="caption" color="text.secondary">
-                    By {event.created_by_username || `User #${event.created_by}`}
+                  <Avatar 
+                    src={event.created_by_avatar} 
+                    alt={event.created_by_username}
+                    sx={{ 
+                      width: 24, 
+                      height: 24,
+                      mr: 0.5,
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {event.created_by_username.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                    By
                   </Typography>
+                  <Link
+                    component={RouterLink}
+                    to={`/profile/${event.created_by}`}
+                    variant="caption"
+                    color="primary"
+                    sx={{ 
+                      textDecoration: 'none',
+                      '&:hover': {
+                        textDecoration: 'underline'
+                      }
+                    }}
+                  >
+                    {event.created_by_username}
+                  </Link>
                 </Box>
               )}
             </Box>
