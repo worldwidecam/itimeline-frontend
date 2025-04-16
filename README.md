@@ -200,6 +200,69 @@ The application uses environment variables for configuration. These can be set i
 - API base URL is configured through environment variables
 - Authentication tokens are handled by interceptors
 
+## Media Upload System
+
+### Architecture
+- **MediaUploader Component**: Standalone component for uploading files to Cloudinary
+  - Handles file selection, validation, and upload
+  - Provides detailed logging and error handling
+  - Displays uploaded files with preview functionality
+- **MediaEventCreator Component**: Integrates MediaUploader into the timeline event creation workflow
+  - Captures upload results from MediaUploader
+  - Formats data correctly for event creation
+  - Handles form submission to create media events
+- **MediaCard Component**: Displays media events in the timeline
+  - Supports multiple media types (images, videos, audio)
+  - Implements fallback mechanisms for URL resolution
+  - Provides interactive media controls
+
+### Data Flow
+1. User selects a file in MediaUploader
+2. File is uploaded to Cloudinary via `/api/upload-media` endpoint
+3. Upload response contains URL, media type, and Cloudinary ID
+4. MediaEventCreator captures this data and combines it with event details
+5. Event is created with the correct media information
+6. MediaCard displays the media using the URL from the event data
+
+### Critical Fields for Media Events
+- **media_url**: The URL to the media file on Cloudinary
+- **url**: Duplicate of media_url for compatibility with different components
+- **media_type**: The type of media (image, video, audio)
+- **media**: Object containing type and URL information
+- **type**: Must be set to EVENT_TYPES.MEDIA for proper event type identification
+- **raw_event_date**: Formatted date string for display
+- **is_exact_user_time**: Flag indicating this is a user-selected time
+
+## Lessons Learned and Best Practices
+
+### Component Integration
+- **Prop Naming Consistency**: Ensure prop names match exactly between parent and child components
+  - Example: Using `onSave` in both TimelineV3.js and MediaEventCreator.js
+- **Data Format Alignment**: Match the data format expected by API endpoints
+  - Example: Structuring event data to match what handleEventSubmit expects
+
+### Media Handling
+- **URL Field Redundancy**: Include media URLs in multiple fields for compatibility
+  - Both `media_url` and `url` fields should be set
+- **Media Type Detection**: Implement multiple detection methods
+  - Check MIME types, file extensions, and response data
+- **Fallback Mechanisms**: Always provide fallback URLs or placeholders
+
+### Debugging Strategies
+- **Console Logging**: Add detailed logs at each step of the upload process
+- **Response Inspection**: Log API responses to identify data format issues
+- **DOM Inspection**: Check rendered elements to verify media display
+
+### Common Issues and Solutions
+- **Prop Mismatch**: Ensure component props match exactly between parent and child
+  - Solution: Review all prop names in both components and ensure they match
+- **Data Format Mismatch**: API endpoints expect specific data formats
+  - Solution: Log the expected format and ensure your data matches it exactly
+- **Media URL Capture**: Upload results must be properly captured and stored
+  - Solution: Implement multiple methods to capture the URL (state, DOM, response parsing)
+- **Media Type Detection**: Different file types require different handling
+  - Solution: Use multiple detection methods and provide fallbacks
+
 ## Troubleshooting
 
 ### Common Issues
