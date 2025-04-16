@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../utils/api';
-import { differenceInMilliseconds } from 'date-fns';
+import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
 import TimelineBar from './TimelineBar';
 import TimeMarkers from './TimeMarkers';
@@ -15,11 +15,22 @@ import EventDialog from './events/EventDialog';
 import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
-import AddIcon from '@mui/icons-material/Add';
-import CommentIcon from '@mui/icons-material/Comment';
-import NewspaperIcon from '@mui/icons-material/Newspaper';
-import PermMediaIcon from '@mui/icons-material/PermMedia';
-import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
+
+// Material UI Icons - importing each icon separately to ensure they're properly loaded
+import Add from '@mui/icons-material/Add';
+import Comment from '@mui/icons-material/Comment';
+import Newspaper from '@mui/icons-material/Newspaper';
+import PermMedia from '@mui/icons-material/PermMedia';
+import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
+import Settings from '@mui/icons-material/Settings';
+
+// Define icon components to match the names used in the component
+const AddIcon = Add;
+const CommentIcon = Comment;
+const NewspaperIcon = Newspaper;
+const PermMediaIcon = PermMedia;
+const ArrowDropDownIcon = ArrowDropDown;
+const SettingsIcon = Settings;
 
 const API_BASE_URL = '/api';
 
@@ -218,6 +229,17 @@ function TimelineV3() {
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [remarkDialogOpen, setRemarkDialogOpen] = useState(false);
   const [newsDialogOpen, setNewsDialogOpen] = useState(false);
+  const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
+  const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
+  const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
+  
+  const handleAddEventClick = (event) => {
+    setAddEventAnchorEl(event.currentTarget);
+  };
+  
+  const handleAddEventMenuClose = () => {
+    setAddEventAnchorEl(null);
+  };
 
   // Get sort order from localStorage
   const [sortOrder, setSortOrder] = useState(() => {
@@ -1041,24 +1063,58 @@ function TimelineV3() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {getViewDescription()}
             </Box>
-            <Button
-              onClick={() => {
-                setEditingEvent(null);
-                setDialogOpen(true);
-              }}
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{
-                bgcolor: theme.palette.success.main,
-                color: 'white',
-                '&:hover': {
-                  bgcolor: theme.palette.success.dark,
-                },
-                boxShadow: 2
-              }}
-            >
-              Add Event
-            </Button>
+            <Box sx={{ position: 'relative' }}>
+              <Button
+                onClick={handleAddEventClick}
+                variant="contained"
+                startIcon={<AddIcon />}
+                endIcon={<ArrowDropDownIcon />}
+                sx={{
+                  bgcolor: theme.palette.success.main,
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: theme.palette.success.dark,
+                  },
+                  boxShadow: 2
+                }}
+              >
+                Add Event
+              </Button>
+              <Menu
+                anchorEl={addEventAnchorEl}
+                open={Boolean(addEventAnchorEl)}
+                onClose={handleAddEventMenuClose}
+                sx={{ mt: 1 }}
+              >
+                <MenuItem onClick={() => {
+                  handleAddEventMenuClose();
+                  setRemarkDialogOpen(true);
+                }}>
+                  <ListItemIcon>
+                    <CommentIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2' }} />
+                  </ListItemIcon>
+                  <ListItemText>Add Remark</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={() => {
+                  handleAddEventMenuClose();
+                  setNewsDialogOpen(true);
+                }}>
+                  <ListItemIcon>
+                    <NewspaperIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
+                  </ListItemIcon>
+                  <ListItemText>Add News</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={() => {
+                  handleAddEventMenuClose();
+                  setMediaDialogOpen(true);
+                }}>
+                  <ListItemIcon>
+                    <PermMediaIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0' }} />
+                  </ListItemIcon>
+                  <ListItemText>Add Media</ListItemText>
+                </MenuItem>
+              </Menu>
+            </Box>
             <Fade in={timelineOffset !== 0}>
               <Button
                 onClick={handleRecenter}
@@ -1331,77 +1387,141 @@ function TimelineV3() {
         onSave={handleEventSubmit}
       />
 
-      {/* Floating Action Buttons */}
+      {/* Animated Floating Action Buttons */}
       <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
-        {/* Add Media Button */}
-        <Tooltip title="Create Media Event">
-          <Fab
-            onClick={() => {
-              setMediaDialogOpen(true);
-            }}
-            sx={{
-              bgcolor: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0', // Purple color for media
-              '&:hover': {
-                bgcolor: theme.palette.mode === 'dark' ? '#ba68c8' : '#7b1fa2',
-              },
-              boxShadow: 3
-            }}
-          >
-            <PermMediaIcon />
-          </Fab>
-        </Tooltip>
+        {/* Specialized Event Buttons - These animate in and out */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
+          {/* Media Button - Animates from main button position */}
+          <Box sx={{
+            position: 'absolute',
+            bottom: floatingButtonsExpanded ? 168 : 0,
+            right: 0,
+            opacity: floatingButtonsExpanded ? 1 : 0,
+            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+            transition: `bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                        opacity 0.3s ease-in-out`,
+            transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s',
+            zIndex: 1510
+          }}>
+            <Tooltip title="Create Media Event" placement="left">
+              <Fab
+                onClick={() => {
+                  setMediaDialogOpen(true);
+                  setFloatingButtonsExpanded(false);
+                }}
+                size="medium"
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0', // Purple color for media
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? '#ba68c8' : '#7b1fa2',
+                  },
+                  color: 'white',
+                  boxShadow: 3,
+                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
+                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s'
+                }}
+              >
+                <PermMediaIcon />
+              </Fab>
+            </Tooltip>
+          </Box>
+          
+          {/* News Button - Animates from main button position with delay */}
+          <Box sx={{
+            position: 'absolute',
+            bottom: floatingButtonsExpanded ? 112 : 0,
+            right: 0,
+            opacity: floatingButtonsExpanded ? 1 : 0,
+            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+            transition: `bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                        opacity 0.3s ease-in-out`,
+            transitionDelay: floatingButtonsExpanded ? '0.1s' : '0s',
+            zIndex: 1520
+          }}>
+            <Tooltip title="Create News Event" placement="left">
+              <Fab
+                onClick={() => {
+                  setNewsDialogOpen(true);
+                  setFloatingButtonsExpanded(false);
+                }}
+                size="medium"
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935', // Red color for news
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? '#e57373' : '#c62828',
+                  },
+                  color: 'white',
+                  boxShadow: 3,
+                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
+                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  transitionDelay: floatingButtonsExpanded ? '0.1s' : '0s'
+                }}
+              >
+                <NewspaperIcon />
+              </Fab>
+            </Tooltip>
+          </Box>
+          
+          {/* Remark Button - Animates from main button position with more delay */}
+          <Box sx={{
+            position: 'absolute',
+            bottom: floatingButtonsExpanded ? 56 : 0,
+            right: 0,
+            opacity: floatingButtonsExpanded ? 1 : 0,
+            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+            transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                        opacity 0.3s ease-in-out`,
+            transitionDelay: floatingButtonsExpanded ? '0.15s' : '0s',
+            zIndex: 1530
+          }}>
+            <Tooltip title="Create Remark Event" placement="left">
+              <Fab
+                onClick={() => {
+                  setRemarkDialogOpen(true);
+                  setFloatingButtonsExpanded(false);
+                }}
+                size="medium"
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2', // Blue color for remarks
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? '#64b5f6' : '#1565c0',
+                  },
+                  color: 'white',
+                  boxShadow: 3,
+                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
+                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  transitionDelay: floatingButtonsExpanded ? '0.15s' : '0s'
+                }}
+              >
+                <CommentIcon />
+              </Fab>
+            </Tooltip>
+          </Box>
+        </Box>
         
-        {/* Add News Button */}
-        <Tooltip title="Create News Event">
+        {/* Main Quick Add Button - Always visible */}
+        <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
           <Fab
             onClick={() => {
-              setNewsDialogOpen(true);
+              // Toggle the expanded state to show/hide the specialized buttons
+              setFloatingButtonsExpanded(!floatingButtonsExpanded);
             }}
             sx={{
-              bgcolor: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935', // Red color for news
-              '&:hover': {
-                bgcolor: theme.palette.mode === 'dark' ? '#e57373' : '#c62828',
-              },
+              // Better colors for both light and dark themes
+              bgcolor: theme.palette.mode === 'dark' 
+                ? theme.palette.primary.dark  // Use primary color in dark mode
+                : theme.palette.success.light, // Use success light in light mode
               color: 'white',
-              boxShadow: 3
-            }}
-          >
-            <NewspaperIcon />
-          </Fab>
-        </Tooltip>
-        
-        {/* Add Remark Button */}
-        <Tooltip title="Create Remark Event">
-          <Fab
-            onClick={() => {
-              setRemarkDialogOpen(true);
-            }}
-            sx={{
-              bgcolor: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2', // Blue color for remarks
               '&:hover': {
-                bgcolor: theme.palette.mode === 'dark' ? '#64b5f6' : '#1565c0',
+                bgcolor: theme.palette.mode === 'dark' 
+                  ? theme.palette.primary.main 
+                  : theme.palette.success.main,
               },
-              color: 'white',
-              boxShadow: 3
-            }}
-          >
-            <CommentIcon />
-          </Fab>
-        </Tooltip>
-        
-        {/* Add Event Button (Generic) */}
-        <Tooltip title="Create New Event">
-          <Fab
-            onClick={() => {
-              setEditingEvent(null);
-              setDialogOpen(true);
-            }}
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              '&:hover': {
-                bgcolor: theme.palette.primary.dark,
-              },
-              boxShadow: 3
+              boxShadow: 3,
+              transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+              transition: 'transform 0.3s ease, background-color 0.2s ease',
+              zIndex: 1540
             }}
           >
             <AddIcon />
