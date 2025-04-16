@@ -13,7 +13,11 @@ import EventCounter from './events/EventCounter';
 import EventList from './events/EventList';
 import EventDialog from './events/EventDialog';
 import MediaEventCreator from './events/MediaEventCreator';
+import RemarkEventCreator from './events/RemarkEventCreator';
+import NewsEventCreator from './events/NewsEventCreator';
 import AddIcon from '@mui/icons-material/Add';
+import CommentIcon from '@mui/icons-material/Comment';
+import NewspaperIcon from '@mui/icons-material/Newspaper';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
 import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 
@@ -212,6 +216,8 @@ function TimelineV3() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
+  const [remarkDialogOpen, setRemarkDialogOpen] = useState(false);
+  const [newsDialogOpen, setNewsDialogOpen] = useState(false);
 
   // Get sort order from localStorage
   const [sortOrder, setSortOrder] = useState(() => {
@@ -1306,13 +1312,30 @@ function TimelineV3() {
         }}
         onSave={handleEventSubmit}
       />
+      
+      {/* Remark Event Creator */}
+      <RemarkEventCreator
+        open={remarkDialogOpen}
+        onClose={() => {
+          setRemarkDialogOpen(false);
+        }}
+        onSave={handleEventSubmit}
+      />
+      
+      {/* News Event Creator */}
+      <NewsEventCreator
+        open={newsDialogOpen}
+        onClose={() => {
+          setNewsDialogOpen(false);
+        }}
+        onSave={handleEventSubmit}
+      />
 
       {/* Floating Action Buttons */}
-      <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
         {/* Add Media Button */}
         <Tooltip title="Create Media Event">
           <Fab
-            color="secondary"
             onClick={() => {
               setMediaDialogOpen(true);
             }}
@@ -1320,17 +1343,55 @@ function TimelineV3() {
               bgcolor: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0', // Purple color for media
               '&:hover': {
                 bgcolor: theme.palette.mode === 'dark' ? '#ba68c8' : '#7b1fa2',
-              }
+              },
+              boxShadow: 3
             }}
           >
             <PermMediaIcon />
           </Fab>
         </Tooltip>
         
-        {/* Add Event Button */}
+        {/* Add News Button */}
+        <Tooltip title="Create News Event">
+          <Fab
+            onClick={() => {
+              setNewsDialogOpen(true);
+            }}
+            sx={{
+              bgcolor: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935', // Red color for news
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark' ? '#e57373' : '#c62828',
+              },
+              color: 'white',
+              boxShadow: 3
+            }}
+          >
+            <NewspaperIcon />
+          </Fab>
+        </Tooltip>
+        
+        {/* Add Remark Button */}
+        <Tooltip title="Create Remark Event">
+          <Fab
+            onClick={() => {
+              setRemarkDialogOpen(true);
+            }}
+            sx={{
+              bgcolor: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2', // Blue color for remarks
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark' ? '#64b5f6' : '#1565c0',
+              },
+              color: 'white',
+              boxShadow: 3
+            }}
+          >
+            <CommentIcon />
+          </Fab>
+        </Tooltip>
+        
+        {/* Add Event Button (Generic) */}
         <Tooltip title="Create New Event">
           <Fab
-            color="primary"
             onClick={() => {
               setEditingEvent(null);
               setDialogOpen(true);
@@ -1339,7 +1400,8 @@ function TimelineV3() {
               bgcolor: theme.palette.primary.main,
               '&:hover': {
                 bgcolor: theme.palette.primary.dark,
-              }
+              },
+              boxShadow: 3
             }}
           >
             <AddIcon />

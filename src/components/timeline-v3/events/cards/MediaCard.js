@@ -510,23 +510,26 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
           
           {/* Content Section */}
           <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                {event.title}
-              </Typography>
+            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <MediaIcon sx={{ color, mt: 0.5 }} />
+              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                  {event.title}
+                </Typography>
               
-              <IconButton 
-                size="small" 
-                onClick={handleMenuOpen}
-                className="event-actions"
-                sx={{ 
-                  opacity: isSelected ? 1 : 0.5,
-                  transition: 'opacity 0.2s',
-                  ml: 1,
-                }}
-              >
-                <MoreVertIcon fontSize="small" />
-              </IconButton>
+                <IconButton 
+                  size="small" 
+                  onClick={handleMenuOpen}
+                  className="event-actions"
+                  sx={{ 
+                    opacity: isSelected ? 1 : 0.5,
+                    transition: 'opacity 0.2s',
+                    ml: 1,
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
             
             {/* Event description */}
