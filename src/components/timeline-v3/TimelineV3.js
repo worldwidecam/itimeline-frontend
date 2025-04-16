@@ -12,7 +12,9 @@ import EventMarker from './events/EventMarker';
 import EventCounter from './events/EventCounter';
 import EventList from './events/EventList';
 import EventDialog from './events/EventDialog';
+import MediaEventCreator from './events/MediaEventCreator';
 import AddIcon from '@mui/icons-material/Add';
+import PermMediaIcon from '@mui/icons-material/PermMedia';
 import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 
 const API_BASE_URL = '/api';
@@ -209,6 +211,7 @@ function TimelineV3() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
 
   // Get sort order from localStorage
   const [sortOrder, setSortOrder] = useState(() => {
@@ -1294,28 +1297,55 @@ function TimelineV3() {
         onSave={handleEventSubmit}
         initialEvent={editingEvent}
       />
+      
+      {/* Media Event Creator */}
+      <MediaEventCreator
+        open={mediaDialogOpen}
+        onClose={() => {
+          setMediaDialogOpen(false);
+        }}
+        onSave={handleEventSubmit}
+      />
 
-      {/* Floating Action Button */}
-      <Tooltip title="Create New Event">
-        <Fab
-          color="primary"
-          onClick={() => {
-            setEditingEvent(null);
-            setDialogOpen(true);
-          }}
-          sx={{
-            position: 'fixed',
-            right: 32,
-            bottom: 32,
-            bgcolor: theme.palette.primary.main,
-            '&:hover': {
-              bgcolor: theme.palette.primary.dark,
-            }
-          }}
-        >
-          <AddIcon />
-        </Fab>
-      </Tooltip>
+      {/* Floating Action Buttons */}
+      <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Add Media Button */}
+        <Tooltip title="Create Media Event">
+          <Fab
+            color="secondary"
+            onClick={() => {
+              setMediaDialogOpen(true);
+            }}
+            sx={{
+              bgcolor: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0', // Purple color for media
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark' ? '#ba68c8' : '#7b1fa2',
+              }
+            }}
+          >
+            <PermMediaIcon />
+          </Fab>
+        </Tooltip>
+        
+        {/* Add Event Button */}
+        <Tooltip title="Create New Event">
+          <Fab
+            color="primary"
+            onClick={() => {
+              setEditingEvent(null);
+              setDialogOpen(true);
+            }}
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              '&:hover': {
+                bgcolor: theme.palette.primary.dark,
+              }
+            }}
+          >
+            <AddIcon />
+          </Fab>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }

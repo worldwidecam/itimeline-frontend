@@ -36,10 +36,9 @@ import {
   VideoFile as VideoFileIcon,
 } from '@mui/icons-material';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useDropzone } from 'react-dropzone';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_METADATA } from './EventTypes';
-import CloudinaryTest from './CloudinaryTest';
+import MediaEventUploader from './MediaEventUploader';
 
 const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -334,7 +333,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         if (eventData.media_url) {
           console.log('Using media_url from file upload:', eventData.media_url);
           
-          // Ensure the URL is properly formatted
+          // Ensure the URL is properly formatted - this should already be correct from our uploader
           if (!eventData.media_url.startsWith('http') && !eventData.media_url.startsWith('/')) {
             // If it's not an absolute URL or a path starting with /, prepend /
             eventData.media_url = `/${eventData.media_url}`;
@@ -344,8 +343,17 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
           // Set url field to match media_url for backward compatibility
           eventData.url = eventData.media_url;
           console.log('Set url to match media_url:', eventData.url);
+          
+          // Make sure cloudinary_id is included
+          if (formData.cloudinary_id) {
+            eventData.cloudinary_id = formData.cloudinary_id;
+            console.log('Added cloudinary_id to event data:', eventData.cloudinary_id);
+          }
         } else {
           console.warn('Media event has no media_url!');
+          setError('Please upload a media file before submitting');
+          setLoading(false);
+          return; // Prevent form submission without media
         }
         
         // Make sure media_type is set properly
@@ -663,152 +671,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
     );
   }, [urlData, formData.url]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: async (acceptedFiles) => {
-      if (acceptedFiles.length > 0) {
-        const file = acceptedFiles[0];
-        console.log('===== FILE UPLOAD PROCESS STARTED =====');
-        console.log('File selected for upload:', {
-          name: file.name,
-          type: file.type,
-          size: `${(file.size / 1024).toFixed(2)} KB`,
-          lastModified: new Date(file.lastModified).toISOString()
-        });
-        
-        // Create a form data object to send the file
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        try {
-          setLoading(true);
-          setError('');
-          console.log('===== MEDIA UPLOAD PROCESS STARTED =====');
-          console.log('Starting media upload to Cloudinary');
-          console.log('API base URL:', api.defaults.baseURL);
-          
-          // Add media type to the form data
-          const fileType = file.type;
-          let mediaCategory = 'other';
-          
-          if (fileType.startsWith('image/')) {
-            mediaCategory = 'image';
-          } else if (fileType.startsWith('video/')) {
-            mediaCategory = 'video';
-          } else if (fileType.startsWith('audio/')) {
-            mediaCategory = 'audio';
-          }
-          
-          formData.append('media_type', mediaCategory);
-          console.log(`File type: ${fileType}, Media category: ${mediaCategory}`);
-          
-          // Log the request details for debugging
-          console.log('Request URL:', `${api.defaults.baseURL}/api/upload-media`);
-          console.log('Request method: POST');
-          console.log('Request headers: Content-Type: multipart/form-data');
-          
-          const response = await api.post('/api/upload-media', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            },
-            timeout: 30000,
-            onUploadProgress: (progressEvent) => {
-              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              console.log(`Upload progress: ${percentCompleted}%`);
-            }
-          });
-
-          console.log('===== UPLOAD RESPONSE =====');
-          console.log('Status:', response.status);
-          console.log('Response data:', response.data);
-          
-          if (!response.data || !response.data.url) {
-            throw new Error('Invalid response from server: Missing URL in response data');
-          }
-
-          // Get the media URL from the response
-          const mediaUrl = response.data.url;
-          console.log('Media URL from response:', mediaUrl);
-
-          // Determine if this is a Cloudinary URL
-          const isCloudinaryUrl = mediaUrl.includes('cloudinary.com') || 
-                                 mediaUrl.includes('res.cloudinary') ||
-                                 (response.data.storage === 'cloudinary');
-
-          console.log('Upload successful!');
-          console.log('Media URL:', mediaUrl);
-          console.log('Is Cloudinary URL:', isCloudinaryUrl);
-          console.log('Storage type:', response.data.storage);
-          console.log('Cloudinary ID:', response.data.cloudinary_id || response.data.public_id);
-
-          // CRITICAL: Ensure we have the complete URL for Cloudinary
-          let finalMediaUrl = mediaUrl;
-          
-          // Make sure the URL is properly formatted
-          if (!finalMediaUrl.startsWith('http') && isCloudinaryUrl) {
-            // This might be just a public ID - construct a proper Cloudinary URL
-            const cloudName = 'dnjwvuxn7';
-            finalMediaUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${finalMediaUrl}`;
-            console.log('Fixed Cloudinary URL:', finalMediaUrl);
-          }
-          
-          // Store the Cloudinary ID if available
-          const cloudinaryId = response.data.cloudinary_id || response.data.public_id || '';
-          
-          // Update form data with the media URL and type information
-          setFormData(prev => ({
-            ...prev,
-            media_url: finalMediaUrl,
-            media_type: isCloudinaryUrl ? `cloudinary:${file.type}` : file.type,
-            url: finalMediaUrl, // Also set the url field for backward compatibility
-            cloudinary_id: cloudinaryId // Store the Cloudinary ID
-          }));
-          
-          console.log('Updated form data with media information:', {
-            media_url: finalMediaUrl,
-            media_type: isCloudinaryUrl ? `cloudinary:${file.type}` : file.type,
-            cloudinary_id: cloudinaryId
-          });
-
-          // Log the updated form data
-          console.log('Updated form data with media URL:', mediaUrl);
-
-          setLoading(false);
-          setError(null);
-
-          // Show success message
-          // setSnackbar({
-          //   open: true,
-          //   message: 'File uploaded successfully',
-          //   severity: 'success'
-          // });
-
-          return mediaUrl;
-        } catch (error) {
-          console.error('Error uploading file:', error);
-
-          // More detailed error logging
-          if (error.response) {
-            console.error('Response status:', error.response.status);
-            console.error('Response data:', error.response.data);
-            console.error('No response received. Request details:', error.request);
-          } else {
-            // Something happened in setting up the request that triggered an Error
-            console.error('Error setting up request:', error.message);
-          }
-          
-          setError(`Failed to upload media file: ${error.message}. Please try again.`);
-          setLoading(false);
-        }
-      }
-    },
-    accept: {
-      'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'],
-      'video/*': ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.wmv', '.flv', '.mkv'],
-      'audio/*': ['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a']
-    },
-    maxSize: 20 * 1024 * 1024, // 20MB max size
-    multiple: false
-  });
+  // Removed old dropzone code that was causing linting errors
 
   return (
     <Dialog 
@@ -1042,125 +905,34 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
 
             {formData.type === EVENT_TYPES.MEDIA && (
               <>
-                {/* Add the CloudinaryTest component */}
                 <Box sx={{ mt: 3, mb: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>
-                    Upload Media with Cloudinary (Recommended)
+                    Upload Media File
                   </Typography>
-                  <CloudinaryTest 
+                  <MediaEventUploader 
                     onUploadSuccess={(uploadResult) => {
-                      console.log('CloudinaryTest upload success:', uploadResult);
-                      // Update form data with the Cloudinary URL
-                      setFormData(prev => ({
-                        ...prev,
-                        media_url: uploadResult.url,
-                        media_type: `cloudinary:${uploadResult.type}`,
-                        url: uploadResult.url // Also set URL for backward compatibility
-                      }));
+                      console.log('MediaEventUploader success:', uploadResult);
+                      if (uploadResult) {
+                        // Update form data with the media information
+                        setFormData(prev => ({
+                          ...prev,
+                          media_url: uploadResult.url,
+                          media_type: uploadResult.type,
+                          url: uploadResult.url, // Also set URL for backward compatibility
+                          cloudinary_id: uploadResult.cloudinary_id
+                        }));
+                      } else {
+                        // Clear media data if upload was canceled or failed
+                        setFormData(prev => ({
+                          ...prev,
+                          media_url: '',
+                          media_type: '',
+                          cloudinary_id: ''
+                        }));
+                      }
                     }}
                   />
                 </Box>
-                
-                {/* Original upload component */}
-                <Box sx={{ mt: 3, mb: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Alternative Upload Method (Legacy)
-                  </Typography>
-                </Box>
-                
-                {formData.media_url ? (
-                  <Box sx={{ 
-                    mt: 2, 
-                    p: 2, 
-                    borderRadius: 1,
-                    backgroundColor: 'background.paper',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="subtitle1">Media Preview</Typography>
-                      <IconButton 
-                        size="small" 
-                        color="error" 
-                        onClick={() => setFormData(prev => ({ ...prev, media_url: '', media_type: '' }))}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                    
-                    {/* Media preview based on type */}
-                    {formData.media_type?.startsWith('image/') || formData.media_type?.includes('cloudinary:image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(formData.media_url) ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <img 
-                          src={formData.media_url} 
-                          alt="Media preview" 
-                          style={{ 
-                            maxWidth: '100%', 
-                            maxHeight: '200px',
-                            objectFit: 'contain',
-                            borderRadius: 4
-                          }} 
-                        />
-                      </Box>
-                    ) : formData.media_type?.startsWith('video/') || formData.media_type?.includes('cloudinary:video/') || /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(formData.media_url) ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <video
-                          controls
-                          style={{ 
-                            maxWidth: '100%', 
-                            maxHeight: '200px',
-                            borderRadius: 4
-                          }}
-                        >
-                          <source src={formData.media_url} type={formData.media_type?.replace('cloudinary:', '') || "video/mp4"} />
-                          Your browser does not support the video tag.
-                        </video>
-                      </Box>
-                    ) : formData.media_type?.startsWith('audio/') || formData.media_type?.includes('cloudinary:audio/') || /\.(mp3|wav|ogg|aac|flac|m4a)$/i.test(formData.media_url) ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <audio
-                          controls
-                          style={{ width: '100%' }}
-                        >
-                          <source src={formData.media_url} type={formData.media_type?.replace('cloudinary:', '') || "audio/mpeg"} />
-                          Your browser does not support the audio element.
-                        </audio>
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <Link 
-                          href={formData.media_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                        >
-                          <MediaIcon />
-                          View Media
-                        </Link>
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  <Box {...getRootProps()} sx={{ 
-                    p: 2, 
-                    mt: 2, 
-                    borderRadius: 1,
-                    backgroundColor: 'background.paper',
-                    border: '1px dashed',
-                    borderColor: 'divider',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    flexDirection: 'column'
-                  }}>
-                    <input {...getInputProps()} />
-                    {
-                      isDragActive ? <p>Drop the media here ...</p> : <p>Drag 'n' drop or click to upload media</p>
-                    }
-                    <CloudUploadIcon sx={{ fontSize: 48, mb: 1 }} />
-                  </Box>
-                )}
               </>
             )}
           </Stack>
