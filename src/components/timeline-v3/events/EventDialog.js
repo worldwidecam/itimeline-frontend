@@ -188,8 +188,28 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null }) => {
   };
 
   const getTypeColor = () => {
-    const colors = EVENT_TYPE_COLORS[eventType];
+    // Make sure we have a valid event type
+    const safeEventType = eventType && Object.values(EVENT_TYPES).includes(eventType) 
+      ? eventType 
+      : EVENT_TYPES.REMARK;
+    
+    // Get colors with fallback
+    const colors = EVENT_TYPE_COLORS[safeEventType] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
     return theme.palette.mode === 'dark' ? colors.dark : colors.light;
+  };
+  
+  // Safely get hover color
+  const getHoverColor = () => {
+    // Make sure we have a valid event type
+    const safeEventType = eventType && Object.values(EVENT_TYPES).includes(eventType) 
+      ? eventType 
+      : EVENT_TYPES.REMARK;
+    
+    // Get colors with fallback
+    const colors = EVENT_TYPE_COLORS[safeEventType] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
+    const hoverColors = colors.hover || { light: colors.light, dark: colors.dark };
+    
+    return theme.palette.mode === 'dark' ? hoverColors.dark : hoverColors.light;
   };
 
   const renderTypeSpecificFields = () => {
@@ -501,9 +521,7 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null }) => {
           sx={{
             bgcolor: getTypeColor(),
             '&:hover': {
-              bgcolor: theme.palette.mode === 'dark' 
-                ? EVENT_TYPE_COLORS[eventType].hover.dark 
-                : EVENT_TYPE_COLORS[eventType].hover.light,
+              bgcolor: getHoverColor()
             }
           }}
         >

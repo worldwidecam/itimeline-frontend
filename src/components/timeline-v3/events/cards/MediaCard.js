@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import {
   Typography,
   IconButton,
@@ -28,7 +28,7 @@ import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import config from '../../../../config';
 
-const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
+const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -55,9 +55,17 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
   };
 
   const handleEdit = (e) => {
-    if (e) e.stopPropagation();
+    if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
-    onEdit(event);
+    
+    // Check if this is a special action
+    if (typeof e === 'object' && e !== null && e.type === 'openPopup') {
+      console.log('MediaCard: Opening popup from handleEdit');
+      setPopupOpen(true);
+      return; // Exit early to prevent edit form from opening
+    } else {
+      onEdit(event);
+    }
   };
 
   const handleDelete = (e) => {
@@ -73,9 +81,24 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
 
   const handleCardClick = () => {
     if (onEdit && typeof onEdit === 'function') {
-      onEdit({ type: 'select', event });
+      if (isSelected) {
+        // If already selected, open the popup
+        console.log('MediaCard: Opening popup for already selected card');
+        setPopupOpen(true);
+      } else {
+        // Otherwise, select it
+        onEdit({ type: 'select', event });
+      }
     }
   };
+  
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    openPopup: () => setPopupOpen(true)
+  }));
+  
+  // We no longer need to listen for custom events
+  // The popup will be opened directly by the handleEdit function
 
   const formatDate = (dateStr) => {
     try {
@@ -366,6 +389,7 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
             color: 'text.secondary',
             zIndex: 1
           }}
+          onClick={handleCardClick}
         >
           <Typography variant="body1">
             {event.title || "Media File"}
@@ -388,7 +412,12 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         whileHover={{ y: -5 }}
-        onClick={handleCardClick}
+        whileTap={{ scale: 0.98 }}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent event bubbling
+          console.log('MediaCard motion.div clicked');
+          handleCardClick();
+        }}
       >
         <Box
           sx={{
@@ -549,11 +578,14 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
       {/* Event popup */}
       <EventPopup
         open={popupOpen}
-        onClose={() => setPopupOpen(false)}
+        onClose={() => {
+          console.log('MediaCard: Closing popup');
+          setPopupOpen(false);
+        }}
         event={event}
       />
     </>
   );
-};
+});
 
 export default MediaCard;

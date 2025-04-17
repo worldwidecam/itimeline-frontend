@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import {
   Typography,
   IconButton,
@@ -39,7 +39,7 @@ import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import { alpha } from '@mui/material/styles';
 
-const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
+const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -78,7 +78,15 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
   const handleEdit = (e) => {
     if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
-    onEdit(event);
+    
+    // Check if this is a special action
+    if (typeof e === 'object' && e !== null && e.type === 'openPopup') {
+      console.log('NewsCard: Opening popup from handleEdit');
+      setPopupOpen(true);
+      return; // Exit early to prevent edit form from opening
+    } else {
+      onEdit(event);
+    }
   };
 
   const handleDelete = (e) => {
@@ -90,6 +98,27 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
   const handleDetailsClick = () => {
     setPopupOpen(true);
   };
+  
+  const handleCardClick = () => {
+    if (onEdit && typeof onEdit === 'function') {
+      if (isSelected) {
+        // If already selected, open the popup
+        console.log('NewsCard: Opening popup for already selected card');
+        setPopupOpen(true);
+      } else {
+        // Otherwise, select it
+        onEdit({ type: 'select', event });
+      }
+    }
+  };
+  
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    openPopup: () => setPopupOpen(true)
+  }));
+  
+  // We no longer need to listen for custom events
+  // The popup will be opened directly by the handleEdit function
 
   const formatDate = (dateStr) => {
     try {
@@ -307,6 +336,11 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
         whileTap={{ scale: 0.98 }}
         className="relative w-full"
         style={{ perspective: '1000px' }}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent event bubbling
+          console.log('NewsCard motion.div clicked');
+          handleCardClick();
+        }}
       >
         <motion.div
           className={`
@@ -558,10 +592,13 @@ const NewsCard = ({ event, onEdit, onDelete, isSelected }) => {
       <EventPopup 
         event={event}
         open={popupOpen}
-        onClose={() => setPopupOpen(false)}
+        onClose={() => {
+          console.log('NewsCard: Closing popup');
+          setPopupOpen(false);
+        }}
       />
     </>
   );
-};
+});
 
 export default NewsCard;

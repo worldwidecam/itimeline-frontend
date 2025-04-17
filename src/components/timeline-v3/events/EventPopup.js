@@ -28,8 +28,62 @@ import config from '../../../config';  // Import config to get API_URL
 
 const EventPopup = ({ event, open, onClose }) => {
   const theme = useTheme();
-  const typeColors = EVENT_TYPE_COLORS[event?.type] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
-  const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+  
+  // Default fallback values for when event data is incomplete
+  const defaultColor = theme.palette.primary.main;
+  const defaultDarkColor = theme.palette.primary.dark;
+  
+  // Safely determine the event type with multiple fallbacks
+  let safeEventType = EVENT_TYPES.REMARK; // Default fallback
+  
+  if (event && typeof event === 'object') {
+    // Try to normalize the event type
+    const rawType = event.type || '';
+    const normalizedType = typeof rawType === 'string' ? rawType.toLowerCase() : '';
+    
+    // Check if it's one of our known types
+    if (Object.values(EVENT_TYPES).includes(normalizedType)) {
+      safeEventType = normalizedType;
+    }
+  }
+  
+  // Safely get colors with multiple fallbacks
+  let color = defaultColor;
+  try {
+    const typeColorSet = EVENT_TYPE_COLORS[safeEventType];
+    if (typeColorSet) {
+      color = theme.palette.mode === 'dark' ? 
+        (typeColorSet.dark || defaultDarkColor) : 
+        (typeColorSet.light || defaultColor);
+    }
+  } catch (error) {
+    console.error('Error getting event color:', error);
+    // Use default color as fallback
+  }
+  
+  // Ensure we have a valid onClose handler
+  const handleClose = (event, reason) => {
+    console.log('EventPopup handleClose called', { event, reason });
+    // Always close the dialog, even if onClose is not provided
+    if (typeof onClose === 'function') {
+      console.log('Calling onClose function');
+      onClose();
+    } else {
+      console.warn('onClose is not a function:', onClose);
+    }
+  };
+  
+  // Direct close function for the X button
+  const handleCloseButtonClick = () => {
+    console.log('Close button clicked directly');
+    // Force close the dialog
+    if (typeof onClose === 'function') {
+      console.log('Calling onClose from close button');
+      onClose();
+    } else {
+      console.warn('onClose is not a function (from button):', onClose);
+    }
+  };
 
   const formatDate = (dateStr) => {
     try {
@@ -63,11 +117,19 @@ const EventPopup = ({ event, open, onClose }) => {
     }
   };
 
-  const TypeIcon = {
-    [EVENT_TYPES.REMARK]: RemarkIcon,
-    [EVENT_TYPES.NEWS]: NewsIcon,
-    [EVENT_TYPES.MEDIA]: MediaIcon,
-  }[event?.type] || RemarkIcon;
+  // Safely determine the icon with fallback
+  let TypeIcon = RemarkIcon; // Default fallback
+  try {
+    const iconMap = {
+      [EVENT_TYPES.REMARK]: RemarkIcon,
+      [EVENT_TYPES.NEWS]: NewsIcon,
+      [EVENT_TYPES.MEDIA]: MediaIcon,
+    };
+    TypeIcon = iconMap[safeEventType] || RemarkIcon;
+  } catch (error) {
+    console.error('Error getting event icon:', error);
+    // Use default icon as fallback
+  }
 
   const renderMedia = () => {
     console.log('EventPopup - Event data:', event);
@@ -184,15 +246,15 @@ const EventPopup = ({ event, open, onClose }) => {
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="md"
       fullWidth
+      closeAfterTransition
+      disableEscapeKeyDown={false}
       PaperComponent={motion.div}
       PaperProps={{
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -20 },
-        style: {
+        sx: {
+          borderRadius: 2,
           overflow: 'visible',
           backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.9)',
           backdropFilter: 'blur(10px)',
@@ -214,7 +276,18 @@ const EventPopup = ({ event, open, onClose }) => {
             {event.title}
           </Typography>
         </Box>
-        <IconButton onClick={onClose} size="small">
+        <IconButton 
+          onClick={handleCloseButtonClick} 
+          size="small"
+          aria-label="close"
+          sx={{
+            color: 'white',
+            bgcolor: 'rgba(255, 255, 255, 0.1)',
+            '&:hover': {
+              bgcolor: 'rgba(255, 255, 255, 0.2)',
+            }
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -222,13 +295,13 @@ const EventPopup = ({ event, open, onClose }) => {
       <DialogContent sx={{ mt: 2 }}>
         <Box sx={{ mb: 3 }}>
           {/* Main Content Area - varies by type but maintains consistent layout */}
-          {event.type === EVENT_TYPES.REMARK && (
+          {event && event.description && safeEventType === EVENT_TYPES.REMARK && (
             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
               {event.description}
             </Typography>
           )}
           
-          {event.type === EVENT_TYPES.NEWS && (
+          {event && safeEventType === EVENT_TYPES.NEWS && (
             <>
               {event.url && (
                 <Box sx={{ mb: 2 }}>
@@ -248,7 +321,7 @@ const EventPopup = ({ event, open, onClose }) => {
             </>
           )}
 
-          {event.type === EVENT_TYPES.MEDIA && (
+          {event && safeEventType === EVENT_TYPES.MEDIA && (
             <>
               {renderMedia()}
               {event.description && (

@@ -48,6 +48,31 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Design Standards
 
+### Event Card Interactions
+
+#### Double-Click Behavior
+Event cards in the timeline support a double-click interaction pattern:
+- First click: Selects the card (highlights it and scrolls it into view)
+- Second click: Opens the Event Popup with detailed information
+
+#### Implementation Details
+- Each card type (Media, News, Remark) has its own component with a dedicated click handler
+- The click handler checks if the card is already selected before opening the popup
+- The animation effect (push-in animation) is implemented using Framer Motion's `whileTap` property
+
+#### Known Issues and Solutions
+- **Issue**: Media cards may not respond to clicks or may not show the push-in animation effect
+- **Solution**: Ensure each card component has:
+  1. A direct click handler on the motion.div wrapper: `onClick={(e) => { e.stopPropagation(); handleCardClick(); }}`
+  2. The `whileTap={{ scale: 0.98 }}` animation property
+  3. A properly implemented `handleCardClick` function that checks for `isSelected` and opens the popup
+
+#### Popup Closing
+- Event popups can be closed by:
+  1. Clicking the X button in the top-right corner
+  2. Clicking outside the popup
+  3. Pressing the Escape key
+
 ### Theme Quality Standard
 - **Neon Effect**: The application uses sophisticated neon effects for key elements like the logo, with multi-layered text shadows and box shadows
 - **Gradient Backgrounds**: Dark theme uses a vertical gradient from black to dark blue (#000000 → #0a1128 → #1a2456)

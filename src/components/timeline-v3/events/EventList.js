@@ -179,14 +179,21 @@ const EventList = ({
       isSelected: isSelected,
     };
 
+    // Create refs for each card type to access their methods
+    const cardRef = React.createRef();
+    
     const card = (() => {
       switch (event.type?.toLowerCase()) {
         case EVENT_TYPES.NEWS:
-          return <NewsCard {...commonProps} />;
+          // Store the ref in the eventRefs object with a type-specific key
+          eventRefs.current[`news-card-${event.id}`] = cardRef;
+          return <NewsCard ref={cardRef} {...commonProps} />;
         case EVENT_TYPES.MEDIA:
-          return <MediaCard {...commonProps} />;
+          eventRefs.current[`media-card-${event.id}`] = cardRef;
+          return <MediaCard ref={cardRef} {...commonProps} />;
         default:
-          return <RemarkCard {...commonProps} />;
+          eventRefs.current[`remark-card-${event.id}`] = cardRef;
+          return <RemarkCard ref={cardRef} {...commonProps} />;
       }
     })();
 
@@ -226,7 +233,11 @@ const EventList = ({
         onClick={() => {
           console.log('Clicked event ID:', event.id);
           if (selectedEventId !== event.id) {
+            // If not already selected, just select it
+            console.log('Selecting event:', event.id);
             onEventSelect(event);
+            
+            // Scroll to center the card
             const cardElement = eventRefs.current[event.id];
             if (cardElement) {
               const { top, height } = cardElement.getBoundingClientRect();
@@ -238,8 +249,16 @@ const EventList = ({
             } else {
               console.warn('No reference found for event ID:', event.id);
             }
+          } else {
+            // If already selected, directly edit the event with a special action type
+            console.log('Opening popup for already selected event:', event.id);
+            // Use the standard onEventEdit function with a special flag
+            if (onEventEdit && typeof onEventEdit === 'function') {
+              onEventEdit({ type: 'openPopup', event });
+            }
           }
         }}
+        ref={el => eventRefs.current[event.id] = el}
       >
         {card}
       </motion.div>

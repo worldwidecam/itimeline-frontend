@@ -557,6 +557,13 @@ function TimelineV3() {
       return;
     }
     
+    // Check if this is an openPopup action
+    if (event && event.type === 'openPopup' && event.event) {
+      // This is an openPopup action, don't open the edit dialog
+      // The card component will handle opening its own popup
+      return;
+    }
+    
     // Normal edit behavior
     setEditingEvent(event);
     setDialogOpen(true);
