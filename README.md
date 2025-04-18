@@ -258,6 +258,36 @@ The application uses environment variables for configuration. These can be set i
 - **raw_event_date**: Formatted date string for display
 - **is_exact_user_time**: Flag indicating this is a user-selected time
 
+## Media Upload Components Documentation
+
+### Active Components (DO NOT MODIFY)
+
+The application includes several media upload components, but only some are actively used in the production flow. Be extremely careful when modifying these components as they are sensitive to changes:
+
+1. **MediaUploader.js** (`src/components/MediaUploader.js`): 
+   - **ACTIVELY USED** in the production application
+   - Imported directly by MediaEventCreator.js for the popup media event creation
+   - **EXTREMELY SENSITIVE TO CHANGES** - modifications often break upload functionality
+   - Shows all previously uploaded files from Cloudinary
+
+2. **MediaEventCreator.js** (`src/components/timeline-v3/events/MediaEventCreator.js`):
+   - **ACTIVELY USED** when creating media events from the floating button
+   - Contains the dialog that appears when creating a new media event
+   - Integrates with the MediaUploader component
+   - **EXTREMELY SENSITIVE TO CHANGES** - modifications often break upload functionality
+
+### Auxiliary Components (Safer to Modify)
+
+3. **MediaEventUploader.js** (`src/components/timeline-v3/events/MediaEventUploader.js`):
+   - **NOT ACTIVELY USED** in the main application flow
+   - A simplified version that was intended for use within the event form
+   - Can be modified with less risk of breaking core functionality
+
+4. **CloudinaryUploader.js** (`src/components/shared/CloudinaryUploader.js`):
+   - **TESTING ONLY** - not used in production flows
+   - A dedicated component for testing Cloudinary uploads
+   - Safe to modify for testing purposes
+
 ## Lessons Learned and Best Practices
 
 ### Component Integration
