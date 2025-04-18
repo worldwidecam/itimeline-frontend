@@ -265,77 +265,209 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, posit
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(10px)',
+          borderRadius: 2,
+          boxShadow: 24,
         }
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Create Media Event
-          </Typography>
-          <IconButton size="small" onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        px: 3,
+        py: 2.5
+      }}>
+        <Typography variant="h6" component="div">
+          Create Media Event
+        </Typography>
+        <IconButton edge="end" color="inherit" onClick={onClose} aria-label="close">
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
+      <DialogContent sx={{ px: 3, pt: 3.5, pb: 2.5 }}>
+        <Stack spacing={2.5} sx={{ mt: 2 }}>
           <TextField
             autoFocus
-            margin="dense"
-            id="title"
             label="Title"
             fullWidth
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            sx={{ mb: 2 }}
+            required
+            variant="outlined"
+            InputLabelProps={{
+              sx: { 
+                fontSize: '0.9rem',
+                transform: 'translate(14px, 12px)',
+                '&.MuiInputLabel-shrink': {
+                  transform: 'translate(14px, -6px) scale(0.75)'
+                },
+                '&.Mui-focused': {
+                  color: 'primary.main'
+                }
+              }
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1.5,
+                '& fieldset': {
+                  borderColor: 'divider'
+                },
+                '&:hover fieldset': {
+                  borderColor: 'primary.light'
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                  borderWidth: 2
+                }
+              },
+              '& .MuiInputBase-input': {
+                padding: '14px 16px',
+                fontSize: '0.95rem'
+              }
+            }}
           />
           
           <TextField
-            margin="dense"
-            id="description"
             label="Description"
             fullWidth
             multiline
-            rows={3}
+            rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            sx={{ mb: 2 }}
+            variant="outlined"
+            InputLabelProps={{
+              sx: { 
+                fontSize: '0.9rem',
+                transform: 'translate(14px, 12px)',
+                '&.MuiInputLabel-shrink': {
+                  transform: 'translate(14px, -6px) scale(0.75)'
+                },
+                '&.Mui-focused': {
+                  color: 'primary.main'
+                }
+              }
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1.5,
+                '& fieldset': {
+                  borderColor: 'divider'
+                },
+                '&:hover fieldset': {
+                  borderColor: 'primary.light'
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                  borderWidth: 2
+                }
+              },
+              '& .MuiInputBase-input': {
+                padding: '14px 16px',
+                fontSize: '0.95rem'
+              }
+            }}
           />
           
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DateTimePicker
-              label="Event Date & Time"
-              value={eventDate}
-              onChange={setEventDate}
-              renderInput={(params) => (
-                <TextField 
-                  {...params} 
-                  fullWidth 
-                  margin="dense"
-                  sx={{ mb: 2 }}
-                />
-              )}
+          <Box sx={{ mb: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+              Event Date & Time
+            </Typography>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DateTimePicker
+                label="Event Date & Time"
+                value={eventDate}
+                onChange={setEventDate}
+                renderInput={(params) => 
+                  <TextField 
+                    {...params} 
+                    fullWidth 
+                    InputLabelProps={{
+                      sx: { 
+                        fontSize: '0.95rem',
+                        transform: 'translate(14px, -9px) scale(0.75)',
+                        '&.MuiInputLabel-shrink': {
+                          transform: 'translate(14px, -9px) scale(0.75)'
+                        },
+                        '&.Mui-focused': {
+                          color: 'primary.main'
+                        }
+                      }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        '& fieldset': {
+                          borderColor: 'divider'
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'primary.light'
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: 'primary.main',
+                          borderWidth: 2
+                        }
+                      },
+                      '& .MuiInputBase-input': {
+                        padding: '14px 16px',
+                        fontSize: '0.95rem'
+                      }
+                    }}
+                  />
+                }
+              />
+            </LocalizationProvider>
+          </Box>
+          
+          <Box sx={{ mt: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+              Tags
+            </Typography>
+            <TextField
+              label="Add tags (press Enter after each tag)"
+              fullWidth
+              value={currentTag}
+              onChange={handleTagInputChange}
+              onKeyDown={handleTagInputKeyDown}
+              variant="outlined"
+              size="small"
+              sx={{
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  '& fieldset': {
+                    borderColor: 'divider'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                    borderWidth: 2
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  padding: '10px 14px',
+                  fontSize: '0.95rem'
+                }
+              }}
+              InputLabelProps={{
+                sx: { 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  },
+                  '&.Mui-focused': {
+                    color: 'primary.main'
+                  }
+                }
+              }}
             />
-          </LocalizationProvider>
           
-          <TextField
-            margin="dense"
-            id="tags"
-            label="Tags (press Enter to add)"
-            fullWidth
-            value={currentTag}
-            onChange={handleTagInputChange}
-            onKeyDown={handleTagInputKeyDown}
-            sx={{ mb: 2 }}
-          />
-          
-          {tags.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '32px' }}>
               {tags.map((tag, index) => (
                 <Chip
                   key={index}
@@ -347,30 +479,39 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, posit
                 />
               ))}
             </Box>
-          )}
-          
-          <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, mb: 2 }}>
-            Media Upload
-          </Typography>
-          
-          {/* Use the existing MediaUploader component */}
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
-            <MediaUploader ref={mediaUploaderRef} />
           </Box>
           
-          <Box sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Upload Media
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+              Media Upload
             </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                1. Select a file and upload it to Cloudinary
+            
+            {/* Use the existing MediaUploader component */}
+            <Box sx={{ 
+              border: '1px solid', 
+              borderColor: 'divider', 
+              borderRadius: 1.5, 
+              p: 2,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
+              boxShadow: 1
+            }}>
+              <MediaUploader ref={mediaUploaderRef} />
+            </Box>
+          </Box>
+          
+          <Box sx={{ p: 2, mt: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)', borderRadius: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: 'text.primary' }}>
+              Upload Instructions
+            </Typography>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
+                <Box component="span" sx={{ mr: 1, fontWeight: 600 }}>1.</Box> Select a file and upload it to Cloudinary
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                2. Wait for the upload to complete
+              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
+                <Box component="span" sx={{ mr: 1, fontWeight: 600 }}>2.</Box> Wait for the upload to complete
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                3. Fill in the event details below
+              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box component="span" sx={{ mr: 1, fontWeight: 600 }}>3.</Box> Fill in the event details above
               </Typography>
             </Box>
           </Box>
@@ -380,17 +521,40 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, posit
               {error}
             </Typography>
           )}
-        </Box>
+        </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions sx={{ 
+        px: 3, 
+        py: 2.5,
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+        borderTop: `1px solid ${theme.palette.divider}`
+      }}>
+        <Button 
+          onClick={onClose} 
+          color="inherit"
+          sx={{ 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            px: 3, 
+            py: 1.25, 
+            borderRadius: 1.5 
+          }}
+        >
           Cancel
         </Button>
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
           color="primary"
+          sx={{ 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            px: 3, 
+            py: 1.25, 
+            borderRadius: 1.5,
+            boxShadow: 2
+          }}
         >
           Create Media Event
         </Button>

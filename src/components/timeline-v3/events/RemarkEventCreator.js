@@ -115,7 +115,9 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
         justifyContent: 'space-between', 
         alignItems: 'center',
         bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-        borderBottom: `1px solid ${theme.palette.divider}`
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        px: 3,
+        py: 2.5
       }}>
         <Typography variant="h6" component="div">
           Create Remark Event
@@ -125,8 +127,8 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
         </IconButton>
       </DialogTitle>
       
-      <DialogContent sx={{ pt: 3 }}>
-        <Stack spacing={3}>
+      <DialogContent sx={{ px: 3, pt: 3.5, pb: 2.5 }}>
+        <Stack spacing={2.5} sx={{ mt: 2 }}>
           {error && (
             <Typography color="error" variant="body2">
               {error}
@@ -140,6 +142,37 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
             onChange={(e) => setTitle(e.target.value)}
             required
             variant="outlined"
+            InputLabelProps={{
+              sx: { 
+                fontSize: '0.9rem',
+                transform: 'translate(14px, 12px)',
+                '&.MuiInputLabel-shrink': {
+                  transform: 'translate(14px, -6px) scale(0.75)'
+                },
+                '&.Mui-focused': {
+                  color: 'primary.main'
+                }
+              }
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1.5,
+                '& fieldset': {
+                  borderColor: 'divider'
+                },
+                '&:hover fieldset': {
+                  borderColor: 'primary.light'
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                  borderWidth: 2
+                }
+              },
+              '& .MuiInputBase-input': {
+                padding: '14px 16px',
+                fontSize: '0.95rem'
+              }
+            }}
           />
           
           <TextField
@@ -150,19 +183,91 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             variant="outlined"
+            InputLabelProps={{
+              sx: { 
+                fontSize: '0.9rem',
+                transform: 'translate(14px, 12px)',
+                '&.MuiInputLabel-shrink': {
+                  transform: 'translate(14px, -6px) scale(0.75)'
+                },
+                '&.Mui-focused': {
+                  color: 'primary.main'
+                }
+              }
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1.5,
+                '& fieldset': {
+                  borderColor: 'divider'
+                },
+                '&:hover fieldset': {
+                  borderColor: 'primary.light'
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                  borderWidth: 2
+                }
+              },
+              '& .MuiInputBase-input': {
+                padding: '14px 16px',
+                fontSize: '0.95rem'
+              }
+            }}
           />
           
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DateTimePicker
-              label="Event Date & Time"
-              value={eventDate}
-              onChange={(newValue) => setEventDate(newValue)}
-              renderInput={(params) => <TextField {...params} fullWidth />}
-            />
-          </LocalizationProvider>
+          <Box sx={{ mb: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+              Event Date & Time
+            </Typography>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DateTimePicker
+                label="Event Date & Time"
+                value={eventDate}
+                onChange={(newValue) => setEventDate(newValue)}
+                renderInput={(params) => 
+                  <TextField 
+                    {...params} 
+                    fullWidth 
+                    InputLabelProps={{
+                      sx: { 
+                        fontSize: '0.95rem',
+                        transform: 'translate(14px, -9px) scale(0.75)',
+                        '&.MuiInputLabel-shrink': {
+                          transform: 'translate(14px, -9px) scale(0.75)'
+                        },
+                        '&.Mui-focused': {
+                          color: 'primary.main'
+                        }
+                      }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        '& fieldset': {
+                          borderColor: 'divider'
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'primary.light'
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: 'primary.main',
+                          borderWidth: 2
+                        }
+                      },
+                      '& .MuiInputBase-input': {
+                        padding: '14px 16px',
+                        fontSize: '0.95rem'
+                      }
+                    }}
+                  />
+                }
+              />
+            </LocalizationProvider>
+          </Box>
           
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
+          <Box sx={{ mt: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
               Tags
             </Typography>
             <TextField
@@ -173,9 +278,39 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
               onKeyDown={handleTagInputKeyDown}
               variant="outlined"
               size="small"
-              sx={{ mb: 2 }}
+              sx={{ mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  '& fieldset': {
+                    borderColor: 'divider'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                    borderWidth: 2
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  padding: '10px 14px',
+                  fontSize: '0.95rem'
+                }
+              }}
+              InputLabelProps={{
+                sx: { 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  },
+                  '&.Mui-focused': {
+                    color: 'primary.main'
+                  }
+                }
+              }}
             />
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '32px' }}>
               {tags.map((tag, index) => (
                 <Chip
                   key={index}
@@ -193,17 +328,35 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
       
       <DialogActions sx={{ 
         px: 3, 
-        py: 2,
+        py: 2.5,
         bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
         borderTop: `1px solid ${theme.palette.divider}`
       }}>
-        <Button onClick={onClose} color="inherit">
+        <Button 
+          onClick={onClose} 
+          color="inherit"
+          sx={{ 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            px: 3, 
+            py: 1.25, 
+            borderRadius: 1.5 
+          }}
+        >
           Cancel
         </Button>
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
           color="primary"
+          sx={{ 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            px: 3, 
+            py: 1.25, 
+            borderRadius: 1.5,
+            boxShadow: 2
+          }}
           disabled={!title.trim()}
         >
           Create Remark

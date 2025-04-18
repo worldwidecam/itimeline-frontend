@@ -679,20 +679,42 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          overflow: 'hidden'
+        }
+      }}
     >
-      <DialogTitle>
+      <DialogTitle sx={{ px: 3, py: 2.5, bgcolor: 'background.paper' }}>
         <Box display="flex" alignItems="center">
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Create New Event
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
             <CloseIcon />
           </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent dividers>
-        <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 2 }}>
+      <DialogContent sx={{ px: 3, py: 3, bgcolor: 'background.paper' }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={handleTabChange} 
+          sx={{ 
+            mb: 3,
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '3px 3px 0 0'
+            },
+            '& .MuiTab-root': {
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              textTransform: 'none',
+              minHeight: 48
+            }
+          }}
+        >
           <Tab label="Basic Info" />
           <Tab label="Links & Media" />
           <Tab label="Tags" />
@@ -705,10 +727,10 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         )}
 
         {activeTab === 0 && (
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             {/* Event Type Selection */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: 'text.primary' }}>
                 Event Type
               </Typography>
               <ToggleButtonGroup
@@ -717,6 +739,21 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 onChange={handleTypeChange}
                 aria-label="event type"
                 fullWidth
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    borderRadius: 1,
+                    py: 1.25,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.soft',
+                      borderColor: 'primary.main',
+                      '&:hover': {
+                        bgcolor: 'primary.softHover'
+                      }
+                    }
+                  }
+                }}
               >
                 {Object.values(EVENT_TYPES).map((type) => (
                   <ToggleButton 
@@ -725,7 +762,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                     aria-label={type}
                     sx={{
                       textTransform: 'capitalize',
-                      py: 1,
+                      py: 1.25,
+                      fontWeight: 500
                     }}
                   >
                     {getTypeIcon(type)}
@@ -735,7 +773,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                   </ToggleButton>
                 ))}
               </ToggleButtonGroup>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', fontSize: '0.8rem' }}>
                 {EVENT_TYPE_METADATA[formData.type].description}
               </Typography>
             </Box>
@@ -747,6 +785,38 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
               onChange={handleChange}
               fullWidth
               required
+              variant="outlined"
+              InputLabelProps={{
+                sx: { 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  },
+                  '&.Mui-focused': {
+                    color: 'primary.main'
+                  }
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  '& fieldset': {
+                    borderColor: 'divider'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                    borderWidth: 2
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  padding: '14px 16px',
+                  fontSize: '0.95rem'
+                }
+              }}
             />
             <TextField
               name="description"
@@ -756,13 +826,68 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
               multiline
               rows={4}
               fullWidth
+              variant="outlined"
+              InputLabelProps={{
+                sx: { 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  },
+                  '&.Mui-focused': {
+                    color: 'primary.main'
+                  }
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  '& fieldset': {
+                    borderColor: 'divider'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                    borderWidth: 2
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  padding: '14px 16px',
+                  fontSize: '0.95rem'
+                }
+              }}
             />
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
               <FormControl fullWidth>
-                <InputLabel>Day</InputLabel>
+                <InputLabel sx={{ 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  }
+                }}>Day</InputLabel>
                 <Select
                   value={formData.event_date.split('-')[2]}
                   label="Day"
+                  sx={{
+                    borderRadius: 1.5,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'divider'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.light'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                      borderWidth: 2
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '14px 16px',
+                      fontSize: '0.95rem'
+                    }
+                  }}
                   onChange={(e) => {
                     const newDate = `${formData.event_date.split('-')[0]}-${formData.event_date.split('-')[1]}-${e.target.value}`;
                     setFormData(prev => ({ ...prev, event_date: newDate }));
@@ -774,10 +899,33 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 </Select>
               </FormControl>
               <FormControl fullWidth>
-                <InputLabel>Month</InputLabel>
+                <InputLabel sx={{ 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  }
+                }}>Month</InputLabel>
                 <Select
                   value={formData.event_date.split('-')[1]}
                   label="Month"
+                  sx={{
+                    borderRadius: 1.5,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'divider'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.light'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                      borderWidth: 2
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '14px 16px',
+                      fontSize: '0.95rem'
+                    }
+                  }}
                   onChange={(e) => {
                     const newDate = `${formData.event_date.split('-')[0]}-${e.target.value}-${formData.event_date.split('-')[2]}`;
                     setFormData(prev => ({ ...prev, event_date: newDate }));
@@ -789,10 +937,33 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 </Select>
               </FormControl>
               <FormControl fullWidth>
-                <InputLabel>Year</InputLabel>
+                <InputLabel sx={{ 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  }
+                }}>Year</InputLabel>
                 <Select
                   value={formData.event_date.split('-')[0]}
                   label="Year"
+                  sx={{
+                    borderRadius: 1.5,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'divider'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.light'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                      borderWidth: 2
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '14px 16px',
+                      fontSize: '0.95rem'
+                    }
+                  }}
                   onChange={(e) => {
                     const newDate = `${e.target.value}-${formData.event_date.split('-')[1]}-${formData.event_date.split('-')[2]}`;
                     setFormData(prev => ({ ...prev, event_date: newDate }));
@@ -804,12 +975,35 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 </Select>
               </FormControl>
             </Stack>
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
               <FormControl fullWidth>
-                <InputLabel>Hour</InputLabel>
+                <InputLabel sx={{ 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  }
+                }}>Hour</InputLabel>
                 <Select
                   value={formData.event_time.split(':')[0]}
                   label="Hour"
+                  sx={{
+                    borderRadius: 1.5,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'divider'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.light'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                      borderWidth: 2
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '14px 16px',
+                      fontSize: '0.95rem'
+                    }
+                  }}
                   onChange={(e) => {
                     const newTime = `${e.target.value}:${formData.event_time.split(':')[1]}`;
                     setFormData(prev => ({ ...prev, event_time: newTime }));
@@ -821,10 +1015,33 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 </Select>
               </FormControl>
               <FormControl fullWidth>
-                <InputLabel>Minute</InputLabel>
+                <InputLabel sx={{ 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  }
+                }}>Minute</InputLabel>
                 <Select
                   value={formData.event_time.split(':')[1]}
                   label="Minute"
+                  sx={{
+                    borderRadius: 1.5,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'divider'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.light'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                      borderWidth: 2
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '14px 16px',
+                      fontSize: '0.95rem'
+                    }
+                  }}
                   onChange={(e) => {
                     const newTime = `${formData.event_time.split(':')[0]}:${e.target.value}`;
                     setFormData(prev => ({ ...prev, event_time: newTime }));
@@ -840,7 +1057,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         )}
 
         {activeTab === 1 && (
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             <TextField
               name="url"
               label="URL"
@@ -963,15 +1180,34 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         )}
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+      <DialogActions sx={{ px: 3, py: 2.5, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
         <Button 
-          onClick={handleSubmit}
+          onClick={onClose} 
+          color="inherit" 
+          sx={{ 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            px: 3, 
+            py: 1.25, 
+            borderRadius: 1.5 
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
           variant="contained" 
           disabled={loading}
-          startIcon={loading && <CircularProgress size={20} />}
+          sx={{ 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            px: 3, 
+            py: 1.25, 
+            borderRadius: 1.5,
+            boxShadow: 2
+          }}
         >
-          Create Event
+          {loading ? <CircularProgress size={24} /> : 'Create Event'}
         </Button>
       </DialogActions>
     </Dialog>
