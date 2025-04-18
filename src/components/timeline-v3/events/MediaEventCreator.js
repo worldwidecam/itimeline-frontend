@@ -19,7 +19,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import api from '../../../utils/api';
-import MediaUploader from '../../MediaUploader';
+import EventMediaUploader from './EventMediaUploader';
 import { EVENT_TYPES } from './EventTypes';
 
 /**
@@ -495,7 +495,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, posit
               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
               boxShadow: 1
             }}>
-              <MediaUploader ref={mediaUploaderRef} />
+              <EventMediaUploader onUploadComplete={handleUploadComplete} />
             </Box>
           </Box>
           
