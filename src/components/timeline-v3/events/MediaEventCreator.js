@@ -505,7 +505,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, posit
             </Typography>
             <Box sx={{ mb: 1 }}>
               <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
-                <Box component="span" sx={{ mr: 1, fontWeight: 600 }}>1.</Box> Select a file and upload it to Cloudinary
+                <Box component="span" sx={{ mr: 1, fontWeight: 600 }}>1.</Box> Select a file to upload
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
                 <Box component="span" sx={{ mr: 1, fontWeight: 600 }}>2.</Box> Wait for the upload to complete

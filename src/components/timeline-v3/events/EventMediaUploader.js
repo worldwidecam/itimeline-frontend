@@ -91,7 +91,7 @@ const EventMediaUploader = ({ onUploadComplete }) => {
     formData.append('file', file);
     formData.append('media_type', mediaType); // Add media type to the form data
 
-    addLog(`Starting upload to /api/upload-media...`);
+    addLog(`Starting file upload...`);
     addLog(`File: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(2)} KB)`);
     addLog(`Media type: ${mediaType}`);
 
@@ -286,7 +286,7 @@ const EventMediaUploader = ({ onUploadComplete }) => {
               onClick={handleUpload}
               fullWidth
             >
-              {loading ? 'Uploading...' : 'Upload to Cloudinary'}
+              {loading ? 'Uploading...' : 'Tap to Upload'}
             </Button>
             
             {error && (
