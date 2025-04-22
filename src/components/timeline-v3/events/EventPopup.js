@@ -11,6 +11,8 @@ import {
   Paper,
   Link,
   Avatar,
+  Chip,
+  Divider,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -18,8 +20,10 @@ import {
   Newspaper as NewsIcon,
   PermMedia as MediaIcon,
   Person as PersonIcon,
+  Event as EventIcon,
+  AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
@@ -169,216 +173,640 @@ const EventPopup = ({ event, open, onClose }) => {
     
     if (isImage) {
       return (
-        <img 
-          src={mediaSource} 
-          alt={event.title}
-          style={{ 
-            maxWidth: '100%', 
-            maxHeight: '500px',
-            objectFit: 'contain',
+        <Box
+          sx={{
+            position: 'relative',
+            width: '100%',
             borderRadius: theme.shape.borderRadius,
-          }} 
-          onError={(e) => {
-            console.error('Error loading image:', e);
-            e.target.onerror = null;
-            e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+            overflow: 'hidden',
+            mb: 3,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 24px rgba(0,0,0,0.4)' 
+              : '0 8px 24px rgba(0,0,0,0.1)',
           }}
-        />
+        >
+          <motion.img 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            src={mediaSource} 
+            alt={event.title}
+            style={{ 
+              width: '100%', 
+              maxHeight: '60vh',
+              objectFit: 'contain',
+              borderRadius: theme.shape.borderRadius,
+              display: 'block',
+            }} 
+            onError={(e) => {
+              console.error('Error loading image:', e);
+              e.target.onerror = null;
+              e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+            }}
+          />
+        </Box>
       );
     }
     
     if (isVideo) {
       return (
-        <video
-          controls
-          style={{ 
-            maxWidth: '100%', 
-            maxHeight: '500px',
+        <Box
+          sx={{
+            position: 'relative',
+            width: '100%',
             borderRadius: theme.shape.borderRadius,
+            overflow: 'hidden',
+            mb: 3,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 24px rgba(0,0,0,0.4)' 
+              : '0 8px 24px rgba(0,0,0,0.1)',
           }}
         >
-          <source src={mediaSource} type={mimeType || "video/mp4"} />
-          Your browser does not support the video tag.
-        </video>
+          <motion.video
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            controls
+            style={{ 
+              width: '100%', 
+              maxHeight: '60vh',
+              borderRadius: theme.shape.borderRadius,
+              display: 'block',
+            }}
+          >
+            <source src={mediaSource} type={mimeType || "video/mp4"} />
+            Your browser does not support the video tag.
+          </motion.video>
+        </Box>
       );
     }
     
     if (isAudio) {
       return (
-        <audio
-          controls
-          style={{ 
+        <Box
+          sx={{
+            position: 'relative',
             width: '100%',
-            maxWidth: '500px',
+            borderRadius: theme.shape.borderRadius,
+            p: 3,
+            mb: 3,
+            bgcolor: theme.palette.mode === 'dark' 
+              ? 'rgba(0,0,0,0.2)' 
+              : 'rgba(0,0,0,0.03)',
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 4px 12px rgba(0,0,0,0.2)' 
+              : '0 4px 12px rgba(0,0,0,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
           }}
         >
-          <source src={mediaSource} type={mimeType || "audio/mpeg"} />
-          Your browser does not support the audio element.
-        </audio>
+          <MediaIcon 
+            sx={{ 
+              fontSize: 48, 
+              mb: 2, 
+              color: color,
+              opacity: 0.8,
+            }} 
+          />
+          <motion.audio
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            controls
+            style={{ 
+              width: '100%',
+              maxWidth: '500px',
+            }}
+          >
+            <source src={mediaSource} type={mimeType || "audio/mpeg"} />
+            Your browser does not support the audio element.
+          </motion.audio>
+        </Box>
       );
     }
     
     // Fallback for unknown media types
     return (
-      <Link 
-        href={mediaSource} 
-        target="_blank" 
-        rel="noopener noreferrer"
+      <Box
         sx={{
+          position: 'relative',
+          width: '100%',
+          borderRadius: theme.shape.borderRadius,
+          p: 3,
+          mb: 3,
+          bgcolor: theme.palette.mode === 'dark' 
+            ? 'rgba(0,0,0,0.2)' 
+            : 'rgba(0,0,0,0.03)',
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 4px 12px rgba(0,0,0,0.2)' 
+            : '0 4px 12px rgba(0,0,0,0.05)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          gap: 1,
-          color: color,
-          p: 2,
-          border: '1px dashed',
-          borderColor: 'divider',
-          borderRadius: 1,
         }}
       >
-        <MediaIcon />
-        View Media
-      </Link>
+        <MediaIcon 
+          sx={{ 
+            fontSize: 48, 
+            mb: 2, 
+            color: color,
+            opacity: 0.8,
+          }} 
+        />
+        <Link 
+          href={mediaSource} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            color: color,
+            p: 2,
+            border: '1px dashed',
+            borderColor: 'divider',
+            borderRadius: 1,
+            width: '100%',
+            maxWidth: '500px',
+            textDecoration: 'none',
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark' 
+                ? 'rgba(255,255,255,0.05)' 
+                : 'rgba(0,0,0,0.03)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <MediaIcon />
+          View Media
+        </Link>
+      </Box>
     );
   };
 
   if (!event) return null;
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      closeAfterTransition
-      disableEscapeKeyDown={false}
-      PaperComponent={motion.div}
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          overflow: 'visible',
-          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(10px)',
-        },
-      }}
-    >
-      <DialogTitle 
-        sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          borderBottom: 1,
-          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TypeIcon sx={{ color }} />
-          <Typography variant="h6" component="div">
-            {event.title}
-          </Typography>
-        </Box>
-        <IconButton 
-          onClick={handleCloseButtonClick} 
-          size="small"
-          aria-label="close"
-          sx={{
-            color: 'white',
-            bgcolor: 'rgba(255, 255, 255, 0.1)',
-            '&:hover': {
-              bgcolor: 'rgba(255, 255, 255, 0.2)',
-            }
+    <AnimatePresence>
+      {open && (
+        <Dialog
+          open={open}
+          onClose={handleClose}
+          maxWidth="md"
+          fullWidth
+          closeAfterTransition
+          disableEscapeKeyDown={false}
+          PaperComponent={motion.div}
+          PaperProps={{
+            initial: { opacity: 0, y: 20, scale: 0.98 },
+            animate: { opacity: 1, y: 0, scale: 1 },
+            exit: { opacity: 0, y: 20, scale: 0.98 },
+            transition: { duration: 0.3 },
+            sx: {
+              borderRadius: 3,
+              overflow: 'hidden',
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(10,10,20,0.85)' 
+                : 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+                : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+              border: theme.palette.mode === 'dark'
+                ? '1px solid rgba(255,255,255,0.05)'
+                : '1px solid rgba(0,0,0,0.05)',
+            },
           }}
         >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ mt: 2 }}>
-        <Box sx={{ mb: 3 }}>
-          {/* Main Content Area - varies by type but maintains consistent layout */}
-          {event && event.description && safeEventType === EVENT_TYPES.REMARK && (
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-              {event.description}
-            </Typography>
-          )}
-          
-          {event && safeEventType === EVENT_TYPES.NEWS && (
-            <>
-              {event.url && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Source URL:
-                  </Typography>
-                  <Link href={event.url} target="_blank" rel="noopener noreferrer">
-                    {event.url}
-                  </Link>
-                </Box>
-              )}
-              {event.description && (
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {event.description}
-                </Typography>
-              )}
-            </>
-          )}
-
-          {event && safeEventType === EVENT_TYPES.MEDIA && (
-            <>
-              {renderMedia()}
-              {event.description && (
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {event.description}
-                </Typography>
-              )}
-            </>
-          )}
-        </Box>
-
-        <Box sx={{ mt: 'auto' }}>
-          <TagList tags={event.tags} />
-          {event.event_date && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mt: 1 }}>
-              Timeline Date: {formatEventDate(event.event_date)}
-            </Typography>
-          )}
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}>
-            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
-              {event.created_by_avatar ? (
-                <Avatar 
-                  src={event.created_by_avatar} 
-                  alt={event.created_by_username || "User"} 
-                  sx={{ 
-                    width: 16, 
-                    height: 16, 
-                    mr: 0.5, 
-                    fontSize: '0.75rem' 
-                  }} 
-                />
-              ) : (
-                <PersonIcon fontSize="small" sx={{ mr: 0.5, fontSize: '0.75rem' }} />
-              )}
-              Created by:{' '}
-              <Link
-                component={RouterLink}
-                to={`/profile/${event.created_by}`}
-                color="text.secondary"
-                sx={{ 
-                  ml: 0.5,
-                  textDecoration: 'none',
-                  '&:hover': {
-                    textDecoration: 'underline'
-                  }
+          {/* Header with colored accent bar */}
+          <Box
+            sx={{
+              position: 'relative',
+              height: 8,
+              bgcolor: color,
+              mb: -1,
+            }}
+          />
+          <DialogTitle 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              p: 3,
+              pb: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.03)',
+                  color: color,
                 }}
               >
-                {event.created_by_username || "Unknown"}
-              </Link>
+                <TypeIcon fontSize="medium" />
+              </Box>
+              <Typography 
+                variant="h5" 
+                component="div"
+                sx={{ 
+                  fontWeight: 600,
+                  color: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.95)'
+                    : 'rgba(0,0,0,0.85)',
+                }}
+              >
+                {event.title}
+              </Typography>
             </Box>
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}>
-            {formatDate(event.created_at)}
-          </Typography>
-        </Box>
-      </DialogContent>
-    </Dialog>
+            <IconButton 
+              onClick={handleCloseButtonClick} 
+              size="medium"
+              aria-label="close"
+              sx={{
+                color: theme.palette.mode === 'dark' ? 'white' : 'rgba(0,0,0,0.6)',
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(0,0,0,0.03)',
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.05)',
+                },
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+
+          <Divider sx={{ opacity: 0.5 }} />
+
+          <DialogContent 
+            sx={{ 
+              p: 3,
+              pt: 3,
+              pb: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
+            }}
+          >
+            {/* Main Content Area - varies by type but maintains consistent layout */}
+            <Box>
+              {/* Remark content */}
+              {event && event.description && safeEventType === EVENT_TYPES.REMARK && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(0,0,0,0.2)'
+                      : 'rgba(0,0,0,0.02)',
+                    border: '1px solid',
+                    borderColor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.7,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.85)'
+                        : 'rgba(0,0,0,0.75)',
+                    }}
+                  >
+                    {event.description}
+                  </Typography>
+                </Paper>
+              )}
+              
+              {/* News content */}
+              {event && safeEventType === EVENT_TYPES.NEWS && (
+                <Box>
+                  {event.url && (
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        mb: 3,
+                        borderRadius: 2,
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(0,0,0,0.2)'
+                          : 'rgba(0,0,0,0.02)',
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.05)',
+                      }}
+                    >
+                      <Typography 
+                        variant="subtitle1" 
+                        sx={{ 
+                          fontWeight: 600, 
+                          mb: 1,
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(0,0,0,0.8)',
+                        }}
+                      >
+                        Source URL
+                      </Typography>
+                      <Link 
+                        href={event.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        sx={{
+                          color: color,
+                          textDecoration: 'none',
+                          wordBreak: 'break-all',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                          },
+                        }}
+                      >
+                        <NewsIcon sx={{ mr: 1, fontSize: 18 }} />
+                        {event.url}
+                      </Link>
+                    </Paper>
+                  )}
+                  
+                  {event.description && (
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(0,0,0,0.2)'
+                          : 'rgba(0,0,0,0.02)',
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.05)',
+                      }}
+                    >
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: 1.7,
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.85)'
+                            : 'rgba(0,0,0,0.75)',
+                        }}
+                      >
+                        {event.description}
+                      </Typography>
+                    </Paper>
+                  )}
+                </Box>
+              )}
+
+              {/* Media content */}
+              {event && safeEventType === EVENT_TYPES.MEDIA && (
+                <Box>
+                  {renderMedia()}
+                  {event.description && (
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(0,0,0,0.2)'
+                          : 'rgba(0,0,0,0.02)',
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.05)',
+                      }}
+                    >
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: 1.7,
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.85)'
+                            : 'rgba(0,0,0,0.75)',
+                        }}
+                      >
+                        {event.description}
+                      </Typography>
+                    </Paper>
+                  )}
+                </Box>
+              )}
+            </Box>
+
+            {/* Event metadata */}
+            <Box>
+              {/* Tags */}
+              {event.tags && event.tags.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      mb: 1.5,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.7)'
+                        : 'rgba(0,0,0,0.6)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Tags
+                  </Typography>
+                  <TagList tags={event.tags} />
+                </Box>
+              )}
+              
+              {/* Event details card */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 2,
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(0,0,0,0.2)'
+                    : 'rgba(0,0,0,0.02)',
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.05)',
+                }}
+              >
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    mb: 2,
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.7)'
+                      : 'rgba(0,0,0,0.6)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Event Details
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {/* Timeline date */}
+                  {event.event_date && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'rgba(0,0,0,0.03)',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.7)'
+                            : 'rgba(0,0,0,0.6)',
+                        }}
+                      >
+                        <EventIcon fontSize="small" />
+                      </Box>
+                      <Box>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            display: 'block',
+                            color: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.5)'
+                              : 'rgba(0,0,0,0.4)',
+                          }}
+                        >
+                          Timeline Date
+                        </Typography>
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            color: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.9)'
+                              : 'rgba(0,0,0,0.8)',
+                          }}
+                        >
+                          {formatEventDate(event.event_date)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Created date */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.03)',
+                        color: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.7)'
+                          : 'rgba(0,0,0,0.6)',
+                      }}
+                    >
+                      <AccessTimeIcon fontSize="small" />
+                    </Box>
+                    <Box>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(0,0,0,0.4)',
+                          }}
+                        >
+                          Published
+                        </Typography>
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            color: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.9)'
+                              : 'rgba(0,0,0,0.8)',
+                          }}
+                        >
+                          {formatDate(event.created_at).replace('Published on ', '')}
+                        </Typography>
+                    </Box>
+                  </Box>
+                  
+                  {/* Created by */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Avatar 
+                      src={event.created_by_avatar} 
+                      alt={event.created_by_username || "User"} 
+                      sx={{ 
+                        width: 32, 
+                        height: 32,
+                        fontSize: '0.875rem',
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.1)'
+                          : 'rgba(0,0,0,0.1)',
+                      }} 
+                    >
+                      {event.created_by_username ? event.created_by_username.charAt(0).toUpperCase() : <PersonIcon fontSize="small" />}
+                    </Avatar>
+                    <Box>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(0,0,0,0.4)',
+                          }}
+                        >
+                          Created by
+                        </Typography>
+                      <Link
+                        component={RouterLink}
+                        to={`/profile/${event.created_by}`}
+                        sx={{ 
+                          color: color,
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline'
+                          }
+                        }}
+                      >
+                        {event.created_by_username || "Unknown"}
+                      </Link>
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            </Box>
+          </DialogContent>
+        </Dialog>
+      )}
+    </AnimatePresence>
   );
 };
 
