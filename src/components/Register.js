@@ -9,12 +9,14 @@ import {
   Link,
   Box,
   Alert,
+  useTheme,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const theme = useTheme();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -66,8 +68,42 @@ const Register = () => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Paper elevation={3} sx={{ p: 4, mt: 8 }}>
+    <Box
+      sx={{
+        height: '100vh',
+        width: '100%',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+          : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 3,
+        overflow: 'hidden',
+        zIndex: 0
+      }}
+    >
+      <Container maxWidth="sm">
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 4, 
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+              : '0 8px 32px rgba(0, 0, 0, 0.1)',
+            position: 'relative',
+            zIndex: 1,
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Register
         </Typography>
@@ -134,8 +170,9 @@ const Register = () => {
             </Link>
           </Typography>
         </Box>
-      </Paper>
-    </Container>
+        </Paper>
+      </Container>
+    </Box>
   );
 };
 

@@ -156,7 +156,7 @@ const LandingPage = () => {
         minHeight: 'calc(100vh - 64px)',
         background: theme.palette.mode === 'dark' 
           ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)' 
-          : 'linear-gradient(180deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%)',
+          : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
         pt: 6,
         pb: 8
       }}

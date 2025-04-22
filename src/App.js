@@ -30,7 +30,8 @@ import {
   CardActions,
   Typography,
   Grid,
-  Divider
+  Divider,
+  useTheme
 } from '@mui/material';
 import PageTransition from './components/PageTransition';
 import api from './utils/api';
@@ -78,6 +79,7 @@ const AuthRoute = ({ children }) => {
 const Homepage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const theme = useTheme();
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -195,7 +197,34 @@ const Homepage = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)', pt: 4, px: 4 }}>
+    <>
+      {/* Fixed background that covers the entire viewport */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 0,
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)'
+        }}
+      />
+      {/* Scrollable content container */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 'calc(100vh - 64px)',
+          pt: 4,
+          px: 4,
+          position: 'relative',
+          zIndex: 1,
+          backgroundColor: 'transparent'
+        }}
+      >
       <Box sx={{ textAlign: 'center', mb: 6 }}>
         <h1>Welcome to Timeline Forum</h1>
         <p>Create and explore timelines with our new V3 interface.</p>
@@ -233,7 +262,16 @@ const Homepage = () => {
             <Grid container spacing={3}>
               {timelines.map(timeline => (
                 <Grid item xs={12} sm={6} md={4} key={timeline.id}>
-                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Card sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: theme.palette.mode === 'dark' 
+                      ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+                      : '0 8px 32px rgba(0, 0, 0, 0.1)'
+                  }}>
                     <CardContent sx={{ flexGrow: 1 }}>
                       <Typography variant="h6" gutterBottom>
                         {timeline.name}
@@ -337,6 +375,7 @@ const Homepage = () => {
         </DialogActions>
       </Dialog>
     </Box>
+    </>
   );
 };
 
@@ -381,7 +420,7 @@ function App() {
                 
                 {/* Protected routes */}
                 <Route path="/home" element={
-                  <Box sx={{ pt: 8 }}>
+                  <Box sx={{ height: '100vh', overflow: 'auto' }}>
                     <ProtectedRoute>
                       <Homepage />
                     </ProtectedRoute>

@@ -11,6 +11,7 @@ import {
   Divider,
   Fade,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import MusicPlayer from './MusicPlayer';
@@ -18,6 +19,7 @@ import MusicPlayer from './MusicPlayer';
 const Profile = () => {
   const { userId } = useParams();
   const { user } = useAuth();
+  const theme = useTheme();
   const [profileUser, setProfileUser] = useState(null);
   const [musicData, setMusicData] = useState(null);
   const [showMusic, setShowMusic] = useState(false);
@@ -85,34 +87,106 @@ const Profile = () => {
 
   if (!user && !userId) {
     return (
-      <Container maxWidth="md">
-        <Paper sx={{ p: 4, mt: 4 }}>
-          <Typography variant="h5">Please log in to view your profile</Typography>
-        </Paper>
-      </Container>
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 64px)',
+          width: '100%',
+          position: 'relative',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+          pt: 8
+        }}
+      >
+        <Container maxWidth="md">
+          <Paper sx={{ 
+            p: 4, 
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+              : '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}>
+            <Typography variant="h5">Please log in to view your profile</Typography>
+          </Paper>
+        </Container>
+      </Box>
     );
   }
 
   if (loading) {
     return (
-      <Container maxWidth="md" sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 64px)',
+          width: '100%',
+          position: 'relative',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
         <CircularProgress />
-      </Container>
+      </Box>
     );
   }
 
   if (error || !profileUser) {
     return (
-      <Container maxWidth="md">
-        <Paper sx={{ p: 4, mt: 4 }}>
-          <Typography variant="h5" color="error">{error || 'User not found'}</Typography>
-        </Paper>
-      </Container>
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 64px)',
+          width: '100%',
+          position: 'relative',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+          pt: 8
+        }}
+      >
+        <Container maxWidth="md">
+          <Paper sx={{ 
+            p: 4, 
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+              : '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}>
+            <Typography variant="h5" color="error">{error || 'User not found'}</Typography>
+          </Paper>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <>
+    <Box
+      sx={{
+        minHeight: 'calc(100vh - 64px)',
+        width: '100%',
+        position: 'relative',
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+          : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        pt: 4,
+        pb: 4
+      }}
+    >
       {/* Music Player - only show for own profile */}
       {isOwnProfile && (
         <Fade in={showMusic} timeout={800}>
@@ -123,9 +197,12 @@ const Profile = () => {
               left: '20px', 
               zIndex: 1000,
               width: '300px',
-              backgroundColor: 'background.paper',
-              borderRadius: 1,
-              boxShadow: 3,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: 2,
+              boxShadow: theme.palette.mode === 'dark' 
+                ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+                : '0 8px 32px rgba(0, 0, 0, 0.1)',
               p: 2,
               opacity: showMusic ? 1 : 0,
               transition: 'opacity 0.8s ease-in-out'
@@ -140,7 +217,15 @@ const Profile = () => {
       )}
       
       <Container maxWidth="md">
-        <Paper sx={{ p: 4, mt: 4 }}>
+        <Paper sx={{ 
+          p: 4, 
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 2,
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+            : '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
           <Grid container spacing={4}>
             {/* Profile Header */}
             <Grid item xs={12}>
@@ -179,7 +264,7 @@ const Profile = () => {
           </Grid>
         </Paper>
       </Container>
-    </>
+    </Box>
   );
 };
 
