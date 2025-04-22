@@ -75,7 +75,11 @@ Event cards in the timeline support a double-click interaction pattern:
 
 ### Theme Quality Standard
 - **Neon Effect**: The application uses sophisticated neon effects for key elements like the logo, with multi-layered text shadows and box shadows
-- **Gradient Backgrounds**: Dark theme uses a vertical gradient from black to dark blue (#000000 → #0a1128 → #1a2456)
+- **Gradient Backgrounds**: 
+  - Light mode: Warm peach-to-cream gradient (#ffd5c8 → #ffeae0 → #f7f4ea → #f5f1e4 → #ffffff)
+  - Dark mode: Deep blue-black gradient (#000000 → #0a1128 → #1a2456)
+  - Applied consistently across all pages (Login, Register, Homepage, Profile, Settings, Timeline)
+  - Semi-transparent content containers with blur effects for visual depth
 - **Animation**: Subtle flicker animations are used to enhance the neon effect
 - **Contrast**: High contrast between text and background ensures readability while maintaining visual appeal
 - **Responsive Design**: All visual elements adapt to different screen sizes while preserving the aesthetic quality
