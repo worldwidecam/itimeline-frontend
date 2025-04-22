@@ -12,12 +12,16 @@ import {
   IconButton,
   useTheme,
   Chip,
+  Divider,
+  Paper,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import {
   Close as CloseIcon,
+  Comment as RemarkIcon,
 } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 import { EVENT_TYPES } from './EventTypes';
 
 /**
@@ -103,29 +107,95 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
       onClose={onClose}
       fullWidth
       maxWidth="sm"
+      PaperComponent={motion.div}
       PaperProps={{
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        transition: { duration: 0.3 },
         sx: {
-          borderRadius: 2,
-          boxShadow: 24,
+          borderRadius: 3,
+          overflow: 'hidden',
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? 'rgba(10,10,20,0.85)' 
+            : 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+            : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.05)'
+            : '1px solid rgba(0,0,0,0.05)',
         }
       }}
     >
+      {/* Header with colored accent bar */}
+      <Box
+        sx={{
+          position: 'relative',
+          height: 8,
+          bgcolor: theme.palette.mode === 'dark' ? '#60A5FA' : '#3B82F6', // Blue color for Remark events
+          mb: -1,
+        }}
+      />
       <DialogTitle sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        px: 3,
-        py: 2.5
+        p: 3,
+        pb: 2,
       }}>
-        <Typography variant="h6" component="div">
-          Create Remark Event
-        </Typography>
-        <IconButton edge="end" color="inherit" onClick={onClose} aria-label="close">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(0,0,0,0.03)',
+              color: theme.palette.mode === 'dark' ? '#60A5FA' : '#3B82F6', // Blue color for Remark events
+            }}
+          >
+            <RemarkIcon fontSize="medium" />
+          </Box>
+          <Typography 
+            variant="h5" 
+            component="div"
+            sx={{ 
+              fontWeight: 600,
+              color: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.95)'
+                : 'rgba(0,0,0,0.85)',
+            }}
+          >
+            Create Remark Event
+          </Typography>
+        </Box>
+        <IconButton 
+          onClick={onClose} 
+          size="medium"
+          aria-label="close"
+          sx={{
+            color: theme.palette.mode === 'dark' ? 'white' : 'rgba(0,0,0,0.6)',
+            bgcolor: theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,0.05)'
+              : 'rgba(0,0,0,0.03)',
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.1)'
+                : 'rgba(0,0,0,0.05)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
+      
+      <Divider sx={{ opacity: 0.5 }} />
       
       <DialogContent sx={{ px: 3, pt: 3.5, pb: 2.5 }}>
         <Stack spacing={2.5} sx={{ mt: 2 }}>
@@ -348,14 +418,17 @@ const RemarkEventCreator = ({ open, onClose, onSave }) => {
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
-          color="primary"
           sx={{ 
             fontWeight: 600, 
             textTransform: 'none', 
             px: 3, 
             py: 1.25, 
             borderRadius: 1.5,
-            boxShadow: 2
+            boxShadow: 2,
+            bgcolor: theme.palette.mode === 'dark' ? '#60A5FA' : '#3B82F6', // Blue color for Remark events
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark' ? '#93C5FD' : '#2563EB',
+            }
           }}
           disabled={!title.trim()}
         >

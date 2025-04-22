@@ -13,13 +13,17 @@ import {
   useTheme,
   Chip,
   CircularProgress,
+  Divider,
+  Paper,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import {
   Close as CloseIcon,
   Link as LinkIcon,
+  Newspaper as NewsIcon,
 } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 import api from '../../../utils/api';
 import { EVENT_TYPES } from './EventTypes';
 
@@ -158,31 +162,98 @@ const NewsEventCreator = ({ open, onClose, onSave }) => {
     <Dialog 
       open={open} 
       onClose={onClose}
+      maxWidth="md"
       fullWidth
-      maxWidth="sm"
+      PaperComponent={motion.div}
       PaperProps={{
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        transition: { duration: 0.3 },
         sx: {
-          borderRadius: 2,
-          boxShadow: 24,
+          borderRadius: 3,
+          overflow: 'hidden',
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? 'rgba(10,10,20,0.85)' 
+            : 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+            : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.05)'
+            : '1px solid rgba(0,0,0,0.05)',
         }
       }}
     >
+      {/* Header with colored accent bar */}
+      <Box
+        sx={{
+          position: 'relative',
+          height: 8,
+          bgcolor: theme.palette.mode === 'dark' ? '#F87171' : '#EF4444', // Red color for News events
+          mb: -1,
+        }}
+      />
+      
       <DialogTitle sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        px: 3,
-        py: 2.5
+        p: 3,
+        pb: 2,
       }}>
-        <Typography variant="h6" component="div">
-          Create News Event
-        </Typography>
-        <IconButton edge="end" color="inherit" onClick={onClose} aria-label="close">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(0,0,0,0.03)',
+              color: theme.palette.mode === 'dark' ? '#F87171' : '#EF4444', // Red color for News events
+            }}
+          >
+            <NewsIcon fontSize="medium" />
+          </Box>
+          <Typography 
+            variant="h5" 
+            component="div"
+            sx={{ 
+              fontWeight: 600,
+              color: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.95)'
+                : 'rgba(0,0,0,0.85)',
+            }}
+          >
+            Create News Event
+          </Typography>
+        </Box>
+        <IconButton 
+          onClick={onClose} 
+          size="medium"
+          aria-label="close"
+          sx={{
+            color: theme.palette.mode === 'dark' ? 'white' : 'rgba(0,0,0,0.6)',
+            bgcolor: theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,0.05)'
+              : 'rgba(0,0,0,0.03)',
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.1)'
+                : 'rgba(0,0,0,0.05)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
+      
+      <Divider sx={{ opacity: 0.5 }} />
       
       <DialogContent sx={{ px: 3, pt: 3.5, pb: 2.5 }}>
         <Stack spacing={2.5} sx={{ mt: 2 }}>
@@ -492,7 +563,6 @@ const NewsEventCreator = ({ open, onClose, onSave }) => {
         <Button 
           onClick={handleSubmit}
           variant="contained" 
-          color="primary"
           disabled={!title.trim() || !url.trim()}
           sx={{ 
             fontWeight: 600, 
@@ -500,7 +570,11 @@ const NewsEventCreator = ({ open, onClose, onSave }) => {
             px: 3, 
             py: 1.25, 
             borderRadius: 1.5,
-            boxShadow: 2
+            boxShadow: 2,
+            bgcolor: theme.palette.mode === 'dark' ? '#F87171' : '#EF4444', // Red color for News events
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark' ? '#FCA5A5' : '#DC2626',
+            }
           }}
         >
           Create News Event

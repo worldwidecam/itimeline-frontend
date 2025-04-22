@@ -435,7 +435,7 @@ const EventMarker = ({
             onClick={handleMarkerClick}
             sx={{
               width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-              height: `${40 * overlappingFactor * getMarkerHeightMultiplier()}px`, // Adjust height based on overlapping factor and filter type
+              height: `${Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier()}px`, // Increased minimum height with adjustment for overlapping factor and filter type
               cursor: 'pointer',
               position: 'relative',
               // Increased click area with pseudo-element
@@ -525,7 +525,28 @@ const EventMarker = ({
             left: `${position.x + horizontalOffset}px`, // Add horizontal offset
             bottom: `${position.y}px`,
             width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-            height: `${24 * overlappingFactor * getMarkerHeightMultiplier()}px`, // Adjust height based on overlapping factor and selected filter type
+            // Calculate base height based on view mode
+            height: `${(() => {
+              // Set minimum heights based on view mode
+              let baseHeight = 24; // Default base height
+              let minHeight = 40; // Default minimum height
+              
+              if (viewMode === 'day') {
+                minHeight = 50; // Larger minimum for day view
+                baseHeight = 30;
+              } else if (viewMode === 'week') {
+                minHeight = 45; // Medium minimum for week view
+                baseHeight = 28;
+              } else if (viewMode === 'month') {
+                minHeight = 40; // Standard minimum for month view
+                baseHeight = 26;
+              } else if (viewMode === 'year') {
+                minHeight = 35; // Smaller minimum for year view to avoid overcrowding
+                baseHeight = 24;
+              }
+              
+              return Math.max(minHeight, baseHeight * overlappingFactor);
+            })() * getMarkerHeightMultiplier()}px`, // Adjust height based on view mode, overlapping factor and selected filter type
             borderRadius: '2px',
             background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
             transform: 'translateX(-50%)',
