@@ -160,7 +160,9 @@ const MusicPlayer = ({ url, platform }) => {
       bgcolor: 'background.paper',
       maxWidth: '400px',
       margin: '0 auto',
-      boxShadow: 1
+      boxShadow: 1,
+      position: 'relative',
+      overflow: 'hidden'
     }}>
       <audio
         ref={audioRef}
@@ -178,28 +180,32 @@ const MusicPlayer = ({ url, platform }) => {
         {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
       </IconButton>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-        <IconButton onClick={handleVolumeToggle} size="small">
-          {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
-        </IconButton>
-        
-        <Slider
-          size="small"
-          value={isMuted ? 0 : volume * 100}
-          onChange={handleVolumeChange}
-          aria-label="Volume"
-          sx={{ width: 100 }}
-        />
-        
-        <Tooltip title={isLooping ? "Disable loop" : "Enable loop"}>
-          <IconButton 
-            onClick={handleLoopToggle} 
-            size="small"
-            color={isLooping ? "primary" : "default"}
-          >
-            <LoopIcon />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, maxWidth: 'calc(100% - 48px)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+          <IconButton onClick={handleVolumeToggle} size="small">
+            {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
           </IconButton>
-        </Tooltip>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+          <Slider
+            size="small"
+            value={isMuted ? 0 : volume * 100}
+            onChange={handleVolumeChange}
+            aria-label="Volume"
+            sx={{ flex: 1, minWidth: 50, maxWidth: 100 }}
+          />
+          
+          <Tooltip title={isLooping ? "Disable loop" : "Enable loop"}>
+            <IconButton 
+              onClick={handleLoopToggle} 
+              size="small"
+              color={isLooping ? "primary" : "default"}
+            >
+              <LoopIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
       {error && (

@@ -18,6 +18,7 @@ import {
   CircularProgress,
   Tooltip,
 } from '@mui/material';
+import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -43,6 +44,7 @@ const formatFileSize = (bytes) => {
 const ProfileSettings = () => {
   const { user, updateProfile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const theme = useMuiTheme();
   const [formData, setFormData] = useState({
     email: user?.email || '',
     username: user?.username || '',
@@ -284,8 +286,32 @@ const ProfileSettings = () => {
   };
 
   return (
+    <Box
+      sx={{
+        minHeight: 'calc(100vh - 64px)',
+        width: '100%',
+        position: 'relative',
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+          : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        pt: 4,
+        pb: 4,
+        overflow: 'auto'
+      }}
+    >
     <Container maxWidth="md">
-      <Paper sx={{ p: 4, mt: 4 }}>
+      <Paper sx={{ 
+        p: 4, 
+        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: 2,
+        boxShadow: theme.palette.mode === 'dark' 
+          ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+          : '0 8px 32px rgba(0, 0, 0, 0.1)'
+      }}>
         <Typography variant="h4" gutterBottom>
           Profile Settings
         </Typography>
@@ -662,6 +688,7 @@ const ProfileSettings = () => {
         </Snackbar>
       </Paper>
     </Container>
+    </Box>
   );
 };
 

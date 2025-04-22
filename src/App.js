@@ -434,25 +434,19 @@ function App() {
                   </Box>
                 } />
                 <Route path="/profile" element={
-                  <Box sx={{ pt: 8 }}>
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  </Box>
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
                 } />
                 <Route path="/profile/:userId" element={
-                  <Box sx={{ pt: 8 }}>
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  </Box>
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
                 } />
                 <Route path="/profile/settings" element={
-                  <Box sx={{ pt: 8 }}>
-                    <ProtectedRoute>
-                      <ProfileSettings />
-                    </ProtectedRoute>
-                  </Box>
+                  <ProtectedRoute>
+                    <ProfileSettings />
+                  </ProtectedRoute>
                 } />
               </Routes>
             </Router>
