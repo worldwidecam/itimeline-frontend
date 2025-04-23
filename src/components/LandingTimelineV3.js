@@ -401,7 +401,7 @@ function LandingTimelineV3() {
       <TimelineBackground onBackgroundClick={() => setSelectedEventId(null)} />
       
       {/* Timeline Header */}
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 20 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography variant="h6" component="div" sx={{ color: 'white', fontWeight: 'bold', mr: 1 }}>
             # Timeline Demo
@@ -482,17 +482,41 @@ function LandingTimelineV3() {
         ref={timelineBarRef}
         sx={{ 
           position: 'relative',
-          height: 220, 
+          height: 350, // Increased height to extend the draggable area
           cursor: isDragging ? 'grabbing' : 'grab',
           mt: 'auto',
-          mb: 4
+          mb: 4,
+          userSelect: 'none', // Prevent text selection
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none'
         }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
-        <Box sx={{ position: 'relative', top: '150px' }}>
+        {/* Transparent overlay to capture drag events and prevent text selection */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 15, // Above timeline elements but below filter buttons
+            cursor: isDragging ? 'grabbing' : 'grab',
+          }}
+          onMouseMove={handleMouseMove}
+          onMouseDown={(e) => {
+            e.preventDefault(); // Prevent text selection
+            handleMouseDown(e);
+          }}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        />
+        {/* Timeline Bar */}
+        <Box sx={{ position: 'relative', top: '200px' }}>
           <TimelineBar 
             timelineOffset={timelineOffset * 100}
             markerSpacing={100}
@@ -503,7 +527,7 @@ function LandingTimelineV3() {
         </Box>
         
         {/* Time Markers */}
-        <Box sx={{ position: 'relative', top: '150px' }}>
+        <Box sx={{ position: 'relative', top: '200px' }}>
           <TimeMarkers 
             timelineOffset={timelineOffset * 100}
             markerSpacing={100}
@@ -515,19 +539,20 @@ function LandingTimelineV3() {
         </Box>
         
         {/* Event Markers */}
-        {events.map(event => (
-          <EventMarker
-            key={event.id}
-            event={event}
-            timelineOffset={timelineOffset * 100}
-            isSelected={event.id === selectedEventId}
-            onClick={() => handleEventClick(event.id)}
-            viewMode={viewMode}
-            markerSpacing={100}
-            theme={theme}
-            // No position override needed since we're moving the timeline up to meet the markers
-          />
-        ))}
+        <Box sx={{ position: 'absolute', top: '270px', width: '100%', zIndex: 16 }}>
+          {events.map(event => (
+            <EventMarker
+              key={event.id}
+              event={event}
+              timelineOffset={timelineOffset * 100}
+              isSelected={event.id === selectedEventId}
+              onClick={() => handleEventClick(event.id)}
+              viewMode={viewMode}
+              markerSpacing={100}
+              theme={theme}
+            />
+          ))}
+        </Box>
       </Box>
       
       {/* Instructions */}
