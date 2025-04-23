@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link as RouterLink, useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -21,33 +21,33 @@ import { useAuth } from '../contexts/AuthContext';
 import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
+import TagIcon from '@mui/icons-material/Tag';
 import ToolbarSpacer from './ToolbarSpacer';
+import api from '../utils/api';
 
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
   const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-
-  // Get current path for navigation highlighting
+  const [currentTimelineName, setCurrentTimelineName] = React.useState('');
   const currentPath = location.pathname;
   
   // Function to handle navigation with refresh capability
   const handleNavigation = (path) => {
     // If we're already on this page, refresh the content
     if (path === currentPath) {
-      // For home page, we'll reload the timelines
-      if (path === '/home') {
-        // Close the drawer
-        setDrawerOpen(false);
+      // Close the drawer first
+      setDrawerOpen(false);
+      
+      // For home page or timeline pages, force a refresh
+      if (path === '/home' || path.startsWith('/timeline-v3/')) {
         // Force a refresh by navigating away and back
         // This is a simple way to trigger a re-render of the component
         navigate('/refresh-redirect', { replace: true });
         setTimeout(() => navigate(path, { replace: true }), 10);
-      } else {
-        // For other pages, just close the drawer
-        setDrawerOpen(false);
       }
     } else {
       // Navigate to the new page
@@ -57,6 +57,8 @@ function Navbar() {
   };
   
   const isProfilePage = location.pathname.startsWith('/profile');
+  const isTimelinePage = location.pathname.startsWith('/timeline-v3/');
+  const timelineId = isTimelinePage ? location.pathname.split('/').pop() : null;
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -83,6 +85,26 @@ function Navbar() {
   const handleHamburgerClick = () => {
     setDrawerOpen(!drawerOpen);
   };
+  
+  // Fetch timeline name when on a timeline page
+  useEffect(() => {
+    const fetchTimelineName = async () => {
+      if (isTimelinePage && timelineId && timelineId !== 'new') {
+        try {
+          const response = await api.get(`/api/timeline-v3/${timelineId}`);
+          if (response.data && response.data.name) {
+            setCurrentTimelineName(response.data.name);
+          }
+        } catch (error) {
+          console.error('Error fetching timeline name:', error);
+        }
+      } else {
+        setCurrentTimelineName('');
+      }
+    };
+    
+    fetchTimelineName();
+  }, [isTimelinePage, timelineId]);
 
   const profileTabs = (
     <Box
@@ -163,6 +185,46 @@ function Navbar() {
             }}
           />
         </ListItem>
+        
+        {/* Current Timeline Item - Only shown when on a timeline page */}
+        {isTimelinePage && currentTimelineName && (
+          <ListItem 
+            button 
+            onClick={() => handleNavigation(currentPath)} // Refresh current timeline
+            sx={{
+              position: 'relative',
+              backgroundColor: theme => 
+                theme.palette.mode === 'dark' 
+                  ? 'rgba(144, 202, 249, 0.15)' 
+                  : 'rgba(255, 213, 200, 0.5)', // Always highlighted since we're on this page
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: '4px',
+                backgroundColor: theme => theme.palette.primary.main,
+                borderTopRightRadius: '4px',
+                borderBottomRightRadius: '4px',
+              }
+            }}
+          >
+            <ListItemIcon>
+              <TagIcon sx={{ color: 'primary.main' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary={currentTimelineName} 
+              primaryTypographyProps={{
+                fontWeight: 'bold',
+                color: 'primary.main',
+                noWrap: true,
+                sx: { maxWidth: '180px' } // Prevent very long timeline names from breaking layout
+              }}
+            />
+          </ListItem>
+        )}
+        
         <ListItem 
           button 
           onClick={() => handleNavigation('/profile')}
@@ -282,7 +344,9 @@ function Navbar() {
                       marginTop: '64px', // Height of AppBar
                       height: 'calc(100% - 64px)',
                       boxSizing: 'border-box',
+                      zIndex: 1600, // Higher than timeline floating buttons (which go up to 1530)
                     },
+                    zIndex: 1600, // Apply to the Drawer component itself
                   }}
                   ModalProps={{
                     keepMounted: true, // Better mobile performance
