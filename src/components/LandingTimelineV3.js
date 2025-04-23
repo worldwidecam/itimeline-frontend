@@ -7,198 +7,216 @@ import EventMarker from './timeline-v3/events/EventMarker';
 import EventCounter from './timeline-v3/events/EventCounter';
 import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 
-// Sample demo events - organized by view type
-const DAY_VIEW_EVENTS = [
-  {
-    id: 101,
-    title: "Take kids to school",
-    description: "Drop off Tommy and Emma at Westside Elementary",
-    type: "remark",
-    position: -5,
-    event_date: "2025-03-31T07:00:00",
-    tags: ["daily", "kids", "morning"]
-  },
-  {
-    id: 102,
-    title: "Team standup meeting",
-    description: "Daily scrum with the development team",
-    type: "remark",
-    position: -3,
-    event_date: "2025-03-31T09:30:00",
-    tags: ["work", "meeting", "daily"]
-  },
-  {
-    id: 103,
-    title: "Lunch with friends",
-    description: "Meeting Sarah and Mike at Riverfront Café",
-    type: "media",
-    position: 0,
-    event_date: "2025-03-31T12:30:00",
-    tags: ["social", "food", "friends"]
-  },
-  {
-    id: 104,
-    title: "Dentist appointment",
-    description: "Regular checkup with Dr. Johnson",
-    type: "remark",
-    position: 2,
-    event_date: "2025-03-31T15:00:00",
-    tags: ["health", "appointment"]
-  },
-  {
-    id: 105,
-    title: "Pick up groceries",
-    description: "Get ingredients for dinner at Whole Foods",
-    type: "news",
-    position: 4,
-    event_date: "2025-03-31T17:30:00",
-    tags: ["errands", "shopping", "food"]
-  }
-];
+// Function to generate dynamic events based on current date
+const generateDemoEvents = () => {
+  const now = new Date();
+  
+  // DAY VIEW EVENTS - Events within the current day, spanning from -12 to +12 hours with better spacing
+  const dayViewEvents = [
+    {
+      id: 101,
+      title: "Take kids to school",
+      description: "Drop off Tommy and Emma at Westside Elementary",
+      type: "remark",
+      position: -10,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0).toISOString(),
+      tags: ["daily", "kids", "morning"]
+    },
+    {
+      id: 102,
+      title: "Team standup meeting",
+      description: "Daily scrum with the development team",
+      type: "remark",
+      position: -5,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30, 0).toISOString(),
+      tags: ["work", "meeting", "daily"]
+    },
+    {
+      id: 103,
+      title: "Lunch with friends",
+      description: "Meeting Sarah and Mike at Riverfront Café",
+      type: "media",
+      position: 0,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 30, 0).toISOString(),
+      tags: ["social", "food", "friends"]
+    },
+    {
+      id: 104,
+      title: "Dentist appointment",
+      description: "Regular checkup with Dr. Johnson",
+      type: "remark",
+      position: 5,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0).toISOString(),
+      tags: ["health", "appointment"]
+    },
+    {
+      id: 105,
+      title: "Pick up groceries",
+      description: "Get ingredients for dinner at Whole Foods",
+      type: "news",
+      position: 10,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 30, 0).toISOString(),
+      tags: ["errands", "shopping", "food"]
+    }
+  ];
 
-const WEEK_VIEW_EVENTS = [
-  {
-    id: 201,
-    title: "Tommy's Birthday",
-    description: "Tommy turns 8! Party at Jumping Jungle",
-    type: "media",
-    position: -3,
-    event_date: "2025-03-23T14:00:00",
-    tags: ["birthday", "family", "celebration"]
-  },
-  {
-    id: 202,
-    title: "Saint Patrick's Day",
-    description: "Wear green and celebrate Irish culture",
-    type: "news",
-    position: -2,
-    event_date: "2025-03-17T00:00:00",
-    tags: ["holiday", "cultural", "celebration"]
-  },
-  {
-    id: 203,
-    title: "Tax filing deadline",
-    description: "Last day to submit tax returns",
-    type: "remark",
-    position: 0,
-    event_date: "2025-04-15T00:00:00",
-    tags: ["finance", "deadline", "important"]
-  },
-  {
-    id: 204,
-    title: "Weekend getaway",
-    description: "Short trip to the mountains with family",
-    type: "media",
-    position: 2,
-    event_date: "2025-04-05T08:00:00",
-    tags: ["travel", "family", "vacation"]
-  },
-  {
-    id: 205,
-    title: "Quarterly review",
-    description: "Performance review with manager",
-    type: "news",
-    position: 3,
-    event_date: "2025-04-10T10:00:00",
-    tags: ["work", "meeting", "important"]
-  }
-];
+  // WEEK VIEW EVENTS - Events within -14 to +14 days from current date with better spacing
+  const weekViewEvents = [
+    {
+      id: 201,
+      title: "Weekend brunch",
+      description: "Brunch with family at Sunrise Cafe",
+      type: "media",
+      position: -10,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 10, 0, 0).toISOString(),
+      tags: ["family", "weekend", "food"]
+    },
+    {
+      id: 202,
+      title: "Team building event",
+      description: "Company team building at Adventure Park",
+      type: "news",
+      position: -5,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3, 13, 0, 0).toISOString(),
+      tags: ["work", "team", "activity"]
+    },
+    {
+      id: 203,
+      title: "Project deadline",
+      description: "Final submission for the client project",
+      type: "remark",
+      position: 0,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0).toISOString(),
+      tags: ["work", "deadline", "important"]
+    },
+    {
+      id: 204,
+      title: "Weekend getaway",
+      description: "Short trip to the mountains with family",
+      type: "media",
+      position: 5,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 4, 8, 0, 0).toISOString(),
+      tags: ["travel", "family", "vacation"]
+    },
+    {
+      id: 205,
+      title: "Quarterly review",
+      description: "Performance review with manager",
+      type: "news",
+      position: 10,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 13, 0, 0).toISOString(),
+      tags: ["work", "meeting", "review"]
+    }
+  ];
 
-const MONTH_VIEW_EVENTS = [
-  {
-    id: 301,
-    title: "Family reunion",
-    description: "Annual Johnson family gathering at Lake Tahoe",
-    type: "media",
-    position: -3,
-    event_date: "2024-07-15T00:00:00",
-    tags: ["family", "annual", "tradition"]
-  },
-  {
-    id: 302,
-    title: "We got married!",
-    description: "Our beautiful wedding day at Sunset Gardens",
-    type: "media",
-    position: -1,
-    event_date: "2024-06-12T00:00:00",
-    tags: ["wedding", "milestone", "celebration"]
-  },
-  {
-    id: 303,
-    title: "House renovation",
-    description: "Kitchen and bathroom remodeling project",
-    type: "remark",
-    position: 0,
-    event_date: "2025-02-01T00:00:00",
-    tags: ["home", "project", "improvement"]
-  },
-  {
-    id: 304,
-    title: "Summer vacation",
-    description: "Two-week trip to Europe: Paris, Rome, Barcelona",
-    type: "media",
-    position: 2,
-    event_date: "2025-08-05T00:00:00",
-    tags: ["travel", "vacation", "international"]
-  },
-  {
-    id: 305,
-    title: "Working class revolution",
-    description: "The people unite for economic justice",
-    type: "news",
-    position: 4,
-    event_date: "2025-05-01T00:00:00",
-    tags: ["political", "social", "movement"]
-  }
-];
+  // MONTH VIEW EVENTS - Events within -6 to +6 months from current date with better spacing
+  const monthViewEvents = [
+    {
+      id: 301,
+      title: "Annual Developer Conference",
+      description: "Three-day tech conference with workshops",
+      type: "media",
+      position: -10,
+      event_date: new Date(now.getFullYear(), now.getMonth() - 4, 15, 9, 0, 0).toISOString(),
+      tags: ["tech", "conference", "networking"]
+    },
+    {
+      id: 302,
+      title: "Product Launch",
+      description: "Official launch of our new mobile app",
+      type: "news",
+      position: -5,
+      event_date: new Date(now.getFullYear(), now.getMonth() - 2, 20, 10, 0, 0).toISOString(),
+      tags: ["product", "launch", "marketing"]
+    },
+    {
+      id: 303,
+      title: "Company Retreat",
+      description: "Team building activities at Mountain Lodge",
+      type: "media",
+      position: 0,
+      event_date: new Date(now.getFullYear(), now.getMonth(), 15, 8, 0, 0).toISOString(),
+      tags: ["team", "retreat", "company"]
+    },
+    {
+      id: 304,
+      title: "Investor Meeting",
+      description: "Quarterly update with major stakeholders",
+      type: "remark",
+      position: 5,
+      event_date: new Date(now.getFullYear(), now.getMonth() + 2, 15, 14, 0, 0).toISOString(),
+      tags: ["finance", "investors", "meeting"]
+    },
+    {
+      id: 305,
+      title: "Summer Marketing Campaign",
+      description: "Launch of seasonal promotion strategy",
+      type: "news",
+      position: 10,
+      event_date: new Date(now.getFullYear(), now.getMonth() + 4, 1, 9, 0, 0).toISOString(),
+      tags: ["marketing", "campaign", "seasonal"]
+    }
+  ];
 
-const YEAR_VIEW_EVENTS = [
-  {
-    id: 401,
-    title: "Capitol Insurrection",
-    description: "Rioters stormed the U.S. Capitol building",
-    type: "news",
-    position: -4,
-    event_date: "2021-01-06T00:00:00",
-    tags: ["history", "politics", "usa"]
-  },
-  {
-    id: 402,
-    title: "MLK's 'I Have a Dream' Speech",
-    description: "Historic civil rights speech at the Lincoln Memorial",
-    type: "media",
-    position: -2,
-    event_date: "1963-08-28T00:00:00",
-    tags: ["history", "civil rights", "speech"]
-  },
-  {
-    id: 403,
-    title: "First Moon Landing",
-    description: "Neil Armstrong becomes first human to walk on the moon",
-    type: "media",
-    position: 0,
-    event_date: "1969-07-20T00:00:00",
-    tags: ["history", "space", "achievement"]
-  },
-  {
-    id: 404,
-    title: "Fall of the Berlin Wall",
-    description: "Symbol of Cold War division comes down",
-    type: "news",
-    position: 2,
-    event_date: "1989-11-09T00:00:00",
-    tags: ["history", "politics", "germany"]
-  },
-  {
-    id: 405,
-    title: "Palestinian Struggle for Freedom",
-    description: "Ongoing fight for Palestinian rights and sovereignty",
-    type: "news",
-    position: 4,
-    event_date: "2023-10-07T00:00:00",
-    tags: ["current events", "human rights", "middle east"]
-  }
-];
+  // YEAR VIEW EVENTS - Events within -5 to +5 years from current date with better spacing
+  const yearViewEvents = [
+    {
+      id: 401,
+      title: "Company Founded",
+      description: "Our company was established",
+      type: "news",
+      position: -10,
+      event_date: new Date(now.getFullYear() - 3, 0, 6, 0, 0, 0).toISOString(),
+      tags: ["company", "history", "milestone"]
+    },
+    {
+      id: 402,
+      title: "First Major Product Release",
+      description: "Launch of our flagship product",
+      type: "news",
+      position: -5,
+      event_date: new Date(now.getFullYear() - 1, 5, 14, 0, 0, 0).toISOString(),
+      tags: ["product", "launch", "milestone"]
+    },
+    {
+      id: 403,
+      title: "Current Year Milestone",
+      description: "Major achievement for this year",
+      type: "remark",
+      position: 0,
+      event_date: new Date(now.getFullYear(), 5, 5, 0, 0, 0).toISOString(),
+      tags: ["milestone", "achievement", "current"]
+    },
+    {
+      id: 404,
+      title: "Next Year's Conference",
+      description: "Planned attendance at major industry event",
+      type: "media",
+      position: 5,
+      event_date: new Date(now.getFullYear() + 1, 6, 26, 0, 0, 0).toISOString(),
+      tags: ["future", "conference", "planning"]
+    },
+    {
+      id: 405,
+      title: "Five-Year Company Goal",
+      description: "Target milestone for company growth",
+      type: "media",
+      position: 10,
+      event_date: new Date(now.getFullYear() + 3, 1, 18, 0, 0, 0).toISOString(),
+      tags: ["goals", "future", "planning"]
+    }
+  ];
+
+  return {
+    dayViewEvents,
+    weekViewEvents,
+    monthViewEvents,
+    yearViewEvents
+  };
+};
+
+// Generate all events dynamically based on current date
+const { dayViewEvents: DAY_VIEW_EVENTS, weekViewEvents: WEEK_VIEW_EVENTS, monthViewEvents: MONTH_VIEW_EVENTS, yearViewEvents: YEAR_VIEW_EVENTS } = generateDemoEvents();
 
 function LandingTimelineV3() {
   const theme = useTheme();
@@ -529,23 +547,27 @@ function LandingTimelineV3() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
-        <TimelineBar 
-          timelineOffset={timelineOffset * 100}
-          markerSpacing={100}
-          minMarker={markers.length > 0 ? Math.min(...markers) : -5}
-          maxMarker={markers.length > 0 ? Math.max(...markers) : 5}
-          theme={theme}
-        />
+        <Box sx={{ position: 'relative', top: '150px' }}>
+          <TimelineBar 
+            timelineOffset={timelineOffset * 100}
+            markerSpacing={100}
+            minMarker={markers.length > 0 ? Math.min(...markers) : -5}
+            maxMarker={markers.length > 0 ? Math.max(...markers) : 5}
+            theme={theme}
+          />
+        </Box>
         
         {/* Time Markers */}
-        <TimeMarkers 
-          timelineOffset={timelineOffset * 100}
-          markerSpacing={100}
-          markers={markers}
-          viewMode={viewMode}
-          theme={theme}
-          markerStyles={markerStyles}
-        />
+        <Box sx={{ position: 'relative', top: '150px' }}>
+          <TimeMarkers 
+            timelineOffset={timelineOffset * 100}
+            markerSpacing={100}
+            markers={markers}
+            viewMode={viewMode}
+            theme={theme}
+            markerStyles={markerStyles}
+          />
+        </Box>
         
         {/* Event Markers */}
         {events.map(event => (
@@ -558,6 +580,7 @@ function LandingTimelineV3() {
             viewMode={viewMode}
             markerSpacing={100}
             theme={theme}
+            // No position override needed since we're moving the timeline up to meet the markers
           />
         ))}
       </Box>

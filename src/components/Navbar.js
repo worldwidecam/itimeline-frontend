@@ -7,8 +7,7 @@ import {
   Button,
   Box,
   Avatar,
-  Menu,
-  MenuItem,
+  Tooltip,
   IconButton,
   Drawer,
   List,
@@ -16,6 +15,8 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -358,7 +359,13 @@ function Navbar() {
                   <Avatar
                     alt={user.username}
                     src={user.avatar_url}
-                    sx={{ bgcolor: 'secondary.main' }}
+                    sx={{ 
+                      bgcolor: 'secondary.main',
+                      transition: 'transform 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.1)',
+                      }
+                    }}
                   >
                     {user.username[0].toUpperCase()}
                   </Avatar>
@@ -367,14 +374,30 @@ function Navbar() {
                   anchorEl={anchorEl}
                   open={Boolean(anchorEl)}
                   onClose={handleClose}
+                  PaperProps={{
+                    sx: {
+                      mt: 1.5,
+                      boxShadow: theme => theme.palette.mode === 'dark' 
+                        ? '0 4px 20px rgba(0,0,0,0.5)' 
+                        : '0 4px 20px rgba(0,0,0,0.15)',
+                      borderRadius: 2,
+                    }
+                  }}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                 >
-                  <MenuItem component={RouterLink} to="/profile" onClick={handleClose}>
-                    Profile
+                  <MenuItem onClick={handleLogout} sx={{ 
+                    minWidth: '150px',
+                    py: 1.5,
+                  }}>
+                    <ListItemIcon>
+                      <Box component="svg" sx={{ width: 20, height: 20 }} viewBox="0 0 24 24" fill="none">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </Box>
+                    </ListItemIcon>
+                    <ListItemText primary="Logout" />
                   </MenuItem>
-                  <MenuItem component={RouterLink} to="/profile/settings" onClick={handleClose}>
-                    Settings
-                  </MenuItem>
-                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
                 </Menu>
               </>
             ) : (
