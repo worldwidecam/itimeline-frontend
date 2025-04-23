@@ -342,18 +342,7 @@ function LandingTimelineV3() {
     }
   };
 
-  // Navigation controls
-  const handleLeft = () => {
-    const minMarker = Math.min(...markers);
-    setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
-    setTimelineOffset(prevOffset => prevOffset + 100);
-  };
-
-  const handleRight = () => {
-    const maxMarker = Math.max(...markers);
-    setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
-    setTimelineOffset(prevOffset => prevOffset - 100);
-  };
+  // Timeline navigation is handled via drag and drop
 
   // View mode controls
   const handleViewModeChange = (newMode) => {
@@ -486,51 +475,7 @@ function LandingTimelineV3() {
       </Box>
       
       {/* Navigation Buttons */}
-      <Button
-        variant="contained"
-        size="small"
-        onClick={handleLeft}
-        sx={{
-          position: 'absolute',
-          left: 0,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          color: 'white',
-          minWidth: 'auto',
-          borderRadius: 0,
-          height: '40px',
-          zIndex: 5,
-          '&:hover': {
-            backgroundColor: 'rgba(0,0,0,0.9)'
-          }
-        }}
-      >
-        LEFT
-      </Button>
-      
-      <Button
-        variant="contained"
-        size="small"
-        onClick={handleRight}
-        sx={{
-          position: 'absolute',
-          right: 0,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          color: 'white',
-          minWidth: 'auto',
-          borderRadius: 0,
-          height: '40px',
-          zIndex: 5,
-          '&:hover': {
-            backgroundColor: 'rgba(0,0,0,0.9)'
-          }
-        }}
-      >
-        RIGHT
-      </Button>
+      {/* Navigation buttons removed - timeline uses drag and drop for navigation */}
       
       {/* Timeline Bar */}
       <Box 
