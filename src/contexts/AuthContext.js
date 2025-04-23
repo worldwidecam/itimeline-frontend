@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../utils/api';
+import { setCookie, getCookie, deleteCookie } from '../utils/cookies';
 
 const AuthContext = createContext(null);
 
@@ -10,23 +11,51 @@ export const AuthProvider = ({ children }) => {
   // Function to refresh the access token
   const refreshAccessToken = async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
+      // Try to get refresh token from cookies for backward compatibility
+      const refreshToken = getCookie('refresh_token');
       if (!refreshToken) {
-        throw new Error('No refresh token available');
+        console.warn('No refresh token available in cookies');
+        return false;
       }
 
-      const response = await api.post('/api/auth/refresh', {}, {
+      console.log('Attempting to refresh token with refresh token:', refreshToken.substring(0, 10) + '...');
+      
+      // Create a direct axios instance to avoid interceptor loops
+      const axios = (await import('axios')).default;
+      const instance = axios.create({
+        baseURL: process.env.NODE_ENV === 'production' 
+          ? (process.env.REACT_APP_API_URL || 'https://api.i-timeline.com')
+          : 'http://localhost:5000',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      // Try a simpler approach - send the refresh token in the request body
+      // This is often how refresh token endpoints are implemented
+      const response = await instance.post('/api/auth/refresh', { refresh_token: refreshToken }, {
         headers: {
-          'X-Refresh-Token': refreshToken
+          'Content-Type': 'application/json'
         }
       });
 
-      const { access_token } = response.data;
+      // Check for valid response
+      if (!response.data) {
+        throw new Error('Invalid response from refresh endpoint');
+      }
+      
+      const { access_token, refresh_token } = response.data;
       if (!access_token) {
         throw new Error('No access token received');
       }
 
-      localStorage.setItem('access_token', access_token);
+      console.log('Successfully refreshed access token');
+    
+    // Store tokens in cookies
+    setCookie('access_token', access_token, 7); // 7 days expiry
+    if (refresh_token) {
+      console.log('Updating refresh token');
+      setCookie('refresh_token', refresh_token, 30); // 30 days expiry
+    }
+      
       return true;
     } catch (error) {
       console.error('Failed to refresh token:', error);
@@ -58,14 +87,14 @@ export const AuthProvider = ({ children }) => {
       });
 
       const { access_token, refresh_token, ...userData } = response.data;
-      
-      // Store tokens
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-      
-      // Update user state
-      setUser(userData);
-      console.log('Login successful');
+    
+    // Store tokens in cookies
+    setCookie('access_token', access_token, 7); // 7 days expiry
+    setCookie('refresh_token', refresh_token, 30); // 30 days expiry
+    
+    // Update user state
+    setUser(userData);
+    console.log('Login successful');
       
       return userData;
     } catch (error) {
@@ -93,7 +122,7 @@ export const AuthProvider = ({ children }) => {
       // If registration is successful, automatically log the user in
       const { token } = response.data;
       if (token) {
-        localStorage.setItem('access_token', token);
+        setCookie('access_token', token, 7); // 7 days expiry
         setUser(response.data);
       }
       
@@ -113,30 +142,130 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    // Clear cookies
+    deleteCookie('access_token');
+    deleteCookie('refresh_token');
     setUser(null);
   };
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await api.get('/api/auth/validate');
-      setUser(response.data.user);
+      console.log('Validating current user session...');
+      // Try to get token from cookies
+      const token = getCookie('access_token');
+      
+      if (!token) {
+        console.warn('No access token found in cookies or localStorage during validation');
+        setLoading(false);
+        return false;
+      }
+      
+      // Create a direct axios instance to avoid potential interceptor issues
+      const axios = (await import('axios')).default;
+      const baseURL = process.env.NODE_ENV === 'production' 
+        ? (process.env.REACT_APP_API_URL || 'https://api.i-timeline.com')
+        : 'http://localhost:5000';
+      
+      const response = await axios.get(`${baseURL}/api/auth/validate`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data && response.data.user) {
+        console.log('User validation successful:', response.data.user);
+        setUser(response.data.user);
+        return true;
+      } else {
+        console.warn('User validation response missing user data');
+        throw new Error('Invalid user data in response');
+      }
     } catch (error) {
       console.error('Error fetching user:', error);
-      logout();
+      
+      // Try to refresh the token before logging out
+      console.log('Attempting token refresh after validation failure');
+      const refreshSuccessful = await refreshAccessToken();
+      
+      if (refreshSuccessful) {
+        // Try to validate again with the new token
+        try {
+          const token = getCookie('access_token') || localStorage.getItem('access_token');
+          const axios = (await import('axios')).default;
+          const baseURL = process.env.NODE_ENV === 'production' 
+            ? (process.env.REACT_APP_API_URL || 'https://api.i-timeline.com')
+            : 'http://localhost:5000';
+          
+          const response = await axios.get(`${baseURL}/api/auth/validate`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data && response.data.user) {
+            setUser(response.data.user);
+            console.log('User validation successful after token refresh');
+            return true;
+          } else {
+            throw new Error('Invalid user data in response after refresh');
+          }
+        } catch (secondError) {
+          console.error('Error fetching user after token refresh:', secondError);
+          logout();
+          return false;
+        }
+      } else {
+        console.warn('Token refresh failed, logging out');
+        logout();
+        return false;
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      fetchCurrentUser();
-    } else {
-      setLoading(false);
-    }
+    // Function to check and restore session
+    const checkAndRestoreSession = async () => {
+      try {
+        // First check for access token in both cookies and localStorage
+        const token = getCookie('access_token') || localStorage.getItem('access_token');
+        console.log('Initial auth check - Access token exists:', !!token);
+        
+        if (token) {
+          // Try to use the existing access token
+          await fetchCurrentUser();
+          return;
+        }
+        
+        // If no access token, check for refresh token in both cookies and localStorage
+        const refreshToken = getCookie('refresh_token') || localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          console.log('Access token missing but refresh token found, attempting refresh...');
+          const success = await refreshAccessToken();
+          if (success) {
+            await fetchCurrentUser();
+            return;
+          }
+        }
+        
+        // If we get here, no valid tokens were found
+        console.log('No valid authentication tokens found');
+        setLoading(false);
+      } catch (error) {
+        console.error('Error during session restoration:', error);
+        setLoading(false);
+      }
+    };
+    
+    // Add a small delay to ensure localStorage is fully loaded
+    const initializeAuth = setTimeout(() => {
+      checkAndRestoreSession();
+    }, 100); // Small delay to ensure localStorage is available
+    
+    return () => clearTimeout(initializeAuth);
   }, []);
 
   const updateProfile = async (updatedData) => {
