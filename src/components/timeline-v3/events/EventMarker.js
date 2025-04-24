@@ -38,7 +38,8 @@ const EventMarker = ({
   minMarker,
   maxMarker,
   onClick,
-  selectedType
+  selectedType,
+  isMoving = false // New prop to track timeline movement
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -414,6 +415,28 @@ const EventMarker = ({
   
   // Add a debug class to help identify markers in different states
   const markerClass = isSelected ? 'selected-marker' : 'normal-marker';
+  
+  // Calculate transition properties based on isMoving state
+  const getTransitionStyle = () => {
+    if (isMoving) {
+      // Direction of movement affects the sway direction
+      const swayDirection = timelineOffset > 0 ? -10 : 10;
+      
+      return {
+        // Scale Y to 0 (shrink vertically) and translate to create sway effect
+        transform: `translateX(${swayDirection}px) scaleY(0)`,
+        opacity: 0,
+        transformOrigin: 'bottom center', // Shrink from bottom to top
+        transition: 'transform 0.25s ease-out, opacity 0.15s ease-out'
+      };
+    }
+    return {
+      transform: 'scaleY(1)',
+      opacity: 1,
+      transformOrigin: 'bottom center', // Grow from bottom to top
+      transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease-out' // Bouncy effect when appearing
+    };
+  };
 
   return (
     <>
@@ -427,6 +450,7 @@ const EventMarker = ({
             alignItems: 'center',
             transform: 'translateX(-50%)',
             zIndex: 1000,
+            ...getTransitionStyle() // Apply transition style based on isMoving
           }}
         >
           <Box
@@ -549,16 +573,22 @@ const EventMarker = ({
             })() * getMarkerHeightMultiplier()}px`, // Adjust height based on view mode, overlapping factor and selected filter type
             borderRadius: '2px',
             background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
-            transform: 'translateX(-50%)',
+            transform: isMoving 
+              ? `translateX(-50%) translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+              : 'translateX(-50%)',
+            transformOrigin: 'bottom center', // Shrink from bottom to top
+            opacity: isMoving ? 0 : getMarkerOpacity(),
             cursor: 'pointer',
-            transition: 'all 0.3s ease-in-out', // Smooth transition for height and opacity changes
+            transition: isMoving
+              ? 'all 0.25s ease-out' // Faster transition for movement
+              : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy effect when appearing
             // Enhanced visual appearance for all filter views (day, week, month, year)
             ...(viewMode !== 'position' && {
-              boxShadow: `0 0 6px ${getColor()}40`,
+              boxShadow: isMoving ? 'none' : `0 0 6px ${getColor()}40`,
               // Special styling for week view
               ...(viewMode === 'week' && {
                 width: '4px',
-                boxShadow: `0 0 8px ${getColor()}60`
+                boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`
               })
             }),
             // Add a larger invisible click area using ::before pseudo-element
@@ -569,19 +599,20 @@ const EventMarker = ({
               zIndex: 1, // Ensures it's clickable
             },
             '&:hover': {
-              background: `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
-              transform: 'translateX(-50%) scaleY(1.2) scaleX(1.3)',
-              boxShadow: `0 0 8px ${getColor()}60`,
+              background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
+              transform: isMoving 
+                ? `translateX(-50%) translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+                : 'translateX(-50%) scaleY(1.2) scaleX(1.3)',
+              boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
               ...(viewMode !== 'position' && {
-                boxShadow: `0 0 10px ${getColor()}70`,
+                boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
                 // Enhanced hover effect for week view
                 ...(viewMode === 'week' && {
-                  boxShadow: `0 0 12px ${getColor()}80`
+                  boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
                 })
               })
             },
             zIndex: 800, // Reduced from 1000 to 800 (below hover marker at 900)
-            opacity: getMarkerOpacity()
           }}
           onClick={handleMarkerClick}
         />

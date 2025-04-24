@@ -218,6 +218,7 @@ function TimelineV3() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [shouldScrollToEvent, setShouldScrollToEvent] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isMoving, setIsMoving] = useState(false); // New state to track timeline movement
 
   // Add new state for events and event form
   const [events, setEvents] = useState([]);
@@ -639,24 +640,61 @@ function TimelineV3() {
 
   const handleLeft = () => {
     console.log('Executing LEFT button press');
-    const minMarker = Math.min(...markers);
-    setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
-    setTimelineOffset(prevOffset => prevOffset + 100);
+    // Set moving state to hide markers during movement
+    setIsMoving(true);
+    
+    // If an event is selected, close its popup during movement
+    if (selectedEventId) {
+      setSelectedEventId(null);
+    }
+    
+    // Wait for markers to completely disappear before moving the timeline
+    setTimeout(() => {
+      const minMarker = Math.min(...markers);
+      setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
+      setTimelineOffset(prevOffset => prevOffset + 100);
+      
+      // Wait for timeline to settle before showing markers again
+      setTimeout(() => {
+        setIsMoving(false);
+      }, 100); // Short delay after movement completes
+    }, 250); // Wait for fade-out animation to complete
   };
 
   const handleRight = () => {
     console.log('Executing RIGHT button press');
-    const maxMarker = Math.max(...markers);
-    setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
-    setTimelineOffset(prevOffset => prevOffset - 100);
+    // Set moving state to hide markers during movement
+    setIsMoving(true);
+    
+    // If an event is selected, close its popup during movement
+    if (selectedEventId) {
+      setSelectedEventId(null);
+    }
+    
+    // Wait for markers to completely disappear before moving the timeline
+    setTimeout(() => {
+      const maxMarker = Math.max(...markers);
+      setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
+      setTimelineOffset(prevOffset => prevOffset - 100);
+      
+      // Wait for timeline to settle before showing markers again
+      setTimeout(() => {
+        setIsMoving(false);
+      }, 100); // Short delay after movement completes
+    }, 250); // Wait for fade-out animation to complete
   };
 
   // Navigate to an event using sequential button presses
   const navigateToEvent = (event) => {
     if (!event || !event.event_date || viewMode === 'position' || isNavigating) return;
     
-    // Calculate the temporal distance between the event and current reference point
-    const distance = calculateTemporalDistance(event.event_date);
+    // Set moving state to hide markers during navigation
+    setIsMoving(true);
+    
+    // Wait for markers to completely disappear before calculating and starting navigation
+    setTimeout(() => {
+      // Calculate the temporal distance between the event and current reference point
+      const distance = calculateTemporalDistance(event.event_date);
     
     // Calculate how many steps (button presses) we need
     // Each button press moves by 1 marker, which is 100px
@@ -697,14 +735,15 @@ function TimelineV3() {
     console.log(`Direction: ${direction}`);
     console.log(`Number of presses: ${numberOfPresses}`);
     
-    // Start the navigation process
-    setIsNavigating(true);
-    
-    // Preload markers before starting navigation
-    preloadMarkersForNavigation(direction, numberOfPresses).then(() => {
-      // After preloading, execute the button presses
-      executeButtonPresses(direction, numberOfPresses);
-    });
+      // Start the navigation process
+      setIsNavigating(true);
+      
+      // Preload markers before starting navigation
+      preloadMarkersForNavigation(direction, numberOfPresses).then(() => {
+        // After preloading, execute the button presses
+        executeButtonPresses(direction, numberOfPresses);
+      });
+    }, 250); // Wait for fade-out animation to complete
   };
   
   // Preload markers in the direction we're going to navigate
@@ -788,6 +827,8 @@ function TimelineV3() {
   const smoothScrollTimeline = (direction, distance) => {
     console.log(`Starting smooth scroll: ${direction}, distance: ${distance}`);
     
+    // We're already in isMoving state at this point, markers are hidden
+    
     // Calculate the target offset
     const targetOffset = direction === 'left' 
       ? timelineOffset + (distance * 100) 
@@ -848,6 +889,9 @@ function TimelineV3() {
         setTimelineOffset(targetOffset);
         console.log('Smooth scroll complete');
         setIsNavigating(false);
+        
+        // Reset moving state to restore markers
+        setTimeout(() => setIsMoving(false), 150);
       }
     };
     
@@ -1275,8 +1319,8 @@ function TimelineV3() {
                   minMarker={Math.min(...markers)}
                   maxMarker={Math.max(...markers)}
                   onClick={handleMarkerClick}
-                  style={timelineTransitionStyles}
                   selectedType={selectedType}
+                  isMoving={isMoving} // Pass isMoving state to control visibility
                 />
               ))}
             </>
