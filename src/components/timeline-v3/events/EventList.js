@@ -57,7 +57,8 @@ const EventList = ({
   viewMode = 'position', // Add viewMode prop with default value
   minMarker = -10, // Default visible marker range
   maxMarker = 10, // Default visible marker range
-  onFilteredEventsCount // Callback to report filtered events count
+  onFilteredEventsCount, // Callback to report filtered events count
+  isLoadingMarkers = false // Flag to indicate if markers are still loading
 }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -348,6 +349,24 @@ const EventList = ({
 
   return (
     <Stack spacing={2} sx={{ px: 3 }}>
+      {/* Loading indicator for events when markers are still loading */}
+      {isLoadingMarkers && viewMode !== 'position' && (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          p: 2, 
+          mb: 2,
+          bgcolor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)',
+          borderRadius: 1,
+          backdropFilter: 'blur(5px)'
+        }}>
+          <Typography variant="body2" color="text.secondary">
+            Loading event markers for {viewMode} view...
+          </Typography>
+        </Box>
+      )}
+      
       {/* Search and Sort Controls */}
       <Stack direction="row" spacing={2} alignItems="center">
         <TextField

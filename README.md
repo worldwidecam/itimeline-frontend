@@ -2,6 +2,27 @@
 
 Frontend application for the iTimeline platform, a modern web application for creating and sharing timelines with interactive event cards.
 
+## Timeline Performance Optimization
+
+The timeline component implements a progressive loading strategy to ensure smooth transitions between different view modes, especially when dealing with large numbers of events:
+
+### Priority-Based Loading
+1. **Timeline Structure First**: The timeline bar and marker dividers load immediately when switching views
+2. **Event List Second**: The event list loads next, initially showing only the first batch of events (10-20) based on current sort order
+3. **Event Markers Third**: Event markers load progressively with fade-in animations, prioritizing markers for events currently visible in the list
+4. **Background Loading**: Additional events and markers load in the background as resources become available
+
+### Performance Considerations
+- **View Mode Transitions**: Transitions between view modes (day, week, month, year) are optimized to maintain responsiveness
+- **Progressive Rendering**: Events and markers render in batches to prevent UI freezing with large datasets
+- **Fade-In Cushioning**: Visual elements use staggered fade-in animations to create a smoother perception of loading
+- **Marker Virtualization**: Only markers within or near the viewport are fully rendered to reduce DOM elements
+
+### Implementation Notes
+- Filter views (day, week, month, year) apply consistent filtering logic between the event list and markers
+- The base coordinate view is designed as a foundation for the timeline's coordinate system, while filter views add temporal meaning to these coordinates
+- Performance degrades noticeably with more than 20 simultaneous event markers, requiring batched loading
+
 ## Features
 
 ### Diagnostic Tools

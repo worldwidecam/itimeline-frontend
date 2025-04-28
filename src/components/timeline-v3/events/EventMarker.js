@@ -39,6 +39,7 @@ const EventMarker = ({
   maxMarker,
   onClick,
   selectedType,
+  isSelected = false, // Prop to determine if this marker is selected
   isMoving = false // New prop to track timeline movement
 }) => {
   const theme = useTheme();
@@ -386,8 +387,8 @@ const EventMarker = ({
 
   if (!position) return null;
 
-  // Determine if this marker is the currently selected one
-  const isSelected = index === currentIndex && currentIndex !== -1;
+  // The isSelected prop passed from TimelineV3 determines if this marker is selected
+  // This ensures only the marker for the selected event shows its info popup
   
   // Determine if this marker should be visible
   const isVisible = position !== null;

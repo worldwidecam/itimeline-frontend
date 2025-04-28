@@ -421,7 +421,11 @@ function TimelineV3() {
     }
   };
 
-  // Fetch events when timeline ID changes
+  // Progressive loading states
+  const [progressiveLoadingState, setProgressiveLoadingState] = useState('timeline');
+  const [userInteracted, setUserInteracted] = useState(false);
+  
+  // Fetch events when timeline ID changes with progressive loading
   useEffect(() => {
     const fetchEvents = async () => {
       if (!timelineId || timelineId === 'new') return;
@@ -429,9 +433,34 @@ function TimelineV3() {
       try {
         setIsLoadingEvents(true);
         console.log('Fetching events for timeline:', timelineId);
-        const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-        console.log('Events response:', response.data);
-        setEvents(response.data);
+        
+        // First set the loading state to timeline
+        setProgressiveLoadingState('timeline');
+        
+        // Set a timer to load events if the user hasn't interacted with filter views
+        const loadEventsTimer = setTimeout(async () => {
+          if (!userInteracted) {
+            console.log('Loading events after delay');
+            const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
+            console.log('Events response:', response.data);
+            setEvents(response.data);
+            
+            // Update the loading state to events loaded
+            setProgressiveLoadingState('events');
+            
+            // Set another timer to load markers if the user still hasn't interacted
+            const loadMarkersTimer = setTimeout(() => {
+              if (!userInteracted) {
+                console.log('Loading markers after delay');
+                setProgressiveLoadingState('complete');
+              }
+            }, 500); // Short delay for markers after events
+            
+            return () => clearTimeout(loadMarkersTimer);
+          }
+        }, 1000); // 1 second delay before loading events
+        
+        return () => clearTimeout(loadEventsTimer);
       } catch (error) {
         console.error('Error fetching events:', error);
       } finally {
@@ -440,7 +469,7 @@ function TimelineV3() {
     };
 
     fetchEvents();
-  }, [timelineId]);
+  }, [timelineId, userInteracted]);
 
   // Create timeline when component mounts
   useEffect(() => {
@@ -616,6 +645,30 @@ function TimelineV3() {
 
   // Reset current event index when switching views
   useEffect(() => {
+    // Mark that the user has interacted with filter views
+    setUserInteracted(true);
+    
+    // If we're in a loading state, immediately load all content
+    if (progressiveLoadingState !== 'complete') {
+      const loadContent = async () => {
+        // If events aren't loaded yet, load them
+        if (progressiveLoadingState === 'timeline') {
+          console.log('User interacted with filter views, loading events immediately');
+          try {
+            const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
+            setEvents(response.data);
+          } catch (error) {
+            console.error('Error fetching events after user interaction:', error);
+          }
+        }
+        
+        // Set the loading state to complete
+        setProgressiveLoadingState('complete');
+      };
+      
+      loadContent();
+    }
+    
     if (viewMode !== 'position') {
       // Only reset selection on first load, not when switching between views
       if (prevViewModeRef.current === null) {
@@ -629,7 +682,7 @@ function TimelineV3() {
       // Clear event positions when view mode changes
       window.timelineEventPositions = [];
     }
-  }, [viewMode]);
+  }, [viewMode, progressiveLoadingState, timelineId]);
 
   // Reset current event index if it's out of bounds after events change
   useEffect(() => {
@@ -1294,35 +1347,78 @@ function TimelineV3() {
             theme={theme}
             style={timelineTransitionStyles}
           />
-          {/* Event Markers - only show in time-based views */}
-          {viewMode !== 'position' && (
+          {/* Event Markers - only show in time-based views and when loading is complete */}
+          {viewMode !== 'position' && progressiveLoadingState === 'complete' && (
             <>
               {/* Initialize the global event positions array for overlapping detection */}
               {(() => {
-                // Initialize or reset the global event positions array at render time
-                window.timelineEventPositions = window.timelineEventPositions || [];
+                window.timelineEventPositions = [];
                 return null;
               })()}
               
               {/* Render event markers */}
-              {events.map((event, index) => (
-                <EventMarker
-                  key={`${event.id}-${event.updated_at || 'new'}`}
-                  event={event}
-                  timelineOffset={timelineOffset}
-                  markerSpacing={100}
-                  viewMode={viewMode}
-                  index={index}
-                  totalEvents={events.length}
-                  currentIndex={currentEventIndex}
-                  onChangeIndex={setCurrentEventIndex}
-                  minMarker={Math.min(...markers)}
-                  maxMarker={Math.max(...markers)}
-                  onClick={handleMarkerClick}
-                  selectedType={selectedType}
-                  isMoving={isMoving} // Pass isMoving state to control visibility
-                />
-              ))}
+              {events.map((event, index) => {
+                if (!event.event_date) return null;
+                
+                // Apply the same filtering logic as in EventList
+                const currentDate = new Date();
+                let startDate, endDate;
+                
+                switch (viewMode) {
+                  case 'day': {
+                    startDate = new Date(currentDate);
+                    startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+                    
+                    endDate = new Date(currentDate);
+                    endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'week': {
+                    startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addDays(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'month': {
+                    startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'year': {
+                    startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addYears(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  default:
+                    return null;
+                }
+                
+                const eventDate = new Date(event.event_date);
+                if (!(eventDate >= startDate && eventDate <= endDate)) {
+                  return null;
+                }
+                
+                return (
+                  <Fade
+                    key={`marker-${event.id}`}
+                    in={!isMoving}
+                    timeout={{ enter: 500, exit: 200 }}
+                    style={{
+                      transitionDelay: `${index * 20}ms`,
+                    }}
+                  >
+                    <div>
+                      <EventMarker
+                        event={event}
+                        viewMode={viewMode}
+                        timelineOffset={timelineOffset}
+                        markerSpacing={100}
+                        isSelected={event.id === selectedEventId}
+                        onClick={(e) => handleMarkerClick(event, index)}
+                      />
+                    </div>
+                  </Fade>
+                );
+              })}
             </>
           )}
           <TimeMarkers 
@@ -1385,8 +1481,15 @@ function TimelineV3() {
       </Container>
 
       {/* Event List */}
-      <Box sx={{ mt: 4 }}>
-        <EventList 
+      {/* Event List - show loading indicator if events aren't loaded yet */}
+      {progressiveLoadingState === 'timeline' ? (
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="body1" color="text.secondary">
+            Loading timeline structure...
+          </Typography>
+        </Box>
+      ) : (
+        <EventList
           events={events}
           onEventEdit={handleEventEdit}
           onEventDelete={handleEventDelete}
@@ -1394,11 +1497,12 @@ function TimelineV3() {
           onEventSelect={handleEventSelect}
           shouldScrollToEvent={shouldScrollToEvent}
           viewMode={viewMode}
-          minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : Math.min(...markers)}
-          maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : Math.max(...markers)}
-          onFilteredEventsCount={handleFilteredEventsCount}
+          minMarker={Math.min(...visibleMarkers)}
+          maxMarker={Math.max(...visibleMarkers)}
+          onFilteredEventsCount={setFilteredEventsCount}
+          isLoadingMarkers={progressiveLoadingState !== 'complete'}
         />
-      </Box>
+      )}
 
       {/* Event Dialog */}
       <EventDialog
