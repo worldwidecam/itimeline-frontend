@@ -37,6 +37,16 @@ The timeline component implements a progressive loading strategy to ensure smoot
   - Fixed positioning ensures loading indicators never disrupt content flow
   - Smooth transitions prevent jarring visual changes
 
+### Event Marker Height Constraints <!-- BOOKMARK: EVENT_MARKER_HEIGHT_CONSTRAINTS -->
+- **Workspace-Aware Marker Heights**: Event markers dynamically adjust their heights to respect workspace boundaries
+- **State-Based Constraints**:
+  - Selected markers: Maximum height ensures at least 10px from top of workspace
+  - Hovered markers: Maximum height ensures at least 20px from top of workspace
+  - Regular markers: Maximum height ensures at least 30px from top of workspace
+- **View-Specific Adjustments**: Different base heights for each view mode (year, month, week, day)
+- **Overlapping Factor**: Marker heights still grow logarithmically when events cluster, but with enforced maximums
+- **Responsive Design**: Constraints automatically adjust based on available viewport height
+
 ### Implementation Notes
 - Filter views (day, week, month, year) apply consistent filtering logic between the event list and markers
 - The base coordinate view is designed as a foundation for the timeline's coordinate system, while filter views add temporal meaning to these coordinates

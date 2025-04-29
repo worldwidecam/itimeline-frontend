@@ -414,6 +414,25 @@ const EventMarker = ({
     return 0.25;
   };
   
+  // Calculate the maximum allowed height based on workspace constraints
+  const getMaxAllowedHeight = (isSelectedMarker, isHoveredMarker) => {
+    // Get the available height (distance from bottom of timeline to top of workspace)
+    // For simplicity, we'll use a percentage of viewport height as a proxy
+    const availableHeight = window.innerHeight * 0.3; // Approximately 30% of viewport height
+    
+    // Apply constraints based on marker state
+    if (isSelectedMarker) {
+      // Tallest state - ensure at least 10px from top
+      return Math.min(availableHeight - 10, 120); // Cap at 120px max
+    } else if (isHoveredMarker) {
+      // Second tallest state - ensure at least 20px from top
+      return Math.min(availableHeight - 20, 80); // Cap at 80px max
+    } else {
+      // Regular state - ensure at least 30px from top
+      return Math.min(availableHeight - 30, 60); // Cap at 60px max
+    }
+  };
+  
   // Add a debug class to help identify markers in different states
   const markerClass = isSelected ? 'selected-marker' : 'normal-marker';
   
@@ -458,9 +477,11 @@ const EventMarker = ({
             ref={markerRef}
             className="active-marker"
             onClick={handleMarkerClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             sx={{
               width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-              height: `${Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier()}px`, // Increased minimum height with adjustment for overlapping factor and filter type
+              height: `${Math.min(getMaxAllowedHeight(true, false), Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier())}px`, // Height constrained by workspace
               cursor: 'pointer',
               position: 'relative',
               // Increased click area with pseudo-element
@@ -583,6 +604,8 @@ const EventMarker = ({
         <Box
           ref={markerRef}
           className={markerClass}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           sx={{
             position: 'absolute',
             left: `${position.x + horizontalOffset}px`, // Add horizontal offset
@@ -608,8 +631,11 @@ const EventMarker = ({
                 baseHeight = 24;
               }
               
-              return Math.max(minHeight, baseHeight * overlappingFactor);
-            })() * getMarkerHeightMultiplier()}px`, // Adjust height based on view mode, overlapping factor and selected filter type
+              // Calculate base height based on view mode and overlapping factor
+              const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
+              // Apply workspace constraints
+              return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
+            })()}px`, // Height constrained by workspace
             borderRadius: '2px',
             background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
             transform: isMoving 
