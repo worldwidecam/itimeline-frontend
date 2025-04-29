@@ -34,6 +34,14 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+  
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    setPopupOpen: (open) => {
+      console.log('MediaCard: External call to setPopupOpen', open);
+      setPopupOpen(open);
+    }
+  }));
 
   const handleMenuOpen = (e) => {
     e.stopPropagation();
@@ -468,18 +476,10 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   {event.title}
                 </Typography>
               
-                <IconButton 
-                  size="small" 
-                  onClick={handleMenuOpen}
-                  className="event-actions"
-                  sx={{ 
-                    opacity: isSelected ? 1 : 0.5,
-                    transition: 'opacity 0.2s',
-                    ml: 1,
-                  }}
-                >
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
+                {/* QUARANTINED: Vertical ellipsis menu removed
+                    The edit and delete functionality was incomplete and caused issues
+                    Pending impact review for possible deletion
+                */}
               </Box>
             </Box>
             
@@ -554,26 +554,10 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         </Box>
       </motion.div>
       
-      {/* Event menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={handleMenuClose}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDelete}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Delete</ListItemText>
-        </MenuItem>
-      </Menu>
+      {/* QUARANTINED: Event menu removed
+          The edit and delete functionality was incomplete and caused issues
+          Pending impact review for possible deletion
+      */}
       
       {/* Event popup */}
       <EventPopup

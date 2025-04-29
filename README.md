@@ -22,6 +22,7 @@ The timeline component implements a progressive loading strategy to ensure smoot
 - Filter views (day, week, month, year) apply consistent filtering logic between the event list and markers
 - The base coordinate view is designed as a foundation for the timeline's coordinate system, while filter views add temporal meaning to these coordinates
 - Performance degrades noticeably with more than 20 simultaneous event markers, requiring batched loading
+- **LandingPageTimeline Exception**: The landing page timeline (`LandingPageTimeline.js`) is a special case that implements its own custom event markers directly within the component, rather than using the standard `EventMarker` component. This is intentional and should be treated as an exception to the standard timeline implementation.
 
 ## Features
 

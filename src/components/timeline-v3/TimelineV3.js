@@ -219,6 +219,9 @@ function TimelineV3() {
   const [shouldScrollToEvent, setShouldScrollToEvent] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isMoving, setIsMoving] = useState(false); // New state to track timeline movement
+  
+  // Refs for event cards to access their methods
+  const eventRefs = useRef({});
 
   // Add new state for events and event form
   const [events, setEvents] = useState([]);
@@ -338,21 +341,30 @@ function TimelineV3() {
     // Find the index of the clicked event in the events array
     const eventIndex = events.findIndex(e => e.id === event.id);
     
-    if (viewMode !== 'position') {
-      // In filter views (day, week, month, year), focus on the event marker
-      setCurrentEventIndex(eventIndex);
-      // Still set the selectedEventId so the event is highlighted in the list
-      // but don't scroll to it
-      setShouldScrollToEvent(false);
-      setSelectedEventId(event.id);
-      
-      // Navigate to the marker using sequential button presses
-      navigateToEvent(event);
+    // Select the event to highlight it in the list
+    setSelectedEventId(event.id);
+    setCurrentEventIndex(eventIndex);
+    setShouldScrollToEvent(false);
+    
+    // Find the card reference for this event
+    let cardRef;
+    if (event.type?.toLowerCase() === 'news') {
+      cardRef = eventRefs.current[`news-card-${event.id}`];
+    } else if (event.type?.toLowerCase() === 'media') {
+      cardRef = eventRefs.current[`media-card-${event.id}`];
     } else {
-      // In coordinate view, focus on the event in the list and scroll to it
-      setShouldScrollToEvent(true);
-      setSelectedEventId(event.id);
-      setCurrentEventIndex(eventIndex);
+      cardRef = eventRefs.current[`remark-card-${event.id}`];
+    }
+    
+    // If we have a reference to the card, directly call its setPopupOpen method
+    if (cardRef && cardRef.setPopupOpen) {
+      console.log('Directly opening popup for event:', event.id);
+      cardRef.setPopupOpen(true);
+    } else {
+      // QUARANTINED: No fallback to event edit as it's problematic
+      console.warn('WARNING: Could not find card reference for event:', event.id);
+      console.warn('The event popup cannot be shown. This is a known issue.');
+      // No fallback action - better to do nothing than crash the application
     }
   };
 
@@ -424,6 +436,263 @@ function TimelineV3() {
   // Progressive loading states
   const [progressiveLoadingState, setProgressiveLoadingState] = useState('timeline');
   const [userInteracted, setUserInteracted] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0); // Track loading progress for visual feedback
+  
+  // View transition states
+  const [isViewTransitioning, setIsViewTransitioning] = useState(false);
+  const [pendingViewMode, setPendingViewMode] = useState(null);
+  const [viewTransitionPhase, setViewTransitionPhase] = useState('idle'); // 'idle', 'fadeOut', 'structureTransition', 'dataProcessing', 'fadeIn'
+  
+  // Function to navigate to the next event in the carousel and update the selected marker
+  const navigateToNextEvent = () => {
+    if (!events.length) return;
+    
+    // Get the filtered events based on current view mode
+    const filteredEvents = events.filter(e => {
+      // Apply the same filtering logic as in EventList
+      if (viewMode === 'position') return true;
+      
+      if (!e.event_date) return false;
+      
+      const currentDate = new Date();
+      let startDate, endDate;
+      
+      switch (viewMode) {
+        case 'day': {
+          startDate = new Date(currentDate);
+          startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+          
+          endDate = new Date(currentDate);
+          endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+          break;
+        }
+        case 'week': {
+          startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addDays(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        case 'month': {
+          startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        case 'year': {
+          startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addYears(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        default:
+          return true;
+      }
+      
+      const eventDate = new Date(e.event_date);
+      return eventDate >= startDate && eventDate <= endDate;
+    });
+    
+    if (!filteredEvents.length) return;
+    
+    // Find the current index in the filtered events
+    const currentFilteredIndex = filteredEvents.findIndex(e => e.id === selectedEventId);
+    
+    // Calculate the next index (with wraparound)
+    const nextFilteredIndex = currentFilteredIndex === -1 || currentFilteredIndex === filteredEvents.length - 1 
+      ? 0 
+      : currentFilteredIndex + 1;
+    
+    // Get the next event
+    const nextEvent = filteredEvents[nextFilteredIndex];
+    
+    // Update the selected event ID and current event index
+    setSelectedEventId(nextEvent.id);
+    
+    // Find the index in the full events array
+    const fullEventsIndex = events.findIndex(e => e.id === nextEvent.id);
+    if (fullEventsIndex !== -1) {
+      setCurrentEventIndex(fullEventsIndex);
+    }
+    
+    // Don't scroll to the event in the list for filter views
+    setShouldScrollToEvent(viewMode === 'position');
+  };
+  
+  // Function to navigate to the previous event in the carousel and update the selected marker
+  const navigateToPrevEvent = () => {
+    if (!events.length) return;
+    
+    // Get the filtered events based on current view mode
+    const filteredEvents = events.filter(e => {
+      // Apply the same filtering logic as in EventList
+      if (viewMode === 'position') return true;
+      
+      if (!e.event_date) return false;
+      
+      const currentDate = new Date();
+      let startDate, endDate;
+      
+      switch (viewMode) {
+        case 'day': {
+          startDate = new Date(currentDate);
+          startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+          
+          endDate = new Date(currentDate);
+          endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+          break;
+        }
+        case 'week': {
+          startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addDays(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        case 'month': {
+          startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        case 'year': {
+          startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+          endDate = addYears(currentDate, Math.max(...visibleMarkers));
+          break;
+        }
+        default:
+          return true;
+      }
+      
+      const eventDate = new Date(e.event_date);
+      return eventDate >= startDate && eventDate <= endDate;
+    });
+    
+    if (!filteredEvents.length) return;
+    
+    // Find the current index in the filtered events
+    const currentFilteredIndex = filteredEvents.findIndex(e => e.id === selectedEventId);
+    
+    // Calculate the previous index (with wraparound)
+    const prevFilteredIndex = currentFilteredIndex === -1 || currentFilteredIndex === 0 
+      ? filteredEvents.length - 1 
+      : currentFilteredIndex - 1;
+    
+    // Get the previous event
+    const prevEvent = filteredEvents[prevFilteredIndex];
+    
+    // Update the selected event ID and current event index
+    setSelectedEventId(prevEvent.id);
+    
+    // Find the index in the full events array
+    const fullEventsIndex = events.findIndex(e => e.id === prevEvent.id);
+    if (fullEventsIndex !== -1) {
+      setCurrentEventIndex(fullEventsIndex);
+    }
+    
+    // Don't scroll to the event in the list for filter views
+    setShouldScrollToEvent(viewMode === 'position');
+  };
+  
+  // Handle view mode transitions with a multi-phase approach
+  const handleViewModeTransition = (newViewMode) => {
+    // Don't do anything if we're already transitioning or if it's the same mode
+    if (isViewTransitioning || newViewMode === viewMode) return;
+    
+    // Store the currently selected event ID and index to restore after transition
+    const currentlySelectedEventId = selectedEventId;
+    const currentlySelectedEventIndex = currentEventIndex;
+    
+    // Mark that user has interacted to bypass progressive loading delays
+    setUserInteracted(true);
+    
+    // Start the transition process
+    setIsViewTransitioning(true);
+    setPendingViewMode(newViewMode);
+    setViewTransitionPhase('fadeOut');
+    
+    // Phase 1: Immediate visual feedback - fade out events and markers (200ms)
+    setIsFullyFaded(true); // This will fade out the current events and markers
+    
+    // Phase 2: Timeline structure transition (300ms after fadeOut starts)
+    setTimeout(() => {
+      // Actually change the view mode to update the timeline structure
+      setViewMode(newViewMode);
+      setViewTransitionPhase('structureTransition');
+      
+      // Phase 3: Data processing (200ms after structure transition)
+      setTimeout(() => {
+        setViewTransitionPhase('dataProcessing');
+        
+        // Phase 4: Progressive content rendering (300ms after data processing)
+        setTimeout(() => {
+          setViewTransitionPhase('fadeIn');
+          setIsFullyFaded(false); // Start fading in the content
+          
+          // Restore the selected event if it exists in the new view
+          if (currentlySelectedEventId) {
+            // Check if the event is visible in the new view mode
+            const isEventVisibleInNewView = events.some(event => {
+              if (event.id !== currentlySelectedEventId) return false;
+              
+              // For position view, all events are visible
+              if (newViewMode === 'position') return true;
+              
+              // For other views, check if the event is within the visible range
+              if (!event.event_date) return false;
+              
+              const currentDate = new Date();
+              let startDate, endDate;
+              
+              switch (newViewMode) {
+                case 'day': {
+                  startDate = new Date(currentDate);
+                  startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+                  
+                  endDate = new Date(currentDate);
+                  endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+                  break;
+                }
+                case 'week': {
+                  startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                  endDate = addDays(currentDate, Math.max(...visibleMarkers));
+                  break;
+                }
+                case 'month': {
+                  startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                  endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+                  break;
+                }
+                case 'year': {
+                  startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                  endDate = addYears(currentDate, Math.max(...visibleMarkers));
+                  break;
+                }
+                default:
+                  return true;
+              }
+              
+              const eventDate = new Date(event.event_date);
+              return eventDate >= startDate && eventDate <= endDate;
+            });
+            
+            // If the event is visible in the new view, keep it selected
+            if (isEventVisibleInNewView) {
+              setSelectedEventId(currentlySelectedEventId);
+              setCurrentEventIndex(currentlySelectedEventIndex);
+            } else {
+              // If not visible, clear the selection
+              setSelectedEventId(null);
+              setCurrentEventIndex(-1);
+            }
+          }
+          
+          // Complete the transition after the fade-in animation
+          setTimeout(() => {
+            setIsViewTransitioning(false);
+            setViewTransitionPhase('idle');
+            setPendingViewMode(null);
+          }, 300); // Fade-in duration
+          
+        }, 300); // Data processing duration
+        
+      }, 200); // Structure transition duration
+      
+    }, 200); // Fade-out duration
+  };
   
   // Fetch events when timeline ID changes with progressive loading
   useEffect(() => {
@@ -434,35 +703,88 @@ function TimelineV3() {
         setIsLoadingEvents(true);
         console.log('Fetching events for timeline:', timelineId);
         
-        // First set the loading state to timeline
+        // First set the loading state to timeline structure only
         setProgressiveLoadingState('timeline');
+        setLoadingProgress(0);
         
-        // Set a timer to load events if the user hasn't interacted with filter views
+        // Simulate timeline structure loading completion with a progress indicator
+        const structureLoadingInterval = setInterval(() => {
+          setLoadingProgress(prev => {
+            const newProgress = prev + 5;
+            if (newProgress >= 30) {
+              clearInterval(structureLoadingInterval);
+            }
+            return Math.min(newProgress, 30); // Cap at 30% for structure loading
+          });
+        }, 100);
+        
+        // Set a longer timer to load events if the user hasn't interacted with filter views
         const loadEventsTimer = setTimeout(async () => {
           if (!userInteracted) {
             console.log('Loading events after delay');
+            clearInterval(structureLoadingInterval);
+            setLoadingProgress(40); // Jump to 40% when starting event loading
+            
+            // Simulate event loading progress
+            const eventLoadingInterval = setInterval(() => {
+              setLoadingProgress(prev => {
+                const newProgress = prev + 3;
+                if (newProgress >= 70) {
+                  clearInterval(eventLoadingInterval);
+                }
+                return Math.min(newProgress, 70); // Cap at 70% for events loading
+              });
+            }, 150);
+            
+            // Actually fetch the events
             const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
             console.log('Events response:', response.data);
             setEvents(response.data);
             
             // Update the loading state to events loaded
             setProgressiveLoadingState('events');
+            clearInterval(eventLoadingInterval);
+            setLoadingProgress(75); // Jump to 75% when events are loaded
             
             // Set another timer to load markers if the user still hasn't interacted
             const loadMarkersTimer = setTimeout(() => {
               if (!userInteracted) {
                 console.log('Loading markers after delay');
-                setProgressiveLoadingState('complete');
+                
+                // Simulate marker loading progress
+                const markerLoadingInterval = setInterval(() => {
+                  setLoadingProgress(prev => {
+                    const newProgress = prev + 5;
+                    if (newProgress >= 100) {
+                      clearInterval(markerLoadingInterval);
+                    }
+                    return Math.min(newProgress, 100);
+                  });
+                }, 100);
+                
+                // Complete the loading after a delay
+                setTimeout(() => {
+                  clearInterval(markerLoadingInterval);
+                  setLoadingProgress(100);
+                  setProgressiveLoadingState('complete');
+                }, 1000); // Longer delay for markers to be visually distinct
               }
-            }, 500); // Short delay for markers after events
+            }, 1500); // Longer delay between events and markers
             
-            return () => clearTimeout(loadMarkersTimer);
+            return () => {
+              clearTimeout(loadMarkersTimer);
+              clearInterval(eventLoadingInterval);
+            };
           }
-        }, 1000); // 1 second delay before loading events
+        }, 2000); // 2 second delay before loading events
         
-        return () => clearTimeout(loadEventsTimer);
+        return () => {
+          clearTimeout(loadEventsTimer);
+          clearInterval(structureLoadingInterval);
+        };
       } catch (error) {
         console.error('Error fetching events:', error);
+        setProgressiveLoadingState('error');
       } finally {
         setIsLoadingEvents(false);
       }
@@ -1285,10 +1607,22 @@ function TimelineV3() {
                 return eventDate >= startDate && eventDate <= endDate;
               })}
               currentIndex={currentEventIndex}
-              onChangeIndex={setCurrentEventIndex}
-              onDotClick={handleDotClick}
+              onChangeIndex={(index) => {
+                setCurrentEventIndex(index);
+                // Also update the selected event ID to ensure marker highlighting
+                if (events[index]) {
+                  setSelectedEventId(events[index].id);
+                }
+              }}
+              onDotClick={(event) => {
+                handleDotClick(event);
+                // Ensure the marker is highlighted
+                setSelectedEventId(event.id);
+              }}
               viewMode={viewMode}
               timelineOffset={timelineOffset}
+              goToPrevious={navigateToPrevEvent}
+              goToNext={navigateToNextEvent}
               markerSpacing={100}
               sortOrder={sortOrder}
               selectedType={selectedType}
@@ -1297,28 +1631,32 @@ function TimelineV3() {
               <Button
                 variant={viewMode === 'day' ? "contained" : "outlined"}
                 size="small"
-                onClick={() => setViewMode(viewMode === 'day' ? 'position' : 'day')}
+                onClick={() => handleViewModeTransition(viewMode === 'day' ? 'position' : 'day')}
+                disabled={isViewTransitioning}
               >
                 Day
               </Button>
               <Button
                 variant={viewMode === 'week' ? "contained" : "outlined"}
                 size="small"
-                onClick={() => setViewMode(viewMode === 'week' ? 'position' : 'week')}
+                onClick={() => handleViewModeTransition(viewMode === 'week' ? 'position' : 'week')}
+                disabled={isViewTransitioning}
               >
                 Week
               </Button>
               <Button
                 variant={viewMode === 'month' ? "contained" : "outlined"}
                 size="small"
-                onClick={() => setViewMode(viewMode === 'month' ? 'position' : 'month')}
+                onClick={() => handleViewModeTransition(viewMode === 'month' ? 'position' : 'month')}
+                disabled={isViewTransitioning}
               >
                 Month
               </Button>
               <Button
                 variant={viewMode === 'year' ? "contained" : "outlined"}
                 size="small"
-                onClick={() => setViewMode(viewMode === 'year' ? 'position' : 'year')}
+                onClick={() => handleViewModeTransition(viewMode === 'year' ? 'position' : 'year')}
+                disabled={isViewTransitioning}
               >
                 Year
               </Button>
@@ -1335,9 +1673,71 @@ function TimelineV3() {
             boxShadow: 1,
             position: 'relative',
             overflow: 'hidden',
-            ...timelineTransitionStyles
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            opacity: isViewTransitioning ? (viewTransitionPhase === 'fadeOut' ? 0.5 : 0.8) : 1,
+            transform: `
+              translate3d(0, 0, 0)
+              scale(${isViewTransitioning && viewTransitionPhase === 'structureTransition' ? '0.98' : '1'})
+              ${isFullyFaded ? 'translateY(-10px)' : 'translateY(0)'}
+            `,
+            pointerEvents: isViewTransitioning ? 'none' : 'auto',
+            willChange: 'transform, opacity',
+            filter: isViewTransitioning && viewTransitionPhase === 'dataProcessing' ? 'blur(1px)' : 'none'
           }}
         >
+          {/* View Transition Indicator */}
+          {isViewTransitioning && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(0,0,0,0.05)',
+                backdropFilter: 'blur(2px)',
+                pointerEvents: 'none'
+              }}
+            >
+              <Box
+                sx={{
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  boxShadow: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                  {viewTransitionPhase === 'fadeOut' && 'Preparing view...'}
+                  {viewTransitionPhase === 'structureTransition' && 'Updating timeline...'}
+                  {viewTransitionPhase === 'dataProcessing' && 'Processing events...'}
+                  {viewTransitionPhase === 'fadeIn' && 'Loading content...'}
+                </Typography>
+                <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+                  <Box 
+                    sx={{ 
+                      height: '100%', 
+                      width: viewTransitionPhase === 'fadeOut' ? '25%' : 
+                             viewTransitionPhase === 'structureTransition' ? '50%' : 
+                             viewTransitionPhase === 'dataProcessing' ? '75%' : '95%',
+                      bgcolor: theme.palette.primary.main,
+                      transition: 'width 0.3s ease-out',
+                      borderRadius: 2
+                    }} 
+                  />
+                </Box>
+              </Box>
+            </Box>
+          )}
           <TimelineBackground onBackgroundClick={handleBackgroundClick} />
           <TimelineBar
             timelineOffset={timelineOffset}
@@ -1480,15 +1880,69 @@ function TimelineV3() {
         </Box>
       </Container>
 
+      {/* Visual Separator */}
+      <Box sx={{ height: 24 }} />
+      
       {/* Event List */}
-      {/* Event List - show loading indicator if events aren't loaded yet */}
-      {progressiveLoadingState === 'timeline' ? (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary">
-            Loading timeline structure...
-          </Typography>
+      {/* Loading Progress Indicator - Using conditional rendering with opacity for smooth transitions */}
+      {progressiveLoadingState !== 'complete' && (
+        <Box sx={{ 
+          position: 'relative', 
+          mt: 2, 
+          mb: 2,
+          mx: 3,
+          height: '8px',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }}>
+          <Box 
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              // Use a more controlled width calculation that never jumps to 100%
+              width: progressiveLoadingState === 'timeline' 
+                ? '30%' // Fixed width for timeline loading phase
+                : progressiveLoadingState === 'events' 
+                  ? '70%' // Fixed width for events loading phase
+                  : '95%', // Almost complete
+              bgcolor: progressiveLoadingState === 'timeline' 
+                ? theme.palette.info.main 
+                : theme.palette.success.main,
+              transition: 'width 1.5s ease-in-out', // Slower, smoother transition
+              borderRadius: '4px'
+            }}
+          />
+          <Box 
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              px: 2
+            }}
+          >
+            <Typography variant="caption" sx={{ 
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+              fontSize: '0.65rem',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              textShadow: theme.palette.mode === 'dark' ? '0 0 2px rgba(0,0,0,0.8)' : '0 0 2px rgba(255,255,255,0.8)'
+            }}>
+              {progressiveLoadingState === 'timeline' ? 'Loading timeline structure...' : 'Loading events and markers...'}
+            </Typography>
+          </Box>
         </Box>
-      ) : (
+      )}
+      
+      {/* Event List - Only show when not in timeline loading state */}
+      {progressiveLoadingState !== 'timeline' && (
         <EventList
           events={events}
           onEventEdit={handleEventEdit}
@@ -1501,6 +1955,9 @@ function TimelineV3() {
           maxMarker={Math.max(...visibleMarkers)}
           onFilteredEventsCount={setFilteredEventsCount}
           isLoadingMarkers={progressiveLoadingState !== 'complete'}
+          goToPrevious={navigateToPrevEvent}
+          goToNext={navigateToNextEvent}
+          currentEventIndex={currentEventIndex}
         />
       )}
 

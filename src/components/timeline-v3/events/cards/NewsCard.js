@@ -46,6 +46,14 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.NEWS];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    setPopupOpen: (open) => {
+      console.log('NewsCard: External call to setPopupOpen', open);
+      setPopupOpen(open);
+    }
+  }));
+
   // Debug log for event data
   console.log('NewsCard event data:', event);
   console.log('NewsCard tags:', event.tags);

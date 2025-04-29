@@ -493,14 +493,31 @@ const EventMarker = ({
             }}
           />
           
-          {/* Popup for selected marker */}
+          {/* Popup for selected marker - Context-aware positioning */}
           <Paper
             elevation={3}
             sx={{
               position: 'absolute',
-              bottom: `${45 + (overlappingFactor - 1) * 20}px`, // Dynamic positioning based on marker height
-              left: '50%',
-              transform: 'translateX(-50%)',
+              // Smart positioning based on view mode and available space
+              ...(viewMode === 'year' ? {
+                // For year view, position to the side instead of above
+                bottom: '0px',
+                left: '100%',
+                marginLeft: '12px',
+                transform: 'none',
+                // If marker is on the right side of the screen, position to the left
+                ...(position.x > window.innerWidth / 2 && {
+                  left: 'auto',
+                  right: '100%',
+                  marginLeft: '0px',
+                  marginRight: '12px'
+                })
+              } : {
+                // For other views, position above but with a minimum distance from the top
+                bottom: `${Math.min(45 + (overlappingFactor - 1) * 20, window.innerHeight - 200)}px`,
+                left: '50%',
+                transform: 'translateX(-50%)'
+              }),
               p: 1.5,
               maxWidth: 280,
               width: 'max-content', // Allow width to adjust to content
@@ -515,11 +532,32 @@ const EventMarker = ({
               '&::after': {
                 content: '""',
                 position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                border: '8px solid transparent',
-                borderTopColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)',
+                ...(viewMode === 'year' 
+                  ? {
+                      // For year view, arrow points left or right
+                      ...(position.x > window.innerWidth / 2 
+                        ? { // Right side of screen - arrow points right
+                            top: '50%',
+                            right: '100%',
+                            transform: 'translateY(-50%)',
+                            border: '8px solid transparent',
+                            borderRightColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
+                          }
+                        : { // Left side of screen - arrow points left
+                            top: '50%',
+                            left: '100%',
+                            transform: 'translateY(-50%)',
+                            border: '8px solid transparent',
+                            borderLeftColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
+                          })
+                    }
+                  : { // Other views - arrow points down
+                      top: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      border: '8px solid transparent',
+                      borderTopColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
+                    })
               }
             }}
           >

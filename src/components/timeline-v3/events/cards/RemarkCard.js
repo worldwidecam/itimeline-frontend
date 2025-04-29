@@ -36,6 +36,14 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => 
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    setPopupOpen: (open) => {
+      console.log('RemarkCard: External call to setPopupOpen', open);
+      setPopupOpen(open);
+    }
+  }));
+
   // Debug log for event data
   console.log('RemarkCard event data:', event);
   console.log('RemarkCard tags:', event.tags);
@@ -262,40 +270,10 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => 
                   {formatDate(event.created_at)}
                 </Typography>
               </Box>
-              <IconButton 
-                size="small" 
-                onClick={handleMenuOpen}
-                sx={{ 
-                  mr: 1,
-                  p: 0.5,
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                  }
-                }}
-              >
-                <MoreVertIcon fontSize="small" sx={{ fontSize: '1rem' }} />
-              </IconButton>
-              <Menu
-                anchorEl={menuAnchorEl}
-                open={Boolean(menuAnchorEl)}
-                onClose={handleMenuClose}
-                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-              >
-                <MenuItem onClick={handleEdit}>
-                  <ListItemIcon>
-                    <EditIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>Edit</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={handleDelete}>
-                  <ListItemIcon>
-                    <DeleteIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>Delete</ListItemText>
-                </MenuItem>
-              </Menu>
+              {/* QUARANTINED: Vertical ellipsis menu removed
+                  The edit and delete functionality was incomplete and caused issues
+                  Pending impact review for possible deletion
+              */}
             </Box>
           </Box>
         </motion.div>
