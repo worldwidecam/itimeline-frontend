@@ -18,6 +18,25 @@ The timeline component implements a progressive loading strategy to ensure smoot
 - **Fade-In Cushioning**: Visual elements use staggered fade-in animations to create a smoother perception of loading
 - **Marker Virtualization**: Only markers within or near the viewport are fully rendered to reduce DOM elements
 
+### Loading Process Improvements <!-- BOOKMARK: LOADING_PROCESS_IMPROVEMENTS -->
+- **Enhanced Loading Transitions**: The EventList workspace uses sophisticated fade-in transitions with multiple properties:
+  - Opacity transition (0.6 → 1.0) with 1.2s duration
+  - Subtle vertical movement (8px upward) during fade-in
+  - Slight blur effect (1px → 0px) for a focus effect
+  - Material Design easing curve for natural motion
+  - Performance optimization with willChange property
+- **Non-Disruptive Loading Indicator**:
+  - Fixed position overlay at bottom-left corner
+  - Doesn't affect layout or cause flickering
+  - Contextual messages based on loading phase and view mode
+  - Modern pill design with subtle animations
+  - Pulsing dot with color changes based on loading phase
+- **Layout Stability Optimizations**:
+  - Removed in-flow loading indicators that caused layout shifts
+  - Consolidated all loading states into a single, consistent indicator
+  - Fixed positioning ensures loading indicators never disrupt content flow
+  - Smooth transitions prevent jarring visual changes
+
 ### Implementation Notes
 - Filter views (day, week, month, year) apply consistent filtering logic between the event list and markers
 - The base coordinate view is designed as a foundation for the timeline's coordinate system, while filter views add temporal meaning to these coordinates
