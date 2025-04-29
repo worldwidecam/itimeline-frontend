@@ -49,12 +49,13 @@ The timeline component implements a progressive loading strategy to ensure smoot
 
 ### EventList Pagination <!-- BOOKMARK: EVENTLIST_PAGINATION -->
 - **Progressive Loading**: Initially displays only the first 20 events to improve performance
-- **Load More Button**: Allows users to incrementally load 20 more events at a time
-- **Show All Option**: Provides a single-click option to display all filtered events
+- **Load More Button**: Allows users to incrementally load 20 more events at a time with a down arrow icon
 - **Smart Selection Handling**: Automatically ensures selected events are visible regardless of pagination
 - **Adaptive Reset**: Pagination resets when filter criteria change to maintain consistency
 - **Event Count Summary**: Shows users how many events are currently displayed out of the total filtered events
 - **Memory Efficient**: All events remain in memory for marker display while limiting DOM rendering
+- **To Top Button**: Floating action button appears when scrolled down, allowing quick navigation back to the top
+- **Smooth Transitions**: All UI elements fade in/out with smooth animations for a polished experience
 
 ### Implementation Notes
 - Filter views (day, week, month, year) apply consistent filtering logic between the event list and markers

@@ -26,7 +26,8 @@ import {
   PermMedia as MediaIcon,
   Delete as DeleteIcon,
   Sort as SortIcon,
-  ExpandMore as ExpandMoreIcon
+  ExpandMore as ExpandMoreIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
@@ -77,6 +78,9 @@ const EventList = ({
   // Pagination state
   const [displayLimit, setDisplayLimit] = useState(20);
   const [showAll, setShowAll] = useState(false);
+  
+  // Scroll tracking for To Top button
+  const [showToTop, setShowToTop] = useState(false);
 
   // Save sort preference whenever it changes
   useEffect(() => {
@@ -376,6 +380,25 @@ const EventList = ({
     setDisplayLimit(20);
     setShowAll(false);
   }, [searchQuery, selectedType, viewMode]);
+  
+  // Add scroll event listener for To Top button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show To Top button when scrolled down 500px or more
+      setShowToTop(window.scrollY > 500);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  
+  // Function to scroll back to top
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   return (
     <Stack spacing={2} sx={{ px: 3 }}>
@@ -511,28 +534,46 @@ const EventList = ({
         ))}
       </AnimatePresence>
       
-      {/* Load More Button */}
-      {!showAll && filteredAndSortedEvents.length > displayLimit && (
-        <Fade in={true}>
-          <Box sx={{ textAlign: 'center', py: 2, mt: 1 }}>
+      {/* Load More Button and To Top Button */}
+      <Fade in={true}>
+        <Box sx={{ textAlign: 'center', py: 2, mt: 1, display: 'flex', justifyContent: 'center', gap: 2 }}>
+          {!showAll && filteredAndSortedEvents.length > displayLimit && (
             <Button 
               variant="outlined" 
               onClick={() => setDisplayLimit(prev => prev + 20)}
-              sx={{ mr: 1 }}
+              endIcon={<ExpandMoreIcon />}
+              sx={{ 
+                px: 3,
+                py: 1,
+                borderRadius: '20px',
+                boxShadow: 1
+              }}
             >
               Load More Events
             </Button>
-            <Button 
-              variant="text" 
-              onClick={() => setShowAll(true)}
-              startIcon={<ExpandMoreIcon />}
+          )}
+          
+          {showToTop && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={scrollToTop}
+              startIcon={<KeyboardArrowUpIcon />}
+              sx={{ 
+                px: 3,
+                py: 1,
+                borderRadius: '20px',
+                boxShadow: 1
+              }}
             >
-              Show All ({filteredAndSortedEvents.length})
+              Back to Top
             </Button>
-          </Box>
-        </Fade>
-      )}
+          )}
+        </Box>
+      </Fade>
 
+      {/* The To Top button has been moved next to the Load More button */}
+      
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
