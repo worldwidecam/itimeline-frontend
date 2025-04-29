@@ -1694,7 +1694,7 @@ function TimelineV3() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                zIndex: 100,
+                zIndex: 1500, // Increased to be above all timeline elements including hover marker (900) and selected markers (1000)
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
