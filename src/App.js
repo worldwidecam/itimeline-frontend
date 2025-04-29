@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { Close as CloseIcon } from '@mui/icons-material';
 import Navbar from './components/Navbar';
 import TimelineV3 from './components/timeline-v3/TimelineV3';
 import Login from './components/Login';
@@ -31,7 +32,9 @@ import {
   Typography,
   Grid,
   Divider,
-  useTheme
+  useTheme,
+  IconButton,
+  Paper
 } from '@mui/material';
 import PageTransition from './components/PageTransition';
 import api from './utils/api';
@@ -139,8 +142,9 @@ const Homepage = () => {
 
     try {
       setLoading(true);
+      // Convert timeline name to uppercase for consistency with other parts of the app
       const response = await api.post('/api/timeline-v3', {
-        name: formData.name.trim(),
+        name: formData.name.trim().toUpperCase(),
         description: formData.description.trim()
       });
       
@@ -319,41 +323,174 @@ const Homepage = () => {
         </>
       )}
 
-      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Create New Timeline</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Timeline Name"
-            type="text"
-            fullWidth
-            value={formData.name}
-            onChange={handleInputChange}
-            required
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="description"
-            label="Description"
-            type="text"
-            fullWidth
-            multiline
-            rows={3}
-            value={formData.description}
-            onChange={handleInputChange}
-          />
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleDialogClose} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            overflow: 'hidden',
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(10,10,20,0.85)' 
+              : 'rgba(255,255,255,0.85)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+              : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+            border: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255,255,255,0.05)'
+              : '1px solid rgba(0,0,0,0.05)',
+          }
+        }}
+      >
+        {/* Header with colored accent bar */}
+        <Box
+          sx={{
+            position: 'relative',
+            height: 8,
+            bgcolor: theme.palette.primary.main, // Use theme's primary color
+            mb: -1,
+          }}
+        />
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          p: 3,
+          pb: 2,
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(0,0,0,0.03)',
+                color: theme.palette.primary.main, // Use theme's primary color
+              }}
+            >
+              <Typography variant="h6" component="span" sx={{ fontWeight: 'bold' }}>T</Typography>
+            </Box>
+            <Typography 
+              variant="h5" 
+              component="div"
+              sx={{ 
+                fontWeight: 600,
+                color: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.95)'
+                  : 'rgba(0,0,0,0.85)',
+              }}
+            >
+              Create New Timeline
+            </Typography>
+          </Box>
+          <IconButton 
+            onClick={handleDialogClose} 
+            size="medium"
+            aria-label="close"
+            sx={{
+              color: theme.palette.mode === 'dark' ? 'white' : 'rgba(0,0,0,0.6)',
+              bgcolor: theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(0,0,0,0.03)',
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.1)'
+                  : 'rgba(0,0,0,0.05)',
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, pt: 2 }}>
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 3, 
+              mb: 3, 
+              borderRadius: 2,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' 
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 2, color: theme.palette.text.secondary }}>
+              Timeline Details
+            </Typography>
+            <TextField
+              autoFocus
+              name="name"
+              label="Timeline Name"
+              placeholder="Enter a name for your timeline"
+              type="text"
+              fullWidth
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              variant="outlined"
+              sx={{ 
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.5)',
+                }
+              }}
+            />
+            <TextField
+              name="description"
+              label="Description"
+              placeholder="Describe what this timeline is about"
+              type="text"
+              fullWidth
+              multiline
+              rows={3}
+              value={formData.description}
+              onChange={handleInputChange}
+              variant="outlined"
+              sx={{ 
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.5)',
+                }
+              }}
+            />
+          </Paper>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Your timeline will be created with a unique URL that you can share with others.
+          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogClose} disabled={loading}>Cancel</Button>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 0 }}>
+          <Button 
+            onClick={handleDialogClose} 
+            disabled={loading}
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+            }}
+          >
+            Cancel
+          </Button>
           <Button 
             onClick={handleCreateTimeline} 
             variant="contained" 
             disabled={loading}
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              bgcolor: theme.palette.primary.main,
+              '&:hover': {
+                bgcolor: theme.palette.primary.dark,
+              }
+            }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Create'}
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Create Timeline'}
           </Button>
         </DialogActions>
       </Dialog>
