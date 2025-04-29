@@ -2003,6 +2003,7 @@ function TimelineV3() {
           setMediaDialogOpen(false);
         }}
         onSave={handleEventSubmit}
+        timelineName={timelineName}
       />
       
       {/* Remark Event Creator */}
@@ -2012,6 +2013,7 @@ function TimelineV3() {
           setRemarkDialogOpen(false);
         }}
         onSave={handleEventSubmit}
+        timelineName={timelineName}
       />
       
       {/* News Event Creator */}
@@ -2021,6 +2023,7 @@ function TimelineV3() {
           setNewsDialogOpen(false);
         }}
         onSave={handleEventSubmit}
+        timelineName={timelineName}
       />
 
       {/* Animated Floating Action Buttons */}

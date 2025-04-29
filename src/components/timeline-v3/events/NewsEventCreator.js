@@ -29,8 +29,13 @@ import { EVENT_TYPES } from './EventTypes';
 
 /**
  * A dialog component for creating news events with URL preview
+ * @param {Object} props - Component props
+ * @param {boolean} props.open - Whether the dialog is open
+ * @param {Function} props.onClose - Function to close the dialog
+ * @param {Function} props.onSave - Function to save the event
+ * @param {string} props.timelineName - Name of the current timeline to add as a default hashtag
  */
-const NewsEventCreator = ({ open, onClose, onSave }) => {
+const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
   const theme = useTheme();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -42,12 +47,18 @@ const NewsEventCreator = ({ open, onClose, onSave }) => {
   const [currentTag, setCurrentTag] = useState('');
   const [error, setError] = useState(null);
 
-  // Reset form when dialog closes
+  // Reset form when dialog closes or add default timeline hashtag when opened
   useEffect(() => {
     if (!open) {
       resetForm();
+    } else if (open && timelineName) {
+      // Add the current timeline as a hashtag if it's not already in the list
+      const timelineTag = timelineName.toLowerCase();
+      if (!tags.includes(timelineTag)) {
+        setTags(prevTags => [...prevTags, timelineTag]);
+      }
     }
-  }, [open]);
+  }, [open, timelineName, tags]);
 
   const resetForm = () => {
     setTitle('');

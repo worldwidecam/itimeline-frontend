@@ -26,11 +26,20 @@ import api from '../../../utils/api';
 import EventMediaUploader from './EventMediaUploader';
 import { EVENT_TYPES } from './EventTypes';
 
+
 /**
  * A dialog component that uses the existing MediaUploader component
  * to create media events
+ * @param {Object} props - Component props
+ * @param {boolean} props.open - Whether the dialog is open
+ * @param {Function} props.onClose - Function to close the dialog
+ * @param {Function} props.onSave - Function to save the event
+ * @param {string} props.timelineName - Name of the current timeline to add as a default hashtag
+ * @param {string} props.timelineId - ID of the current timeline
+ * @param {Object} props.zeroPoint - Zero point of the timeline
+ * @param {Object} props.position - Position on the timeline
  */
-const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, position }) => {
+const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, zeroPoint, position }) => {
   const theme = useTheme();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -43,12 +52,18 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineId, zeroPoint, posit
   // Reference to the MediaUploader component
   const mediaUploaderRef = useRef(null);
 
-  // Reset form when dialog closes
+  // Reset form when dialog closes or add default timeline hashtag when opened
   useEffect(() => {
     if (!open) {
       resetForm();
+    } else if (open && timelineName) {
+      // Add the current timeline as a hashtag if it's not already in the list
+      const timelineTag = timelineName.toLowerCase();
+      if (!tags.includes(timelineTag)) {
+        setTags(prevTags => [...prevTags, timelineTag]);
+      }
     }
-  }, [open]);
+  }, [open, timelineName, tags]);
 
   const resetForm = () => {
     setTitle('');
