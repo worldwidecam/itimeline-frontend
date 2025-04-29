@@ -47,6 +47,15 @@ The timeline component implements a progressive loading strategy to ensure smoot
 - **Overlapping Factor**: Marker heights still grow logarithmically when events cluster, but with enforced maximums
 - **Responsive Design**: Constraints automatically adjust based on available viewport height
 
+### EventList Pagination <!-- BOOKMARK: EVENTLIST_PAGINATION -->
+- **Progressive Loading**: Initially displays only the first 20 events to improve performance
+- **Load More Button**: Allows users to incrementally load 20 more events at a time
+- **Show All Option**: Provides a single-click option to display all filtered events
+- **Smart Selection Handling**: Automatically ensures selected events are visible regardless of pagination
+- **Adaptive Reset**: Pagination resets when filter criteria change to maintain consistency
+- **Event Count Summary**: Shows users how many events are currently displayed out of the total filtered events
+- **Memory Efficient**: All events remain in memory for marker display while limiting DOM rendering
+
 ### Implementation Notes
 - Filter views (day, week, month, year) apply consistent filtering logic between the event list and markers
 - The base coordinate view is designed as a foundation for the timeline's coordinate system, while filter views add temporal meaning to these coordinates

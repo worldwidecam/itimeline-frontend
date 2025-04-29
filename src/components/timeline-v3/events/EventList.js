@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Typography,
   TextField,
@@ -16,7 +16,8 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Fade
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -24,7 +25,8 @@ import {
   Newspaper as NewsIcon,
   PermMedia as MediaIcon,
   Delete as DeleteIcon,
-  Sort as SortIcon
+  Sort as SortIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
@@ -71,6 +73,10 @@ const EventList = ({
   const [eventToDelete, setEventToDelete] = useState(null);
   const [previousSelectedId, setPreviousSelectedId] = useState(null);
   const eventRefs = useRef({});
+
+  // Pagination state
+  const [displayLimit, setDisplayLimit] = useState(20);
+  const [showAll, setShowAll] = useState(false);
 
   // Save sort preference whenever it changes
   useEffect(() => {
@@ -327,18 +333,25 @@ const EventList = ({
   };
 
   // Filter and sort events
-  const filteredAndSortedEvents = filterEventsByViewMode(events)
-    .filter(event => {
-      const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType = !selectedType || event.type.toLowerCase() === selectedType.toLowerCase();
-      return matchesSearch && matchesType;
-    })
-    .sort((a, b) => {
-      const dateA = new Date(a.event_date);
-      const dateB = new Date(b.event_date);
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
+  const filteredAndSortedEvents = useMemo(() => {
+    return filterEventsByViewMode(events)
+      .filter(event => {
+        const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          event.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesType = !selectedType || event.type.toLowerCase() === selectedType.toLowerCase();
+        return matchesSearch && matchesType;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.event_date);
+        const dateB = new Date(b.event_date);
+        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+  }, [events, searchQuery, selectedType, sortOrder, viewMode, minMarker, maxMarker]);
+  
+  // Determine which events to display based on pagination settings
+  const eventsToDisplay = useMemo(() => {
+    return showAll ? filteredAndSortedEvents : filteredAndSortedEvents.slice(0, displayLimit);
+  }, [filteredAndSortedEvents, displayLimit, showAll]);
 
   // Report the filtered events count to the parent component
   useEffect(() => {
@@ -346,6 +359,23 @@ const EventList = ({
       onFilteredEventsCount(filteredAndSortedEvents.length);
     }
   }, [filteredAndSortedEvents.length, onFilteredEventsCount]);
+  
+  // Ensure selected event is always visible
+  useEffect(() => {
+    if (selectedEventId) {
+      const selectedEventIndex = filteredAndSortedEvents.findIndex(e => e.id === selectedEventId);
+      if (selectedEventIndex >= 0 && selectedEventIndex >= displayLimit) {
+        // Either increase displayLimit or show all events
+        setDisplayLimit(selectedEventIndex + 1);
+      }
+    }
+  }, [selectedEventId, filteredAndSortedEvents, displayLimit]);
+  
+  // Reset display limit when filter criteria change
+  useEffect(() => {
+    setDisplayLimit(20);
+    setShowAll(false);
+  }, [searchQuery, selectedType, viewMode]);
 
   return (
     <Stack spacing={2} sx={{ px: 3 }}>
@@ -444,9 +474,28 @@ const EventList = ({
         </Stack>
       </Paper>
 
+      {/* Event Count Summary */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="caption" color="text.secondary">
+          Showing {eventsToDisplay.length} of {filteredAndSortedEvents.length} events
+        </Typography>
+        {showAll && filteredAndSortedEvents.length > 20 && (
+          <Button 
+            size="small" 
+            variant="text" 
+            onClick={() => {
+              setShowAll(false);
+              setDisplayLimit(20);
+            }}
+          >
+            Show Less
+          </Button>
+        )}
+      </Box>
+      
       {/* Event List */}
       <AnimatePresence mode="sync">
-        {filteredAndSortedEvents.map((event) => (
+        {eventsToDisplay.map((event) => (
           <motion.div
             key={event.id}
             layout
@@ -461,6 +510,28 @@ const EventList = ({
           </motion.div>
         ))}
       </AnimatePresence>
+      
+      {/* Load More Button */}
+      {!showAll && filteredAndSortedEvents.length > displayLimit && (
+        <Fade in={true}>
+          <Box sx={{ textAlign: 'center', py: 2, mt: 1 }}>
+            <Button 
+              variant="outlined" 
+              onClick={() => setDisplayLimit(prev => prev + 20)}
+              sx={{ mr: 1 }}
+            >
+              Load More Events
+            </Button>
+            <Button 
+              variant="text" 
+              onClick={() => setShowAll(true)}
+              startIcon={<ExpandMoreIcon />}
+            >
+              Show All ({filteredAndSortedEvents.length})
+            </Button>
+          </Box>
+        </Fade>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog
