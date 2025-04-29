@@ -349,23 +349,8 @@ const EventList = ({
 
   return (
     <Stack spacing={2} sx={{ px: 3 }}>
-      {/* Loading indicator for events when markers are still loading */}
-      {isLoadingMarkers && viewMode !== 'position' && (
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          p: 2, 
-          mb: 2,
-          bgcolor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)',
-          borderRadius: 1,
-          backdropFilter: 'blur(5px)'
-        }}>
-          <Typography variant="body2" color="text.secondary">
-            Loading event markers for {viewMode} view...
-          </Typography>
-        </Box>
-      )}
+      {/* We've removed the loading indicator here to prevent flickering */}
+      {/* The loading state is now handled by the fixed position indicator in TimelineV3.js */}
       
       {/* Search and Sort Controls */}
       <Stack direction="row" spacing={2} alignItems="center">

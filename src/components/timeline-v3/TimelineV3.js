@@ -437,6 +437,30 @@ function TimelineV3() {
   const [progressiveLoadingState, setProgressiveLoadingState] = useState('timeline');
   const [userInteracted, setUserInteracted] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0); // Track loading progress for visual feedback
+  const [showLoadingBar, setShowLoadingBar] = useState(false); // Control loading bar visibility with delay
+  
+  // Add a delay before showing the loading bar to prevent flashing
+  useEffect(() => {
+    let showBarTimeout;
+    let hideBarTimeout;
+    
+    if (progressiveLoadingState !== 'complete') {
+      // Only show loading bar after a delay to prevent flashing for quick loads
+      showBarTimeout = setTimeout(() => {
+        setShowLoadingBar(true);
+      }, 300); // 300ms delay before showing loading bar
+    } else {
+      // When loading is complete, hide the bar after a short delay
+      hideBarTimeout = setTimeout(() => {
+        setShowLoadingBar(false);
+      }, 100);
+    }
+    
+    return () => {
+      clearTimeout(showBarTimeout);
+      clearTimeout(hideBarTimeout);
+    };
+  }, [progressiveLoadingState]);
   
   // View transition states
   const [isViewTransitioning, setIsViewTransitioning] = useState(false);
@@ -1883,83 +1907,83 @@ function TimelineV3() {
       {/* Visual Separator */}
       <Box sx={{ height: 24 }} />
       
-      {/* Event List */}
-      {/* Loading Progress Indicator - Using conditional rendering with opacity for smooth transitions */}
-      {progressiveLoadingState !== 'complete' && (
-        <Box sx={{ 
-          position: 'relative', 
-          mt: 2, 
-          mb: 2,
-          mx: 3,
-          height: '8px',
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-          borderRadius: '4px',
-          overflow: 'hidden'
-        }}>
-          <Box 
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              height: '100%',
-              // Use a more controlled width calculation that never jumps to 100%
-              width: progressiveLoadingState === 'timeline' 
-                ? '30%' // Fixed width for timeline loading phase
-                : progressiveLoadingState === 'events' 
-                  ? '70%' // Fixed width for events loading phase
-                  : '95%', // Almost complete
+      {/* Event List Workspace - Enhanced smooth fade-in transition */}
+      <Box sx={{
+        opacity: progressiveLoadingState === 'complete' ? 1 : 0.6,
+        transform: progressiveLoadingState === 'complete' ? 'translateY(0)' : 'translateY(8px)',
+        transition: 'opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        position: 'relative',
+        filter: progressiveLoadingState === 'complete' ? 'blur(0)' : 'blur(1px)',
+        willChange: 'opacity, transform, filter'
+      }}>
+        {/* Loading Indicator - Fixed to bottom left corner as overlay */}
+        {progressiveLoadingState !== 'complete' && (
+          <Box sx={{
+            position: 'fixed',
+            bottom: 16,
+            left: 16,
+            zIndex: 1200,
+            display: 'flex',
+            alignItems: 'center',
+            p: 1,
+            px: 2,
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.9)',
+            borderRadius: 20,
+            boxShadow: 2,
+            backdropFilter: 'blur(8px)',
+            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+            maxWidth: '90%',
+            opacity: 0.9,
+            transition: 'opacity 0.3s ease',
+            '&:hover': {
+              opacity: 1
+            }
+          }}>
+            <Box sx={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
               bgcolor: progressiveLoadingState === 'timeline' 
                 ? theme.palette.info.main 
                 : theme.palette.success.main,
-              transition: 'width 1.5s ease-in-out', // Slower, smoother transition
-              borderRadius: '4px'
-            }}
-          />
-          <Box 
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              height: '100%',
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              px: 2
-            }}
-          >
+              boxShadow: `0 0 10px ${progressiveLoadingState === 'timeline' ? theme.palette.info.main : theme.palette.success.main}`,
+              animation: 'pulse 1.5s infinite'
+            }} />
             <Typography variant="caption" sx={{ 
-              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-              fontSize: '0.65rem',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              textShadow: theme.palette.mode === 'dark' ? '0 0 2px rgba(0,0,0,0.8)' : '0 0 2px rgba(255,255,255,0.8)'
+              fontWeight: 'medium',
+              ml: 1.5,
+              fontSize: '0.75rem',
+              color: theme.palette.text.secondary
             }}>
-              {progressiveLoadingState === 'timeline' ? 'Loading timeline structure...' : 'Loading events and markers...'}
+              {progressiveLoadingState === 'timeline' 
+                ? 'Loading timeline...' 
+                : viewMode !== 'position' 
+                  ? `Loading events for ${viewMode} view...` 
+                  : 'Loading events...'}
             </Typography>
           </Box>
-        </Box>
-      )}
-      
-      {/* Event List - Only show when not in timeline loading state */}
-      {progressiveLoadingState !== 'timeline' && (
-        <EventList
-          events={events}
-          onEventEdit={handleEventEdit}
-          onEventDelete={handleEventDelete}
-          selectedEventId={selectedEventId}
-          onEventSelect={handleEventSelect}
-          shouldScrollToEvent={shouldScrollToEvent}
-          viewMode={viewMode}
-          minMarker={Math.min(...visibleMarkers)}
-          maxMarker={Math.max(...visibleMarkers)}
-          onFilteredEventsCount={setFilteredEventsCount}
-          isLoadingMarkers={progressiveLoadingState !== 'complete'}
-          goToPrevious={navigateToPrevEvent}
-          goToNext={navigateToNextEvent}
-          currentEventIndex={currentEventIndex}
-        />
-      )}
+        )}
+        
+        {/* Event List - Only show when not in timeline loading state */}
+        {progressiveLoadingState !== 'timeline' && (
+          <EventList
+            events={events}
+            onEventEdit={handleEventEdit}
+            onEventDelete={handleEventDelete}
+            selectedEventId={selectedEventId}
+            onEventSelect={handleEventSelect}
+            shouldScrollToEvent={shouldScrollToEvent}
+            viewMode={viewMode}
+            minMarker={Math.min(...visibleMarkers)}
+            maxMarker={Math.max(...visibleMarkers)}
+            onFilteredEventsCount={setFilteredEventsCount}
+            isLoadingMarkers={progressiveLoadingState !== 'complete'}
+            goToPrevious={navigateToPrevEvent}
+            goToNext={navigateToNextEvent}
+            currentEventIndex={currentEventIndex}
+          />
+        )}
+      </Box>
 
       {/* Event Dialog */}
       <EventDialog
