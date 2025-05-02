@@ -3,7 +3,7 @@ import { Box, useTheme, Button, Typography, Stack } from '@mui/material';
 import TimelineBackground from './timeline-v3/TimelineBackground';
 import TimelineBar from './timeline-v3/TimelineBar';
 import TimeMarkers from './timeline-v3/TimeMarkers';
-import EventMarker from './timeline-v3/events/EventMarker';
+import LandingEventMarker from './timeline-v3/events/LandingEventMarker';
 import EventCounter from './timeline-v3/events/EventCounter';
 import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 
@@ -331,8 +331,9 @@ function LandingTimelineV3() {
     setIsDragging(false);
   };
 
-  // Handle event selection
+  // Handle event selection - simplified for landing page
   const handleEventClick = (eventId) => {
+    // Toggle selection state
     setSelectedEventId(eventId === selectedEventId ? null : eventId);
     
     // Find the index of the clicked event
@@ -541,7 +542,7 @@ function LandingTimelineV3() {
         {/* Event Markers */}
         <Box sx={{ position: 'absolute', top: '270px', width: '100%', zIndex: 16 }}>
           {events.map(event => (
-            <EventMarker
+            <LandingEventMarker
               key={event.id}
               event={event}
               timelineOffset={timelineOffset * 100}
@@ -575,52 +576,7 @@ function LandingTimelineV3() {
         </Typography>
       </Box>
       
-      {/* Selected Event Details */}
-      {selectedEventId && (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '80%',
-            maxWidth: '500px',
-            backgroundColor: 'white',
-            borderRadius: '4px',
-            padding: '16px',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-            zIndex: 20
-          }}
-        >
-          {events.filter(e => e.id === selectedEventId).map(event => (
-            <Box key={event.id}>
-              <Typography variant="h6">{event.title}</Typography>
-              <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-                {formatDate(event.event_date)}
-              </Typography>
-              <Typography variant="body1">{event.description}</Typography>
-              <Box sx={{ mt: 1 }}>
-                {event.tags.map(tag => (
-                  <Box 
-                    key={tag} 
-                    component="span" 
-                    sx={{ 
-                      mr: 1, 
-                      px: 1, 
-                      py: 0.5, 
-                      borderRadius: 1, 
-                      backgroundColor: 'rgba(0,0,0,0.1)',
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    #{tag}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      )}
+      {/* Event info is displayed directly on the marker in the landing page version */}
     </Box>
   );
 }
