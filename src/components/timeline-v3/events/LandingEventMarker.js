@@ -2,7 +2,7 @@
 // This version doesn't include the popup overlay functionality
 
 import React, { useState, useEffect } from 'react';
-import { Box, useTheme, Paper, Typography, Avatar } from '@mui/material';
+import { Box, useTheme, Paper, Typography, Avatar, Divider } from '@mui/material';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -421,11 +421,11 @@ const LandingEventMarker = ({
             left: `${position.x}px`,
             transform: 'translateX(-50%)',
             p: 0, // Removed padding to allow image to extend to edges
-            maxWidth: event.type === 'media' ? 280 : 250,
+            maxWidth: event.type === 'media' ? 280 : event.type === 'news' ? 320 : 250,
             width: 'max-content',
             bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)',
             backdropFilter: 'blur(8px)',
-            borderRadius: '16px', // More rounded corners for bubbly effect
+            borderRadius: event.type === 'news' ? '8px' : '16px', // More squared for news, rounded for others
             border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
             boxShadow: theme.palette.mode === 'dark' 
               ? '0 8px 20px rgba(0,0,0,0.5)' 
@@ -443,8 +443,109 @@ const LandingEventMarker = ({
             }
           }}
         >
-          {/* Special styling for media type events */}
-          {event.type === 'media' ? (
+          {/* Special styling for news events - magazine/newspaper style */}
+          {event.type === 'news' ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              {/* Header with source and date */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                px: 2,
+                pt: 1.5,
+                pb: 0.5
+              }}>
+                <Typography 
+                  variant="overline" 
+                  sx={{ 
+                    fontSize: '0.7rem', 
+                    fontWeight: 600,
+                    color: theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.primary.main,
+                    letterSpacing: 1
+                  }}
+                >
+                  BREAKING NEWS
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    fontSize: '0.7rem',
+                    color: theme.palette.text.secondary
+                  }}
+                >
+                  {formatDate(event.event_date)}
+                </Typography>
+              </Box>
+              
+              {/* Title - newspaper headline style */}
+              <Box sx={{ px: 2, pt: 0.5, pb: 1 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 700, 
+                    lineHeight: 1.2,
+                    fontSize: '1.1rem',
+                    fontFamily: '"Georgia", "Times New Roman", serif',
+                    mb: 0.5
+                  }}
+                >
+                  {event.title}
+                </Typography>
+              </Box>
+              
+              <Divider sx={{ mx: 2, borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
+              
+              {/* Main content area */}
+              <Box sx={{ p: 2, pt: 1.5 }}>
+                {/* First paragraph with first letter styled */}
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    mb: 1.5,
+                    lineHeight: 1.5,
+                    fontFamily: '"Georgia", "Times New Roman", serif',
+                    '&::first-letter': {
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                      float: 'left',
+                      lineHeight: 1,
+                      paddingRight: '3px',
+                      color: theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.primary.main
+                    }
+                  }}
+                >
+                  {event.description}
+                </Typography>
+                
+                {/* Tags as categories */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  mt: 1,
+                  flexWrap: 'wrap'
+                }}>
+                  {event.tags && event.tags.map((tag, index) => (
+                    <Typography 
+                      key={index}
+                      variant="caption" 
+                      sx={{ 
+                        fontSize: '0.65rem',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                        color: theme.palette.text.secondary,
+                        px: 0.8,
+                        py: 0.3,
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}
+                    >
+                      {tag}
+                    </Typography>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          ) : event.type === 'media' ? (
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {/* Image or icon section */}
               <Box 
@@ -553,7 +654,7 @@ const LandingEventMarker = ({
               </Box>
             </Box>
           ) : (
-            /* Standard styling for non-media events */
+            /* Standard styling for other event types */
             <Box sx={{ p: 1.5 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, lineHeight: 1.2 }}>
                 {event.title}

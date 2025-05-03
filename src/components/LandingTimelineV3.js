@@ -51,12 +51,12 @@ const generateDemoEvents = () => {
     },
     {
       id: 105,
-      title: "Pick up groceries",
-      description: "Get ingredients for dinner at Whole Foods",
+      title: "Local Tech Startup Secures $5M Funding",
+      description: "Innovate Solutions announces Series A funding to expand AI capabilities",
       type: "news",
       position: 10,
       event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 30, 0).toISOString(),
-      tags: ["errands", "shopping", "food"]
+      tags: ["business", "technology", "funding"]
     }
   ];
 
@@ -73,12 +73,12 @@ const generateDemoEvents = () => {
     },
     {
       id: 202,
-      title: "Team building event",
-      description: "Company team building at Adventure Park",
+      title: "Market Report: Tech Stocks Surge 15%",
+      description: "Technology sector leads market rally amid positive earnings reports",
       type: "news",
       position: -5,
       event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3, 13, 0, 0).toISOString(),
-      tags: ["work", "team", "activity"]
+      tags: ["finance", "markets", "technology"]
     },
     {
       id: 203,
@@ -100,12 +100,12 @@ const generateDemoEvents = () => {
     },
     {
       id: 205,
-      title: "Quarterly review",
-      description: "Performance review with manager",
+      title: "New Climate Policy Announced",
+      description: "Government unveils ambitious carbon reduction targets for next decade",
       type: "news",
       position: 10,
       event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 13, 0, 0).toISOString(),
-      tags: ["work", "meeting", "review"]
+      tags: ["politics", "environment", "policy"]
     }
   ];
 
@@ -122,12 +122,12 @@ const generateDemoEvents = () => {
     },
     {
       id: 302,
-      title: "Product Launch",
-      description: "Official launch of our new mobile app",
+      title: "Global Tech Conference Reveals Industry Trends",
+      description: "Annual TechWorld Summit highlights AI and sustainability as key focus areas",
       type: "news",
       position: -5,
       event_date: new Date(now.getFullYear(), now.getMonth() - 2, 20, 10, 0, 0).toISOString(),
-      tags: ["product", "launch", "marketing"]
+      tags: ["technology", "conference", "trends"]
     },
     {
       id: 303,
@@ -149,12 +149,12 @@ const generateDemoEvents = () => {
     },
     {
       id: 305,
-      title: "Summer Marketing Campaign",
-      description: "Launch of seasonal promotion strategy",
+      title: "Breakthrough in Renewable Energy Storage",
+      description: "Scientists develop new battery technology with 3x capacity of current solutions",
       type: "news",
       position: 10,
       event_date: new Date(now.getFullYear(), now.getMonth() + 4, 1, 9, 0, 0).toISOString(),
-      tags: ["marketing", "campaign", "seasonal"]
+      tags: ["science", "technology", "energy"]
     }
   ];
 
@@ -162,21 +162,21 @@ const generateDemoEvents = () => {
   const yearViewEvents = [
     {
       id: 401,
-      title: "Company Founded",
-      description: "Our company was established",
+      title: "Historic Climate Agreement Signed",
+      description: "195 countries commit to landmark environmental protection treaty",
       type: "news",
       position: -10,
       event_date: new Date(now.getFullYear() - 3, 0, 6, 0, 0, 0).toISOString(),
-      tags: ["company", "history", "milestone"]
+      tags: ["global", "environment", "politics"]
     },
     {
       id: 402,
-      title: "First Major Product Release",
-      description: "Launch of our flagship product",
+      title: "Major Healthcare Reform Legislation Passed",
+      description: "Sweeping changes to healthcare system expected to impact millions",
       type: "news",
       position: -5,
       event_date: new Date(now.getFullYear() - 1, 5, 14, 0, 0, 0).toISOString(),
-      tags: ["product", "launch", "milestone"]
+      tags: ["politics", "healthcare", "legislation"]
     },
     {
       id: 403,
