@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@mui/material';
 import { useSpring, animated } from 'react-spring';
 
@@ -10,6 +10,8 @@ const DonationButtons = () => {
   const [isHoveringKofi, setIsHoveringKofi] = useState(false);
   const [isHoveringGofundme, setIsHoveringGofundme] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(null);
+  const [showBubble, setShowBubble] = useState(false);
+  const bubbleTimeoutRef = useRef(null);
   
   // Main button animation
   const mainButtonAnimation = useSpring({
@@ -73,6 +75,206 @@ const DonationButtons = () => {
       document.removeEventListener('click', handleClickOutside);
     };
   }, []);
+  
+  // Function to show the speech bubble
+  const showSpeechBubble = () => {
+    console.log('Showing speech bubble');
+    setShowBubble(true);
+    
+    // Hide the bubble after 15 seconds
+    bubbleTimeoutRef.current = setTimeout(() => {
+      console.log('Starting fade-out of speech bubble');
+      // Start the fade-out animation by setting showBubble to false
+      setShowBubble(false);
+      
+      // Schedule the next appearance after 30 seconds
+      // We use a longer timeout to account for the fade-out animation
+      setTimeout(() => {
+        if (!open) { // Only show if menu is not open
+          showSpeechBubble();
+        }
+      }, 30000);
+    }, 15000);
+  };
+  
+  // Function to hide the speech bubble with animation
+  const hideSpeechBubbleWithAnimation = () => {
+    // Just set showBubble to false - the SpeechBubble component
+    // will handle the fade-out animation internally
+    setShowBubble(false);
+    
+    // Clear any existing timeouts when the button is clicked
+    if (bubbleTimeoutRef.current) {
+      clearTimeout(bubbleTimeoutRef.current);
+      bubbleTimeoutRef.current = null;
+    }
+  };
+  
+  // Show the speech bubble on initial load
+  useEffect(() => {
+    console.log('Setting up initial speech bubble timeout');
+    
+    // Show the bubble immediately for testing
+    // For production, use a timeout: setTimeout(showSpeechBubble, 10000);
+    showSpeechBubble();
+    
+    // Clear the timeout when component unmounts
+    return () => {
+      if (bubbleTimeoutRef.current) {
+        clearTimeout(bubbleTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Hide the bubble when the donation menu is opened
+  useEffect(() => {
+    if (open) {
+      setShowBubble(false);
+    }
+  }, [open]);
+  
+  // Comic style speech bubble component
+  const SpeechBubble = ({ visible, text }) => {
+    // State to track if we should render the component
+    const [shouldRender, setShouldRender] = useState(visible);
+    // State to track internal opacity for manual animation
+    const [opacity, setOpacity] = useState(visible ? 0 : 1);
+    // Ref to store interval IDs for cleanup
+    const fadeIntervalRef = useRef(null);
+    
+    // Use a simpler animation just for the scale
+    const bubbleAnimation = useSpring({
+      transform: visible ? 'scale(1)' : 'scale(0.95)',
+      config: { 
+        tension: 120,
+        friction: 14
+      }
+    });
+    
+    // Clear any existing intervals to prevent conflicts
+    const clearFadeIntervals = () => {
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
+    };
+    
+    // Handle fade-in effect
+    useEffect(() => {
+      // Clear any existing animations first
+      clearFadeIntervals();
+      
+      if (visible) {
+        console.log('Starting fade-IN effect');
+        // Make sure we're rendering
+        setShouldRender(true);
+        // Reset opacity to 0
+        setOpacity(0);
+        
+        // Start fade-in after a tiny delay to ensure state is updated
+        setTimeout(() => {
+          let currentOpacity = 0;
+          // Faster fade-in (half the time) - 0.1 increment = 10 steps
+          fadeIntervalRef.current = setInterval(() => {
+            currentOpacity += 0.1; // Increment by 10% (twice as fast)
+            setOpacity(Math.min(currentOpacity, 1)); // Cap at 1
+            
+            if (currentOpacity >= 1) {
+              clearFadeIntervals();
+            }
+          }, 50); // 50ms intervals = 0.5 second total (10 steps)
+        }, 10);
+      }
+      
+      // Cleanup on unmount
+      return clearFadeIntervals;
+    }, [visible]);
+    
+    // Handle fade-out effect (separate useEffect for clarity)
+    useEffect(() => {
+      if (!visible && shouldRender) {
+        console.log('Starting fade-OUT effect');
+        // Clear any existing animations first
+        clearFadeIntervals();
+        
+        // Start with full opacity
+        let currentOpacity = 1;
+        setOpacity(1);
+        
+        // Create the fade-out interval
+        fadeIntervalRef.current = setInterval(() => {
+          currentOpacity -= 0.02; // Decrease by 2% each step
+          console.log('Fade-out opacity:', currentOpacity);
+          
+          if (currentOpacity <= 0) {
+            // When fully transparent, stop rendering
+            setOpacity(0);
+            clearFadeIntervals();
+            setShouldRender(false);
+          } else {
+            // Update opacity state
+            setOpacity(currentOpacity);
+          }
+        }, 60); // 60ms intervals = 3 seconds total (50 steps)
+      }
+      
+      // Cleanup on unmount
+      return clearFadeIntervals;
+    }, [visible, shouldRender]);
+    
+    // Log animation state for debugging
+    useEffect(() => {
+      console.log(`Animation state update - visible: ${visible}, opacity: ${opacity}`);
+    }, [visible, opacity]);
+    
+    console.log('Speech bubble visibility:', visible, 'shouldRender:', shouldRender, 'opacity:', opacity);
+    
+    return shouldRender ? (
+      <animated.div style={{
+        position: 'fixed', // Changed from absolute to fixed
+        bottom: '120px', // Moved higher (was 80px)
+        right: '20px',
+        backgroundColor: 'white',
+        color: '#333',
+        padding: '12px 16px',
+        borderRadius: '18px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+        fontSize: '16px', // Increased font size
+        fontWeight: 'bold',
+        whiteSpace: 'nowrap',
+        zIndex: 1002,
+        border: '2px solid #333',
+        opacity: opacity, // Apply manual opacity control
+        ...bubbleAnimation
+      }}>
+        {text}
+        {/* Speech bubble tail */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-20px',
+          right: '25px',
+          width: 0,
+          height: 0,
+          borderLeft: '10px solid transparent',
+          borderRight: '10px solid transparent',
+          borderTop: '20px solid white',
+          zIndex: 1003
+        }} />
+        {/* Speech bubble tail border */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-23px',
+          right: '22px',
+          width: 0,
+          height: 0,
+          borderLeft: '13px solid transparent',
+          borderRight: '13px solid transparent',
+          borderTop: '23px solid #333',
+          zIndex: 1002
+        }} />
+      </animated.div>
+    ) : null;
+  };
   
   // Custom tooltip component
   const Tooltip = ({ visible, text, children, style }) => (
@@ -288,6 +490,12 @@ const DonationButtons = () => {
         </Tooltip>
       </animated.div>
       
+      {/* Speech Bubble - Always rendered but visibility controlled by state */}
+      <SpeechBubble 
+        visible={showBubble && !open} 
+        text="Consider Donating $1 / Month!"
+      />
+      
       {/* Main Button */}
       <animated.div 
         style={{ 
@@ -300,6 +508,8 @@ const DonationButtons = () => {
         onClick={(e) => {
           e.stopPropagation();
           handleMainButtonClick();
+          // Use the animation function instead of immediately hiding
+          hideSpeechBubbleWithAnimation();
         }}
         onMouseEnter={() => {
           setIsHoveringMain(true);
@@ -338,7 +548,7 @@ const DonationButtons = () => {
               <path 
                 d="M28 39c-0.3 0-0.5-0.1-0.7-0.2-2.2-1.3-13.1-8.1-13.1-16.9 0-4.6 3.7-8.4 8.4-8.4 2.5 0 4.9 1.1 6.5 3 1.6-1.9 4-3 6.5-3 4.6 0 8.4 3.7 8.4 8.4 0 8.8-10.9 15.6-13.1 16.9-0.2 0.1-0.5 0.2-0.7 0.2z"
                 fill={theme.palette.mode === 'dark' ? '#fff8e1' : '#ff4081'}
-                transform="scale(0.75) translate(15, 15)"
+                transform="scale(0.75) translate(13, 15)"
               />
             )}
           </svg>
