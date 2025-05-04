@@ -34,6 +34,7 @@ import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import LandingTimelineV3 from './LandingTimelineV3';
+import DonationButtons from './DonationButtons';
 
 // API Health Check Component
 const ApiHealthCheck = () => {
@@ -158,7 +159,8 @@ const LandingPage = () => {
           ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)' 
           : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
         pt: 6,
-        pb: 8
+        pb: 8,
+        position: 'relative'
       }}
     >
       <Container maxWidth="lg">
@@ -377,6 +379,9 @@ const LandingPage = () => {
           </Collapse>
         </Box>
       </Container>
+      
+      {/* Donation Floating Action Buttons */}
+      <DonationButtons />
     </Box>
   );
 };
