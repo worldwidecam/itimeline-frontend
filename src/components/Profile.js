@@ -35,7 +35,29 @@ const Profile = () => {
         
         if (isOwnProfile) {
           // If viewing own profile
-          setProfileUser(user);
+          if (user) {
+            // Make a copy of the user object with properly formatted created_at date
+            // This ensures consistent date formatting between own profile and other profiles
+            const formattedUser = {
+              ...user,
+              // If created_at is already an ISO string, use it; otherwise fetch from API
+              created_at: user.created_at && typeof user.created_at === 'string' ? user.created_at : null
+            };
+            setProfileUser(formattedUser);
+            
+            // If created_at is missing or not properly formatted, fetch it from the API
+            if (!formattedUser.created_at) {
+              try {
+                const userResponse = await api.get(`/api/users/${user.id}`);
+                setProfileUser(prev => ({
+                  ...prev,
+                  created_at: userResponse.data.created_at
+                }));
+              } catch (userError) {
+                console.error('Error fetching user created_at:', userError);
+              }
+            }
+          }
           
           // Fetch music preferences for own profile
           try {
@@ -243,7 +265,9 @@ const Profile = () => {
                     {profileUser.email}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Joined {new Date(profileUser.created_at).toLocaleDateString()}
+                    {profileUser.created_at ? 
+                      `Joined ${new Date(profileUser.created_at).toLocaleDateString()}` : 
+                      'Join date unavailable'}
                   </Typography>
                 </Box>
               </Box>
