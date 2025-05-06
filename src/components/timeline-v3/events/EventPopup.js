@@ -821,12 +821,22 @@ const EventPopup = ({ event, open, onClose }) => {
                       setSelectedTimeline(newValue);
                       setError('');
                     }}
+                    // Only show options that start with the input text
+                    filterOptions={(options, state) => {
+                      // Don't show any options if the input is empty
+                      if (!state.inputValue) return [];
+                      
+                      // Filter options that start with the input text (case insensitive)
+                      return options.filter(option => 
+                        option.name.toLowerCase().startsWith(state.inputValue.toLowerCase())
+                      );
+                    }}
                     renderInput={(params) => (
                       <TextField 
                         {...params} 
-                        label="Select Timeline" 
+                        label="Search Timeline" 
                         variant="outlined"
-                        helperText="Enter a timeline name to add this event"
+                        helperText="Type to search for a timeline"
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (
@@ -850,7 +860,7 @@ const EventPopup = ({ event, open, onClose }) => {
                         </Box>
                       </li>
                     )}
-                    noOptionsText="No matching timelines found"
+                    noOptionsText="Type to search for timelines"
                   />
                   
                   {error && (
