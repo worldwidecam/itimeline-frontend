@@ -438,3 +438,58 @@ The application is tested and compatible with:
 - Review the database schema to ensure media URLs are being stored correctly
 
 This issue is a high priority for the next development sprint.
+
+## Future Development Plans
+
+### Migration to Next.js
+
+As create-react-app is no longer maintained, a future migration to Next.js is being considered. This section outlines the rationale and approach for this potential migration.
+
+#### Benefits of Next.js for iTimeline
+
+1. **Server-Side Rendering (SSR) & Static Site Generation (SSG)**:
+   - Improved performance and SEO
+   - Better initial load times for timeline pages
+
+2. **API Routes**:
+   - Built-in API route support could simplify backend architecture
+   - Potential to move some endpoints directly into the frontend codebase
+
+3. **Image Optimization**:
+   - Next.js Image component would optimize timeline media automatically
+   - Particularly beneficial for the media-heavy nature of our application
+
+4. **Built-in Router**:
+   - File-system based router would eliminate the need for react-router-dom
+   - More intuitive routing structure
+
+5. **Incremental Adoption**:
+   - Migration can happen gradually, starting with simpler pages
+
+#### Migration Considerations
+
+1. **Authentication System**:
+   - Adapt JWT authentication to work with Next.js
+   - Implement middleware for protected routes
+
+2. **API Integration**:
+   - Adjust current axios calls to work with Next.js data fetching methods
+   - Utilize getServerSideProps, getStaticProps where appropriate
+
+3. **Material UI**:
+   - Minimal changes needed for MUI components
+
+4. **Timeline Components**:
+   - Complex timeline components will need careful testing
+
+5. **Cloudinary Integration**:
+   - Media upload functionality will need adaptation
+
+#### Recommended Migration Approach
+
+1. Start with a new Next.js project and gradually move components over
+2. Begin with simpler pages like login/register
+3. Test thoroughly as each component is migrated
+4. Keep both applications running until migration is complete
+
+This migration is not an immediate priority but is documented here for future planning purposes.
