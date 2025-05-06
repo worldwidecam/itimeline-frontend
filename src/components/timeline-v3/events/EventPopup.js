@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,6 +13,12 @@ import {
   Avatar,
   Chip,
   Divider,
+  TextField,
+  Autocomplete,
+  Button,
+  CircularProgress,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -22,16 +28,29 @@ import {
   Person as PersonIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
+  Add as AddIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import TagList from './cards/TagList';
+import api from '../../../utils/api';  // Import API utility
 import config from '../../../config';  // Import config to get API_URL
 
 const EventPopup = ({ event, open, onClose }) => {
   const theme = useTheme();
+  
+  // State for timeline addition functionality
+  const [existingTimelines, setExistingTimelines] = useState([]);
+  const [selectedTimeline, setSelectedTimeline] = useState(null);
+  const [loadingTimelines, setLoadingTimelines] = useState(false);
+  const [addingToTimeline, setAddingToTimeline] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   
   // Default fallback values for when event data is incomplete
   const defaultColor = theme.palette.primary.main;
@@ -346,20 +365,93 @@ const EventPopup = ({ event, open, onClose }) => {
     );
   };
 
+  // Fetch existing timelines when the popup opens
+  useEffect(() => {
+    if (open && event) {
+      fetchExistingTimelines();
+    }
+  }, [open, event]);
+
+  // Function to fetch existing timelines
+  const fetchExistingTimelines = async () => {
+    try {
+      setLoadingTimelines(true);
+      setError('');
+      
+      // Call the API to get all existing timelines
+      const response = await api.get('/api/timeline-v3');
+      
+      // Filter out timelines that already contain this event
+      // We'll need to check if the event is already in the timeline
+      // This might require additional API calls or backend support
+      setExistingTimelines(response.data || []);
+    } catch (error) {
+      console.error('Error fetching timelines:', error);
+      setError('Failed to load timelines. Please try again.');
+    } finally {
+      setLoadingTimelines(false);
+    }
+  };
+
+  // Function to add the event to the selected timeline
+  const handleAddToTimeline = async () => {
+    if (!selectedTimeline || !event) return;
+    
+    try {
+      setAddingToTimeline(true);
+      setError('');
+      
+      // Check if the event is already in the timeline
+      const checkResponse = await api.get(`/api/timeline-v3/${selectedTimeline.id}/events`);
+      const timelineEvents = checkResponse.data || [];
+      
+      // Check if this event already exists in the selected timeline
+      const eventExists = timelineEvents.some(timelineEvent => timelineEvent.id === event.id);
+      
+      if (eventExists) {
+        setError(`This event is already in the "${selectedTimeline.name}" timeline.`);
+        setAddingToTimeline(false);
+        return;
+      }
+      
+      // Add the event to the timeline
+      await api.post(`/api/timeline-v3/${selectedTimeline.id}/add-event/${event.id}`);
+      
+      // Show success message
+      setSuccess(`Event added to "${selectedTimeline.name}" timeline successfully!`);
+      setSnackbarOpen(true);
+      
+      // Reset selection
+      setSelectedTimeline(null);
+    } catch (error) {
+      console.error('Error adding event to timeline:', error);
+      setError(error.response?.data?.error || 'Failed to add event to timeline. Please try again.');
+    } finally {
+      setAddingToTimeline(false);
+    }
+  };
+
+  // Handle snackbar close
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbarOpen(false);
+  };
+
   if (!event) return null;
 
   return (
-    <AnimatePresence>
-      {open && (
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          maxWidth="md"
-          fullWidth
-          closeAfterTransition
-          disableEscapeKeyDown={false}
-          PaperComponent={motion.div}
-          PaperProps={{
+    <>
+      <AnimatePresence>
+        {open && (
+          <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="md"
+            fullWidth
+            closeAfterTransition
+            disableEscapeKeyDown={false}
+            PaperComponent={motion.div}
+            PaperProps={{
             initial: { opacity: 0, y: 20, scale: 0.98 },
             animate: { opacity: 1, y: 0, scale: 1 },
             exit: { opacity: 0, y: 20, scale: 0.98 },
@@ -636,6 +728,140 @@ const EventPopup = ({ event, open, onClose }) => {
                 </Box>
               )}
               
+              {/* Tag a Timeline Section */}
+              <Box sx={{ mb: 3 }}>
+                <Typography 
+                  variant="subtitle2" 
+                  onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
+                  sx={{ 
+                    mb: 1.5,
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.7)'
+                      : 'rgba(0,0,0,0.6)',
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      color: theme.palette.primary.main,
+                    },
+                    transition: 'color 0.2s ease',
+                  }}
+                >
+                  <span style={{ 
+                    color: theme.palette.primary.main,
+                    fontSize: '1.2rem',
+                    marginRight: '4px',
+                    marginTop: '-2px'
+                  }}>#</span>
+                  Tag a Timeline
+                  <ExpandMoreIcon 
+                    fontSize="small" 
+                    sx={{ 
+                      ml: 0.5,
+                      transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                    }} 
+                  />
+                </Typography>
+                
+                {tagSectionExpanded && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: theme.palette.mode === 'dark'
+                        ? 'rgba(0,0,0,0.2)'
+                        : 'rgba(0,0,0,0.02)',
+                      border: '1px solid',
+                      borderColor: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.05)',
+                    }}
+                  >
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Add this event to an existing timeline:
+                  </Typography>
+                  
+                  <Autocomplete
+                    id="timeline-select"
+                    options={existingTimelines}
+                    loading={loadingTimelines}
+                    getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    value={selectedTimeline}
+                    onChange={(event, newValue) => {
+                      setSelectedTimeline(newValue);
+                      setError('');
+                    }}
+                    renderInput={(params) => (
+                      <TextField 
+                        {...params} 
+                        label="Select Timeline" 
+                        variant="outlined"
+                        helperText="Enter a timeline name to add this event"
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <React.Fragment>
+                              {loadingTimelines ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </React.Fragment>
+                          ),
+                        }}
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span style={{ 
+                            color: theme.palette.primary.main,
+                            fontSize: '1rem',
+                            marginRight: '4px'
+                          }}>#</span>
+                          {option.name}
+                        </Box>
+                      </li>
+                    )}
+                    noOptionsText="No matching timelines found"
+                  />
+                  
+                  {error && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {error}
+                    </Alert>
+                  )}
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<AddIcon />}
+                      disabled={!selectedTimeline || addingToTimeline}
+                      onClick={handleAddToTimeline}
+                      sx={{ 
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        px: 2,
+                      }}
+                    >
+                      {addingToTimeline ? (
+                        <CircularProgress size={24} color="inherit" />
+                      ) : (
+                        'Tag Timeline'
+                      )}
+                    </Button>
+                  </Box>
+                  </Paper>
+                )}
+              </Box>
+              
               {/* Event details card */}
               <Paper
                 elevation={0}
@@ -804,9 +1030,27 @@ const EventPopup = ({ event, open, onClose }) => {
               </Paper>
             </Box>
           </DialogContent>
-        </Dialog>
-      )}
-    </AnimatePresence>
+          </Dialog>
+        )}
+      </AnimatePresence>
+      
+      {/* Success Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity="success" 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {success}
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 
