@@ -51,6 +51,8 @@ const EventPopup = ({ event, open, onClose }) => {
   const [success, setSuccess] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
+  // Store the updated event data after adding a tag
+  const [localEventData, setLocalEventData] = useState(null);
   
   // Default fallback values for when event data is incomplete
   const defaultColor = theme.palette.primary.main;
@@ -365,6 +367,13 @@ const EventPopup = ({ event, open, onClose }) => {
     );
   };
 
+  // Initialize localEventData with event data
+  useEffect(() => {
+    if (event && !localEventData) {
+      setLocalEventData(event);
+    }
+  }, [event]);
+
   // Fetch existing timelines when the popup opens
   useEffect(() => {
     if (open && event) {
@@ -416,6 +425,21 @@ const EventPopup = ({ event, open, onClose }) => {
       
       // Add the event to the timeline
       await api.post(`/api/timeline-v3/${selectedTimeline.id}/add-event/${event.id}`);
+      
+      // Create the new tag name based on the timeline name
+      const newTagName = selectedTimeline.name.toLowerCase();
+      
+      // Update the local event data with the new tag
+      const updatedEvent = { ...event };
+      if (!updatedEvent.tags) {
+        updatedEvent.tags = [];
+      }
+      
+      // Only add the tag if it doesn't already exist
+      if (!updatedEvent.tags.includes(newTagName)) {
+        updatedEvent.tags.push(newTagName);
+        setLocalEventData(updatedEvent);
+      }
       
       // Show success message
       setSuccess(`Event added to "${selectedTimeline.name}" timeline successfully!`);
@@ -709,39 +733,36 @@ const EventPopup = ({ event, open, onClose }) => {
 
             {/* Event metadata */}
             <Box>
-              {/* Tags */}
-              {event.tags && event.tags.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      mb: 1.5,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.7)'
-                        : 'rgba(0,0,0,0.6)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Tags
-                  </Typography>
-                  <TagList tags={event.tags} />
-                </Box>
-              )}
-              
-              {/* Tag a Timeline Section */}
-              <Box sx={{ mb: 3 }}>
+              {/* Tags with Tag a Timeline button */}
+              <Box sx={{ mb: 3, position: 'relative' }}>
                 <Typography 
                   variant="subtitle2" 
-                  onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
                   sx={{ 
                     mb: 1.5,
                     color: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.7)'
                       : 'rgba(0,0,0,0.6)',
                     fontWeight: 500,
-                    display: 'flex',
+                  }}
+                >
+                  Tags
+                </Typography>
+                
+                {(localEventData?.tags || event.tags) && (localEventData?.tags || event.tags).length > 0 && (
+                  <TagList tags={localEventData?.tags || event.tags} />
+                )}
+                
+                {/* Tag a Timeline button - smaller and positioned at bottom left */}
+                <Box 
+                  onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
+                  sx={{
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 0.5,
+                    fontSize: '0.75rem',
+                    mt: event.tags && event.tags.length > 0 ? 1 : 0,
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.6)'
+                      : 'rgba(0,0,0,0.5)',
                     cursor: 'pointer',
                     '&:hover': {
                       color: theme.palette.primary.main,
@@ -751,20 +772,20 @@ const EventPopup = ({ event, open, onClose }) => {
                 >
                   <span style={{ 
                     color: theme.palette.primary.main,
-                    fontSize: '1.2rem',
+                    fontSize: '0.9rem',
                     marginRight: '4px',
-                    marginTop: '-2px'
                   }}>#</span>
                   Tag a Timeline
                   <ExpandMoreIcon 
                     fontSize="small" 
                     sx={{ 
+                      fontSize: '0.9rem',
                       ml: 0.5,
                       transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                       transition: 'transform 0.2s ease',
                     }} 
                   />
-                </Typography>
+                </Box>
                 
                 {tagSectionExpanded && (
                   <Paper
@@ -1030,26 +1051,34 @@ const EventPopup = ({ event, open, onClose }) => {
               </Paper>
             </Box>
           </DialogContent>
-          </Dialog>
+          {/* Success/Error Snackbar - Positioned inside the Dialog */}
+          <Snackbar
+            open={snackbarOpen}
+            autoHideDuration={6000}
+            onClose={handleSnackbarClose}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            sx={{
+              position: 'absolute',
+              top: '16px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 'calc(100% - 48px)',
+              maxWidth: '400px',
+              zIndex: 9999
+            }}
+          >
+            <Alert 
+              onClose={handleSnackbarClose} 
+              severity={error ? "error" : "success"}
+              variant="filled"
+              sx={{ width: '100%' }}
+            >
+              {error || success}
+            </Alert>
+          </Snackbar>
+        </Dialog>
         )}
       </AnimatePresence>
-      
-      {/* Success Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleSnackbarClose} 
-          severity="success" 
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {success}
-        </Alert>
-      </Snackbar>
     </>
   );
 };
