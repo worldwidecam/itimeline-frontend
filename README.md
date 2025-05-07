@@ -198,7 +198,9 @@ This repository contains only the frontend code for the iTimeline application. T
 
 ### Local Development
 
-#### Frontend Setup
+#### Frontend Setup (Vite)
+
+The project has been migrated from Create React App to Vite for improved performance and developer experience.
 
 1. Clone the repository:
    ```
@@ -211,17 +213,58 @@ This repository contains only the frontend code for the iTimeline application. T
    npm install
    ```
 
-3. Set up environment variables:
-   Create a `.env` file in the root directory with the following variables:
+3. Create a `.env` file in the root directory based on `.env.example`:
    ```
-   REACT_APP_API_URL=http://localhost:5000
-   REACT_APP_CLOUDINARY_CLOUD_NAME=your_cloud_name
+   # Vite environment variables must be prefixed with VITE_
+   VITE_API_URL=http://localhost:5000
+   VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
    ```
 
 4. Start the development server:
    ```
    npm start
    ```
+
+#### Environment Variables with Vite
+
+With the migration to Vite, environment variables now use the `VITE_` prefix instead of `REACT_APP_`. In code, they are accessed using `import.meta.env.VITE_VARIABLE_NAME` instead of `process.env.REACT_APP_VARIABLE_NAME`.
+
+Example:
+```javascript
+// Old way (Create React App)
+const apiUrl = process.env.REACT_APP_API_URL;
+
+// New way (Vite)
+const apiUrl = import.meta.env.VITE_API_URL;
+```
+
+However, for backward compatibility, our configuration maintains support for the old `process.env.REACT_APP_*` format through a custom polyfill, so existing code will continue to work without changes.
+
+#### Available Scripts
+
+- `npm start` or `npm run dev` - Start the development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview the production build locally
+- `npm test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+
+#### Performance Optimizations
+
+The Vite build process includes several performance optimizations:
+
+- **Code Splitting**: The application is split into multiple chunks for better loading performance:
+  - `vendor.js`: Contains React and related packages
+  - `utils.js`: Contains utility libraries like date-fns, axios, and framer-motion
+  - `mui.js`: Contains Material UI components
+  - `index.js`: Contains the application code
+
+- **Fast Development Server**: Vite uses native ES modules for instant server start and quick hot module replacement
+
+- **Optimized Production Builds**: Smaller and faster than Create React App builds
+
+#### JSX in JavaScript Files
+
+Vite is configured to properly handle JSX in `.js` files, so there's no need to rename files to `.jsx`. This maintains compatibility with the existing codebase.
 
 #### Backend Setup
 

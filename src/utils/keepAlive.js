@@ -6,7 +6,7 @@ import api from './api';
  */
 const setupKeepAlive = () => {
   // Only run in production environment
-  if (process.env.NODE_ENV !== 'production') return;
+  if (import.meta.env.MODE !== 'production') return;
   
   const INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
   

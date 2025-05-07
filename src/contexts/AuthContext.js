@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }) => {
       // Create a direct axios instance to avoid interceptor loops
       const axios = (await import('axios')).default;
       const instance = axios.create({
-        baseURL: process.env.NODE_ENV === 'production' 
-          ? (process.env.REACT_APP_API_URL || 'https://api.i-timeline.com')
+        baseURL: import.meta.env.MODE === 'production' 
+          ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
           : 'http://localhost:5000',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -162,8 +162,8 @@ export const AuthProvider = ({ children }) => {
       
       // Create a direct axios instance to avoid potential interceptor issues
       const axios = (await import('axios')).default;
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? (process.env.REACT_APP_API_URL || 'https://api.i-timeline.com')
+      const baseURL = import.meta.env.MODE === 'production' 
+        ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
         : 'http://localhost:5000';
       
       const response = await axios.get(`${baseURL}/api/auth/validate`, {
@@ -193,8 +193,8 @@ export const AuthProvider = ({ children }) => {
         try {
           const token = getCookie('access_token') || localStorage.getItem('access_token');
           const axios = (await import('axios')).default;
-          const baseURL = process.env.NODE_ENV === 'production' 
-            ? (process.env.REACT_APP_API_URL || 'https://api.i-timeline.com')
+          const baseURL = import.meta.env.MODE === 'production' 
+            ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
             : 'http://localhost:5000';
           
           const response = await axios.get(`${baseURL}/api/auth/validate`, {

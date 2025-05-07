@@ -5,7 +5,7 @@ import { setCookie, getCookie, deleteCookie } from './cookies';
 // For debugging purposes
 console.log('API Config:', {
   baseURL: config.API_URL,
-  environment: process.env.NODE_ENV
+  environment: import.meta.env.MODE
 });
 
 const api = axios.create({

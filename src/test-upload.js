@@ -40,7 +40,7 @@ const TestUpload = () => {
     
     try {
       // Get the API URL from the environment or use a default
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const url = `${apiUrl}${endpoint}`;
       
       addLog(`Full URL: ${url}`);
@@ -150,7 +150,7 @@ const TestUpload = () => {
               {result.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) && (
                 <Box sx={{ mt: 1, textAlign: 'center' }}>
                   <img 
-                    src={result.url.startsWith('http') ? result.url : `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${result.url}`} 
+                    src={result.url.startsWith('http') ? result.url : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${result.url}`} 
                     alt="Uploaded file" 
                     style={{ maxWidth: '100%', maxHeight: 300 }} 
                   />

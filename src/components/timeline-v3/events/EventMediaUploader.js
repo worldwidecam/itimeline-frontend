@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { 
   CloudUpload as CloudUploadIcon, 
-  AudioIcon as AudioIcon, 
+  AudioFile as AudioIcon, 
   Videocam as VideoIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
