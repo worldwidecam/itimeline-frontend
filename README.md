@@ -441,55 +441,82 @@ This issue is a high priority for the next development sprint.
 
 ## Future Development Plans
 
-### Migration to Next.js
+### Migration to Vite
 
-As create-react-app is no longer maintained, a future migration to Next.js is being considered. This section outlines the rationale and approach for this potential migration.
+As create-react-app is no longer maintained, a future migration to Vite is planned. This section outlines the rationale and approach for this migration.
 
-#### Benefits of Next.js for iTimeline
+#### Benefits of Vite for iTimeline
 
-1. **Server-Side Rendering (SSR) & Static Site Generation (SSG)**:
-   - Improved performance and SEO
-   - Better initial load times for timeline pages
+1. **Development Speed**:
+   - Extremely fast development server with instant hot module replacement
+   - No bundling during development, using native ES modules instead
+   - Significantly faster startup and refresh times compared to CRA
 
-2. **API Routes**:
-   - Built-in API route support could simplify backend architecture
-   - Potential to move some endpoints directly into the frontend codebase
+2. **Build Performance**:
+   - Optimized production builds using Rollup
+   - Code-splitting by default
+   - Smaller bundle sizes with better tree-shaking
 
-3. **Image Optimization**:
-   - Next.js Image component would optimize timeline media automatically
-   - Particularly beneficial for the media-heavy nature of our application
+3. **Modern Defaults**:
+   - Native ESM-based dev server
+   - TypeScript support out of the box
+   - CSS modules, PostCSS, and CSS pre-processors built-in
 
-4. **Built-in Router**:
-   - File-system based router would eliminate the need for react-router-dom
-   - More intuitive routing structure
+4. **Simple Migration Path**:
+   - Minimal changes to existing React components
+   - Keep most of your current application structure
+   - Straightforward configuration
 
-5. **Incremental Adoption**:
-   - Migration can happen gradually, starting with simpler pages
+5. **Active Maintenance**:
+   - Actively maintained by Evan You and the Vite team
+   - Regular updates and improvements
+   - Growing ecosystem of plugins
 
 #### Migration Considerations
 
-1. **Authentication System**:
-   - Adapt JWT authentication to work with Next.js
-   - Implement middleware for protected routes
+1. **Entry Point Changes**:
+   - Replace `index.js` with `main.jsx` as the entry point
+   - Adjust HTML template structure
 
-2. **API Integration**:
-   - Adjust current axios calls to work with Next.js data fetching methods
-   - Utilize getServerSideProps, getStaticProps where appropriate
+2. **Configuration**:
+   - Create a `vite.config.js` file to replace CRA configuration
+   - Configure environment variables with the `import.meta.env` syntax
 
-3. **Material UI**:
-   - Minimal changes needed for MUI components
+3. **Dependencies**:
+   - Remove react-scripts and related CRA dependencies
+   - Add Vite and related plugins
 
-4. **Timeline Components**:
-   - Complex timeline components will need careful testing
+4. **Build Scripts**:
+   - Update npm scripts in package.json
+   - Adjust build output directory references if necessary
 
-5. **Cloudinary Integration**:
-   - Media upload functionality will need adaptation
+5. **CSS Processing**:
+   - Adjust CSS imports for Vite's handling
+   - Configure Tailwind CSS to work with Vite
 
 #### Recommended Migration Approach
 
-1. Start with a new Next.js project and gradually move components over
-2. Begin with simpler pages like login/register
-3. Test thoroughly as each component is migrated
-4. Keep both applications running until migration is complete
+1. **Create a parallel Vite project**:
+   ```bash
+   npm create vite@latest itimeline-vite -- --template react
+   ```
 
-This migration is not an immediate priority but is documented here for future planning purposes.
+2. **Move key configuration files**:
+   - Copy over essential configuration files (tailwind.config.js, etc.)
+   - Create a new vite.config.js with appropriate settings
+
+3. **Copy source code**:
+   - Move the src directory to the new project
+   - Adjust the entry point (main.jsx instead of index.js)
+
+4. **Update dependencies**:
+   - Install all required dependencies in the new project
+   - Ensure compatibility with Vite
+
+5. **Test thoroughly**:
+   - Verify all features work as expected
+   - Address any compatibility issues
+
+6. **Replace the original project** once everything is working correctly
+
+This migration will provide a modern, faster development experience while maintaining the same application structure and functionality.
