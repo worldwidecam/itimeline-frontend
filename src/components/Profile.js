@@ -14,11 +14,13 @@ import {
   useTheme,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 
 const Profile = () => {
   const { userId } = useParams();
   const { user } = useAuth();
+  const { getBlurredEmail } = useEmailBlur();
   const theme = useTheme();
   const [profileUser, setProfileUser] = useState(null);
   const [musicData, setMusicData] = useState(null);
@@ -116,7 +118,7 @@ const Profile = () => {
           position: 'relative',
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
@@ -149,7 +151,7 @@ const Profile = () => {
           position: 'relative',
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center'
@@ -169,7 +171,7 @@ const Profile = () => {
           position: 'relative',
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
@@ -201,7 +203,7 @@ const Profile = () => {
         position: 'relative',
         background: theme.palette.mode === 'dark'
           ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-          : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',
@@ -262,7 +264,7 @@ const Profile = () => {
                     {profileUser.username}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    {profileUser.email}
+                    {getBlurredEmail(profileUser.email)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {profileUser.created_at ? 

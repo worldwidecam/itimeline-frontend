@@ -27,6 +27,7 @@ import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InfoIcon from '@mui/icons-material/Info';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import { useDropzone } from 'react-dropzone';
 
@@ -44,6 +45,7 @@ const formatFileSize = (bytes) => {
 const ProfileSettings = () => {
   const { user, updateProfile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { blurEmail, setBlurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
   const theme = useMuiTheme();
   const [formData, setFormData] = useState({
     email: user?.email || '',
@@ -52,6 +54,11 @@ const ProfileSettings = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
+    // Preference settings with defaults
+    showEmail: user?.preferences?.showEmail !== false, // Default to true if not set
+    emailNotifications: user?.preferences?.emailNotifications !== false, // Default to true if not set
+    defaultTimelineView: user?.preferences?.defaultTimelineView || 'base', // Default to 'base' if not set
+    blurEmail: user?.preferences?.blurEmail || false, // Default to false if not set
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || '');
@@ -71,19 +78,38 @@ const ProfileSettings = () => {
   const [fileInfo, setFileInfo] = useState({ avatar: null, music: null });
 
   useEffect(() => {
-    const fetchMusicPreferences = async () => {
+    const fetchUserData = async () => {
       try {
-        const response = await api.get('/api/profile/music');
-        if (response.data.music_url) {
-          setMusicData(response.data);
+        // Fetch music preferences
+        const musicResponse = await api.get('/api/profile/music');
+        if (musicResponse.data.music_url) {
+          setMusicData(musicResponse.data);
+        }
+        
+        // Fetch user preferences
+        try {
+          const prefsResponse = await api.get('/api/profile/preferences');
+          if (prefsResponse.data) {
+            // Update form data with preferences from the server
+            setFormData(prev => ({
+              ...prev,
+              showEmail: prefsResponse.data.showEmail !== false,
+              emailNotifications: prefsResponse.data.emailNotifications !== false,
+              defaultTimelineView: prefsResponse.data.defaultTimelineView || 'base',
+              blurEmail: prefsResponse.data.blurEmail || false
+            }));
+          }
+        } catch (prefsError) {
+          console.error('Error fetching user preferences:', prefsError);
+          // If we can't fetch preferences, we'll use the defaults
         }
       } catch (error) {
-        console.error('Error fetching music preferences:', error);
+        console.error('Error fetching user data:', error);
       }
     };
 
     if (user) {
-      fetchMusicPreferences();
+      fetchUserData();
     }
   }, [user]);
 
@@ -183,6 +209,13 @@ const ProfileSettings = () => {
       submitData.append('username', formData.username);
       submitData.append('email', formData.email);
       submitData.append('bio', formData.bio);
+      
+      // Add preference settings
+      submitData.append('preferences', JSON.stringify({
+        showEmail: formData.showEmail,
+        emailNotifications: formData.emailNotifications,
+        defaultTimelineView: formData.defaultTimelineView
+      }));
       
       if (selectedFile) {
         submitData.append('avatar', selectedFile);
@@ -284,6 +317,51 @@ const ProfileSettings = () => {
       setIsUploading(false);
     }
   };
+  
+  const handlePreferencesSubmit = async (e) => {
+    if (e) e.preventDefault();
+    
+    setError('');
+    setSuccess('');
+    setIsUploading(true);
+    
+    try {
+      // Extract only the preference fields from formData
+      const preferences = {
+        showEmail: formData.showEmail,
+        emailNotifications: formData.emailNotifications,
+        defaultTimelineView: formData.defaultTimelineView,
+        blurEmail: formData.blurEmail
+      };
+      
+      const response = await api.post(
+        '/api/profile/preferences',
+        preferences,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Preferences update response:', response.data);
+      setSuccess('Preferences updated successfully');
+      
+      // If the auth context has an updateProfile function, use it to update the user object
+      if (updateProfile && response.data.user) {
+        try {
+          await updateProfile(response.data.user);
+        } catch (updateError) {
+          console.error('Error updating profile in context:', updateError);
+        }
+      }
+    } catch (error) {
+      console.error('Preferences update error:', error);
+      setError(error.response?.data?.error || 'Failed to update preferences');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <Box
@@ -293,7 +371,7 @@ const ProfileSettings = () => {
         position: 'relative',
         background: theme.palette.mode === 'dark'
           ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-          : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',
@@ -473,8 +551,13 @@ const ProfileSettings = () => {
                     label="Email"
                     name="email"
                     type="email"
-                    value={formData.email}
+                    // Show privacy dots when email blur is enabled, but store the actual value
+                    value={blurEmail ? getPrivacyEmail(formData.email) : formData.email}
                     onChange={handleInputChange}
+                    InputProps={{
+                      readOnly: blurEmail, // Make it read-only when blurred for better UX
+                    }}
+                    helperText={blurEmail ? "Email is masked for privacy" : ""}
                   />
                 </Grid>
                 
@@ -665,6 +748,89 @@ const ProfileSettings = () => {
               </Button>
             </Grid>
 
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+            </Grid>
+
+            {/* Preferences Section */}
+            <Grid item xs={12}>
+              <Paper sx={{ 
+                p: 3, 
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.7)' : 'rgba(250, 250, 250, 0.9)',
+                borderRadius: 2,
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                  : '0 4px 20px rgba(0, 0, 0, 0.05)'
+              }}>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, width: '100%', mb: 3 }}>
+                  Preferences
+                </Typography>
+                
+                <Box sx={{ width: '100%' }}>
+                  {/* Preference toggle rows - descriptions on left, toggles on right */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    mb: 2,
+                    pb: 2,
+                    borderBottom: 1,
+                    borderColor: 'divider'
+                  }}>
+                    <Typography variant="body1">
+                      Email Blur
+                    </Typography>
+                    <Switch 
+                      checked={blurEmail}
+                      onChange={(e) => {
+                        // Update both the context state and the form data
+                        setBlurEmail(e.target.checked);
+                        setFormData(prev => ({
+                          ...prev,
+                          blurEmail: e.target.checked
+                        }));
+                      }}
+                      color="primary"
+                    />
+                  </Box>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    mb: 2,
+                    pb: 2,
+                    borderBottom: 1,
+                    borderColor: 'divider'
+                  }}>
+                    <Typography variant="body1" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                      Consectetur adipiscing elit
+                    </Typography>
+                    <Switch 
+                      disabled
+                      color="primary"
+                    />
+                  </Box>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    mb: 2
+                  }}>
+                    <Typography variant="body1">
+                      Dark mode
+                    </Typography>
+                    <Switch 
+                      checked={isDarkMode}
+                      onChange={toggleTheme}
+                      color="primary"
+                    />
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+            
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />
             </Grid>

@@ -19,6 +19,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
@@ -31,6 +32,7 @@ function Navbar() {
   const location = useLocation();
   const params = useParams();
   const { user, logout } = useAuth();
+  const { getBlurredEmail } = useEmailBlur();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [currentTimelineName, setCurrentTimelineName] = React.useState('');
@@ -140,7 +142,7 @@ function Navbar() {
                   {user.username}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {user.email}
+                  {getBlurredEmail(user.email)}
                 </Typography>
               </Box>
             </Box>

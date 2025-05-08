@@ -17,7 +17,7 @@ const TimelineBackground = ({ onBackgroundClick }) => {
       sx={{ 
         flex: 1,
         background: theme.palette.mode === 'light' 
-          ? 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)' 
+          ? 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)' 
           : 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)',
         width: '100%',
         minHeight: '50vh',
