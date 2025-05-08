@@ -563,3 +563,40 @@ As create-react-app is no longer maintained, a future migration to Vite is plann
 6. **Replace the original project** once everything is working correctly
 
 This migration will provide a modern, faster development experience while maintaining the same application structure and functionality.
+
+## Future Work and To-Do
+
+### Database Migration Strategy
+
+#### Current Challenge
+The application currently uses SQLite for local development, but production deployment will require PostgreSQL. Previous attempts to prepare for PostgreSQL migration resulted in compatibility issues that affected core functionality:
+
+- Login/authentication stopped working properly
+- Saved information failed to load correctly
+- Media files couldn't be retrieved
+
+#### Potential Solutions
+
+1. **PostgreSQL for Both Environments**
+   - Use PostgreSQL locally and in production for complete environment parity
+   - Eliminates compatibility issues between different database systems
+   - Provides more realistic testing conditions
+   - Requires additional setup but prevents deployment surprises
+
+2. **Database Abstraction Layer**
+   - Enhance SQLAlchemy models to work seamlessly with both database types
+   - Create migration scripts that handle dialect-specific differences
+   - Implement compatibility wrappers for database-specific features
+
+3. **Containerized Development Environment**
+   - Use Docker to create consistent development environments
+   - Package PostgreSQL as part of the development container
+   - Simplify setup while maintaining production parity
+
+#### Decision Criteria
+- Development simplicity vs. production reliability
+- Team familiarity with PostgreSQL administration
+- Available system resources for local development
+- Timeline for production deployment
+
+This database strategy is a high-priority item that needs to be addressed before production deployment.
