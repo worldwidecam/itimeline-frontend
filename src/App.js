@@ -12,7 +12,8 @@ import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
 import LandingPage from './components/LandingPage';
-import MediaUploader from './components/MediaUploader';
+// MARKED FOR DELETION: No longer used on homepage
+// import MediaUploader from './components/MediaUploader';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { EmailBlurProvider } from './contexts/EmailBlurContext';
@@ -89,7 +90,10 @@ const Homepage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [timelineToDelete, setTimelineToDelete] = React.useState(null);
   const [timelines, setTimelines] = React.useState([]);
+  const [filteredTimelines, setFilteredTimelines] = React.useState([]);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [isSearching, setIsSearching] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: '',
     description: ''
@@ -103,7 +107,12 @@ const Homepage = () => {
       try {
         setLoadingTimelines(true);
         const response = await api.get('/api/timeline-v3');
-        setTimelines(response.data);
+        // Sort timelines by creation date (newest first)
+        const sortedTimelines = [...response.data].sort((a, b) => 
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+        setTimelines(sortedTimelines);
+        setFilteredTimelines(sortedTimelines);
       } catch (error) {
         console.error('Error fetching timelines:', error);
       } finally {
@@ -113,6 +122,14 @@ const Homepage = () => {
 
     fetchTimelines();
   }, [user]);
+  
+  // Reset filtered timelines when search query is cleared
+  React.useEffect(() => {
+    if (searchQuery === '') {
+      setFilteredTimelines(timelines);
+      setIsSearching(false);
+    }
+  }, [searchQuery, timelines]);
 
   const handleDemoClick = () => {
     navigate('/timeline-v3/new');
@@ -143,21 +160,37 @@ const Homepage = () => {
 
     try {
       setLoading(true);
+      
+      // Check if a timeline with this name already exists to prevent UNIQUE constraint errors
+      const existingTimeline = timelines.find(
+        t => t.name.toLowerCase() === formData.name.trim().toLowerCase()
+      );
+      
+      if (existingTimeline) {
+        throw new Error('A timeline with this name already exists. Please choose a different name.');
+      }
+      
       // Convert timeline name to uppercase for consistency with other parts of the app
       const response = await api.post('/api/timeline-v3', {
         name: formData.name.trim().toUpperCase(),
         description: formData.description.trim()
       });
       
-      // Add the new timeline to the list
-      setTimelines(prev => [response.data, ...prev]);
+      // Add the new timeline to the list and update filtered timelines
+      const newTimeline = response.data;
+      const updatedTimelines = [newTimeline, ...timelines].sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      );
+      
+      setTimelines(updatedTimelines);
+      setFilteredTimelines(updatedTimelines);
       
       handleDialogClose();
       // Navigate to the new timeline
-      navigate(`/timeline-v3/${response.data.id}`);
+      navigate(`/timeline-v3/${newTimeline.id}`);
     } catch (error) {
       console.error('Error creating timeline:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to create timeline. Please try again.';
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to create timeline. Please try again.';
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -175,8 +208,11 @@ const Homepage = () => {
     try {
       await api.delete(`/api/timeline-v3/${timelineToDelete.id}`);
       
-      // Remove the timeline from the list
-      setTimelines(timelines.filter(t => t.id !== timelineToDelete.id));
+      // Remove the timeline from both lists
+      const updatedTimelines = timelines.filter(t => t.id !== timelineToDelete.id);
+      setTimelines(updatedTimelines);
+      setFilteredTimelines(filteredTimelines.filter(t => t.id !== timelineToDelete.id));
+      
       setDeleteDialogOpen(false);
       setTimelineToDelete(null);
     } catch (error) {
@@ -188,6 +224,38 @@ const Homepage = () => {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
     setTimelineToDelete(null);
+  };
+  
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+  
+  // Handle search submission (on Enter or button click)
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault(); // Prevent form submission if called from form
+    
+    if (!searchQuery.trim()) {
+      // If search is empty, show all timelines
+      setFilteredTimelines(timelines);
+      setIsSearching(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    
+    // Filter timelines based on search query
+    // Search in name and description, case insensitive
+    const query = searchQuery.trim().toLowerCase();
+    const results = timelines.filter(timeline => {
+      const nameMatch = timeline.name.toLowerCase().includes(query);
+      const descMatch = timeline.description && timeline.description.toLowerCase().includes(query);
+      return nameMatch || descMatch;
+    });
+    
+    // Limit results to top 10 (or whatever number is appropriate)
+    const limitedResults = results.slice(0, 10);
+    setFilteredTimelines(limitedResults);
   };
 
   const formatDate = (dateString) => {
@@ -230,89 +298,355 @@ const Homepage = () => {
           backgroundColor: 'transparent'
         }}
       >
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
-        <h1>Welcome to Timeline Forum</h1>
-        <p>Create and explore timelines with our new V3 interface.</p>
-        {user && (
-          <Stack spacing={2} direction="row" justifyContent="center" sx={{ mt: 2 }}>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleDemoClick}
-            >
-              Try Timeline V3 Beta
-            </Button>
-            <Button 
-              variant="outlined" 
-              color="primary" 
-              onClick={handleCreateClick}
-            >
-              Create Your Timeline
-            </Button>
-          </Stack>
+      <Box sx={{ 
+        textAlign: 'center', 
+        mb: 6,
+        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: 3,
+        p: 4,
+        boxShadow: theme.palette.mode === 'dark' 
+          ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+          : '0 8px 32px rgba(0, 0, 0, 0.1)'
+      }}>
+        {user ? (
+          <>
+            <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+              Welcome back, {user.username}!
+            </Typography>
+            <Typography variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
+              Track, organize, and share your important moments with iTimeline
+            </Typography>
+            <Stack spacing={3} direction={{ xs: 'column', sm: 'row' }} justifyContent="center" sx={{ mt: 4 }}>
+              <Button 
+                variant="contained" 
+                color="primary" 
+                size="large"
+                onClick={handleCreateClick}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    boxShadow: 4
+                  }
+                }}
+              >
+                Create New Timeline
+              </Button>
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                size="large"
+                onClick={handleDemoClick}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontSize: '1.1rem',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    boxShadow: 2
+                  }
+                }}
+              >
+                Try Timeline V3 Beta
+              </Button>
+            </Stack>
+          </>
+        ) : (
+          <>
+            <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+              Welcome to iTimeline
+            </Typography>
+            <Typography variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
+              Create and explore timelines with our intuitive interface
+            </Typography>
+          </>
         )}
       </Box>
 
       {user && (
         <>
-          <Divider sx={{ my: 4 }} />
-          <Typography variant="h5" sx={{ mb: 3 }}>
-            Your Timelines
-          </Typography>
-          {loadingTimelines ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : timelines.length > 0 ? (
-            <Grid container spacing={3}>
-              {timelines.map(timeline => (
-                <Grid item xs={12} sm={6} md={4} key={timeline.id}>
-                  <Card sx={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: theme.palette.mode === 'dark' 
-                      ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
-                      : '0 8px 32px rgba(0, 0, 0, 0.1)'
-                  }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" gutterBottom>
-                        {timeline.name}
-                      </Typography>
-                      {timeline.description && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {timeline.description}
-                        </Typography>
-                      )}
-                      <Typography variant="caption" color="text.secondary">
-                        Created: {formatDate(timeline.created_at)}
-                      </Typography>
-                    </CardContent>
-                    <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-                      <Button 
-                        size="small"
-                        variant="contained"
-                        color="primary"
-                        onClick={() => navigate(`/timeline-v3/${timeline.id}`)}
-                      >
-                        Open Timeline
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Box sx={{ textAlign: 'center', my: 4 }}>
-              <Typography color="text.secondary">
-                You haven't created any timelines yet.
+          <Box sx={{ 
+            mt: 6, 
+            mb: 4, 
+            display: 'flex',
+            flexDirection: 'column',
+            width: '400px', // Fixed width for the timeline panel
+            maxWidth: '100%', // Ensures it doesn't overflow on small screens
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 3,
+            p: 3,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+              : '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h4" sx={{ fontWeight: 'medium' }}>
+                Timelines
               </Typography>
+              <Button 
+                variant="outlined" 
+                color="primary"
+                onClick={handleCreateClick}
+                startIcon={<Box component="span" sx={{ fontSize: '1.5rem' }}>+</Box>}
+                sx={{ borderRadius: 2 }}
+              >
+                New
+              </Button>
             </Box>
-          )}
+            
+            {/* Search bar with submit button */}
+            <Box 
+              component="form" 
+              onSubmit={handleSearchSubmit}
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mb: 3,
+                position: 'relative'
+              }}
+            >
+              <TextField
+                placeholder="Search timelines..."
+                variant="outlined"
+                fullWidth
+                size="small"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchSubmit(e);
+                  }
+                }}
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.7)',
+                    pr: 5, // Add padding for the button
+                  }
+                }}
+              />
+              <IconButton 
+                type="submit"
+                aria-label="search"
+                onClick={handleSearchSubmit}
+                sx={{ 
+                  position: 'absolute',
+                  right: 8,
+                  color: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+                  }
+                }}
+              >
+                {/* Search/Arrow icon */}
+                <Box 
+                  component="span" 
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 10L20 15L15 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M4 4V10C4 12.2091 5.79086 14 8 14H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Box>
+              </IconButton>
+            </Box>
+            
+            {/* Search results indicator */}
+            {isSearching && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  {filteredTimelines.length === 0 
+                    ? 'No results found' 
+                    : filteredTimelines.length === 1
+                      ? '1 result found'
+                      : `${filteredTimelines.length} results found`}
+                  {filteredTimelines.length === 10 && ' (showing top 10)'}
+                </Typography>
+                {filteredTimelines.length > 0 && (
+                  <Button 
+                    size="small" 
+                    variant="text" 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilteredTimelines(timelines);
+                      setIsSearching(false);
+                    }}
+                    sx={{ ml: 1, minWidth: 'auto', p: 0.5 }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Box>
+            )}
+            
+            {loadingTimelines ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4, py: 2 }}>
+                <CircularProgress size={40} />
+              </Box>
+            ) : filteredTimelines.length > 0 ? (
+              <Box 
+                sx={{ 
+                  overflowY: 'auto', 
+                  maxHeight: '500px',
+                  pr: 1,
+                  // Custom scrollbar styling
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: 'transparent',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.2)' 
+                      : 'rgba(0, 0, 0, 0.2)',
+                    borderRadius: '4px',
+                  },
+                }}
+              >
+                <Stack spacing={2}>
+                  {filteredTimelines.map(timeline => (
+                    <Card 
+                      key={timeline.id}
+                      sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10, 17, 40, 0.6)' : 'rgba(255, 255, 255, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-3px)',
+                          boxShadow: theme.palette.mode === 'dark' 
+                            ? '0 8px 25px rgba(0, 0, 0, 0.4)' 
+                            : '0 8px 25px rgba(0, 0, 0, 0.1)'
+                        }
+                      }}
+                    >
+                      {/* Colored accent bar at top of card */}
+                      <Box sx={{ height: 4, bgcolor: 'primary.main' }} />
+                      
+                      <CardContent sx={{ p: 2, pb: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                          {timeline.name}
+                        </Typography>
+                        {timeline.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ 
+                            mt: 1,
+                            // Limit to 2 lines with ellipsis
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {timeline.description}
+                          </Typography>
+                        )}
+                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 1 }}>
+                          <Box 
+                            component="span" 
+                            sx={{ 
+                              width: 6, 
+                              height: 6, 
+                              borderRadius: '50%', 
+                              bgcolor: 'primary.main',
+                              display: 'inline-block',
+                              mr: 1
+                            }} 
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            Created: {formatDate(timeline.created_at)}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                      
+                      <CardActions sx={{ p: 2, pt: 0, justifyContent: 'flex-end' }}>
+                        <Button 
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => navigate(`/timeline-v3/${timeline.id}`)}
+                          sx={{ 
+                            borderRadius: 2,
+                            px: 2,
+                            py: 0.5,
+                            fontSize: '0.8rem',
+                            fontWeight: 'medium',
+                          }}
+                        >
+                          Open
+                        </Button>
+                      </CardActions>
+                    </Card>
+                  ))}
+                </Stack>
+              </Box>
+            ) : (
+              <Box sx={{ 
+                textAlign: 'center', 
+                my: 4, 
+                py: 4,
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10, 17, 40, 0.3)' : 'rgba(255, 255, 255, 0.5)',
+                borderRadius: 2,
+                border: '1px dashed',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+              }}>
+                <Box sx={{ mb: 2 }}>
+                  <Box 
+                    component="span"
+                    sx={{ 
+                      fontSize: '2rem', 
+                      color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)',
+                      display: 'block',
+                      mb: 1
+                    }}
+                  >
+                    📅
+                  </Box>
+                </Box>
+                <Typography variant="h6" sx={{ mb: 1, fontSize: '1rem' }}>
+                  No Timelines Yet
+                </Typography>
+                <Typography color="text.secondary" sx={{ mb: 2, fontSize: '0.9rem' }}>
+                  Create your first timeline to start organizing events.
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="small"
+                  onClick={handleCreateClick}
+                  startIcon={<Box component="span" sx={{ fontSize: '1rem' }}>+</Box>}
+                  sx={{ 
+                    mt: 1,
+                    borderRadius: 2,
+                    px: 2
+                  }}
+                >
+                  Create Timeline
+                </Button>
+              </Box>
+            )}
+          </Box>
           
-          {/* Media Uploader Section */}
+          {/* 
+          // MARKED FOR DELETION: Media Uploader Test section
+          // This was a development testing feature and is no longer needed on the homepage
+          // If needed elsewhere, consider moving this component to a dedicated testing/admin page
           <Divider sx={{ my: 4 }} />
           <Typography variant="h5" sx={{ mb: 3 }}>
             Media Uploader Test
@@ -321,6 +655,7 @@ const Homepage = () => {
             Use this tool to test media uploads without creating an event. This helps diagnose any issues with the upload functionality.
           </Typography>
           <MediaUploader />
+          */}
         </>
       )}
 
