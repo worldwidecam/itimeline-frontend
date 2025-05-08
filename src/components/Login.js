@@ -98,6 +98,22 @@ const Login = () => {
             onChange={handleChange}
             margin="normal"
             required
+            autoComplete="username email"
+            InputLabelProps={{
+              shrink: true,
+            }}
+            sx={{
+              '& .MuiInputLabel-root': {
+                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+                fontWeight: 500,
+              },
+              '& .MuiOutlinedInput-root': {
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.primary.main,
+                  borderWidth: 2,
+                },
+              },
+            }}
           />
           <TextField
             fullWidth
@@ -108,6 +124,22 @@ const Login = () => {
             onChange={handleChange}
             margin="normal"
             required
+            autoComplete="current-password"
+            InputLabelProps={{
+              shrink: true,
+            }}
+            sx={{
+              '& .MuiInputLabel-root': {
+                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+                fontWeight: 500,
+              },
+              '& .MuiOutlinedInput-root': {
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.primary.main,
+                  borderWidth: 2,
+                },
+              },
+            }}
           />
           <Button
             type="submit"
