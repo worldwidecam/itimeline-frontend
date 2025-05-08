@@ -86,8 +86,15 @@ const EventList = ({
   useEffect(() => {
     localStorage.setItem('timeline_sort_preference', sortOrder);
     
-    // Dispatch a storage event to notify other components
+    // Dispatch a custom event to notify other components
+    // Create a custom event that can be dispatched and listened for
+    const event = new CustomEvent('timeline_sort_change', { detail: { sortOrder } });
+    window.dispatchEvent(event);
+    
+    // Also dispatch a storage event for backward compatibility
     window.dispatchEvent(new Event('storage'));
+    
+    console.log('Sort order changed to:', sortOrder);
   }, [sortOrder]);
 
   // Notify other components when filter type changes
@@ -99,8 +106,11 @@ const EventList = ({
       localStorage.removeItem('timeline_filter_type');
     }
     
-    // Dispatch a custom event to notify other components
-    window.dispatchEvent(new Event('timeline_filter_change'));
+    // Create and dispatch a custom event with the selected type
+    const event = new CustomEvent('timeline_filter_change', { detail: { selectedType } });
+    window.dispatchEvent(event);
+    
+    console.log('Filter type changed to:', selectedType);
   }, [selectedType]);
 
   const handleDeleteClick = (event) => {
@@ -277,21 +287,23 @@ const EventList = ({
   };
 
   // Filter events based on the current view mode and visible marker range
+  // Optimized for performance with large numbers of events
   const filterEventsByViewMode = (events) => {
     if (!events || events.length === 0) return [];
     
     // In base coordinate view, show all events
     if (viewMode === 'position') return events;
     
+    // Performance optimization: Calculate date boundaries once
     const currentDate = new Date();
     
     // Calculate the date range based on visible markers
     let startDate, endDate;
+    let startTime, endTime; // Store timestamps for faster comparison
     
     switch (viewMode) {
       case 'day': {
         // In day view, each marker represents an hour
-        // minMarker is hours before current time, maxMarker is hours after
         startDate = new Date(currentDate);
         startDate.setHours(startDate.getHours() + minMarker);
         
@@ -325,37 +337,102 @@ const EventList = ({
         return events;
     }
     
+    // Convert dates to timestamps for faster comparison
+    startTime = startDate.getTime();
+    endTime = endDate.getTime();
+    
     console.log(`Filtering events between ${startDate.toISOString()} and ${endDate.toISOString()}`);
     
-    // Filter events to only include those within the visible date range
+    // Performance optimization: Use cached dates when available
     return events.filter(event => {
       if (!event.event_date) return false;
       
-      const eventDate = new Date(event.event_date);
-      return eventDate >= startDate && eventDate <= endDate;
+      // Use cached date if available, otherwise create a new Date object
+      const eventTime = event._cachedDate ? 
+        event._cachedDate.getTime() : 
+        new Date(event.event_date).getTime();
+      
+      // Use timestamp comparison for better performance
+      return eventTime >= startTime && eventTime <= endTime;
     });
   };
 
-  // Filter and sort events
+  // Filter and sort events with performance optimizations
   const filteredAndSortedEvents = useMemo(() => {
-    return filterEventsByViewMode(events)
-      .filter(event => {
-        const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesType = !selectedType || event.type.toLowerCase() === selectedType.toLowerCase();
-        return matchesSearch && matchesType;
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.event_date);
-        const dateB = new Date(b.event_date);
-        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-      });
+    // Performance optimization: Only process events if we have them
+    if (!events || events.length === 0) return [];
+    
+    // Performance optimization: Pre-calculate dates once for all events
+    // This avoids repeated Date object creation during sorting and filtering
+    const eventsWithCachedDates = events.map(event => ({
+      ...event,
+      _cachedDate: event.event_date ? new Date(event.event_date) : null,
+      _cachedLowerTitle: (event.title || '').toLowerCase(),
+      _cachedLowerDesc: (event.description || '').toLowerCase(),
+      _cachedLowerType: (event.type || '').toLowerCase()
+    }));
+    
+    // First, apply the view mode filter to get events in the current view range
+    // This is the most intensive filter, so we do it first to reduce the dataset
+    const viewModeFiltered = filterEventsByViewMode(eventsWithCachedDates);
+    console.log(`After view mode filtering (${viewMode}):`, viewModeFiltered.length, 'events');
+    
+    // Performance optimization: Prepare search query once
+    const lowerSearchQuery = searchQuery.toLowerCase();
+    const hasSearchQuery = lowerSearchQuery.length > 0;
+    
+    // Performance optimization: Combine filters to reduce iterations
+    const filteredEvents = viewModeFiltered.filter(event => {
+      // Type filter
+      const passesTypeFilter = !selectedType || event._cachedLowerType === selectedType.toLowerCase();
+      if (!passesTypeFilter) return false;
+      
+      // Search filter (only apply if there's a search query)
+      if (hasSearchQuery) {
+        return event._cachedLowerTitle.includes(lowerSearchQuery) || 
+               event._cachedLowerDesc.includes(lowerSearchQuery);
+      }
+      
+      return true;
+    });
+    
+    console.log('After combined filtering:', filteredEvents.length, 'events');
+    
+    // Performance optimization: Use a stable sort algorithm with cached dates
+    const sorted = [...filteredEvents].sort((a, b) => {
+      // Handle null dates
+      if (!a._cachedDate) return 1;
+      if (!b._cachedDate) return -1;
+      
+      // Use cached dates for faster comparison
+      return sortOrder === 'newest' ? 
+        b._cachedDate.getTime() - a._cachedDate.getTime() : 
+        a._cachedDate.getTime() - b._cachedDate.getTime();
+    });
+    
+    console.log('After sorting:', sorted.length, 'events', 'Sort order:', sortOrder);
+    
+    return sorted;
   }, [events, searchQuery, selectedType, sortOrder, viewMode, minMarker, maxMarker]);
   
   // Determine which events to display based on pagination settings
+  // Performance optimization: Apply windowing for large event sets
   const eventsToDisplay = useMemo(() => {
-    return showAll ? filteredAndSortedEvents : filteredAndSortedEvents.slice(0, displayLimit);
-  }, [filteredAndSortedEvents, displayLimit, showAll]);
+    // For large event sets, we need to be more aggressive with pagination
+    // to prevent performance issues
+    const isLargeEventSet = filteredAndSortedEvents.length > 50;
+    
+    // If we have a large event set and we're in month or year view,
+    // use a smaller display limit to improve performance
+    let effectiveDisplayLimit = displayLimit;
+    if (isLargeEventSet && (viewMode === 'month' || viewMode === 'year')) {
+      effectiveDisplayLimit = Math.min(displayLimit, 30);
+    }
+    
+    return showAll ? 
+      filteredAndSortedEvents : 
+      filteredAndSortedEvents.slice(0, effectiveDisplayLimit);
+  }, [filteredAndSortedEvents, displayLimit, showAll, viewMode]);
 
   // Report the filtered events count to the parent component
   useEffect(() => {
@@ -472,7 +549,27 @@ const EventList = ({
               key={type}
               variant={selectedType === type ? "contained" : "outlined"}
               size="small"
-              onClick={() => setSelectedType(selectedType === type ? null : type)}
+              onClick={() => {
+                // Determine the new filter type
+                const newType = selectedType === type ? null : type;
+                console.log(`Filter button clicked: ${type}, setting to: ${newType}`);
+                
+                // Update the local state
+                setSelectedType(newType);
+                
+                // Update localStorage immediately to ensure consistency
+                if (newType) {
+                  localStorage.setItem('timeline_filter_type', newType);
+                } else {
+                  localStorage.removeItem('timeline_filter_type');
+                }
+                
+                // Force a re-render by dispatching the event immediately
+                const event = new CustomEvent('timeline_filter_change', { 
+                  detail: { selectedType: newType } 
+                });
+                window.dispatchEvent(event);
+              }}
               startIcon={
                 type === EVENT_TYPES.REMARK ? <RemarkIcon /> :
                 type === EVENT_TYPES.NEWS ? <NewsIcon /> :

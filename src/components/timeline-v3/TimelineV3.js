@@ -101,9 +101,8 @@ function TimelineV3() {
 
   const getMonthProgress = () => {
     const now = getCurrentDateTime();
-    const currentDay = now.getDate();
-    const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return (currentDay - 1) / totalDays; // Returns a value between 0 and 1
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return now.getDate() / daysInMonth; // Returns a value between 0 and 1
   };
 
   const getYearProgress = () => {
@@ -213,6 +212,69 @@ function TimelineV3() {
     const params = new URLSearchParams(window.location.search);
     return params.get('view') || 'day';
   });
+  
+  // Track debounce timers with refs for wheel event handling
+  const wheelTimer = useRef(null);
+  const wheelDebounceTimer = useRef(null);
+  const wheelEvents = useRef([]);
+  
+  // Handle wheel events with debouncing for better performance
+  const handleWheelEvent = (event) => {
+    event.preventDefault();
+    
+    // Performance optimization: Collect wheel events and process them in batches
+    // This significantly reduces the number of state updates and re-renders
+    const now = Date.now();
+    wheelEvents.current.push({
+      delta: event.deltaY || event.deltaX,
+      timestamp: now
+    });
+    
+    // If we're already in moving state, just collect the event
+    if (isMoving) {
+      return;
+    }
+    
+    // Set moving state to hide markers during scrolling
+    setIsMoving(true);
+    
+    // If an event is selected, close its popup during scrolling
+    if (selectedEventId) {
+      setSelectedEventId(null);
+    }
+    
+    // Performance optimization: Debounce the actual timeline movement
+    // Only process wheel events after a short delay of no wheel activity
+    clearTimeout(wheelDebounceTimer.current);
+    wheelDebounceTimer.current = setTimeout(() => {
+      // Calculate the total scroll amount from all collected events
+      const totalDelta = wheelEvents.current.reduce((sum, evt) => sum + evt.delta, 0);
+      const scrollAmount = Math.sign(totalDelta) * Math.min(Math.abs(totalDelta) / 2, 300); // Limit max scroll amount
+      
+      // Update timeline offset
+      setTimelineOffset(prevOffset => prevOffset - scrollAmount);
+      
+      // Add new markers if needed
+      if (scrollAmount > 0) {
+        // Scrolling right (negative delta) - add markers to the right
+        const maxMarker = Math.max(...markers);
+        setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
+      } else {
+        // Scrolling left (positive delta) - add markers to the left
+        const minMarker = Math.min(...markers);
+        setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
+      }
+      
+      // Clear the collected events
+      wheelEvents.current = [];
+      
+      // Wait for timeline to settle before showing markers again
+      clearTimeout(wheelTimer.current);
+      wheelTimer.current = setTimeout(() => {
+        setIsMoving(false);
+      }, 200); // Delay after scrolling stops
+    }, 50); // Short debounce delay for responsive feel while still batching updates
+  };
   const [hoverPosition, setHoverPosition] = useState(getExactTimePosition());
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState(null);
@@ -255,25 +317,64 @@ function TimelineV3() {
     return localStorage.getItem('timeline_filter_type') || null;
   });
 
-  // Update sortOrder when localStorage changes
+  // Update sortOrder when localStorage changes or when custom event is triggered
   useEffect(() => {
     const handleStorageChange = () => {
       setSortOrder(localStorage.getItem('timeline_sort_preference') || 'newest');
     };
     
+    const handleSortChange = (event) => {
+      console.log('Sort change event received:', event.detail);
+      setSortOrder(event.detail.sortOrder);
+    };
+    
+    // Listen for both the storage event and our custom sort change event
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('timeline_sort_change', handleSortChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('timeline_sort_change', handleSortChange);
+    };
   }, []);
 
   // Update selectedType when filter changes
   useEffect(() => {
-    const handleFilterChange = () => {
-      setSelectedType(localStorage.getItem('timeline_filter_type') || null);
+    const handleFilterChange = (event) => {
+      // Use the detail from the custom event if available
+      if (event.detail && event.detail.selectedType !== undefined) {
+        console.log('Filter change event received with detail:', event.detail);
+        // Ensure we're setting the exact value from the event
+        const newType = event.detail.selectedType;
+        
+        // Update state only if it's different to avoid unnecessary re-renders
+        if (newType !== selectedType) {
+          setSelectedType(newType);
+          console.log(`TimelineV3: Updated selectedType to ${newType}`);
+        }
+      } else {
+        // Fallback to localStorage if the event doesn't have detail
+        console.log('Filter change event received, using localStorage');
+        const storedType = localStorage.getItem('timeline_filter_type') || null;
+        
+        // Update state only if it's different
+        if (storedType !== selectedType) {
+          setSelectedType(storedType);
+          console.log(`TimelineV3: Updated selectedType from localStorage to ${storedType}`);
+        }
+      }
     };
+    
+    // Initial load from localStorage
+    const initialType = localStorage.getItem('timeline_filter_type') || null;
+    if (initialType !== selectedType) {
+      setSelectedType(initialType);
+      console.log(`TimelineV3: Initial selectedType set to ${initialType}`);
+    }
     
     window.addEventListener('timeline_filter_change', handleFilterChange);
     return () => window.removeEventListener('timeline_filter_change', handleFilterChange);
-  }, []);
+  }, [selectedType]); // Add selectedType as a dependency to properly handle updates
 
   const [isRecentering, setIsRecentering] = useState(false);
   const [isFullyFaded, setIsFullyFaded] = useState(false);
@@ -428,7 +529,7 @@ function TimelineV3() {
       setCurrentEventIndex(filteredIndex);
     } else {
       // If the event isn't in the filtered array, keep the original index
-      console.log('Event not found in filtered array, using original index:', index);
+      console.log('Event not found in filtered events, using original index');
       setCurrentEventIndex(index);
     }
   };
@@ -1002,7 +1103,33 @@ function TimelineV3() {
           console.log('User interacted with filter views, loading events immediately');
           try {
             const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-            setEvents(response.data);
+            
+            // Performance optimization: Pre-process events to improve rendering performance
+            const processedEvents = response.data.map(event => {
+              // Pre-calculate dates to avoid repeated Date object creation
+              const eventDate = event.event_date ? new Date(event.event_date) : null;
+              
+              return {
+                ...event,
+                // Cache date objects and other frequently accessed properties
+                _cachedDate: eventDate,
+                _cachedYear: eventDate ? eventDate.getFullYear() : null,
+                _cachedMonth: eventDate ? eventDate.getMonth() : null,
+                _cachedDay: eventDate ? eventDate.getDate() : null,
+                _cachedTime: eventDate ? eventDate.getTime() : null,
+                // Pre-calculate lowercase values for case-insensitive comparisons
+                _cachedLowerTitle: (event.title || '').toLowerCase(),
+                _cachedLowerDesc: (event.description || '').toLowerCase(),
+                _cachedLowerType: (event.type || '').toLowerCase()
+              };
+            });
+            
+            // Update the events state with pre-processed events
+            setEvents(processedEvents);
+            
+            // Performance optimization: Clear any cached positions when loading new events
+            window.timelineEventPositions = [];
+            window.timelineEventPositionsMap = null;
           } catch (error) {
             console.error('Error fetching events after user interaction:', error);
           }
@@ -1052,14 +1179,9 @@ function TimelineV3() {
       const minMarker = Math.min(...markers);
       setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
       setTimelineOffset(prevOffset => prevOffset + 100);
-      
-      // Wait for timeline to settle before showing markers again
-      setTimeout(() => {
-        setIsMoving(false);
-      }, 100); // Short delay after movement completes
-    }, 250); // Wait for fade-out animation to complete
+    }, 200); // Add a small delay for the fade-out animation
   };
-
+  
   const handleRight = () => {
     console.log('Executing RIGHT button press');
     // Set moving state to hide markers during movement
@@ -1075,14 +1197,16 @@ function TimelineV3() {
       const maxMarker = Math.max(...markers);
       setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
       setTimelineOffset(prevOffset => prevOffset - 100);
-      
-      // Wait for timeline to settle before showing markers again
-      setTimeout(() => {
-        setIsMoving(false);
-      }, 100); // Short delay after movement completes
-    }, 250); // Wait for fade-out animation to complete
+    }, 200); // Add a small delay for the fade-out animation
   };
+  
+  // Process wheel events with debouncing (using the implementation from line 221)
 
+  // Track debounce timers with refs (declared at the top level)
+  // These refs are already declared above
+  
+  // This section was removed to fix duplicate function declaration
+  
   // Navigate to an event using sequential button presses
   const navigateToEvent = (event) => {
     if (!event || !event.event_date || viewMode === 'position' || isNavigating) return;
@@ -1094,46 +1218,46 @@ function TimelineV3() {
     setTimeout(() => {
       // Calculate the temporal distance between the event and current reference point
       const distance = calculateTemporalDistance(event.event_date);
-    
-    // Calculate how many steps (button presses) we need
-    // Each button press moves by 1 marker, which is 100px
-    // For day view, each marker represents an hour
-    let stepsNeeded;
-    
-    if (viewMode === 'day') {
-      // In day view, each marker represents an hour
-      stepsNeeded = Math.round(distance);
-    } else if (viewMode === 'week') {
-      // In week view, each marker represents a day
-      stepsNeeded = Math.round(distance);
-    } else if (viewMode === 'month') {
-      // In month view, each marker represents a month
-      stepsNeeded = Math.round(distance);
-    } else if (viewMode === 'year') {
-      // In year view, each marker represents a year
-      stepsNeeded = Math.round(distance);
-    } else {
-      stepsNeeded = Math.round(distance);
-    }
-    
-    // Don't navigate if the event is already centered or very close
-    if (Math.abs(stepsNeeded) === 0) return;
-    
-    console.log(`Navigating to event: ${event.title}`);
-    console.log(`Event date: ${new Date(event.event_date).toLocaleString()}`);
-    console.log(`Current date: ${new Date().toLocaleString()}`);
-    console.log(`Calculated distance: ${distance}`);
-    console.log(`Steps needed: ${stepsNeeded}`);
-    
-    // Determine which button to press (left or right)
-    // IMPORTANT: Past events (negative distance) need LEFT button
-    // Future events (positive distance) need RIGHT button
-    const direction = stepsNeeded > 0 ? 'right' : 'left';
-    const numberOfPresses = Math.abs(stepsNeeded);
-    
-    console.log(`Direction: ${direction}`);
-    console.log(`Number of presses: ${numberOfPresses}`);
-    
+      
+      // Calculate how many steps (button presses) we need
+      // Each button press moves by 1 marker, which is 100px
+      // For day view, each marker represents an hour
+      let stepsNeeded;
+      
+      if (viewMode === 'day') {
+        // In day view, each marker represents an hour
+        stepsNeeded = Math.round(distance);
+      } else if (viewMode === 'week') {
+        // In week view, each marker represents a day
+        stepsNeeded = Math.round(distance);
+      } else if (viewMode === 'month') {
+        // In month view, each marker represents a month
+        stepsNeeded = Math.round(distance);
+      } else if (viewMode === 'year') {
+        // In year view, each marker represents a year
+        stepsNeeded = Math.round(distance);
+      } else {
+        stepsNeeded = Math.round(distance);
+      }
+      
+      // Don't navigate if the event is already centered or very close
+      if (Math.abs(stepsNeeded) === 0) return;
+      
+      console.log(`Navigating to event: ${event.title}`);
+      console.log(`Event date: ${new Date(event.event_date).toLocaleString()}`);
+      console.log(`Current date: ${new Date().toLocaleString()}`);
+      console.log(`Calculated distance: ${distance}`);
+      console.log(`Steps needed: ${stepsNeeded}`);
+      
+      // Determine which button to press (left or right)
+      // IMPORTANT: Past events (negative distance) need LEFT button
+      // Future events (positive distance) need RIGHT button
+      const direction = stepsNeeded > 0 ? 'right' : 'left';
+      const numberOfPresses = Math.abs(stepsNeeded);
+      
+      console.log(`Direction: ${direction}`);
+      console.log(`Number of presses: ${numberOfPresses}`);
+      
       // Start the navigation process
       setIsNavigating(true);
       
@@ -1460,33 +1584,33 @@ function TimelineV3() {
     
     console.log(`Final calculated distance: ${distance}`);
     return distance;
-  };
-  
-  const handleRecenter = () => {
-    setIsRecentering(true);
+};
 
-    // Wait for fade out to complete
+const handleRecenter = () => {
+  setIsRecentering(true);
+
+  // Wait for fade out to complete
+  setTimeout(() => {
+    setIsFullyFaded(true);
+    
+    // Reset timeline offset and markers
+    setTimelineOffset(0);
+    setMarkers(getInitialMarkers());
+    
+    // Update URL without page reload
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set('view', viewMode);
+    navigate(`/timeline-v3/${timelineId}?${searchParams.toString()}`, { replace: true });
+
+    // Start fade in animation after a short delay
     setTimeout(() => {
-      setIsFullyFaded(true);
-      
-      // Reset timeline offset and markers
-      setTimelineOffset(0);
-      setMarkers(getInitialMarkers());
-      
-      // Update URL without page reload
-      const searchParams = new URLSearchParams(window.location.search);
-      searchParams.set('view', viewMode);
-      navigate(`/timeline-v3/${timelineId}?${searchParams.toString()}`, { replace: true });
-
-      // Start fade in animation after a short delay
+      setIsFullyFaded(false);
       setTimeout(() => {
-        setIsFullyFaded(false);
-        setTimeout(() => {
-          setIsRecentering(false);
-        }, 50);
-      }, 100);
-    }, 400); // Match the transition duration
-  };
+        setIsRecentering(false);
+      }, 50);
+    }, 100);
+  }, 400); // Match the transition duration
+};
 
   const handleFilteredEventsCount = (count) => {
     setFilteredEventsCount(count);
@@ -1762,7 +1886,11 @@ function TimelineV3() {
               </Box>
             </Box>
           )}
-          <TimelineBackground onBackgroundClick={handleBackgroundClick} />
+          {/* Track wheel events for debounced scrolling */}
+          <TimelineBackground 
+            onBackgroundClick={handleBackgroundClick}
+            onWheel={handleWheelEvent}
+          />
           <TimelineBar
             timelineOffset={timelineOffset}
             markerSpacing={100}
@@ -1780,11 +1908,9 @@ function TimelineV3() {
                 return null;
               })()}
               
-              {/* Render event markers */}
-              {events.map((event, index) => {
-                if (!event.event_date) return null;
-                
-                // Apply the same filtering logic as in EventList
+              {/* Render event markers with performance optimizations */}
+              {(() => {
+                // Performance optimization: Calculate date boundaries once
                 const currentDate = new Date();
                 let startDate, endDate;
                 
@@ -1816,33 +1942,54 @@ function TimelineV3() {
                     return null;
                 }
                 
-                const eventDate = new Date(event.event_date);
-                if (!(eventDate >= startDate && eventDate <= endDate)) {
-                  return null;
-                }
+                // Convert dates to timestamps for faster comparison
+                const startTime = startDate.getTime();
+                const endTime = endDate.getTime();
                 
-                return (
-                  <Fade
-                    key={`marker-${event.id}`}
-                    in={!isMoving}
-                    timeout={{ enter: 500, exit: 200 }}
-                    style={{
-                      transitionDelay: `${index * 20}ms`,
-                    }}
-                  >
-                    <div>
-                      <EventMarker
-                        event={event}
-                        viewMode={viewMode}
-                        timelineOffset={timelineOffset}
-                        markerSpacing={100}
-                        isSelected={event.id === selectedEventId}
-                        onClick={(e) => handleMarkerClick(event, index)}
-                      />
-                    </div>
-                  </Fade>
-                );
-              })}
+                // Performance optimization: Limit the number of markers in month and year views
+                // This prevents rendering too many markers which can cause performance issues
+                const isLargeEventSet = events.length > 50;
+                const maxMarkersToRender = isLargeEventSet && (viewMode === 'month' || viewMode === 'year') ? 40 : events.length;
+                
+                // Filter events to only include those in the visible date range
+                // and limit the number of markers rendered
+                const visibleEvents = events
+                  .filter(event => {
+                    if (!event.event_date) return false;
+                    const eventTime = new Date(event.event_date).getTime();
+                    return eventTime >= startTime && eventTime <= endTime;
+                  })
+                  .slice(0, maxMarkersToRender);
+                
+                console.log(`Rendering ${visibleEvents.length} markers out of ${events.length} total events`);
+                
+                // Render only the visible events
+                return visibleEvents.map((event, index) => {
+                  const originalIndex = events.findIndex(e => e.id === event.id);
+                  
+                  return (
+                    <Fade
+                      key={`marker-${event.id}`}
+                      in={!isMoving}
+                      timeout={{ enter: 500, exit: 200 }}
+                      style={{
+                        transitionDelay: `${index * 20}ms`,
+                      }}
+                    >
+                      <div>
+                        <EventMarker
+                          event={event}
+                          viewMode={viewMode}
+                          timelineOffset={timelineOffset}
+                          markerSpacing={100}
+                          isSelected={event.id === selectedEventId}
+                          onClick={(e) => handleMarkerClick(event, originalIndex)}
+                        />
+                      </div>
+                    </Fade>
+                  );
+                });
+              })()}
             </>
           )}
           <TimeMarkers 
@@ -2112,7 +2259,7 @@ function TimelineV3() {
             transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
                         opacity 0.3s ease-in-out`,
             transitionDelay: floatingButtonsExpanded ? '0.15s' : '0s',
-            zIndex: 1530
+            zIndex: 1530,
           }}>
             <Tooltip title="Create Remark Event" placement="left">
               <Fab

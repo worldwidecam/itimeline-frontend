@@ -59,55 +59,87 @@ const EventMarker = ({
   }, []);
 
   // Calculate if this event overlaps with others based on position
+  // Performance optimized version for large numbers of events
   useEffect(() => {
     if (viewMode !== 'position' && position) {
+      // Performance optimization: Skip overlap calculation for large event sets in month/year view
+      // This significantly improves performance when there are many events
+      const isLargeEventSet = window.timelineEventPositions && window.timelineEventPositions.length > 50;
+      const isMonthOrYearView = viewMode === 'month' || viewMode === 'year';
+      
+      // For large event sets in month/year view, use a simplified approach
+      if (isLargeEventSet && isMonthOrYearView) {
+        // Apply a fixed offset pattern based on event ID to distribute events
+        // This avoids expensive collision detection while still providing visual separation
+        const eventIdNumber = parseInt(event.id.replace(/\D/g, '')) || event.id.charCodeAt(0);
+        const offsetPattern = eventIdNumber % 4; // Create 4 different offset patterns
+        
+        setOverlappingFactor(1); // No stacking in simplified mode
+        setHorizontalOffset(offsetPattern * 5); // Apply a fixed horizontal offset
+        return; // Skip the rest of the calculation
+      }
+      
+      // For smaller event sets or day/week views, use the full collision detection
+      // Reset the global positions array when view mode changes to prevent position persistence issues
+      if (!window.currentViewMode || window.currentViewMode !== viewMode) {
+        window.timelineEventPositions = [];
+        window.currentViewMode = viewMode;
+      }
+      
       const eventPositions = window.timelineEventPositions || [];
       
-      // Update this event's position in the global array
+      // Update this event's position in the global array - use a more efficient approach
+      // Performance optimization: Use a Map for faster lookups
+      if (!window.timelineEventPositionsMap) {
+        window.timelineEventPositionsMap = new Map();
+      }
+      
+      const positionData = {
+        id: event.id,
+        x: position.x,
+        viewMode,
+        type: event.type,
+        // Performance optimization: Store only necessary event data
+        eventDate: event.event_date ? new Date(event.event_date) : null
+      };
+      
+      // Update in both the array and map for efficient access
       const existingIndex = eventPositions.findIndex(ep => ep.id === event.id);
       if (existingIndex >= 0) {
-        eventPositions[existingIndex] = {
-          id: event.id,
-          x: position.x,
-          viewMode,
-          type: event.type,
-          eventData: event // Store the full event data for more accurate comparison
-        };
+        eventPositions[existingIndex] = positionData;
       } else {
-        eventPositions.push({
-          id: event.id,
-          x: position.x,
-          viewMode,
-          type: event.type,
-          eventData: event // Store the full event data for more accurate comparison
-        });
+        eventPositions.push(positionData);
       }
+      window.timelineEventPositionsMap.set(event.id, positionData);
       window.timelineEventPositions = eventPositions;
       
       // Adjust proximity threshold based on view mode
       // Larger views (year, month) need larger thresholds
       let proximityThreshold = 10; // Default
       if (viewMode === 'month') proximityThreshold = 15;
-      if (viewMode === 'year') proximityThreshold = 40; // Increased from 30 to 40 for year view
+      if (viewMode === 'year') proximityThreshold = 40;
       
-      // Find nearby events with more sophisticated collision detection
+      // Performance optimization: Only check events that are likely to be nearby
+      // This avoids checking every single event position
       let nearbyEvents = [];
       
-      if (viewMode === 'year') {
-        // For year view, use a more aggressive proximity detection
-        // Consider events within the same month or adjacent months as nearby
-        nearbyEvents = eventPositions.filter(ep => {
-          if (ep.id === event.id || ep.viewMode !== viewMode) return false;
-          
+      // Filter the events to check based on view mode
+      const eventsToCheck = eventPositions.filter(ep => 
+        ep.id !== event.id && 
+        ep.viewMode === viewMode && 
+        Math.abs(ep.x - position.x) < (viewMode === 'year' ? 60 : viewMode === 'month' ? 40 : proximityThreshold)
+      );
+      
+      // Now apply more specific filtering based on view mode
+      if (viewMode === 'year' && eventsToCheck.length > 0) {
+        nearbyEvents = eventsToCheck.filter(ep => {
           // Check if events are close horizontally
           const isClose = Math.abs(ep.x - position.x) < proximityThreshold;
           
-          // Make sure both event objects and their dates exist before comparing
-          if (event && event.event_date && ep.eventData && ep.eventData.event_date) {
-            // If events are in the same month (or close), count them as nearby
-            // This helps detect clustering in year view where events might be stacked
+          // Compare dates if available
+          if (event.event_date && ep.eventDate) {
             const eventDate = new Date(event.event_date);
-            const otherEventDate = new Date(ep.eventData.event_date);
+            const otherEventDate = ep.eventDate;
             const sameMonth = eventDate.getMonth() === otherEventDate.getMonth();
             const adjacentMonth = Math.abs(eventDate.getMonth() - otherEventDate.getMonth()) <= 1;
             
@@ -115,21 +147,17 @@ const EventMarker = ({
                    (adjacentMonth && Math.abs(ep.x - position.x) < 45);
           }
           
-          // If we can't compare dates, just use horizontal proximity
           return isClose;
         });
-      } else if (viewMode === 'month') {
-        // For month view, consider events in the same week as nearby
-        nearbyEvents = eventPositions.filter(ep => {
-          if (ep.id === event.id || ep.viewMode !== viewMode) return false;
-          
+      } else if (viewMode === 'month' && eventsToCheck.length > 0) {
+        nearbyEvents = eventsToCheck.filter(ep => {
           // Check if events are close horizontally
           const isClose = Math.abs(ep.x - position.x) < proximityThreshold;
           
           // Compare dates if available
-          if (event && event.event_date && ep.eventData && ep.eventData.event_date) {
+          if (event.event_date && ep.eventDate) {
             const eventDate = new Date(event.event_date);
-            const otherEventDate = new Date(ep.eventData.event_date);
+            const otherEventDate = ep.eventDate;
             
             // Check if events are in the same week
             const sameWeek = Math.abs(eventDate.getDate() - otherEventDate.getDate()) < 7;
@@ -139,20 +167,9 @@ const EventMarker = ({
           
           return isClose;
         });
-      } else if (viewMode === 'week') {
-        // For week view, use a standard proximity check with slightly increased threshold
-        nearbyEvents = eventPositions.filter(ep => 
-          ep.id !== event.id && 
-          ep.viewMode === viewMode &&
-          Math.abs(ep.x - position.x) < (proximityThreshold + 5)
-        );
       } else {
-        // For day view and other views, use the standard proximity detection
-        nearbyEvents = eventPositions.filter(ep => 
-          ep.id !== event.id && 
-          ep.viewMode === viewMode &&
-          Math.abs(ep.x - position.x) < proximityThreshold
-        );
+        // For day and week views, just use the pre-filtered events
+        nearbyEvents = eventsToCheck;
       }
       
       // Calculate overlapping factor with diminishing returns
@@ -299,17 +316,17 @@ const EventMarker = ({
           break;
           
         case 'month':
-          const eventYear = eventDate ? eventDate.getFullYear() : 0;
-          const currentYear = freshCurrentDate.getFullYear();
-          const eventMonth = eventDate ? eventDate.getMonth() : 0;
+          const monthEventYear = eventDate ? eventDate.getFullYear() : 0;
+          const monthCurrentYear = freshCurrentDate.getFullYear();
+          const monthEventMonth = eventDate ? eventDate.getMonth() : 0;
           const currentMonth = freshCurrentDate.getMonth();
-          const eventDay = eventDate ? eventDate.getDate() : 0;
-          const daysInMonth = eventDate ? new Date(eventYear, eventMonth + 1, 0).getDate() : 0;
+          const monthEventDay = eventDate ? eventDate.getDate() : 0;
+          const monthDaysInMonth = eventDate ? new Date(monthEventYear, monthEventMonth + 1, 0).getDate() : 0;
           
-          const monthYearDiff = eventYear - currentYear;
-          const monthDiff = eventMonth - currentMonth + (monthYearDiff * 12);
+          const monthYearDiff = monthEventYear - monthCurrentYear;
+          const monthDiff = monthEventMonth - currentMonth + (monthYearDiff * 12);
           
-          const monthDayFraction = (eventDay - 1) / daysInMonth;
+          const monthDayFraction = (monthEventDay - 1) / monthDaysInMonth;
           
           markerPosition = monthDiff + monthDayFraction;
           
@@ -317,15 +334,22 @@ const EventMarker = ({
           break;
           
         case 'year':
-          const yearDiff = eventDate ? eventDate.getFullYear() - freshCurrentDate.getFullYear() : 0;
+          // Calculate the exact year difference including fractional parts
+          const yearEventYear = eventDate ? eventDate.getFullYear() : freshCurrentDate.getFullYear();
+          const yearCurrentYear = freshCurrentDate.getFullYear();
+          const yearDiff = yearEventYear - yearCurrentYear;
           
-          const yearMonthFraction = eventDate ? eventDate.getMonth() / 12 : 0;
-          const yearDayFraction = eventDate ? (eventDate.getDate() - 1) / new Date(eventDate.getFullYear(), eventDate.getMonth() + 1, 0).getDate() : 0;
+          // Calculate month as a fraction of a year (0-11 months = 0-0.92 of a year)
+          const yearEventMonth = eventDate ? eventDate.getMonth() : 0;
+          const yearMonthFraction = yearEventMonth / 12;
           
-          const yearMonthContribution = eventDate ? eventDate.getMonth() / 12 : 0;
-          const yearDayContribution = eventDate ? yearDayFraction / 12 : 0;
+          // Calculate day as a fraction of a month
+          const yearEventDay = eventDate ? eventDate.getDate() : 1;
+          const yearDaysInMonth = eventDate ? new Date(yearEventYear, yearEventMonth + 1, 0).getDate() : 30;
+          const yearDayFraction = (yearEventDay - 1) / yearDaysInMonth / 12; // Divide by 12 to scale to year
           
-          markerPosition = yearDiff + yearMonthContribution + yearDayContribution;
+          // Combine all components for precise positioning
+          markerPosition = yearDiff + yearMonthFraction + yearDayFraction;
           
           positionValue = markerPosition * markerSpacing;
           break;
