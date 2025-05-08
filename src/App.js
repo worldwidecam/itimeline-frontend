@@ -253,8 +253,30 @@ const Homepage = () => {
       return nameMatch || descMatch;
     });
     
+    // Sort results to prioritize exact matches in name, then by date
+    const sortedResults = [...results].sort((a, b) => {
+      // Check for exact match in name (case insensitive)
+      const aExactMatch = a.name.toLowerCase() === query;
+      const bExactMatch = b.name.toLowerCase() === query;
+      
+      // Check for starts with match
+      const aStartsWithMatch = a.name.toLowerCase().startsWith(query);
+      const bStartsWithMatch = b.name.toLowerCase().startsWith(query);
+      
+      // Prioritize exact matches first
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+      
+      // Then prioritize 'starts with' matches
+      if (aStartsWithMatch && !bStartsWithMatch) return -1;
+      if (!aStartsWithMatch && bStartsWithMatch) return 1;
+      
+      // Finally sort by date (newest first) as a tiebreaker
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+    
     // Limit results to top 10 (or whatever number is appropriate)
-    const limitedResults = results.slice(0, 10);
+    const limitedResults = sortedResults.slice(0, 10);
     setFilteredTimelines(limitedResults);
   };
 
