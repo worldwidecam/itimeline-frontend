@@ -61,7 +61,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'build', // Same output directory as CRA for consistency
-    sourcemap: true,
+    sourcemap: process.env.NODE_ENV !== 'production', // Only generate sourcemaps in development
     commonjsOptions: {
       // Handle mixed ES/CommonJS modules
       transformMixedEsModules: true,
@@ -73,6 +73,10 @@ export default defineConfig({
     // Configure code splitting for better performance
     rollupOptions: {
       output: {
+        // Use content hashing for better cache control
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: {
           // Split MUI components into a separate chunk
           mui: ['@mui/material', '@mui/icons-material', '@mui/lab'],
@@ -83,5 +87,9 @@ export default defineConfig({
         },
       },
     },
+    // Minify the output in production
+    minify: process.env.NODE_ENV === 'production',
+    // Target modern browsers for better performance
+    target: 'es2015',
   },
 });
