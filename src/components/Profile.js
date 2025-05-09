@@ -211,8 +211,8 @@ const Profile = () => {
         pb: 4
       }}
     >
-      {/* Music Player - only show for own profile */}
-      {isOwnProfile && (
+      {/* Music Player - show for any profile that has music data */}
+      {showMusic && musicData && (
         <Fade in={showMusic} timeout={800}>
           <Box 
             sx={{ 
@@ -233,7 +233,7 @@ const Profile = () => {
             }}
           >
             <Typography variant="h6" gutterBottom>
-              My Music
+              {isOwnProfile ? 'My Music' : `${profileUser?.username}'s Music`}
             </Typography>
             <MusicPlayer url={musicData?.music_url} platform={musicData?.music_platform} />
           </Box>
