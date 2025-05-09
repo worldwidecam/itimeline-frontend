@@ -87,15 +87,64 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     setPopupOpen(true);
   };
 
+  // Function to determine if this is a video media card
+  const isVideoMediaCard = () => {
+    // Check multiple indicators to determine if this is a video
+    // 1. Check media_subtype field (new approach)
+    if (event.media_subtype === 'video') {
+      console.log('Video detected via media_subtype');
+      return true;
+    }
+    
+    // 2. Check media_url for video extensions
+    if (event.media_url && /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(event.media_url)) {
+      console.log('Video detected via file extension');
+      return true;
+    }
+    
+    // 3. Check media_type field for video MIME types
+    if (event.media_type && event.media_type.includes('video')) {
+      console.log('Video detected via media_type');
+      return true;
+    }
+    
+    // 4. Check if there's a video element in the DOM for this card
+    const cardElement = document.getElementById(`media-card-${event.id}`);
+    if (cardElement && cardElement.querySelector('video')) {
+      console.log('Video detected via DOM element');
+      return true;
+    }
+    
+    return false;
+  };
+
   const handleCardClick = () => {
+    // Check if this is a video media card using our comprehensive detection function
+    const isVideoMedia = isVideoMediaCard();
+    console.log(`Media card clicked, isVideoMedia: ${isVideoMedia}`);
+    
     if (onEdit && typeof onEdit === 'function') {
-      if (isSelected) {
-        // If already selected, open the popup
-        console.log('MediaCard: Opening popup for already selected card');
-        setPopupOpen(true);
+      // For video media cards, we'll handle clicks differently
+      if (isVideoMedia) {
+        // For videos, just select the card but don't open popup on second click
+        // This allows the video controls to work properly
+        if (!isSelected) {
+          console.log('Video card: selecting but not opening popup on second click');
+          onEdit({ type: 'select', event });
+        } else {
+          console.log('Video card already selected: not opening popup to allow video controls to work');
+        }
+        // For videos, we'll rely on the Details button to open the popup
       } else {
-        // Otherwise, select it
-        onEdit({ type: 'select', event });
+        // For non-video media, use the standard behavior
+        if (isSelected) {
+          // If already selected, open the popup
+          console.log('MediaCard: Opening popup for already selected card');
+          setPopupOpen(true);
+        } else {
+          // Otherwise, select it
+          onEdit({ type: 'select', event });
+        }
       }
     }
   };
@@ -137,27 +186,8 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     return words.slice(0, 15).join(' ') + '...';
   };
 
-  const renderMedia = () => {
-    const mediaSource = event.media_url || event.url;
-    
-    if (!mediaSource) {
-      return (
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          height: '100%', 
-          width: '100%',
-          bgcolor: 'background.paper',
-          color: 'text.secondary'
-        }}>
-          <Typography variant="body2" color="inherit">
-            No media available
-          </Typography>
-        </Box>
-      );
-    }
-    
+  // Helper function to prepare media sources
+  const prepareMediaSources = (mediaSource) => {
     let mediaSources = [];
     
     const isCloudinaryUrl = (
@@ -189,6 +219,317 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       mediaSources.push(`https://res.cloudinary.com/${cloudName}/image/upload/${event.cloudinary_id}`);
     }
     
+    return { mediaSources, fullUrl };
+  };
+
+  // Render image media
+  const renderImageMedia = (mediaSource) => {
+    const { mediaSources } = prepareMediaSources(mediaSource);
+    
+    return (
+      <Box 
+        sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: 'hidden',
+          zIndex: 1
+        }}
+      >
+        <img
+          src={mediaSources[0]}
+          alt={event.title || "Media"}
+          onError={(e) => {
+            const currentSrc = e.target.src;
+            const currentIndex = mediaSources.indexOf(currentSrc);
+            
+            if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
+              e.target.src = mediaSources[currentIndex + 1];
+            } else {
+              if (event.cloudinary_id) {
+                const cloudName = 'dnjwvuxn7';
+                const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${event.cloudinary_id}`;
+                e.target.src = cloudinaryUrl;
+                return;
+              }
+              
+              e.target.style.display = 'none';
+              e.target.parentNode.innerHTML += `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
+                  <span style="color: #999;">Image not available</span>
+                </div>
+              `;
+            }
+          }}
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+        <Box 
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+            zIndex: 2
+          }}
+        />
+        <PageCornerButton 
+          position="top-right" 
+          onClick={handleDetailsClick}
+          icon={<MediaIcon />}
+          color={color}
+        />
+      </Box>
+    );
+  };
+
+  // Render video media
+  const renderVideoMedia = (mediaSource) => {
+    const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
+    const fileExt = fullUrl.split('.').pop()?.toLowerCase();
+    
+    return (
+      <Box 
+        sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: 'hidden',
+          zIndex: 1
+        }}
+      >
+        <video
+          controls
+          width="100%"
+          height="100%"
+          style={{ objectFit: 'cover' }}
+          onError={(e) => {
+            const currentSrc = e.target.src;
+            const currentIndex = mediaSources.indexOf(currentSrc);
+            
+            if (currentIndex < mediaSources.length - 1) {
+              e.target.src = mediaSources[currentIndex + 1];
+            } else {
+              e.target.style.display = 'none';
+              e.target.parentNode.innerHTML += `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
+                  <span style="color: #999;">Video not available</span>
+                </div>
+              `;
+            }
+          }}
+        >
+          <source src={mediaSources[0]} type={`video/${fileExt || 'mp4'}`} />
+          Your browser does not support the video tag.
+        </video>
+        <Box 
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+            zIndex: 2,
+            pointerEvents: 'none'
+          }}
+        />
+        {/* Enhanced Details button for video media */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 12,
+            right: 12,
+            zIndex: 3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(4px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            borderRadius: '20px',
+            padding: '6px 12px',
+            transition: 'all 0.2s ease',
+            border: `1px solid ${color}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              transform: 'scale(1.05)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+            }
+          }}
+          onClick={handleDetailsClick}
+        >
+          <Typography 
+            variant="button" 
+            sx={{ 
+              color: 'white',
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              mr: 0.5 
+            }}
+          >
+            View Full Video
+          </Typography>
+          <MediaIcon sx={{ color: 'white', fontSize: '1rem' }} />
+        </Box>
+        <PageCornerButton 
+          position="top-right" 
+          onClick={handleDetailsClick}
+          icon={<MediaIcon />}
+          color={color}
+        />
+      </Box>
+    );
+  };
+
+  // Render audio media
+  const renderAudioMedia = (mediaSource) => {
+    const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
+    const fileExt = fullUrl.split('.').pop()?.toLowerCase();
+    
+    return (
+      <Box 
+        sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+          zIndex: 1,
+          padding: 2
+        }}
+      >
+        <Typography variant="h6" gutterBottom align="center">
+          {event.title || "Audio File"}
+        </Typography>
+        <Box sx={{ width: '100%', mt: 2 }}>
+          <audio
+            controls
+            style={{ width: '100%' }}
+            onError={(e) => {
+              const currentSrc = e.target.src;
+              const currentIndex = mediaSources.indexOf(currentSrc);
+              
+              if (currentIndex < mediaSources.length - 1) {
+                e.target.src = mediaSources[currentIndex + 1];
+              } else {
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML += `
+                  <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
+                    <span style="color: #999;">Audio not available</span>
+                  </div>
+                `;
+              }
+            }}
+          >
+            <source src={mediaSources[0]} type={`audio/${fileExt || 'mp3'}`} />
+            Your browser does not support the audio element.
+          </audio>
+        </Box>
+        <PageCornerButton 
+          position="top-right" 
+          onClick={handleDetailsClick}
+          icon={<MediaIcon />}
+          color={color}
+        />
+      </Box>
+    );
+  };
+
+  // Render default media
+  const renderDefaultMedia = (mediaSource) => {
+    return (
+      <Box 
+        sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          bgcolor: 'background.paper',
+          color: 'text.secondary',
+          zIndex: 1
+        }}
+        onClick={handleCardClick}
+      >
+        <Typography variant="body1">
+          {event.title || "Media File"}
+        </Typography>
+        <PageCornerButton 
+          position="top-right" 
+          onClick={handleDetailsClick}
+          icon={<MediaIcon />}
+          color={color}
+        />
+      </Box>
+    );
+  };
+
+  // Main render media function
+  const renderMedia = () => {
+    const mediaSource = event.media_url || event.url;
+    
+    if (!mediaSource) {
+      return (
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: '100%', 
+          width: '100%',
+          bgcolor: 'background.paper',
+          color: 'text.secondary'
+        }}>
+          <Typography variant="body2" color="inherit">
+            No media available
+          </Typography>
+        </Box>
+      );
+    }
+    
+    // Check for media subtype first (new approach)
+    if (event && event.media_subtype) {
+      console.log('MediaCard - Using media_subtype:', event.media_subtype);
+      // Use the subtype to determine rendering
+      switch(event.media_subtype) {
+        case 'image':
+          return renderImageMedia(mediaSource);
+        case 'video':
+          return renderVideoMedia(mediaSource);
+        case 'audio':
+          return renderAudioMedia(mediaSource);
+        default:
+          // Fall back to detection logic if subtype is unknown
+          console.log('MediaCard - Unknown media_subtype:', event.media_subtype);
+          break;
+      }
+    }
+    
+    // If no subtype or unknown subtype, fall back to detection logic
+    const { fullUrl } = prepareMediaSources(mediaSource);
+    
     // Determine media type from URL or event.media_type
     const fileExt = fullUrl.split('.').pop()?.toLowerCase();
     const isImage = 
@@ -204,212 +545,13 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       (event.media_type && event.media_type.includes('audio'));
     
     if (isImage) {
-      return (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'hidden',
-            zIndex: 1
-          }}
-        >
-          <img
-            src={mediaSources[0]}
-            alt={event.title || "Media"}
-            onError={(e) => {
-              const currentSrc = e.target.src;
-              const currentIndex = mediaSources.indexOf(currentSrc);
-              
-              if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
-                e.target.src = mediaSources[currentIndex + 1];
-              } else {
-                if (event.cloudinary_id) {
-                  const cloudName = 'dnjwvuxn7';
-                  const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${event.cloudinary_id}`;
-                  e.target.src = cloudinaryUrl;
-                  return;
-                }
-                
-                e.target.style.display = 'none';
-                e.target.parentNode.innerHTML += `
-                  <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
-                    <span style="color: #999;">Image not available</span>
-                  </div>
-                `;
-              }
-            }}
-            sx={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-          <Box 
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-              zIndex: 2
-            }}
-          />
-          <PageCornerButton 
-            position="top-right" 
-            onClick={handleDetailsClick}
-            icon={<MediaIcon />}
-            color={color}
-          />
-        </Box>
-      );
+      return renderImageMedia(mediaSource);
     } else if (isVideo) {
-      return (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'hidden',
-            zIndex: 1
-          }}
-        >
-          <video
-            controls
-            width="100%"
-            height="100%"
-            style={{ objectFit: 'cover' }}
-            onError={(e) => {
-              const currentSrc = e.target.src;
-              const currentIndex = mediaSources.indexOf(currentSrc);
-              
-              if (currentIndex < mediaSources.length - 1) {
-                e.target.src = mediaSources[currentIndex + 1];
-              } else {
-                e.target.style.display = 'none';
-                e.target.parentNode.innerHTML += `
-                  <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
-                    <span style="color: #999;">Video not available</span>
-                  </div>
-                `;
-              }
-            }}
-          >
-            <source src={mediaSources[0]} type={`video/${fileExt || 'mp4'}`} />
-            Your browser does not support the video tag.
-          </video>
-          <Box 
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-              zIndex: 2,
-              pointerEvents: 'none'
-            }}
-          />
-          <PageCornerButton 
-            position="top-right" 
-            onClick={handleDetailsClick}
-            icon={<MediaIcon />}
-            color={color}
-          />
-        </Box>
-      );
+      return renderVideoMedia(mediaSource);
     } else if (isAudio) {
-      return (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
-            zIndex: 1,
-            padding: 2
-          }}
-        >
-          <Typography variant="h6" gutterBottom align="center">
-            {event.title || "Audio File"}
-          </Typography>
-          <Box sx={{ width: '100%', mt: 2 }}>
-            <audio
-              controls
-              style={{ width: '100%' }}
-              onError={(e) => {
-                const currentSrc = e.target.src;
-                const currentIndex = mediaSources.indexOf(currentSrc);
-                
-                if (currentIndex < mediaSources.length - 1) {
-                  e.target.src = mediaSources[currentIndex + 1];
-                } else {
-                  e.target.style.display = 'none';
-                  e.target.parentNode.innerHTML += `
-                    <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
-                      <span style="color: #999;">Audio not available</span>
-                    </div>
-                  `;
-                }
-              }}
-            >
-              <source src={mediaSources[0]} type={`audio/${fileExt || 'mp3'}`} />
-              Your browser does not support the audio element.
-            </audio>
-          </Box>
-          <PageCornerButton 
-            position="top-right" 
-            onClick={handleDetailsClick}
-            icon={<MediaIcon />}
-            color={color}
-          />
-        </Box>
-      );
+      return renderAudioMedia(mediaSource);
     } else {
-      return (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            bgcolor: 'background.paper',
-            color: 'text.secondary',
-            zIndex: 1
-          }}
-          onClick={handleCardClick}
-        >
-          <Typography variant="body1">
-            {event.title || "Media File"}
-          </Typography>
-          <PageCornerButton 
-            position="top-right" 
-            onClick={handleDetailsClick}
-            icon={<MediaIcon />}
-            color={color}
-          />
-        </Box>
-      );
+      return renderDefaultMedia(mediaSource);
     }
   };
 
@@ -428,6 +570,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         }}
       >
         <Box
+          id={`media-card-${event.id}`}
           sx={{
             position: 'relative',
             borderRadius: 2,

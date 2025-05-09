@@ -3,7 +3,11 @@ import { createTheme } from '@mui/material/styles';
 export const EVENT_TYPES = {
   REMARK: 'remark',
   NEWS: 'news',
-  MEDIA: 'media'
+  MEDIA: 'media',
+  // Media subtypes (internal use only)
+  MEDIA_IMAGE: 'media_image',
+  MEDIA_AUDIO: 'media_audio',
+  MEDIA_VIDEO: 'media_video'
 };
 
 export const EVENT_TYPE_COLORS = {

@@ -1963,32 +1963,55 @@ const handleRecenter = () => {
                 
                 console.log(`Rendering ${visibleEvents.length} markers out of ${events.length} total events`);
                 
-                // Render only the visible events
-                return visibleEvents.map((event, index) => {
-                  const originalIndex = events.findIndex(e => e.id === event.id);
+                // Add error boundary for the entire event rendering process
+                try {
+                  // Make sure visibleEvents is valid before mapping
+                  if (!visibleEvents || !Array.isArray(visibleEvents)) {
+                    console.error('visibleEvents is not a valid array:', visibleEvents);
+                    return null;
+                  }
                   
-                  return (
-                    <Fade
-                      key={`marker-${event.id}`}
-                      in={!isMoving}
-                      timeout={{ enter: 500, exit: 200 }}
-                      style={{
-                        transitionDelay: `${index * 20}ms`,
-                      }}
-                    >
-                      <div>
-                        <EventMarker
-                          event={event}
-                          viewMode={viewMode}
-                          timelineOffset={timelineOffset}
-                          markerSpacing={100}
-                          isSelected={event.id === selectedEventId}
-                          onClick={(e) => handleMarkerClick(event, originalIndex)}
-                        />
-                      </div>
-                    </Fade>
-                  );
-                });
+                  // Render only the visible events with additional error handling
+                  return visibleEvents.map((event, index) => {
+                    // Skip rendering if event is invalid
+                    if (!event || typeof event !== 'object' || !event.id) {
+                      console.error('Invalid event object:', event);
+                      return null;
+                    }
+                    
+                    try {
+                      const originalIndex = events.findIndex(e => e && e.id === event.id);
+                      
+                      return (
+                        <Fade
+                          key={`marker-${event.id}`}
+                          in={!isMoving}
+                          timeout={{ enter: 500, exit: 200 }}
+                          style={{
+                            transitionDelay: `${index * 20}ms`,
+                          }}
+                        >
+                          <div>
+                            <EventMarker
+                              event={event}
+                              viewMode={viewMode}
+                              timelineOffset={timelineOffset}
+                              markerSpacing={100}
+                              isSelected={event.id === selectedEventId}
+                              onClick={(e) => handleMarkerClick(event, originalIndex)}
+                            />
+                          </div>
+                        </Fade>
+                      );
+                    } catch (error) {
+                      console.error(`Error rendering event marker for event ${event.id}:`, error);
+                      return null; // Return null for this event if there's an error
+                    }
+                  });
+                } catch (error) {
+                  console.error('Error rendering event markers:', error);
+                  return null; // Return null if the entire rendering process fails
+                }
               })()}
             </>
           )}

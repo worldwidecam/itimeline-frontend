@@ -204,7 +204,15 @@ const EventList = ({
     const cardRef = React.createRef();
     
     const card = (() => {
-      switch (event.type?.toLowerCase()) {
+      // Make sure event exists and has a type property
+      if (!event) {
+        console.error('Attempted to render card for undefined event');
+        return null;
+      }
+
+      const eventType = event.type?.toLowerCase() || '';
+      
+      switch (eventType) {
         case EVENT_TYPES.NEWS:
           // Store the ref in the eventRefs object with a type-specific key
           eventRefs.current[`news-card-${event.id}`] = cardRef;
@@ -220,8 +228,10 @@ const EventList = ({
 
     // Get the appropriate color based on event type
     const getEventColor = () => {
-      if (!event.type) return theme.palette.primary.main;
+      if (!event || !event.type) return theme.palette.primary.main;
       const colors = EVENT_TYPE_COLORS[event.type];
+      // Handle case where the event type doesn't have corresponding colors
+      if (!colors) return theme.palette.primary.main;
       return theme.palette.mode === 'dark' ? colors.dark : colors.light;
     };
 
@@ -544,7 +554,10 @@ const EventList = ({
           >
             All
           </Button>
-          {Object.entries(EVENT_TYPES).map(([key, type]) => (
+          {Object.entries(EVENT_TYPES)
+            // Filter out media subtypes - only show main event types
+            .filter(([key, type]) => !key.includes('MEDIA_'))
+            .map(([key, type]) => (
             <Button
               key={type}
               variant={selectedType === type ? "contained" : "outlined"}
@@ -577,14 +590,14 @@ const EventList = ({
               }
               sx={{
                 minWidth: '100px',
-                bgcolor: selectedType === type ? EVENT_TYPE_COLORS[type].light : 'transparent',
-                color: selectedType === type ? 'white' : EVENT_TYPE_COLORS[type].light,
-                borderColor: EVENT_TYPE_COLORS[type].light,
+                bgcolor: selectedType === type && EVENT_TYPE_COLORS[type] ? EVENT_TYPE_COLORS[type].light : 'transparent',
+                color: selectedType === type ? 'white' : (EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light),
+                borderColor: EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light,
                 '&:hover': {
                   bgcolor: selectedType === type 
-                    ? EVENT_TYPE_COLORS[type].light
-                    : `${EVENT_TYPE_COLORS[type].light}22`,
-                  borderColor: EVENT_TYPE_COLORS[type].light
+                    ? (EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light)
+                    : `${EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light}22`,
+                  borderColor: EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light
                 }
               }}
             >

@@ -187,10 +187,25 @@ const EventPopup = ({ event, open, onClose }) => {
     
     const mimeType = event.media_type || '';
     
-    // Enhanced media type detection
-    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(mediaSource) || mimeType.startsWith('image/');
-    const isVideo = /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(mediaSource) || mimeType.startsWith('video/');
-    const isAudio = /\.(mp3|wav|ogg|aac|flac|m4a)$/i.test(mediaSource) || mimeType.startsWith('audio/');
+    // First check if we have the new media_subtype field
+    let isImage = false;
+    let isVideo = false;
+    let isAudio = false;
+    
+    // Make sure event is defined before accessing properties
+    if (event && event.media_subtype) {
+      // Use the new media_subtype field when available
+      console.log('EventPopup - Using media_subtype:', event.media_subtype);
+      isImage = event.media_subtype === 'image';
+      isVideo = event.media_subtype === 'video';
+      isAudio = event.media_subtype === 'audio';
+    } else {
+      // Fall back to the old detection method for backward compatibility
+      // Enhanced media type detection based on file extension or MIME type
+      isImage = mediaSource && (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(mediaSource) || (mimeType && mimeType.startsWith('image/')));
+      isVideo = mediaSource && (/\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(mediaSource) || (mimeType && mimeType.startsWith('video/')));
+      isAudio = mediaSource && (/\.(mp3|wav|ogg|aac|flac|m4a)$/i.test(mediaSource) || (mimeType && mimeType.startsWith('audio/')));
+    }
     
     if (isImage) {
       return (
