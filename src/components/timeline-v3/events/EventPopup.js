@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ImageEventPopup from './ImageEventPopup'; // Import the specialized image popup component
 import {
   Dialog,
   DialogTitle,
@@ -477,7 +478,84 @@ const EventPopup = ({ event, open, onClose }) => {
   };
 
   if (!event) return null;
+  
+  // Determine if this is an image media event
+  const isImageMedia = () => {
+    if (safeEventType !== EVENT_TYPES.MEDIA) return false;
+    
+    const mediaSource = event.media_url || event.mediaUrl || event.url;
+    if (!mediaSource) return false;
+    
+    const mimeType = event.media_type || '';
+    
+    // Check if we have the media_subtype field
+    if (event.media_subtype) {
+      return event.media_subtype === 'image';
+    }
+    
+    // Fallback to extension or MIME type check
+    return (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(mediaSource) || 
+            (mimeType && mimeType.startsWith('image/')));
+  };
+  
+  // Get the media source URL
+  const getMediaSource = () => {
+    let mediaSource = event.media_url || event.mediaUrl || event.url;
+    if (!mediaSource) return '';
+    
+    // Handle relative URLs by prepending the API_URL
+    if (mediaSource && !mediaSource.startsWith('http')) {
+      // Remove any duplicate slashes that might occur when joining URLs
+      const baseUrl = config.API_URL.endsWith('/') 
+        ? config.API_URL.slice(0, -1) 
+        : config.API_URL;
+      
+      mediaSource = mediaSource.startsWith('/') 
+        ? `${baseUrl}${mediaSource}`
+        : `${baseUrl}/${mediaSource}`;
+    }
+    
+    // Force reload the image to bypass cache (add timestamp)
+    const timestamp = new Date().getTime();
+    mediaSource = mediaSource.includes('?') 
+      ? `${mediaSource}&t=${timestamp}` 
+      : `${mediaSource}?t=${timestamp}`;
+    
+    return mediaSource;
+  };
+  
+  // Check if we should use the specialized image popup
+  const useImagePopup = isImageMedia();
+  const mediaSource = getMediaSource();
 
+  // For image media, use the specialized ImageEventPopup component
+  if (useImagePopup) {
+    return (
+      <ImageEventPopup
+        event={event}
+        open={open}
+        onClose={onClose}
+        mediaSource={mediaSource}
+        formatDate={formatDate}
+        formatEventDate={formatEventDate}
+        color={color}
+        TypeIcon={TypeIcon}
+        snackbarOpen={snackbarOpen}
+        handleSnackbarClose={handleSnackbarClose}
+        error={error}
+        success={success}
+        existingTimelines={existingTimelines}
+        selectedTimeline={selectedTimeline}
+        setSelectedTimeline={setSelectedTimeline}
+        loadingTimelines={loadingTimelines}
+        addingToTimeline={addingToTimeline}
+        setError={setError}
+        handleAddToTimeline={handleAddToTimeline}
+      />
+    );
+  }
+
+  // For all other event types, use the standard popup
   return (
     <>
       <AnimatePresence>
