@@ -181,23 +181,23 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     // Configuration parameters - these could be exposed as props for customization
     const config = {
       // Core parameters
-      coreSizeMin: 12,           // Minimum size of the central core when quiet
-      coreSizeMax: 28,           // Maximum size the core can pulse to
-      coreColorInner: 'rgba(255, 100, 100, 0.9)',  // Inner core color
-      coreColorOuter: 'rgba(255, 0, 0, 0.8)',      // Outer core color
-      coreGlowColor: 'rgba(128, 0, 0, 0)',         // Core glow fade color
+      coreSizeMin: 15,           // Minimum size of the central core when quiet (increased)
+      coreSizeMax: 35,           // Maximum size the core can pulse to (increased)
+      coreColorInner: 'rgba(255, 100, 100, 0.95)', // Inner core color (more opaque)
+      coreColorOuter: 'rgba(255, 0, 0, 0.9)',      // Outer core color (more opaque)
+      coreGlowColor: 'rgba(128, 0, 0, 0.2)',       // Core glow fade color (added some opacity)
       
       // Ripple parameters
-      maxRipples: 12,            // Maximum number of active ripple waves - INCREASED
-      rippleSpeed: 1.8,          // Speed at which ripples move outward - INCREASED
-      rippleLifespan: 150,       // How long ripples last before fading (frames) - INCREASED
-      rippleSpawnRate: 0.35,     // Chance of spawning a new ripple (0-1) - INCREASED
-      rippleMaxSize: Math.min(width, height) * 0.45,  // Maximum ripple size
+      maxRipples: 6,             // REDUCED for better performance
+      rippleSpeed: 2.2,          // INCREASED for more immediate visual feedback
+      rippleLifespan: 100,       // DECREASED for better performance
+      rippleSpawnRate: 0.2,      // REDUCED to only create ripples on significant beats
+      rippleMaxSize: Math.min(width, height) * 0.4, // Maximum ripple size
       
-      // Pixel parameters
-      pixelSize: 8,              // Base size of each pixel - DOUBLED
-      pixelGap: 1.2,             // Gap between pixels (lower = more dense) - DECREASED
-      pixelVariation: 0.5,       // How much pixels vary in size based on frequency - INCREASED
+      // Pixel parameters - new approach with fewer, larger pixels
+      pixelSize: 10,             // Larger pixels for better visibility
+      pixelGap: 2.5,             // MORE space between pixels for cleaner look
+      pixelVariation: 0.3,       // REDUCED variation for more consistent look
       
       // Color parameters
       baseColor: [255, 50, 50],  // Base RGB color
@@ -268,109 +268,68 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
       highIntensity = 0.05;
     }
     
-    // Only add debug ripples when actually playing (not just when isPlaying state is true)
-    // This ensures ripples are tied to actual audio decibels
-    if (isPlaying && audioRef.current && !audioRef.current.paused) {
-      // Add a debug ripple at a reasonable rate - not too frequent
-      if (Math.random() < 0.05) { // Reduced from 0.1 to 0.05 for fewer ripples
-        audioRipplesRef.current.push({
-          size: config.coreSizeMax * 2, // Start larger for visibility
-          age: 0,
-          intensity: 1.0, // Maximum intensity
-          frequencySnapshot: [...dataArrayRef.current], // Use actual audio data
-          type: 'debug',
-          pixelSize: 10, // Large pixels for visibility but not overwhelming
-          pixelGap: 1.2, // Slightly more gap
-          speed: 1.8 // Fast but not too fast
-        });
-        console.log('Added debug ripple based on audio, count:', audioRipplesRef.current.length);
-      }
-    }
+    // Remove debug ripples - we'll use a more efficient approach focused on beat detection
     
-    // Generate ripples based on frequency bands or a regular heartbeat when playing
+    // NEW APPROACH: Beat detection and responsive ripple generation
     // Only generate ripples when audio is actually playing (not paused)
     if (isPlaying && audioRef.current && !audioRef.current.paused) {
-      // Ensure we generate at least some ripples even with low audio levels
-      // This creates a "heartbeat" effect to ensure ripples are always visible
-      const heartbeatRipple = Math.random() < 0.05; // Regular heartbeat ripples
+      // Store previous frame's bass intensity for beat detection
+      const prevBassIntensity = lastPlayingIntensitiesRef.current?.bassIntensity || 0;
       
-      // 1. Bass-triggered ripples (larger, fewer pixels)
-      // Much lower threshold to ensure ripples appear
-      const bassTrigger = bassIntensity > 0.15 || (bassIntensity > 0.05 && Math.random() < bassIntensity * 2) || heartbeatRipple;
-      if (bassTrigger && audioRipplesRef.current.length < config.maxRipples) {
-        // Create a bass ripple - larger, stronger, fewer pixels
-        const bassRipple = {
-          size: config.coreSizeMax * 1.3, // Start larger
+      // BEAT DETECTION: Detect significant changes in bass intensity
+      // This creates a more responsive connection between audio and visuals
+      const bassJump = bassIntensity - prevBassIntensity;
+      const significantBeat = bassJump > 0.08; // Threshold for beat detection
+      
+      // Generate ripples based on detected beats and frequency bands
+      if (significantBeat && audioRipplesRef.current.length < config.maxRipples) {
+        // Create a ripple directly tied to the beat
+        const beatRipple = {
+          size: config.coreSizeMax * 1.1, // Start just outside the core
           age: 0,
-          intensity: Math.max(0.3, 0.5 + (bassIntensity * 0.8)), // Ensure minimum intensity
+          intensity: Math.max(0.4, bassIntensity * 1.2), // Ensure good visibility
           frequencySnapshot: [...frequencyData],
-          type: 'bass',
-          pixelSize: config.pixelSize * 1.5, // Larger pixels
-          pixelGap: config.pixelGap * 2, // More space between pixels
-          speed: config.rippleSpeed * 1.2 // Move faster
+          type: 'beat',
+          // Adjust ripple appearance based on frequency content
+          pixelSize: config.pixelSize * (bassIntensity > 0.3 ? 1.5 : 1.0),
+          pixelGap: config.pixelGap * (midIntensity > 0.3 ? 0.8 : 1.0),
+          speed: config.rippleSpeed * (1.0 + bassIntensity * 0.5) // Faster for stronger beats
         };
-        audioRipplesRef.current.push(bassRipple);
         
-        // Debug log to verify ripples are being created
-        console.log('Created bass ripple, total ripples:', audioRipplesRef.current.length);
+        audioRipplesRef.current.push(beatRipple);
+        console.log('Created beat-triggered ripple, intensity:', bassIntensity.toFixed(2));
       }
       
-      // 2. Mid-range triggered ripples (medium size, normal pixels)
-      // Lower threshold to ensure ripples appear
-      const midTrigger = midIntensity > 0.1 || (Math.random() < config.rippleSpawnRate * 3 * midIntensity) || heartbeatRipple;
-      if (midTrigger && audioRipplesRef.current.length < config.maxRipples) {
-        // Create a mid-range ripple - standard size and density
-        const midRipple = {
-          size: config.coreSizeMax * 1.2,
+      // Occasional ripples for sustained high frequencies (like vocals or synths)
+      const highFreqSustained = highIntensity > 0.25 && Math.random() < 0.1;
+      if (highFreqSustained && audioRipplesRef.current.length < config.maxRipples) {
+        const highFreqRipple = {
+          size: config.coreSizeMax * 1.05,
           age: 0,
-          intensity: Math.max(0.2, 0.3 + (midIntensity * 0.7)), // Ensure minimum intensity
-          frequencySnapshot: [...frequencyData],
-          type: 'mid',
-          pixelSize: config.pixelSize, // Standard pixel size
-          pixelGap: config.pixelGap, // Standard gap
-          speed: config.rippleSpeed
-        };
-        audioRipplesRef.current.push(midRipple);
-        
-        // Debug log to verify ripples are being created
-        console.log('Created mid ripple, total ripples:', audioRipplesRef.current.length);
-      }
-      
-      // 3. High-frequency triggered ripples (smaller, many tiny pixels)
-      // Lower threshold to ensure ripples appear
-      const highTrigger = highIntensity > 0.08 || (Math.random() < config.rippleSpawnRate * 4 * highIntensity) || heartbeatRipple;
-      if (highTrigger && audioRipplesRef.current.length < config.maxRipples) {
-        // Create a high-frequency ripple - smaller, denser pixels
-        const highRipple = {
-          size: config.coreSizeMax * 1.1, // Start smaller
-          age: 0,
-          intensity: Math.max(0.15, 0.2 + (highIntensity * 0.8)), // Ensure minimum intensity
+          intensity: 0.3 + (highIntensity * 0.5),
           frequencySnapshot: [...frequencyData],
           type: 'high',
-          pixelSize: config.pixelSize * 0.7, // Smaller pixels
-          pixelGap: config.pixelGap * 0.7, // Less space between pixels (more dense)
-          speed: config.rippleSpeed * 0.9 // Move slightly slower
+          pixelSize: config.pixelSize * 0.8, // Smaller pixels
+          pixelGap: config.pixelGap * 1.5, // More space between pixels
+          speed: config.rippleSpeed * 1.3 // Move faster
         };
-        audioRipplesRef.current.push(highRipple);
-        
-        // Debug log to verify ripples are being created
-        console.log('Created high ripple, total ripples:', audioRipplesRef.current.length);
+        audioRipplesRef.current.push(highFreqRipple);
       }
       
-      // Force at least one ripple if none were created and we're playing
-      if (audioRipplesRef.current.length === 0 && isPlaying) {
-        const forcedRipple = {
+      // Heartbeat ripple for very quiet sections to ensure some visual activity
+      const isQuiet = bassIntensity < 0.1 && midIntensity < 0.1 && highIntensity < 0.1;
+      if (isQuiet && Math.random() < 0.03 && audioRipplesRef.current.length < 2) {
+        const heartbeatRipple = {
           size: config.coreSizeMax * 1.2,
           age: 0,
-          intensity: 0.3,
-          frequencySnapshot: Array(128).fill(50), // Simple default frequency data
-          type: 'forced',
-          pixelSize: config.pixelSize,
-          pixelGap: config.pixelGap,
-          speed: config.rippleSpeed
+          intensity: 0.2, // Subtle
+          frequencySnapshot: Array(128).fill(30), // Low values for subtlety
+          type: 'heartbeat',
+          pixelSize: config.pixelSize * 0.9,
+          pixelGap: config.pixelGap * 1.2,
+          speed: config.rippleSpeed * 0.8 // Slower
         };
-        audioRipplesRef.current.push(forcedRipple);
-        console.log('Created forced ripple');
+        audioRipplesRef.current.push(heartbeatRipple);
       }
     }
     
@@ -450,9 +409,32 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
           // Increase base opacity to make pixels more visible
           const angleOpacity = 0.9 + Math.sin(angle * 6) * 0.1;
           
-          // Draw the pixel as a square for 8-bit effect
-          // Use MUCH higher opacity to make pixels more visible
-          ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${Math.min(1.0, opacity * angleOpacity * 2.0)})`;
+          // NEW APPROACH: Draw the pixel as a square for 8-bit effect
+          // Use higher opacity and more vibrant colors based on ripple type
+          let finalRed = red;
+          let finalGreen = green;
+          let finalBlue = blue;
+          
+          // Enhance colors based on ripple type for better visual distinction
+          if (ripple.type === 'beat') {
+            // Beat ripples are more red/orange - clearly tied to bass hits
+            finalRed = Math.min(255, red * 1.2);
+            finalGreen = Math.min(255, green * 0.9);
+            finalBlue = Math.min(255, blue * 0.7);
+          } else if (ripple.type === 'high') {
+            // High frequency ripples are more blue/purple
+            finalRed = Math.min(255, red * 0.8);
+            finalGreen = Math.min(255, green * 0.7);
+            finalBlue = Math.min(255, blue * 1.5);
+          } else if (ripple.type === 'heartbeat') {
+            // Heartbeat ripples are more subtle/pink
+            finalRed = Math.min(255, red * 0.9);
+            finalGreen = Math.min(255, green * 0.6);
+            finalBlue = Math.min(255, blue * 0.8);
+          }
+          
+          // Higher contrast and opacity for better visibility
+          ctx.fillStyle = `rgba(${finalRed}, ${finalGreen}, ${finalBlue}, ${Math.min(1.0, opacity * angleOpacity * 1.8)})`;
           
           // Draw slightly larger pixels to ensure visibility
           const renderSize = pixelSizeAdjusted * 1.2;
