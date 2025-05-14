@@ -12,8 +12,7 @@ import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
 import LandingPage from './components/LandingPage';
-// MARKED FOR DELETION: No longer used on homepage
-// import MediaUploader from './components/MediaUploader';
+import AudioTester from './components/AudioTester';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { EmailBlurProvider } from './contexts/EmailBlurContext';
@@ -665,19 +664,14 @@ const Homepage = () => {
             )}
           </Box>
           
-          {/* 
-          // MARKED FOR DELETION: Media Uploader Test section
-          // This was a development testing feature and is no longer needed on the homepage
-          // If needed elsewhere, consider moving this component to a dedicated testing/admin page
           <Divider sx={{ my: 4 }} />
           <Typography variant="h5" sx={{ mb: 3 }}>
-            Media Uploader Test
+            Audio Visualizer Test
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Use this tool to test media uploads without creating an event. This helps diagnose any issues with the upload functionality.
+            Use this tool to test audio uploads and visualization. This helps develop and diagnose the audio media handling functionality.
           </Typography>
-          <MediaUploader />
-          */}
+          <AudioTester />
         </>
       )}
 
