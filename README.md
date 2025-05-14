@@ -89,6 +89,30 @@ The timeline component implements a progressive loading strategy to ensure smoot
   - Updates automatically as users navigate through different timeline views
   - Accounts for partially visible markers at screen edges
 
+### Specialized Media Handling <!-- BOOKMARK: MEDIA_HANDLING -->
+- **Modular Media Components**:
+  - Specialized components for different media types (image, video, audio)
+  - MediaPopupManager for centralized media type detection and rendering
+  - Two-container layout for enhanced media viewing experience
+
+- **Image Media**:
+  - Fixed image display with black background in left container (60% width)
+  - Scrollable content area for event details in right container (40% width)
+  - Fullscreen button for enhanced viewing
+  - Optimized for both portrait and landscape images
+
+- **Video Media**:
+  - Special handling in MediaCard component for video playback
+  - Play/pause toggling when clicking selected video cards
+  - Auto-pause when card is deselected or navigated away from
+  - Enhanced details button with visual indicators
+  - Two-container layout in popup with video player on left, content on right
+
+- **Media Type Detection**:
+  - Multi-layered detection using media_subtype field, file extensions, and MIME types
+  - Consistent handling across components
+  - Fallback mechanisms for backward compatibility
+
 ### Date and Time Handling
 - **Raw Date String Storage**: Stores event dates as raw strings in the format `MM.DD.YYYY.HH.MM.AMPM`
 - **Exact User Time Preservation**: Uses the `is_exact_user_time` flag to indicate user-selected times

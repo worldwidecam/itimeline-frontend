@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import {
   Typography,
   IconButton,
@@ -26,12 +26,15 @@ import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
+import VideoDetailsButton from './VideoDetailsButton';
 import config from '../../../../config';
 
 const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef(null);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
   
@@ -40,8 +43,23 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     setPopupOpen: (open) => {
       console.log('MediaCard: External call to setPopupOpen', open);
       setPopupOpen(open);
+    },
+    pauseVideo: () => {
+      if (videoRef.current && !videoRef.current.paused) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
     }
   }));
+  
+  // Effect to pause video when card is deselected
+  useEffect(() => {
+    if (!isSelected && videoRef.current && !videoRef.current.paused) {
+      console.log('MediaCard: Pausing video because card was deselected');
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [isSelected]);
 
   const handleMenuOpen = (e) => {
     e.stopPropagation();
@@ -126,13 +144,23 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     if (onEdit && typeof onEdit === 'function') {
       // For video media cards, we'll handle clicks differently
       if (isVideoMedia) {
-        // For videos, just select the card but don't open popup on second click
-        // This allows the video controls to work properly
         if (!isSelected) {
-          console.log('Video card: selecting but not opening popup on second click');
+          // First click selects the card
+          console.log('Video card: selecting');
           onEdit({ type: 'select', event });
         } else {
-          console.log('Video card already selected: not opening popup to allow video controls to work');
+          // When already selected, toggle play/pause
+          console.log('Video card already selected: toggling play/pause');
+          if (videoRef.current) {
+            if (videoRef.current.paused) {
+              videoRef.current.play()
+                .then(() => setIsPlaying(true))
+                .catch(err => console.error('Error playing video:', err));
+            } else {
+              videoRef.current.pause();
+              setIsPlaying(false);
+            }
+          }
         }
         // For videos, we'll rely on the Details button to open the popup
       } else {
@@ -313,13 +341,23 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         }}
       >
         <video
-          controls
+          ref={videoRef}
+          controls={isSelected} // Only show controls when selected
           width="100%"
           height="100%"
-          style={{ objectFit: 'cover' }}
+          style={{ 
+            objectFit: 'cover',
+            // Hide controls visually but keep them functional
+            // This creates a cleaner look while still allowing interaction
+            opacity: isSelected ? 0.99 : 1
+          }}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
           onError={(e) => {
             const currentSrc = e.target.src;
             const currentIndex = mediaSources.indexOf(currentSrc);
+            setIsPlaying(false);
             
             if (currentIndex < mediaSources.length - 1) {
               e.target.src = mediaSources[currentIndex + 1];
@@ -348,49 +386,12 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
             pointerEvents: 'none'
           }}
         />
-        {/* Enhanced Details button for video media */}
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 12,
-            right: 12,
-            zIndex: 3,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(4px)',
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            borderRadius: '20px',
-            padding: '6px 12px',
-            transition: 'all 0.2s ease',
-            border: `1px solid ${color}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            '&:hover': {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              transform: 'scale(1.05)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-            }
-          }}
+        {/* Enhanced details button specifically for video media */}
+        <VideoDetailsButton
           onClick={handleDetailsClick}
-        >
-          <Typography 
-            variant="button" 
-            sx={{ 
-              color: 'white',
-              fontSize: '0.75rem',
-              fontWeight: 'bold',
-              mr: 0.5 
-            }}
-          >
-            View Full Video
-          </Typography>
-          <MediaIcon sx={{ color: 'white', fontSize: '1rem' }} />
-        </Box>
-        <PageCornerButton 
-          position="top-right" 
-          onClick={handleDetailsClick}
-          icon={<MediaIcon />}
+          tooltip="View Full Video"
           color={color}
+          isSelected={isSelected}
         />
       </Box>
     );

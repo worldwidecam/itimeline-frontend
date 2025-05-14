@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import ImageMediaPopup from './ImageMediaPopup';
+import VideoMediaPopup from './VideoMediaPopup';
 
 /**
  * MediaPopupManager - Determines which media popup component to render based on media type
@@ -8,7 +9,15 @@ import ImageMediaPopup from './ImageMediaPopup';
  * specialized component for each media subtype.
  */
 const MediaPopupManager = ({ event, mediaSource, children }) => {
+  // Debug log to verify media source is being passed correctly
+  console.log('MediaPopupManager received:', { mediaSource, event });
   // Determine media type
+  // Ensure we have a valid media source
+  if (!mediaSource) {
+    console.error('MediaPopupManager: No media source provided');
+    return children;
+  }
+  
   const detectMediaType = () => {
     const mimeType = event.media_type || '';
     
@@ -51,9 +60,14 @@ const MediaPopupManager = ({ event, mediaSource, children }) => {
       );
       
     case 'video':
-      // For now, we'll use the default layout for video
-      // In the future, we can create a VideoMediaPopup component
-      return children;
+      return (
+        <VideoMediaPopup 
+          event={event} 
+          mediaSource={mediaSource}
+        >
+          {children}
+        </VideoMediaPopup>
+      );
       
     case 'audio':
       // For now, we'll use the default layout for audio

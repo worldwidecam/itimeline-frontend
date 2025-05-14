@@ -27,6 +27,9 @@ import {
   AccessTime as AccessTimeIcon,
   Add as AddIcon,
   ExpandMore as ExpandMoreIcon,
+  Fullscreen as FullscreenIcon,
+  VolumeUp as VolumeUpIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -35,12 +38,12 @@ import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import TagList from './cards/TagList';
 
 /**
- * ImageEventPopup - A specialized popup for image media events
+ * VideoEventPopup - A specialized popup for video media events
  * Features a two-container layout:
- * - Left container (60%): Fixed image display with black background
+ * - Left container (60%): Fixed video display with black background and enhanced controls
  * - Right container (40%): Scrollable content area for event details
  */
-const ImageEventPopup = ({ 
+const VideoEventPopup = ({ 
   event, 
   open, 
   onClose, 
@@ -65,6 +68,8 @@ const ImageEventPopup = ({
   const theme = useTheme();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   const [localEventData, setLocalEventData] = useState(event);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [videoElement, setVideoElement] = useState(null);
   
   // Fetch timelines when the tag section is expanded
   useEffect(() => {
@@ -89,6 +94,52 @@ const ImageEventPopup = ({
       onClose();
     }
   };
+
+  // Toggle fullscreen for the video
+  const toggleFullscreen = () => {
+    if (!videoElement) return;
+    
+    if (!isFullscreen) {
+      if (videoElement.requestFullscreen) {
+        videoElement.requestFullscreen();
+      } else if (videoElement.webkitRequestFullscreen) {
+        videoElement.webkitRequestFullscreen();
+      } else if (videoElement.msRequestFullscreen) {
+        videoElement.msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  // Handle fullscreen change events
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(
+        document.fullscreenElement || 
+        document.webkitFullscreenElement || 
+        document.msFullscreenElement
+      );
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   if (!event) return null;
 
@@ -130,7 +181,7 @@ const ImageEventPopup = ({
             },
           }}
         >
-          {/* Left container - Fixed image display */}
+          {/* Left container - Fixed video display */}
           <Box
             sx={{
               width: '60%',
@@ -145,58 +196,66 @@ const ImageEventPopup = ({
               borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
             }}
           >
-            {/* The image itself - centered and fixed */}
-            <motion.img 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              src={mediaSource} 
-              alt={event.title || "Image Media"}
-              style={{ 
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain',
-                display: 'block',
-                cursor: 'pointer',
-              }} 
-              onClick={(e) => {
-                // Open image in new tab for full resolution view
-                window.open(mediaSource, '_blank');
-              }}
-              onError={(e) => {
-                console.error('Error loading image:', e);
-                e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
-              }}
-            />
-            
-            {/* Fullscreen button overlay */}
+            {/* The video itself - centered and fixed */}
             <Box
               sx={{
-                position: 'absolute',
-                bottom: 16,
-                right: 16,
-                bgcolor: 'rgba(0,0,0,0.5)',
-                color: 'white',
-                borderRadius: '50%',
-                width: 40,
-                height: 40,
+                width: '100%',
+                height: '100%',
                 display: 'flex',
-                alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer',
-                opacity: 0.7,
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  opacity: 1,
-                  transform: 'scale(1.1)'
-                },
-                zIndex: 5,
+                alignItems: 'center',
+                position: 'relative',
               }}
-              onClick={() => window.open(mediaSource, '_blank')}
-              title="View full size"
             >
-              <Box component="span" sx={{ fontSize: 20 }}>⤢</Box>
+              <video
+                ref={el => setVideoElement(el)}
+                controls
+                autoPlay={false}
+                style={{ 
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  width: 'auto',
+                  height: 'auto',
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+                onError={(e) => {
+                  console.error('Error loading video:', e);
+                  e.target.onerror = null;
+                }}
+              >
+                <source src={mediaSource} type={event.media_type || 'video/mp4'} />
+                Your browser does not support the video tag.
+              </video>
+              
+              {/* Fullscreen button overlay */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 16,
+                  right: 16,
+                  bgcolor: 'rgba(0,0,0,0.5)',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: 40,
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  opacity: 0.7,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    opacity: 1,
+                    transform: 'scale(1.1)'
+                  },
+                  zIndex: 5,
+                }}
+                onClick={toggleFullscreen}
+                title="Toggle fullscreen"
+              >
+                <FullscreenIcon />
+              </Box>
             </Box>
           </Box>
           
@@ -256,7 +315,7 @@ const ImageEventPopup = ({
                       : 'rgba(0,0,0,0.85)',
                   }}
                 >
-                  {event.title || "Untitled Event"}
+                  {event.title || "Untitled Video"}
                 </Typography>
               </Box>
               <IconButton 
@@ -679,4 +738,4 @@ const ImageEventPopup = ({
   );
 };
 
-export default ImageEventPopup;
+export default VideoEventPopup;

@@ -23,9 +23,6 @@ import {
   Comment as RemarkIcon,
   Newspaper as NewsIcon,
   PermMedia as MediaIcon,
-  ExpandMore as ExpandMoreIcon,
-  Add as AddIcon,
-  Event as EventIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -170,13 +167,6 @@ const EventPopup = ({ event, open, onClose }) => {
       setLoadingTimelines(false);
     }
   };
-  
-  // Fetch timelines when the tag section is expanded
-  useEffect(() => {
-    if (tagSectionExpanded && existingTimelines.length === 0) {
-      fetchExistingTimelines();
-    }
-  }, [tagSectionExpanded]);
 
   // Function to add the event to the selected timeline
   const handleAddToTimeline = async () => {
@@ -325,7 +315,6 @@ const EventPopup = ({ event, open, onClose }) => {
         addingToTimeline={addingToTimeline}
         setError={setError}
         handleAddToTimeline={handleAddToTimeline}
-        fetchExistingTimelines={fetchExistingTimelines}
       />
     );
   }
@@ -353,7 +342,6 @@ const EventPopup = ({ event, open, onClose }) => {
         addingToTimeline={addingToTimeline}
         setError={setError}
         handleAddToTimeline={handleAddToTimeline}
-        fetchExistingTimelines={fetchExistingTimelines}
       />
     );
   }
@@ -474,169 +462,23 @@ const EventPopup = ({ event, open, onClose }) => {
             )}
             
             {/* Tags section */}
-            <Box sx={{ mb: 3 }}>
-              {(event.tags && event.tags.length > 0) && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      mb: 1.5,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.7)'
-                        : 'rgba(0,0,0,0.6)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Tags
-                  </Typography>
-                  <TagList tags={localEventData?.tags || event.tags} />
-                </Box>
-              )}
-              
-              {/* Timeline tagging system */}
+            {(event.tags && event.tags.length > 0) && (
               <Box sx={{ mb: 3 }}>
-                <Box 
-                  onClick={() => {
-                    setTagSectionExpanded(!tagSectionExpanded);
-                  }}
+                <Typography 
+                  variant="subtitle2" 
                   sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    fontSize: '0.9rem',
-                    mb: tagSectionExpanded ? 2 : 0,
+                    mb: 1.5,
                     color: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.7)'
                       : 'rgba(0,0,0,0.6)',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      color: theme.palette.primary.main,
-                    },
-                    transition: 'color 0.2s ease',
+                    fontWeight: 500,
                   }}
                 >
-                  <span style={{ 
-                    color: theme.palette.primary.main,
-                    fontSize: '0.9rem',
-                    marginRight: '4px',
-                  }}>#</span>
-                  Tag a Timeline
-                  <ExpandMoreIcon 
-                    fontSize="small" 
-                    sx={{ 
-                      fontSize: '0.9rem',
-                      ml: 0.5,
-                      transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s ease',
-                    }} 
-                  />
-                </Box>
-                
-                {tagSectionExpanded && (
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: theme.palette.mode === 'dark'
-                        ? 'rgba(0,0,0,0.2)'
-                        : 'rgba(0,0,0,0.02)',
-                      border: '1px solid',
-                      borderColor: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.05)',
-                    }}
-                  >
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Add this event to an existing timeline:
-                  </Typography>
-                  
-                  <Autocomplete
-                    id="timeline-select"
-                    options={existingTimelines}
-                    loading={loadingTimelines}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    value={selectedTimeline}
-                    onChange={(event, newValue) => {
-                      setSelectedTimeline(newValue);
-                      setError('');
-                    }}
-                    // Only show options that start with the input text
-                    filterOptions={(options, state) => {
-                      // Don't show any options if the input is empty
-                      if (!state.inputValue) return [];
-                      
-                      // Filter options that start with the input text (case insensitive)
-                      return options.filter(option => 
-                        option.name.toLowerCase().startsWith(state.inputValue.toLowerCase())
-                      );
-                    }}
-                    renderInput={(params) => (
-                      <TextField 
-                        {...params} 
-                        label="Search Timeline" 
-                        variant="outlined"
-                        helperText="Type to search for a timeline"
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <React.Fragment>
-                              {loadingTimelines ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </React.Fragment>
-                          ),
-                        }}
-                      />
-                    )}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span style={{ 
-                            color: theme.palette.primary.main,
-                            fontSize: '1rem',
-                            marginRight: '4px'
-                          }}>#</span>
-                          {option.name}
-                        </Box>
-                      </li>
-                    )}
-                    noOptionsText="Type to search for timelines"
-                  />
-                  
-                  {error && (
-                    <Alert severity="error" sx={{ mt: 2 }}>
-                      {error}
-                    </Alert>
-                  )}
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<AddIcon />}
-                      disabled={!selectedTimeline || addingToTimeline}
-                      onClick={handleAddToTimeline}
-                      sx={{ 
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        px: 2,
-                      }}
-                    >
-                      {addingToTimeline ? (
-                        <CircularProgress size={24} color="inherit" />
-                      ) : (
-                        'Tag Timeline'
-                      )}
-                    </Button>
-                  </Box>
-                  </Paper>
-                )}
+                  Tags
+                </Typography>
+                <TagList tags={localEventData?.tags || event.tags} />
               </Box>
-            </Box>
+            )}
             
             {/* Event metadata */}
             <Paper
