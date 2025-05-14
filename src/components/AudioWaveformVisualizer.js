@@ -181,26 +181,28 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     // Configuration parameters - these could be exposed as props for customization
     const config = {
       // Core parameters
-      coreSizeMin: 15,           // Minimum size of the central core when quiet
-      coreSizeMax: 30,           // Maximum size the core can pulse to (reduced to prevent too much growth)
-      corePulseSpeed: 0.6,       // Reduced pulse speed for more gentle animation when resting
+      coreSizeMin: 10,           // Smaller minimum size of the central core when quiet
+      coreSizeMax: 28,           // Maximum size the core can pulse to (reduced to prevent too much growth)
+      corePulseSpeed: 0.5,       // Further reduced pulse speed for more gentle animation when resting
       coreColorInner: 'rgba(255, 100, 100, 0.95)', // Inner core color (more opaque)
       coreColorOuter: 'rgba(255, 0, 0, 0.9)',      // Outer core color (more opaque)
       coreGlowColor: 'rgba(128, 0, 0, 0.2)',       // Core glow fade color
       coreGlowSize: 2.5,         // Increased aura size multiplier (was 1.5)
       
-      // Ripple parameters - Redesigned for smoother, modern look
+      // Ripple parameters - Redesigned for true outward-only motion
       maxRipples: 8,             // Increased for more visual richness
-      rippleSpeed: 2.0,          // Slightly reduced for smoother movement
-      rippleLifespan: 150,       // Increased for longer-lasting ripples
+      rippleInitialSpeed: 2.5,   // Moderate initial speed for smooth motion
+      rippleSpeedDecay: 0.99,    // Very slight speed decay for more consistent outward motion
+      rippleLifespan: 180,       // Balanced lifespan for proper container coverage
       rippleSpawnRate: 0.3,      // Increased for more frequent ripples
-      rippleMaxSize: Math.min(width, height) * 0.6, // Larger maximum size to reach edges
+      rippleMaxSize: Math.max(width, height) * 1.1, // Slightly beyond container to ensure full coverage
       
       // Modern ripple style parameters
       rippleStyle: 'smooth',     // New smooth style instead of pixelated
-      rippleThickness: 2.5,      // Thickness of ripple lines
-      rippleInitialOpacity: 0.75, // Starting opacity (will reach 1.0 then fade)
-      rippleOpacityPeak: 0.3     // Point in lifespan where opacity peaks (0-1)
+      rippleThickness: 2.0,      // Slightly thinner lines for more elegance
+      rippleInitialOpacity: 0.7, // Starting opacity (will reach 1.0 then fade)
+      rippleOpacityPeak: 0.25,   // Earlier peak for longer fade-out period
+      rippleVariation: 0.15      // Slight variation in ripple characteristics
     };
     
     // Color parameters for ripples
@@ -323,26 +325,49 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     
     // Update and draw existing ripples
     audioRipplesRef.current = audioRipplesRef.current.filter(ripple => {
-      // Update ripple using its specific speed (or default if not specified)
-      const rippleSpeed = ripple.speed || config.rippleSpeed;
-      ripple.size += rippleSpeed * (1 + ripple.intensity * 0.5);
+      // Initialize ripple speed if not already set
+      if (!ripple.currentSpeed) {
+        ripple.currentSpeed = ripple.speed || config.rippleInitialSpeed;
+      }
+      
+      // Apply speed decay over time for smoother, more artistic motion
+      ripple.currentSpeed *= config.rippleSpeedDecay;
+      
+      // Update ripple size with decaying speed and intensity factor
+      ripple.size += ripple.currentSpeed * (1 + ripple.intensity * 0.3);
       ripple.age++;
       
-      // Calculate opacity based on age and max lifespan with a peak in the middle
+      // Calculate opacity based on age, max lifespan, and distance from center
       const maxAge = ripple.type === 'heartbeat' ? config.rippleLifespan * 1.5 : config.rippleLifespan;
       
       // Calculate normalized age (0 to 1)
       const normalizedAge = ripple.age / maxAge;
       
-      // Calculate opacity with a peak at the specified point in the ripple's life
-      let opacity;
-      if (normalizedAge < config.rippleOpacityPeak) {
-        // Opacity increases from initial to peak (75% to 100%)
-        opacity = config.rippleInitialOpacity + 
-                 ((1.0 - config.rippleInitialOpacity) * (normalizedAge / config.rippleOpacityPeak));
+      // Calculate distance factor (how close the ripple is to the edge)
+      const containerSize = Math.max(width, height);
+      const maxDistance = containerSize * 0.95; // Use 95% of the container as max distance
+      const distanceFactor = Math.min(1, ripple.size / maxDistance);
+      
+      // Calculate opacity based on age only (no peak that could cause visual reversal)
+      // This creates a simple fade-out effect as the ripple ages
+      let opacity = Math.max(0, 1 - (normalizedAge * 0.8)); // Linear fade out
+      
+      // Apply stronger distance-based fading as ripples approach the container edges
+      // This ensures they fully disappear before hitting the actual boundary
+      if (distanceFactor > 0.75) { // Start fading at 75% of container size
+        const edgeFade = Math.max(0, 1 - ((distanceFactor - 0.75) / 0.25));
+        // Apply exponential fade (squared) for faster disappearance at edges
+        opacity *= edgeFade * edgeFade;
+      }
+      
+      // Ensure ripples never appear to move back toward core by enforcing
+      // that opacity can only decrease once it starts decreasing
+      if (!ripple.maxOpacity || opacity > ripple.maxOpacity) {
+        ripple.maxOpacity = opacity;
       } else {
-        // Opacity decreases from peak to zero
-        opacity = 1.0 * (1 - ((normalizedAge - config.rippleOpacityPeak) / (1 - config.rippleOpacityPeak)));
+        // Once we've hit peak opacity, never increase again (prevents visual reversal)
+        opacity = Math.min(opacity, ripple.maxOpacity * 0.99); // Ensure continuous decrease
+        ripple.maxOpacity *= 0.99; // Continuously decrease max opacity
       }
       
       // Only draw if visible and within bounds
@@ -375,7 +400,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
           ];
         }
         
-        // Draw a smooth circle for the ripple
+        // Draw a perfect circle for the ripple - no variations
         ctx.beginPath();
         ctx.arc(centerX, centerY, ripple.size, 0, 2 * Math.PI);
         ctx.strokeStyle = `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, ${opacity})`;
@@ -452,9 +477,10 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     ctx.fillStyle = coreGradient;
     ctx.fill();
     
-    // Add a larger glow effect behind the core
-    const glowSize = coreSize * config.coreGlowSize; // Using the increased multiplier
-    const glowIntensity = 0.15 + (bassIntensity * 0.2);
+    // Add a glow effect behind the core - smaller when paused
+    const glowSizeMultiplier = isPlaying ? config.coreGlowSize : (config.coreGlowSize * 0.6); // Reduce aura when paused
+    const glowSize = coreSize * glowSizeMultiplier;
+    const glowIntensity = isPlaying ? (0.15 + (bassIntensity * 0.2)) : 0.1; // Dimmer when paused
     
     ctx.beginPath();
     ctx.arc(centerX, centerY, glowSize, 0, 2 * Math.PI);
@@ -588,10 +614,11 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
       const canvas = canvasRef.current;
       const container = canvas.parentElement;
       
-      // Set canvas dimensions to match container
+      // Set canvas dimensions to match container exactly
       if (container) {
-        canvas.width = container.clientWidth - 32; // Account for padding
-        canvas.height = 200; // Fixed height for visualization
+        // Use the full container dimensions without padding reduction
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
         console.log(`Canvas initialized with size: ${canvas.width}x${canvas.height}`);
         
         // Draw initial state to ensure something is visible
@@ -649,7 +676,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
       <Box 
         sx={{ 
           width: '100%', 
-          height: 150, 
+          height: 180, 
           bgcolor: 'rgba(0,0,0,0.3)',
           borderRadius: 1,
           overflow: 'hidden',
