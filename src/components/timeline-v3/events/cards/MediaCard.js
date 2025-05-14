@@ -102,6 +102,13 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
 
   const handleDetailsClick = (e) => {
     if (e) e.stopPropagation();
+    
+    // Pause the video if it's playing
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+    
     setPopupOpen(true);
   };
 

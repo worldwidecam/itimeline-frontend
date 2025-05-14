@@ -71,6 +71,22 @@ const VideoEventPopup = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
   
+  // Auto-play video when popup opens
+  useEffect(() => {
+    if (open && videoElement) {
+      // Small delay to ensure the video is fully loaded
+      const timer = setTimeout(() => {
+        videoElement.play().catch(err => {
+          console.log('Auto-play prevented by browser:', err);
+          // Modern browsers require user interaction before auto-playing videos with sound
+          // We could potentially add a muted attribute and then play
+        });
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [open, videoElement]);
+  
   // Fetch timelines when the tag section is expanded
   useEffect(() => {
     if (tagSectionExpanded && existingTimelines.length === 0) {
@@ -83,6 +99,11 @@ const VideoEventPopup = ({
 
   // Ensure we have a valid onClose handler
   const handleClose = (event, reason) => {
+    // Pause video when closing the popup
+    if (videoElement && !videoElement.paused) {
+      videoElement.pause();
+    }
+    
     if (typeof onClose === 'function') {
       onClose();
     }
@@ -90,6 +111,11 @@ const VideoEventPopup = ({
   
   // Direct close function for the X button
   const handleCloseButtonClick = () => {
+    // Pause video when closing the popup
+    if (videoElement && !videoElement.paused) {
+      videoElement.pause();
+    }
+    
     if (typeof onClose === 'function') {
       onClose();
     }
@@ -210,7 +236,7 @@ const VideoEventPopup = ({
               <video
                 ref={el => setVideoElement(el)}
                 controls
-                autoPlay={false}
+                autoPlay={true}
                 style={{ 
                   maxWidth: '100%',
                   maxHeight: '100%',
