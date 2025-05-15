@@ -95,18 +95,37 @@ The timeline component implements a progressive loading strategy to ensure smoot
   - MediaPopupManager for centralized media type detection and rendering
   - Two-container layout for enhanced media viewing experience
 
-- **Image Media**:
+- **Image Media** (✅ Completed):
   - Fixed image display with black background in left container (60% width)
   - Scrollable content area for event details in right container (40% width)
   - Fullscreen button for enhanced viewing
+  - Responsive design that adapts to different screen sizes
+  - Support for various image formats (JPG, PNG, GIF, WebP)
   - Optimized for both portrait and landscape images
 
-- **Video Media**:
-  - Special handling in MediaCard component for video playback
+- **Video Media** (✅ Completed):
+  - Custom video player with playback controls
+  - Thumbnail generation for video previews
+  - Support for multiple video formats (MP4, WebM)
+  - Adaptive streaming based on network conditions
+  - Fullscreen viewing option with enhanced controls
   - Play/pause toggling when clicking selected video cards
   - Auto-pause when card is deselected or navigated away from
   - Enhanced details button with visual indicators
   - Two-container layout in popup with video player on left, content on right
+
+- **Audio Media** (🔄 In Progress):
+  - Part 1: Audio Visualizer (✅ Completed)
+    - Artistic waveform visualization with particle system
+    - Frequency-responsive animations and effects
+    - Dynamic color changes based on audio intensity
+    - Circular frequency bars with orbital paths
+    - Optimized performance with React hooks
+  - Part 2: Audio Player Integration (⏳ Pending)
+    - Custom controls for audio playback
+    - Playlist functionality for multiple audio files
+    - Metadata display (artist, album, etc.)
+    - Responsive design for mobile and desktop
 
 - **Media Type Detection**:
   - Multi-layered detection using media_subtype field, file extensions, and MIME types
