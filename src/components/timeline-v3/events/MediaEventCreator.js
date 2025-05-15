@@ -117,10 +117,13 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
       fileUrl = urlMatch[1];
       
       // Try to determine the file type from the URL
-      if (fileUrl.match(/\.(mp4|webm|mov)($|\?)/i)) {
+      if (fileUrl.match(/\.(mp4|webm|mov|avi|mkv)($|\?)/i)) {
         fileType = 'video';
-      } else if (fileUrl.match(/\.(mp3|wav|ogg)($|\?)/i)) {
+      } else if (fileUrl.match(/\.(mp3|wav|ogg|aac|flac|m4a)($|\?)/i)) {
         fileType = 'audio';
+      } else if (uploadResult && uploadResult.media_subtype) {
+        // Use the media_subtype from the upload result if available
+        fileType = uploadResult.media_subtype;
       }
       
       // Try to extract cloudinary ID from the URL
@@ -219,8 +222,12 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
         // Set media object to match what handleEventSubmit expects
         media: {
           type: fileType,
-          url: fileUrl
+          url: fileUrl,
+          // Add media_subtype to ensure proper handling in the backend
+          media_subtype: fileType
         },
+        // Add media_subtype at the top level as well
+        media_subtype: fileType,
         tags: tags
       };
       

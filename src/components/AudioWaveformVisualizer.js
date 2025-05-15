@@ -1,12 +1,15 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Box, Typography, Paper, Slider, IconButton } from '@mui/material';
 import { PlayArrow, Pause, VolumeUp, VolumeOff } from '@mui/icons-material';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * A component that displays an audio waveform visualization
  * The waveform moves with the audio decibel levels
  */
 const AudioWaveformVisualizer = ({ audioUrl, title }) => {
+  // Get the current theme mode
+  const { isDarkMode } = useTheme();
   // Refs for DOM elements and audio processing
   const canvasRef = useRef(null);
   const audioRef = useRef(null);
@@ -34,9 +37,9 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     coreSizeMin: 10,
     coreSizeMax: 28,
     corePulseSpeed: 0.5,
-    coreColorInner: 'rgba(255, 100, 100, 0.95)',
-    coreColorOuter: 'rgba(255, 0, 0, 0.9)',
-    coreGlowColor: 'rgba(128, 0, 0, 0.2)',
+    coreColorInner: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'rgba(220, 60, 60, 0.95)',
+    coreColorOuter: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'rgba(180, 0, 0, 0.9)',
+    coreGlowColor: isDarkMode ? 'rgba(128, 0, 0, 0.2)' : 'rgba(180, 0, 0, 0.15)',
     coreGlowSize: 2.5,
     
     // Ripple parameters
@@ -55,9 +58,9 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     rippleVariation: 0.15
   }), []);
   
-  // Memoize color parameters
-  const baseColor = useMemo(() => [255, 50, 50], []); // Base RGB color
-  const colorVariation = useMemo(() => [0, 30, 20], []); // Color variation
+  // Memoize color parameters based on theme
+  const baseColor = useMemo(() => isDarkMode ? [255, 50, 50] : [180, 30, 30], [isDarkMode]); // Base RGB color
+  const colorVariation = useMemo(() => isDarkMode ? [0, 30, 20] : [20, 10, 5], [isDarkMode]); // Color variation
 
   // Clean up audio resources
   const cleanupAudio = useCallback(() => {
@@ -213,7 +216,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
           age: 0,
           intensity: bassIntensity,
           type: 'beat',
-          color: [255, 0, 0],
+          color: isDarkMode ? [255, 0, 0] : [180, 0, 0],
           speed: config.rippleInitialSpeed * 1.2,
           thickness: config.rippleThickness * 1.2,
           frequencySnapshot: [...frequencyData],
@@ -229,7 +232,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
           age: 0,
           intensity: highIntensity,
           type: 'high',
-          color: [255, 150, 0],
+          color: isDarkMode ? [255, 150, 0] : [200, 100, 0],
           speed: config.rippleInitialSpeed * 1.5,
           thickness: config.rippleThickness * 0.8,
           frequencySnapshot: [...frequencyData],
@@ -245,7 +248,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
           age: 0,
           intensity: 0.7,
           type: 'heartbeat',
-          color: [180, 0, 0],
+          color: isDarkMode ? [180, 0, 0] : [150, 0, 0],
           speed: config.rippleInitialSpeed * 0.8,
           thickness: config.rippleThickness * 1.4,
           frequencySnapshot: Array(frequencyData.length).fill(128), // Flat frequency response
@@ -396,7 +399,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     // Add color stops with slight variation based on intensity
     coreGradient.addColorStop(0, config.coreColorInner);
     coreGradient.addColorStop(0.7, config.coreColorOuter);
-    coreGradient.addColorStop(1, 'rgba(255, 0, 0, 0.5)');
+    coreGradient.addColorStop(1, isDarkMode ? 'rgba(255, 0, 0, 0.5)' : 'rgba(180, 0, 0, 0.4)');
     
     // Draw the core
     ctx.beginPath();
@@ -411,7 +414,9 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     
     ctx.beginPath();
     ctx.arc(centerX, centerY, glowSize, 0, 2 * Math.PI);
-    ctx.fillStyle = `rgba(255, 50, 0, ${glowIntensity})`;
+    ctx.fillStyle = isDarkMode 
+      ? `rgba(255, 50, 0, ${glowIntensity})` 
+      : `rgba(200, 40, 0, ${glowIntensity * 0.8})`;
     ctx.fill();
     
     // Continue animation if playing

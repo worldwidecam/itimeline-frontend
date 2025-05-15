@@ -76,6 +76,15 @@ const MediaEventUploader = ({ onUploadSuccess }) => {
     const formData = new FormData();
     formData.append('file', fileToUpload);
     formData.append('media_type', mediaType); // Add media type to the form data
+    
+    // Add media_subtype explicitly to ensure proper handling
+    formData.append('media_subtype', mediaType);
+    
+    // For audio files, add special parameters to preserve metadata
+    if (mediaType === 'audio') {
+      formData.append('preserve_audio_metadata', 'true');
+      addLog(`Adding audio-specific parameters to preserve metadata`);
+    }
 
     addLog(`Starting upload to /api/upload-media...`);
     addLog(`File: ${fileToUpload.name} (${fileToUpload.type}, ${(fileToUpload.size / 1024).toFixed(2)} KB)`);

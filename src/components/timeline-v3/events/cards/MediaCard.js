@@ -18,6 +18,7 @@ import {
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
   MoreVert as MoreVertIcon,
+  MusicNote as MusicIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -27,6 +28,7 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import VideoDetailsButton from './VideoDetailsButton';
+import AudioWaveformVisualizer from '../../../AudioWaveformVisualizer';
 import config from '../../../../config';
 
 const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
@@ -404,7 +406,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     );
   };
 
-  // Render audio media
+  // Render audio media with AudioWaveformVisualizer
   const renderAudioMedia = (mediaSource) => {
     const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
     const fileExt = fullUrl.split('.').pop()?.toLowerCase();
@@ -423,40 +425,51 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
           alignItems: 'center',
           bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
           zIndex: 1,
-          padding: 2
+          padding: 1
         }}
       >
-        <Typography variant="h6" gutterBottom align="center">
+        <Typography 
+          variant="subtitle1" 
+          align="center" 
+          sx={{ 
+            fontWeight: 'medium',
+            mb: 1,
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
           {event.title || "Audio File"}
         </Typography>
-        <Box sx={{ width: '100%', mt: 2 }}>
+        
+        {/* Use AudioWaveformVisualizer for a better audio experience */}
+        <Box sx={{ width: '100%', height: 120, position: 'relative' }}>
+          <AudioWaveformVisualizer 
+            audioUrl={mediaSources[0]} 
+            title={event.title || "Audio"} 
+          />
+          
+          {/* Fallback audio element (hidden) for compatibility */}
           <audio
-            controls
-            style={{ width: '100%' }}
+            style={{ display: 'none' }}
             onError={(e) => {
               const currentSrc = e.target.src;
               const currentIndex = mediaSources.indexOf(currentSrc);
               
               if (currentIndex < mediaSources.length - 1) {
                 e.target.src = mediaSources[currentIndex + 1];
-              } else {
-                e.target.style.display = 'none';
-                e.target.parentNode.innerHTML += `
-                  <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
-                    <span style="color: #999;">Audio not available</span>
-                  </div>
-                `;
               }
             }}
           >
             <source src={mediaSources[0]} type={`audio/${fileExt || 'mp3'}`} />
-            Your browser does not support the audio element.
           </audio>
         </Box>
+        
         <PageCornerButton 
           position="top-right" 
           onClick={handleDetailsClick}
-          icon={<MediaIcon />}
+          icon={<MusicIcon />}
           color={color}
         />
       </Box>
