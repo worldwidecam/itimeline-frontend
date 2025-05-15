@@ -665,9 +665,11 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
         overflow: 'hidden'
       }}
     >
-      <Typography variant="h6" gutterBottom>
-        {title || 'Audio Visualizer'}
-      </Typography>
+      {title && (
+        <Typography variant="h6" gutterBottom>
+          {title}
+        </Typography>
+      )}
       
       {error && (
         <Typography color="error" variant="body2" sx={{ mb: 2 }}>

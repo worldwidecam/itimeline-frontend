@@ -409,6 +409,28 @@ The application uses environment variables for configuration. These can be set i
 - **raw_event_date**: Formatted date string for display
 - **is_exact_user_time**: Flag indicating this is a user-selected time
 
+## Audio Integration Progress
+
+### May 14, 2025 Updates
+
+#### AudioWaveformVisualizer Integration
+- Successfully integrated the AudioWaveformVisualizer component into the MediaCard for audio files
+- Removed redundant title display from the visualizer to avoid duplication with the card title
+- Adjusted the visualizer height and positioning to better fill the available space
+- Fixed an issue where "Audio Visualizer" text was showing even when no title was provided
+
+#### Audio Upload Functionality
+- Confirmed that audio files are properly uploading to Cloudinary with preserved metadata
+- Added proper media_subtype handling for audio files in the upload process
+- Ensured the EventMediaUploader and MediaEventUploader components correctly handle audio files
+- Verified that audio files display correctly in the EventList with the waveform visualizer
+
+#### Next Steps
+- Investigate creator information display in the EventPopup for audio media events
+- Consider creating a specialized AudioEventPopup component similar to the existing ImageEventPopup and VideoEventPopup
+- Further refine the audio visualizer appearance and behavior
+- Test the complete audio upload and playback flow with various audio file formats
+
 ## Media Upload Components Documentation
 
 ### Active Components (DO NOT MODIFY)

@@ -444,10 +444,10 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         </Typography>
         
         {/* Use AudioWaveformVisualizer for a better audio experience */}
-        <Box sx={{ width: '100%', height: 120, position: 'relative' }}>
+        <Box sx={{ width: '100%', height: 290, position: 'relative', mt: -1 }}>
           <AudioWaveformVisualizer 
             audioUrl={mediaSources[0]} 
-            title={event.title || "Audio"} 
+            title="" 
           />
           
           {/* Fallback audio element (hidden) for compatibility */}
