@@ -19,7 +19,8 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
-  Link
+  Link,
+  Avatar
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -29,6 +30,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Add as AddIcon,
   Event as EventIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -293,6 +295,30 @@ const EventPopup = ({ event, open, onClose }) => {
             (mimeType && mimeType.startsWith('audio/')));
   };
   
+  // Add a separate audio element for playback to avoid Web Audio API conflicts
+  const [audioElement] = useState(() => {
+    if (isAudioMedia() && typeof window !== 'undefined') {
+      const audio = new Audio();
+      audio.src = event.media_url || event.mediaUrl || event.url;
+      audio.volume = 0.75;
+      return audio;
+    }
+    return null;
+  });
+  
+  // Handle audio playback separately from the visualizer
+  const toggleAudio = () => {
+    if (!audioElement) return;
+    
+    if (audioElement.paused) {
+      audioElement.play().catch(err => {
+        console.error('Error playing audio:', err);
+      });
+    } else {
+      audioElement.pause();
+    }
+  };
+  
   // Get the media source URL
   const getMediaSource = () => {
     let mediaSource = event.media_url || event.mediaUrl || event.url;
@@ -466,19 +492,33 @@ const EventPopup = ({ event, open, onClose }) => {
           <DialogContent sx={{ p: 3, pt: 2 }}>
             {/* Audio Media Player - Only shown for audio media */}
             {isAudio && (
-              <Box sx={{ 
-                width: '100%', 
-                height: 400, 
-                mb: 3,
-                borderRadius: 2,
-                overflow: 'hidden',
-                bgcolor: 'black'
-              }}>
+              <Box 
+                sx={{ 
+                  width: '100%', 
+                  height: 400, 
+                  mb: 3,
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  bgcolor: 'black',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                onClick={toggleAudio}
+              >
                 <AudioWaveformVisualizer 
                   ref={audioVisualizerRef}
                   audioUrl={mediaSource} 
                   title=""
+                  previewMode={true} // Use preview mode to avoid audio context issues
                 />
+                
+                {/* Hidden audio element for playback */}
+                {audioElement && (
+                  <Box sx={{ display: 'none' }}>
+                    {/* This is just to trigger React to manage the audio element */}
+                    Audio is playing: {!audioElement.paused ? 'Yes' : 'No'}
+                  </Box>
+                )}
               </Box>
             )}
             <Divider sx={{ mb: 3, opacity: 0.5 }} />
@@ -634,18 +674,22 @@ const EventPopup = ({ event, open, onClose }) => {
                         }}
                       />
                     )}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span style={{ 
-                            color: theme.palette.primary.main,
-                            fontSize: '1rem',
-                            marginRight: '4px'
-                          }}>#</span>
-                          {option.name}
-                        </Box>
-                      </li>
-                    )}
+                    renderOption={(props, option) => {
+                      // Extract key from props to avoid React warning
+                      const { key, ...otherProps } = props;
+                      return (
+                        <li key={option.id || key} {...otherProps}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span style={{ 
+                              color: theme.palette.primary.main,
+                              fontSize: '1rem',
+                              marginRight: '4px'
+                            }}>#</span>
+                            {option.name}
+                          </Box>
+                        </li>
+                      );
+                    }}
                     noOptionsText="Type to search for timelines"
                   />
                   
@@ -712,28 +756,46 @@ const EventPopup = ({ event, open, onClose }) => {
                 {/* Creator information */}
                 {event.created_by_username && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography 
-                      variant="body2" 
-                      color="textSecondary"
-                      sx={{ minWidth: 100 }}
-                    >
-                      Created by:
-                    </Typography>
-                    <Link 
-                      component={RouterLink} 
-                      to={`/profile/${event.created_by}`}
+                    <Avatar 
+                      src={event.created_by_avatar} 
+                      alt={event.created_by_username || "User"} 
                       sx={{ 
-                        textDecoration: 'none',
-                        color: theme.palette.primary.main,
-                        '&:hover': {
-                          textDecoration: 'underline'
-                        }
-                      }}
+                        width: 32, 
+                        height: 32,
+                        fontSize: '0.875rem',
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.1)'
+                          : 'rgba(0,0,0,0.1)',
+                      }} 
                     >
-                      <Typography variant="body2">
-                        {event.created_by_username}
+                      {event.created_by_username ? event.created_by_username.charAt(0).toUpperCase() : <PersonIcon fontSize="small" />}
+                    </Avatar>
+                    <Box>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(0,0,0,0.4)',
+                        }}
+                      >
+                        Created by
                       </Typography>
-                    </Link>
+                      <Link
+                        component={RouterLink}
+                        to={`/profile/${event.created_by || event.createdBy}`}
+                        sx={{ 
+                          color: color,
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline'
+                          }
+                        }}
+                      >
+                        {event.created_by_username || event.createdByUsername || "Unknown"}
+                      </Link>
+                    </Box>
                   </Box>
                 )}
                 {/* Event date */}
