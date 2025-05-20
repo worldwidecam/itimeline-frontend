@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import ImageEventPopup from './ImageEventPopup';
 import VideoEventPopup from './VideoEventPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
@@ -18,6 +19,7 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
+  Link
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -707,6 +709,33 @@ const EventPopup = ({ event, open, onClose }) => {
               </Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {/* Creator information */}
+                {event.created_by_username && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography 
+                      variant="body2" 
+                      color="textSecondary"
+                      sx={{ minWidth: 100 }}
+                    >
+                      Created by:
+                    </Typography>
+                    <Link 
+                      component={RouterLink} 
+                      to={`/profile/${event.created_by}`}
+                      sx={{ 
+                        textDecoration: 'none',
+                        color: theme.palette.primary.main,
+                        '&:hover': {
+                          textDecoration: 'underline'
+                        }
+                      }}
+                    >
+                      <Typography variant="body2">
+                        {event.created_by_username}
+                      </Typography>
+                    </Link>
+                  </Box>
+                )}
                 {/* Event date */}
                 {event.event_date && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

@@ -656,6 +656,13 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
 
   // Render the preview mode (minimal UI)
   if (previewMode) {
+    // For preview mode, ensure audio is always muted
+    useEffect(() => {
+      if (audioRef.current) {
+        audioRef.current.muted = true;
+      }
+    }, [audioRef.current]);
+    
     return (
       <Box 
         sx={{ 
@@ -664,13 +671,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
           height: '100%',
           bgcolor: 'rgba(0,0,0,0.7)',
           cursor: 'pointer',
-          overflow: 'hidden',
-          '&:hover': {
-            '& .play-indicator': {
-              opacity: 1,
-              transform: 'scale(1.1)'
-            }
-          }
+          overflow: 'hidden'
         }}
         onClick={handlePlayPause}
       >
@@ -684,37 +685,8 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
             transition: 'opacity 0.3s ease'
           }}
         />
-        <Box 
-          className="play-indicator"
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%) scale(1)',
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            bgcolor: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            opacity: isPlaying ? 0 : 0.8,
-            transition: 'all 0.3s ease',
-            pointerEvents: 'none',
-            '&:hover': {
-              opacity: 1,
-              transform: 'translate(-50%, -50%) scale(1.1)'
-            }
-          }}
-        >
-          {isPlaying ? (
-            <Pause sx={{ fontSize: 24 }} />
-          ) : (
-            <PlayArrow sx={{ fontSize: 24, ml: '3px' }} />
-          )}
-        </Box>
-        <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
+        {/* No play/pause indicator in the center */}
+        <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" muted={true} />
       </Box>
     );
   }
@@ -764,34 +736,6 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
             display: 'block'
           }}
         />
-        <Box 
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
-            bgcolor: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            opacity: isPlaying ? 0 : 0.8,
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              opacity: 1,
-              transform: 'translate(-50%, -50%) scale(1.1)'
-            }
-          }}
-        >
-          {isPlaying ? (
-            <Pause sx={{ fontSize: 32 }} />
-          ) : (
-            <PlayArrow sx={{ fontSize: 32, ml: '4px' }} />
-          )}
-        </Box>
       </Box>
       
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
