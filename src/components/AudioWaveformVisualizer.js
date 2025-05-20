@@ -7,7 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
  * A component that displays an audio waveform visualization
  * The waveform moves with the audio decibel levels
  */
-const AudioWaveformVisualizer = ({ audioUrl, title }) => {
+const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
   // Get the current theme mode
   const { isDarkMode } = useTheme();
   // Refs for DOM elements and audio processing
@@ -654,6 +654,72 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
     return cleanupAudio;
   }, [cleanupAudio]);
 
+  // Render the preview mode (minimal UI)
+  if (previewMode) {
+    return (
+      <Box 
+        sx={{ 
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          bgcolor: 'rgba(0,0,0,0.7)',
+          cursor: 'pointer',
+          overflow: 'hidden',
+          '&:hover': {
+            '& .play-indicator': {
+              opacity: 1,
+              transform: 'scale(1.1)'
+            }
+          }
+        }}
+        onClick={handlePlayPause}
+      >
+        <canvas 
+          ref={canvasRef} 
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            display: 'block',
+            opacity: isPlaying ? 1 : 0.7,
+            transition: 'opacity 0.3s ease'
+          }}
+        />
+        <Box 
+          className="play-indicator"
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%) scale(1)',
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            bgcolor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            opacity: isPlaying ? 0 : 0.8,
+            transition: 'all 0.3s ease',
+            pointerEvents: 'none',
+            '&:hover': {
+              opacity: 1,
+              transform: 'translate(-50%, -50%) scale(1.1)'
+            }
+          }}
+        >
+          {isPlaying ? (
+            <Pause sx={{ fontSize: 24 }} />
+          ) : (
+            <PlayArrow sx={{ fontSize: 24, ml: '3px' }} />
+          )}
+        </Box>
+        <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
+      </Box>
+    );
+  }
+
+  // Full player mode
   return (
     <Paper 
       elevation={3} 
@@ -684,26 +750,51 @@ const AudioWaveformVisualizer = ({ audioUrl, title }) => {
           bgcolor: 'rgba(0,0,0,0.3)',
           borderRadius: 1,
           overflow: 'hidden',
-          mb: 2
+          mb: 2,
+          position: 'relative',
+          cursor: 'pointer'
         }}
+        onClick={handlePlayPause}
       >
         <canvas 
           ref={canvasRef} 
-          width={600} 
-          height={150} 
-          style={{ width: '100%', height: '100%' }}
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            display: 'block'
+          }}
         />
+        <Box 
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            bgcolor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            opacity: isPlaying ? 0 : 0.8,
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              opacity: 1,
+              transform: 'translate(-50%, -50%) scale(1.1)'
+            }
+          }}
+        >
+          {isPlaying ? (
+            <Pause sx={{ fontSize: 32 }} />
+          ) : (
+            <PlayArrow sx={{ fontSize: 32, ml: '4px' }} />
+          )}
+        </Box>
       </Box>
       
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <IconButton 
-          onClick={handlePlayPause} 
-          disabled={!audioLoaded}
-          sx={{ color: 'white' }}
-        >
-          {isPlaying ? <Pause /> : <PlayArrow />}
-        </IconButton>
-        
         <Typography variant="body2" sx={{ minWidth: 45 }}>
           {formatTime(currentTime)}
         </Typography>

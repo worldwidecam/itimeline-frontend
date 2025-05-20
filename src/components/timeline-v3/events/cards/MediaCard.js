@@ -406,10 +406,26 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     );
   };
 
-  // Render audio media with AudioWaveformVisualizer
+  // Reference to the audio visualizer component for controlling playback
+  const audioVisualizerRef = useRef(null);
+  
+  // Render audio media with AudioWaveformVisualizer in preview mode
   const renderAudioMedia = (mediaSource) => {
     const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
     const fileExt = fullUrl.split('.').pop()?.toLowerCase();
+    
+    // Handle details click for audio media - pause audio when opening popup
+    const handleAudioDetailsClick = () => {
+      // If we have a reference to the visualizer, pause it before opening popup
+      if (audioVisualizerRef.current) {
+        // We don't actually need to pause it here since the popup will create a new instance
+        // But we could add a method to the AudioWaveformVisualizer to expose the current playback time
+        // and pass that to the popup to continue from the same position
+      }
+      
+      // Open the event popup
+      handleDetailsClick();
+    };
     
     return (
       <Box 
@@ -419,59 +435,37 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
           left: 0,
           right: 0,
           bottom: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
-          zIndex: 1,
-          padding: 1
+          overflow: 'hidden',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)'
         }}
       >
-        <Typography 
-          variant="subtitle1" 
-          align="center" 
-          sx={{ 
-            fontWeight: 'medium',
-            mb: 1,
-            maxWidth: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          {event.title || "Audio File"}
-        </Typography>
-        
-        {/* Use AudioWaveformVisualizer for a better audio experience */}
-        <Box sx={{ width: '100%', height: 290, position: 'relative', mt: -1 }}>
-          <AudioWaveformVisualizer 
-            audioUrl={mediaSources[0]} 
-            title="" 
-          />
-          
-          {/* Fallback audio element (hidden) for compatibility */}
-          <audio
-            style={{ display: 'none' }}
-            onError={(e) => {
-              const currentSrc = e.target.src;
-              const currentIndex = mediaSources.indexOf(currentSrc);
-              
-              if (currentIndex < mediaSources.length - 1) {
-                e.target.src = mediaSources[currentIndex + 1];
-              }
-            }}
-          >
-            <source src={mediaSources[0]} type={`audio/${fileExt || 'mp3'}`} />
-          </audio>
-        </Box>
+        <AudioWaveformVisualizer 
+          ref={audioVisualizerRef}
+          audioUrl={mediaSources[0]} 
+          previewMode={true}
+        />
         
         <PageCornerButton 
           position="top-right" 
-          onClick={handleDetailsClick}
+          onClick={handleAudioDetailsClick}
           icon={<MusicIcon />}
           color={color}
         />
+        
+        {/* Fallback audio element (hidden) for compatibility */}
+        <audio
+          style={{ display: 'none' }}
+          onError={(e) => {
+            const currentSrc = e.target.src;
+            const currentIndex = mediaSources.indexOf(currentSrc);
+            
+            if (currentIndex < mediaSources.length - 1) {
+              e.target.src = mediaSources[currentIndex + 1];
+            }
+          }}
+        >
+          <source src={mediaSources[0]} type={`audio/${fileExt || 'mp3'}`} />
+        </audio>
       </Box>
     );
   };

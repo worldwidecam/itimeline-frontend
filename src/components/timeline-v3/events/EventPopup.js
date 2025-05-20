@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ImageEventPopup from './ImageEventPopup';
 import VideoEventPopup from './VideoEventPopup';
+import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import {
   Dialog,
   DialogTitle,
@@ -55,6 +56,8 @@ const EventPopup = ({ event, open, onClose }) => {
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   // Store the updated event data after adding a tag
   const [localEventData, setLocalEventData] = useState(null);
+  // Reference to the audio visualizer for controlling playback
+  const audioVisualizerRef = useRef(null);
   
   // Default fallback values for when event data is incomplete
   const defaultColor = theme.palette.primary.main;
@@ -269,6 +272,25 @@ const EventPopup = ({ event, open, onClose }) => {
             (mimeType && mimeType.startsWith('video/')));
   };
   
+  // Determine if this is an audio media event
+  const isAudioMedia = () => {
+    if (safeEventType !== EVENT_TYPES.MEDIA) return false;
+    
+    const mediaSource = event.media_url || event.mediaUrl || event.url;
+    if (!mediaSource) return false;
+    
+    const mimeType = event.media_type || '';
+    
+    // Check if we have the media_subtype field
+    if (event.media_subtype) {
+      return event.media_subtype === 'audio';
+    }
+    
+    // Fallback to extension or MIME type check
+    return (/\.(mp3|wav|ogg|aac|flac|m4a|wma)$/i.test(mediaSource) || 
+            (mimeType && mimeType.startsWith('audio/')));
+  };
+  
   // Get the media source URL
   const getMediaSource = () => {
     let mediaSource = event.media_url || event.mediaUrl || event.url;
@@ -298,6 +320,7 @@ const EventPopup = ({ event, open, onClose }) => {
   // Check if we should use the specialized media popups
   const useImagePopup = isImageMedia();
   const useVideoPopup = isVideoMedia();
+  const isAudio = isAudioMedia();
   const mediaSource = getMediaSource();
 
   if (!event) return null;
@@ -439,6 +462,23 @@ const EventPopup = ({ event, open, onClose }) => {
           </DialogTitle>
           
           <DialogContent sx={{ p: 3, pt: 2 }}>
+            {/* Audio Media Player - Only shown for audio media */}
+            {isAudio && (
+              <Box sx={{ 
+                width: '100%', 
+                height: 400, 
+                mb: 3,
+                borderRadius: 2,
+                overflow: 'hidden',
+                bgcolor: 'black'
+              }}>
+                <AudioWaveformVisualizer 
+                  ref={audioVisualizerRef}
+                  audioUrl={mediaSource} 
+                  title=""
+                />
+              </Box>
+            )}
             <Divider sx={{ mb: 3, opacity: 0.5 }} />
             
             {/* Event content */}
