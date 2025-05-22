@@ -1179,6 +1179,11 @@ function TimelineV3() {
       const minMarker = Math.min(...markers);
       setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
       setTimelineOffset(prevOffset => prevOffset + 100);
+      
+      // Wait for timeline to settle before showing markers again
+      setTimeout(() => {
+        setIsMoving(false);
+      }, 300); // Delay after movement completes
     }, 200); // Add a small delay for the fade-out animation
   };
   
@@ -1197,6 +1202,11 @@ function TimelineV3() {
       const maxMarker = Math.max(...markers);
       setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
       setTimelineOffset(prevOffset => prevOffset - 100);
+      
+      // Wait for timeline to settle before showing markers again
+      setTimeout(() => {
+        setIsMoving(false);
+      }, 300); // Delay after movement completes
     }, 200); // Add a small delay for the fade-out animation
   };
   
