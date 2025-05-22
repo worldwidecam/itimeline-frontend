@@ -1013,10 +1013,16 @@ function TimelineV3() {
       setDialogOpen(false);
       setEditingEvent(null);
       
-      // After a short delay, navigate to the new event to ensure it's visible
+      // Force a component re-render using the same technique as the hamburger menu
+      // This ensures all markers are properly displayed without a full page reload
+      const currentPath = window.location.pathname;
+      navigate('/refresh-redirect', { replace: true });
+      
+      // Then navigate back to the timeline
+      // This will trigger a complete re-render and show the new event marker
       setTimeout(() => {
-        navigateToEvent(newEvent);
-      }, 300);
+        navigate(currentPath, { replace: true });
+      }, 10);
     } catch (error) {
       console.error('Error creating event:', error);
       console.error('Error response:', error.response);
