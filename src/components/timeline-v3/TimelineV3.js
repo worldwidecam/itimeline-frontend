@@ -1167,6 +1167,10 @@ function TimelineV3() {
   // Add a state to track marker loading status
   const [markersLoading, setMarkersLoading] = useState(false);
   
+  // Add state to track timeline element loading stages
+  const [timelineElementsLoading, setTimelineElementsLoading] = useState(false);
+  const [timelineMarkersLoading, setTimelineMarkersLoading] = useState(false);
+  
   const handleLeft = () => {
     console.log('Executing LEFT button press');
     // Set moving state to hide markers during movement
@@ -1474,13 +1478,13 @@ function TimelineV3() {
 
   const timelineTransitionStyles = {
     transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-    opacity: isRecentering ? 0 : 1,
+    opacity: isRecentering || timelineElementsLoading ? 0 : 1,
     transform: `
       translate3d(0, 0, 0)
       scale(${isRecentering ? '0.98' : '1'})
       ${isFullyFaded ? 'translateY(-10px)' : 'translateY(0)'}
     `,
-    pointerEvents: isRecentering ? 'none' : 'auto',
+    pointerEvents: isRecentering || timelineElementsLoading ? 'none' : 'auto',
     willChange: 'transform, opacity'
   };
 
@@ -1619,11 +1623,25 @@ function TimelineV3() {
     return distance;
 };
 
+// State declarations for timeline elements were moved to the top of the component
+
 const handleRecenter = () => {
+  console.log('Executing Return to Present');
+  
+  // First, hide all elements with a fade
   setIsRecentering(true);
+  setIsMoving(true); // Hide event markers
+  setMarkersLoading(true); // Prevent markers from showing during transition
+  setTimelineElementsLoading(true); // Hide timeline elements (bars, labels, etc.)
+  
+  // If an event is selected, close its popup during recentering
+  if (selectedEventId) {
+    setSelectedEventId(null);
+  }
 
   // Wait for fade out to complete
   setTimeout(() => {
+    // Apply full fade effect
     setIsFullyFaded(true);
     
     // Reset timeline offset and markers
@@ -1635,13 +1653,35 @@ const handleRecenter = () => {
     searchParams.set('view', viewMode);
     navigate(`/timeline-v3/${timelineId}?${searchParams.toString()}`, { replace: true });
 
-    // Start fade in animation after a short delay
+    // Start staged fade-in sequence
     setTimeout(() => {
+      // Phase 1: Show the timeline structure (bars, labels, etc.)
       setIsFullyFaded(false);
-      setTimeout(() => {
-        setIsRecentering(false);
-      }, 50);
-    }, 100);
+      
+      // Use requestAnimationFrame to ensure the browser has completed rendering
+      requestAnimationFrame(() => {
+        // Phase 2: After a short delay, show the timeline elements
+        setTimeout(() => {
+          setTimelineElementsLoading(false);
+          setIsRecentering(false);
+          
+          // Phase 3: After timeline elements are visible, start loading markers
+          setTimeout(() => {
+            setTimelineMarkersLoading(false);
+            
+            // Phase 4: Finally, make markers visible with staggered animation
+            setTimeout(() => {
+              setMarkersLoading(false);
+              
+              // Complete the transition by removing the moving state
+              setTimeout(() => {
+                setIsMoving(false);
+              }, 100);
+            }, 150);
+          }, 200);
+        }, 150);
+      });
+    }, 300);
   }, 400); // Match the transition duration
 };
 
@@ -2099,24 +2139,42 @@ const handleRecenter = () => {
               })()}
             </>
           )}
-          <TimeMarkers 
-            timelineOffset={timelineOffset}
-            markerSpacing={100}
-            markerStyles={markerStyles}
-            markers={markers}
-            viewMode={viewMode}
-            theme={theme}
-            style={timelineTransitionStyles}
-          />
-          <HoverMarker 
-            position={hoverPosition} 
-            timelineOffset={timelineOffset}
-            markerSpacing={100}
-            viewMode={viewMode}
-            markers={markers}
-            theme={theme}
-            style={timelineTransitionStyles}
-          />
+          {/* Wrap TimeMarkers in Fade component for smoother transitions */}
+          <Fade
+            in={!timelineElementsLoading}
+            timeout={{ enter: 500, exit: 200 }}
+          >
+            <div>
+              <TimeMarkers 
+                timelineOffset={timelineOffset}
+                markerSpacing={100}
+                markerStyles={markerStyles}
+                markers={markers}
+                viewMode={viewMode}
+                theme={theme}
+                style={timelineTransitionStyles}
+              />
+            </div>
+          </Fade>
+          
+          {/* Wrap HoverMarker in Fade component for smoother transitions */}
+          <Fade
+            in={!timelineElementsLoading}
+            timeout={{ enter: 600, exit: 150 }}
+            style={{ transitionDelay: '100ms' }} // Slight delay for staggered appearance
+          >
+            <div>
+              <HoverMarker 
+                position={hoverPosition} 
+                timelineOffset={timelineOffset}
+                markerSpacing={100}
+                viewMode={viewMode}
+                markers={markers}
+                theme={theme}
+                style={timelineTransitionStyles}
+              />
+            </div>
+          </Fade>
           <Button
             onClick={handleLeft}
             sx={{
