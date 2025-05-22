@@ -18,6 +18,16 @@ The timeline component implements a progressive loading strategy to ensure smoot
 - **Fade-In Cushioning**: Visual elements use staggered fade-in animations to create a smoother perception of loading
 - **Marker Virtualization**: Only markers within or near the viewport are fully rendered to reduce DOM elements
 
+### EventMarker Optimization (May 2025) <!-- BOOKMARK: EVENTMARKER_OPTIMIZATION -->
+- **Immediate Marker Rendering**: Event markers now appear immediately after event creation without requiring a page refresh
+- **Smart Re-rendering**: Uses React Router navigation technique to force component re-renders without full page reloads
+- **Session Preservation**: Maintains user authentication during re-renders by avoiding full page refreshes
+- **Improved User Experience**: Creates a seamless workflow where users can create events and immediately see them on the timeline
+- **Implementation Details**:
+  - Leverages the same refresh technique used in the hamburger menu navigation
+  - Temporarily navigates to a redirect page and back to trigger component re-mounting
+  - Clears position caches to ensure proper marker positioning after re-render
+
 ### Loading Process Improvements <!-- BOOKMARK: LOADING_PROCESS_IMPROVEMENTS -->
 - **Enhanced Loading Transitions**: The EventList workspace uses sophisticated fade-in transitions with multiple properties:
   - Opacity transition (0.6 → 1.0) with 1.2s duration

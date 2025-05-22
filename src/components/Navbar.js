@@ -24,6 +24,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
+import HistoryIcon from '@mui/icons-material/History';
 import ToolbarSpacer from './ToolbarSpacer';
 import api from '../utils/api';
 
@@ -36,6 +37,7 @@ function Navbar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [currentTimelineName, setCurrentTimelineName] = React.useState('');
+  const [lastVisitedTimeline, setLastVisitedTimeline] = React.useState(null);
   const currentPath = location.pathname;
   
   // Function to handle navigation with refresh capability
@@ -89,14 +91,38 @@ function Navbar() {
     setDrawerOpen(!drawerOpen);
   };
   
+  // Load last visited timeline from localStorage on component mount
+  useEffect(() => {
+    const savedTimeline = localStorage.getItem('lastVisitedTimeline');
+    if (savedTimeline) {
+      try {
+        setLastVisitedTimeline(JSON.parse(savedTimeline));
+      } catch (error) {
+        console.error('Error parsing saved timeline:', error);
+        localStorage.removeItem('lastVisitedTimeline');
+      }
+    }
+  }, []);
+
   // Fetch timeline name when on a timeline page
   useEffect(() => {
     const fetchTimelineName = async () => {
-      if (isTimelinePage && timelineId && timelineId !== 'new') {
+      if (isTimelinePage && timelineId) {
         try {
           const response = await api.get(`/api/timeline-v3/${timelineId}`);
           if (response.data && response.data.name) {
-            setCurrentTimelineName(response.data.name);
+            const timelineName = response.data.name;
+            setCurrentTimelineName(timelineName);
+            
+            // Save this timeline as the last visited timeline
+            const timelineData = {
+              id: timelineId,
+              name: timelineName,
+              path: currentPath,
+              timeline_type: response.data.timeline_type || 'hashtag' // Include timeline_type with fallback
+            };
+            localStorage.setItem('lastVisitedTimeline', JSON.stringify(timelineData));
+            setLastVisitedTimeline(timelineData);
           }
         } catch (error) {
           console.error('Error fetching timeline name:', error);
@@ -107,7 +133,7 @@ function Navbar() {
     };
     
     fetchTimelineName();
-  }, [isTimelinePage, timelineId]);
+  }, [isTimelinePage, timelineId, currentPath]);
 
   const profileTabs = (
     <Box
@@ -297,6 +323,49 @@ function Navbar() {
           />
         </ListItem>
         <Divider sx={{ my: 2 }} />
+        
+        {/* Last Visited Timeline section */}
+        {lastVisitedTimeline && (!isTimelinePage || lastVisitedTimeline.id !== timelineId) && (
+          <>
+            <Typography 
+              variant="subtitle2" 
+              color="text.secondary" 
+              sx={{ px: 2, py: 1, fontSize: '0.75rem', fontWeight: 'bold' }}
+            >
+              LAST VISITED TIMELINE
+            </Typography>
+            <ListItem 
+              button 
+              onClick={() => handleNavigation(lastVisitedTimeline.path)}
+              sx={{
+                position: 'relative',
+                '&:hover': {
+                  backgroundColor: theme => 
+                    theme.palette.mode === 'dark' 
+                      ? 'rgba(144, 202, 249, 0.08)' 
+                      : 'rgba(255, 213, 200, 0.3)',
+                }
+              }}
+            >
+              <ListItemIcon>
+                {lastVisitedTimeline.timeline_type === 'hashtag' ? (
+                  <TagIcon sx={{ color: 'primary.main' }} />
+                ) : (
+                  <TagIcon sx={{ color: 'primary.main' }} /> /* Default to TagIcon for now, will be expanded in future */
+                )}
+              </ListItemIcon>
+              <ListItemText 
+                primary={lastVisitedTimeline.name} 
+                primaryTypographyProps={{
+                  noWrap: true,
+                  sx: { maxWidth: '180px' } // Prevent very long timeline names from breaking layout
+                }}
+              />
+            </ListItem>
+            <Divider sx={{ my: 1 }} />
+          </>
+        )}
+        
         <ListItem button onClick={handleLogout}>
           <ListItemIcon>
             <Box component="span" sx={{ display: 'flex' }}>

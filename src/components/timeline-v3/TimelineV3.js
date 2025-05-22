@@ -928,7 +928,8 @@ function TimelineV3() {
         
         const response = await api.post('/api/timeline-v3', {
           name: timelineName,
-          description: `A new timeline created: ${timelineName}`
+          description: `A new timeline created: ${timelineName}`,
+          timeline_type: 'hashtag' // Default to hashtag type
         });
         setTimelineId(response.data.id);
         console.log('Timeline created:', response.data);
