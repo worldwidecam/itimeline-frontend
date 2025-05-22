@@ -1961,13 +1961,24 @@ const handleRecenter = () => {
                 const isLargeEventSet = events.length > 50;
                 const maxMarkersToRender = isLargeEventSet && (viewMode === 'month' || viewMode === 'year') ? 40 : events.length;
                 
-                // Filter events to only include those in the visible date range
-                // and limit the number of markers rendered
+                // Filter events to only include those in the visible date range,
+                // apply type filtering, and limit the number of markers rendered
                 const visibleEvents = events
                   .filter(event => {
+                    // Date range filter
                     if (!event.event_date) return false;
                     const eventTime = new Date(event.event_date).getTime();
-                    return eventTime >= startTime && eventTime <= endTime;
+                    const passesDateFilter = eventTime >= startTime && eventTime <= endTime;
+                    if (!passesDateFilter) return false;
+                    
+                    // Type filter - only apply if a type is selected
+                    if (selectedType) {
+                      const eventType = (event.type || '').toLowerCase();
+                      return eventType === selectedType.toLowerCase();
+                    }
+                    
+                    // If no type filter is applied, include all events
+                    return true;
                   })
                   .slice(0, maxMarkersToRender);
                 
