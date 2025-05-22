@@ -1164,10 +1164,15 @@ function TimelineV3() {
     }
   }, [events.length, currentEventIndex]);
 
+  // Add a state to track marker loading status
+  const [markersLoading, setMarkersLoading] = useState(false);
+  
   const handleLeft = () => {
     console.log('Executing LEFT button press');
     // Set moving state to hide markers during movement
     setIsMoving(true);
+    // Set markers as loading
+    setMarkersLoading(true);
     
     // If an event is selected, close its popup during movement
     if (selectedEventId) {
@@ -1180,10 +1185,18 @@ function TimelineV3() {
       setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
       setTimelineOffset(prevOffset => prevOffset + 100);
       
-      // Wait for timeline to settle before showing markers again
+      // Wait for timeline to fully render and settle before starting to show markers
       setTimeout(() => {
-        setIsMoving(false);
-      }, 300); // Delay after movement completes
+        // First allow the timeline to finish rendering
+        requestAnimationFrame(() => {
+          // Then start loading markers
+          setMarkersLoading(false);
+          // Finally, after markers have started loading, remove the moving state
+          setTimeout(() => {
+            setIsMoving(false);
+          }, 100);
+        });
+      }, 400); // Longer delay to ensure timeline is fully rendered
     }, 200); // Add a small delay for the fade-out animation
   };
   
@@ -1191,6 +1204,8 @@ function TimelineV3() {
     console.log('Executing RIGHT button press');
     // Set moving state to hide markers during movement
     setIsMoving(true);
+    // Set markers as loading
+    setMarkersLoading(true);
     
     // If an event is selected, close its popup during movement
     if (selectedEventId) {
@@ -1203,10 +1218,18 @@ function TimelineV3() {
       setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
       setTimelineOffset(prevOffset => prevOffset - 100);
       
-      // Wait for timeline to settle before showing markers again
+      // Wait for timeline to fully render and settle before starting to show markers
       setTimeout(() => {
-        setIsMoving(false);
-      }, 300); // Delay after movement completes
+        // First allow the timeline to finish rendering
+        requestAnimationFrame(() => {
+          // Then start loading markers
+          setMarkersLoading(false);
+          // Finally, after markers have started loading, remove the moving state
+          setTimeout(() => {
+            setIsMoving(false);
+          }, 100);
+        });
+      }, 400); // Longer delay to ensure timeline is fully rendered
     }, 200); // Add a small delay for the fade-out animation
   };
   
@@ -2003,13 +2026,53 @@ const handleRecenter = () => {
                     try {
                       const originalIndex = events.findIndex(e => e && e.id === event.id);
                       
+                      // Calculate distance from center for staggered animation
+                      const eventDate = new Date(event.event_date);
+                      const currentDate = new Date();
+                      let distanceFromCenter;
+                      
+                      // Calculate distance based on view mode
+                      switch(viewMode) {
+                        case 'day':
+                          // Distance in hours
+                          distanceFromCenter = Math.abs(eventDate.getHours() - currentDate.getHours());
+                          break;
+                        case 'week':
+                          // Distance in days
+                          distanceFromCenter = Math.abs(Math.floor((eventDate - currentDate) / (1000 * 60 * 60 * 24)));
+                          break;
+                        case 'month':
+                          // Distance in days within month
+                          distanceFromCenter = Math.abs(eventDate.getDate() - currentDate.getDate());
+                          break;
+                        case 'year':
+                          // Distance in months
+                          distanceFromCenter = Math.abs(
+                            (eventDate.getMonth() - currentDate.getMonth()) + 
+                            (eventDate.getFullYear() - currentDate.getFullYear()) * 12
+                          );
+                          break;
+                        default:
+                          // Default to index-based delay for position view
+                          distanceFromCenter = index;
+                      }
+                      
+                      // Cap the maximum delay to prevent extremely long waits
+                      const maxDelay = 1000; // 1 second max delay
+                      const baseDelay = 30; // Base delay in ms
+                      const delayMultiplier = 15; // ms per unit of distance
+                      
+                      // Calculate delay with distance-based staggering
+                      // Events closer to center appear first
+                      const delay = Math.min(baseDelay + distanceFromCenter * delayMultiplier, maxDelay);
+                      
                       return (
                         <Fade
                           key={`marker-${event.id}`}
-                          in={!isMoving}
-                          timeout={{ enter: 500, exit: 200 }}
+                          in={!isMoving && !markersLoading}
+                          timeout={{ enter: 600, exit: 150 }}
                           style={{
-                            transitionDelay: `${index * 20}ms`,
+                            transitionDelay: `${delay}ms`,
                           }}
                         >
                           <div>
