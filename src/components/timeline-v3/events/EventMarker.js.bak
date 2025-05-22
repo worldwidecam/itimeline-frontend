@@ -43,7 +43,31 @@ const EventMarker = ({
   isMoving = false // New prop to track timeline movement
 }) => {
   const theme = useTheme();
+  // Info card hover state and position
+  const [showInfo, setShowInfo] = useState(false);
+  const [useSecondaryPosition, setUseSecondaryPosition] = useState(false);
+  const [infoCardPosition, setInfoCardPosition] = useState({ x: 0, y: 0 });
   const markerRef = React.useRef(null);
+  const infoCardRef = React.useRef(null);
+  const timelineContainerRef = React.useRef(null);
+  
+  // Find the timeline container on mount
+  useEffect(() => {
+    // Find the timeline container element
+    const findTimelineContainer = () => {
+      if (markerRef.current) {
+        let parent = markerRef.current.parentElement;
+        while (parent && !parent.classList.contains('timeline-container')) {
+          parent = parent.parentElement;
+        }
+        if (parent) {
+          timelineContainerRef.current = parent;
+        }
+      }
+    };
+    
+    findTimelineContainer();
+  }, []);
   const [isHovered, setIsHovered] = useState(false);
   const [freshCurrentDate, setFreshCurrentDate] = useState(new Date());
   const [overlappingFactor, setOverlappingFactor] = useState(1);
@@ -223,6 +247,51 @@ const EventMarker = ({
       // No need to set anchorEl here
     }
   }, [index, currentIndex]);
+
+  const handleMouseEnter = () => {
+    if (!isMoving) {
+      setIsHovered(true);
+      
+      // Check if we need to use secondary positioning
+      if (markerRef.current && timelineContainerRef.current) {
+        const markerRect = markerRef.current.getBoundingClientRect();
+        const containerRect = timelineContainerRef.current.getBoundingClientRect();
+        
+        // Calculate the space available above the marker
+        const spaceAbove = markerRect.top - containerRect.top;
+        
+        // Estimate info card height based on event type (can be refined)
+        let estimatedCardHeight = 150; // Default
+        if (event.type === EVENT_TYPES.NEWS && event.url_image) {
+          estimatedCardHeight = 220; // News with image is taller
+        } else if (event.type === EVENT_TYPES.MEDIA) {
+          estimatedCardHeight = 200; // Media cards are taller
+        }
+        
+        // If not enough space above, use secondary position
+        if (spaceAbove < estimatedCardHeight + 20) { // Add some margin
+          setUseSecondaryPosition(true);
+          
+          // Calculate a position in the pink gradient area
+          // Position it in the upper right quadrant of the timeline
+          const secondaryX = markerRect.left + 100; // Offset to the right
+          const secondaryY = containerRect.top + 80; // Position it in the upper area
+          
+          setInfoCardPosition({
+            x: secondaryX,
+            y: secondaryY
+          });
+        } else {
+          setUseSecondaryPosition(false);
+        }
+      }
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setUseSecondaryPosition(false);
+  };
 
   const calculatePosition = () => {
     if (viewMode !== 'position') {
@@ -501,8 +570,8 @@ const EventMarker = ({
             ref={markerRef}
             className="active-marker"
             onClick={handleMarkerClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             sx={{
               width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
               height: `${Math.min(getMaxAllowedHeight(true, false), Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier())}px`, // Height constrained by workspace
@@ -539,14 +608,49 @@ const EventMarker = ({
           />
           
           {/* Popup for selected marker - Context-aware positioning */}
+          {/* Dotted line connecting marker to info card when using secondary position */}
+          {useSecondaryPosition && (
+            <Box
+              sx={{
+                position: 'absolute',
+                width: infoCardPosition.x ? `${Math.abs(infoCardPosition.x - position.x)}px` : '100px',
+                height: infoCardPosition.y ? `${infoCardPosition.y}px` : '150px',
+                top: infoCardPosition.y ? `-${infoCardPosition.y}px` : '-150px',
+                left: infoCardPosition.x < position.x ? `${infoCardPosition.x - position.x}px` : '0',
+                pointerEvents: 'none',
+                zIndex: 8999,
+                overflow: 'visible',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  top: 0,
+                  left: 0,
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='${infoCardPosition.x < position.x ? 'M0,0 Q50,50 100,100' : 'M0,100 Q50,50 100,0'}' stroke='${encodeURIComponent(getColor())}' stroke-width='2' fill='none' stroke-dasharray='5,5' /%3E%3C/svg%3E")`,
+                  backgroundSize: '100% 100%',
+                  backgroundRepeat: 'no-repeat',
+                }
+              }}
+            />
+          )}
+          
           <Paper
             elevation={3}
             sx={{
               position: 'absolute',
-              // Position above the marker
-              bottom: '45px',
-              left: '50%',
-              transform: 'translateX(-50%)',
+              ...(useSecondaryPosition ? {
+                // Position in the upper area of the timeline (pink gradient space)
+                top: infoCardPosition.y ? `-${infoCardPosition.y}px` : '-150px',
+                left: infoCardPosition.x ? `${infoCardPosition.x - position.x}px` : '100px',
+                transform: 'none',
+              } : {
+                // Default position above the marker
+                bottom: '45px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+              }),
+              zIndex: 9000,
               p: 0, // Remove default padding to control it in child elements
               maxWidth: 320, // Increased from 280 to 320 for more content space
               width: 'max-content', // Allow width to adjust to content
@@ -1085,41 +1189,99 @@ const EventMarker = ({
           </Paper>
         </Box>
       ) : (
-        <Box
-          ref={markerRef}
-          className={markerClass}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          sx={{
-            position: 'absolute',
-            left: `${position.x + horizontalOffset}px`, // Add horizontal offset
-            bottom: `${position.y}px`,
-            width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-            // Calculate base height based on view mode
-            height: `${(() => {
-              // Set minimum heights based on view mode
-              let baseHeight = 24; // Default base height
-              let minHeight = 40; // Default minimum height
+        <>
+          {/* Hover info card */}
+          {isHovered && (
+            <>
+              {/* Dotted line connecting marker to info card when using secondary position */}
+              {useSecondaryPosition && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    width: infoCardPosition.x ? `${Math.abs(infoCardPosition.x - position.x)}px` : '100px',
+                    height: infoCardPosition.y ? `${infoCardPosition.y}px` : '150px',
+                    top: infoCardPosition.y ? `-${infoCardPosition.y}px` : '-150px',
+                    left: infoCardPosition.x < position.x ? `${infoCardPosition.x - position.x}px` : '0',
+                    pointerEvents: 'none',
+                    zIndex: 8999,
+                    overflow: 'visible',
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '100%',
+                      height: '100%',
+                      top: 0,
+                      left: 0,
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='${infoCardPosition.x < position.x ? 'M0,0 Q50,50 100,100' : 'M0,100 Q50,50 100,0'}' stroke='${encodeURIComponent(getColor())}' stroke-width='2' fill='none' stroke-dasharray='5,5' /%3E%3C/svg%3E")`,
+                      backgroundSize: '100% 100%',
+                      backgroundRepeat: 'no-repeat',
+                    }
+                  }}
+                />
+              )}
               
-              if (viewMode === 'day') {
-                minHeight = 50; // Larger minimum for day view
-                baseHeight = 30;
-              } else if (viewMode === 'week') {
-                minHeight = 45; // Medium minimum for week view
-                baseHeight = 28;
-              } else if (viewMode === 'month') {
-                minHeight = 40; // Standard minimum for month view
-                baseHeight = 26;
-              } else if (viewMode === 'year') {
-                minHeight = 35; // Smaller minimum for year view to avoid overcrowding
-                baseHeight = 24;
-              }
-              
-              // Calculate base height based on view mode and overlapping factor
-              const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
-              // Apply workspace constraints
-              return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
-            })()}px`, // Height constrained by workspace
+              {/* Info card with proper positioning */}
+              <Box
+                ref={infoCardRef}
+                sx={{
+                  position: 'absolute',
+                  left: useSecondaryPosition ? `${infoCardPosition.x}px` : '50%',
+                  top: useSecondaryPosition ? `${infoCardPosition.y}px` : '-10px',
+                  transform: useSecondaryPosition ? 'none' : 'translateX(-50%) translateY(-100%)',
+                  zIndex: 9000,
+                  pointerEvents: 'auto',
+                  opacity: 1,
+                  transition: 'all 0.2s ease-out',
+                }}
+              >
+                <Paper
+                  elevation={3}
+                  sx={{
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: `1px solid ${getColor()}40`,
+                    maxWidth: '280px',
+                  }}
+                >
+                  {/* Card content based on event type */}
+                  {/* Content will be added here */}
+                </Paper>
+              </Box>
+            </>
+          )}
+          
+          {/* Event marker */}
+          <Box
+            ref={markerRef}
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              bottom: '0',
+              width: viewMode === 'position' ? '6px' : '3px',
+              height: (() => {
+                // Set minimum heights based on view mode
+                let baseHeight = 24; // Default base height
+                let minHeight = 40; // Default minimum height
+                
+                if (viewMode === 'day') {
+                  minHeight = 50; // Larger minimum for day view
+                  baseHeight = 30;
+                } else if (viewMode === 'week') {
+                  minHeight = 45; // Medium minimum for week view
+                  baseHeight = 28;
+                } else if (viewMode === 'month') {
+                  minHeight = 40; // Standard minimum for month view
+                  baseHeight = 26;
+                } else if (viewMode === 'year') {
+                  minHeight = 35; // Smaller minimum for year view to avoid overcrowding
+                  baseHeight = 24;
+                }
+                
+                // Calculate base height based on view mode and overlapping factor
+                const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
+                // Apply workspace constraints
+                return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
+              })() + 'px',
             borderRadius: '2px',
             background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
             transform: isMoving 
