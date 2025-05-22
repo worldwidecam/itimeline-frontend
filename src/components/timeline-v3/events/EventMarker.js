@@ -543,85 +543,534 @@ const EventMarker = ({
             elevation={3}
             sx={{
               position: 'absolute',
-              // Smart positioning based on view mode and available space
-              ...(viewMode === 'year' ? {
-                // For year view, position to the side instead of above
-                bottom: '0px',
-                left: '100%',
-                marginLeft: '12px',
-                transform: 'none',
-                // If marker is on the right side of the screen, position to the left
-                ...(position.x > window.innerWidth / 2 && {
-                  left: 'auto',
-                  right: '100%',
-                  marginLeft: '0px',
-                  marginRight: '12px'
-                })
-              } : {
-                // For other views, position above but with a minimum distance from the top
-                bottom: `${Math.min(45 + (overlappingFactor - 1) * 20, window.innerHeight - 200)}px`,
-                left: '50%',
-                transform: 'translateX(-50%)'
-              }),
-              p: 1.5,
-              maxWidth: 280,
+              // Position above the marker
+              bottom: '45px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              p: 0, // Remove default padding to control it in child elements
+              maxWidth: 320, // Increased from 280 to 320 for more content space
               width: 'max-content', // Allow width to adjust to content
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(8px)',
+              // Type-specific background colors
+              bgcolor: (() => {
+                if (event.type === EVENT_TYPES.MEDIA) {
+                  return theme.palette.mode === 'dark' 
+                    ? 'rgba(30,20,40,0.95)' // Darker purple for dark mode
+                    : 'rgba(245,240,255,0.97)'; // Light purple for light mode
+                } else if (event.type === EVENT_TYPES.NEWS) {
+                  return theme.palette.mode === 'dark' 
+                    ? 'rgba(40,20,20,0.95)' // Darker red for dark mode
+                    : 'rgba(255,245,245,0.97)'; // Light red for light mode
+                } else {
+                  // Default/Remark
+                  return theme.palette.mode === 'dark' 
+                    ? 'rgba(15,15,35,0.95)' // Darker blue for dark mode
+                    : 'rgba(245,250,255,0.97)'; // Light blue for light mode
+                }
+              })(),
+              backdropFilter: 'blur(10px)',
               borderRadius: '12px',
-              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 8px 16px rgba(0,0,0,0.5)' 
-                : '0 8px 16px rgba(0,0,0,0.1)',
-              zIndex: 900,
+              // Type-specific border colors
+              border: `1px solid ${(() => {
+                if (event.type === EVENT_TYPES.MEDIA) {
+                  return theme.palette.mode === 'dark' 
+                    ? 'rgba(180,160,220,0.2)' // Purple border for dark mode
+                    : 'rgba(140,100,220,0.15)'; // Purple border for light mode
+                } else if (event.type === EVENT_TYPES.NEWS) {
+                  return theme.palette.mode === 'dark' 
+                    ? 'rgba(220,160,160,0.2)' // Red border for dark mode
+                    : 'rgba(220,100,100,0.15)'; // Red border for light mode
+                } else {
+                  // Default/Remark
+                  return theme.palette.mode === 'dark' 
+                    ? 'rgba(160,180,220,0.2)' // Blue border for dark mode
+                    : 'rgba(100,140,220,0.15)'; // Blue border for light mode
+                }
+              })()}`,
+              overflow: 'hidden', // For rounded corners on media content
+              // Type-specific box shadows
+              boxShadow: (() => {
+                if (event.type === EVENT_TYPES.MEDIA) {
+                  return theme.palette.mode === 'dark' 
+                    ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(100,50,150,0.3)' 
+                    : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(100,50,150,0.15)';
+                } else if (event.type === EVENT_TYPES.NEWS) {
+                  return theme.palette.mode === 'dark' 
+                    ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(150,50,50,0.3)' 
+                    : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(150,50,50,0.15)';
+                } else {
+                  // Default/Remark
+                  return theme.palette.mode === 'dark' 
+                    ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(50,100,150,0.3)' 
+                    : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(50,100,150,0.15)';
+                }
+              })(),
+              zIndex: 9000, // Significantly higher z-index to ensure it appears above all containers
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              // Arrow pointer at the bottom of the card
               '&::after': {
                 content: '""',
                 position: 'absolute',
-                ...(viewMode === 'year' 
-                  ? {
-                      // For year view, arrow points left or right
-                      ...(position.x > window.innerWidth / 2 
-                        ? { // Right side of screen - arrow points right
-                            top: '50%',
-                            right: '100%',
-                            transform: 'translateY(-50%)',
-                            border: '8px solid transparent',
-                            borderRightColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
-                          }
-                        : { // Left side of screen - arrow points left
-                            top: '50%',
-                            left: '100%',
-                            transform: 'translateY(-50%)',
-                            border: '8px solid transparent',
-                            borderLeftColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
-                          })
-                    }
-                  : { // Other views - arrow points down
-                      top: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      border: '8px solid transparent',
-                      borderTopColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
-                    })
+                bottom: '-8px', // Position at the bottom of the card
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '0',
+                height: '0',
+                border: '8px solid transparent',
+                borderTopColor: (() => {
+                  // Type-specific colors for the arrow
+                  if (event.type === EVENT_TYPES.MEDIA) {
+                    return theme.palette.mode === 'dark' 
+                      ? `rgba(30,20,40,0.95)` // Darker purple for dark mode
+                      : `rgba(245,240,255,0.97)`; // Light purple for light mode
+                  } else if (event.type === EVENT_TYPES.NEWS) {
+                    return theme.palette.mode === 'dark' 
+                      ? `rgba(40,20,20,0.95)` // Darker red for dark mode
+                      : `rgba(255,245,245,0.97)`; // Light red for light mode
+                  } else {
+                    // Default/Remark
+                    return theme.palette.mode === 'dark' 
+                      ? `rgba(15,15,35,0.95)` // Darker blue for dark mode
+                      : `rgba(245,250,255,0.97)`; // Light blue for light mode
+                  }
+                })()
               }
             }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, lineHeight: 1.2 }}>
-              {event.title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ 
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              mb: 0.5,
-              lineHeight: 1.3
-            }}>
-              {event.description}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-            </Typography>
+            {/* Media preview section - conditionally rendered based on event type */}
+            {(event.type === EVENT_TYPES.MEDIA || (event.type === EVENT_TYPES.NEWS && event.url_image)) && (
+              <Box sx={{
+                width: '100%',
+                height: event.type === EVENT_TYPES.MEDIA ? 180 : 140,
+                position: 'relative',
+                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}`
+              }}>
+                {/* Media type indicator */}
+                {event.type === EVENT_TYPES.MEDIA && event.media_type && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    bgcolor: 'rgba(0,0,0,0.6)',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    zIndex: 2,
+                    textTransform: 'uppercase',
+                    fontWeight: 'bold'
+                  }}>
+                    {event.media_type}
+                  </Box>
+                )}
+                
+                {/* Image preview */}
+                {((event.type === EVENT_TYPES.MEDIA && (event.media_type === 'image' || !event.media_type)) || 
+                  (event.type === EVENT_TYPES.NEWS && event.url_image)) && (
+                  <Box 
+                    component="img"
+                    src={event.type === EVENT_TYPES.MEDIA ? event.media_url : event.url_image}
+                    alt={event.title}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                )}
+                
+                {/* Video preview with play button */}
+                {event.type === EVENT_TYPES.MEDIA && event.media_type === 'video' && (
+                  <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <Box 
+                      component="img"
+                      src={event.media_url || event.thumbnail_url}
+                      alt={event.title}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: 'brightness(0.9)'
+                      }}
+                    />
+                    <Box sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(0,0,0,0.7)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.85)' }
+                    }}>
+                      <Box sx={{
+                        width: 0,
+                        height: 0,
+                        borderTop: '8px solid transparent',
+                        borderBottom: '8px solid transparent',
+                        borderLeft: '12px solid white',
+                        marginLeft: '3px'
+                      }} />
+                    </Box>
+                  </Box>
+                )}
+                
+                {/* Audio preview with waveform visualization */}
+                {event.type === EVENT_TYPES.MEDIA && event.media_type === 'audio' && (
+                  <Box sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(30,30,30,0.9)' : 'rgba(245,245,245,0.9)',
+                    padding: 2
+                  }}>
+                    {/* Audio icon */}
+                    <Box sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: '50%',
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 2
+                    }}>
+                      <Box component="span" sx={{
+                        fontSize: '2rem',
+                        color: EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA][theme.palette.mode === 'dark' ? 'dark' : 'light']
+                      }}>♫</Box>
+                    </Box>
+                    
+                    {/* Audio waveform visualization */}
+                    <Box sx={{
+                      width: '80%',
+                      height: 40,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      {Array.from({ length: 20 }).map((_, i) => (
+                        <Box 
+                          key={i}
+                          sx={{
+                            width: 3,
+                            height: `${10 + Math.sin(i * 0.8) * 20}px`,
+                            bgcolor: EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                            opacity: 0.7 + Math.sin(i * 0.5) * 0.3
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            )}
+            
+            {/* Type-specific content sections */}
+            {event.type === EVENT_TYPES.REMARK ? (
+              /* REMARK CARD */
+              <Box sx={{ p: 1.5 }}>
+                {/* Remark badge */}
+                <Box sx={{
+                  display: 'inline-block',
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                  mb: 0.5,
+                  letterSpacing: '0.5px'
+                }}>
+                  Remark
+                </Box>
+                
+                {/* Title */}
+                <Typography variant="subtitle1" sx={{ 
+                  fontWeight: 'bold', 
+                  mb: 0.5, 
+                  lineHeight: 1.2
+                }}>
+                  {event.title}
+                </Typography>
+                
+                {/* Description with quote styling */}
+                {event.description && (
+                  <Box sx={{ 
+                    position: 'relative',
+                    pl: 2,
+                    mb: 1,
+                    '&::before': {
+                      content: '"\u201C"', // Left double quotation mark
+                      position: 'absolute',
+                      left: -2,
+                      top: -10,
+                      fontSize: '1.5rem',
+                      color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                      opacity: 0.6
+                    },
+                    borderLeft: `2px solid ${EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light']}`,
+                    borderLeftColor: `${EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light']}40`
+                  }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ 
+                      fontStyle: 'italic',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      lineHeight: 1.4
+                    }}>
+                      {event.description}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {/* Author (if available) */}
+                {event.author && (
+                  <Typography variant="caption" sx={{ 
+                    display: 'block', 
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                    fontWeight: 500,
+                    mb: 0.5
+                  }}>
+                    — {event.author}
+                  </Typography>
+                )}
+                
+                {/* Date and time */}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
+                </Typography>
+                
+                {/* Action buttons */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end', 
+                  alignItems: 'center',
+                  mt: 1,
+                  pt: 1,
+                  borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}`
+                }}>
+                  <Typography 
+                    variant="button" 
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                      cursor: 'pointer',
+                      '&:hover': { textDecoration: 'underline' }
+                    }}
+                  >
+                    VIEW REMARK
+                  </Typography>
+                </Box>
+              </Box>
+            ) : event.type === EVENT_TYPES.NEWS ? (
+              /* NEWS CARD */
+              <Box sx={{ p: 1.5 }}>
+                {/* News badge */}
+                <Box sx={{
+                  display: 'inline-block',
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  color: EVENT_TYPE_COLORS[EVENT_TYPES.NEWS][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                  mb: 0.5,
+                  letterSpacing: '0.5px',
+                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(220,100,100,0.15)' : 'rgba(220,100,100,0.1)',
+                  px: 0.8,
+                  py: 0.2,
+                  borderRadius: '4px'
+                }}>
+                  News
+                </Box>
+                
+                {/* Title with newspaper styling */}
+                <Typography variant="subtitle1" sx={{ 
+                  fontWeight: 'bold', 
+                  mb: 0.5, 
+                  lineHeight: 1.2,
+                  fontFamily: '"Georgia", "Times New Roman", serif'
+                }}>
+                  {event.title}
+                </Typography>
+                
+                {/* Description */}
+                {event.description && (
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    mb: 0.5,
+                    lineHeight: 1.3,
+                    fontFamily: '"Georgia", "Times New Roman", serif'
+                  }}>
+                    {event.description}
+                  </Typography>
+                )}
+                
+                {/* Source URL with icon */}
+                {event.url_source && (
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    mb: 0.5,
+                    mt: 1
+                  }}>
+                    <Box sx={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      backgroundColor: EVENT_TYPE_COLORS[EVENT_TYPES.NEWS][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 0.5,
+                      fontSize: '10px',
+                      color: theme.palette.mode === 'dark' ? '#000' : '#fff',
+                      fontWeight: 'bold'
+                    }}>
+                      N
+                    </Box>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: 'calc(100% - 20px)'
+                    }}>
+                      {event.url_source}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {/* Date and time */}
+                <Typography variant="caption" color="text.secondary" sx={{ 
+                  display: 'block', 
+                  mt: 0.5,
+                  fontFamily: '"Georgia", "Times New Roman", serif'
+                }}>
+                  {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
+                </Typography>
+                
+                {/* Action buttons */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end', 
+                  alignItems: 'center',
+                  mt: 1,
+                  pt: 1,
+                  borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}`
+                }}>
+                  <Typography 
+                    variant="button" 
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      color: EVENT_TYPE_COLORS[EVENT_TYPES.NEWS][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      '&:hover': { textDecoration: 'underline' }
+                    }}
+                  >
+                    READ ARTICLE
+                  </Typography>
+                </Box>
+              </Box>
+            ) : (
+              /* MEDIA CARD */
+              <Box sx={{ p: 1.5 }}>
+                {/* Media type badge */}
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  mb: 0.5
+                }}>
+                  <Box sx={{
+                    display: 'inline-block',
+                    fontSize: '0.7rem',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    color: EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                    letterSpacing: '0.5px',
+                    mr: 0.5
+                  }}>
+                    Media
+                  </Box>
+                  {event.media_type && (
+                    <Box sx={{
+                      display: 'inline-block',
+                      fontSize: '0.65rem',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      px: 0.8,
+                      py: 0.1,
+                      borderRadius: '3px',
+                      letterSpacing: '0.5px'
+                    }}>
+                      {event.media_type}
+                    </Box>
+                  )}
+                </Box>
+                
+                {/* Title */}
+                <Typography variant="subtitle1" sx={{ 
+                  fontWeight: 'bold', 
+                  mb: 0.5, 
+                  lineHeight: 1.2
+                }}>
+                  {event.title}
+                </Typography>
+                
+                {/* Description */}
+                {event.description && (
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    mb: 0.5,
+                    lineHeight: 1.3
+                  }}>
+                    {event.description}
+                  </Typography>
+                )}
+                
+                {/* Date and time */}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
+                </Typography>
+                
+                {/* Action buttons */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end', 
+                  alignItems: 'center',
+                  mt: 1,
+                  pt: 1,
+                  borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}`
+                }}>
+                  <Typography 
+                    variant="button" 
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      color: EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                      cursor: 'pointer',
+                      '&:hover': { textDecoration: 'underline' }
+                    }}
+                  >
+                    {event.media_type === 'video' ? 'PLAY VIDEO' : 
+                     event.media_type === 'audio' ? 'PLAY AUDIO' : 'VIEW MEDIA'}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
           </Paper>
         </Box>
       ) : (
