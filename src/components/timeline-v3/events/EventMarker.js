@@ -11,10 +11,10 @@ import { useTheme } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
-// Import type-specific card components
-import NewsEventCard from './NewsEventCard';
-import MediaEventCard from './MediaEventCard';
-import RemarkEventCard from './RemarkEventCard';
+// Import type-specific marker components
+import NewsEventMarker from './markers/NewsEventMarker';
+import MediaEventMarker from './markers/MediaEventMarker';
+import RemarkEventMarker from './markers/RemarkEventMarker';
 
 // Import other components and constants
 import TimelineEvent from './TimelineEvent';
@@ -782,13 +782,13 @@ const EventMarker = ({
               </Box>
             )}
             
-            {/* Render the appropriate card based on event type */}
+            {/* Render the appropriate marker based on event type */}
             {event.type === EVENT_TYPES.REMARK ? (
-              <RemarkEventCard event={event} />
+              <RemarkEventMarker event={event} />
             ) : event.type === EVENT_TYPES.NEWS ? (
-              <NewsEventCard event={event} />
+              <NewsEventMarker event={event} />
             ) : event.type === EVENT_TYPES.MEDIA ? (
-              <MediaEventCard event={event} />
+              <MediaEventMarker event={event} />
             ) : null}
           </Paper>
         </Box>

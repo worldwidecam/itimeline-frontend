@@ -2,6 +2,24 @@
 
 Frontend application for the iTimeline platform, a modern web application for creating and sharing timelines with interactive event cards.
 
+## Current Focus (May 2025)
+
+### Perfecting Event Markers and Info Cards
+1. **MediaEventMarker**
+   - Optimize media rendering and performance
+   - Improve visual feedback for different media states
+   - Ensure consistent behavior across all view modes
+
+2. **NewsEventMarker**
+   - Resolve duplicate image issues
+   - Enhance visual hierarchy and readability
+   - Improve interaction states and transitions
+
+3. **RemarkEventMarker**
+   - Refine visual presentation
+   - Optimize text rendering and truncation
+   - Ensure consistent styling with other markers
+
 ## Timeline Performance Optimization
 
 The timeline component implements a progressive loading strategy to ensure smooth transitions between different view modes, especially when dealing with large numbers of events:
@@ -17,6 +35,21 @@ The timeline component implements a progressive loading strategy to ensure smoot
 - **Progressive Rendering**: Events and markers render in batches to prevent UI freezing with large datasets
 - **Fade-In Cushioning**: Visual elements use staggered fade-in animations to create a smoother perception of loading
 - **Marker Virtualization**: Only markers within or near the viewport are fully rendered to reduce DOM elements
+
+### EventMarker Refactoring (June 2024)
+- **Modular Marker Components**: Split into specialized components for each event type
+  - `MediaEventMarker`: Handles image, video, and audio events with type-specific rendering
+  - `NewsEventMarker`: Dedicated component for news events with optimized image handling
+  - `RemarkEventMarker`: Focused component for remark/note events
+- **Performance Improvements**:
+  - Reduced re-renders through better component isolation
+  - Optimized media loading and error handling
+  - Consistent styling and behavior across all event types
+- **Code Maintainability**:
+  - Clear separation of concerns
+  - Reusable utility functions
+  - Consistent prop interfaces
+  - Improved testability
 
 ### EventMarker Optimization (May 2025) <!-- BOOKMARK: EVENTMARKER_OPTIMIZATION -->
 - **Immediate Marker Rendering**: Event markers now appear immediately after event creation without requiring a page refresh

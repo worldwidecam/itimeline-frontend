@@ -1,16 +1,34 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { EVENT_TYPE_COLORS, EVENT_TYPES } from './EventTypes';
+import { EVENT_TYPE_COLORS, EVENT_TYPES } from '../EventTypes';
 
 /**
- * Component for rendering News event cards
+ * Component for rendering News event markers in the timeline
  */
-const NewsEventCard = ({ event }) => {
+const NewsEventMarker = ({ event }) => {
   const theme = useTheme();
   
   return (
-    <Box sx={{ maxWidth: 250, cursor: 'pointer' }}>
+    <Paper
+      elevation={3}
+      sx={{
+        maxWidth: 250, 
+        cursor: 'pointer',
+        overflow: 'hidden',
+        borderRadius: '12px',
+        // Type-specific background and border colors
+        bgcolor: theme.palette.mode === 'dark' 
+          ? 'rgba(40,20,20,0.95)' // Darker red for dark mode
+          : 'rgba(255,245,245,0.97)', // Light red for light mode
+        border: `1px solid ${theme.palette.mode === 'dark' 
+          ? 'rgba(220,160,160,0.2)' // Red border for dark mode
+          : 'rgba(220,100,100,0.15)'}`, // Red border for light mode
+        boxShadow: theme.palette.mode === 'dark' 
+          ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(150,50,50,0.3)' 
+          : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(150,50,50,0.15)'
+      }}
+    >
       {/* News banner */}
       <Box sx={{
         display: 'flex',
@@ -66,8 +84,8 @@ const NewsEventCard = ({ event }) => {
           {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
         </Typography>
       </Box>
-    </Box>
+    </Paper>
   );
 };
 
-export default NewsEventCard;
+export default NewsEventMarker;
