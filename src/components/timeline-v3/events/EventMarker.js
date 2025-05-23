@@ -5,13 +5,21 @@
 // connecting them visually like an audioform soundwave. This would provide a visual continuity
 // to the timeline, especially in year view where many events may be displayed.
 
-import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, useTheme, IconButton } from '@mui/material';
+import React, { useState, useRef, useEffect } from 'react';
+import { Box, Paper, Typography, IconButton } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+
+// Import type-specific card components
+import NewsEventCard from './NewsEventCard';
+import MediaEventCard from './MediaEventCard';
+import RemarkEventCard from './RemarkEventCard';
+
+// Import other components and constants
 import TimelineEvent from './TimelineEvent';
-import { EVENT_TYPE_COLORS, EVENT_TYPES } from './EventTypes';
 import { EventHoverCard } from './EventHoverCard';
+import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import { 
   differenceInHours, 
   differenceInDays, 
@@ -544,11 +552,12 @@ const EventMarker = ({
             sx={{
               position: 'absolute',
               // Position above the marker
-              bottom: '45px',
+              bottom: '36px', // Reduced from 45px (45 * 0.8)
               left: '50%',
-              transform: 'translateX(-50%)',
+              transform: 'translateX(-50%) scale(0.8)', // Scale down by 20%
+              transformOrigin: 'bottom center', // Ensure scaling happens from the bottom center
               p: 0, // Remove default padding to control it in child elements
-              maxWidth: 320, // Increased from 280 to 320 for more content space
+              maxWidth: 256, // Reduced from 320 (320 * 0.8)
               width: 'max-content', // Allow width to adjust to content
               // Type-specific background colors
               bgcolor: (() => {
@@ -773,314 +782,13 @@ const EventMarker = ({
               </Box>
             )}
             
-            {/* Type-specific content sections */}
-            {/* Type-specific content based on event type */}
+            {/* Render the appropriate card based on event type */}
             {event.type === EVENT_TYPES.REMARK ? (
-              <Box sx={{ p: 1.5, maxWidth: 250 }}>
-                {/* Title with quote styling */}
-                <Box sx={{ 
-                  position: 'relative',
-                  mb: 1,
-                  '&::before': {
-                    content: '"\u201C"', // Left double quotation mark
-                    position: 'absolute',
-                    left: -5,
-                    top: -12,
-                    fontSize: '1.8rem',
-                    color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
-                    opacity: 0.6
-                  },
-                  '&::after': {
-                    content: '"\u201D"', // Right double quotation mark
-                    position: 'absolute',
-                    right: -5,
-                    bottom: -16,
-                    fontSize: '1.8rem',
-                    color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
-                    opacity: 0.6
-                  }
-                }}>
-                  <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold', 
-                    lineHeight: 1.2,
-                    px: 1
-                  }}>
-                    {event.title}
-                  </Typography>
-                </Box>
-                
-                {/* First sentence of description */}
-                {event.description && (
-                  <Typography variant="body2" color="text.secondary" sx={{ 
-                    fontStyle: 'italic',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 1,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    lineHeight: 1.4,
-                    mb: 1,
-                    pl: 1
-                  }}>
-                    {/* Extract first sentence or first 60 characters */}
-                    {event.description.split('.')[0].substring(0, 60)}{event.description.length > 60 ? '...' : ''}
-                  </Typography>
-                )}
-                
-                {/* Date and time */}
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                  {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-                </Typography>
-              </Box>
+              <RemarkEventCard event={event} />
             ) : event.type === EVENT_TYPES.NEWS ? (
-              <Box sx={{ maxWidth: 250, cursor: 'pointer' }}>
-                {/* News banner */}
-                <Box sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: EVENT_TYPE_COLORS[EVENT_TYPES.NEWS][theme.palette.mode === 'dark' ? 'dark' : 'light'],
-                  color: theme.palette.mode === 'dark' ? '#000' : '#fff',
-                  py: 0.3,
-                  fontFamily: '"Georgia", "Times New Roman", serif',
-                  fontWeight: 'bold',
-                  fontSize: '0.7rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px'
-                }}>
-                  News
-                </Box>
-                
-                {/* Image if available */}
-                {event.url_image && (
-                  <Box 
-                    component="img"
-                    src={event.url_image}
-                    alt={event.title}
-                    sx={{
-                      width: '100%',
-                      height: 120,
-                      objectFit: 'cover',
-                    }}
-                  />
-                )}
-                
-                {/* Content area */}
-                <Box sx={{ p: 1.5 }}>
-                  {/* Title with newspaper styling */}
-                  <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold', 
-                    mb: 0.5, 
-                    lineHeight: 1.2,
-                    fontFamily: '"Georgia", "Times New Roman", serif'
-                  }}>
-                    {event.title}
-                  </Typography>
-                  
-                  {/* Date and time */}
-                  <Typography variant="caption" color="text.secondary" sx={{ 
-                    display: 'block', 
-                    mt: 0.5,
-                    fontFamily: '"Georgia", "Times New Roman", serif'
-                  }}>
-                    {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-                  </Typography>
-                </Box>
-              </Box>
-            ) : event.type === EVENT_TYPES.MEDIA && (!event.media_type || event.media_type === 'image') ? (
-              <Box sx={{ 
-                maxWidth: 250, 
-                cursor: 'pointer',
-                position: 'relative'
-              }}>
-                {/* Image */}
-                <Box 
-                  component="img"
-                  src={event.media_url}
-                  alt={event.title}
-                  sx={{
-                    width: '100%',
-                    height: 150,
-                    objectFit: 'cover',
-                    borderRadius: '4px',
-                  }}
-                />
-                
-                {/* Title overlay at bottom */}
-                <Box sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: 'rgba(0,0,0,0.7)',
-                  color: 'white',
-                  p: 1,
-                  borderRadius: '0 0 4px 4px'
-                }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    fontWeight: 'bold',
-                    lineHeight: 1.2,
-                    textAlign: 'center'
-                  }}>
-                    {event.title}
-                  </Typography>
-                  
-                  {/* Date in small text */}
-                  <Typography variant="caption" sx={{ 
-                    display: 'block',
-                    textAlign: 'center',
-                    mt: 0.5,
-                    opacity: 0.8
-                  }}>
-                    {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-                  </Typography>
-                </Box>
-              </Box>
-            ) : event.type === EVENT_TYPES.MEDIA && event.media_type === 'video' ? (
-              <Box sx={{ 
-                maxWidth: 250, 
-                cursor: 'pointer',
-                position: 'relative'
-              }}>
-                {/* Video thumbnail with play button overlay */}
-                <Box sx={{ position: 'relative' }}>
-                  <Box 
-                    component="img"
-                    src={event.media_url || event.thumbnail_url}
-                    alt={event.title}
-                    sx={{
-                      width: '100%',
-                      height: 150,
-                      objectFit: 'cover',
-                      borderRadius: '4px',
-                      filter: 'brightness(0.9)'
-                    }}
-                  />
-                  
-                  {/* Play button overlay */}
-                  <Box sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(0,0,0,0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    '&:hover': { bgcolor: 'rgba(0,0,0,0.85)' }
-                  }}>
-                    <Box sx={{
-                      width: 0,
-                      height: 0,
-                      borderTop: '10px solid transparent',
-                      borderBottom: '10px solid transparent',
-                      borderLeft: '16px solid white',
-                      marginLeft: '4px'
-                    }} />
-                  </Box>
-                </Box>
-                
-                {/* Title and date */}
-                <Box sx={{ p: 1 }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    fontWeight: 'bold',
-                    lineHeight: 1.2
-                  }}>
-                    {event.title}
-                  </Typography>
-                  
-                  <Typography variant="caption" color="text.secondary" sx={{ 
-                    display: 'block',
-                    mt: 0.5
-                  }}>
-                    {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-                  </Typography>
-                </Box>
-              </Box>
-            ) : event.type === EVENT_TYPES.MEDIA && event.media_type === 'audio' ? (
-              <Box sx={{ 
-                maxWidth: 250, 
-                cursor: 'pointer'
-              }}>
-                {/* Audio visualization */}
-                <Box sx={{
-                  height: 120,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(30,30,30,0.9)' : 'rgba(245,245,245,0.9)',
-                  borderRadius: '4px 4px 0 0',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}>
-                  {/* Audio icon */}
-                  <Box sx={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: '50%',
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 2
-                  }}>
-                    <Box component="span" sx={{
-                      fontSize: '1.8rem',
-                      color: EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA][theme.palette.mode === 'dark' ? 'dark' : 'light']
-                    }}>♫</Box>
-                  </Box>
-                  
-                  {/* Audio waveform visualization in background */}
-                  <Box sx={{
-                    position: 'absolute',
-                    bottom: 10,
-                    left: 0,
-                    right: 0,
-                    height: 40,
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    justifyContent: 'center',
-                    gap: '3px',
-                    opacity: 0.5
-                  }}>
-                    {Array.from({ length: 27 }).map((_, i) => (
-                      <Box 
-                        key={i}
-                        sx={{
-                          width: 3,
-                          height: `${5 + Math.sin(i * 0.5) * 25}px`,
-                          bgcolor: EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA][theme.palette.mode === 'dark' ? 'dark' : 'light'],
-                          borderRadius: '1px'
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-                
-                {/* Title and date */}
-                <Box sx={{ 
-                  p: 1,
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(20,20,20,0.9)' : 'rgba(240,240,240,0.9)',
-                  borderRadius: '0 0 4px 4px'
-                }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    fontWeight: 'bold',
-                    lineHeight: 1.2
-                  }}>
-                    {event.title}
-                  </Typography>
-                  
-                  <Typography variant="caption" color="text.secondary" sx={{ 
-                    display: 'block',
-                    mt: 0.5
-                  }}>
-                    {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-                  </Typography>
-                </Box>
-              </Box>
+              <NewsEventCard event={event} />
+            ) : event.type === EVENT_TYPES.MEDIA ? (
+              <MediaEventCard event={event} />
             ) : null}
           </Paper>
         </Box>
