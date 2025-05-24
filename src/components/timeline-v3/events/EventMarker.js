@@ -552,7 +552,7 @@ const EventMarker = ({
             sx={{
               position: 'absolute',
               // Position above the marker
-              bottom: '36px', // Reduced from 45px (45 * 0.8)
+              bottom: event.type === EVENT_TYPES.NEWS ? '24px' : '36px', // Lower position for news events
               left: '50%',
               transform: 'translateX(-50%) scale(0.8)', // Scale down by 20%
               transformOrigin: 'bottom center', // Ensure scaling happens from the bottom center
@@ -645,8 +645,8 @@ const EventMarker = ({
               }
             }}
           >
-            {/* Media preview section - conditionally rendered based on event type */}
-            {(event.type === EVENT_TYPES.MEDIA || (event.type === EVENT_TYPES.NEWS && event.url_image)) && (
+            {/* Media preview section - only for MEDIA type events (news handles its own image) */}
+            {event.type === EVENT_TYPES.MEDIA && (
               <Box sx={{
                 width: '100%',
                 height: event.type === EVENT_TYPES.MEDIA ? 180 : 140,
