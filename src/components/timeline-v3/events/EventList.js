@@ -211,18 +211,26 @@ const EventList = ({
       }
 
       const eventType = event.type?.toLowerCase() || '';
+      const { key, ...cardProps } = commonProps; // Extract key from commonProps
       
+      // Store the ref in the eventRefs object with a type-specific key
+      const cardRefKey = `${eventType}-card-${event.id}`;
+      eventRefs.current[cardRefKey] = cardRef;
+      
+      // Create the card props without the key
+      const finalCardProps = {
+        ...cardProps,
+        ref: cardRef
+      };
+      
+      // Return the appropriate card component with key as a direct prop
       switch (eventType) {
         case EVENT_TYPES.NEWS:
-          // Store the ref in the eventRefs object with a type-specific key
-          eventRefs.current[`news-card-${event.id}`] = cardRef;
-          return <NewsCard ref={cardRef} {...commonProps} />;
+          return <NewsCard key={key} {...finalCardProps} />;
         case EVENT_TYPES.MEDIA:
-          eventRefs.current[`media-card-${event.id}`] = cardRef;
-          return <MediaCard ref={cardRef} {...commonProps} />;
+          return <MediaCard key={key} {...finalCardProps} />;
         default:
-          eventRefs.current[`remark-card-${event.id}`] = cardRef;
-          return <RemarkCard ref={cardRef} {...commonProps} />;
+          return <RemarkCard key={key} {...finalCardProps} />;
       }
     })();
 

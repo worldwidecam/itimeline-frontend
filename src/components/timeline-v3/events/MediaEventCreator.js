@@ -59,11 +59,15 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
     } else if (open && timelineName) {
       // Add the current timeline as a hashtag if it's not already in the list
       const timelineTag = timelineName.toLowerCase();
-      if (!tags.includes(timelineTag)) {
-        setTags(prevTags => [...prevTags, timelineTag]);
-      }
+      setTags(prevTags => {
+        if (!prevTags.includes(timelineTag)) {
+          return [...prevTags, timelineTag];
+        }
+        return prevTags;
+      });
     }
-  }, [open, timelineName, tags]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, timelineName]); // Removed tags from dependencies and used functional update
 
   const resetForm = () => {
     setTitle('');

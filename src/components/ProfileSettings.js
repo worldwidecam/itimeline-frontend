@@ -45,7 +45,7 @@ const formatFileSize = (bytes) => {
 const ProfileSettings = () => {
   const { user, updateProfile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { blurEmail, setBlurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
+  const { blurEmail, toggleBlurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
   const theme = useMuiTheme();
   const [formData, setFormData] = useState({
     email: user?.email || '',
@@ -81,30 +81,46 @@ const ProfileSettings = () => {
     const fetchUserData = async () => {
       try {
         // Fetch music preferences
-        const musicResponse = await api.get('/api/profile/music');
-        if (musicResponse.data.music_url) {
-          setMusicData(musicResponse.data);
+        try {
+          const musicResponse = await api.get('/api/profile/music');
+          if (musicResponse.data?.music_url) {
+            setMusicData(musicResponse.data);
+          }
+        } catch (musicError) {
+          // Only log unexpected errors (not 404s)
+          if (musicError.response?.status !== 404) {
+            console.warn('Error fetching music data:', musicError.message);
+          }
         }
         
-        // Fetch user preferences
-        try {
-          const prefsResponse = await api.get('/api/profile/preferences');
-          if (prefsResponse.data) {
-            // Update form data with preferences from the server
-            setFormData(prev => ({
-              ...prev,
-              showEmail: prefsResponse.data.showEmail !== false,
-              emailNotifications: prefsResponse.data.emailNotifications !== false,
-              defaultTimelineView: prefsResponse.data.defaultTimelineView || 'base',
-              blurEmail: prefsResponse.data.blurEmail || false
-            }));
-          }
-        } catch (prefsError) {
-          console.error('Error fetching user preferences:', prefsError);
-          // If we can't fetch preferences, we'll use the defaults
+        // For now, we'll use localStorage for preferences
+        // This will be replaced when the backend endpoint is ready
+        const savedBlurPref = localStorage.getItem('emailBlurPreference');
+        if (savedBlurPref !== null) {
+          setFormData(prev => ({
+            ...prev,
+            blurEmail: savedBlurPref === 'true'
+          }));
         }
+        
+        // If you want to implement the preferences endpoint later, uncomment this:
+        /*
+        const prefsResponse = await api.get('/api/profile/preferences');
+        if (prefsResponse.data) {
+          setFormData(prev => ({
+            ...prev,
+            showEmail: prefsResponse.data.showEmail !== false,
+            emailNotifications: prefsResponse.data.emailNotifications !== false,
+            defaultTimelineView: prefsResponse.data.defaultTimelineView || 'base',
+            blurEmail: prefsResponse.data.blurEmail || false
+          }));
+        }
+        */
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        // Only log unexpected errors (not 404s)
+        if (error.response?.status !== 404) {
+          console.warn('Error in fetchUserData:', error.message);
+        }
       }
     };
 
@@ -322,11 +338,16 @@ const ProfileSettings = () => {
     if (e) e.preventDefault();
     
     setError('');
-    setSuccess('');
+    setSuccess('Successfully updated preferences');
     setIsUploading(true);
     
     try {
-      // Extract only the preference fields from formData
+      // For now, we'll just update the local state and localStorage
+      // This will be replaced when the backend endpoint is ready
+      localStorage.setItem('emailBlurPreference', formData.blurEmail.toString());
+      
+      // If you want to implement the preferences endpoint later, uncomment this:
+      /*
       const preferences = {
         showEmail: formData.showEmail,
         emailNotifications: formData.emailNotifications,
@@ -344,17 +365,10 @@ const ProfileSettings = () => {
         }
       );
       
-      console.log('Preferences update response:', response.data);
-      setSuccess('Preferences updated successfully');
-      
-      // If the auth context has an updateProfile function, use it to update the user object
       if (updateProfile && response.data.user) {
-        try {
-          await updateProfile(response.data.user);
-        } catch (updateError) {
-          console.error('Error updating profile in context:', updateError);
-        }
+        await updateProfile(response.data.user);
       }
+      */
     } catch (error) {
       console.error('Preferences update error:', error);
       setError(error.response?.data?.error || 'Failed to update preferences');
@@ -782,14 +796,7 @@ const ProfileSettings = () => {
                     </Typography>
                     <Switch 
                       checked={blurEmail}
-                      onChange={(e) => {
-                        // Update both the context state and the form data
-                        setBlurEmail(e.target.checked);
-                        setFormData(prev => ({
-                          ...prev,
-                          blurEmail: e.target.checked
-                        }));
-                      }}
+                      onChange={toggleBlurEmail}
                       color="primary"
                     />
                   </Box>

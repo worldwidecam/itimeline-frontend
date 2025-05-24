@@ -54,11 +54,15 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
     } else if (open && timelineName) {
       // Add the current timeline as a hashtag if it's not already in the list
       const timelineTag = timelineName.toLowerCase();
-      if (!tags.includes(timelineTag)) {
-        setTags(prevTags => [...prevTags, timelineTag]);
-      }
+      setTags(prevTags => {
+        // Only add the tag if it's not already in the list
+        if (!prevTags.includes(timelineTag)) {
+          return [...prevTags, timelineTag];
+        }
+        return prevTags;
+      });
     }
-  }, [open, timelineName, tags]);
+  }, [open, timelineName]); // Removed tags from dependencies to prevent infinite loop
 
   const resetForm = () => {
     setTitle('');

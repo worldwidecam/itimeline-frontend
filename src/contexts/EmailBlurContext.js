@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import api from '../utils/api';
 
+// Key for localStorage
+const BLUR_PREFERENCE_KEY = 'emailBlurPreference';
+
 // Create the context
 const EmailBlurContext = createContext();
 
@@ -16,25 +19,47 @@ export const EmailBlurProvider = ({ children }) => {
   // Load the blur email preference when the user changes
   useEffect(() => {
     const loadEmailBlurPreference = async () => {
-      if (!user) {
-        setBlurEmail(false);
-        return;
-      }
+      // First check localStorage for the preference
+      const savedPreference = localStorage.getItem(BLUR_PREFERENCE_KEY);
       
-      try {
-        const response = await api.get('/api/profile/preferences');
-        if (response.data) {
-          setBlurEmail(response.data.blurEmail || false);
+      if (savedPreference !== null) {
+        // If we have a saved preference, use it
+        setBlurEmail(savedPreference === 'true');
+      } else if (user) {
+        // If no saved preference but user is logged in, try to fetch from server
+        // (commented out until backend is ready)
+        /*
+        try {
+          const response = await api.get('/api/profile/preferences');
+          if (response.data?.blurEmail !== undefined) {
+            const shouldBlur = Boolean(response.data.blurEmail);
+            setBlurEmail(shouldBlur);
+            localStorage.setItem(BLUR_PREFERENCE_KEY, shouldBlur.toString());
+          }
+        } catch (error) {
+          // Only log unexpected errors
+          if (error.response?.status !== 404) {
+            console.warn('Error loading email blur preference:', error.message);
+          }
+          // Default to false if there's an error
+          setBlurEmail(false);
         }
-      } catch (error) {
-        console.error('Error loading email blur preference:', error);
-        // Default to false if there's an error
+        */
+      } else {
+        // Default to false if not logged in and no saved preference
         setBlurEmail(false);
       }
     };
     
     loadEmailBlurPreference();
   }, [user]);
+  
+  // Function to toggle the blur preference
+  const toggleBlurEmail = () => {
+    const newValue = !blurEmail;
+    setBlurEmail(newValue);
+    localStorage.setItem(BLUR_PREFERENCE_KEY, newValue.toString());
+  };
   
   // Function to blur an email address
   const getBlurredEmail = (email) => {
@@ -74,9 +99,9 @@ export const EmailBlurProvider = ({ children }) => {
   // Value object to be provided by the context
   const value = {
     blurEmail,
-    setBlurEmail,
     getBlurredEmail,
-    getPrivacyEmail
+    toggleBlurEmail,
+    getPrivacyEmail // Add this to make it available to components
   };
   
   return (

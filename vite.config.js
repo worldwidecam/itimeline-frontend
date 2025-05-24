@@ -27,10 +27,42 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    host: '0.0.0.0', // Listen on all network interfaces
+    cors: true, // Enable CORS for all origins
     // Add better error handling
     hmr: {
-      overlay: true,
+      protocol: 'ws',
+      host: 'localhost',
+      port: 3000,
     },
+    // Proxy API requests to the backend
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Sending Request to the Target:', req.method, req.url);
+            // Add CORS headers for the preview
+            proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+            proxyReq.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            proxyReq.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            // Ensure CORS headers are set in the response
+            proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+            proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+            proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+          });
+        },
+      }
+    }
   },
   // Handle environment variables similar to CRA
   define: {

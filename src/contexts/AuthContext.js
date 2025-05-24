@@ -23,9 +23,11 @@ export const AuthProvider = ({ children }) => {
       // Create a direct axios instance to avoid interceptor loops
       const axios = (await import('axios')).default;
       const instance = axios.create({
+        // Use relative URL in development to work with Vite proxy
+        // In production, use the configured API URL
         baseURL: import.meta.env.MODE === 'production' 
           ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
-          : 'http://localhost:5000',
+          : '',
         headers: { 'Content-Type': 'application/json' }
       });
       
@@ -164,9 +166,9 @@ export const AuthProvider = ({ children }) => {
       const axios = (await import('axios')).default;
       const baseURL = import.meta.env.MODE === 'production' 
         ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
-        : 'http://localhost:5000';
+        : ''; // Use relative URL in development
       
-      const response = await axios.get(`${baseURL}/api/auth/validate`, {
+      const response = await axios.post(`${baseURL}/api/auth/validate`, {}, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -195,7 +197,7 @@ export const AuthProvider = ({ children }) => {
           const axios = (await import('axios')).default;
           const baseURL = import.meta.env.MODE === 'production' 
             ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
-            : 'http://localhost:5000';
+            : ''; // Use relative URL in development
           
           const response = await axios.get(`${baseURL}/api/auth/validate`, {
             headers: {
