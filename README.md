@@ -36,6 +36,29 @@ The timeline component implements a progressive loading strategy to ensure smoot
 - **Fade-In Cushioning**: Visual elements use staggered fade-in animations to create a smoother perception of loading
 - **Marker Virtualization**: Only markers within or near the viewport are fully rendered to reduce DOM elements
 
+### Event Marker Popovers
+
+Event markers display interactive popovers when selected, providing a preview of the event content. These popovers are implemented using Material-UI's `Paper` component with custom styling.
+
+#### Popover Types
+- **News Events**: Display article title, source, and image (if available)
+- **Media Events**: Show media preview with type indicator
+- **Remark Events**: Show title and author
+
+#### Customization
+- **Positioning**: Popovers appear above their markers with dynamic positioning
+  - News events: 24px above marker
+  - Other events: 36px above marker
+- **Styling**: Each event type has distinct styling:
+  - Background colors and borders are theme-aware (light/dark mode)
+  - Subtle box shadows and transitions for better visual hierarchy
+  - Responsive scaling (80% of original size)
+
+#### Implementation Notes
+- Popovers are triggered on click (not hover) for better mobile support
+- Media previews are only shown for `EVENT_TYPES.MEDIA`
+- News events handle their own image display in the `EventHoverCard` component
+
 ### EventMarker Refactoring (June 2024)
 - **Modular Marker Components**: Split into specialized components for each event type
   - `MediaEventMarker`: Handles image, video, and audio events with type-specific rendering
