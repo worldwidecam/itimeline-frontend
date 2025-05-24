@@ -363,117 +363,159 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     );
   };
 
-  // Render video media
+  // Generate a thumbnail URL for videos
+  const getVideoThumbnail = (videoUrl, eventData) => {
+    try {
+      if (!videoUrl) return null;
+      
+      // If there's already a thumbnail URL, use it
+      if (eventData?.thumbnail_url) {
+        return eventData.thumbnail_url;
+      }
+      
+      // If it's a YouTube URL, get the thumbnail
+      if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+        const videoId = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        if (videoId && videoId[1]) {
+          return `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
+        }
+      }
+      
+      // If it's a Vimeo URL, get the thumbnail
+      if (videoUrl.includes('vimeo.com')) {
+        const videoId = videoUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
+        if (videoId && videoId[1]) {
+          return `https://vumbnail.com/${videoId[1]}.jpg`;
+        }
+      }
+      
+      // For Cloudinary videos, generate a thumbnail URL
+      if (videoUrl.includes('cloudinary.com') || videoUrl.includes('res.cloudinary.com')) {
+        try {
+          const url = new URL(videoUrl);
+          // Insert transformation parameters before the filename
+          const pathParts = url.pathname.split('/');
+          const versionIndex = pathParts.findIndex(part => part === 'v1' || part === 'v2' || part === 'v3');
+          if (versionIndex !== -1 && pathParts.length > versionIndex + 2) {
+            // Insert thumbnail transformation
+            pathParts.splice(versionIndex + 1, 0, 'c_thumb,w_300,h_200,g_auto');
+            // Change extension to jpg
+            const lastPart = pathParts[pathParts.length - 1];
+            pathParts[pathParts.length - 1] = lastPart.replace(/\.(mp4|webm|mov|avi|wmv|flv|mkv)$/i, '.jpg');
+            url.pathname = pathParts.join('/');
+            return url.toString();
+          }
+        } catch (e) {
+          console.error('Error generating Cloudinary thumbnail URL:', e);
+          return null;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error in getVideoThumbnail:', error);
+      return null;
+    }
+  };
+
+  // Render video media with thumbnail preview
   const renderVideoMedia = (mediaSource) => {
     try {
-      // Check for valid media source
       if (!mediaSource) {
         throw new Error('No media source provided');
       }
-
-      // Safely prepare media sources
-      const preparedMedia = prepareMediaSources(mediaSource);
-      if (!preparedMedia) {
-        throw new Error('Failed to prepare media sources');
-      }
-
-      const { mediaSources = [], fullUrl = '' } = preparedMedia;
-      const fileExt = (typeof fullUrl === 'string' ? fullUrl.split('.').pop()?.toLowerCase() : null) || 'mp4';
-      const hasValidSource = Array.isArray(mediaSources) && mediaSources.length > 0 && mediaSources[0];
+      
+      const thumbnailUrl = getVideoThumbnail(mediaSource, event);
       
       return (
         <Box 
           sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            position: 'relative',
+            width: '100%',
+            height: '100%',
             overflow: 'hidden',
-            zIndex: 1,
-            backgroundColor: 'rgba(0,0,0,0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            cursor: 'pointer',
+            '&:hover .play-button': {
+              transform: 'translate(-50%, -50%) scale(1.1)'
+            }
           }}
+          onClick={handleDetailsClick}
         >
-          {hasValidSource ? (
-            <>
-              <video
-                ref={videoRef}
-                controls={isSelected}
-                width="100%"
-                height="100%"
-                style={{ 
-                  objectFit: 'cover',
-                  opacity: isSelected ? 0.99 : 1,
-                  maxWidth: '100%',
-                  maxHeight: '100%'
-                }}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-                onError={(e) => {
-                  try {
-                    const currentSrc = e.target.src;
-                    const currentIndex = mediaSources?.indexOf?.(currentSrc) ?? -1;
-                    setIsPlaying(false);
-                    
-                    if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
-                      e.target.src = mediaSources[currentIndex + 1];
-                    } else {
-                      e.target.style.display = 'none';
-                    }
-                  } catch (error) {
-                    console.error('Error handling video error:', error);
-                    e.target.style.display = 'none';
-                  }
-                }}
-                preload="metadata"
-              >
-                <source src={mediaSources[0]} type={`video/${fileExt}`} />
-                Your browser does not support the video tag.
-              </video>
-              <Box 
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-                  zIndex: 2,
-                  pointerEvents: 'none'
-                }}
-              />
-              <VideoDetailsButton
-                onClick={handleDetailsClick}
-                tooltip="View Full Video"
-                color={color}
-                isSelected={isSelected}
-              />
-            </>
+          {thumbnailUrl ? (
+            <Box
+              component="img"
+              src={thumbnailUrl}
+              alt={event.title || 'Video thumbnail'}
+              sx={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transition: 'transform 0.3s ease',
+                '&:hover': {
+                  transform: 'scale(1.05)'
+                }
+              }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
           ) : (
-            <Box sx={{ 
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: theme.palette.text.secondary,
-              textAlign: 'center',
-              p: 2,
-              width: '100%',
-              height: '100%'
-            }}>
-              <MovieIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
-              <Typography variant="caption">Video not available</Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(0,0,0,0.05)',
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <MovieIcon sx={{ fontSize: 48, opacity: 0.5 }} />
             </Box>
           )}
+          
+          <Box
+            className="play-button"
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 2,
+              transition: 'transform 0.2s',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 1)'
+              }
+            }}
+          >
+            <PlayArrowIcon color="primary" sx={{ fontSize: 32, ml: 1 }} />
+          </Box>
+          
+          <VideoDetailsButton
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDetailsClick(e);
+            }}
+            tooltip="View Full Video"
+            color={color}
+            isSelected={isSelected}
+          />
         </Box>
       );
     } catch (error) {
       console.error('Error rendering video media:', error);
-      // Set error state to trigger fallback UI
       setHasError(true);
       return null;
     }
@@ -543,41 +585,63 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     );
   };
 
-  // Render default media
-  const renderDefaultMedia = (mediaSource) => {
-    return (
-      <Box 
-        sx={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          bgcolor: 'background.paper',
-          color: 'text.secondary',
-          zIndex: 1
-        }}
-        onClick={handleCardClick}
-      >
-        <Typography variant="body1">
-          {event.title || "Media File"}
-        </Typography>
-        <PageCornerButton 
-          position="top-right" 
-          onClick={handleDetailsClick}
-          icon={<MediaIcon />}
-          color={color}
-        />
-      </Box>
-    );
-  };
+// Render default media
+const renderDefaultMedia = (mediaSource) => {
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.paper',
+        color: 'text.secondary',
+        zIndex: 1
+      }}
+      onClick={handleCardClick}
+    >
+      <Typography variant="body2">Unsupported media type</Typography>
+    </Box>
+  );
+};
 
   // Main render media function
   const renderMedia = () => {
     try {
+      // If there's an error, show error state
+      if (hasError) {
+        return (
+          <Box sx={{ 
+            p: 2, 
+            textAlign: 'center',
+            color: 'error.main',
+            backgroundColor: 'rgba(211, 47, 47, 0.1)',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 1
+          }}>
+            <Typography variant="body2">Error loading media</Typography>
+            <Button 
+              variant="outlined" 
+              size="small" 
+              color="inherit" 
+              sx={{ mt: 1 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setHasError(false);
+              }}
+            >
+              Retry
+            </Button>
+          </Box>
+        );
+      }
+      
       const mediaSource = event.media_url || event.url;
       
       if (!mediaSource) {
@@ -599,7 +663,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       }
       
       // Check for media subtype first (new approach)
-      if (event && event.media_subtype) {
+      if (event?.media_subtype) {
         console.log('MediaCard - Using media_subtype:', event.media_subtype);
         // Use the subtype to determine rendering
         switch(event.media_subtype) {
@@ -620,7 +684,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       const { fullUrl } = prepareMediaSources(mediaSource);
       
       // Determine media type from URL or event.media_type
-      const fileExt = fullUrl.split('.').pop()?.toLowerCase();
+      const fileExt = fullUrl?.split('.').pop()?.toLowerCase() || '';
       const isImage = 
         (fileExt && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('image'));
@@ -646,118 +710,104 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       console.error('Error in renderMedia:', error);
       return (
         <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          height: '100%', 
-          width: '100%',
-          bgcolor: 'background.paper',
+          p: 2, 
+          textAlign: 'center',
           color: 'error.main',
-          p: 2,
-          textAlign: 'center'
+          backgroundColor: 'rgba(211, 47, 47, 0.1)',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 1
         }}>
-          <Typography variant="body2">
-            Error loading media
-          </Typography>
+          <Typography variant="body2">Error displaying media</Typography>
         </Box>
       );
     }
   };
-
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        whileHover={{ y: -5 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={(e) => {
-          e.stopPropagation(); // Prevent event bubbling
-          console.log('MediaCard motion.div clicked');
-          handleCardClick();
+        e.stopPropagation(); // Prevent event bubbling
+        console.log('MediaCard motion.div clicked');
+        handleCardClick();
+      }}
+    >
+      <Box
+        id={`media-card-${event.id}`}
+        sx={{
+          position: 'relative',
+          borderRadius: 2,
+          overflow: 'hidden',
+          boxShadow: isSelected 
+            ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)` 
+            : '0 2px 4px rgba(0,0,0,0.1)',
+          transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+          cursor: 'pointer',
+          bgcolor: 'background.paper',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            '& .event-actions': {
+              opacity: 1,
+            },
+          },
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '300px',
         }}
       >
-        <Box
-          id={`media-card-${event.id}`}
-          sx={{
-            position: 'relative',
-            borderRadius: 2,
-            overflow: 'hidden',
-            boxShadow: isSelected 
-              ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)` 
-              : '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'box-shadow 0.3s ease, transform 0.3s ease',
-            cursor: 'pointer',
-            bgcolor: 'background.paper',
-            '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              '& .event-actions': {
-                opacity: 1,
-              },
-            },
-            height: '100%',
-            display: 'flex',
+        {/* Media Content - Full card background */}
+        {renderMedia()}
+        
+        {/* Info Content - Overlaid with reduced opacity */}
+        <Box 
+          sx={{ 
+            p: 2, 
+            mt: 'auto',
+            display: 'flex', 
             flexDirection: 'column',
-            minHeight: '300px',
+            position: 'relative',
+            zIndex: 3,
+            bgcolor: theme.palette.mode === 'dark' 
+              ? 'rgba(18, 18, 18, 0.75)' 
+              : 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(3px)',
+            borderRadius: '0 0 8px 8px',
           }}
         >
-          {/* Media Content - Full card background */}
-          {renderMedia()}
-          
-          {/* Info Content - Overlaid with reduced opacity */}
-          <Box 
-            sx={{ 
-              p: 2, 
-              mt: 'auto',
-              display: 'flex', 
-              flexDirection: 'column',
-              position: 'relative',
-              zIndex: 3,
-              bgcolor: theme.palette.mode === 'dark' 
-                ? 'rgba(18, 18, 18, 0.75)' 
-                : 'rgba(255, 255, 255, 0.75)',
-              backdropFilter: 'blur(3px)',
-              borderRadius: '0 0 8px 8px',
-            }}
-          >
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <MediaIcon sx={{ color, mt: 0.5 }} />
-              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                  {event.title}
-                </Typography>
-              
-                {/* QUARANTINED: Vertical ellipsis menu removed
-                    The edit and delete functionality was incomplete and caused issues
-                    Pending impact review for possible deletion
-                */}
-              </Box>
-            </Box>
-            
-            {/* Event description */}
-            {event.description && (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                {limitDescription(event.description)}
+          <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <MediaIcon sx={{ color, mt: 0.5 }} />
+            <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                {event?.title || 'Untitled Media'}
               </Typography>
-            )}
-            
-            {/* Tags */}
-            {event.tags && event.tags.length > 0 && (
-              <Box sx={{ mb: 1.5 }}>
-                <TagList tags={event.tags} size="small" />
-              </Box>
-            )}
-            
-            {/* Event metadata */}
-            <Box sx={{ mt: 'auto', pt: 1 }}>
-              {/* Event date */}
+            </Box>
+          </Box>
+          
+          {/* Event description */}
+          {event?.description && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              {limitDescription(event.description)}
+            </Typography>
+          )}
+          
+          {/* Tags */}
+          {event?.tags?.length > 0 && (
+            <Box sx={{ mb: 1.5 }}>
+              <TagList tags={event.tags} size="small" />
+            </Box>
+          )}
+          
+          {/* Event metadata */}
+          <Box sx={{ mt: 'auto', pt: 1 }}>
+            {/* Event date */}
+            {event?.event_date && (
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                 <EventIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.875rem' }} />
                 <Typography variant="caption" color="text.secondary">
                   {formatEventDate(event.event_date)}
                 </Typography>
               </Box>
+            )}
               
               {/* Created date */}
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>

@@ -42,6 +42,11 @@ const MediaEventMarker = ({ event }) => {
   const getVideoThumbnail = (videoUrl) => {
     if (!videoUrl) return '';
     
+    // If there's already a thumbnail URL, use it
+    if (event.thumbnail_url) {
+      return event.thumbnail_url;
+    }
+    
     // If it's a YouTube URL, get the thumbnail
     if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
       const videoId = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
@@ -54,7 +59,7 @@ const MediaEventMarker = ({ event }) => {
     if (videoUrl.includes('vimeo.com')) {
       const videoId = videoUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
       if (videoId && videoId[1]) {
-        // Return a direct thumbnail URL instead of the API endpoint
+        // Use vumbnail for Vimeo thumbnails
         return `https://vumbnail.com/${videoId[1]}.jpg`;
       }
     }
@@ -188,37 +193,50 @@ const MediaEventMarker = ({ event }) => {
           bgcolor: theme.palette.mode === 'dark' ? 'rgba(40,40,40,0.5)' : 'rgba(230,230,230,0.5)',
           overflow: 'hidden'
         }}>
-          {/* Video thumbnail or first frame */}
-          {event.thumbnail_url || getVideoThumbnail(mediaSource) ? (
+          {/* Video thumbnail with optimized loading */}
+          <Box sx={{
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            overflow: 'hidden',
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30,30,30,0.8)' : 'rgba(240,240,240,0.8)'
+          }}>
             <Box
-              component="img"
-              src={event.thumbnail_url || getVideoThumbnail(mediaSource)}
-              alt={event.title || 'Video preview'}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.style.display = 'none';
-              }}
+              component="div"
               sx={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-                opacity: 0.9
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                backgroundImage: `url(${event.thumbnail_url || getVideoThumbnail(mediaSource)})`,
+                opacity: 0.9,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                transition: 'opacity 0.3s ease',
+                '&:hover': {
+                  opacity: 0.8
+                }
               }}
-            />
-          ) : (
-            <Box sx={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: theme.palette.text.secondary,
-              opacity: 0.7
-            }}>
-              <MovieIcon sx={{ fontSize: 60 }} />
+            >
+              {!event.thumbnail_url && !getVideoThumbnail(mediaSource) && (
+                <Box sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: theme.palette.text.secondary,
+                  opacity: 0.7
+                }}>
+                  <MovieIcon sx={{ fontSize: 60, color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }} />
+                </Box>
+              )}
             </Box>
-          )}
+          </Box>
           
           {/* Play button overlay */}
           <Box
