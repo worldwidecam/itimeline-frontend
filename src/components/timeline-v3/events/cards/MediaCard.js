@@ -334,76 +334,117 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
 
   // Render video media
   const renderVideoMedia = (mediaSource) => {
-    const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
-    const fileExt = fullUrl.split('.').pop()?.toLowerCase();
-    
-    return (
-      <Box 
-        sx={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          overflow: 'hidden',
-          zIndex: 1
-        }}
-      >
-        <video
-          ref={videoRef}
-          controls={isSelected} // Only show controls when selected
-          width="100%"
-          height="100%"
-          style={{ 
-            objectFit: 'cover',
-            // Hide controls visually but keep them functional
-            // This creates a cleaner look while still allowing interaction
-            opacity: isSelected ? 0.99 : 1
-          }}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-          onError={(e) => {
-            const currentSrc = e.target.src;
-            const currentIndex = mediaSources.indexOf(currentSrc);
-            setIsPlaying(false);
-            
-            if (currentIndex < mediaSources.length - 1) {
-              e.target.src = mediaSources[currentIndex + 1];
-            } else {
-              e.target.style.display = 'none';
-              e.target.parentNode.innerHTML += `
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
-                  <span style="color: #999;">Video not available</span>
-                </div>
-              `;
-            }
-          }}
-        >
-          <source src={mediaSources[0]} type={`video/${fileExt || 'mp4'}`} />
-          Your browser does not support the video tag.
-        </video>
+    try {
+      const { mediaSources = [], fullUrl = '' } = prepareMediaSources(mediaSource) || {};
+      const fileExt = fullUrl?.split('.').pop()?.toLowerCase() || 'mp4';
+      const hasValidSource = mediaSources?.length > 0 && mediaSources[0];
+      
+      return (
         <Box 
-          sx={{
+          sx={{ 
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-            zIndex: 2,
-            pointerEvents: 'none'
+            overflow: 'hidden',
+            zIndex: 1,
+            backgroundColor: 'rgba(0,0,0,0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
-        />
-        {/* Enhanced details button specifically for video media */}
-        <VideoDetailsButton
-          onClick={handleDetailsClick}
-          tooltip="View Full Video"
-          color={color}
-          isSelected={isSelected}
-        />
-      </Box>
-    );
+        >
+          {hasValidSource ? (
+            <>
+              <video
+                ref={videoRef}
+                controls={isSelected}
+                width="100%"
+                height="100%"
+                style={{ 
+                  objectFit: 'cover',
+                  opacity: isSelected ? 0.99 : 1,
+                  maxWidth: '100%',
+                  maxHeight: '100%'
+                }}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                  try {
+                    const currentSrc = e.target.src;
+                    const currentIndex = mediaSources?.indexOf?.(currentSrc) ?? -1;
+                    setIsPlaying(false);
+                    
+                    if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
+                      e.target.src = mediaSources[currentIndex + 1];
+                    } else {
+                      e.target.style.display = 'none';
+                    }
+                  } catch (error) {
+                    console.error('Error handling video error:', error);
+                    e.target.style.display = 'none';
+                  }
+                }}
+                preload="metadata"
+              >
+                <source src={mediaSources[0]} type={`video/${fileExt}`} />
+                Your browser does not support the video tag.
+              </video>
+              <Box 
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+                  zIndex: 2,
+                  pointerEvents: 'none'
+                }}
+              />
+              <VideoDetailsButton
+                onClick={handleDetailsClick}
+                tooltip="View Full Video"
+                color={color}
+                isSelected={isSelected}
+              />
+            </>
+          ) : (
+            <Box sx={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: theme.palette.text.secondary,
+              textAlign: 'center',
+              p: 2
+            }}>
+              <MovieIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
+              <Typography variant="caption">Video not available</Typography>
+            </Box>
+          )}
+        </Box>
+      );
+    } catch (error) {
+      console.error('Error rendering video media:', error);
+      return (
+        <Box sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.05)'
+        }}>
+          <Typography variant="caption" color="error">Error loading video</Typography>
+        </Box>
+      );
+    }
   };
 
   // Reference to the audio visualizer component for controlling playback
