@@ -435,9 +435,17 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         throw new Error('Failed to prepare media sources');
       }
 
+      // Ensure we have valid media sources
       const { mediaSources = [], fullUrl = '' } = preparedMedia;
-      const fileExt = (typeof fullUrl === 'string' ? fullUrl.split('.').pop()?.toLowerCase() : null) || 'mp4';
-      const hasValidSource = Array.isArray(mediaSources) && mediaSources.length > 0 && mediaSources[0];
+      const validMediaSources = Array.isArray(mediaSources) ? mediaSources.filter(Boolean) : [];
+      const hasValidSource = validMediaSources.length > 0;
+      const fileExt = (() => {
+        if (typeof fullUrl === 'string') {
+          const ext = fullUrl.split('.').pop()?.toLowerCase();
+          return ext || 'mp4';
+        }
+        return 'mp4';
+      })();
       
       return (
         <VideoErrorBoundary>
@@ -476,12 +484,12 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   onError={(e) => {
                     try {
                       const currentSrc = e.target.src;
-                      const currentIndex = mediaSources?.indexOf?.(currentSrc) ?? -1;
+                      const currentIndex = validMediaSources.indexOf(currentSrc);
                       setIsPlaying(false);
                       
-                      if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
+                      if (currentIndex >= 0 && currentIndex < validMediaSources.length - 1) {
                         // Try the next source
-                        e.target.src = mediaSources[currentIndex + 1];
+                        e.target.src = validMediaSources[currentIndex + 1];
                       } else {
                         // No more sources to try, show error state
                         throw new Error('Failed to load video from all sources');
@@ -495,7 +503,13 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   playsInline
                   muted={!isSelected}
                 >
-                  <source src={mediaSources[0]} type={`video/${fileExt}`} />
+                  {validMediaSources.map((src, index) => (
+                    <source 
+                      key={index} 
+                      src={src} 
+                      type={`video/${fileExt}`} 
+                    />
+                  ))}
                   Your browser does not support the video tag.
                 </video>
                 <Box 

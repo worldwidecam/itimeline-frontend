@@ -1,17 +1,35 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { EVENT_TYPE_COLORS, EVENT_TYPES } from '../EventTypes';
+import EventPopup from '../EventPopup';
 
 /**
  * Component for rendering News event markers in the timeline
  */
 const NewsEventMarker = ({ event }) => {
   const theme = useTheme();
+  const [popupOpen, setPopupOpen] = useState(false);
+  
+  const handleMarkerClick = useCallback((e) => {
+    e.stopPropagation();
+    setPopupOpen(true);
+  }, []);
+
+  const handlePopupClose = useCallback(() => {
+    setPopupOpen(false);
+  }, []);
   
   return (
+    <>
+      <EventPopup
+        open={popupOpen}
+        onClose={handlePopupClose}
+        event={event}
+      />
     <Paper
       elevation={3}
+      onClick={handleMarkerClick}
       sx={{
         width: '100%',
         maxWidth: 280, // Increased max width
@@ -125,7 +143,8 @@ const NewsEventMarker = ({ event }) => {
           {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
         </Typography>
       </Box>
-    </Paper>
+      </Paper>
+    </>
   );
 };
 
