@@ -193,36 +193,36 @@ export const AuthProvider = ({ children }) => {
       if (refreshSuccessful) {
         // Try to validate again with the new token
         try {
-          const token = getCookie('access_token') || localStorage.getItem('access_token');
+          const token = getCookie('access_token');
           const axios = (await import('axios')).default;
           const baseURL = import.meta.env.MODE === 'production' 
             ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
             : ''; // Use relative URL in development
           
-          const response = await axios.get(`${baseURL}/api/auth/validate`, {
+          const finalResponse = await axios.get(`${baseURL}/api/auth/me`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           });
           
-          if (response.data && response.data.user) {
-            setUser(response.data.user);
+          if (finalResponse.data) {
+            setUser(prevUser => ({
+              ...prevUser,
+              ...finalResponse.data,
+              avatar_url: finalResponse.data.avatar_url || finalResponse.data.avatar
+            }));
             console.log('User validation successful after token refresh');
             return true;
-          } else {
-            throw new Error('Invalid user data in response after refresh');
           }
         } catch (secondError) {
           console.error('Error fetching user after token refresh:', secondError);
-          logout();
-          return false;
         }
-      } else {
-        console.warn('Token refresh failed, logging out');
-        logout();
-        return false;
       }
+      
+      console.warn('All authentication attempts failed, logging out');
+      logout();
+      return false;
     } finally {
       setLoading(false);
     }
