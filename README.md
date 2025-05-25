@@ -129,6 +129,108 @@ Event markers display interactive popovers when selected, providing a preview of
 - Performance degrades noticeably with more than 20 simultaneous event markers, requiring batched loading
 - **LandingPageTimeline Exception**: The landing page timeline (`LandingPageTimeline.js`) is a special case that implements its own custom event markers directly within the component, rather than using the standard `EventMarker` component. This is intentional and should be treated as an exception to the standard timeline implementation.
 
+## Component Architecture
+
+This section provides a detailed overview of the iTimeline frontend component structure and their relationships.
+
+### Core Timeline Components
+
+1. **`TimelineV3.js`**
+   - **Location**: `/src/components/timeline-v3/TimelineV3.js`
+   - **Purpose**: Main timeline container that orchestrates all other components
+   - **Key Features**:
+     - Manages timeline state
+     - Handles event selection
+     - Coordinates between markers and event list
+
+2. **`EventList.js`**
+   - **Location**: `/src/components/timeline-v3/events/EventList.js`
+   - **Purpose**: Renders the list of events in the timeline
+   - **Key Features**:
+     - Manages virtualized list of events
+     - Handles event selection
+     - Renders appropriate card types
+
+### Event Marker Components
+
+1. **`EventMarker.js`**
+   - **Location**: `/src/components/timeline-v3/events/markers/EventMarker.js`
+   - **Purpose**: Base component for all event markers
+   - **Key Features**:
+     - Renders the visual marker on the timeline
+     - Handles marker interactions
+
+2. **`MediaEventMarker.js`**
+   - **Location**: `/src/components/timeline-v3/events/markers/MediaEventMarker.js`
+   - **Purpose**: Specialized marker for media events
+   - **Key Features**:
+     - Displays media thumbnails
+     - Shows media type indicators
+
+3. **`RemarkEventMarker.js`**
+   - **Location**: `/src/components/timeline-v3/events/markers/RemarkEventMarker.js`
+   - **Purpose**: Specialized marker for remark/note events
+   - **Key Features**:
+     - Shows note preview
+     - Different visual style from media markers
+
+### Popup/Dialog Components
+
+1. **`EventPopup.js`**
+   - **Location**: `/src/components/timeline-v3/events/EventPopup.js`
+   - **Purpose**: Detailed view of an event
+   - **Key Features**:
+     - Shows full event details
+     - Media viewer
+     - Edit/Delete actions
+     - **Note**: Main popup that appears when clicking an event card
+
+2. **`EventDialog.js`**
+   - **Location**: `/src/components/timeline-v3/events/EventDialog.js`
+   - **Purpose**: Form for creating/editing events
+   - **Key Features**:
+     - Form fields for event properties
+     - Media upload
+     - Save/Cancel actions
+
+3. **`MarkerPopover.js`**
+   - **Location**: `/src/components/timeline-v3/events/markers/`
+   - **Purpose**: Small popup that appears when hovering/clicking a marker
+   - **Key Features**:
+     - Quick preview of event
+     - Actions like "View Details" or "Edit"
+
+### Card Components
+
+1. **`MediaCard.js`**
+   - **Location**: `/src/components/timeline-v3/events/cards/MediaCard.js`
+   - **Purpose**: Renders media events in the event list
+   - **Key Features**:
+     - Displays media thumbnails
+     - Play button for videos/audio
+     - Media type indicators
+
+2. **`RemarkCard.js`**
+   - **Location**: `/src/components/timeline-v3/events/cards/RemarkCard.js`
+   - **Purpose**: Renders note/remark events in the event list
+   - **Key Features**:
+     - Shows note preview
+     - Different styling from media cards
+
+### Key Distinctions
+
+1. **Marker vs Card**
+   - **Marker**: Visual indicator on the timeline axis
+   - **Card**: Detailed view in the event list
+
+2. **Popup vs Dialog**
+   - **Popup (EventPopup)**: For viewing event details
+   - **Dialog (EventDialog)**: For creating/editing events
+
+3. **Marker Popover vs Event Popup**
+   - **Marker Popover**: Lightweight, appears on marker hover/click
+   - **Event Popup**: Full-featured, appears when clicking a card
+
 ## Features
 
 ### Diagnostic Tools
