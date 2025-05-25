@@ -411,20 +411,25 @@ const EventPopup = ({ event, open, onClose }) => {
 
   // For all other event types, use the standard popup
   return (
-    <AnimatePresence>
-      {open && (
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          maxWidth="md"
-          fullWidth
-          closeAfterTransition
-          PaperComponent={motion.div}
-          PaperProps={{
-            initial: { opacity: 0, y: 20, scale: 0.98 },
-            animate: { opacity: 1, y: 0, scale: 1 },
-            exit: { opacity: 0, y: 20, scale: 0.98 },
-            transition: { duration: 0.3 },
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      closeAfterTransition
+      TransitionComponent={motion.div}
+      TransitionProps={{
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 20, scale: 0.98 },
+        transition: { duration: 0.3 }
+      }}
+      PaperProps={{
+        component: motion.div,
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 20, scale: 0.98 },
+        transition: { duration: 0.3 },
             sx: {
               borderRadius: 3,
               overflow: 'hidden',
@@ -849,8 +854,6 @@ const EventPopup = ({ event, open, onClose }) => {
             </Alert>
           </Snackbar>
         </Dialog>
-      )}
-    </AnimatePresence>
   );
 };
 
