@@ -3,8 +3,9 @@ import {
   Typography,
   IconButton,
   Link,
-  useTheme,
   Box,
+  Tooltip,
+  useTheme,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -20,6 +21,9 @@ import {
   MoreVert as MoreVertIcon,
   MusicNote as MusicIcon,
 } from '@mui/icons-material';
+import MovieIcon from '@mui/icons-material/Movie';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
@@ -290,6 +294,44 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     return { mediaSources, fullUrl };
   };
 
+  // Simple error boundary component for video rendering
+  class VideoErrorBoundary extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+      return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+      console.error('Video rendering error:', error, errorInfo);
+    }
+
+    render() {
+      if (this.state.hasError) {
+        return (
+          <Box sx={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: theme.palette.error.main,
+            textAlign: 'center',
+            p: 2,
+            height: '100%',
+            width: '100%'
+          }}>
+            <ErrorOutlineIcon sx={{ fontSize: 48, mb: 1 }} />
+            <Typography variant="caption">Failed to load video</Typography>
+          </Box>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
   // Render image media
   const renderImageMedia = (mediaSource) => {
     const { mediaSources } = prepareMediaSources(mediaSource);
@@ -363,12 +405,28 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     );
   };
 
+
+
   // Render video media
   const renderVideoMedia = (mediaSource) => {
     try {
       // Check for valid media source
       if (!mediaSource) {
-        throw new Error('No media source provided');
+        return (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: '100%',
+            color: theme.palette.text.secondary,
+            textAlign: 'center',
+            p: 2
+          }}>
+            <MovieIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
+            <Typography variant="caption">No video source</Typography>
+          </Box>
+        );
       }
 
       // Safely prepare media sources
@@ -382,100 +440,120 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       const hasValidSource = Array.isArray(mediaSources) && mediaSources.length > 0 && mediaSources[0];
       
       return (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'hidden',
-            zIndex: 1,
-            backgroundColor: 'rgba(0,0,0,0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          {hasValidSource ? (
-            <>
-              <video
-                ref={videoRef}
-                controls={isSelected}
-                width="100%"
-                height="100%"
-                style={{ 
-                  objectFit: 'cover',
-                  opacity: isSelected ? 0.99 : 1,
-                  maxWidth: '100%',
-                  maxHeight: '100%'
-                }}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-                onError={(e) => {
-                  try {
-                    const currentSrc = e.target.src;
-                    const currentIndex = mediaSources?.indexOf?.(currentSrc) ?? -1;
-                    setIsPlaying(false);
-                    
-                    if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
-                      e.target.src = mediaSources[currentIndex + 1];
-                    } else {
-                      e.target.style.display = 'none';
-                    }
-                  } catch (error) {
-                    console.error('Error handling video error:', error);
-                    e.target.style.display = 'none';
-                  }
-                }}
-                preload="metadata"
-              >
-                <source src={mediaSources[0]} type={`video/${fileExt}`} />
-                Your browser does not support the video tag.
-              </video>
-              <Box 
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-                  zIndex: 2,
-                  pointerEvents: 'none'
-                }}
-              />
-              <VideoDetailsButton
-                onClick={handleDetailsClick}
-                tooltip="View Full Video"
-                color={color}
-                isSelected={isSelected}
-              />
-            </>
-          ) : (
-            <Box sx={{ 
+        <VideoErrorBoundary>
+          <Box 
+            sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overflow: 'hidden',
+              zIndex: 1,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: theme.palette.text.secondary,
-              textAlign: 'center',
-              p: 2,
-              width: '100%',
-              height: '100%'
-            }}>
-              <MovieIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
-              <Typography variant="caption">Video not available</Typography>
-            </Box>
-          )}
-        </Box>
+              justifyContent: 'center'
+            }}
+          >
+            {hasValidSource ? (
+              <>
+                <video
+                  ref={videoRef}
+                  controls={isSelected}
+                  width="100%"
+                  height="100%"
+                  style={{ 
+                    objectFit: 'cover',
+                    opacity: isSelected ? 0.99 : 1,
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    backgroundColor: 'transparent'
+                  }}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                  onError={(e) => {
+                    try {
+                      const currentSrc = e.target.src;
+                      const currentIndex = mediaSources?.indexOf?.(currentSrc) ?? -1;
+                      setIsPlaying(false);
+                      
+                      if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
+                        // Try the next source
+                        e.target.src = mediaSources[currentIndex + 1];
+                      } else {
+                        // No more sources to try, show error state
+                        throw new Error('Failed to load video from all sources');
+                      }
+                    } catch (error) {
+                      console.error('Error handling video error:', error);
+                      throw error; // Let the error boundary handle it
+                    }
+                  }}
+                  preload="metadata"
+                  playsInline
+                  muted={!isSelected}
+                >
+                  <source src={mediaSources[0]} type={`video/${fileExt}`} />
+                  Your browser does not support the video tag.
+                </video>
+                <Box 
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+                    zIndex: 2,
+                    pointerEvents: 'none'
+                  }}
+                />
+                <VideoDetailsButton
+                  onClick={handleDetailsClick}
+                  tooltip="View Full Video"
+                  color={color}
+                  isSelected={isSelected}
+                />
+              </>
+            ) : (
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: theme.palette.error.main,
+                textAlign: 'center',
+                p: 2,
+                height: '100%',
+                width: '100%'
+              }}>
+                <ErrorOutlineIcon sx={{ fontSize: 48, mb: 1 }} />
+                <Typography variant="caption">No video source available</Typography>
+              </Box>
+            )}
+          </Box>
+        </VideoErrorBoundary>
       );
     } catch (error) {
       console.error('Error rendering video media:', error);
-      // Set error state to trigger fallback UI
-      setHasError(true);
-      return null;
+      return (
+        <Box sx={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: theme.palette.error.main,
+          textAlign: 'center',
+          p: 2,
+          height: '100%',
+          width: '100%'
+        }}>
+          <ErrorOutlineIcon sx={{ fontSize: 48, mb: 1 }} />
+          <Typography variant="caption">Error loading video</Typography>
+        </Box>
+      );
     }
   };
 

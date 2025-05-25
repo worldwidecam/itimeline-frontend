@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Skeleton } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, Typography, Paper, Skeleton, keyframes } from '@mui/material';
+import { useTheme, styled } from '@mui/material/styles';
 import { EVENT_TYPE_COLORS, EVENT_TYPES } from '../EventTypes';
 import config from '../../../../config';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -15,7 +15,6 @@ const MediaEventMarker = ({ event }) => {
   const theme = useTheme();
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('16/9'); // Default to landscape
   
   // Helper function to prepare media source URL
@@ -50,14 +49,14 @@ const MediaEventMarker = ({ event }) => {
     try {
       // If there's already a thumbnail URL, use it
       if (event.thumbnail_url) {
-        return event.thumbnail_url;
+        return prepareMediaSource(event.thumbnail_url);
       }
       
       // If it's a YouTube URL, get the thumbnail
       if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
         const videoId = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
         if (videoId && videoId[1]) {
-          return `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
+          return `https://img.youtube.com/vi/${videoId[1]}/maxresdefault.jpg`; // Using maxresdefault for higher quality
         }
       }
       
@@ -65,14 +64,25 @@ const MediaEventMarker = ({ event }) => {
       if (videoUrl.includes('vimeo.com')) {
         const videoId = videoUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
         if (videoId && videoId[1]) {
-          return `https://vumbnail.com/${videoId[1]}.jpg`;
+          // First try the vumbnail service
+          const vumbnailUrl = `https://vumbnail.com/${videoId[1]}.jpg`;
+          // Fallback to Vimeo's own thumbnail API if needed
+          return vumbnailUrl || `https://vimeo.com/api/v2/video/${videoId[1]}.json`;
         }
       }
       
-      // For direct video files, try to get a thumbnail if it's a video
+      // For direct video files, check if there's a corresponding image file
       if (['mp4', 'webm', 'mov'].some(ext => videoUrl.toLowerCase().endsWith(ext))) {
-        // Return a placeholder for now - in a real app, you might want to generate a thumbnail
-        return '';
+        // Try to find a corresponding image file with the same name but different extension
+        const baseUrl = videoUrl.split('.').slice(0, -1).join('.');
+        const possibleExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+        
+        for (const ext of possibleExtensions) {
+          const potentialThumbnail = `${baseUrl}${ext}`;
+          // In a real app, you would check if this URL exists
+          // For now, we'll just return the first potential URL
+          return potentialThumbnail;
+        }
       }
       
       return '';
@@ -84,43 +94,57 @@ const MediaEventMarker = ({ event }) => {
   
   // Handle thumbnail load
   const handleThumbnailLoad = (e) => {
-    setThumbnailLoaded(true);
-    setThumbnailError(false);
-    
-    // Detect aspect ratio if we have the image
-    if (e.target.naturalWidth && e.target.naturalHeight) {
-      const ratio = e.target.naturalWidth / e.target.naturalHeight;
-      setAspectRatio(ratio > 1 ? '16/9' : '9/16'); // Simple classification as landscape or portrait
+    // Only proceed if the image loaded successfully
+    if (e.target.complete && e.target.naturalWidth !== 0) {
+      setThumbnailLoaded(true);
+      setThumbnailError(false);
+      
+      // Detect aspect ratio if we have the image
+      const { naturalWidth, naturalHeight } = e.target;
+      if (naturalWidth && naturalHeight) {
+        const ratio = naturalWidth / naturalHeight;
+        // More precise aspect ratio detection
+        if (ratio > 1.7) {
+          setAspectRatio('16/9'); // Wide landscape
+        } else if (ratio < 0.7) {
+          setAspectRatio('9/16'); // Portrait
+        } else {
+          setAspectRatio('1/1'); // Square
+        }
+      }
+    } else {
+      handleThumbnailError();
     }
   };
   
   const handleThumbnailError = () => {
+    console.log('Thumbnail failed to load, showing fallback');
     setThumbnailError(true);
     setThumbnailLoaded(false);
   };
+  
+  // Get the media source and thumbnail URL
+  const mediaSource = getMediaSource();
+  const preparedMediaSource = prepareMediaSource(mediaSource);
+  const thumbnailUrl = getVideoThumbnail(mediaSource);
+  const showFallback = !thumbnailUrl || thumbnailError;
 
   // Determine media type
   const getMediaType = () => {
-    if (event.media_subtype) {
-      return event.media_subtype;
-    }
-    
-    const mediaSource = getMediaSource();
-    const fileExt = mediaSource.split('.').pop()?.toLowerCase() || '';
-    
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(fileExt)) {
-      return 'image';
-    } else if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'flv', 'mkv'].includes(fileExt)) {
+    const source = mediaSource.toLowerCase();
+    if (source.match(/\.(mp4|webm|mov|avi|wmv|flv|mkv|m4v)$/i)) {
       return 'video';
-    } else if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'].includes(fileExt)) {
+    } else if (source.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i)) {
       return 'audio';
+    } else if (source.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i)) {
+      return 'image';
+    } else if (source.includes('youtube.com') || source.includes('youtu.be') || source.includes('vimeo.com')) {
+      return 'video';
     }
-    
-    return event.media_type || 'image'; // Default to image if unknown
+    return 'unknown';
   };
 
   const mediaType = getMediaType();
-  const mediaSource = prepareMediaSource(getMediaSource());
   
   // Handle different media types
   if (mediaType === 'image') {
@@ -202,13 +226,90 @@ const MediaEventMarker = ({ event }) => {
     const hasThumbnail = !!thumbnailUrl;
     const showFallback = !hasThumbnail || thumbnailError;
     
-    return (
+    // Animation for the REC indicator pulse
+  const pulse = keyframes`
+    0% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0.5; transform: scale(1); }
+  `;
+
+  // Styled components for the camcorder effect
+  const CamcorderBorder = styled(Box)({
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 3,
+    pointerEvents: 'none',
+    '&::before, &::after, & > div::before, & > div::after': {
+      content: '""',
+      position: 'absolute',
+      width: '16px',
+      height: '16px',
+      border: '2px solid #b0b0b0',
+      zIndex: 4,
+      opacity: 0.9,
+    },
+    '&::before': {
+      top: '6px',
+      left: '6px',
+      borderRight: 'none',
+      borderBottom: 'none',
+    },
+    '&::after': {
+      top: '6px',
+      right: '6px',
+      borderLeft: 'none',
+      borderBottom: 'none',
+    },
+    '& > div::before': {
+      bottom: '6px',
+      left: '6px',
+      borderRight: 'none',
+      borderTop: 'none',
+    },
+    '& > div::after': {
+      bottom: '6px',
+      right: '6px',
+      borderLeft: 'none',
+      borderTop: 'none',
+    },
+  });
+
+  // Red circle component
+  const RedCircle = styled(Box)({
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    width: '8px',
+    height: '8px',
+    backgroundColor: '#ff3d3d',
+    borderRadius: '50%',
+    animation: `${pulse} 1.5s infinite`,
+    zIndex: 5,
+  });
+
+  // REC text component
+  const RecText = styled(Box)({
+    position: 'absolute',
+    top: '22px', // Positioned below the red circle
+    right: '6px', // Centered under the red circle
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: 'white',
+    fontSize: '9px',
+    fontWeight: 'bold',
+    padding: '2px 6px',
+    borderRadius: '10px',
+    backdropFilter: 'blur(2px)',
+    zIndex: 4,
+  });
+
+  return (
       <Paper
-        elevation={isHovered ? 6 : 3}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        elevation={3}
         sx={{
-          maxWidth: 250,
+          maxWidth: 270, // 250 * 1.05 (5% larger)
           width: '100%',
           cursor: 'pointer',
           overflow: 'hidden',
@@ -219,15 +320,13 @@ const MediaEventMarker = ({ event }) => {
           border: `1px solid ${theme.palette.mode === 'dark' 
             ? 'rgba(180,160,220,0.2)'
             : 'rgba(140,100,220,0.15)'}`,
-          boxShadow: isHovered 
-            ? theme.palette.mode === 'dark' 
-              ? '0 8px 25px rgba(0,0,0,0.7), 0 4px 12px rgba(100,50,150,0.4)'
-              : '0 8px 25px rgba(0,0,0,0.2), 0 4px 12px rgba(100,50,150,0.2)'
-            : theme.palette.mode === 'dark' 
-              ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(100,50,150,0.3)' 
-              : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(100,50,150,0.15)',
-          transition: 'all 0.3s ease-in-out',
-          transform: isHovered ? 'translateY(-4px)' : 'none'
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(100,50,150,0.3)' 
+            : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(100,50,150,0.15)',
+          position: 'relative',
+          transform: 'scale(1.05)',
+          transformOrigin: 'top center',
+          transition: 'all 0.3s ease-in-out'
         }}
       >
         {/* Video preview with play button overlay */}
@@ -295,12 +394,16 @@ const MediaEventMarker = ({ event }) => {
               p: 2,
               textAlign: 'center'
             }}>
-              <VideocamIcon sx={{ 
+              <PlayArrowIcon sx={{ 
                 fontSize: 48, 
                 mb: 1,
                 color: theme.palette.mode === 'dark' 
-                  ? 'rgba(255,255,255,0.6)' 
-                  : 'rgba(0,0,0,0.4)' 
+                  ? 'rgba(255,255,255,0.8)' 
+                  : 'rgba(0,0,0,0.6)',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '25%',
+                padding: '8px',
+                boxSizing: 'content-box'
               }} />
               <Typography variant="caption" sx={{ 
                 fontSize: '0.7rem',
@@ -313,64 +416,13 @@ const MediaEventMarker = ({ event }) => {
             </Box>
           )}
           
-          {/* Play button overlay */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.4))',
-              backdropFilter: 'blur(1px)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                background: 'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.5))',
-                '& .play-button': {
-                  transform: 'scale(1.2)',
-                  boxShadow: `0 0 0 4px ${theme.palette.primary.main}40, 0 0 25px rgba(0,0,0,0.4)`,
-                  '& svg': {
-                    color: theme.palette.primary.main
-                  }
-                }
-              }
-            }}
-          >
-            <Box
-              className="play-button"
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                bgcolor: 'rgba(255,255,255,0.95)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: theme.palette.primary.main,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: `0 4px 16px rgba(0,0,0,0.2)`,
-                border: `2px solid ${theme.palette.primary.main}20`,
-                '&:hover': {
-                  transform: 'scale(1.2)',
-                  bgcolor: 'rgba(255,255,255,1)',
-                  boxShadow: `0 0 0 4px ${theme.palette.primary.main}40, 0 0 25px rgba(0,0,0,0.4)`
-                },
-                '&:active': {
-                  transform: 'scale(1.1)'
-                }
-              }}
-            >
-              <PlayArrowIcon sx={{ 
-                fontSize: 36, 
-                ml: '3px',
-                transition: 'all 0.3s ease',
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-              }} />
-            </Box>
-          </Box>
+          {/* Camcorder border overlay */}
+          <CamcorderBorder className="camcorder-border">
+            <div />
+          </CamcorderBorder>
+          {/* REC indicator */}
+          <RedCircle className="red-circle" />
+          <RecText className="rec-text">REC</RecText>
         </Box>
         
         {/* Title and date */}
