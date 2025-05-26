@@ -27,6 +27,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
   const isSetupRef = useRef(false);
   const audioRipplesRef = useRef([]);
   const lastPlayingIntensitiesRef = useRef(null);
+  const lastGlowMultiplierRef = useRef(1.0); // Track glow size for smooth transitions
   
   // Component state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -490,8 +491,8 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
         lastRippleTimeRef.current.mid = now;
       }
       
-      // High frequency beats - create fast, subtle ripples
-      if (highIntensity > 0.5 && now - lastRippleTimeRef.current.high > 80) {
+      // High frequency beats - create fast, subtle ripples (50ms cooldown for more responsiveness)
+      if (highIntensity > 0.5 && now - lastRippleTimeRef.current.high > 50) {
         const highScale = 1.0 + (highIntensity * 0.3);
         audioRipplesRef.current.push({
           size: config.coreSizeMax * 1.05,
@@ -642,10 +643,22 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     ctx.fillStyle = coreGradient;
     ctx.fill();
     
-    // Add a glow effect behind the core
-    const glowSizeMultiplier = isPlaying ? config.coreGlowSize : (config.coreGlowSize * 0.6);
+    // Calculate audio activity level (0-1) based on intensity
+    const activityLevel = Math.min(1, Math.max(0, intensity * 1.5)); // Scale intensity for better response
+    
+    // Smoothly adjust glow size based on audio activity
+    const targetGlowMultiplier = activityLevel > 0.1 
+      ? config.coreGlowSize * (0.8 + activityLevel * 0.5) // Scale up with activity
+      : config.coreGlowSize * 0.4; // Minimum glow when no activity
+      
+    // Smooth the transition using a simple easing function
+    const glowSizeMultiplier = lastGlowMultiplierRef.current = 
+      lastGlowMultiplierRef.current * 0.8 + targetGlowMultiplier * 0.2;
+      
     const glowSize = coreSize * glowSizeMultiplier;
-    const glowIntensity = isPlaying ? (0.15 + (bassIntensity * 0.2)) : 0.1;
+    
+    // Adjust glow intensity based on audio activity
+    const glowIntensity = 0.1 + (activityLevel * 0.25); // 0.1 to 0.35 range
     
     ctx.beginPath();
     ctx.arc(centerX, centerY, glowSize, 0, 2 * Math.PI);
