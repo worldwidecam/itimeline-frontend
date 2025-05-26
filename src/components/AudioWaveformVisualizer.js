@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { forwardRef } from 'react';
 import { Box, Typography, Paper, Slider, IconButton } from '@mui/material';
 import { PlayArrow, Pause, VolumeUp, VolumeOff } from '@mui/icons-material';
 import { useTheme } from '../contexts/ThemeContext';
@@ -7,11 +8,16 @@ import { useTheme } from '../contexts/ThemeContext';
  * A component that displays an audio waveform visualization
  * The waveform moves with the audio decibel levels
  */
-const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
+const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = false }, ref) => {
   // Get the current theme mode
   const { isDarkMode } = useTheme();
   // Refs for DOM elements and audio processing
   const canvasRef = useRef(null);
+  const lastRippleTimeRef = useRef({
+    low: 0,
+    mid: 0,
+    high: 0
+  });
   const audioRef = useRef(null);
   const animationRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -35,28 +41,40 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
   const config = useMemo(() => ({
     // Core parameters
     coreSizeMin: 10,
-    coreSizeMax: 28,
+    coreSizeMax: 35,
     corePulseSpeed: 0.5,
     coreColorInner: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'rgba(220, 60, 60, 0.95)',
     coreColorOuter: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'rgba(180, 0, 0, 0.9)',
     coreGlowColor: isDarkMode ? 'rgba(128, 0, 0, 0.2)' : 'rgba(180, 0, 0, 0.15)',
     coreGlowSize: 2.5,
     
+    // Beat detection parameters
+    beatHold: 40, // How many frames to keep a beat
+    beatDecayRate: 0.96, // How quickly the beat detection decays
+    beatMin: 0.15, // Volume threshold for a beat
+    beatFilter: 0.8, // How much to filter the beat detection
+    
+    // Frequency bands for different beat types
+    freqBands: {
+      low: { min: 20, max: 250 },    // Kick drum
+      mid: { min: 250, max: 2000 },  // Snare, vocals
+      high: { min: 2000, max: 10000 } // Hi-hat, cymbals
+    },
+    
     // Ripple parameters
-    maxRipples: 8,
-    rippleInitialSpeed: 2.5,
-    rippleSpeedDecay: 0.99,
-    rippleLifespan: 180,
-    rippleSpawnRate: 0.3,
-    rippleMaxSize: 1000, // Will be updated based on canvas size
+    maxRipples: 6,
+    rippleInitialSpeed: 1.5,
+    rippleSpeedDecay: 0.98,
+    rippleLifespan: 120,
+    rippleMaxSize: 1000,
     
     // Style parameters
     rippleStyle: 'smooth',
-    rippleThickness: 2.0,
-    rippleInitialOpacity: 0.7,
-    rippleOpacityPeak: 0.25,
-    rippleVariation: 0.15
-  }), []);
+    rippleThickness: 1.8,
+    rippleInitialOpacity: 0.85,
+    rippleOpacityPeak: 0.35,
+    rippleVariation: 0.2
+  }), [isDarkMode]);
   
   // Memoize color parameters based on theme
   const baseColor = useMemo(() => isDarkMode ? [255, 50, 50] : [180, 30, 30], [isDarkMode]); // Base RGB color
@@ -98,16 +116,33 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
     isSetupRef.current = false;
   }, []);
 
-  // Initialize audio context
+  // Initialize audio context with enhanced analysis
   const initAudioContext = useCallback(() => {
     cleanupAudio();
     
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioContextRef.current = new AudioContext();
+    
+    // Create analyser with better settings for beat detection
     analyserRef.current = audioContextRef.current.createAnalyser();
-    analyserRef.current.fftSize = 256;
+    analyserRef.current.fftSize = 512; // Increased for better frequency resolution
+    analyserRef.current.smoothingTimeConstant = 0.6; // Smoother transitions
+    
+    // Create frequency data array
     const bufferLength = analyserRef.current.frequencyBinCount;
     dataArrayRef.current = new Uint8Array(bufferLength);
+    
+    // Initialize beat detection variables
+    lastPlayingIntensitiesRef.current = {
+      low: 0,
+      mid: 0,
+      high: 0,
+      volume: 0,
+      beatCutOff: 0,
+      beatTime: 0,
+      beatDetect: false,
+      beatHoldFrames: 0
+    };
   }, [cleanupAudio]);
 
   // Set up audio context and connect nodes
@@ -158,15 +193,73 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
                 return;
               }
               
-              // Generate some fake audio data based on the current time
-              // This will make the visualizer move even without a direct connection
-              if (analyserRef.current && dataArrayRef.current && !audioRef.current.paused) {
-                // Create a simple oscillating pattern
-                const time = Date.now() / 1000;
-                for (let i = 0; i < dataArrayRef.current.length; i++) {
-                  // Create a wave pattern that changes over time
-                  const value = 128 + Math.sin(time * 5 + i * 0.2) * 60 + Math.sin(time * 3 + i * 0.1) * 40;
-                  dataArrayRef.current[i] = value;
+              // Update ripple effects based on beat detection
+              if (isPlaying && analyserRef.current && lastPlayingIntensitiesRef.current) {
+                const { beatDetect, volume } = lastPlayingIntensitiesRef.current;
+                
+                // Update intensity based on overall volume
+                let intensity = volume * 1.5; // Scale up for better visibility
+                
+                // Add new ripples on beats with different properties based on frequency bands
+                if (beatDetect) {
+                  const beatType = beatDetected.low ? 'low' : beatDetected.mid ? 'mid' : 'high';
+                  
+                  // Create ripples with properties based on beat type
+                  const rippleCount = beatType === 'low' ? 2 : 1; // More ripples for bass
+                  
+                  for (let i = 0; i < rippleCount; i++) {
+                    if (audioRipplesRef.current.length >= config.maxRipples) break;
+                    
+                    // Adjust properties based on beat type
+                    let speed, size, opacity, thickness;
+                    
+                    switch(beatType) {
+                      case 'low':
+                        // Big, slow ripples for bass
+                        speed = config.rippleInitialSpeed * (0.7 + Math.random() * 0.3);
+                        size = 1.2 + Math.random() * 0.3;
+                        opacity = config.rippleInitialOpacity * (0.8 + Math.random() * 0.4);
+                        thickness = config.rippleThickness * (1.2 + Math.random() * 0.3);
+                        break;
+                      case 'mid':
+                        // Medium ripples for mid-range
+                        speed = config.rippleInitialSpeed * (1.0 + Math.random() * 0.3);
+                        size = 1.0 + Math.random() * 0.2;
+                        opacity = config.rippleInitialOpacity * (0.9 + Math.random() * 0.2);
+                        thickness = config.rippleThickness * (0.9 + Math.random() * 0.2);
+                        break;
+                      case 'high':
+                      default:
+                        // Fast, subtle ripples for high frequencies
+                        speed = config.rippleInitialSpeed * (1.2 + Math.random() * 0.4);
+                        size = 0.8 + Math.random() * 0.2;
+                        opacity = config.rippleInitialOpacity * (0.7 + Math.random() * 0.3);
+                        thickness = config.rippleThickness * (0.7 + Math.random() * 0.2);
+                    }
+                    
+                    // Add some randomness to position for natural feel
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 5 + Math.random() * 10;
+                    
+                    audioRipplesRef.current.push({
+                      x: centerX + Math.cos(angle) * distance,
+                      y: centerY + Math.sin(angle) * distance,
+                      radius: 0,
+                      speed: speed,
+                      opacity: opacity,
+                      life: 0,
+                      maxLife: config.rippleLifespan * size,
+                      color: `hsl(${
+                        (baseColor[0] + (Math.random() * 2 - 1) * colorVariation[0] + 360) % 360
+                      }, ${
+                        baseColor[1] + (Math.random() * 2 - 1) * colorVariation[1]
+                      }%, ${
+                        baseColor[2] + (Math.random() * 2 - 1) * colorVariation[2]
+                      }%`,
+                      thickness: thickness,
+                      type: beatType
+                    });
+                  }
                 }
               }
             }, 50); // Update at 20fps
@@ -184,7 +277,107 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
     }
   }, [cleanupAudio, initAudioContext]);
 
-  // Draw the waveform visualization
+  // Analyze frequency bands for beat detection
+  const analyzeFrequencyBands = useCallback((freqData) => {
+    if (!freqData || !lastPlayingIntensitiesRef.current) return null;
+    
+    const intensities = {
+      low: 0,
+      mid: 0,
+      high: 0,
+      volume: 0
+    };
+    
+    // Calculate average volume for each frequency band
+    const sampleRate = audioContextRef.current?.sampleRate || 44100;
+    const frequencyBinCount = analyserRef.current?.frequencyBinCount || 0;
+    const binSize = sampleRate / 2 / frequencyBinCount;
+    
+    // Sum up the frequency bands
+    for (let i = 0; i < frequencyBinCount; i++) {
+      const freq = i * binSize;
+      const value = freqData[i] / 255; // Normalize to 0-1
+      
+      // Add to volume
+      intensities.volume += value;
+      
+      // Add to appropriate frequency band
+      if (freq >= config.freqBands.low.min && freq < config.freqBands.low.max) {
+        intensities.low += value;
+      } else if (freq >= config.freqBands.mid.min && freq < config.freqBands.mid.max) {
+        intensities.mid += value;
+      } else if (freq >= config.freqBands.high.min && freq < config.freqBands.high.max) {
+        intensities.high += value;
+      }
+    }
+    
+    // Normalize the values
+    const totalBins = frequencyBinCount;
+    intensities.volume /= totalBins;
+    intensities.low /= (config.freqBands.low.max - config.freqBands.low.min) / binSize;
+    intensities.mid /= (config.freqBands.mid.max - config.freqBands.mid.min) / binSize;
+    intensities.high /= (config.freqBands.high.max - config.freqBands.high.min) / binSize;
+    
+    return intensities;
+  }, [config.freqBands]);
+  
+  // Detect beats in the audio
+  const detectBeats = useCallback((intensities) => {
+    if (!intensities || !lastPlayingIntensitiesRef.current) return false;
+    
+    const last = lastPlayingIntensitiesRef.current;
+    const beatDetected = {
+      low: false,
+      mid: false,
+      high: false
+    };
+    
+    // Detect beats in each frequency band
+    const threshold = config.beatMin;
+    const filter = config.beatFilter;
+    
+    // Low frequencies (kick drum)
+    if (intensities.low > last.low * (1 + threshold) && intensities.low > threshold) {
+      last.beatCutOff = intensities.low * (1 + threshold);
+      beatDetected.low = true;
+    } else {
+      last.low = intensities.low * filter + last.low * (1 - filter);
+    }
+    
+    // Mid frequencies (snare, vocals)
+    if (intensities.mid > last.mid * (1 + threshold) && intensities.mid > threshold) {
+      last.mid = intensities.mid * (1 + threshold);
+      beatDetected.mid = true;
+    } else {
+      last.mid = intensities.mid * filter + last.mid * (1 - filter);
+    }
+    
+    // High frequencies (hi-hat, cymbals)
+    if (intensities.high > last.high * (1 + threshold) && intensities.high > threshold) {
+      last.high = intensities.high * (1 + threshold);
+      beatDetected.high = true;
+    } else {
+      last.high = intensities.high * filter + last.high * (1 - filter);
+    }
+    
+    // Update volume
+    last.volume = intensities.volume;
+    
+    // Handle beat hold frames
+    if (beatDetected.low || beatDetected.mid || beatDetected.high) {
+      last.beatTime = 0;
+      last.beatDetect = true;
+      last.beatHoldFrames = config.beatHold;
+    } else if (last.beatHoldFrames > 0) {
+      last.beatHoldFrames--;
+    } else {
+      last.beatDetect = false;
+    }
+    
+    return beatDetected;
+  }, [config.beatHold, config.beatMin, config.beatFilter]);
+  
+  // Draw the waveform visualization with beat detection
   const drawWaveform = useCallback(() => {
     if (!canvasRef.current) return;
     
@@ -195,8 +388,19 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
     const centerX = width / 2;
     const centerY = height / 2;
     
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+    // Clear canvas with a subtle fade effect
+    ctx.fillStyle = isDarkMode ? 'rgba(10, 10, 15, 0.2)' : 'rgba(245, 245, 250, 0.2)';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Get frequency data if available
+    let beatDetected = { low: false, mid: false, high: false };
+    let intensities = { low: 0, mid: 0, high: 0, volume: 0 };
+    
+    if (analyserRef.current && isPlaying) {
+      analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+      intensities = analyzeFrequencyBands(dataArrayRef.current) || intensities;
+      beatDetected = detectBeats(intensities) || beatDetected;
+    }
     
     // Calculate intensity based on audio data
     let intensity = 0;
@@ -243,174 +447,168 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
       highIntensity = 0.05;
     }
     
-    // RIPPLE GENERATION - Create new ripples based on audio intensity
+    // RIPPLE GENERATION - Create new ripples based on audio intensity and beat detection
     if (isPlaying) {
       // Create a beat ripple when bass exceeds threshold
-      if (bassIntensity > 0.5 && Math.random() < config.rippleSpawnRate * 2) {
-        // Beat-based ripple (red)
+      const now = Date.now();
+      
+      // Low frequency (bass) beats - create strong, slow ripples
+      if (bassIntensity > 0.5 && now - lastRippleTimeRef.current.low > 100) {
+        const bassScale = 0.8 + (bassIntensity * 0.4);
         audioRipplesRef.current.push({
           size: config.coreSizeMax * 1.05,
           age: 0,
+          maxLife: 120 + (bassIntensity * 30), // Longer life for bass ripples
           intensity: bassIntensity,
-          type: 'beat',
-          color: isDarkMode ? [255, 0, 0] : [180, 0, 0],
-          speed: config.rippleInitialSpeed * 1.2,
-          thickness: config.rippleThickness * 1.2,
+          type: 'low',
+          color: isDarkMode ? [255, 50, 50] : [220, 30, 30],
+          speed: config.rippleInitialSpeed * 0.9 * bassScale,
+          thickness: config.rippleThickness * 1.5,
           frequencySnapshot: [...frequencyData],
-          createdWhilePlaying: true
+          createdWhilePlaying: true,
+          opacity: 0.8 + (bassIntensity * 0.4)
         });
+        lastRippleTimeRef.current.low = now;
       }
       
-      // Create a high-frequency ripple when high frequencies exceed threshold
-      if (highIntensity > 0.6 && Math.random() < config.rippleSpawnRate) {
-        // High-frequency ripple (orange-yellow)
+      // Mid frequency beats - create balanced ripples
+      if (midIntensity > 0.5 && now - lastRippleTimeRef.current.mid > 150) {
+        const midScale = 0.9 + (midIntensity * 0.2);
+        audioRipplesRef.current.push({
+          size: config.coreSizeMax * 1.1,
+          age: 0,
+          maxLife: 100 + (midIntensity * 20),
+          intensity: midIntensity,
+          type: 'mid',
+          color: isDarkMode ? [80, 180, 255] : [0, 100, 200],
+          speed: config.rippleInitialSpeed * 1.1 * midScale,
+          thickness: config.rippleThickness,
+          frequencySnapshot: [...frequencyData],
+          createdWhilePlaying: true,
+          opacity: 0.7 + (midIntensity * 0.3)
+        });
+        lastRippleTimeRef.current.mid = now;
+      }
+      
+      // High frequency beats - create fast, subtle ripples
+      if (highIntensity > 0.5 && now - lastRippleTimeRef.current.high > 80) {
+        const highScale = 1.0 + (highIntensity * 0.3);
         audioRipplesRef.current.push({
           size: config.coreSizeMax * 1.05,
           age: 0,
+          maxLife: 80 + (highIntensity * 15),
           intensity: highIntensity,
           type: 'high',
-          color: isDarkMode ? [255, 150, 0] : [200, 100, 0],
-          speed: config.rippleInitialSpeed * 1.5,
-          thickness: config.rippleThickness * 0.8,
+          color: isDarkMode ? [150, 255, 150] : [50, 200, 50],
+          speed: config.rippleInitialSpeed * 1.3 * highScale,
+          thickness: config.rippleThickness * 0.7,
           frequencySnapshot: [...frequencyData],
-          createdWhilePlaying: true
+          createdWhilePlaying: true,
+          opacity: 0.6 + (highIntensity * 0.2)
         });
-      }
-      
-      // Create a heartbeat ripple periodically regardless of audio
-      if (Math.random() < 0.01) {
-        // Heartbeat ripple (deep red)
-        audioRipplesRef.current.push({
-          size: config.coreSizeMax * 1.05,
-          age: 0,
-          intensity: 0.7,
-          type: 'heartbeat',
-          color: isDarkMode ? [180, 0, 0] : [150, 0, 0],
-          speed: config.rippleInitialSpeed * 0.8,
-          thickness: config.rippleThickness * 1.4,
-          frequencySnapshot: Array(frequencyData.length).fill(128), // Flat frequency response
-          createdWhilePlaying: true
-        });
+        lastRippleTimeRef.current.high = now;
       }
       
       // Limit the number of ripples for performance
       if (audioRipplesRef.current.length > config.maxRipples) {
         audioRipplesRef.current = audioRipplesRef.current.slice(-config.maxRipples);
       }
-    } else {
-      // When paused, remove any ripples that were created while playing
-      audioRipplesRef.current = audioRipplesRef.current.filter(ripple => !ripple.createdWhilePlaying);
     }
     
     // RIPPLE DRAWING - Update and draw all active ripples
     audioRipplesRef.current = audioRipplesRef.current.filter(ripple => {
-      // Initialize ripple speed if not already set
-      if (!ripple.currentSpeed) {
-        ripple.currentSpeed = ripple.speed || config.rippleInitialSpeed;
-      }
-      
-      // Apply speed decay over time for smoother motion
-      ripple.currentSpeed *= config.rippleSpeedDecay;
-      
-      // Update ripple size with decaying speed and intensity factor
-      ripple.size += ripple.currentSpeed * (1 + ripple.intensity * 0.3);
-      ripple.age++;
-      
-      // Calculate opacity based on age and max lifespan
-      const maxAge = ripple.type === 'heartbeat' ? config.rippleLifespan * 1.5 : config.rippleLifespan;
-      const normalizedAge = ripple.age / maxAge;
-      
-      // Calculate distance factor (how close the ripple is to the edge)
-      const containerSize = Math.max(width, height);
-      const maxDistance = containerSize * 0.95;
-      const distanceFactor = Math.min(1, ripple.size / maxDistance);
-      
-      // Calculate opacity with linear fade out
-      let opacity = Math.max(0, 1 - (normalizedAge * 0.8));
-      
-      // Apply stronger distance-based fading as ripples approach the edges
-      if (distanceFactor > 0.75) {
-        const edgeFade = Math.max(0, 1 - ((distanceFactor - 0.75) / 0.25));
-        opacity *= edgeFade * edgeFade;
-      }
-      
-      // Ensure ripples never appear to move back toward core
-      if (!ripple.maxOpacity || opacity > ripple.maxOpacity) {
-        ripple.maxOpacity = opacity;
-      } else {
-        opacity = Math.min(opacity, ripple.maxOpacity * 0.99);
-        ripple.maxOpacity *= 0.99;
-      }
-      
-      // Only draw if visible and within bounds
-      if (opacity > 0 && ripple.size < config.rippleMaxSize) {
-        // Get ripple color with type-specific enhancements
-        let rippleColor = ripple.color || baseColor;
-        const thickness = ripple.thickness || config.rippleThickness;
+      try {
+        // Update ripple properties
+        ripple.size += ripple.speed || config.rippleInitialSpeed;
+        ripple.age++;
         
-        // Adjust color based on ripple type
-        if (ripple.type === 'beat') {
-          rippleColor = [
-            Math.min(255, rippleColor[0] + 10),
-            Math.max(0, rippleColor[1] - 20),
-            Math.max(0, rippleColor[2] - 20)
-          ];
-        } else if (ripple.type === 'high') {
-          rippleColor = [
-            Math.min(255, rippleColor[0]),
-            Math.min(255, rippleColor[1] + 50),
-            Math.max(0, rippleColor[2])
-          ];
-        } else if (ripple.type === 'heartbeat') {
-          rippleColor = [
-            Math.min(255, rippleColor[0] - 20),
-            Math.max(0, rippleColor[1]),
-            Math.max(0, rippleColor[2])
-          ];
+        // Calculate opacity based on life progress
+        const lifeProgress = ripple.age / (ripple.maxLife || config.rippleLifespan);
+        let opacity = ripple.opacity !== undefined ? 
+          ripple.opacity * (1 - lifeProgress) : 
+          config.rippleOpacity * (1 - lifeProgress);
+        
+        // Ensure ripples never appear to move back toward core
+        if (!ripple.maxOpacity || opacity > ripple.maxOpacity) {
+          ripple.maxOpacity = opacity;
+        } else {
+          opacity = Math.min(opacity, ripple.maxOpacity * 0.99);
+          ripple.maxOpacity *= 0.99;
         }
         
-        // Draw the ripple circle
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, ripple.size, 0, 2 * Math.PI);
-        ctx.strokeStyle = `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, ${opacity})`;
-        ctx.lineWidth = thickness;
-        ctx.stroke();
-        
-        // Add subtle frequency-based variation to the ripple
-        if (ripple.frequencySnapshot && ripple.frequencySnapshot.length > 0) {
-          // Draw frequency-responsive accents around the ripple
-          const numAccents = 12;
-          
-          for (let i = 0; i < numAccents; i++) {
-            const angle = (i / numAccents) * 2 * Math.PI;
+          // Only draw if visible and within bounds
+          if (opacity > 0.01 && ripple.size < config.rippleMaxSize) {
+            // Get ripple color with type-specific enhancements
+            let rippleColor = ripple.color || baseColor;
+            const thickness = ripple.thickness || config.rippleThickness;
             
-            // Get frequency data for this angle
-            const freqIndex = Math.floor((i / numAccents) * ripple.frequencySnapshot.length);
-            const freqValue = ripple.frequencySnapshot[freqIndex] || 0;
-            const freqRatio = freqValue / 255;
-            
-            if (freqRatio > 0.5) {
-              const accentSize = thickness * 1.5 * freqRatio;
-              const x = centerX + Math.cos(angle) * ripple.size;
-              const y = centerY + Math.sin(angle) * ripple.size;
-              
-              // Draw a small glow at this point
-              const glow = ctx.createRadialGradient(x, y, 0, x, y, accentSize * 2);
-              glow.addColorStop(0, `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, ${opacity})`);
-              glow.addColorStop(1, `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, 0)`);
-              
-              ctx.fillStyle = glow;
-              ctx.beginPath();
-              ctx.arc(x, y, accentSize * 2, 0, 2 * Math.PI);
-              ctx.fill();
+            // Adjust color based on ripple type
+            if (ripple.type === 'beat') {
+              rippleColor = [
+                Math.min(255, rippleColor[0] + 10),
+                Math.max(0, rippleColor[1] - 20),
+                Math.max(0, rippleColor[2] - 20)
+              ];
+            } else if (ripple.type === 'high') {
+              rippleColor = [
+                Math.min(255, rippleColor[0]),
+                Math.min(255, rippleColor[1] + 50),
+                Math.max(0, rippleColor[2])
+              ];
+            } else if (ripple.type === 'heartbeat') {
+              rippleColor = [
+                Math.min(255, rippleColor[0] - 20),
+                Math.max(0, rippleColor[1]),
+                Math.max(0, rippleColor[2])
+              ];
             }
-          }
+            
+            // Draw the ripple circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ripple.size, 0, 2 * Math.PI);
+            ctx.strokeStyle = `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, ${opacity})`;
+            ctx.lineWidth = thickness;
+            ctx.stroke();
+            
+            // Add subtle frequency-based variation to the ripple
+            if (ripple.frequencySnapshot && ripple.frequencySnapshot.length > 0) {
+              // Draw frequency-responsive accents around the ripple
+              const numAccents = 12;
+              
+              for (let i = 0; i < numAccents; i++) {
+                const angle = (i / numAccents) * 2 * Math.PI;
+                
+                // Get frequency data for this angle
+                const freqIndex = Math.floor((i / numAccents) * ripple.frequencySnapshot.length);
+                const freqValue = ripple.frequencySnapshot[freqIndex] || 0;
+                const freqRatio = freqValue / 255;
+                
+                if (freqRatio > 0.5) {
+                  const accentSize = thickness * 1.5 * freqRatio;
+                  const x = centerX + Math.cos(angle) * ripple.size;
+                  const y = centerY + Math.sin(angle) * ripple.size;
+                  
+                  // Draw a small glow at this point
+                  const glow = ctx.createRadialGradient(x, y, 0, x, y, accentSize * 2);
+                  glow.addColorStop(0, `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, ${opacity})`);
+                  glow.addColorStop(1, `rgba(${rippleColor[0]}, ${rippleColor[1]}, ${rippleColor[2]}, 0)`);
+                  
+                  ctx.fillStyle = glow;
+                  ctx.beginPath();
+                  ctx.arc(x, y, accentSize * 2, 0, 2 * Math.PI);
+                  ctx.fill();
+                }
+              }
+            }
+        
+          return true; // Keep the ripple
         }
         
-        return true; // Keep the ripple
+        return false; // Remove the ripple if fully faded
+      } catch (err) {
+        console.error('Error rendering ripple:', err);
+        return false; // Remove the ripple on error
       }
-      
-      return false; // Remove the ripple if fully faded
     });
     
     // CORE - Draw a central circle that pulses with bass beats
@@ -475,6 +673,15 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
     
     animate();
   }, [drawWaveform]);
+  
+  // Clean up animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   // Handle play/pause button click
   const handlePlayPause = useCallback(async () => {
@@ -575,7 +782,7 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = audioUrl;
-      audioRef.current.crossOrigin = "anonymous"; // Important for CORS
+      audioRef.current.crossOrigin = "anonymous";
       audioRef.current.load();
       
       // Set up event listeners
@@ -833,6 +1040,8 @@ const AudioWaveformVisualizer = ({ audioUrl, title, previewMode = false }) => {
       <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
     </Paper>
   );
-};
+});
+
+AudioWaveformVisualizer.displayName = 'AudioWaveformVisualizer';
 
 export default AudioWaveformVisualizer;
