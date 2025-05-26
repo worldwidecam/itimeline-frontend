@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import ImageEventPopup from './ImageEventPopup';
 import VideoEventPopup from './VideoEventPopup';
+import NewsEventPopup from './NewsEventPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import {
   Dialog,
@@ -349,9 +350,37 @@ const EventPopup = ({ event, open, onClose }) => {
   const useImagePopup = isImageMedia();
   const useVideoPopup = isVideoMedia();
   const isAudio = isAudioMedia();
+  const isNews = safeEventType === EVENT_TYPES.NEWS;
   const mediaSource = getMediaSource();
 
   if (!event) return null;
+  
+  // For news events, use the specialized NewsEventPopup component
+  if (isNews) {
+    return (
+      <NewsEventPopup
+        event={event}
+        open={open}
+        onClose={onClose}
+        formatDate={formatDate}
+        formatEventDate={formatEventDate}
+        color={color}
+        TypeIcon={TypeIcon}
+        snackbarOpen={snackbarOpen}
+        handleSnackbarClose={handleSnackbarClose}
+        error={error}
+        success={success}
+        existingTimelines={existingTimelines}
+        selectedTimeline={selectedTimeline}
+        setSelectedTimeline={setSelectedTimeline}
+        loadingTimelines={loadingTimelines}
+        addingToTimeline={addingToTimeline}
+        setError={setError}
+        handleAddToTimeline={handleAddToTimeline}
+        fetchExistingTimelines={fetchExistingTimelines}
+      />
+    );
+  }
   
   // For image media, use the specialized ImageEventPopup component
   if (useImagePopup) {
