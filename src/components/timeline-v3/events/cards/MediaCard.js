@@ -183,42 +183,16 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   };
 
   const handleCardClick = () => {
-    // Check if this is a video media card using our comprehensive detection function
-    const isVideoMedia = isVideoMediaCard();
-    console.log(`Media card clicked, isVideoMedia: ${isVideoMedia}`);
+    console.log('MediaCard clicked');
     
     if (onEdit && typeof onEdit === 'function') {
-      // For video media cards, we'll handle clicks differently
-      if (isVideoMedia) {
-        if (!isSelected) {
-          // First click selects the card
-          console.log('Video card: selecting');
-          onEdit({ type: 'select', event });
-        } else {
-          // When already selected, toggle play/pause
-          console.log('Video card already selected: toggling play/pause');
-          if (videoRef.current) {
-            if (videoRef.current.paused) {
-              videoRef.current.play()
-                .then(() => setIsPlaying(true))
-                .catch(err => console.error('Error playing video:', err));
-            } else {
-              videoRef.current.pause();
-              setIsPlaying(false);
-            }
-          }
-        }
-        // For videos, we'll rely on the Details button to open the popup
+      if (isSelected) {
+        // If already selected, open the popup (consistent behavior for all media types)
+        console.log('MediaCard: Opening popup for already selected card');
+        setPopupOpen(true);
       } else {
-        // For non-video media, use the standard behavior
-        if (isSelected) {
-          // If already selected, open the popup
-          console.log('MediaCard: Opening popup for already selected card');
-          setPopupOpen(true);
-        } else {
-          // Otherwise, select it
-          onEdit({ type: 'select', event });
-        }
+        // Otherwise, select it
+        onEdit({ type: 'select', event });
       }
     }
   };
@@ -526,11 +500,12 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                     pointerEvents: 'none'
                   }}
                 />
-                <VideoDetailsButton
+                <PageCornerButton 
+                  position="top-right" 
                   onClick={handleDetailsClick}
-                  tooltip="View Full Video"
+                  tooltip="View Details"
+                  icon={<MediaIcon />}
                   color={color}
-                  isSelected={isSelected}
                 />
               </>
             ) : (
