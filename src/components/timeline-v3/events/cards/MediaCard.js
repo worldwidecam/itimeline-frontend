@@ -32,7 +32,7 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import VideoDetailsButton from './VideoDetailsButton';
-import AudioWaveformVisualizer from '../../../AudioWaveformVisualizer';
+import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
 
 const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
@@ -577,19 +577,22 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   // Render audio media with AudioWaveformVisualizer in preview mode
   const renderAudioMedia = (mediaSource) => {
     const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
-    const fileExt = fullUrl.split('.').pop()?.toLowerCase();
     
     // Handle details click for audio media - pause audio when opening popup
     const handleAudioDetailsClick = () => {
-      // If we have a reference to the visualizer, pause it before opening popup
-      if (audioVisualizerRef.current) {
-        // We don't actually need to pause it here since the popup will create a new instance
-        // But we could add a method to the AudioWaveformVisualizer to expose the current playback time
-        // and pass that to the popup to continue from the same position
-      }
-      
       // Open the event popup
       handleDetailsClick();
+    };
+    
+    // Create a click handler for the entire card to toggle audio playback
+    const handleCardClick = (e) => {
+      e.stopPropagation(); // Prevent event bubbling
+      
+      // The visualizer will handle the audio playback internally
+      // We just need to make sure the card is selected
+      if (!isSelected && onEdit && typeof onEdit === 'function') {
+        onEdit({ type: 'select', event });
+      }
     };
     
     return (
@@ -601,13 +604,17 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
           right: 0,
           bottom: 0,
           overflow: 'hidden',
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)'
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+          cursor: 'pointer'
         }}
+        onClick={handleCardClick}
       >
+        {/* The AudioWaveformVisualizer handles audio playback internally */}
         <AudioWaveformVisualizer 
           ref={audioVisualizerRef}
           audioUrl={mediaSources[0]} 
-          previewMode={true}
+          title={event.title || "Audio"}
+          previewMode={false} // Set to false to enable full functionality
         />
         
         <PageCornerButton 
@@ -616,21 +623,6 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
           icon={<MusicIcon />}
           color={color}
         />
-        
-        {/* Fallback audio element (hidden) for compatibility */}
-        <audio
-          style={{ display: 'none' }}
-          onError={(e) => {
-            const currentSrc = e.target.src;
-            const currentIndex = mediaSources.indexOf(currentSrc);
-            
-            if (currentIndex < mediaSources.length - 1) {
-              e.target.src = mediaSources[currentIndex + 1];
-            }
-          }}
-        >
-          <source src={mediaSources[0]} type={`audio/${fileExt || 'mp3'}`} />
-        </audio>
       </Box>
     );
   };

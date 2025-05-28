@@ -537,22 +537,13 @@ const EventPopup = ({ event, open, onClose }) => {
                   cursor: 'pointer',
                   position: 'relative'
                 }}
-                onClick={toggleAudio}
               >
                 <AudioWaveformVisualizer 
                   ref={audioVisualizerRef}
                   audioUrl={mediaSource} 
-                  title=""
-                  previewMode={true} // Use preview mode to avoid audio context issues
+                  title={event.title || "Audio"}
+                  previewMode={false} // Set to false to enable full functionality
                 />
-                
-                {/* Hidden audio element for playback */}
-                {audioElement && (
-                  <Box sx={{ display: 'none' }}>
-                    {/* This is just to trigger React to manage the audio element */}
-                    Audio is playing: {!audioElement.paused ? 'Yes' : 'No'}
-                  </Box>
-                )}
               </Box>
             )}
             <Divider sx={{ mb: 3, opacity: 0.5 }} />
