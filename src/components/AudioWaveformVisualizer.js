@@ -950,108 +950,166 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
 
   // Full player mode
   return (
-    <Paper 
-      elevation={3} 
+    <Box 
       sx={{ 
-        p: 3, 
-        bgcolor: '#121212', 
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        minHeight: 240, // Minimum height to ensure controls are visible
+        bgcolor: 'transparent',
         color: 'white',
-        borderRadius: 2,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
-      {showTitle && title && (
-        <Typography variant="h6" gutterBottom>
-          {title}
-        </Typography>
-      )}
-      
-      {error && (
-        <Typography color="error" variant="body2" sx={{ mb: 2 }}>
-          {error}
-        </Typography>
-      )}
-      
+      {/* Canvas as background */}
       <Box 
-        sx={{ 
-          width: '100%', 
-          height: 180, 
-          bgcolor: 'rgba(0,0,0,0.3)',
-          borderRadius: 1,
-          overflow: 'hidden',
-          mb: 2,
-          position: 'relative',
-          cursor: 'pointer'
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1
         }}
-        onClick={handlePlayPause}
       >
         <canvas 
           ref={canvasRef} 
           style={{ 
             width: '100%', 
             height: '100%',
-            display: 'block'
+            display: 'block',
+            backgroundColor: 'transparent'
           }}
+          onClick={handlePlayPause}
         />
       </Box>
       
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <Typography variant="body2" sx={{ minWidth: 45 }}>
-          {formatTime(currentTime)}
-        </Typography>
+      {/* Content overlay */}
+      <Box 
+        sx={{
+          position: 'relative',
+          zIndex: 2,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          p: 3,
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 40%, transparent 100%)',
+          pointerEvents: 'none',
+          '& > *': {
+            pointerEvents: 'auto'
+          }
+        }}
+      >
+        {showTitle && title && (
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 2,
+              textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+            }}
+          >
+            {title}
+          </Typography>
+        )}
         
-        <Slider
-          value={(currentTime / duration) * 100 || 0}
-          onChange={handleSeek}
-          disabled={!audioLoaded}
-          sx={{ 
-            mx: 2,
-            color: '#ff0000',
-            '& .MuiSlider-thumb': {
-              width: 12,
-              height: 12,
-              '&:hover, &.Mui-focusVisible': {
-                boxShadow: '0px 0px 0px 8px rgba(255, 0, 0, 0.16)'
+        {error && (
+          <Typography 
+            color="error" 
+            variant="body2" 
+            sx={{ 
+              mb: 2,
+              textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+            }}
+          >
+            {error}
+          </Typography>
+        )}
+      </Box>
+      
+      {/* Controls overlay */}
+      <Box 
+        sx={{
+          position: 'relative',
+          zIndex: 2,
+          p: 2,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
+          pointerEvents: 'none',
+          '& > *': {
+            pointerEvents: 'auto'
+          }
+        }}
+      >
+        {/* Timeline slider */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="body2" sx={{ minWidth: 45, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+            {formatTime(currentTime)}
+          </Typography>
+          
+          <Slider
+            value={(currentTime / duration) * 100 || 0}
+            onChange={handleSeek}
+            disabled={!audioLoaded}
+            sx={{ 
+              mx: 2,
+              color: 'white',
+              '& .MuiSlider-thumb': {
+                width: 12,
+                height: 12,
+                '&:hover, &.Mui-focusVisible': {
+                  boxShadow: '0px 0px 0px 8px rgba(255, 255, 255, 0.16)'
+                }
+              },
+              '& .MuiSlider-rail': {
+                opacity: 0.3,
+              },
+              '& .MuiSlider-track': {
+                border: 'none',
               }
-            },
-            '& .MuiSlider-rail': {
-              opacity: 0.3,
-            }
-          }}
-        />
+            }}
+          />
+          
+          <Typography variant="body2" sx={{ minWidth: 45, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+            {formatTime(duration)}
+          </Typography>
+        </Box>
         
-        <Typography variant="body2" sx={{ minWidth: 45 }}>
-          {formatTime(duration)}
-        </Typography>
-      </Box>
-      
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <IconButton 
-          onClick={handleMuteToggle}
-          disabled={!audioLoaded}
-          sx={{ color: 'white' }}
-        >
-          {isMuted ? <VolumeOff /> : <VolumeUp />}
-        </IconButton>
-        
-        <Slider
-          value={isMuted ? 0 : volume * 100}
-          onChange={handleVolumeChange}
-          disabled={!audioLoaded}
-          sx={{ 
-            width: 100,
-            ml: 1,
-            color: '#ff0000',
-            '& .MuiSlider-thumb': {
-              width: 12,
-              height: 12
-            }
-          }}
-        />
+        {/* Volume controls */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton 
+            onClick={handleMuteToggle}
+            disabled={!audioLoaded}
+            sx={{ color: 'white' }}
+          >
+            {isMuted ? <VolumeOff /> : <VolumeUp />}
+          </IconButton>
+          
+          <Slider
+            value={isMuted ? 0 : volume * 100}
+            onChange={handleVolumeChange}
+            disabled={!audioLoaded}
+            sx={{ 
+              width: 100,
+              ml: 1,
+              color: 'white',
+              '& .MuiSlider-thumb': {
+                width: 12,
+                height: 12
+              },
+              '& .MuiSlider-rail': {
+                opacity: 0.3,
+              },
+              '& .MuiSlider-track': {
+                border: 'none',
+              }
+            }}
+          />
+        </Box>
       </Box>
       
       <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
-    </Paper>
+    </Box>
   );
 });
 
