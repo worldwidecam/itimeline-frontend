@@ -866,30 +866,14 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   {event.title}
                 </Typography>
                 
-                {/* Event date in blue chip */}
+                {/* Event date chip */}
                 {event.event_date && (
                   <Chip
-                    size="small"
-                    icon={<EventIcon fontSize="small" />}
+                    icon={<EventIcon />}
                     label={formatEventDate(event.event_date)}
-                    sx={{
-                      bgcolor: theme.palette.mode === 'dark' 
-                        ? 'rgba(66, 165, 245, 0.2)' 
-                        : 'rgba(66, 165, 245, 0.1)',
-                      color: theme.palette.mode === 'dark' 
-                        ? '#90caf9' 
-                        : '#1976d2',
-                      '& .MuiChip-icon': {
-                        color: theme.palette.mode === 'dark' 
-                          ? '#90caf9' 
-                          : '#1976d2',
-                        fontSize: '0.875rem',
-                      },
-                      height: '24px',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      mb: 1,
-                    }}
+                    size="small"
+                    color="primary"
+                    sx={{ mb: 1 }}
                   />
                 )}
               </Box>
@@ -938,6 +922,9 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   >
                     {event.created_by_username.charAt(0).toUpperCase()}
                   </Avatar>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                    By
+                  </Typography>
                   <Link
                     component={RouterLink}
                     to={`/profile/${event.created_by}`}
