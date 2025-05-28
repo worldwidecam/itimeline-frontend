@@ -1043,7 +1043,15 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
       >
         {/* Timeline slider */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <Typography variant="body2" sx={{ minWidth: 45, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              minWidth: 45, 
+              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
+              textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              transition: 'color 0.2s ease-in-out'
+            }}
+          >
             {formatTime(currentTime)}
           </Typography>
           
@@ -1053,24 +1061,43 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
             disabled={!audioLoaded}
             sx={{ 
               mx: 2,
-              color: 'white',
+              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
               '& .MuiSlider-thumb': {
                 width: 12,
                 height: 12,
                 '&:hover, &.Mui-focusVisible': {
-                  boxShadow: '0px 0px 0px 8px rgba(255, 255, 255, 0.16)'
+                  boxShadow: isDarkMode 
+                    ? '0px 0px 0px 8px rgba(255, 100, 100, 0.16)' 
+                    : '0px 0px 0px 8px rgba(255, 255, 255, 0.16)'
                 }
               },
               '& .MuiSlider-rail': {
                 opacity: 0.3,
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.3)' : 'rgba(0, 0, 0, 0.26)'
               },
               '& .MuiSlider-track': {
                 border: 'none',
-              }
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1976d2'
+              },
+              '&:hover .MuiSlider-track': {
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1565c0'
+              },
+              '&:hover .MuiSlider-thumb': {
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1976d2'
+              },
+              transition: 'color 0.2s ease-in-out'
             }}
           />
           
-          <Typography variant="body2" sx={{ minWidth: 45, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              minWidth: 45, 
+              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
+              textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              transition: 'color 0.2s ease-in-out'
+            }}
+          >
             {formatTime(duration)}
           </Typography>
         </Box>
@@ -1080,11 +1107,16 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
           <IconButton 
             onClick={handleMuteToggle}
             disabled={!audioLoaded}
-            sx={{ color: 'white' }}
+            sx={{ 
+              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
+              '&:hover': {
+                color: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'white',
+              },
+              transition: 'color 0.2s ease-in-out'
+            }}
           >
             {isMuted ? <VolumeOff /> : <VolumeUp />}
           </IconButton>
-          
           <Slider
             value={isMuted ? 0 : volume * 100}
             onChange={handleVolumeChange}
@@ -1092,17 +1124,31 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
             sx={{ 
               width: 100,
               ml: 1,
-              color: 'white',
+              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
               '& .MuiSlider-thumb': {
                 width: 12,
-                height: 12
+                height: 12,
+                '&:hover, &.Mui-focusVisible': {
+                  boxShadow: isDarkMode 
+                    ? '0px 0px 0px 8px rgba(255, 100, 100, 0.16)' 
+                    : '0px 0px 0px 8px rgba(255, 255, 255, 0.16)'
+                }
               },
               '& .MuiSlider-rail': {
                 opacity: 0.3,
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.3)' : 'rgba(0, 0, 0, 0.26)'
               },
               '& .MuiSlider-track': {
                 border: 'none',
-              }
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1976d2'
+              },
+              '&:hover .MuiSlider-track': {
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1565c0'
+              },
+              '&:hover .MuiSlider-thumb': {
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1976d2'
+              },
+              transition: 'color 0.2s ease-in-out'
             }}
           />
         </Box>
