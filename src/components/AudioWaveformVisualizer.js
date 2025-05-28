@@ -8,7 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
  * A component that displays an audio waveform visualization
  * The waveform moves with the audio decibel levels
  */
-const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = false }, ref) => {
+const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = false, showTitle = true }, ref) => {
   // Get the current theme mode
   const { isDarkMode } = useTheme();
   // Refs for DOM elements and audio processing
@@ -960,7 +960,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
         overflow: 'hidden'
       }}
     >
-      {title && (
+      {showTitle && title && (
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>

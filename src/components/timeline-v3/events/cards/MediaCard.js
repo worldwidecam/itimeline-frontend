@@ -11,6 +11,7 @@ import {
   ListItemIcon,
   ListItemText,
   Avatar,
+  Chip,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -20,6 +21,7 @@ import {
   AccessTime as AccessTimeIcon,
   MoreVert as MoreVertIcon,
   MusicNote as MusicIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import MovieIcon from '@mui/icons-material/Movie';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -576,55 +578,107 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
   
   // Render audio media with AudioWaveformVisualizer in preview mode
   const renderAudioMedia = (mediaSource) => {
-    const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
-    
-    // Handle details click for audio media - pause audio when opening popup
-    const handleAudioDetailsClick = () => {
-      // Open the event popup
-      handleDetailsClick();
-    };
-    
-    // Create a click handler for the entire card to toggle audio playback
-    const handleCardClick = (e) => {
-      e.stopPropagation(); // Prevent event bubbling
+    try {
+      const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
       
-      // The visualizer will handle the audio playback internally
-      // We just need to make sure the card is selected
-      if (!isSelected && onEdit && typeof onEdit === 'function') {
-        onEdit({ type: 'select', event });
+      // If no valid media sources, show error state
+      if (!mediaSources || !mediaSources.length) {
+        return (
+          <Box 
+            sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+              color: theme.palette.text.secondary,
+              p: 2,
+              textAlign: 'center'
+            }}
+          >
+            <ErrorOutlineIcon sx={{ mr: 1 }} />
+            <Typography variant="caption">Audio not available</Typography>
+          </Box>
+        );
       }
-    };
-    
-    return (
-      <Box 
-        sx={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          overflow: 'hidden',
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
-          cursor: 'pointer'
-        }}
-        onClick={handleCardClick}
-      >
-        {/* The AudioWaveformVisualizer handles audio playback internally */}
-        <AudioWaveformVisualizer 
-          ref={audioVisualizerRef}
-          audioUrl={mediaSources[0]} 
-          title={event.title || "Audio"}
-          previewMode={false} // Set to false to enable full functionality
-        />
+      
+      // Handle details click for audio media - pause audio when opening popup
+      const handleAudioDetailsClick = (e) => {
+        e.stopPropagation();
+        handleDetailsClick();
+      };
+      
+      // Create a click handler for the entire card to toggle audio playback
+      const handleCardClick = (e) => {
+        e.stopPropagation(); // Prevent event bubbling
         
-        <PageCornerButton 
-          position="top-right" 
-          onClick={handleAudioDetailsClick}
-          icon={<MusicIcon />}
-          color={color}
-        />
-      </Box>
-    );
+        // The visualizer will handle the audio playback internally
+        // We just need to make sure the card is selected
+        if (!isSelected && onEdit && typeof onEdit === 'function') {
+          onEdit({ type: 'select', event });
+        }
+      };
+      
+      return (
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            overflow: 'hidden',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+            cursor: 'pointer'
+          }}
+          onClick={handleCardClick}
+        >
+          {/* The AudioWaveformVisualizer handles audio playback internally */}
+          <AudioWaveformVisualizer 
+            ref={audioVisualizerRef}
+            audioUrl={mediaSources[0]} 
+            title={event.title || "Audio"}
+            previewMode={false} // Set to false to enable full functionality
+            showTitle={false} // Hide the title in the card view to avoid duplication
+          />
+          
+          <PageCornerButton 
+            position="top-right" 
+            onClick={handleAudioDetailsClick}
+            icon={<MusicIcon />}
+            color={color}
+          />
+        </Box>
+      );
+    } catch (error) {
+      console.error('Error rendering audio media:', error);
+      // Fallback UI for audio rendering errors
+      return (
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+            color: theme.palette.text.secondary,
+            p: 2,
+            textAlign: 'center'
+          }}
+        >
+          <ErrorOutlineIcon sx={{ mr: 1 }} />
+          <Typography variant="caption">Could not load audio</Typography>
+        </Box>
+      );
+    }
   };
 
   // Render default media
@@ -807,16 +861,43 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
           >
             <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
               <MediaIcon sx={{ color, mt: 0.5 }} />
-              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 1 }}>
                   {event.title}
                 </Typography>
-              
-                {/* QUARANTINED: Vertical ellipsis menu removed
-                    The edit and delete functionality was incomplete and caused issues
-                    Pending impact review for possible deletion
-                */}
+                
+                {/* Event date in blue chip */}
+                {event.event_date && (
+                  <Chip
+                    size="small"
+                    icon={<EventIcon fontSize="small" />}
+                    label={formatEventDate(event.event_date)}
+                    sx={{
+                      bgcolor: theme.palette.mode === 'dark' 
+                        ? 'rgba(66, 165, 245, 0.2)' 
+                        : 'rgba(66, 165, 245, 0.1)',
+                      color: theme.palette.mode === 'dark' 
+                        ? '#90caf9' 
+                        : '#1976d2',
+                      '& .MuiChip-icon': {
+                        color: theme.palette.mode === 'dark' 
+                          ? '#90caf9' 
+                          : '#1976d2',
+                        fontSize: '0.875rem',
+                      },
+                      height: '24px',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      mb: 1,
+                    }}
+                  />
+                )}
               </Box>
+              
+              {/* QUARANTINED: Vertical ellipsis menu removed
+                  The edit and delete functionality was incomplete and caused issues
+                  Pending impact review for possible deletion
+              */}
             </Box>
             
             {/* Event description */}
@@ -834,24 +915,15 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
             )}
             
             {/* Event metadata */}
-            <Box sx={{ mt: 'auto', pt: 1 }}>
-              {/* Event date */}
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                <EventIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.875rem' }} />
-                <Typography variant="caption" color="text.secondary">
-                  {formatEventDate(event.event_date)}
-                </Typography>
-              </Box>
-              
-              {/* Created date */}
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.875rem' }} />
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(event.created_at)}
-                </Typography>
-              </Box>
-              
-              {/* Author */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mt: 'auto',
+              pt: 1,
+              borderTop: `1px solid ${theme.palette.divider}`
+            }}>
+              {/* Author with avatar */}
               {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar 
@@ -866,9 +938,6 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   >
                     {event.created_by_username.charAt(0).toUpperCase()}
                   </Avatar>
-                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                    By
-                  </Typography>
                   <Link
                     component={RouterLink}
                     to={`/profile/${event.created_by}`}
@@ -885,6 +954,14 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
                   </Link>
                 </Box>
               )}
+              
+              {/* Created date */}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(event.created_at)}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </Box>

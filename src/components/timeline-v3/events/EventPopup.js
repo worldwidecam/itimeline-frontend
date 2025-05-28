@@ -543,6 +543,7 @@ const EventPopup = ({ event, open, onClose }) => {
                   audioUrl={mediaSource} 
                   title={event.title || "Audio"}
                   previewMode={false} // Set to false to enable full functionality
+                  showTitle={false} // Hide the title to avoid duplication with the popup header
                 />
               </Box>
             )}

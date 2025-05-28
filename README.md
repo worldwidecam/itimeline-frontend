@@ -4,6 +4,31 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Current Focus (May 2025)
 
+### Audio Visualizer 2.0
+
+The `AudioWaveformVisualizer` component has been enhanced to provide a rich, interactive audio visualization experience:
+
+1. **Interactive Audio Visualization**
+   - Dynamic waveform visualization that responds to audio beats and frequencies
+   - Visual states: resting state (pulsing core) when paused, active state (ripples, auras) during playback
+   - Beat detection for synchronized visual effects
+
+2. **Integration Points**
+   - `MediaCard`: Visualizer displays in preview mode with playback controls
+   - `EventPopup`: Full-featured visualizer with enhanced playback experience
+   - `AudioTester`: Test component for audio upload and visualization
+
+3. **Implementation Notes**
+   - Uses Web Audio API for audio processing and beat detection
+   - Self-contained audio playback handling (no external audio elements needed)
+   - Configurable via props: `audioUrl`, `title`, `previewMode`
+   - Exposes playback methods via `useImperativeHandle`: `playAudio()`, `pauseAudio()`
+
+4. **Usage Guidelines**
+   - Set `previewMode={false}` for full functionality including beat detection
+   - Always provide a `title` prop when not in preview mode
+   - No need for separate audio elements - the visualizer handles playback internally
+
 ### Perfecting Event Markers and Info Cards
 1. **MediaEventMarker**
    - Optimize media rendering and performance
