@@ -1061,7 +1061,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
             disabled={!audioLoaded}
             sx={{ 
               mx: 2,
-              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
+              color: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'white',
               '& .MuiSlider-thumb': {
                 width: 12,
                 height: 12,
@@ -1077,13 +1077,13 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
               },
               '& .MuiSlider-track': {
                 border: 'none',
-                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1976d2'
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1976d2'
               },
               '&:hover .MuiSlider-track': {
-                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1565c0'
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1565c0'
               },
               '&:hover .MuiSlider-thumb': {
-                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1976d2'
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1976d2'
               },
               transition: 'color 0.2s ease-in-out'
             }}
@@ -1108,9 +1108,9 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
             onClick={handleMuteToggle}
             disabled={!audioLoaded}
             sx={{ 
-              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
+              color: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'white',
               '&:hover': {
-                color: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'white',
+                color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
               },
               transition: 'color 0.2s ease-in-out'
             }}
@@ -1124,7 +1124,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
             sx={{ 
               width: 100,
               ml: 1,
-              color: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'white',
+              color: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'white',
               '& .MuiSlider-thumb': {
                 width: 12,
                 height: 12,
@@ -1140,13 +1140,13 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
               },
               '& .MuiSlider-track': {
                 border: 'none',
-                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1976d2'
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1976d2'
               },
               '&:hover .MuiSlider-track': {
-                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1565c0'
+                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.95)' : '#1565c0'
               },
               '&:hover .MuiSlider-thumb': {
-                backgroundColor: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : '#1976d2'
+                backgroundColor: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : '#1976d2'
               },
               transition: 'color 0.2s ease-in-out'
             }}
