@@ -849,7 +849,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     // Add color stops with slight variation based on intensity
     coreGradient.addColorStop(0, config.coreColorInner);
     coreGradient.addColorStop(0.7, config.coreColorOuter);
-    coreGradient.addColorStop(1, isDarkMode ? 'rgba(255, 0, 0, 0.5)' : 'rgba(255, 69, 0, 0.5)'); // Red-orange outer glow in light mode
+    coreGradient.addColorStop(1, isDarkMode ? 'rgba(255, 239, 17, 0.5)' : 'rgba(255, 69, 0, 0.5)'); // Red-orange outer glow in light mode
     
     // Draw the core
     ctx.beginPath();
