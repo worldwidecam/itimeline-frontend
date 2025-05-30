@@ -44,10 +44,10 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     coreSizeMin: 10,
     coreSizeMax: 35,
     corePulseSpeed: 0.5,
-    coreColorInner: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'rgba(220, 60, 60, 0.95)',
-    coreColorOuter: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'rgba(180, 0, 0, 0.9)',
-    coreGlowColor: isDarkMode ? 'rgba(128, 0, 0, 0.2)' : 'rgba(180, 0, 0, 0.15)',
-    coreGlowSize: 2.5,
+    coreColorInner: isDarkMode ? 'rgba(255, 100, 100, 0.95)' : 'rgba(255, 215, 0, 0.95)', // Gold center in light mode
+    coreColorOuter: isDarkMode ? 'rgba(255, 0, 0, 0.9)' : 'rgba(255, 140, 0, 0.9)', // Dark orange outer in light mode
+    coreGlowColor: isDarkMode ? 'rgba(128, 0, 0, 0.2)' : 'rgba(255, 165, 0, 0.25)', // Orange glow in light mode
+    coreGlowSize: isDarkMode ? 2.5 : 3.0, // Slightly larger glow in light mode for sun effect
     
     // Beat detection parameters
     beatHold: 40, // How many frames to keep a beat
@@ -78,7 +78,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
   }), [isDarkMode]);
   
   // Memoize color parameters based on theme
-  const baseColor = useMemo(() => isDarkMode ? [255, 50, 50] : [180, 30, 30], [isDarkMode]); // Base RGB color
+  const baseColor = useMemo(() => isDarkMode ? [255, 50, 50] : [255, 165, 0], [isDarkMode]); // Base RGB color - orange for light mode
   const colorVariation = useMemo(() => isDarkMode ? [0, 30, 20] : [20, 10, 5], [isDarkMode]); // Color variation
 
   // Clean up audio resources
@@ -733,25 +733,49 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
             let rippleColor = ripple.color || baseColor;
             const thickness = ripple.thickness || config.rippleThickness;
             
-            // Adjust color based on ripple type
-            if (ripple.type === 'beat') {
-              rippleColor = [
-                Math.min(255, rippleColor[0] + 10),
-                Math.max(0, rippleColor[1] - 20),
-                Math.max(0, rippleColor[2] - 20)
-              ];
-            } else if (ripple.type === 'high') {
-              rippleColor = [
-                Math.min(255, rippleColor[0]),
-                Math.min(255, rippleColor[1] + 50),
-                Math.max(0, rippleColor[2])
-              ];
-            } else if (ripple.type === 'heartbeat') {
-              rippleColor = [
-                Math.min(255, rippleColor[0] - 20),
-                Math.max(0, rippleColor[1]),
-                Math.max(0, rippleColor[2])
-              ];
+            // Adjust color based on ripple type and theme
+            if (isDarkMode) {
+              // Dark mode - original red theme
+              if (ripple.type === 'beat') {
+                rippleColor = [
+                  Math.min(255, rippleColor[0] + 10),
+                  Math.max(0, rippleColor[1] - 20),
+                  Math.max(0, rippleColor[2] - 20)
+                ];
+              } else if (ripple.type === 'high') {
+                rippleColor = [
+                  Math.min(255, rippleColor[0]),
+                  Math.min(255, rippleColor[1] + 50),
+                  Math.max(0, rippleColor[2])
+                ];
+              } else if (ripple.type === 'heartbeat') {
+                rippleColor = [
+                  Math.min(255, rippleColor[0] - 20),
+                  Math.max(0, rippleColor[1]),
+                  Math.max(0, rippleColor[2])
+                ];
+              }
+            } else {
+              // Light mode - sun theme with yellows and oranges
+              if (ripple.type === 'beat') {
+                rippleColor = [
+                  Math.min(255, rippleColor[0]),
+                  Math.min(255, rippleColor[1] - 30),
+                  Math.max(0, rippleColor[2] + 20)
+                ]; // More orange-red for beats
+              } else if (ripple.type === 'high') {
+                rippleColor = [
+                  Math.min(255, rippleColor[0]),
+                  Math.min(255, rippleColor[1] + 30),
+                  Math.min(255, rippleColor[2] + 50)
+                ]; // More yellow for high frequency
+              } else if (ripple.type === 'heartbeat') {
+                rippleColor = [
+                  Math.min(255, rippleColor[0]),
+                  Math.min(255, Math.max(150, rippleColor[1] + 10)),
+                  Math.max(0, rippleColor[2])
+                ]; // Golden for heartbeat
+              }
             }
             
             // Draw the ripple circle
@@ -825,7 +849,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     // Add color stops with slight variation based on intensity
     coreGradient.addColorStop(0, config.coreColorInner);
     coreGradient.addColorStop(0.7, config.coreColorOuter);
-    coreGradient.addColorStop(1, isDarkMode ? 'rgba(255, 0, 0, 0.5)' : 'rgba(180, 0, 0, 0.4)');
+    coreGradient.addColorStop(1, isDarkMode ? 'rgba(255, 0, 0, 0.5)' : 'rgba(255, 69, 0, 0.5)'); // Red-orange outer glow in light mode
     
     // Draw the core
     ctx.beginPath();
@@ -854,7 +878,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     ctx.arc(centerX, centerY, glowSize, 0, 2 * Math.PI);
     ctx.fillStyle = isDarkMode 
       ? `rgba(255, 50, 0, ${glowIntensity})` 
-      : `rgba(200, 40, 0, ${glowIntensity * 0.8})`;
+      : `rgba(255, 215, 0, ${glowIntensity * 1.2})`; // Golden yellow glow in light mode
     ctx.fill();
     
     // Draw foreground clouds (in front of everything including the core)
