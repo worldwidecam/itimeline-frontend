@@ -278,6 +278,180 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     }
   }, [cleanupAudio, initAudioContext]);
 
+  // Cloud page system - each page is a group of clouds that move together
+  // Generate a cloud page with clouds positioned within a specific horizontal range
+  const generateCloudPage = (width, height, xStart, xEnd) => {
+    const cloudCount = 5 + Math.floor(Math.random() * 3); // 5-7 clouds per page
+    const clouds = [];
+    
+    for (let i = 0; i < cloudCount; i++) {
+      // Distribute clouds across the specified range
+      const xPos = xStart + (Math.random() * (xEnd - xStart));
+      
+      // Randomly assign z-index layer to clouds
+      // zLayer: 0 = behind everything, 1 = in front of ripples, 2 = in front of core
+      const zLayer = Math.random() > 0.7 ? (Math.random() > 0.5 ? 2 : 1) : 0;
+      
+      clouds.push({
+        x: xPos,
+        y: Math.random() * (height / 2), // Keep clouds in upper half
+        size: 30 + Math.random() * 50, // Random cloud size
+        segments: 3 + Math.floor(Math.random() * 3), // 3-5 segments per cloud
+        speed: 0.2, // Fixed consistent movement speed
+        opacity: 0.7 + Math.random() * 0.3, // Cloud opacity
+        lastUpdateTime: Date.now(), // Track when this cloud was last updated
+        zLayer: zLayer // Z-index layer: 0=behind, 1=middle, 2=front
+      });
+    }
+    
+    return {
+      clouds: clouds,
+      xStart: xStart,
+      xEnd: xEnd,
+      created: Date.now()
+    };
+  };
+  
+  // Initialize the cloud system with three pages
+  const initializeCloudPages = (width, height) => {
+    const pages = [];
+    
+    // First page: visible on screen
+    pages.push(generateCloudPage(width, height, 0, width));
+    
+    // Second page: off-screen to the right
+    pages.push(generateCloudPage(width, height, width, width * 2));
+    
+    // Third page: off-screen to the left (ready to enter)
+    pages.push(generateCloudPage(width, height, -width, 0));
+    
+    return pages;
+  };
+
+  // Cloud animation state
+  const cloudAnimationRef = useRef(null);
+  const cloudPagesRef = useRef(null);
+  const lastCloudUpdateRef = useRef(Date.now());
+  
+  // Separate cloud animation from audio visualization
+  const updateAndDrawClouds = useCallback(() => {
+    if (!canvasRef.current || isDarkMode) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Initialize cloud pages if needed
+    if (!cloudPagesRef.current) {
+      cloudPagesRef.current = initializeCloudPages(width, height);
+    }
+    
+    // Calculate time delta for consistent movement
+    const now = Date.now();
+    const delta = now - lastCloudUpdateRef.current;
+    lastCloudUpdateRef.current = now;
+    
+    // Limit delta to prevent huge jumps if tab was inactive
+    const cappedDelta = Math.min(delta, 50);
+    const moveAmount = (cappedDelta / 1000) * 40; // 40 pixels per second
+    
+    // Update all cloud pages
+    for (let pageIndex = cloudPagesRef.current.length - 1; pageIndex >= 0; pageIndex--) {
+      const page = cloudPagesRef.current[pageIndex];
+      
+      // Move all clouds in this page
+      page.clouds.forEach(cloud => {
+        cloud.x += moveAmount;
+      });
+      
+      // Check if page has moved completely off-screen to the right
+      const pageRightEdge = Math.max(...page.clouds.map(c => c.x + c.size));
+      if (pageRightEdge < 0) {
+        // Page has moved off-screen to the left, remove it
+        cloudPagesRef.current.splice(pageIndex, 1);
+      } else if (pageIndex === 0 && page.clouds[0].x > width * 0.5) {
+        // First page is halfway across the screen, create a new page to the left
+        cloudPagesRef.current.unshift(generateCloudPage(width, height, -width, 0));
+      }
+    }
+    
+    // Draw a solid sky blue background first
+    ctx.fillStyle = 'rgba(135, 206, 250, 1.0)'; // Solid sky blue
+    ctx.fillRect(0, 0, width, height);
+    
+    // Sort clouds by z-layer (0 = behind, 1 = middle, 2 = front)
+    const allClouds = [];
+    cloudPagesRef.current.forEach(page => {
+      page.clouds.forEach(cloud => {
+        allClouds.push(cloud);
+      });
+    });
+    
+    // Group clouds by z-layer
+    const backgroundClouds = allClouds.filter(cloud => cloud.zLayer === 0);
+    const middleClouds = allClouds.filter(cloud => cloud.zLayer === 1);
+    const foregroundClouds = allClouds.filter(cloud => cloud.zLayer === 2);
+    
+    // Store the current canvas state for the main animation loop
+    canvas.lastCloudState = {
+      backgroundClouds,
+      middleClouds,
+      foregroundClouds,
+      timestamp: now
+    };
+    
+    // Draw background clouds (behind everything)
+    drawCloudLayer(ctx, backgroundClouds);
+  }, [isDarkMode]);
+  
+  // Helper function to draw a layer of clouds
+  const drawCloudLayer = (ctx, clouds) => {
+    clouds.forEach(cloud => {
+      // Draw cloud segments with increased opacity
+      // Make clouds more opaque to ensure they're visible during audio playback
+      const cloudOpacity = Math.min(1.0, cloud.opacity + 0.2); // Increase opacity but cap at 1.0
+      ctx.fillStyle = `rgba(255, 255, 255, ${cloudOpacity})`;
+      ctx.beginPath();
+      
+      // Draw multiple overlapping circles to create a cloud shape
+      for (let i = 0; i < cloud.segments; i++) {
+        const segmentX = cloud.x + (i * (cloud.size / cloud.segments));
+        const segmentY = cloud.y + Math.sin(i) * (cloud.size / 10);
+        const segmentSize = cloud.size * (0.5 + (Math.sin(i) * 0.2));
+        
+        ctx.moveTo(segmentX, segmentY);
+        ctx.arc(segmentX, segmentY, segmentSize / 2, 0, Math.PI * 2);
+      }
+      
+      ctx.fill();
+    });
+  };
+  
+  // Start separate cloud animation loop
+  useEffect(() => {
+    if (isDarkMode) return;
+    
+    const animateClouds = () => {
+      updateAndDrawClouds();
+      cloudAnimationRef.current = requestAnimationFrame(animateClouds);
+    };
+    
+    animateClouds();
+    
+    return () => {
+      if (cloudAnimationRef.current) {
+        cancelAnimationFrame(cloudAnimationRef.current);
+      }
+    };
+  }, [updateAndDrawClouds, isDarkMode]);
+  
+  // Draw clouds on the canvas - this is now just a placeholder for the main drawWaveform function
+  const drawClouds = (ctx, clouds) => {
+    // Cloud drawing is now handled by the separate animation loop
+    // This function is kept for compatibility with the existing code
+  };
+
   // Analyze frequency bands for beat detection
   const analyzeFrequencyBands = useCallback((freqData) => {
     if (!freqData || !lastPlayingIntensitiesRef.current) return null;
@@ -389,9 +563,25 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     const centerX = width / 2;
     const centerY = height / 2;
     
-    // Clear canvas with a subtle fade effect
-    ctx.fillStyle = isDarkMode ? 'rgba(10, 10, 15, 0.2)' : 'rgba(245, 245, 250, 0.2)';
-    ctx.fillRect(0, 0, width, height);
+    // Clear canvas with a sky blue background in light mode or subtle fade in dark mode
+    if (isDarkMode) {
+      // Dark mode - subtle fade effect
+      ctx.fillStyle = 'rgba(10, 10, 15, 0.2)';
+      ctx.fillRect(0, 0, width, height);
+    } else {
+      // Light mode - use a fully transparent fill to preserve clouds
+      // The background is now handled by the cloud animation loop
+      ctx.fillStyle = 'rgba(135, 206, 250, 0.01)'; // Almost transparent
+      ctx.fillRect(0, 0, width, height);
+      
+      // Check if we have cloud state information
+      if (canvas.lastCloudState && Date.now() - canvas.lastCloudState.timestamp < 1000) {
+        // Draw middle layer clouds (in front of ripples but behind core)
+        if (canvas.lastCloudState.middleClouds && canvas.lastCloudState.middleClouds.length > 0) {
+          drawCloudLayer(ctx, canvas.lastCloudState.middleClouds);
+        }
+      }
+    }
     
     // Get frequency data if available
     let beatDetected = { low: false, mid: false, high: false };
@@ -666,6 +856,13 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
       ? `rgba(255, 50, 0, ${glowIntensity})` 
       : `rgba(200, 40, 0, ${glowIntensity * 0.8})`;
     ctx.fill();
+    
+    // Draw foreground clouds (in front of everything including the core)
+    if (!isDarkMode && canvas.lastCloudState && Date.now() - canvas.lastCloudState.timestamp < 1000) {
+      if (canvas.lastCloudState.foregroundClouds && canvas.lastCloudState.foregroundClouds.length > 0) {
+        drawCloudLayer(ctx, canvas.lastCloudState.foregroundClouds);
+      }
+    }
     
     // Continue animation if playing
     if (isPlaying) {
