@@ -39,6 +39,9 @@ import TagList from './cards/TagList';
  * Features a two-container layout:
  * - Left container (60%): Fixed image display with black background
  * - Right container (40%): Scrollable content area for event details
+ * 
+ * When open, it signals to TimelineV3 to pause its refresh interval to prevent
+ * disruptions to media playback.
  */
 const ImageEventPopup = ({ 
   event, 
@@ -49,6 +52,7 @@ const ImageEventPopup = ({
   formatEventDate,
   color,
   TypeIcon,
+  setIsPopupOpen,
   snackbarOpen,
   handleSnackbarClose,
   error,
@@ -65,6 +69,21 @@ const ImageEventPopup = ({
   const theme = useTheme();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   const [localEventData, setLocalEventData] = useState(event);
+  
+  // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
+  useEffect(() => {
+    // Only update if setIsPopupOpen function is provided
+    if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+      setIsPopupOpen(open);
+    }
+    
+    // Cleanup when component unmounts
+    return () => {
+      if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+        setIsPopupOpen(false);
+      }
+    };
+  }, [open, setIsPopupOpen]);
   
   // Fetch timelines when the tag section is expanded
   useEffect(() => {

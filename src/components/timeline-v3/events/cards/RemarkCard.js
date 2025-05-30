@@ -29,7 +29,7 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 
-const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
+const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -41,6 +41,10 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => 
     setPopupOpen: (open) => {
       console.log('RemarkCard: External call to setPopupOpen', open);
       setPopupOpen(open);
+      // Also notify TimelineV3 about popup state change
+      if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+        setIsPopupOpen(open);
+      }
     }
   }));
 
@@ -285,7 +289,12 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => 
         onClose={() => {
           console.log('RemarkCard: Closing popup');
           setPopupOpen(false);
+          // Also notify TimelineV3 about popup state change
+          if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+            setIsPopupOpen(false);
+          }
         }}
+        setIsPopupOpen={setIsPopupOpen}
       />
     </>
   );

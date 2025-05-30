@@ -1071,15 +1071,21 @@ function TimelineV3() {
     setHoverPosition(getExactTimePosition());
   }, [viewMode]);
 
-  // Update hover position every minute
+  // Add state to track if any popup is currently open
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+
+  // Update hover position every minute, but pause when popup is open
   useEffect(() => {
     if (viewMode === 'day') {
       const interval = setInterval(() => {
-        setHoverPosition(getExactTimePosition());
+        // Only update if no popup is currently open
+        if (!isPopupOpen) {
+          setHoverPosition(getExactTimePosition());
+        }
       }, 60000); // Update every minute
       return () => clearInterval(interval);
     }
-  }, [viewMode]);
+  }, [viewMode, isPopupOpen]);
 
   // Update markers on window resize
   useEffect(() => {
@@ -2293,13 +2299,14 @@ const handleRecenter = () => {
             onEventSelect={handleEventSelect}
             shouldScrollToEvent={shouldScrollToEvent}
             viewMode={viewMode}
-            minMarker={Math.min(...visibleMarkers)}
-            maxMarker={Math.max(...visibleMarkers)}
+            minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
+            maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
             onFilteredEventsCount={setFilteredEventsCount}
             isLoadingMarkers={progressiveLoadingState !== 'complete'}
             goToPrevious={navigateToPrevEvent}
             goToNext={navigateToNextEvent}
             currentEventIndex={currentEventIndex}
+            setIsPopupOpen={setIsPopupOpen} // Add this line to pass the function
           />
         )}
       </Box>

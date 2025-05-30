@@ -61,7 +61,11 @@ const EventList = ({
   minMarker = -10, // Default visible marker range
   maxMarker = 10, // Default visible marker range
   onFilteredEventsCount, // Callback to report filtered events count
-  isLoadingMarkers = false // Flag to indicate if markers are still loading
+  isLoadingMarkers = false, // Flag to indicate if markers are still loading
+  setIsPopupOpen, // Function to notify TimelineV3 when popups are open/closed
+  goToPrevious, // Function to navigate to previous event
+  goToNext, // Function to navigate to next event
+  currentEventIndex // Current event index for carousel navigation
 }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,7 +224,8 @@ const EventList = ({
       // Create the card props without the key
       const finalCardProps = {
         ...cardProps,
-        ref: cardRef
+        ref: cardRef,
+        setIsPopupOpen // Pass the setIsPopupOpen function to card components
       };
       
       // Return the appropriate card component with key as a direct prop

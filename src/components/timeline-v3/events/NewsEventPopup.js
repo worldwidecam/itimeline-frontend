@@ -40,6 +40,9 @@ import TagList from './cards/TagList';
  * Features a two-container layout similar to media popups:
  * - Left container (60%): Featured URL preview with newspaper-style layout
  * - Right container (40%): Event details and metadata
+ * 
+ * When open, it signals to TimelineV3 to pause its refresh interval to prevent
+ * disruptions to media playback.
  */
 const NewsEventPopup = ({ 
   event, 
@@ -49,6 +52,7 @@ const NewsEventPopup = ({
   formatEventDate,
   color,
   TypeIcon,
+  setIsPopupOpen,
   snackbarOpen,
   handleSnackbarClose,
   error,
@@ -65,6 +69,21 @@ const NewsEventPopup = ({
   const theme = useTheme();
   const [tagSectionExpanded, setTagSectionExpanded] = React.useState(false);
   const [localEventData, setLocalEventData] = React.useState(event);
+  
+  // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
+  React.useEffect(() => {
+    // Only update if setIsPopupOpen function is provided
+    if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+      setIsPopupOpen(open);
+    }
+    
+    // Cleanup when component unmounts
+    return () => {
+      if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+        setIsPopupOpen(false);
+      }
+    };
+  }, [open, setIsPopupOpen]);
   
   // Fetch timelines when the tag section is expanded
   React.useEffect(() => {

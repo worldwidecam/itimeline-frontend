@@ -39,7 +39,7 @@ import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import { alpha } from '@mui/material/styles';
 
-const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
+const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -51,6 +51,10 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
     setPopupOpen: (open) => {
       console.log('NewsCard: External call to setPopupOpen', open);
       setPopupOpen(open);
+      // Also notify TimelineV3 about popup state change
+      if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+        setIsPopupOpen(open);
+      }
     }
   }));
 
@@ -603,7 +607,12 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         onClose={() => {
           console.log('NewsCard: Closing popup');
           setPopupOpen(false);
+          // Also notify TimelineV3 about popup state change
+          if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+            setIsPopupOpen(false);
+          }
         }}
+        setIsPopupOpen={setIsPopupOpen}
       />
     </>
   );

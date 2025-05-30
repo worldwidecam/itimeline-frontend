@@ -46,9 +46,27 @@ import config from '../../../config';
  * - For image media: Uses ImageEventPopup with two-container layout
  * - For video media: Uses VideoEventPopup with two-container layout
  * - For other types: Uses standard popup layout
+ * 
+ * When open, it signals to TimelineV3 to pause its refresh interval to prevent
+ * disruptions to media playback.
  */
-const EventPopup = ({ event, open, onClose }) => {
+const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   const theme = useTheme();
+  
+  // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
+  useEffect(() => {
+    // Only update if setIsPopupOpen function is provided
+    if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+      setIsPopupOpen(open);
+    }
+    
+    // Cleanup when component unmounts
+    return () => {
+      if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+        setIsPopupOpen(false);
+      }
+    };
+  }, [open, setIsPopupOpen]);
   
   // State for timeline addition functionality
   const [existingTimelines, setExistingTimelines] = useState([]);

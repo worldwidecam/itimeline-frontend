@@ -37,7 +37,7 @@ import VideoDetailsButton from './VideoDetailsButton';
 import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
 
-const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
+const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
   
@@ -75,6 +75,10 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
       try {
         console.log('MediaCard: External call to setPopupOpen', open);
         setPopupOpen(open);
+        // Also notify TimelineV3 about popup state change
+        if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+          setIsPopupOpen(open);
+        }
       } catch (error) {
         console.error('Error in setPopupOpen:', error);
       }
@@ -940,8 +944,13 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected }, ref) => {
         onClose={() => {
           console.log('MediaCard: Closing popup');
           setPopupOpen(false);
+          // Also notify TimelineV3 about popup state change
+          if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
+            setIsPopupOpen(false);
+          }
         }}
         event={event}
+        setIsPopupOpen={setIsPopupOpen}
       />
     </>
   );
