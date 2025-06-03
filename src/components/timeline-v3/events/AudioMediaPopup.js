@@ -1,0 +1,476 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Typography,
+  Box,
+  useTheme,
+  Paper,
+  Link,
+  Avatar,
+  Chip,
+  Divider,
+  Snackbar,
+  Alert,
+  TextField,
+  Autocomplete,
+  Button,
+  CircularProgress,
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  PermMedia as MediaIcon,
+  Person as PersonIcon,
+  Event as EventIcon,
+  AccessTime as AccessTimeIcon,
+  Add as AddIcon,
+  ExpandMore as ExpandMoreIcon,
+  VolumeUp as VolumeUpIcon,
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
+import { format, parseISO } from 'date-fns';
+import { Link as RouterLink } from 'react-router-dom';
+import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
+import TagList from './cards/TagList';
+import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
+
+/**
+ * AudioMediaPopup - A specialized popup for audio media events
+ * Features a two-container layout:
+ * - Left container (60%): Fixed audio visualization with black background
+ * - Right container (40%): Scrollable content area for event details
+ * 
+ * When open, it signals to TimelineV3 to pause its refresh interval to prevent
+ * disruptions to media playback.
+ */
+const AudioMediaPopup = ({ 
+  event, 
+  open, 
+  onClose, 
+  mediaSource,
+  formatDate,
+  formatEventDate,
+  color,
+  TypeIcon,
+  snackbarOpen,
+  handleSnackbarClose,
+  error,
+  success,
+  existingTimelines,
+  selectedTimeline,
+  setSelectedTimeline,
+  loadingTimelines,
+  addingToTimeline,
+  setError,
+  handleAddToTimeline,
+  fetchExistingTimelines
+}) => {
+  const theme = useTheme();
+  const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
+  const [localEventData, setLocalEventData] = useState(null);
+  const audioVisualizerRef = useRef(null);
+
+  // Set local event data when the event prop changes
+  useEffect(() => {
+    if (event) {
+      setLocalEventData(event);
+    }
+  }, [event]);
+
+  // Safely get the event data with fallbacks
+  const eventData = localEventData || event || {};
+  
+  // Handle close button click
+  const handleCloseButtonClick = () => {
+    if (typeof onClose === 'function') {
+      onClose();
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      closeAfterTransition
+      TransitionComponent={motion.div}
+      TransitionProps={{
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 20, scale: 0.98 },
+        transition: { duration: 0.3 }
+      }}
+      PaperProps={{
+        component: motion.div,
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 20, scale: 0.98 },
+        transition: { duration: 0.3 },
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden',
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? 'rgba(10,10,20,0.85)' 
+            : 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+            : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.05)'
+            : '1px solid rgba(0,0,0,0.05)',
+        },
+      }}
+    >
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', md: 'row' },
+        height: { xs: 'auto', md: '80vh' },
+        maxHeight: '80vh'
+      }}>
+        {/* Left Container - Audio Visualization */}
+        <Box sx={{ 
+          flex: { xs: '1', md: '3' },
+          position: 'relative',
+          bgcolor: 'black',
+          height: { xs: '300px', md: 'auto' }
+        }}>
+          {/* Close button */}
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseButtonClick}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: 'white',
+              bgcolor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 10,
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.7)',
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          {/* Audio Visualizer */}
+          <Box sx={{ 
+            width: '100%', 
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <AudioWaveformVisualizer 
+              ref={audioVisualizerRef}
+              audioUrl={mediaSource} 
+              title={eventData.title || "Audio"}
+              previewMode={false}
+              showTitle={false}
+              compactMode={true}
+            />
+          </Box>
+        </Box>
+
+        {/* Right Container - Event Details */}
+        <Box sx={{ 
+          flex: { xs: '1', md: '2' },
+          p: 3,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          bgcolor: theme.palette.background.paper
+        }}>
+          {/* Event Header */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(0,0,0,0.03)',
+                color: color,
+                mr: 2
+              }}
+            >
+              <TypeIcon fontSize="medium" />
+            </Box>
+            <Box>
+              <Typography 
+                variant="h6" 
+                component="div"
+                sx={{ 
+                  fontWeight: 600,
+                  color: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.95)'
+                    : 'rgba(0,0,0,0.85)',
+                }}
+              >
+                {eventData.title || "Untitled Event"}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+              >
+                {formatDate(eventData.created_at)}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Event Content */}
+          {eventData.description && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                mb: 3,
+                borderRadius: 2,
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(0,0,0,0.2)'
+                  : 'rgba(0,0,0,0.02)',
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(0,0,0,0.05)',
+              }}
+            >
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.7,
+                  color: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.85)'
+                    : 'rgba(0,0,0,0.75)',
+                }}
+              >
+                {eventData.description}
+              </Typography>
+            </Paper>
+          )}
+          
+          {/* Tags section */}
+          <Box sx={{ mb: 3 }}>
+            {(eventData.tags && eventData.tags.length > 0) && (
+              <Box sx={{ mb: 2 }}>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    mb: 1.5,
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.7)'
+                      : 'rgba(0,0,0,0.6)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Tags
+                </Typography>
+                <TagList tags={localEventData?.tags || eventData.tags} />
+              </Box>
+            )}
+            
+            {/* Timeline tagging system */}
+            <Box sx={{ mb: 3 }}>
+              <Box 
+                onClick={() => {
+                  setTagSectionExpanded(!tagSectionExpanded);
+                  if (!tagSectionExpanded) {
+                    fetchExistingTimelines();
+                  }
+                }}
+                sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '0.9rem',
+                  mb: tagSectionExpanded ? 2 : 0,
+                  color: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.7)'
+                    : 'rgba(0,0,0,0.6)',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    color: theme.palette.primary.main,
+                  },
+                  transition: 'color 0.2s ease',
+                }}
+              >
+                <span style={{ 
+                  color: theme.palette.primary.main,
+                  fontSize: '0.9rem',
+                  marginRight: '4px',
+                }}>#</span>
+                Tag a Timeline
+                <ExpandMoreIcon 
+                  fontSize="small" 
+                  sx={{ 
+                    fontSize: '0.9rem',
+                    ml: 0.5,
+                    transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                  }} 
+                />
+              </Box>
+              
+              {tagSectionExpanded && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(0,0,0,0.2)'
+                      : 'rgba(0,0,0,0.02)',
+                    border: '1px solid',
+                    borderColor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Add this event to an existing timeline:
+                  </Typography>
+                  
+                  <Autocomplete
+                    id="timeline-select"
+                    options={existingTimelines}
+                    loading={loadingTimelines}
+                    getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    value={selectedTimeline}
+                    onChange={(event, newValue) => {
+                      setSelectedTimeline(newValue);
+                      setError('');
+                    }}
+                    filterOptions={(options, state) => {
+                      if (!state.inputValue) return [];
+                      return options.filter(option => 
+                        option.name.toLowerCase().startsWith(state.inputValue.toLowerCase())
+                      );
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Search timelines"
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {loadingTimelines ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    sx={{ mb: 2 }}
+                  />
+                  
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AddIcon />}
+                    onClick={handleAddToTimeline}
+                    disabled={!selectedTimeline || addingToTimeline}
+                    fullWidth
+                    size="small"
+                  >
+                    {addingToTimeline ? (
+                      <>
+                        <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add to Timeline'
+                    )}
+                  </Button>
+                </Paper>
+              )}
+            </Box>
+          </Box>
+          
+          {/* Event Metadata */}
+          <Box sx={{ mt: 'auto' }}>
+            <Divider sx={{ mb: 2 }} />
+            
+            {/* Creator Info */}
+            {eventData.creator && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                <PersonIcon 
+                  fontSize="small" 
+                  sx={{ 
+                    mr: 1, 
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(255,255,255,0.5)' 
+                      : 'rgba(0,0,0,0.4)' 
+                  }} 
+                />
+                <Typography variant="body2" color="text.secondary">
+                  Created by{' '}
+                  <Link 
+                    component={RouterLink} 
+                    to={`/profile/${eventData.creator.id}`}
+                    underline="hover"
+                    color="primary"
+                  >
+                    {eventData.creator.username || 'Unknown User'}
+                  </Link>
+                </Typography>
+              </Box>
+            )}
+            
+            {/* Event Date */}
+            {eventData.event_date && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                <EventIcon 
+                  fontSize="small" 
+                  sx={{ 
+                    mr: 1, 
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(255,255,255,0.5)' 
+                      : 'rgba(0,0,0,0.4)' 
+                  }} 
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {formatEventDate(eventData.event_date)}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      </Box>
+      
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={error ? "error" : "success"} 
+          sx={{ width: '100%' }}
+        >
+          {error || success}
+        </Alert>
+      </Snackbar>
+    </Dialog>
+  );
+};
+
+export default AudioMediaPopup;

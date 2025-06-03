@@ -8,7 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
  * A component that displays an audio waveform visualization
  * The waveform moves with the audio decibel levels
  */
-const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = false, showTitle = true }, ref) => {
+const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = false, showTitle = true, compactMode = false }, ref) => {
   // Get the current theme mode
   const { isDarkMode } = useTheme();
   // Refs for DOM elements and audio processing
@@ -146,37 +146,61 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     };
   }, [cleanupAudio]);
 
-  // Set up audio context and connect nodes
+  // Set up audio context and connect nodes with better error handling
   const setupAudioContext = useCallback(async () => {
-    try {
-      // If already set up and working, just resume if needed
-      if (isSetupRef.current && 
-          audioContextRef.current && 
-          audioContextRef.current.state !== 'closed' && 
-          sourceRef.current) {
-        
+    console.log('setupAudioContext called');
+    
+    // If already set up and working, just resume if needed
+    if (isSetupRef.current && 
+        audioContextRef.current && 
+        audioContextRef.current.state !== 'closed' && 
+        sourceRef.current) {
+      console.log('Audio context already set up, current state:', audioContextRef.current.state);
+      
+      try {
         if (audioContextRef.current.state === 'suspended') {
+          console.log('Resuming suspended audio context...');
           await audioContextRef.current.resume();
+          console.log('Audio context resumed successfully');
         }
         return true;
+      } catch (resumeErr) {
+        console.error('Error resuming audio context:', resumeErr);
+        // Continue with reinitialization if resume fails
       }
-      
+    }
+    
+    try {
+      console.log('Initializing new audio context...');
       // Clean up any existing audio context
       cleanupAudio();
       initAudioContext();
       
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
+      if (!audioContextRef.current) {
+        console.error('Failed to initialize audio context');
+        return false;
       }
       
-      if (audioContextRef.current && audioRef.current) {
+      console.log('Audio context created, state:', audioContextRef.current.state);
+      
+      // Resume if suspended
+      if (audioContextRef.current.state === 'suspended') {
+        console.log('Resuming newly created audio context...');
+        await audioContextRef.current.resume();
+        console.log('New audio context resumed, state:', audioContextRef.current.state);
+      }
+      
+      if (audioRef.current) {
         try {
+          console.log('Creating MediaElementSource...');
           // Try to create a new MediaElementSource
           sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+          console.log('Connecting audio nodes...');
           sourceRef.current.connect(analyserRef.current);
           analyserRef.current.connect(audioContextRef.current.destination);
           
           isSetupRef.current = true;
+          console.log('Audio context setup completed successfully');
           return true;
         } catch (sourceErr) {
           // Handle the case where the audio element is already connected
@@ -908,44 +932,157 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     animate();
   }, [drawWaveform]);
   
-  // Clean up animation on unmount
+  // Monitor audio context state changes
+  useEffect(() => {
+    if (!audioContextRef.current) return;
+    
+    const handleStateChange = () => {
+      console.log('AudioContext state changed to:', audioContextRef.current?.state);
+      
+      // If context was closed unexpectedly, try to recover on next interaction
+      if (audioContextRef.current?.state === 'closed') {
+        console.warn('AudioContext was closed, will recreate on next interaction');
+        isSetupRef.current = false;
+      }
+    };
+    
+    audioContextRef.current.addEventListener('statechange', handleStateChange);
+    
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.removeEventListener('statechange', handleStateChange);
+      }
+    };
+  }, [audioContextRef.current]);
+  
+  // Handle tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (!audioRef.current) return;
+      
+      console.log('Visibility changed, document.hidden:', document.hidden);
+      
+      if (document.hidden) {
+        // Tab is hidden - pause playback and suspend context
+        if (isPlaying) {
+          console.log('Tab hidden, pausing playback...');
+          await audioRef.current.pause();
+          
+          if (audioContextRef.current?.state === 'running') {
+            try {
+              await audioContextRef.current.suspend();
+              console.log('AudioContext suspended due to tab visibility change');
+            } catch (err) {
+              console.warn('Error suspending audio context on tab hide:', err);
+            }
+          }
+          // Keep isPlaying as true to allow resuming when tab becomes visible again
+        }
+      } else {
+        // Tab is visible again - try to resume if we were playing
+        if (isPlaying) {
+          console.log('Tab visible again, resuming playback...');
+          try {
+            if (audioContextRef.current?.state === 'suspended') {
+              await audioContextRef.current.resume();
+              console.log('AudioContext resumed after tab visible');
+            }
+            await audioRef.current.play();
+            console.log('Playback resumed after tab visible');
+          } catch (err) {
+            console.error('Error resuming playback after tab visible:', err);
+            // Update state to reflect that we're not playing anymore
+            setIsPlaying(false);
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isPlaying]);
+  
+  // Clean up animation and audio context on unmount
   useEffect(() => {
     return () => {
+      console.log('Cleaning up animation and audio resources...');
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      
+      // Don't close the audio context here as it might be used by other components
+      // Instead, just clean up our references and let the component handle it
+      isSetupRef.current = false;
     };
   }, []);
 
-  // Handle play/pause button click
+  // Handle play/pause button click with improved error handling
   const handlePlayPause = useCallback(async () => {
-    if (!audioRef.current || !audioLoaded) return;
+    if (!audioRef.current || !audioLoaded) {
+      console.log('Audio not ready - ref:', !!audioRef.current, 'loaded:', audioLoaded);
+      return;
+    }
     
     try {
       if (isPlaying) {
         // Pause the audio
-        audioRef.current.pause();
+        console.log('Pausing audio...');
+        await audioRef.current.pause();
         setIsPlaying(false);
         
-        // Pause the audio context if it exists
-        if (audioContextRef.current && audioContextRef.current.state === 'running') {
-          await audioContextRef.current.suspend();
+        // Suspend the audio context if it exists
+        if (audioContextRef.current) {
+          console.log('Suspending audio context...');
+          try {
+            await audioContextRef.current.suspend();
+            console.log('Audio context suspended');
+          } catch (suspendErr) {
+            console.warn('Error suspending audio context:', suspendErr);
+          }
         }
       } else {
-        // Set up audio context if not already done
-        const success = await setupAudioContext();
-        if (!success) return;
-        
-        // Play the audio
-        await audioRef.current.play();
-        setIsPlaying(true);
-        
-        // Start the visualization
-        startAnimation();
+        try {
+          console.log('Setting up audio context...');
+          const success = await setupAudioContext();
+          if (!success) {
+            console.error('Failed to set up audio context');
+            setError('Failed to set up audio. Please try again.');
+            return;
+          }
+          
+          // Ensure audio context is running
+          if (audioContextRef.current?.state === 'suspended') {
+            console.log('Resuming suspended audio context...');
+            await audioContextRef.current.resume();
+          }
+          
+          console.log('Starting audio playback...');
+          await audioRef.current.play();
+          setIsPlaying(true);
+          console.log('Starting visualization...');
+          startAnimation();
+          console.log('Playback started successfully');
+        } catch (playErr) {
+          console.error('Playback error:', playErr);
+          setError(`Playback failed: ${playErr.message}`);
+          // Reset state on error
+          setIsPlaying(false);
+          if (audioContextRef.current?.state === 'running') {
+            try {
+              await audioContextRef.current.suspend();
+            } catch (suspendErr) {
+              console.warn('Error suspending context after playback error:', suspendErr);
+            }
+          }
+        }
       }
     } catch (err) {
-      console.error('Error toggling playback:', err);
-      setError(`Playback error: ${err.message}`);
+      console.error('Error in handlePlayPause:', err);
+      setError(`Error: ${err.message}`);
+      setIsPlaying(false);
     }
   }, [isPlaying, audioLoaded, setupAudioContext, startAnimation]);
 
@@ -1002,6 +1139,8 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
   useEffect(() => {
     if (!audioUrl) return;
     
+    console.log('Audio URL changed, initializing audio element...');
+    
     // Reset state
     setIsPlaying(false);
     setAudioLoaded(false);
@@ -1014,24 +1153,71 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
     
     // Initialize audio element
     if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = audioUrl;
-      audioRef.current.crossOrigin = "anonymous";
-      audioRef.current.load();
-      
-      // Set up event listeners
-      audioRef.current.onloadedmetadata = () => {
-        setDuration(audioRef.current.duration);
-        setAudioLoaded(true);
-      };
-      
-      audioRef.current.onerror = (e) => {
-        console.error('Audio loading error:', e);
-        setError('Failed to load audio file');
-      };
+      try {
+        console.log('Setting up new audio element...');
+        
+        // Store the current time to restore it after reload
+        const currentTime = audioRef.current.currentTime;
+        
+        // Clear any existing sources
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+        
+        // Set up new source
+        audioRef.current.src = audioUrl;
+        audioRef.current.crossOrigin = "anonymous";
+        audioRef.current.preload = "auto";
+        
+        // Set up event listeners
+        const handleLoadedMetadata = () => {
+          console.log('Audio metadata loaded, duration:', audioRef.current.duration);
+          setDuration(audioRef.current.duration);
+          setAudioLoaded(true);
+          
+          // Restore previous time if it was set
+          if (currentTime > 0) {
+            console.log('Restoring previous playback time:', currentTime);
+            audioRef.current.currentTime = currentTime;
+          }
+        };
+        
+        const handleError = (e) => {
+          console.error('Audio loading error:', e);
+          setError(`Failed to load audio file: ${e.target.error?.message || 'Unknown error'}`);
+          setAudioLoaded(false);
+        };
+        
+        const handleEnded = () => {
+          console.log('Playback ended');
+          setIsPlaying(false);
+          setCurrentTime(0);
+        };
+        
+        audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+        audioRef.current.addEventListener('error', handleError);
+        audioRef.current.addEventListener('ended', handleEnded);
+        
+        // Start loading the audio
+        audioRef.current.load();
+        
+        return () => {
+          if (audioRef.current) {
+            audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            audioRef.current.removeEventListener('error', handleError);
+            audioRef.current.removeEventListener('ended', handleEnded);
+          }
+        };
+      } catch (err) {
+        console.error('Error initializing audio element:', err);
+        setError(`Failed to initialize audio: ${err.message}`);
+      }
     }
     
-    return () => cleanupAudio();
+    return () => {
+      console.log('Cleaning up audio element...');
+      cleanupAudio();
+    };
   }, [audioUrl, cleanupAudio]);
 
   // Keep animation running and react to isPlaying changes
@@ -1147,10 +1333,10 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
           position: 'relative',
           width: '100%',
           height: '100%',
-          bgcolor: 'rgba(0,0,0,0.7)',
-          cursor: 'pointer',
-          overflow: 'hidden'
-        }}
+          bgcolor: 'black',
+          overflow: 'hidden',
+          borderRadius: compactMode ? 0 : 2,
+        }} 
         onClick={handlePlayPause}
       >
         <canvas 
@@ -1223,12 +1409,14 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
           }
         }}
       >
-        {showTitle && title && (
+        {showTitle && !compactMode && (
           <Typography 
-            variant="h6" 
+            variant="subtitle1" 
             sx={{ 
-              mb: 2,
-              textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+              color: 'white',
+              textShadow: '0 1px 3px rgba(0,0,0,0.7)',
+              fontWeight: 500,
+              mb: 1,
             }}
           >
             {title}
@@ -1252,18 +1440,20 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
       {/* Controls overlay */}
       <Box 
         sx={{
-          position: 'relative',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          p: compactMode ? 1 : 2,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: compactMode ? 0.5 : 1,
           zIndex: 2,
-          p: 2,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
-          pointerEvents: 'none',
-          '& > *': {
-            pointerEvents: 'auto'
-          }
         }}
       >
         {/* Timeline slider */}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', ...(compactMode && { transform: 'scale(0.9)', transformOrigin: 'right center' }) }}>
           <Typography 
             variant="body2" 
             sx={{ 
@@ -1323,8 +1513,8 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
           </Typography>
         </Box>
         
-        {/* Volume controls */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* Playback controls */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: compactMode ? 0.5 : 1 }}>
           <IconButton 
             onClick={handleMuteToggle}
             disabled={!audioLoaded}

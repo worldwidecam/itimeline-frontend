@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import ImageEventPopup from './ImageEventPopup';
 import VideoEventPopup from './VideoEventPopup';
 import NewsEventPopup from './NewsEventPopup';
+import AudioMediaPopup from './AudioMediaPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import {
   Dialog,
@@ -367,7 +368,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   // Check if we should use the specialized media popups
   const useImagePopup = isImageMedia();
   const useVideoPopup = isVideoMedia();
-  const isAudio = isAudioMedia();
+  const useAudioPopup = isAudioMedia();
   const isNews = safeEventType === EVENT_TYPES.NEWS;
   const mediaSource = getMediaSource();
 
@@ -432,6 +433,34 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   if (useVideoPopup) {
     return (
       <VideoEventPopup
+        event={event}
+        open={open}
+        onClose={onClose}
+        mediaSource={mediaSource}
+        formatDate={formatDate}
+        formatEventDate={formatEventDate}
+        color={color}
+        TypeIcon={TypeIcon}
+        snackbarOpen={snackbarOpen}
+        handleSnackbarClose={handleSnackbarClose}
+        error={error}
+        success={success}
+        existingTimelines={existingTimelines}
+        selectedTimeline={selectedTimeline}
+        setSelectedTimeline={setSelectedTimeline}
+        loadingTimelines={loadingTimelines}
+        addingToTimeline={addingToTimeline}
+        setError={setError}
+        handleAddToTimeline={handleAddToTimeline}
+        fetchExistingTimelines={fetchExistingTimelines}
+      />
+    );
+  }
+  
+  // For audio media, use the specialized AudioMediaPopup component
+  if (useAudioPopup) {
+    return (
+      <AudioMediaPopup
         event={event}
         open={open}
         onClose={onClose}
@@ -542,29 +571,8 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
           </DialogTitle>
           
           <DialogContent sx={{ p: 3, pt: 2 }}>
-            {/* Audio Media Player - Only shown for audio media */}
-            {isAudio && (
-              <Box 
-                sx={{ 
-                  width: '100%', 
-                  height: 400, 
-                  mb: 3,
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  bgcolor: 'black',
-                  cursor: 'pointer',
-                  position: 'relative'
-                }}
-              >
-                <AudioWaveformVisualizer 
-                  ref={audioVisualizerRef}
-                  audioUrl={mediaSource} 
-                  title={event.title || "Audio"}
-                  previewMode={false} // Set to false to enable full functionality
-                  showTitle={false} // Hide the title to avoid duplication with the popup header
-                />
-              </Box>
-            )}
+            {/* Audio Media Player - Only shown for audio media in the standard popup */}
+            {/* This section is now handled by the AudioMediaPopup component */}
             <Divider sx={{ mb: 3, opacity: 0.5 }} />
             
             {/* Event content */}

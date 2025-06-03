@@ -2,6 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import ImageMediaPopup from './ImageMediaPopup';
 import VideoMediaPopup from './VideoMediaPopup';
+import AudioMediaPopup from '../AudioMediaPopup';
 
 /**
  * MediaPopupManager - Determines which media popup component to render based on media type
@@ -70,9 +71,14 @@ const MediaPopupManager = ({ event, mediaSource, children }) => {
       );
       
     case 'audio':
-      // For now, we'll use the default layout for audio
-      // In the future, we can create an AudioMediaPopup component
-      return children;
+      return (
+        <AudioMediaPopup 
+          event={event} 
+          mediaSource={mediaSource}
+        >
+          {children}
+        </AudioMediaPopup>
+      );
       
     default:
       // Use default layout for unknown media types
