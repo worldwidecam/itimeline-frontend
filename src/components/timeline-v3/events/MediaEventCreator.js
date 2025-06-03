@@ -642,6 +642,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
+          disabled={!title.trim() || !uploadResult}
           sx={{ 
             fontWeight: 600, 
             textTransform: 'none', 

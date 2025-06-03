@@ -256,6 +256,36 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       setError('URL must start with http:// or https://');
       return false;
     }
+    // For media events, require a media_url
+    if (formData.type === EVENT_TYPES.MEDIA && !formData.media_url) {
+      setError('Please upload a media file');
+      return false;
+    }
+    return true;
+  };
+  
+  // Check if form is valid without setting error message
+  const isFormValid = () => {
+    // Always require a title
+    if (!formData.title.trim()) {
+      return false;
+    }
+    
+    // Always require date and time
+    if (!formData.event_date || !formData.event_time) {
+      return false;
+    }
+    
+    // URL format check if URL is provided
+    if (formData.url && !formData.url.startsWith('http')) {
+      return false;
+    }
+    
+    // For media events, strictly require a media_url
+    if (formData.type === EVENT_TYPES.MEDIA && !formData.media_url) {
+      return false;
+    }
+    
     return true;
   };
 
@@ -1138,6 +1168,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                           url: uploadResult.url, // Also set URL for backward compatibility
                           cloudinary_id: uploadResult.cloudinary_id
                         }));
+                        // Clear any previous errors
+                        setError('');
                       } else {
                         // Clear media data if upload was canceled or failed
                         setFormData(prev => ({
@@ -1197,7 +1229,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
-          disabled={loading}
+          disabled={loading || (formData.type === EVENT_TYPES.MEDIA ? (!formData.title.trim() || !formData.media_url) : !isFormValid())}
           sx={{ 
             fontWeight: 600, 
             textTransform: 'none', 
