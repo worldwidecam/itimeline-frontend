@@ -203,12 +203,21 @@ const AudioMediaPopup = ({
         {/* Right Container - Event Details */}
         <Box sx={{ 
           flex: { xs: '1', md: '2' },
-          p: 3,
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          bgcolor: theme.palette.background.paper
+          bgcolor: theme.palette.background.paper,
+          position: 'relative'
         }}>
+          {/* Header with colored accent bar and gradient */}
+          <Box
+            sx={{
+              height: 8,
+              background: `linear-gradient(90deg, ${audioColor} 0%, ${audioColor}99 50%, ${audioColor}44 100%)`,
+            }}
+          />
+          
+          <Box sx={{ p: 3 }}>
           {/* Event Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <Box
@@ -222,7 +231,7 @@ const AudioMediaPopup = ({
                 bgcolor: theme.palette.mode === 'dark'
                   ? 'rgba(255,255,255,0.05)'
                   : 'rgba(0,0,0,0.03)',
-                color: color,
+                color: audioColor,
                 mr: 2
               }}
             >
@@ -241,15 +250,12 @@ const AudioMediaPopup = ({
               >
                 {eventData.title || "Untitled Event"}
               </Typography>
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-              >
-                {formatDate(eventData.created_at)}
-              </Typography>
             </Box>
           </Box>
 
+          {/* Creator Chip - Moved outside description box */}
+          <CreatorChip user={userData} color={audioColor} sx={{ mb: 3 }} />
+          
           {/* Event Content */}
           {eventData.description && (
             <Paper
@@ -267,9 +273,6 @@ const AudioMediaPopup = ({
                   : 'rgba(0,0,0,0.05)',
               }}
             >
-              {/* Creator Chip */}
-              <CreatorChip user={userData} color={audioColor} />
-              
               <Typography 
                 variant="body1" 
                 sx={{ 
@@ -434,49 +437,98 @@ const AudioMediaPopup = ({
           <Box sx={{ mt: 'auto' }}>
             <Divider sx={{ mb: 2 }} />
             
-            {/* Creator Info */}
-            {eventData.creator && (
+            {/* Creator Info - Removed as we're using CreatorChip */}
+            
+            {/* Event Date - Moved to first position */}
+            {eventData.event_date && (
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                <PersonIcon 
-                  fontSize="small" 
-                  sx={{ 
-                    mr: 1, 
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255,255,255,0.5)' 
-                      : 'rgba(0,0,0,0.4)' 
-                  }} 
-                />
-                <Typography variant="body2" color="text.secondary">
-                  Created by{' '}
-                  <Link 
-                    component={RouterLink} 
-                    to={`/profile/${eventData.creator.id}`}
-                    underline="hover"
-                    color="primary"
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.03)',
+                    color: audioColor,
+                    mr: 1.5
+                  }}
+                >
+                  <EventIcon fontSize="small" />
+                </Box>
+                <Box>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block',
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.5)'
+                        : 'rgba(0,0,0,0.4)',
+                    }}
                   >
-                    {eventData.creator.username || 'Unknown User'}
-                  </Link>
-                </Typography>
+                    Timeline Date
+                  </Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.9)'
+                        : 'rgba(0,0,0,0.8)',
+                    }}
+                  >
+                    {formatEventDate(eventData.event_date)}
+                  </Typography>
+                </Box>
               </Box>
             )}
             
-            {/* Event Date */}
-            {eventData.event_date && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                <EventIcon 
-                  fontSize="small" 
+            {/* Published Date - Moved to second position */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.03)',
+                  color: audioColor,
+                  mr: 1.5
+                }}
+              >
+                <AccessTimeIcon fontSize="small" />
+              </Box>
+              <Box>
+                <Typography 
+                  variant="caption" 
                   sx={{ 
-                    mr: 1, 
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255,255,255,0.5)' 
-                      : 'rgba(0,0,0,0.4)' 
-                  }} 
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {formatEventDate(eventData.event_date)}
+                    display: 'block',
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.5)'
+                      : 'rgba(0,0,0,0.4)',
+                  }}
+                >
+                  Published
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.9)'
+                      : 'rgba(0,0,0,0.8)',
+                  }}
+                >
+                  {formatDate(eventData.created_at || eventData.createdAt).replace('Published on ', '')}
                 </Typography>
               </Box>
-            )}
+            </Box>
+          </Box>
           </Box>
         </Box>
       </Box>
