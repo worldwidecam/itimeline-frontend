@@ -72,7 +72,7 @@ const ImageEventPopup = ({
   const [localEventData, setLocalEventData] = useState(event);
   
   // Image theme color
-  const imageColor = '#00695c'; // Teal for image theme
+  const imageColor = '#009688'; // Teal for image theme (matching the color in README)
   
   // Get user data with fallbacks
   const getUserData = () => {
@@ -253,12 +253,12 @@ const ImageEventPopup = ({
               position: 'relative',
             }}
           >
-            {/* Header with colored accent bar */}
+            {/* Header with colored accent bar and gradient */}
             <Box
               sx={{
                 position: 'relative',
                 height: 8,
-                bgcolor: color,
+                background: `linear-gradient(90deg, ${imageColor} 0%, ${imageColor}99 50%, ${imageColor}44 100%)`,
               }}
             />
             
@@ -284,7 +284,7 @@ const ImageEventPopup = ({
                     bgcolor: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.05)'
                       : 'rgba(0,0,0,0.03)',
-                    color: color,
+                    color: imageColor, // Use the specific image color for the icon
                   }}
                 >
                   <TypeIcon fontSize="medium" />
@@ -569,9 +569,7 @@ const ImageEventPopup = ({
                           bgcolor: theme.palette.mode === 'dark'
                             ? 'rgba(255,255,255,0.05)'
                             : 'rgba(0,0,0,0.03)',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.7)'
-                            : 'rgba(0,0,0,0.6)',
+                          color: imageColor, // Use the specific image color for the icon
                         }}
                       >
                         <EventIcon fontSize="small" />
@@ -615,9 +613,7 @@ const ImageEventPopup = ({
                         bgcolor: theme.palette.mode === 'dark'
                           ? 'rgba(255,255,255,0.05)'
                           : 'rgba(0,0,0,0.03)',
-                        color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.7)'
-                          : 'rgba(0,0,0,0.6)',
+                        color: imageColor, // Use the specific image color for the icon
                       }}
                     >
                       <AccessTimeIcon fontSize="small" />
@@ -647,49 +643,7 @@ const ImageEventPopup = ({
                     </Box>
                   </Box>
                   
-                  {/* Created by */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar 
-                      src={event.created_by_avatar} 
-                      alt={event.created_by_username || "User"} 
-                      sx={{ 
-                        width: 32, 
-                        height: 32,
-                        fontSize: '0.875rem',
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.1)'
-                          : 'rgba(0,0,0,0.1)',
-                      }} 
-                    >
-                      {event.created_by_username ? event.created_by_username.charAt(0).toUpperCase() : <PersonIcon fontSize="small" />}
-                    </Avatar>
-                    <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          display: 'block',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.5)'
-                            : 'rgba(0,0,0,0.4)',
-                        }}
-                      >
-                        Created by
-                      </Typography>
-                      <Link
-                        component={RouterLink}
-                        to={`/profile/${event.created_by || event.createdBy}`}
-                        sx={{ 
-                          color: color,
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline'
-                          }
-                        }}
-                      >
-                        {event.created_by_username || event.createdByUsername || "Unknown"}
-                      </Link>
-                    </Box>
-                  </Box>
+                  {/* Removed duplicate creator info since we have CreatorChip above */}
                 </Box>
               </Paper>
             </DialogContent>

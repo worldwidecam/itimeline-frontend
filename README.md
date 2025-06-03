@@ -4,6 +4,52 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Current Focus (June 2025)
 
+### Popup Styling Standards
+
+The iTimeline application implements a consistent styling approach across all event popup components, ensuring a cohesive user experience. The following standards have been established:
+
+#### CreatorChip Component
+- **Purpose**: Displays creator information with avatar, username, and profile link
+- **Implementation**: Reusable component with color-aware styling
+- **Location**: Used in all event popup components (NewsEventPopup, EventPopup, VideoEventPopup, ImageEventPopup, AudioMediaPopup)
+- **Styling**:
+  - Color-aware background with low opacity (15% dark mode, 8% light mode)
+  - Left border accent using event type color
+  - Consistent avatar size (44px) with color border
+  - Hover effect with subtle transform and shadow
+  - Responsive typography with proper hierarchy
+
+#### Event Popup Standards
+- **Dialog Title**:
+  - Color-aware type icon matching event theme color
+  - Consistent sizing and spacing
+  - Clear visual hierarchy with proper typography
+
+- **Header Accent Bar**:
+  - Color-aware gradient accent at the top of the popup
+  - Gradient transitions from full color to transparent (left to right)
+  - Format: `linear-gradient(90deg, ${eventColor} 0%, ${eventColor}99 50%, ${eventColor}44 100%)`
+  - Height of 8px for visual consistency
+
+- **Event Details Section**:
+  - Consistent metadata presentation with color-aware icons
+  - Timeline Date with EventIcon in event theme color
+  - Published Date with AccessTimeIcon in event theme color
+  - Proper spacing and alignment between elements
+
+- **Color Theme Reference**:
+  - News Events: Red (#d32f2f)
+  - Remark Events: Blue (#2196f3)
+  - Video Events: Deep Purple (#673ab7)
+  - Image Events: Teal (#009688)
+  - Audio Events: Orange (#ff9800)
+
+#### Implementation Guidelines
+- All popups should use the CreatorChip component for creator information
+- Icons in the event details section should be color-aware using the event theme color
+- The type icon in the dialog title should match the event theme color
+- Maintain consistent spacing, typography, and visual hierarchy across all popups
+
 ### Form Validation Improvements
 
 #### Media Event Form Validation

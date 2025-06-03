@@ -338,12 +338,12 @@ const VideoEventPopup = ({
               position: 'relative',
             }}
           >
-            {/* Header with colored accent bar */}
+            {/* Header with colored accent bar and gradient */}
             <Box
               sx={{
                 position: 'relative',
                 height: 8,
-                bgcolor: color,
+                background: `linear-gradient(90deg, ${videoColor} 0%, ${videoColor}99 50%, ${videoColor}44 100%)`,
               }}
             />
             
@@ -369,7 +369,7 @@ const VideoEventPopup = ({
                     bgcolor: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.05)'
                       : 'rgba(0,0,0,0.03)',
-                    color: color,
+                    color: videoColor,
                   }}
                 >
                   <TypeIcon fontSize="medium" />
@@ -654,9 +654,7 @@ const VideoEventPopup = ({
                           bgcolor: theme.palette.mode === 'dark'
                             ? 'rgba(255,255,255,0.05)'
                             : 'rgba(0,0,0,0.03)',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.7)'
-                            : 'rgba(0,0,0,0.6)',
+                          color: videoColor,
                         }}
                       >
                         <EventIcon fontSize="small" />
@@ -700,9 +698,7 @@ const VideoEventPopup = ({
                         bgcolor: theme.palette.mode === 'dark'
                           ? 'rgba(255,255,255,0.05)'
                           : 'rgba(0,0,0,0.03)',
-                        color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.7)'
-                          : 'rgba(0,0,0,0.6)',
+                        color: videoColor,
                       }}
                     >
                       <AccessTimeIcon fontSize="small" />
@@ -732,49 +728,7 @@ const VideoEventPopup = ({
                     </Box>
                   </Box>
                   
-                  {/* Created by */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar 
-                      src={event.created_by_avatar} 
-                      alt={event.created_by_username || "User"} 
-                      sx={{ 
-                        width: 32, 
-                        height: 32,
-                        fontSize: '0.875rem',
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.1)'
-                          : 'rgba(0,0,0,0.1)',
-                      }} 
-                    >
-                      {event.created_by_username ? event.created_by_username.charAt(0).toUpperCase() : <PersonIcon fontSize="small" />}
-                    </Avatar>
-                    <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          display: 'block',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.5)'
-                            : 'rgba(0,0,0,0.4)',
-                        }}
-                      >
-                        Created by
-                      </Typography>
-                      <Link
-                        component={RouterLink}
-                        to={`/profile/${event.created_by || event.createdBy}`}
-                        sx={{ 
-                          color: color,
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline'
-                          }
-                        }}
-                      >
-                        {event.created_by_username || event.createdByUsername || "Unknown"}
-                      </Link>
-                    </Box>
-                  </Box>
+                  {/* The outdated creator info section has been removed as we now use the CreatorChip component above */}
                 </Box>
               </Paper>
             </DialogContent>

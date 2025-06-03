@@ -537,6 +537,15 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
             },
           }}
         >
+          {/* Header with colored accent bar and gradient */}
+          <Box
+            sx={{
+              position: 'relative',
+              height: 8,
+              background: `linear-gradient(90deg, ${remarkColor} 0%, ${remarkColor}99 50%, ${remarkColor}44 100%)`,
+            }}
+          />
+          
           <DialogTitle sx={{ p: 3, pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
