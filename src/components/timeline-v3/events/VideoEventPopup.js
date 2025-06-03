@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import CreatorChip from './CreatorChip';
 import {
   Dialog,
   DialogTitle,
@@ -74,6 +75,29 @@ const VideoEventPopup = ({
   const [localEventData, setLocalEventData] = useState(event);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
+  
+  // Video theme color
+  const videoColor = '#4a148c'; // Deep purple for video theme
+  
+  // Get user data with fallbacks
+  const getUserData = () => {
+    // First try to get from created_by object (nested)
+    if (event.created_by && typeof event.created_by === 'object') {
+      return {
+        id: event.created_by.id || event.created_by_id || event.created_by,
+        username: event.created_by.username || event.created_by_username || 'Unknown User',
+        avatar: event.created_by.avatar_url || event.created_by_avatar || null
+      };
+    }
+    // Then try direct properties (flattened)
+    return {
+      id: event.created_by || event.created_by_id || 'unknown',
+      username: event.created_by_username || 'Unknown User',
+      avatar: event.created_by_avatar || null
+    };
+  };
+  
+  const userData = getUserData();
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -611,6 +635,9 @@ const VideoEventPopup = ({
                 >
                   Event Details
                 </Typography>
+                
+                {/* Creator Chip */}
+                <CreatorChip user={userData} color={videoColor} />
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {/* Timeline date */}

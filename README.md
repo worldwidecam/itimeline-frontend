@@ -4,6 +4,16 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Current Focus (June 2025)
 
+### Form Validation Improvements
+
+#### Media Event Form Validation
+- **Enhanced Submit Button Logic**: Submit buttons are now properly disabled until required fields are completed
+- **Media Event Creator**: The "Create Media Event" button remains disabled until:
+  - A title is entered
+  - A media file is successfully uploaded
+- **Improved User Experience**: Prevents creation of incomplete or empty media events
+- **Consistent Validation**: Aligns with validation patterns used in other event forms
+
 ### Audio Media Popup & Waveform Visualizer
 
 The AudioMediaPopup provides an immersive audio playback experience with real-time waveform visualization:

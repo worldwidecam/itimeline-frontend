@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import CreatorChip from './CreatorChip';
 import {
   Dialog,
   DialogTitle,
@@ -71,6 +72,29 @@ const AudioMediaPopup = ({
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   const [localEventData, setLocalEventData] = useState(null);
   const audioVisualizerRef = useRef(null);
+  
+  // Audio theme color
+  const audioColor = '#e65100'; // Orange for audio theme
+  
+  // Get user data with fallbacks
+  const getUserData = () => {
+    // First try to get from created_by object (nested)
+    if (event.created_by && typeof event.created_by === 'object') {
+      return {
+        id: event.created_by.id || event.created_by_id || event.created_by,
+        username: event.created_by.username || event.created_by_username || 'Unknown User',
+        avatar: event.created_by.avatar_url || event.created_by_avatar || null
+      };
+    }
+    // Then try direct properties (flattened)
+    return {
+      id: event.created_by || event.created_by_id || 'unknown',
+      username: event.created_by_username || 'Unknown User',
+      avatar: event.created_by_avatar || null
+    };
+  };
+  
+  const userData = getUserData();
 
   // Set local event data when the event prop changes
   useEffect(() => {
@@ -243,6 +267,9 @@ const AudioMediaPopup = ({
                   : 'rgba(0,0,0,0.05)',
               }}
             >
+              {/* Creator Chip */}
+              <CreatorChip user={userData} color={audioColor} />
+              
               <Typography 
                 variant="body1" 
                 sx={{ 

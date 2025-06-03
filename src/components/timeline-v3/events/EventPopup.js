@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import ImageEventPopup from './ImageEventPopup';
 import VideoEventPopup from './VideoEventPopup';
 import NewsEventPopup from './NewsEventPopup';
+import CreatorChip from './CreatorChip';
 import AudioMediaPopup from './AudioMediaPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import {
@@ -33,6 +34,7 @@ import {
   Add as AddIcon,
   Event as EventIcon,
   Person as PersonIcon,
+  AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -101,19 +103,32 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
     }
   }
   
-  // Safely get colors with multiple fallbacks
-  let color = defaultColor;
-  try {
-    const typeColorSet = EVENT_TYPE_COLORS[safeEventType];
-    if (typeColorSet) {
-      color = theme.palette.mode === 'dark' ? 
-        (typeColorSet.dark || defaultDarkColor) : 
-        (typeColorSet.light || defaultColor);
+  // Determine the color to use for the event
+  const color = event?.color || EVENT_TYPE_COLORS[safeEventType] || defaultColor;
+  const darkColor = event?.dark_color || EVENT_TYPE_COLORS[`${safeEventType}_dark`] || defaultDarkColor;
+  
+  // Specific remark color for the creator chip
+  const remarkColor = '#2196f3'; // Blue color for remark events
+  
+  // Get user data with fallbacks
+  const getUserData = () => {
+    // First try to get from created_by object (nested)
+    if (event.created_by && typeof event.created_by === 'object') {
+      return {
+        id: event.created_by.id || event.created_by_id || event.created_by,
+        username: event.created_by.username || event.created_by_username || 'Unknown User',
+        avatar: event.created_by.avatar_url || event.created_by_avatar || null
+      };
     }
-  } catch (error) {
-    console.error('Error getting event color:', error);
-    // Use default color as fallback
-  }
+    // Then try direct properties (flattened)
+    return {
+      id: event.created_by || event.created_by_id || 'unknown',
+      username: event.created_by_username || 'Unknown User',
+      avatar: event.created_by_avatar || null
+    };
+  };
+  
+  const userData = getUserData();
   
   // Safely determine the icon with fallback
   let TypeIcon = RemarkIcon; // Default fallback
@@ -536,7 +551,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                     bgcolor: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.05)'
                       : 'rgba(0,0,0,0.03)',
-                    color: color,
+                    color: remarkColor, // Use the specific remark color for the icon
                   }}
                 >
                   <TypeIcon fontSize="medium" />
@@ -803,25 +818,29 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
               >
                 Event Details
               </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {/* Creator information */}
-                {event.created_by_username && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Creator Chip */}
+                <CreatorChip user={userData} color={remarkColor} />
+                
+                {/* Timeline Date with icon */}
+                {event.event_date && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar 
-                      src={event.created_by_avatar} 
-                      alt={event.created_by_username || "User"} 
-                      sx={{ 
-                        width: 32, 
+                    <Box
+                      sx={{
+                        width: 32,
                         height: 32,
-                        fontSize: '0.875rem',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.1)'
-                          : 'rgba(0,0,0,0.1)',
-                      }} 
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.03)',
+                        color: remarkColor,
+                      }}
                     >
-                      {event.created_by_username ? event.created_by_username.charAt(0).toUpperCase() : <PersonIcon fontSize="small" />}
-                    </Avatar>
+                      <EventIcon fontSize="small" />
+                    </Box>
                     <Box>
                       <Typography 
                         variant="caption" 
@@ -829,56 +848,67 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                           display: 'block',
                           color: theme.palette.mode === 'dark'
                             ? 'rgba(255,255,255,0.5)'
-                            : 'rgba(0,0,0,0.4)',
+                            : 'rgba(0,0,0,0.5)',
                         }}
                       >
-                        Created by
+                        Timeline Date
                       </Typography>
-                      <Link
-                        component={RouterLink}
-                        to={`/profile/${event.created_by || event.createdBy}`}
+                      <Typography 
+                        variant="body2"
                         sx={{ 
-                          color: color,
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline'
-                          }
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(0,0,0,0.9)',
                         }}
                       >
-                        {event.created_by_username || event.createdByUsername || "Unknown"}
-                      </Link>
+                        {formatEventDate(event.event_date)}
+                      </Typography>
                     </Box>
                   </Box>
                 )}
-                {/* Event date */}
-                {event.event_date && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography 
-                      variant="body2" 
-                      color="textSecondary"
-                      sx={{ minWidth: 100 }}
-                    >
-                      Timeline Date:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatEventDate(event.event_date)}
-                    </Typography>
-                  </Box>
-                )}
                 
-                {/* Published date */}
+                {/* Published Date with icon */}
                 {event.created_at && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography 
-                      variant="body2" 
-                      color="textSecondary"
-                      sx={{ minWidth: 100 }}
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.03)',
+                        color: remarkColor,
+                      }}
                     >
-                      Published:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate(event.created_at)}
-                    </Typography>
+                      <AccessTimeIcon fontSize="small" />
+                    </Box>
+                    <Box>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(0,0,0,0.5)',
+                        }}
+                      >
+                        Published
+                      </Typography>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(0,0,0,0.9)',
+                        }}
+                      >
+                        {formatDate(event.created_at).replace('Published on ', '')}
+                      </Typography>
+                    </Box>
                   </Box>
                 )}
               </Box>
