@@ -33,16 +33,17 @@ The iTimeline application implements a consistent styling approach across all ev
 
 - **Event Details Section**:
   - Consistent metadata presentation with color-aware icons
-  - Timeline Date with EventIcon in event theme color
-  - Published Date with AccessTimeIcon in event theme color
+  - Timeline Date with EventIcon in event theme color (always appears first)
+  - Published Date with AccessTimeIcon in event theme color (always appears second)
+  - CreatorChip positioned outside of description box
   - Proper spacing and alignment between elements
 
 - **Color Theme Reference**:
   - News Events: Red (#d32f2f)
   - Remark Events: Blue (#2196f3)
-  - Video Events: Deep Purple (#673ab7)
+  - Video Events: Deep Purple (#4a148c)
   - Image Events: Teal (#009688)
-  - Audio Events: Orange (#ff9800)
+  - Audio Events: Orange (#e65100)
 
 #### Implementation Guidelines
 - All popups should use the CreatorChip component for creator information
