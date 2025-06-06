@@ -4,6 +4,32 @@ Frontend application for the iTimeline platform, a modern web application for cr
 
 ## Current Focus (June 2025)
 
+### Community Timelines Implementation
+
+The iTimeline application now supports Community Timelines, a new type of timeline that allows users to create dedicated spaces for collaboration with customizable visibility settings.
+
+#### Key Features
+- **Timeline Types**: Support for both hashtag timelines (automatic collections) and community timelines (user-created spaces)
+- **Visual Distinction**: 
+  - Community timelines are prefixed with "i -" in Lobster font
+  - Hashtag timelines maintain the "#" prefix
+  - Consistent styling across all UI components
+- **Visibility Settings**:
+  - Public community timelines are accessible to all users
+  - Private community timelines display a lock icon and require approval to join
+- **Implementation Details**:
+  - New `TimelineNameDisplay` component for consistent timeline name rendering
+  - Enhanced timeline creation dialog with type and visibility options
+  - Accessibility improvements with ARIA labels and tooltips
+  - Responsive design with proper overflow handling for long timeline names
+
+#### Current Status
+- ✅ Timeline prefix styling and display
+- ✅ Visual indicators for timeline visibility
+- ✅ Timeline creation with type selection
+- ⏳ Admin controls and member management (in progress)
+- ⏳ Request-to-join flow for private communities (planned)
+
 ### Popup Styling Standards
 
 The iTimeline application implements a consistent styling approach across all event popup components, ensuring a cohesive user experience. The following standards have been established:

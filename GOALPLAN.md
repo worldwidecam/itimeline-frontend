@@ -408,11 +408,30 @@ Based on clarity and existing patterns, we recommend:
 ## Minimum Viable Product (MVP)
 
 **Core Features for Initial Release:**
-1. Community timeline creation (public/private)
-2. Basic member management
-3. Simple admin controls
-4. Request-to-join flow for private communities
-5. Visual distinction between hashtag and community timelines
+1. ✅ Community timeline creation (public/private)
+   - Implemented timeline creation dialog with type and visibility options
+   - Added backend support for storing timeline type and visibility
+2. ⏳ Basic member management
+3. ⏳ Simple admin controls
+4. ⏳ Request-to-join flow for private communities
+5. ✅ Visual distinction between hashtag and community timelines
+   - Added "i -" prefix for community timelines with Lobster font
+   - Maintained "#" prefix for hashtag timelines
+   - Implemented consistent styling across all UI components
+   - Added lock icon for private community timelines
+
+**PROGRESS UPDATE (June 5, 2025):**
+- Completed the TimelineNameDisplay component for consistent prefix display
+- Implemented visual indicators for timeline visibility (lock icon for private timelines)
+- Updated timeline creation to support community timelines with visibility options
+- Ensured consistent styling across all UI components (timeline headers, cards, menus)
+- Added accessibility improvements with ARIA labels and tooltips
+
+**NEXT STEPS:**
+1. Implement member management UI for community timelines
+2. Create admin controls panel for community timeline management
+3. Develop request-to-join flow for private community timelines
+4. Add moderation tools for community timeline admins
 
 **Technical Requirements:**
 1. Database schema updates
