@@ -581,6 +581,7 @@ const Homepage = () => {
                         <TimelineNameDisplay
                           name={timeline.name}
                           type={timeline.timeline_type || 'hashtag'}
+                          visibility={timeline.visibility || 'public'}
                           typographyProps={{
                             variant: "h6",
                             fontWeight: 'bold',

@@ -43,6 +43,7 @@ function TimelineV3() {
   const [timelineId, setTimelineId] = useState(id);
   const [timelineName, setTimelineName] = useState('');
   const [timeline_type, setTimelineType] = useState('hashtag');
+  const [visibility, setVisibility] = useState('public');
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch timeline details when component mounts or timelineId changes
@@ -56,6 +57,7 @@ function TimelineV3() {
         if (response.data && response.data.name) {
           setTimelineName(response.data.name);
           setTimelineType(response.data.timeline_type || 'hashtag');
+          setVisibility(response.data.visibility || 'public');
         }
       } catch (error) {
         console.error('Error fetching timeline details:', error);
@@ -1726,6 +1728,7 @@ const handleRecenter = () => {
                   <TimelineNameDisplay 
                     name={timelineName} 
                     type={timeline_type} 
+                    visibility={visibility}
                     typographyProps={{
                       variant: "h4",
                       component: "div"

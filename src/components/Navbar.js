@@ -244,9 +244,9 @@ function Navbar() {
               {lastVisitedTimeline?.timeline_type === 'community' ? (
                 <span style={{ 
                   fontFamily: 'Lobster, cursive', 
-                  color: '#1976d2', 
+                  color: 'inherit', // Use the theme's color
                   fontSize: '1.3em',
-                  marginLeft: '5px'
+                  marginLeft: '10px' // Align with other icons
                 }}>
                   i
                 </span>
@@ -363,9 +363,9 @@ function Navbar() {
                 {lastVisitedTimeline.timeline_type === 'community' ? (
                   <span style={{ 
                     fontFamily: 'Lobster, cursive', 
-                    color: '#1976d2', 
+                    color: 'inherit', // Use the theme's color
                     fontSize: '1.3em',
-                    marginLeft: '5px'
+                    marginLeft: '10px' // Match the positioning of the current timeline
                   }}>
                     i
                   </span>
