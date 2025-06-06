@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate, useLocation, useParams } from 'react-router-dom';
+import TimelineNameDisplay from './timeline-v3/TimelineNameDisplay';
 import {
   AppBar,
   Toolbar,
@@ -240,17 +241,28 @@ function Navbar() {
             }}
           >
             <ListItemIcon>
-              <TagIcon sx={{ color: 'primary.main' }} />
+              {lastVisitedTimeline?.timeline_type === 'community' ? (
+                <span style={{ 
+                  fontFamily: 'Lobster, cursive', 
+                  color: '#1976d2', 
+                  fontSize: '1.3em',
+                  marginLeft: '5px'
+                }}>
+                  i
+                </span>
+              ) : (
+                <TagIcon sx={{ color: 'primary.main' }} />
+              )}
             </ListItemIcon>
-            <ListItemText 
-              primary={currentTimelineName} 
-              primaryTypographyProps={{
-                fontWeight: 'bold',
-                color: 'primary.main',
-                noWrap: true,
-                sx: { maxWidth: '180px' } // Prevent very long timeline names from breaking layout
-              }}
-            />
+            {/* For the hamburger menu, we're showing the icon separately, so we always pass 'hashtag' as type to avoid showing the prefix */}
+            <Typography
+              fontWeight="bold"
+              color="primary.main"
+              noWrap
+              sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
+            >
+              {currentTimelineName}
+            </Typography>
           </ListItem>
         )}
         
@@ -348,19 +360,26 @@ function Navbar() {
               }}
             >
               <ListItemIcon>
-                {lastVisitedTimeline.timeline_type === 'hashtag' ? (
-                  <TagIcon sx={{ color: 'primary.main' }} />
+                {lastVisitedTimeline.timeline_type === 'community' ? (
+                  <span style={{ 
+                    fontFamily: 'Lobster, cursive', 
+                    color: '#1976d2', 
+                    fontSize: '1.3em',
+                    marginLeft: '5px'
+                  }}>
+                    i
+                  </span>
                 ) : (
-                  <TagIcon sx={{ color: 'primary.main' }} /> /* Default to TagIcon for now, will be expanded in future */
+                  <TagIcon sx={{ color: 'primary.main' }} />
                 )}
               </ListItemIcon>
-              <ListItemText 
-                primary={lastVisitedTimeline.name} 
-                primaryTypographyProps={{
-                  noWrap: true,
-                  sx: { maxWidth: '180px' } // Prevent very long timeline names from breaking layout
-                }}
-              />
+              {/* For the last visited timeline, we're showing the icon separately, so we show just the name */}
+              <Typography
+                noWrap
+                sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
+              >
+                {lastVisitedTimeline.name}
+              </Typography>
             </ListItem>
             <Divider sx={{ my: 1 }} />
           </>

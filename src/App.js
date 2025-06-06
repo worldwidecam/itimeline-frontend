@@ -35,11 +35,18 @@ import {
   Divider,
   useTheme,
   IconButton,
-  Paper
+  Paper,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Tooltip
 } from '@mui/material';
 import PageTransition from './components/PageTransition';
 import api from './utils/api';
 import setupKeepAlive from './utils/keepAlive';
+import TimelineNameDisplay from './components/timeline-v3/TimelineNameDisplay';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -95,7 +102,9 @@ const Homepage = () => {
   const [isSearching, setIsSearching] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: '',
-    description: ''
+    description: '',
+    timeline_type: 'hashtag',
+    visibility: 'public'
   });
 
   // Fetch timelines when component mounts
@@ -140,7 +149,12 @@ const Homepage = () => {
 
   const handleDialogClose = () => {
     setDialogOpen(false);
-    setFormData({ name: '', description: '' });
+    setFormData({
+      name: '',
+      description: '',
+      timeline_type: 'hashtag',
+      visibility: 'public'
+    });
   };
 
   const handleInputChange = (e) => {
@@ -172,7 +186,9 @@ const Homepage = () => {
       // Convert timeline name to uppercase for consistency with other parts of the app
       const response = await api.post('/api/timeline-v3', {
         name: formData.name.trim().toUpperCase(),
-        description: formData.description.trim()
+        description: formData.description.trim(),
+        timeline_type: formData.timeline_type,
+        visibility: formData.visibility
       });
       
       // Add the new timeline to the list and update filtered timelines
@@ -562,9 +578,15 @@ const Homepage = () => {
                       <Box sx={{ height: 4, bgcolor: 'primary.main' }} />
                       
                       <CardContent sx={{ p: 2, pb: 1 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                          {timeline.name}
-                        </Typography>
+                        <TimelineNameDisplay
+                          name={timeline.name}
+                          type={timeline.timeline_type || 'hashtag'}
+                          typographyProps={{
+                            variant: "h6",
+                            fontWeight: 'bold',
+                            fontSize: '1rem'
+                          }}
+                        />
                         {timeline.description && (
                           <Typography variant="body2" color="text.secondary" sx={{ 
                             mt: 1,
@@ -806,12 +828,69 @@ const Homepage = () => {
               onChange={handleInputChange}
               variant="outlined"
               sx={{ 
+                mb: 3,
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2,
                   bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.5)',
                 }
               }}
             />
+            
+            <FormControl component="fieldset" sx={{ mb: 2 }}>
+              <FormLabel component="legend" sx={{ mb: 1, color: theme.palette.text.secondary }}>
+                Timeline Type
+              </FormLabel>
+              <RadioGroup
+                row
+                name="timeline_type"
+                value={formData.timeline_type}
+                onChange={handleInputChange}
+              >
+                <Tooltip title="Standard timeline with hashtag-based organization">
+                  <FormControlLabel 
+                    value="hashtag" 
+                    control={<Radio />} 
+                    label="Hashtag Timeline" 
+                  />
+                </Tooltip>
+                <Tooltip title="Community timeline with member management and post sharing">
+                  <FormControlLabel 
+                    value="community" 
+                    control={<Radio />} 
+                    label="Community Timeline" 
+                  />
+                </Tooltip>
+              </RadioGroup>
+            </FormControl>
+            
+            {formData.timeline_type === 'community' && (
+              <FormControl component="fieldset" sx={{ mb: 2 }}>
+                <FormLabel component="legend" sx={{ mb: 1, color: theme.palette.text.secondary }}>
+                  Visibility
+                </FormLabel>
+                <RadioGroup
+                  row
+                  name="visibility"
+                  value={formData.visibility}
+                  onChange={handleInputChange}
+                >
+                  <Tooltip title="Anyone can view this timeline">
+                    <FormControlLabel 
+                      value="public" 
+                      control={<Radio />} 
+                      label="Public" 
+                    />
+                  </Tooltip>
+                  <Tooltip title="Only members can view this timeline">
+                    <FormControlLabel 
+                      value="private" 
+                      control={<Radio />} 
+                      label="Private" 
+                    />
+                  </Tooltip>
+                </RadioGroup>
+              </FormControl>
+            )}
           </Paper>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Your timeline will be created with a unique URL that you can share with others.

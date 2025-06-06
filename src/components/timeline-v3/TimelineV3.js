@@ -9,6 +9,7 @@ import TimelineBar from './TimelineBar';
 import TimeMarkers from './TimeMarkers';
 import HoverMarker from './HoverMarker';
 import EventMarker from './events/EventMarker';
+import TimelineNameDisplay from './TimelineNameDisplay';
 import EventCounter from './events/EventCounter';
 import EventList from './events/EventList';
 import EventDialog from './events/EventDialog';
@@ -41,6 +42,7 @@ function TimelineV3() {
   const theme = useTheme();
   const [timelineId, setTimelineId] = useState(id);
   const [timelineName, setTimelineName] = useState('');
+  const [timeline_type, setTimelineType] = useState('hashtag');
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch timeline details when component mounts or timelineId changes
@@ -53,6 +55,7 @@ function TimelineV3() {
         const response = await api.get(`/api/timeline-v3/${timelineId}`);
         if (response.data && response.data.name) {
           setTimelineName(response.data.name);
+          setTimelineType(response.data.timeline_type || 'hashtag');
         }
       } catch (error) {
         console.error('Error fetching timeline details:', error);
@@ -1717,9 +1720,24 @@ const handleRecenter = () => {
       <Container maxWidth={false}>
         <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h4" component="div" sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
-              {!isLoading && `# ${timelineName}`}
-            </Typography>
+            <Box sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
+              {!isLoading && (
+                timeline_type === 'community' ? (
+                  <TimelineNameDisplay 
+                    name={timelineName} 
+                    type={timeline_type} 
+                    typographyProps={{
+                      variant: "h4",
+                      component: "div"
+                    }}
+                  />
+                ) : (
+                  <Typography variant="h4" component="div">
+                    {`# ${timelineName}`}
+                  </Typography>
+                )
+              )}
+            </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {getViewDescription()}
             </Box>
