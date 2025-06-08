@@ -16,6 +16,7 @@ import EventDialog from './events/EventDialog';
 import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
+import CommunityDotTabs from './community/CommunityDotTabs';
 
 // Material UI Icons - importing each icon separately to ensure they're properly loaded
 import Add from '@mui/icons-material/Add';
@@ -2252,6 +2253,14 @@ const handleRecenter = () => {
 
       {/* Visual Separator */}
       <Box sx={{ height: 24 }} />
+      
+      {/* Community Dot Tabs - Only shown for community timelines */}
+      {timeline_type === 'community' && (
+        <CommunityDotTabs 
+          timelineId={timelineId} 
+          userRole={user?.role || 'user'} 
+        />
+      )}
       
       {/* Event List Workspace - Enhanced smooth fade-in transition */}
       <Box sx={{

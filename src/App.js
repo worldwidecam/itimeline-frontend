@@ -13,6 +13,8 @@ import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
 import LandingPage from './components/LandingPage';
 import AudioTester from './components/AudioTester';
+import MemberListTab from './components/timeline-v3/community/MemberListTab';
+import AdminPanel from './components/timeline-v3/community/AdminPanel';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { EmailBlurProvider } from './contexts/EmailBlurContext';
@@ -1000,6 +1002,20 @@ function App() {
                   <Box sx={{ pt: 8 }}>
                     <ProtectedRoute>
                       <TimelineV3 />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:id/members" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <MemberListTab />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:id/admin" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <AdminPanel />
                     </ProtectedRoute>
                   </Box>
                 } />
