@@ -22,6 +22,9 @@ import {
   ToggleButtonGroup,
   Paper,
   Link,
+  Divider,
+  ListSubheader,
+  Tooltip,
 } from '@mui/material';
 import { 
   Close as CloseIcon, 
@@ -35,10 +38,11 @@ import {
   AudioFile as AudioFileIcon,
   VideoFile as VideoFileIcon,
 } from '@mui/icons-material';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_METADATA } from './EventTypes';
 import MediaEventUploader from './MediaEventUploader';
+import TimelineNameDisplay from '../TimelineNameDisplay';
 
 const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -83,6 +87,9 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   const [urlPreviewFetched, setUrlPreviewFetched] = useState(false);
   const previousUrl = useRef('');
   const urlDebounceTimer = useRef(null);
+
+  const [availableTimelines, setAvailableTimelines] = useState([]);
+  const [loadingTimelines, setLoadingTimelines] = useState(false);
 
   // Common sites with known logos
   const domainLogos = {
@@ -147,6 +154,9 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         clearTimeout(urlDebounceTimer.current);
         urlDebounceTimer.current = null;
       }
+      
+      // Fetch available timelines
+      fetchAvailableTimelines();
     }
   }, [open]);
 
@@ -242,6 +252,17 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       tags: event.target.value
     }));
   };
+  
+  // Group timelines by type for the tag selector
+  const groupedTimelines = useMemo(() => {
+    const hashtags = availableTimelines.filter(timeline => timeline.timeline_type === 'hashtag');
+    const communities = availableTimelines.filter(timeline => timeline.timeline_type === 'community');
+    
+    return {
+      hashtags,
+      communities
+    };
+  }, [availableTimelines]);
 
   const validateForm = () => {
     if (!formData.title.trim()) {
@@ -1196,18 +1217,109 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
               onChange={handleTagChange}
               renderValue={(selected) => (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((value) => (
-                    <Chip key={value} label={value} />
-                  ))}
+                  {selected.map((value) => {
+                    // Find if this tag corresponds to a timeline
+                    const timeline = availableTimelines.find(t => t.name.toUpperCase() === value.toUpperCase());
+                    
+                    if (timeline && timeline.timeline_type === 'community') {
+                      // Use TimelineNameDisplay for community timelines
+                      return (
+                        <Box 
+                          key={value} 
+                          sx={{ 
+                            display: 'inline-flex', 
+                            bgcolor: 'background.paper',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: '16px',
+                            px: 1,
+                            py: 0.5,
+                            alignItems: 'center'
+                          }}
+                        >
+                          <TimelineNameDisplay 
+                            name={value} 
+                            type="community" 
+                            visibility={timeline.visibility || 'public'}
+                            typographyProps={{ 
+                              variant: 'body2',
+                              sx: { fontSize: '0.75rem' }
+                            }}
+                          />
+                        </Box>
+                      );
+                    } else {
+                      // Regular chip for hashtag timelines or custom tags
+                      return <Chip key={value} label={value} />;
+                    }
+                  })}
                 </Box>
               )}
             >
+              {/* Community Timelines Section */}
+              <ListSubheader sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>
+                Community Timelines
+              </ListSubheader>
+              {loadingTimelines ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Loading timelines...
+                </MenuItem>
+              ) : groupedTimelines.communities.length > 0 ? (
+                groupedTimelines.communities.map((timeline) => (
+                  <MenuItem key={`community-${timeline.id}`} value={timeline.name}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <TimelineNameDisplay 
+                        name={timeline.name} 
+                        type="community" 
+                        visibility={timeline.visibility || 'public'}
+                      />
+                    </Box>
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No community timelines available</MenuItem>
+              )}
+              
+              {/* Hashtag Timelines Section */}
+              <Divider sx={{ my: 1 }} />
+              <ListSubheader sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>
+                Hashtag Timelines
+              </ListSubheader>
+              {loadingTimelines ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Loading timelines...
+                </MenuItem>
+              ) : groupedTimelines.hashtags.length > 0 ? (
+                groupedTimelines.hashtags.map((timeline) => (
+                  <MenuItem key={`hashtag-${timeline.id}`} value={timeline.name}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <TimelineNameDisplay 
+                        name={timeline.name} 
+                        type="hashtag"
+                      />
+                    </Box>
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No hashtag timelines available</MenuItem>
+              )}
+              
+              {/* Common Tags Section */}
+              <Divider sx={{ my: 1 }} />
+              <ListSubheader sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>
+                Common Tags
+              </ListSubheader>
               <MenuItem value="important">Important</MenuItem>
               <MenuItem value="personal">Personal</MenuItem>
               <MenuItem value="work">Work</MenuItem>
               <MenuItem value="news">News</MenuItem>
               <MenuItem value="media">Media</MenuItem>
             </Select>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              Select existing timelines or add custom tags to categorize this event
+            </Typography>
           </FormControl>
         )}
       </DialogContent>
