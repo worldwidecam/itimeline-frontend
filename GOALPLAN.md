@@ -108,9 +108,15 @@ Implement a flexible timeline system with three distinct types:
 
 ### Community Management & Settings
 
-1. **Admin Controls**:
-   - Accessible via gear icon on the community timeline
-   - Only visible to community admins
+1. **Community Navigation**:
+   - Minimalist dot-based tab navigation for community timelines
+   - Three dots representing Timeline (left), Members (middle), and Admin (right) views
+   - Active tab indicated by larger size, primary color, and subtle pulse animation
+   - Tooltips provide context for each dot
+
+2. **Admin Controls**:
+   - Accessible via the rightmost dot in the community navigation
+   - Only visible to community admins and moderators
 
 2. **Timeline Settings**:
    - **Basic Info**:

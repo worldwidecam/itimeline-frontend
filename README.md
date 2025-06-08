@@ -27,6 +27,7 @@ The iTimeline application now supports Community Timelines, a new type of timeli
 - ✅ Timeline prefix styling and display
 - ✅ Visual indicators for timeline visibility
 - ✅ Timeline creation with type selection
+- ✅ Community dot tabs navigation for Timeline, Members, and Admin views
 - ⏳ Admin controls and member management (in progress)
 - ⏳ Request-to-join flow for private communities (planned)
 
