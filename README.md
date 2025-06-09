@@ -11,7 +11,7 @@ The iTimeline application now supports Community Timelines, a new type of timeli
 #### Key Features
 - **Timeline Types**: Support for both hashtag timelines (automatic collections) and community timelines (user-created spaces)
 - **Visual Distinction**: 
-  - Community timelines are prefixed with "i -" in Lobster font
+  - Community timelines are prefixed with "i-" in Lobster font
   - Hashtag timelines maintain the "#" prefix
   - Consistent styling across all UI components
 - **Visibility Settings**:
@@ -23,13 +23,35 @@ The iTimeline application now supports Community Timelines, a new type of timeli
   - Accessibility improvements with ARIA labels and tooltips
   - Responsive design with proper overflow handling for long timeline names
 
+#### Community Timeline UI Components
+- **Community Dot Tabs**: Minimalist navigation between Timeline, Members, and Admin views
+  - Material-UI icons for visual clarity
+  - Enhanced tooltips with detailed descriptions
+  - Smooth animations and transitions
+  - Responsive design that works across device sizes
+
+- **Members Tab**: 
+  - "Current Action" plaque with gold-plated design to highlight community focus
+  - Member list with role-based styling and avatars
+  - Smooth staggered animations for better perceived performance
+  - Loading skeletons for improved user experience
+
+- **Admin Panel**:
+  - Tabbed interface for "Manage Members" and "Settings"
+  - Interactive controls for timeline name, description, and visibility
+  - Warning alerts with animated appearance for important actions
+  - Simulated data loading with placeholders for future backend integration
+
 #### Current Status
 - ✅ Timeline prefix styling and display
 - ✅ Visual indicators for timeline visibility
 - ✅ Timeline creation with type selection
-- ✅ Community dot tabs navigation for Timeline, Members, and Admin views
-- ⏳ Admin controls and member management (in progress)
+- ✅ Community dot tabs navigation with enhanced visual design
+- ✅ Members tab with "Current Action" plaque
+- ✅ Admin panel with tabbed interface and interactive controls
+- ⏳ Backend integration for member management (planned)
 - ⏳ Request-to-join flow for private communities (planned)
+- ⏳ Search and filtering functionality for member lists (planned)
 
 ### Popup Styling Standards
 
