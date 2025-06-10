@@ -110,107 +110,13 @@ The iTimeline application implements a consistent styling approach across all ev
 - **Improved User Experience**: Prevents creation of incomplete or empty media events
 - **Consistent Validation**: Aligns with validation patterns used in other event forms
 
-### Audio Media Popup & Waveform Visualizer
+### Completed Features (Archive)
 
-The AudioMediaPopup provides an immersive audio playback experience with real-time waveform visualization:
+The following features have been successfully implemented and are now part of the core functionality:
 
-#### AudioMediaPopup
-- **Layout**: Two-panel design with fixed audio visualizer (60%) and scrollable content (40%)
-- **Features**:
-  - Persistent audio playback controls
-  - Real-time waveform visualization
-  - Event details including title, description, and metadata
-  - Timeline tagging functionality
-  - Responsive design for all screen sizes
-
-#### AudioWaveformVisualizer
-- **Core Features**:
-  - Real-time audio waveform visualization
-  - Beat detection across multiple frequency bands
-  - Interactive playback controls
-  - Volume adjustment with mute toggle
-  - Timeline seeking
-
-- **Visual Elements**:
-  - Central pulsing core that responds to audio levels
-  - Ripple effects triggered by beat detection
-  - Theme-aware color schemes (light/dark mode)
-  - Smooth animations and transitions
-
-- **Technical Implementation**:
-  - Built with Web Audio API for precise audio analysis
-  - Uses Canvas API for high-performance rendering
-  - Implements requestAnimationFrame for smooth animations
-  - Self-contained audio element management
-
-- **Integration**:
-  - Import: `import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer'`
-  - Usage in AudioMediaPopup with required props:
-    ```jsx
-    <AudioWaveformVisualizer 
-      ref={audioVisualizerRef}
-      audioUrl={mediaSource}
-      title={eventData.title}
-      previewMode={false}
-      showTitle={false}
-      compactMode={true}
-    />
-    ```
-
-### Audio Visualizer 2.0
-
-The `AudioWaveformVisualizer` component has been enhanced to provide a rich, interactive audio visualization experience:
-
-1. **Interactive Audio Visualization**
-   - Dynamic waveform visualization that responds to audio beats and frequencies
-   - Visual states: resting state (pulsing core) when paused, active state (ripples, auras) during playback
-   - Beat detection for synchronized visual effects
-
-2. **Integration Points**
-   - `MediaCard`: Visualizer displays in preview mode with playback controls
-   - `EventPopup`: Full-featured visualizer with enhanced playback experience
-   - `AudioTester`: Test component for audio upload and visualization
-
-3. **Implementation Notes**
-   - Uses Web Audio API for audio processing and beat detection
-   - Self-contained audio playback handling (no external audio elements needed)
-   - Configurable via props: `audioUrl`, `title`, `previewMode`
-   - Exposes playback methods via `useImperativeHandle`: `playAudio()`, `pauseAudio()`
-
-4. **Usage Guidelines**
-   - Set `previewMode={false}` for full functionality including beat detection
-   - Always provide a `title` prop when not in preview mode
-   - No need for separate audio elements - the visualizer handles playback internally
-
-### Audio Playback Controls
-
-1. **Playback Controls**
-   - Play/Pause toggle button
-   - Volume slider with mute toggle
-   - Timeline scrubber for seeking
-   - Time display (current time / duration)
-
-2. **Visual Feedback**
-   - Loading states
-   - Error handling
-   - Buffering indicators
-   - Playback rate controls
-
-### Perfecting Event Markers and Info Cards
-1. **MediaEventMarker**
-   - Optimize media rendering and performance
-   - Improve visual feedback for different media states
-   - Ensure consistent behavior across all view modes
-
-2. **NewsEventMarker**
-   - Resolve duplicate image issues
-   - Enhance visual hierarchy and readability
-   - Improve interaction states and transitions
-
-3. **RemarkEventMarker**
-   - Refine visual presentation
-   - Optimize text rendering and truncation
-   - Ensure consistent styling with other markers
+- **Audio Media Popup & Waveform Visualizer**: Immersive audio playback with real-time visualization
+- **Popup Styling Standards**: Consistent styling across all event popup components
+- **Event Markers and Info Cards**: Optimized rendering and interaction for all event types
 
 ## Timeline Performance Optimization
 

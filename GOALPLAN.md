@@ -23,8 +23,11 @@ We are currently following an incremental approach to developing the community t
 - ✅ Added smooth animations and transitions between tabs
 
 ### Members Tab
-- ✅ Implemented "Current Action" plaque with gold-plated design
+- ✅ Implemented tiered action system with Gold, Silver, and Bronze action elements
 - ✅ Created member list with role-based styling and avatars
+- ✅ Added member counter badge showing total community members
+- ✅ Implemented infinite scroll for efficient member list loading
+- ✅ Added profile linking for member avatars (opens in new tab)
 - ✅ Added loading skeletons for better perceived performance
 - ✅ Implemented smooth staggered animations for list items
 
@@ -37,10 +40,10 @@ We are currently following an incremental approach to developing the community t
 ## Next Steps
 
 ### Short-term (UI Refinement)
-1. Add search and filtering functionality to the member list
-2. Implement pagination for large member lists
-3. Create UI for member role management
-4. Design and implement join request UI flow
+1. Implement conditional display requirements for Silver and Gold actions
+2. Move member management actions (promote, demote, remove) to the Admin Panel
+3. Design and implement join request UI flow for private communities
+4. Add admin controls for setting action requirements and thresholds
 
 ### Medium-term (Backend Integration)
 1. Connect member list to real API endpoints
@@ -170,7 +173,27 @@ Implement a flexible timeline system with three distinct types:
    - Active tab indicated by larger size, primary color, and subtle pulse animation
    - Tooltips provide context for each dot
 
-2. **Admin Controls**:
+2. **Tiered Community Actions**:
+   - **Gold Action**: Highest priority community initiative
+     - Displayed prominently at the top of the Members tab
+     - Can be locked behind specific community requirements
+     - Styled with gold-themed UI elements
+   - **Silver Action**: Secondary community initiative
+     - Displayed below Gold Action at 50% width
+     - Can have its own set of unlock requirements
+     - Styled with silver-themed UI elements
+   - **Bronze Action**: Tertiary community initiative
+     - Displayed alongside Silver Action at 50% width
+     - Typically has lower unlock requirements
+     - Styled with bronze-themed UI elements
+   - **Action Requirements System** (planned):
+     - Admins can set specific thresholds to unlock actions
+     - Examples: minimum member count, participation rate, etc.
+     - Locked actions show blurred background with progress indicator
+     - Progress counters (e.g., "42/100 members needed")
+     - Different requirement types (member count, engagement metrics, etc.)
+
+3. **Admin Controls**:
    - Accessible via the rightmost dot in the community navigation
    - Only visible to community admins and moderators
 
