@@ -638,117 +638,20 @@ const AdminPanel = () => {
     </motion.div>
   );
 
-  const SettingsTab = () => (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit={{ opacity: 0, y: 20 }}
-    >
-      {isLoading ? (
-        // Loading skeleton
-        <Box sx={{ mt: 2 }}>
-          <Skeleton variant="text" width="40%" height={28} sx={{ mb: 1 }} />
-          <Skeleton variant="rectangular" width="100%" height={56} sx={{ mb: 3, borderRadius: 1 }} />
-          
-          <Skeleton variant="text" width="30%" height={28} sx={{ mb: 1 }} />
-          <Skeleton variant="rectangular" width="100%" height={120} sx={{ mb: 3, borderRadius: 1 }} />
-          
-          <Skeleton variant="text" width="50%" height={28} sx={{ mb: 1 }} />
-          <Skeleton variant="rectangular" width="100%" height={56} sx={{ borderRadius: 1 }} />
-        </Box>
-      ) : (
-        // Settings content
-        <>
-          <motion.div variants={itemVariants}>
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" gutterBottom>Timeline Name</Typography>
-              <TextField
-                fullWidth
-                variant="outlined"
-                value={timelineData?.name || ''}
-                InputProps={{
-                  startAdornment: <Box component="span" sx={{ 
-                    fontFamily: 'Lobster, cursive',
-                    mr: 0.5,
-                    opacity: 0.8
-                  }}>i-</Box>
-                }}
-              />
-            </Box>
-          </motion.div>
-
-          <motion.div variants={itemVariants}>
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" gutterBottom>Description</Typography>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                variant="outlined"
-                value={timelineData?.description || ''}
-              />
-            </Box>
-          </motion.div>
-
-          <motion.div variants={itemVariants}>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>Visibility</Typography>
-              
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderRadius: 1,
-              }}>
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={isPrivate}
-                      onChange={handleVisibilityChange}
-                      color="primary"
-                    />
-                  }
-                  label="Private Timeline"
-                />
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {isPrivate ? 
-                    "Only approved members can view and contribute to this timeline." : 
-                    "Anyone can view this timeline, but only members can contribute."}
-                </Typography>
-                
-                <AnimatePresence>
-                  {showWarning && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Alert severity="warning" sx={{ mt: 2 }}>
-                        Switching to private mode has a 10-day cooldown period before you can switch back.
-                      </Alert>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Box>
-            </Box>
-          </motion.div>
-
-          <motion.div variants={itemVariants}>
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="contained" color="primary">
-                Save Changes
-              </Button>
-            </Box>
-          </motion.div>
-        </>
-      )}
-    </motion.div>
-  );
+  // SettingsTab is defined as a standalone component at the bottom of this file
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4 }}>
+      {/* Timeline Name Display - Centered */}
+      {timelineData && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3, mt: 2 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 'medium' }}>
+            <Box component="span" sx={{ fontFamily: 'Lobster, cursive', mr: 0.5, color: 'primary.main' }}>i-</Box>
+            {timelineData.name}
+          </Typography>
+        </Box>
+      )}
+      
       {/* Community Dot Tabs - Always visible at the top */}
       <CommunityDotTabs 
         timelineId={id} 
@@ -1737,17 +1640,10 @@ const SettingsTab = () => {
           >
             <Box sx={{ mb: 4 }}>
               <Typography variant="subtitle1" gutterBottom>
-                Timeline Information
+                Timeline Description
               </Typography>
               
               <Box sx={{ mt: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Timeline Name"
-                  variant="outlined"
-                  value={timelineData.name}
-                  sx={{ mb: 3 }}
-                />
                 
                 <TextField
                   fullWidth
