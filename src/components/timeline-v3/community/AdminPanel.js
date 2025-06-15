@@ -1716,7 +1716,7 @@ const SettingsTab = () => {
               </Box>
             </Box>
           </motion.div>
-
+          
           <motion.div
             variants={{
               hidden: { opacity: 0, y: 20 },
@@ -1725,6 +1725,146 @@ const SettingsTab = () => {
             initial="hidden"
             animate="visible"
             transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <Box sx={{ mb: 4, mt: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="h6" component="h2">
+                  Community Action Settings
+                </Typography>
+              </Box>
+              
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Configure how community members can contribute to this timeline.
+              </Typography>
+              
+              {/* Quote Field */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Inspiration Quote
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Write something inspiring to display to members when no actions are currently set.
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  placeholder="E.g., 'Join us in building this community timeline! Your contributions make a difference.'"
+                  variant="outlined"
+                  sx={{ mt: 1 }}
+                />
+              </Box>
+              
+              {/* Gold Action Field */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ 
+                    width: 16, 
+                    height: 16, 
+                    borderRadius: '50%', 
+                    bgcolor: '#FFD700', 
+                    mr: 1,
+                    display: 'inline-block'
+                  }}></Box>
+                  Gold Action
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Action Title"
+                  placeholder="E.g., 'Create a comprehensive event'"
+                  variant="outlined"
+                  sx={{ mb: 2, mt: 1 }}
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Action Description"
+                  placeholder="Describe what members need to do to complete this action"
+                  variant="outlined"
+                />
+              </Box>
+              
+              {/* Silver Action Field */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ 
+                    width: 16, 
+                    height: 16, 
+                    borderRadius: '50%', 
+                    bgcolor: '#C0C0C0', 
+                    mr: 1,
+                    display: 'inline-block'
+                  }}></Box>
+                  Silver Action
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Action Title"
+                  placeholder="E.g., 'Add media to an existing event'"
+                  variant="outlined"
+                  sx={{ mb: 2, mt: 1 }}
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Action Description"
+                  placeholder="Describe what members need to do to complete this action"
+                  variant="outlined"
+                />
+              </Box>
+              
+              {/* Bronze Action Field */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ 
+                    width: 16, 
+                    height: 16, 
+                    borderRadius: '50%', 
+                    bgcolor: '#CD7F32', 
+                    mr: 1,
+                    display: 'inline-block'
+                  }}></Box>
+                  Bronze Action
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Action Title"
+                  placeholder="E.g., 'Comment on an event'"
+                  variant="outlined"
+                  sx={{ mb: 2, mt: 1 }}
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Action Description"
+                  placeholder="Describe what members need to do to complete this action"
+                  variant="outlined"
+                />
+              </Box>
+              
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Coming Soon: Advanced Action Settings
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Additional settings for action requirements, rewards, and expiration dates will be available in a future update.
+                </Typography>
+              </Box>
+            </Box>
+          </motion.div>
+
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0 }
+            }}
+            initial="hidden"
+            animate="visible"
+            transition={{ duration: 0.5, delay: 0.6 }}
           >
             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="contained" color="primary">
