@@ -20,8 +20,18 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
+  DialogTitle,
+  FormHelperText,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Stack
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SecurityIcon from '@mui/icons-material/Security';
 import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -1584,6 +1594,19 @@ const SettingsTab = () => {
   const [isPrivate, setIsPrivate] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   
+  // Action date states
+  const [goldActionDate, setGoldActionDate] = useState(null);
+  const [silverActionDate, setSilverActionDate] = useState(null);
+  const [bronzeActionDate, setBronzeActionDate] = useState(null);
+  
+  // Threshold states
+  const [goldThresholdType, setGoldThresholdType] = useState('members');
+  const [goldThresholdValue, setGoldThresholdValue] = useState(100);
+  const [silverThresholdType, setSilverThresholdType] = useState('members');
+  const [silverThresholdValue, setSilverThresholdValue] = useState(50);
+  const [bronzeThresholdType, setBronzeThresholdType] = useState('');
+  const [bronzeThresholdValue, setBronzeThresholdValue] = useState(0);
+  
   // Mock data for timeline
   const [timelineData, setTimelineData] = useState({
     id: '123',
@@ -1783,7 +1806,92 @@ const SettingsTab = () => {
                   label="Action Description"
                   placeholder="Describe what members need to do to complete this action"
                   variant="outlined"
+                  sx={{ mb: 2 }}
                 />
+                <FormControl fullWidth required sx={{ mt: 2 }}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker
+                      label="Due Date (Required)"
+                      value={goldActionDate}
+                      onChange={(newValue) => setGoldActionDate(newValue)}
+                      slotProps={{
+                        textField: {
+                          required: true,
+                          helperText: 'Set a deadline for this action',
+                          variant: 'outlined'
+                        }
+                      }}
+                    />
+                  </LocalizationProvider>
+                </FormControl>
+                
+                <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                  Threshold Requirements (Required)
+                </Typography>
+                <Box sx={{ 
+                  p: 2, 
+                  mt: 1, 
+                  mb: 2, 
+                  bgcolor: 'background.paper', 
+                  borderRadius: 1,
+                  position: 'relative',
+                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  backdropFilter: 'blur(4px)',
+                }}>
+                  <Box sx={{ 
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1,
+                  }}>
+                    <Typography variant="h6" sx={{ 
+                      color: 'primary.main', 
+                      fontWeight: 'bold',
+                      textShadow: '0px 0px 5px rgba(255, 255, 255, 0.8)',
+                    }}>
+                      {goldThresholdValue}/{goldThresholdType === 'members' ? 'Members' : 'Votes'} Needed to Unlock
+                    </Typography>
+                  </Box>
+                  
+                  <Stack spacing={2} sx={{ filter: 'blur(0px)', position: 'relative', zIndex: 2 }}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Threshold Type</InputLabel>
+                      <Select
+                        value={goldThresholdType}
+                        label="Threshold Type"
+                        onChange={(e) => setGoldThresholdType(e.target.value)}
+                        required
+                      >
+                        <MenuItem value="members">New Members Incentive</MenuItem>
+                        <MenuItem value="votes">Group Vote Incentive</MenuItem>
+                      </Select>
+                      <FormHelperText>
+                        {goldThresholdType === 'members' ? 
+                          'Requires new members to join before unlocking' : 
+                          'Requires member votes/commitments before unlocking'}
+                      </FormHelperText>
+                    </FormControl>
+                    
+                    <TextField
+                      fullWidth
+                      required
+                      label="Threshold Value"
+                      type="number"
+                      value={goldThresholdValue}
+                      onChange={(e) => setGoldThresholdValue(Math.max(1, parseInt(e.target.value) || 0))}
+                      InputProps={{
+                        endAdornment: <InputAdornment position="end">
+                          {goldThresholdType === 'members' ? 'Members' : 'Votes'}
+                        </InputAdornment>,
+                      }}
+                    />
+                  </Stack>
+                </Box>
               </Box>
               
               {/* Silver Action Field */}
@@ -1813,7 +1921,91 @@ const SettingsTab = () => {
                   label="Action Description"
                   placeholder="Describe what members need to do to complete this action"
                   variant="outlined"
+                  sx={{ mb: 2 }}
                 />
+                <FormControl fullWidth sx={{ mt: 2 }}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker
+                      label="Due Date (Optional)"
+                      value={silverActionDate}
+                      onChange={(newValue) => setSilverActionDate(newValue)}
+                      slotProps={{
+                        textField: {
+                          helperText: 'Optional deadline for this action',
+                          variant: 'outlined'
+                        }
+                      }}
+                    />
+                  </LocalizationProvider>
+                </FormControl>
+                
+                <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                  Threshold Requirements (Required)
+                </Typography>
+                <Box sx={{ 
+                  p: 2, 
+                  mt: 1, 
+                  mb: 2, 
+                  bgcolor: 'background.paper', 
+                  borderRadius: 1,
+                  position: 'relative',
+                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  backdropFilter: 'blur(4px)',
+                }}>
+                  <Box sx={{ 
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1,
+                  }}>
+                    <Typography variant="h6" sx={{ 
+                      color: 'primary.main', 
+                      fontWeight: 'bold',
+                      textShadow: '0px 0px 5px rgba(255, 255, 255, 0.8)',
+                    }}>
+                      {silverThresholdValue}/{silverThresholdType === 'members' ? 'Members' : 'Votes'} Needed to Unlock
+                    </Typography>
+                  </Box>
+                  
+                  <Stack spacing={2} sx={{ filter: 'blur(0px)', position: 'relative', zIndex: 2 }}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Threshold Type</InputLabel>
+                      <Select
+                        value={silverThresholdType}
+                        label="Threshold Type"
+                        onChange={(e) => setSilverThresholdType(e.target.value)}
+                        required
+                      >
+                        <MenuItem value="members">New Members Incentive</MenuItem>
+                        <MenuItem value="votes">Group Vote Incentive</MenuItem>
+                      </Select>
+                      <FormHelperText>
+                        {silverThresholdType === 'members' ? 
+                          'Requires new members to join before unlocking' : 
+                          'Requires member votes/commitments before unlocking'}
+                      </FormHelperText>
+                    </FormControl>
+                    
+                    <TextField
+                      fullWidth
+                      required
+                      label="Threshold Value"
+                      type="number"
+                      value={silverThresholdValue}
+                      onChange={(e) => setSilverThresholdValue(Math.max(1, parseInt(e.target.value) || 0))}
+                      InputProps={{
+                        endAdornment: <InputAdornment position="end">
+                          {silverThresholdType === 'members' ? 'Members' : 'Votes'}
+                        </InputAdornment>,
+                      }}
+                    />
+                  </Stack>
+                </Box>
               </Box>
               
               {/* Bronze Action Field */}
@@ -1843,7 +2035,116 @@ const SettingsTab = () => {
                   label="Action Description"
                   placeholder="Describe what members need to do to complete this action"
                   variant="outlined"
+                  sx={{ mb: 2 }}
                 />
+                <FormControl fullWidth sx={{ mt: 2 }}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker
+                      label="Due Date (Optional)"
+                      value={bronzeActionDate}
+                      onChange={(newValue) => setBronzeActionDate(newValue)}
+                      slotProps={{
+                        textField: {
+                          helperText: 'Optional deadline for this action',
+                          variant: 'outlined'
+                        }
+                      }}
+                    />
+                  </LocalizationProvider>
+                </FormControl>
+                
+                <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                  Threshold Requirements (Optional)
+                </Typography>
+                <Box sx={{ 
+                  p: 2, 
+                  mt: 1, 
+                  mb: 2, 
+                  bgcolor: 'background.paper', 
+                  borderRadius: 1,
+                  position: 'relative',
+                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  backdropFilter: 'blur(4px)',
+                }}>
+                  {bronzeThresholdType ? (
+                    <Box sx={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1,
+                    }}>
+                      <Typography variant="h6" sx={{ 
+                        color: 'primary.main', 
+                        fontWeight: 'bold',
+                        textShadow: '0px 0px 5px rgba(255, 255, 255, 0.8)',
+                      }}>
+                        {bronzeThresholdValue}/{bronzeThresholdType === 'members' ? 'Members' : 'Votes'} Needed to Unlock
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box sx={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1,
+                    }}>
+                      <Typography variant="body1" sx={{ 
+                        color: 'text.secondary', 
+                        fontStyle: 'italic',
+                        textShadow: '0px 0px 5px rgba(255, 255, 255, 0.8)',
+                      }}>
+                        No threshold requirements (optional for Bronze level)
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  <Stack spacing={2} sx={{ filter: 'blur(0px)', position: 'relative', zIndex: 2 }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Threshold Type</InputLabel>
+                      <Select
+                        value={bronzeThresholdType}
+                        label="Threshold Type"
+                        onChange={(e) => setBronzeThresholdType(e.target.value)}
+                      >
+                        <MenuItem value="">No Threshold</MenuItem>
+                        <MenuItem value="members">New Members Incentive</MenuItem>
+                        <MenuItem value="votes">Group Vote Incentive</MenuItem>
+                      </Select>
+                      <FormHelperText>
+                        {!bronzeThresholdType ? 
+                          'No threshold requirements for this action' :
+                          bronzeThresholdType === 'members' ? 
+                            'Requires new members to join before unlocking' : 
+                            'Requires member votes/commitments before unlocking'}
+                      </FormHelperText>
+                    </FormControl>
+                    
+                    {bronzeThresholdType && (
+                      <TextField
+                        fullWidth
+                        label="Threshold Value"
+                        type="number"
+                        value={bronzeThresholdValue}
+                        onChange={(e) => setBronzeThresholdValue(Math.max(1, parseInt(e.target.value) || 0))}
+                        InputProps={{
+                          endAdornment: <InputAdornment position="end">
+                            {bronzeThresholdType === 'members' ? 'Members' : 'Votes'}
+                          </InputAdornment>,
+                        }}
+                      />
+                    )}
+                  </Stack>
+                </Box>
               </Box>
               
               <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
