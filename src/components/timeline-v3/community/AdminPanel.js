@@ -27,7 +27,8 @@ import {
   Select,
   MenuItem,
   InputAdornment,
-  Stack
+  Stack,
+  Fab
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -44,6 +45,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ShieldIcon from '@mui/icons-material/Shield';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ModeratorIcon from '@mui/icons-material/VerifiedUser';
+import SaveIcon from '@mui/icons-material/Save';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
@@ -1593,6 +1595,7 @@ const SettingsTab = () => {
   const theme = useTheme();
   const [isPrivate, setIsPrivate] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Action date states
   const [goldActionDate, setGoldActionDate] = useState(null);
@@ -1625,6 +1628,7 @@ const SettingsTab = () => {
   const handleVisibilityChange = (event) => {
     const newValue = event.target.checked;
     setIsPrivate(newValue);
+    setHasUnsavedChanges(true);
     
     // Show warning when switching to private
     if (newValue) {
@@ -1632,6 +1636,15 @@ const SettingsTab = () => {
     } else {
       setShowWarning(false);
     }
+  };
+  
+  // Handle save changes
+  const handleSaveChanges = () => {
+    // Here you would implement the actual save functionality
+    console.log('Saving changes...');
+    
+    // For demo purposes, we'll just set hasUnsavedChanges to false
+    setHasUnsavedChanges(false);
   };
   
   return (
@@ -1750,45 +1763,91 @@ const SettingsTab = () => {
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <Box sx={{ mb: 4, mt: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" component="h2">
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  mb: 3, 
+                  pb: 2, 
+                  borderBottom: '2px solid', 
+                  borderColor: 'primary.main',
+                  width: 'fit-content'
+                }}
+              >
+                <SettingsIcon sx={{ mr: 1, color: 'primary.main', fontSize: 28 }} />
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 'bold' }}>
                   Community Action Settings
                 </Typography>
               </Box>
               
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Configure how community members can contribute to this timeline.
-              </Typography>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 3, 
+                  mb: 4, 
+                  borderRadius: 2,
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                }}
+              >
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  Configure how community members can contribute to this timeline.
+                </Typography>
               
-              {/* Quote Field */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Inspiration Quote
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Write something inspiring to display to members when no actions are currently set.
-                </Typography>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={2}
-                  placeholder="E.g., 'Join us in building this community timeline! Your contributions make a difference.'"
-                  variant="outlined"
-                  sx={{ mt: 1 }}
-                />
-              </Box>
+                {/* Quote Field */}
+                <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Inspiration Quote
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Write something inspiring to display to members when no actions are currently set.
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    placeholder="E.g., 'Join us in building this community timeline! Your contributions make a difference.'"
+                    variant="outlined"
+                    sx={{ mt: 1 }}
+                  />
+                </Box>
+              </Paper>
               
               {/* Gold Action Field */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  mb: 4, 
+                  p: 3, 
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    bgcolor: '#FFD700',
+                    boxShadow: '0 0 8px #FFD700'
+                  }
+                }}
+              >
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box component="span" sx={{ 
-                    width: 16, 
-                    height: 16, 
+                    width: 20, 
+                    height: 20, 
                     borderRadius: '50%', 
                     bgcolor: '#FFD700', 
-                    mr: 1,
-                    display: 'inline-block'
+                    mr: 1.5,
+                    display: 'inline-block',
+                    boxShadow: '0 0 5px rgba(255, 215, 0, 0.7)'
                   }}></Box>
                   Gold Action
                 </Typography>
@@ -1892,18 +1951,40 @@ const SettingsTab = () => {
                     />
                   </Stack>
                 </Box>
-              </Box>
+              </Paper>
               
               {/* Silver Action Field */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  mb: 4, 
+                  p: 3, 
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    bgcolor: '#C0C0C0',
+                    boxShadow: '0 0 8px #C0C0C0'
+                  }
+                }}
+              >
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box component="span" sx={{ 
-                    width: 16, 
-                    height: 16, 
+                    width: 20, 
+                    height: 20, 
                     borderRadius: '50%', 
                     bgcolor: '#C0C0C0', 
-                    mr: 1,
-                    display: 'inline-block'
+                    mr: 1.5,
+                    display: 'inline-block',
+                    boxShadow: '0 0 5px rgba(192, 192, 192, 0.7)'
                   }}></Box>
                   Silver Action
                 </Typography>
@@ -2006,18 +2087,40 @@ const SettingsTab = () => {
                     />
                   </Stack>
                 </Box>
-              </Box>
+              </Paper>
               
               {/* Bronze Action Field */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  mb: 4, 
+                  p: 3, 
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    bgcolor: '#CD7F32',
+                    boxShadow: '0 0 8px #CD7F32'
+                  }
+                }}
+              >
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box component="span" sx={{ 
-                    width: 16, 
-                    height: 16, 
+                    width: 20, 
+                    height: 20, 
                     borderRadius: '50%', 
                     bgcolor: '#CD7F32', 
-                    mr: 1,
-                    display: 'inline-block'
+                    mr: 1.5,
+                    display: 'inline-block',
+                    boxShadow: '0 0 5px rgba(205, 127, 50, 0.7)'
                   }}></Box>
                   Bronze Action
                 </Typography>
@@ -2053,17 +2156,18 @@ const SettingsTab = () => {
                   </LocalizationProvider>
                 </FormControl>
                 
-                <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 4, mb: 2, fontWeight: 'medium' }}>
                   Threshold Requirements (Optional)
                 </Typography>
                 <Box sx={{ 
-                  p: 2, 
+                  p: 3, 
                   mt: 1, 
                   mb: 2, 
-                  bgcolor: 'background.paper', 
-                  borderRadius: 1,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(205,127,50,0.05)', 
+                  borderRadius: 2,
                   position: 'relative',
-                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(205,127,50,0.3)',
                   backdropFilter: 'blur(4px)',
                 }}>
                   {bronzeThresholdType ? (
@@ -2145,34 +2249,63 @@ const SettingsTab = () => {
                     )}
                   </Stack>
                 </Box>
-              </Box>
+              </Paper>
               
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  mt: 4, 
+                  p: 3, 
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', 
+                  borderRadius: 2,
+                  border: '1px dashed',
+                  borderColor: 'divider' 
+                }}
+              >
                 <Typography variant="subtitle2" gutterBottom>
                   Coming Soon: Advanced Action Settings
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Additional settings for action requirements, rewards, and expiration dates will be available in a future update.
                 </Typography>
-              </Box>
+              </Paper>
             </Box>
           </motion.div>
 
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 20 },
-              visible: { opacity: 1, y: 0 }
-            }}
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 0.5, delay: 0.6 }}
-          >
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="contained" color="primary">
-                Save Changes
-              </Button>
-            </Box>
-          </motion.div>
+          {/* Floating Action Button for Save Changes */}
+          <AnimatePresence>
+            {hasUnsavedChanges && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                style={{
+                  position: 'fixed',
+                  bottom: '2rem',
+                  right: '2rem',
+                  zIndex: 1000,
+                }}
+              >
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSaveChanges}
+                  sx={{
+                    borderRadius: '28px',
+                    padding: '12px 24px',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
+                    '&:hover': {
+                      boxShadow: '0 12px 20px rgba(0,0,0,0.3)',
+                    }
+                  }}
+                  startIcon={<SaveIcon />}
+                >
+                  Save Changes
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </motion.div>

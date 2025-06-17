@@ -41,6 +41,9 @@ The iTimeline application now supports Community Timelines, a new type of timeli
   - Interactive controls for timeline name, description, and visibility
   - Warning alerts with animated appearance for important actions
   - Simulated data loading with placeholders for future backend integration
+  - Community Action Settings with gold, silver, and bronze tiers
+  - Modern UI with color-coded sections and visual hierarchy
+  - Floating Action Button (FAB) for saving changes that appears when modifications are made
 
 #### Current Status
 - ✅ Timeline prefix styling and display
