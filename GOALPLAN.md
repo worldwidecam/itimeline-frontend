@@ -37,13 +37,26 @@ We are currently following an incremental approach to developing the community t
 - ✅ Implemented warning alerts for important actions
 - ✅ Added simulated data loading with placeholders
 
+## Current Work in Progress
+
+### Action Card System
+- ✅ Implemented conditional display requirements for Silver and Gold actions
+- ✅ Added quote fallback system when actions are not configured
+- ✅ Created AdminPanel settings for configuring action cards
+- ✅ Implemented local storage persistence for action settings
+- ✅ Added action card loading states with simulated network delays
+- ✅ Implemented locked state for Gold actions when threshold requirements aren't met
+- 🔄 In progress: Implementing locked state for Silver and Bronze actions
+- 🔄 In progress: Refining role coloring in the member list for better visual hierarchy
+
 ## Next Steps
 
 ### Short-term (UI Refinement)
-1. Implement conditional display requirements for Silver and Gold actions
-2. Move member management actions (promote, demote, remove) to the Admin Panel
-3. Design and implement join request UI flow for private communities
-4. Add admin controls for setting action requirements and thresholds
+1. Complete action card display states (hidden/quote fallback, active, locked overlay)
+2. Improve role coloring on the member list page
+3. Move member management actions (promote, demote, remove) to the Admin Panel
+4. Design and implement join request UI flow for private communities
+5. Add admin controls for setting action requirements and thresholds
 
 ### Medium-term (Backend Integration)
 1. Connect member list to real API endpoints

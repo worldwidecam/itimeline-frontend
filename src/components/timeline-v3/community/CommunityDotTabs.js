@@ -125,49 +125,25 @@ const CommunityDotTabs = ({ timelineId, userRole }) => {
           {tabs.map((tab, index) => (
             <Tooltip 
               key={index} 
-              title={
-                <Box sx={{ p: 0.8, maxWidth: 200 }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    mb: 0.5,
-                    pb: 0.5,
-                    borderBottom: '1px solid rgba(255,255,255,0.1)'
-                  }}>
-                    <Box sx={{ 
-                      mr: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: theme.palette.primary.main,
-                      opacity: 0.9
-                    }}>
-                      {tab.icon}
-                    </Box>
-                    <span style={{ 
-                      fontWeight: 600,
-                      letterSpacing: '0.3px'
-                    }}>{tab.name}</span>
-                  </Box>
-                  <Box sx={{ 
-                    fontSize: '0.8rem', 
-                    opacity: 0.9,
-                    mt: 0.5,
-                    lineHeight: 1.4
-                  }}>{tab.tooltip}</Box>
-                </Box>
-              } 
+              title={tab.name}
               arrow
               placement="top"
               enterDelay={700}
-              leaveDelay={200}
+              leaveDelay={100}
               sx={{
                 '& .MuiTooltip-tooltip': {
-                  bgcolor: 'rgba(0,0,0,0.85)',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                  borderRadius: 1.5
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.9)' : 'rgba(50,50,50,0.95)',
+                  color: '#fff',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  borderRadius: 1.5,
+                  px: 1.5,
+                  py: 0.8,
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  letterSpacing: '0.3px'
                 },
                 '& .MuiTooltip-arrow': {
-                  color: 'rgba(0,0,0,0.85)'
+                  color: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.9)' : 'rgba(50,50,50,0.95)'
                 }
               }}
             >

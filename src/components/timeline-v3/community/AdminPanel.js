@@ -1594,6 +1594,7 @@ const MemberManagementTab = () => {
 const SettingsTab = () => {
   const theme = useTheme();
   const [isPrivate, setIsPrivate] = useState(false);
+  const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
@@ -1610,6 +1611,18 @@ const SettingsTab = () => {
   const [bronzeThresholdType, setBronzeThresholdType] = useState('');
   const [bronzeThresholdValue, setBronzeThresholdValue] = useState(0);
   
+  // Action content states
+  const [goldActionTitle, setGoldActionTitle] = useState('');
+  const [goldActionDescription, setGoldActionDescription] = useState('');
+  const [silverActionTitle, setSilverActionTitle] = useState('');
+  const [silverActionDescription, setSilverActionDescription] = useState('');
+  const [bronzeActionTitle, setBronzeActionTitle] = useState('');
+  const [bronzeActionDescription, setBronzeActionDescription] = useState('');
+  const [communityQuote, setCommunityQuote] = useState({
+    text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
+    author: "John F. Kennedy"
+  });
+  
   // Mock data for timeline
   const [timelineData, setTimelineData] = useState({
     id: '123',
@@ -1623,6 +1636,59 @@ const SettingsTab = () => {
       name: 'John Doe'
     }
   });
+  
+  // Load saved settings from localStorage
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('communitySettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        
+        // Load visibility settings
+        if (settings.isPrivate !== undefined) {
+          setIsPrivate(settings.isPrivate);
+        }
+        
+        if (settings.requireMembershipApproval !== undefined) {
+          setRequireMembershipApproval(settings.requireMembershipApproval);
+        }
+        
+        // Load community quote
+        if (settings.communityQuote) {
+          setCommunityQuote(settings.communityQuote);
+        }
+        
+        // Load gold action
+        if (settings.goldAction) {
+          setGoldActionTitle(settings.goldAction.title || '');
+          setGoldActionDescription(settings.goldAction.description || '');
+          setGoldActionDate(settings.goldAction.dueDate ? new Date(settings.goldAction.dueDate) : null);
+          setGoldThresholdType(settings.goldAction.thresholdType || 'members');
+          setGoldThresholdValue(settings.goldAction.thresholdValue || 100);
+        }
+        
+        // Load silver action
+        if (settings.silverAction) {
+          setSilverActionTitle(settings.silverAction.title || '');
+          setSilverActionDescription(settings.silverAction.description || '');
+          setSilverActionDate(settings.silverAction.dueDate ? new Date(settings.silverAction.dueDate) : null);
+          setSilverThresholdType(settings.silverAction.thresholdType || 'members');
+          setSilverThresholdValue(settings.silverAction.thresholdValue || 50);
+        }
+        
+        // Load bronze action
+        if (settings.bronzeAction) {
+          setBronzeActionTitle(settings.bronzeAction.title || '');
+          setBronzeActionDescription(settings.bronzeAction.description || '');
+          setBronzeActionDate(settings.bronzeAction.dueDate ? new Date(settings.bronzeAction.dueDate) : null);
+          setBronzeThresholdType(settings.bronzeAction.thresholdType || '');
+          setBronzeThresholdValue(settings.bronzeAction.thresholdValue || 0);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved settings:', error);
+    }
+  }, []);
   
   // Handle visibility change
   const handleVisibilityChange = (event) => {
@@ -1643,7 +1709,58 @@ const SettingsTab = () => {
     // Here you would implement the actual save functionality
     console.log('Saving changes...');
     
-    // For demo purposes, we'll just set hasUnsavedChanges to false
+    // Create action objects for saving
+    const goldAction = goldActionTitle ? {
+      title: goldActionTitle,
+      description: goldActionDescription,
+      dueDate: goldActionDate,
+      thresholdType: goldThresholdType,
+      thresholdValue: goldThresholdValue,
+      createdBy: timelineData.owner.name,
+      createdAt: new Date().toISOString()
+    } : null;
+    
+    const silverAction = silverActionTitle ? {
+      title: silverActionTitle,
+      description: silverActionDescription,
+      dueDate: silverActionDate,
+      thresholdType: silverThresholdType,
+      thresholdValue: silverThresholdValue,
+      createdBy: timelineData.owner.name,
+      createdAt: new Date().toISOString()
+    } : null;
+    
+    const bronzeAction = bronzeActionTitle ? {
+      title: bronzeActionTitle,
+      description: bronzeActionDescription,
+      dueDate: bronzeActionDate,
+      thresholdType: bronzeThresholdType,
+      thresholdValue: bronzeThresholdValue,
+      createdBy: timelineData.owner.name,
+      createdAt: new Date().toISOString()
+    } : null;
+    
+    // In a real app, you would send these to the backend
+    // For now, we'll store them in localStorage
+    const communitySettings = {
+      isPrivate,
+      requireMembershipApproval,
+      communityQuote,
+      goldAction,
+      silverAction,
+      bronzeAction,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Save to localStorage (simulating backend storage)
+    localStorage.setItem('communitySettings', JSON.stringify(communitySettings));
+    
+    // Show success message
+    setSnackbarMessage('Settings saved successfully');
+    setSnackbarSeverity('success');
+    setSnackbarOpen(true);
+    
+    // Reset unsaved changes flag
     setHasUnsavedChanges(false);
   };
   
@@ -1735,6 +1852,28 @@ const SettingsTab = () => {
                     "Anyone can view this timeline, but only members can contribute."}
                 </Typography>
                 
+                <Box sx={{ mt: 3, mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={requireMembershipApproval}
+                        onChange={(e) => {
+                          setRequireMembershipApproval(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
+                        color="primary"
+                      />
+                    }
+                    label="Require Membership Approval"
+                  />
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {requireMembershipApproval ? 
+                      "New members must be approved by an admin or moderator before they can join." : 
+                      "Anyone can join this timeline without approval."}
+                  </Typography>
+                </Box>
+                
                 <AnimatePresence>
                   {showWarning && (
                     <motion.div
@@ -1811,7 +1950,30 @@ const SettingsTab = () => {
                     rows={2}
                     placeholder="E.g., 'Join us in building this community timeline! Your contributions make a difference.'"
                     variant="outlined"
+                    value={communityQuote.text}
+                    onChange={(e) => {
+                      setCommunityQuote(prev => ({
+                        ...prev,
+                        text: e.target.value
+                      }));
+                      setHasUnsavedChanges(true);
+                    }}
                     sx={{ mt: 1 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Quote Author"
+                    placeholder="E.g., 'John F. Kennedy'"
+                    variant="outlined"
+                    value={communityQuote.author}
+                    onChange={(e) => {
+                      setCommunityQuote(prev => ({
+                        ...prev,
+                        author: e.target.value
+                      }));
+                      setHasUnsavedChanges(true);
+                    }}
+                    sx={{ mt: 2 }}
                   />
                 </Box>
               </Paper>
@@ -1856,6 +2018,11 @@ const SettingsTab = () => {
                   label="Action Title"
                   placeholder="E.g., 'Create a comprehensive event'"
                   variant="outlined"
+                  value={goldActionTitle}
+                  onChange={(e) => {
+                    setGoldActionTitle(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   sx={{ mb: 2, mt: 1 }}
                 />
                 <TextField
@@ -1865,6 +2032,11 @@ const SettingsTab = () => {
                   label="Action Description"
                   placeholder="Describe what members need to do to complete this action"
                   variant="outlined"
+                  value={goldActionDescription}
+                  onChange={(e) => {
+                    setGoldActionDescription(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   sx={{ mb: 2 }}
                 />
                 <FormControl fullWidth required sx={{ mt: 2 }}>
