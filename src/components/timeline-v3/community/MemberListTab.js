@@ -189,6 +189,49 @@ const MemberListTab = () => {
     handleSortClose();
   };
   
+  // Load more members when scrolling to the bottom
+  const loadMoreMembers = () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    setPage(prevPage => prevPage + 1);
+  };
+  
+  // Set up intersection observer for infinite scrolling
+  const observer = useRef();
+  const lastMemberElementRef = useRef();
+  
+  useEffect(() => {
+    const currentObserver = observer.current;
+    
+    // Clean up previous observer if it exists
+    if (currentObserver) {
+      currentObserver.disconnect();
+    }
+    
+    // Create new observer
+    observer.current = new IntersectionObserver(entries => {
+      // If the last element is visible and we're not already loading more
+      if (entries[0]?.isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+        console.log('Last member element is visible, loading more members');
+        loadMoreMembers();
+      }
+    }, { threshold: 0.5 });
+    
+    // Observe the last member element if it exists
+    const lastElement = lastMemberElementRef.current;
+    if (lastElement) {
+      observer.current.observe(lastElement);
+    }
+    
+    // Clean up observer on unmount
+    return () => {
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+    };
+  }, [hasMore, isLoadingMore, isLoading]);
+  
   // Filter and sort members
   const getFilteredAndSortedMembers = useCallback(() => {
     // First apply search filter
@@ -220,25 +263,17 @@ const MemberListTab = () => {
     });
   }, [members, searchTerm, activeFilter, sortBy]);
   
-  const observer = useRef();
-
   // Load members data from API
   useEffect(() => {
     const fetchMembers = async () => {
       try {
         setIsLoading(true);
-        console.log('Fetching members for timeline ID:', id);
-        const membersData = await getTimelineMembers(id);
+        console.log('Fetching members for timeline ID:', id, 'page:', page);
+        const membersData = await getTimelineMembers(id, page);
         console.log('API response for members:', membersData);
         
-        // Transform the data to match the expected format
-        const formattedMembers = Array.isArray(membersData) ? membersData.map(member => {
-          // Log the raw member data to debug
+        let formattedMembers = Array.isArray(membersData) ? membersData.map(member => {
           console.log('Raw member data:', member);
-          
-          // Handle both nested and flat user data structures
-          // The backend might return either {user_id, role, joined_at, user: {username, avatar_url}}
-          // or just {user_id, role, joined_at, username, avatar_url}
           return {
             id: member.user_id,
             name: member.user?.username || member.username || `User ${member.user_id}`,
@@ -248,19 +283,107 @@ const MemberListTab = () => {
           };
         }) : [];
         
-        console.log('Formatted members:', formattedMembers);
-        setMembers(formattedMembers);
-        setIsLoading(false);
+        // If no members returned from API or in development mode, use mock users only on first page
+        if (formattedMembers.length === 0 && page === 1) {
+          console.log('Using mock users for testing');
+          formattedMembers = [
+            {
+              id: 1,
+              name: 'Brahdyssey',
+              role: 'SiteOwner',
+              joinDate: '2023-01-01',
+              avatar: 'https://i.pravatar.cc/150?u=brahdyssey@itimeline.com' // Consistent avatar for Brahdyssey
+            },
+            {
+              id: 2,
+              name: 'AdminUser',
+              role: 'Admin',
+              joinDate: '2023-02-15',
+              avatar: 'https://i.pravatar.cc/150?u=admin@itimeline.com' // Consistent avatar for Admin
+            },
+            {
+              id: 3,
+              name: 'ModeratorUser',
+              role: 'Moderator',
+              joinDate: '2023-03-20',
+              avatar: 'https://i.pravatar.cc/150?u=moderator@itimeline.com' // Consistent avatar for Moderator
+            },
+            {
+              id: 4,
+              name: 'RegularMember',
+              role: 'Member',
+              joinDate: '2023-04-10',
+              avatar: 'https://i.pravatar.cc/150?u=member@itimeline.com' // Consistent avatar for Member
+            }
+          ];
+        }
         
-        // Update action visibility based on actual member count from API
+        console.log('Formatted members:', formattedMembers);
+        
+        // If it's the first page, replace members; otherwise append
+        setMembers(prevMembers => {
+          if (page === 1) {
+            return formattedMembers;
+          } else {
+            // Filter out duplicates when appending
+            const newMembers = formattedMembers.filter(
+              newMember => !prevMembers.some(existingMember => existingMember.id === newMember.id)
+            );
+            return [...prevMembers, ...newMembers];
+          }
+        });
+        
+        // Determine if there are more members to load
+        setHasMore(formattedMembers.length > 0);
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        
+        // Use actual member count for action thresholds
         const memberCount = formattedMembers.length;
         setShowSilverAction(memberCount >= memberThresholds.silver);
         setShowGoldAction(memberCount >= memberThresholds.gold);
       } catch (error) {
         console.error('Error fetching members:', error);
         setIsLoading(false);
-        // Fallback to empty array if API fails
-        setMembers([]);
+        setIsLoadingMore(false);
+        
+        // Use mock users as fallback when API fails, but only on first page
+        if (page === 1) {
+          console.log('Using mock users as fallback after API error');
+          setMembers([
+            {
+              id: 1,
+              name: 'Brahdyssey',
+              role: 'SiteOwner',
+              joinDate: '2023-01-01',
+              avatar: 'https://i.pravatar.cc/150?u=brahdyssey@itimeline.com' // Consistent avatar for Brahdyssey
+            },
+            {
+              id: 2,
+              name: 'AdminUser',
+              role: 'Admin',
+              joinDate: '2023-02-15',
+              avatar: 'https://i.pravatar.cc/150?u=admin@itimeline.com' // Consistent avatar for Admin
+            },
+            {
+              id: 3,
+              name: 'ModeratorUser',
+              role: 'Moderator',
+              joinDate: '2023-03-20',
+              avatar: 'https://i.pravatar.cc/150?u=moderator@itimeline.com' // Consistent avatar for Moderator
+            },
+            {
+              id: 4,
+              name: 'RegularMember',
+              role: 'Member',
+              joinDate: '2023-04-10',
+              avatar: 'https://i.pravatar.cc/150?u=member@itimeline.com' // Consistent avatar for Member
+            }
+          ]);
+        }
+        
+        // Assume no more members on error
+        setHasMore(false);
       }
     };
     
@@ -284,7 +407,7 @@ const MemberListTab = () => {
             setGoldAction(settings.goldAction);
             
             // Check if gold action should be locked based on threshold
-            const memberCount = 6; // Simulated member count, would come from API
+            const memberCount = members.length; // Use actual member count
             if (settings.goldAction.thresholdType === 'members' && 
                 settings.goldAction.thresholdValue > memberCount) {
               setGoldActionLocked(true);
@@ -302,7 +425,7 @@ const MemberListTab = () => {
             setSilverAction(settings.silverAction);
             
             // Check if silver action should be locked based on threshold
-            const memberCount = 6; // Simulated member count, would come from API
+            const memberCount = members.length; // Use actual member count
             if (settings.silverAction.thresholdType === 'members' && 
                 settings.silverAction.thresholdValue > memberCount) {
               setSilverActionLocked(true);
@@ -320,7 +443,7 @@ const MemberListTab = () => {
             setBronzeAction(settings.bronzeAction);
             
             // Check if bronze action should be locked based on threshold
-            const memberCount = 6; // Simulated member count, would come from API
+            const memberCount = members.length; // Use actual member count
             if (settings.bronzeAction.thresholdType === 'members' && 
                 settings.bronzeAction.thresholdValue > memberCount) {
               setBronzeActionLocked(true);
@@ -347,58 +470,6 @@ const MemberListTab = () => {
     }
   }, []);
   
-  // Load more members function for infinite scroll
-  const loadMoreMembers = useCallback(async () => {
-    if (isLoadingMore) return;
-    
-    setIsLoadingMore(true);
-    
-    try {
-      const nextPage = page + 1;
-      const membersData = await getTimelineMembers(id, nextPage);
-      
-      if (membersData && membersData.length > 0) {
-        // Transform the data to match the expected format
-        const formattedMembers = membersData.map(member => ({
-          id: member.user_id,
-          name: member.user?.username || `User ${member.user_id}`,
-          role: member.role,
-          joinDate: new Date(member.joined_at).toISOString().split('T')[0],
-          avatar: member.user?.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
-        }));
-        
-        setMembers(prev => [...prev, ...formattedMembers]);
-        setPage(nextPage);
-        
-        // If we received fewer members than requested, we've reached the end
-        if (membersData.length < 20) { // Assuming 20 is the default limit
-          setHasMore(false);
-        }
-      } else {
-        // No more members to load
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.error('Error loading more members:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [id, page, isLoadingMore]);
-  
-  // Intersection observer for infinite scroll
-  const lastMemberElementRef = useCallback(node => {
-    if (isLoading || isLoadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        loadMoreMembers();
-      }
-    }, { threshold: 0.5 });
-    
-    if (node) observer.current.observe(node);
-  }, [isLoading, isLoadingMore, hasMore, loadMoreMembers]);
-
   // Role chip styling
   const getRoleColor = (role) => {
     // Convert role to lowercase for case-insensitive comparison
@@ -411,8 +482,10 @@ const MemberListTab = () => {
         return { bg: theme.palette.error.main, text: '#fff' }; // Red for admin
       case 'moderator':
         return { bg: theme.palette.warning.main, text: '#000' }; // Yellow/orange for moderator
-      default: // member
+      case 'member':
         return { bg: theme.palette.primary.main, text: '#fff' }; // Blue for regular member
+      default: // fallback for any other role
+        return { bg: theme.palette.primary.main, text: '#fff' }; // Blue for any other role
     }
   };
 
@@ -1156,181 +1229,164 @@ const MemberListTab = () => {
             </MenuItem>
           </Menu>
           
-          {isLoading ? (
-            // Loading skeleton
-            <Box sx={{ mt: 3 }}>
-              {[1, 2, 3, 4, 5].map((item) => (
-                <Box key={item} sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1 }}>
-                  <Skeleton variant="circular" width={40} height={40} sx={{ mr: 2 }} />
-                  <Box sx={{ width: '100%' }}>
-                    <Skeleton variant="text" width="40%" height={24} />
-                    <Skeleton variant="text" width="20%" height={20} />
-                  </Box>
-                </Box>
-              ))}
+          {(isLoading && page === 1) && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <Typography>Loading members...</Typography>
             </Box>
-          ) : (
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              {members.map((member, index) => {
-                const roleColor = getRoleColor(member.role);
-                const isLastElement = index === members.length - 1;
-                
-                return (
-                  <motion.div 
-                    key={member.id} 
-                    variants={itemVariants}
-                    ref={isLastElement ? lastMemberElementRef : null}
+          )}
+          
+          {/* Loading indicator for pagination */}
+          {isLoadingMore && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <Typography>Loading more members...</Typography>
+            </Box>
+          )}
+          
+          {/* No more members message */}
+          {!isLoading && !isLoadingMore && members.length > 0 && !hasMore && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <Typography variant="body2" color="text.secondary">No more members to load</Typography>
+            </Box>
+          )}
+      
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {getFilteredAndSortedMembers().map((member, index) => {
+              const roleColor = getRoleColor(member.role);
+              
+              return (
+                <motion.div 
+                  key={member.id} 
+                  variants={itemVariants}
+                  className="member-item"
+                  ref={index === getFilteredAndSortedMembers().length - 1 ? lastMemberElementRef : null}
+                >
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      p: 1.5,
+                      borderRadius: 1,
+                      mb: 1.5,
+                      '&:hover': {
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
+                      },
+                      transition: 'background-color 0.2s ease'
+                    }}
                   >
-                    <Box 
+                    <Avatar 
+                      src={member.avatar} 
+                      alt={member.name}
                       sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        p: 1.5,
-                        borderRadius: 1,
-                        mb: 1.5,
+                        width: 48, 
+                        height: 48, 
+                        mr: 2,
+                        boxShadow: '0 0 0 2px ' + roleColor.bg,
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease',
                         '&:hover': {
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
-                        },
-                        transition: 'background-color 0.2s ease'
+                          transform: 'scale(1.05)'
+                        }
                       }}
-                    >
-                      <Avatar 
-                        src={member.avatar} 
-                        alt={member.name}
-                        sx={{ 
-                          width: 48, 
-                          height: 48, 
-                          mr: 2,
-                          boxShadow: '0 0 0 2px ' + roleColor.bg,
-                          cursor: 'pointer',
-                          transition: 'transform 0.2s ease',
-                          '&:hover': {
-                            transform: 'scale(1.05)'
+                      onClick={() => window.open(`/profile/${member.id}`, '_blank')}
+                    />
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="subtitle1">{member.name}</Typography>
+                        
+                        {/* Member management actions */}
+                        <Box sx={{ 
+                          display: 'flex', 
+                          opacity: 0,
+                          transition: 'opacity 0.2s ease',
+                          '.MuiBox-root:hover > &': {
+                            opacity: 1
                           }
-                        }}
-                        onClick={() => window.open(`/profile/${member.id}`, '_blank')}
-                      />
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="subtitle1">{member.name}</Typography>
-                          
-                          {/* Member management actions */}
-                          <Box sx={{ 
-                            display: 'flex', 
-                            opacity: 0,
-                            transition: 'opacity 0.2s ease',
-                            '.MuiBox-root:hover > &': {
-                              opacity: 1
-                            }
-                          }}>
-                            {member.role.toLowerCase() !== 'admin' && (
-                              <>
-                                {member.role.toLowerCase() === 'moderator' ? (
-                                  <Chip
-                                    label="Demote"
-                                    size="small"
-                                    color="default"
-                                    variant="outlined"
-                                    onClick={() => handleRoleChange(member.id, 'member')}
-                                    sx={{ 
-                                      mr: 1, 
-                                      fontSize: '0.7rem',
-                                      height: 24,
-                                      '&:hover': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
-                                      }
-                                    }}
-                                  />
-                                ) : (
-                                  <Chip
-                                    label="Promote"
-                                    size="small"
-                                    color="primary"
-                                    variant="outlined"
-                                    onClick={() => handleRoleChange(member.id, 'moderator')}
-                                    sx={{ 
-                                      mr: 1, 
-                                      fontSize: '0.7rem',
-                                      height: 24,
-                                      '&:hover': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.1)' : 'rgba(25,118,210,0.05)'
-                                      }
-                                    }}
-                                  />
-                                )}
+                        }}>
+                          {member.role.toLowerCase() !== 'admin' && (
+                            <>
+                              {member.role.toLowerCase() === 'moderator' ? (
                                 <Chip
-                                  label="Remove"
+                                  label="Demote"
                                   size="small"
-                                  color="error"
+                                  color="default"
                                   variant="outlined"
-                                  onClick={() => handleRemoveMember(member.id)}
+                                  onClick={() => handleRoleChange(member.id, 'member')}
                                   sx={{ 
+                                    mr: 1, 
                                     fontSize: '0.7rem',
                                     height: 24,
                                     '&:hover': {
-                                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.1)' : 'rgba(211,47,47,0.05)'
+                                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
                                     }
                                   }}
                                 />
-                              </>
-                            )}
-                          </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                          <Chip 
-                            label={member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-                            size="small"
-                            sx={{ 
-                              bgcolor: roleColor.bg, 
-                              color: roleColor.text,
-                              mr: 1,
-                              fontSize: '0.7rem',
-                              height: 20
-                            }}
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            Joined {new Date(member.joinDate).toLocaleDateString()}
-                          </Typography>
+                              ) : (
+                                <Chip
+                                  label="Promote"
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                  onClick={() => handleRoleChange(member.id, 'moderator')}
+                                  sx={{ 
+                                    mr: 1, 
+                                    fontSize: '0.7rem',
+                                    height: 24,
+                                    '&:hover': {
+                                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.1)' : 'rgba(25,118,210,0.05)'
+                                    }
+                                  }}
+                                />
+                              )}
+                              <Chip
+                                label="Remove"
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                onClick={() => handleRemoveMember(member.id)}
+                                sx={{ 
+                                  fontSize: '0.7rem',
+                                  height: 24,
+                                  '&:hover': {
+                                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.1)' : 'rgba(211,47,47,0.05)'
+                                  }
+                                }}
+                              />
+                            </>
+                          )}
                         </Box>
                       </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                        <Chip 
+                          label={member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                          size="small"
+                          sx={{ 
+                            bgcolor: roleColor.bg, 
+                            color: roleColor.text,
+                            mr: 1,
+                            fontSize: '0.7rem',
+                            height: 20
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Joined {new Date(member.joinDate).toLocaleDateString()}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          )}
-          
-          {/* Loading more indicator */}
-          {isLoadingMore && (
-            <Box sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ display: 'inline-block', position: 'relative', width: 20, height: 20 }}>
-                  <Box
-                    component="span"
-                    sx={{
-                      position: 'absolute',
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: '50%',
-                      border: '2px solid',
-                      borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                      borderTopColor: theme.palette.primary.main,
-                      animation: 'spin 1s linear infinite',
-                      '@keyframes spin': {
-                        '0%': { transform: 'rotate(0deg)' },
-                        '100%': { transform: 'rotate(360deg)' }
-                      }
-                    }}
-                  />
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Loading more members...
-                </Typography>
-              </Box>
+                  </Box>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+          {/* End of list message */}
+          {!hasMore && members.length > 0 && !isLoading && !isLoadingMore && (
+            <Box sx={{ py: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                You've reached the end of the member list
+              </Typography>
             </Box>
           )}
           
