@@ -39,6 +39,16 @@ We are currently following an incremental approach to developing the community t
 
 ## Current Work in Progress
 
+### Community Members Backend Integration
+- ✅ Added user relationship to TimelineMember model
+- ✅ Implemented eager loading of user data in members endpoint
+- ✅ Updated backend to ensure timeline creator appears as Admin
+- ✅ Reserved SiteOwner role exclusively for Brahdyssey (user ID 1)
+- ✅ Implemented case-insensitive role handling in frontend
+- ✅ Updated role color coordination in member list
+- 🔄 In progress: Debugging members endpoint to return proper nested user data
+- 🔄 In progress: Ensuring frontend correctly maps API response to UI components
+
 ### Action Card System
 - ✅ Implemented conditional display requirements for Silver and Gold actions
 - ✅ Added quote fallback system when actions are not configured
@@ -47,7 +57,6 @@ We are currently following an incremental approach to developing the community t
 - ✅ Added action card loading states with simulated network delays
 - ✅ Implemented locked state for Gold actions when threshold requirements aren't met
 - 🔄 In progress: Implementing locked state for Silver and Bronze actions
-- 🔄 In progress: Refining role coloring in the member list for better visual hierarchy
 
 ## Next Steps
 

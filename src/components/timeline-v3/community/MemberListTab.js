@@ -29,6 +29,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
+import { getTimelineMembers, updateMemberRole, removeMember } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -90,39 +91,59 @@ const MemberListTab = () => {
   const [sortBy, setSortBy] = useState('name-asc'); // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
   
   // Handle role change for a member (promote/demote)
-  const handleRoleChange = (memberId, newRole) => {
-    // In a real implementation, this would be an API call
-    setMembers(prevMembers => 
-      prevMembers.map(member => 
-        member.id === memberId 
-          ? { ...member, role: newRole } 
-          : member
-      )
-    );
-    
-    // Show success message
-    const actionText = newRole === 'moderator' ? 'promoted to moderator' : 'demoted to member';
-    const memberName = members.find(m => m.id === memberId)?.name || 'Member';
-    setSnackbarMessage(`${memberName} ${actionText} successfully`);
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
+  const handleRoleChange = async (memberId, newRole) => {
+    try {
+      // Call the API to update the member's role
+      await updateMemberRole(id, memberId, newRole);
+      
+      // Update local state to reflect the change
+      setMembers(prevMembers => 
+        prevMembers.map(member => 
+          member.id === memberId 
+            ? { ...member, role: newRole } 
+            : member
+        )
+      );
+      
+      // Show success message
+      const actionText = newRole === 'moderator' ? 'promoted to moderator' : 'demoted to member';
+      const memberName = members.find(m => m.id === memberId)?.name || 'Member';
+      setSnackbarMessage(`${memberName} ${actionText} successfully`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error updating member role:', error);
+      setSnackbarMessage('Failed to update member role. Please try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
   };
   
   // Handle removing a member from the community
-  const handleRemoveMember = (memberId) => {
-    // In a real implementation, this would be an API call
-    setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
-    
-    // Show success message
-    const memberName = members.find(m => m.id === memberId)?.name || 'Member';
-    setSnackbarMessage(`${memberName} removed from community`);
-    setSnackbarSeverity('info');
-    setSnackbarOpen(true);
-    
-    // Update action visibility based on new member count
-    const newMemberCount = members.length - 1;
-    setShowSilverAction(newMemberCount >= memberThresholds.silver);
-    setShowGoldAction(newMemberCount >= memberThresholds.gold);
+  const handleRemoveMember = async (memberId) => {
+    try {
+      // Call the API to remove the member
+      await removeMember(id, memberId);
+      
+      // Update local state to reflect the removal
+      setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
+      
+      // Show success message
+      const memberName = members.find(m => m.id === memberId)?.name || 'Member';
+      setSnackbarMessage(`${memberName} removed from community`);
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
+      
+      // Update action visibility based on new member count
+      const newMemberCount = members.length - 1;
+      setShowSilverAction(newMemberCount >= memberThresholds.silver);
+      setShowGoldAction(newMemberCount >= memberThresholds.gold);
+    } catch (error) {
+      console.error('Error removing member:', error);
+      setSnackbarMessage('Failed to remove member. Please try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
   };
   
   // Handle snackbar close
@@ -177,7 +198,9 @@ const MemberListTab = () => {
     
     // Then apply role filter
     if (activeFilter !== 'all') {
-      filteredMembers = filteredMembers.filter(member => member.role === activeFilter);
+      filteredMembers = filteredMembers.filter(member => 
+        member.role.toLowerCase() === activeFilter.toLowerCase()
+      );
     }
     
     // Then apply sorting
@@ -199,20 +222,49 @@ const MemberListTab = () => {
   
   const observer = useRef();
 
-  // Simulated data loading
+  // Load members data from API
   useEffect(() => {
-    // Simulate loading data
-    setTimeout(() => {
-      setIsLoading(false);
-      setMembers([
-        { id: 1, name: 'John Doe', role: 'Admin', joinDate: '2023-01-15', avatar: '/avatars/avatar1.jpg' },
-        { id: 2, name: 'Jane Smith', role: 'Moderator', joinDate: '2023-02-20', avatar: '/avatars/avatar2.jpg' },
-        { id: 3, name: 'Alice Johnson', role: 'Member', joinDate: '2023-03-10', avatar: '/avatars/avatar3.jpg' },
-        { id: 4, name: 'Bob Williams', role: 'Member', joinDate: '2023-04-05', avatar: '/avatars/avatar4.jpg' },
-        { id: 5, name: 'Charlie Brown', role: 'Member', joinDate: '2023-05-22', avatar: '/avatars/avatar5.jpg' },
-        { id: 6, name: 'Diana Prince', role: 'SiteOwner', joinDate: '2023-01-01', avatar: '/avatars/avatar6.jpg' },
-      ]);
-    }, 1500);
+    const fetchMembers = async () => {
+      try {
+        setIsLoading(true);
+        console.log('Fetching members for timeline ID:', id);
+        const membersData = await getTimelineMembers(id);
+        console.log('API response for members:', membersData);
+        
+        // Transform the data to match the expected format
+        const formattedMembers = Array.isArray(membersData) ? membersData.map(member => {
+          // Log the raw member data to debug
+          console.log('Raw member data:', member);
+          
+          // Handle both nested and flat user data structures
+          // The backend might return either {user_id, role, joined_at, user: {username, avatar_url}}
+          // or just {user_id, role, joined_at, username, avatar_url}
+          return {
+            id: member.user_id,
+            name: member.user?.username || member.username || `User ${member.user_id}`,
+            role: member.role,
+            joinDate: new Date(member.joined_at).toISOString().split('T')[0],
+            avatar: member.user?.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+          };
+        }) : [];
+        
+        console.log('Formatted members:', formattedMembers);
+        setMembers(formattedMembers);
+        setIsLoading(false);
+        
+        // Update action visibility based on actual member count from API
+        const memberCount = formattedMembers.length;
+        setShowSilverAction(memberCount >= memberThresholds.silver);
+        setShowGoldAction(memberCount >= memberThresholds.gold);
+      } catch (error) {
+        console.error('Error fetching members:', error);
+        setIsLoading(false);
+        // Fallback to empty array if API fails
+        setMembers([]);
+      }
+    };
+    
+    fetchMembers();
     
     // Load action settings from localStorage
     try {
@@ -296,36 +348,42 @@ const MemberListTab = () => {
   }, []);
   
   // Load more members function for infinite scroll
-  const loadMoreMembers = useCallback(() => {
+  const loadMoreMembers = useCallback(async () => {
     if (isLoadingMore) return;
     
     setIsLoadingMore(true);
     
-    // Simulate API call with delay
-    setTimeout(() => {
-      // Generate new members with incrementing IDs
-      const baseId = members.length + 1;
-      const newMembers = Array(5).fill().map((_, index) => {
-        const id = baseId + index;
-        return {
-          id,
-          name: `Member ${id}`,
-          role: ['member', 'member', 'member', 'moderator'][Math.floor(Math.random() * 4)], // Mostly members, occasional moderator
-          avatar: `https://i.pravatar.cc/150?img=${(id % 70) + 1}`, // Cycle through available avatars
-          joinDate: new Date(Date.now() - Math.random() * 10000000000).toISOString().split('T')[0] // Random recent date
-        };
-      });
+    try {
+      const nextPage = page + 1;
+      const membersData = await getTimelineMembers(id, nextPage);
       
-      setMembers(prev => [...prev, ...newMembers]);
-      setPage(prev => prev + 1);
-      setIsLoadingMore(false);
-      
-      // After page 3, simulate end of data
-      if (page >= 3) {
+      if (membersData && membersData.length > 0) {
+        // Transform the data to match the expected format
+        const formattedMembers = membersData.map(member => ({
+          id: member.user_id,
+          name: member.user?.username || `User ${member.user_id}`,
+          role: member.role,
+          joinDate: new Date(member.joined_at).toISOString().split('T')[0],
+          avatar: member.user?.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+        }));
+        
+        setMembers(prev => [...prev, ...formattedMembers]);
+        setPage(nextPage);
+        
+        // If we received fewer members than requested, we've reached the end
+        if (membersData.length < 20) { // Assuming 20 is the default limit
+          setHasMore(false);
+        }
+      } else {
+        // No more members to load
         setHasMore(false);
       }
-    }, 800);
-  }, [members, page, isLoadingMore]);
+    } catch (error) {
+      console.error('Error loading more members:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [id, page, isLoadingMore]);
   
   // Intersection observer for infinite scroll
   const lastMemberElementRef = useCallback(node => {
@@ -343,9 +401,12 @@ const MemberListTab = () => {
 
   // Role chip styling
   const getRoleColor = (role) => {
-    switch(role) {
-      case 'siteOwner':
-        return { bg: theme.palette.mode === 'dark' ? '#9c27b0' : '#e040fb', text: '#fff' }; // Purple for site owner
+    // Convert role to lowercase for case-insensitive comparison
+    const roleLower = role.toLowerCase();
+    
+    switch(roleLower) {
+      case 'siteowner':
+        return { bg: theme.palette.mode === 'dark' ? '#2e7d32' : '#4caf50', text: '#fff' }; // Forest green for site owner
       case 'admin':
         return { bg: theme.palette.error.main, text: '#fff' }; // Red for admin
       case 'moderator':
@@ -1166,9 +1227,9 @@ const MemberListTab = () => {
                               opacity: 1
                             }
                           }}>
-                            {member.role !== 'admin' && (
+                            {member.role.toLowerCase() !== 'admin' && (
                               <>
-                                {member.role === 'moderator' ? (
+                                {member.role.toLowerCase() === 'moderator' ? (
                                   <Chip
                                     label="Demote"
                                     size="small"

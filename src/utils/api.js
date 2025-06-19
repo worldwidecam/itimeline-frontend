@@ -126,4 +126,71 @@ api.interceptors.response.use(
   }
 );
 
+// Community timeline API functions
+
+/**
+ * Fetch members of a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} page - Page number for pagination (optional)
+ * @param {number} limit - Number of members per page (optional)
+ * @returns {Promise} - Promise resolving to member data
+ */
+export const getTimelineMembers = async (timelineId, page = 1, limit = 20) => {
+  try {
+    console.log(`Making request to: ${config.API_URL}/api/v1/timelines/${timelineId}/members`);
+    const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
+      params: { page, limit }
+    });
+    console.log('Timeline members API response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching timeline members:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+      console.error('Error response headers:', error.response.headers);
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+    } else {
+      console.error('Error setting up request:', error.message);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Update a member's role in a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} userId - The ID of the user to update
+ * @param {string} role - The new role (admin, moderator, member)
+ * @returns {Promise} - Promise resolving to updated member data
+ */
+export const updateMemberRole = async (timelineId, userId, role) => {
+  try {
+    const response = await api.put(`/api/v1/timelines/${timelineId}/members/${userId}`, {
+      role
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating member role:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a member from a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} userId - The ID of the user to remove
+ * @returns {Promise} - Promise resolving to success message
+ */
+export const removeMember = async (timelineId, userId) => {
+  try {
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/members/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error removing member:', error);
+    throw error;
+  }
+};
+
 export default api;
