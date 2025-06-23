@@ -49,6 +49,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
+import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember } from '../../../utils/api';
 
 const AdminPanel = () => {
   const { id } = useParams();
@@ -264,55 +265,70 @@ const AdminPanel = () => {
   };
   
   // Handle blocking a member
-  const handleBlockMember = () => {
-    // In a real implementation, this would be an API call
-    // 1. Remove from members list
-    const memberToBlock = members.find(m => m.id === selectedMember.id);
-    setMembers(members.filter(m => m.id !== selectedMember.id));
-    
-    // 2. Add to blocked members with current date and default reason
-    const blockedMember = {
-      ...memberToBlock,
-      blockedDate: new Date().toISOString().split('T')[0],
-      reason: 'Blocked by administrator'
-    };
-    
-    setBlockedMembers([...blockedMembers, blockedMember]);
-    setConfirmBlockDialogOpen(false);
-    
-    // 3. Update the member count in timeline data
-    if (timelineData) {
-      setTimelineData({
-        ...timelineData,
-        memberCount: timelineData.memberCount - 1
-      });
+  const handleBlockMember = async () => {
+    try {
+      // 1. Call the API to block the member
+      const reason = 'Blocked by administrator';
+      await blockMember(id, selectedMember.id, reason);
+      
+      // 2. Remove from members list
+      const memberToBlock = members.find(m => m.id === selectedMember.id);
+      setMembers(members.filter(m => m.id !== selectedMember.id));
+      
+      // 3. Add to blocked members with current date and reason
+      const blockedMember = {
+        ...memberToBlock,
+        blockedDate: new Date().toISOString().split('T')[0],
+        reason: reason
+      };
+      
+      setBlockedMembers([...blockedMembers, blockedMember]);
+      setConfirmBlockDialogOpen(false);
+      
+      // 4. Update the member count in timeline data
+      if (timelineData) {
+        setTimelineData({
+          ...timelineData,
+          memberCount: timelineData.memberCount - 1
+        });
+      }
+    } catch (error) {
+      console.error('Error blocking member:', error);
+      // Could add error handling UI here
     }
   };
   
   // Handle unblocking a member
-  const handleUnblockMember = () => {
-    // In a real implementation, this would be an API call
-    // 1. Remove from blocked members list
-    const memberToUnblock = blockedMembers.find(m => m.id === selectedMember.id);
-    setBlockedMembers(blockedMembers.filter(m => m.id !== selectedMember.id));
-    
-    // 2. Add back to members with original data (minus the blocked-specific fields)
-    const { blockedDate, reason, ...memberData } = memberToUnblock;
-    const unblockMember = {
-      ...memberData,
-      role: 'member', // Reset to basic member role
-      joinDate: new Date().toISOString().split('T')[0] // Reset join date to today
-    };
-    
-    setMembers([...members, unblockMember]);
-    setConfirmUnblockDialogOpen(false);
-    
-    // 3. Update the member count in timeline data
-    if (timelineData) {
-      setTimelineData({
-        ...timelineData,
-        memberCount: timelineData.memberCount + 1
-      });
+  const handleUnblockMember = async () => {
+    try {
+      // 1. Call the API to unblock the member
+      await unblockMember(id, selectedMember.id);
+      
+      // 2. Remove from blocked members list
+      const memberToUnblock = blockedMembers.find(m => m.id === selectedMember.id);
+      setBlockedMembers(blockedMembers.filter(m => m.id !== selectedMember.id));
+      
+      // 3. Add back to members with original data (minus the blocked-specific fields)
+      const { blockedDate, reason, ...memberData } = memberToUnblock;
+      const unblockMemberData = {
+        ...memberData,
+        role: 'member', // Reset to basic member role
+        joinDate: new Date().toISOString().split('T')[0] // Reset join date to today
+      };
+      
+      setMembers([...members, unblockMemberData]);
+      setConfirmUnblockDialogOpen(false);
+      
+      // 4. Update the member count in timeline data
+      if (timelineData) {
+        setTimelineData({
+          ...timelineData,
+          memberCount: timelineData.memberCount + 1
+        });
+      }
+    } catch (error) {
+      console.error('Error unblocking member:', error);
+      // Could add error handling UI here
     }
   };
   
@@ -836,7 +852,7 @@ const AdminPanel = () => {
           
           <Box sx={{ p: 1 }}>
             <AnimatePresence mode="wait">
-              {tabValue === 0 && <MemberManagementTab key="members" />}
+              {tabValue === 0 && <StandaloneMemberManagementTab key="members" />}
               {tabValue === 1 && <ManagePostsTab key="posts" />}
               {tabValue === 2 && <SettingsTab key="settings" />}
             </AnimatePresence>
@@ -1235,7 +1251,7 @@ const ManagePostsTab = () => {
 };
 
 // Member Management Tab Component
-const MemberManagementTab = () => {
+const StandaloneMemberManagementTab = () => {
   const theme = useTheme();
   const [memberTabValue, setMemberTabValue] = useState(0); // 0 = Active Members, 1 = Blocked Members
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);

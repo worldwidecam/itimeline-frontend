@@ -269,19 +269,25 @@ const MemberListTab = () => {
       try {
         setIsLoading(true);
         console.log('Fetching members for timeline ID:', id, 'page:', page);
-        const membersData = await getTimelineMembers(id, page);
-        console.log('API response for members:', membersData);
+        const response = await getTimelineMembers(id, page);
+        console.log('API response for members:', response);
         
-        let formattedMembers = Array.isArray(membersData) ? membersData.map(member => {
+        // Handle different response structures
+        const membersData = Array.isArray(response) ? response : response.data || [];
+        
+        let formattedMembers = membersData.map(member => {
           console.log('Raw member data:', member);
+          // Extract user data - it might be nested in different ways depending on API response
+          const userData = member.user || {};
+          
           return {
             id: member.user_id,
-            name: member.user?.username || member.username || `User ${member.user_id}`,
+            name: userData.username || member.username || `User ${member.user_id}`,
             role: member.role,
             joinDate: new Date(member.joined_at).toISOString().split('T')[0],
-            avatar: member.user?.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+            avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
           };
-        }) : [];
+        });
         
         // If no members returned from API or in development mode, use mock users only on first page
         if (formattedMembers.length === 0 && page === 1) {

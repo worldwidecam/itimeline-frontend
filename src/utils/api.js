@@ -193,4 +193,87 @@ export const removeMember = async (timelineId, userId) => {
   }
 };
 
+/**
+ * Get timeline details including name, description, visibility, etc.
+ * @param {number} timelineId - The ID of the timeline
+ * @returns {Promise} - Promise resolving to timeline data
+ */
+export const getTimelineDetails = async (timelineId) => {
+  try {
+    const response = await api.get(`/api/timeline-v3/${timelineId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching timeline details:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update timeline visibility (public/private)
+ * @param {number} timelineId - The ID of the timeline
+ * @param {string} visibility - New visibility setting ('public' or 'private')
+ * @returns {Promise} - Promise resolving to updated timeline data
+ */
+export const updateTimelineVisibility = async (timelineId, visibility) => {
+  try {
+    const response = await api.put(`/api/v1/timelines/${timelineId}/visibility`, { visibility });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating timeline visibility:', error);
+    throw error;
+  }
+};
+
+/**
+ * Block a member from a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} userId - The ID of the user to block
+ * @param {string} reason - Optional reason for blocking
+ * @returns {Promise} - Promise resolving to success message
+ */
+export const blockMember = async (timelineId, userId, reason = '') => {
+  try {
+    // For now, we'll use the remove member endpoint and handle blocking in the frontend
+    // In a future update, a dedicated block endpoint should be added to the backend
+    const response = await removeMember(timelineId, userId);
+    return response;
+  } catch (error) {
+    console.error('Error blocking member:', error);
+    throw error;
+  }
+};
+
+/**
+ * Unblock a member from a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} userId - The ID of the user to unblock
+ * @returns {Promise} - Promise resolving to success message
+ */
+export const unblockMember = async (timelineId, userId) => {
+  try {
+    // For now, we'll simulate unblocking by returning a success response
+    // In a future update, a dedicated unblock endpoint should be added to the backend
+    return { success: true, message: 'Member unblocked successfully' };
+  } catch (error) {
+    console.error('Error unblocking member:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update timeline details (name, description)
+ * @param {number} timelineId - The ID of the timeline
+ * @param {object} data - Object containing fields to update
+ * @returns {Promise} - Promise resolving to updated timeline data
+ */
+export const updateTimelineDetails = async (timelineId, data) => {
+  try {
+    const response = await api.put(`/api/timeline-v3/${timelineId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating timeline details:', error);
+    throw error;
+  }
+};
+
 export default api;
