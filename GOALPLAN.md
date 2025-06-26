@@ -58,9 +58,53 @@ We are currently following an incremental approach to developing the community t
 - ✅ Implemented locked state for Gold actions when threshold requirements aren't met
 - 🔄 In progress: Implementing locked state for Silver and Bronze actions
 
-## Next Steps
+## Prerequisites List for Community Timeline Features
 
-### Short-term (UI Refinement)
+To successfully implement the community timeline features, we need to develop several foundational systems. This list outlines the prerequisites that must be built before the UI features can be fully functional.
+
+### 1. Core Membership System
+- **User-Timeline Relationship Model**: Database schema to track which users belong to which timelines
+- **Role-Based Access Control**: Database schema for storing user roles within timelines
+- **Follow/Join API Endpoints**: Backend support for users to join/follow timelines
+- **Membership Status Tracking**: Logic to track pending/approved/blocked status
+
+### 2. Timeline Ownership & Permissions
+- **Timeline Creator Attribution**: Store and track who created each timeline
+- **Permission Hierarchy**: Define what actions each role can perform
+- **Access Control Logic**: Backend validation of user permissions before actions
+- **Visibility Settings**: Backend support for public/private timeline access control
+
+### 3. Member Management
+- **Member Invitation System**: API for inviting users to join timelines
+- **Join Request Handling**: Logic for users to request to join and admins to approve
+- **Role Assignment API**: Backend support for promoting/demoting members
+- **Member Removal Logic**: API for removing members from timelines
+
+### 4. Content & Moderation
+- **Content Ownership**: Link events to specific users within a timeline context
+- **Moderation Queue**: System to track reported content
+- **Moderation Actions API**: Backend support for approve/reject/delete actions
+- **Content Visibility Control**: Logic to show/hide content based on moderation status
+
+### 5. Notification System
+- **Event Triggers**: Define events that generate notifications (join requests, etc.)
+- **Notification Storage**: Database schema for storing user notifications
+- **Notification Delivery**: Logic for delivering notifications to appropriate users
+- **Notification UI Components**: Frontend components to display notifications
+
+### 6. Activity & Engagement Tracking
+- **User Activity Metrics**: Track and store user engagement within timelines
+- **Timeline Activity Metrics**: Aggregate activity data for timeline statistics
+- **Achievement Thresholds**: Logic for unlocking tiered actions based on metrics
+- **Progress Indicators**: Data structures for tracking progress toward goals
+
+### 7. UI/UX Enhancements
+- **Timeline Type Indicators**: Visual distinction between hashtag and community timelines
+- **Role Badges & Styling**: Visual indicators of member roles in timeline context
+- **Permission-Based UI**: Conditional rendering based on user permissions
+- **Timeline Discovery**: Search and browse functionality for finding timelines
+
+### Short-term Implementation Plan (UI Refinement)
 1. Complete action card display states (hidden/quote fallback, active, locked overlay)
 2. Improve role coloring on the member list page
 3. Move member management actions (promote, demote, remove) to the Admin Panel
