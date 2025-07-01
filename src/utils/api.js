@@ -200,11 +200,26 @@ export const removeMember = async (timelineId, userId) => {
  */
 export const getTimelineDetails = async (timelineId) => {
   try {
+    console.log(`[getTimelineDetails] Fetching timeline ${timelineId} from ${api.defaults.baseURL}/api/timeline-v3/${timelineId}`);
     const response = await api.get(`/api/timeline-v3/${timelineId}`);
+    console.log(`[getTimelineDetails] Success! Timeline data:`, response.data);
     return response.data;
   } catch (error) {
-    console.error('Error fetching timeline details:', error);
-    throw error;
+    console.error(`[getTimelineDetails] Error fetching timeline ${timelineId}:`, error);
+    console.error(`[getTimelineDetails] Error response:`, error.response);
+    console.error(`[getTimelineDetails] Error request:`, error.request);
+    
+    // Return a safe default object instead of throwing
+    // This prevents the UI from crashing completely
+    return {
+      id: timelineId,
+      name: `Timeline ${timelineId}`,
+      description: 'Could not load timeline details',
+      timeline_type: 'hashtag',
+      visibility: 'public',
+      error: true,
+      errorMessage: error.message
+    };
   }
 };
 
@@ -276,18 +291,39 @@ export const updateTimelineDetails = async (timelineId, data) => {
   }
 };
 
-// Request access to join a private community timeline
-// @param {number} timelineId - The ID of the timeline to request access to
-// @returns {Promise} - Promise resolving to success message or error
-api.requestTimelineAccess = async (timelineId) => {
+/**
+ * Request access to join a community timeline (works for both public and private)
+ * @param {number} timelineId - The ID of the timeline to request access to
+ * @returns {Promise} - Promise resolving to success message or default values on error
+ */
+export const requestTimelineAccess = async (timelineId) => {
   try {
     console.log(`Requesting access to timeline ${timelineId}`);
-    const response = await api.post(`/api/timelines/${timelineId}/access-requests`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/access-requests`);
     console.log('Access request response:', response.data);
     return response.data;
   } catch (error) {
     console.error(`Error requesting access to timeline ${timelineId}:`, error);
-    throw error;
+    // Return a default object instead of throwing to prevent component crashes
+    return { success: false, role: null, error: true, message: 'Failed to request access' };
+  }
+};
+
+/**
+ * Check if the current user is a member of a timeline
+ * @param {number} timelineId - The ID of the timeline to check
+ * @returns {Promise} - Promise resolving to membership status or default values on error
+ */
+export const checkMembershipStatus = async (timelineId) => {
+  try {
+    console.log(`Checking membership status for timeline ${timelineId}`);
+    const response = await api.get(`/api/v1/timelines/${timelineId}/membership-status`);
+    console.log('Membership status response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error checking membership status for timeline ${timelineId}:`, error);
+    // Return a default object instead of throwing to prevent component crashes
+    return { is_member: false, role: null, error: true };
   }
 };
 

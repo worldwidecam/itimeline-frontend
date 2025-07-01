@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../utils/api';
+import api, { checkMembershipStatus, requestTimelineAccess } from '../../utils/api';
+import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
 import TimelineBar from './TimelineBar';
@@ -38,7 +39,7 @@ const SettingsIcon = Settings;
 const PersonAddIcon = PersonAdd;
 const CheckIcon = Check;
 
-const API_BASE_URL = '/api';
+// API prefixes are handled by the api utility
 
 function TimelineV3() {
   const { id } = useParams();
@@ -62,38 +63,62 @@ function TimelineV3() {
       
       try {
         setIsLoading(true);
-        const response = await api.get(`/api/timeline-v3/${timelineId}`);
-        if (response.data && response.data.name) {
-          setTimelineName(response.data.name);
-          setTimelineType(response.data.timeline_type || 'hashtag');
-          setVisibility(response.data.visibility || 'public');
+        console.log(`Attempting to fetch timeline details for ID: ${timelineId}`);
+        console.log(`API base URL from config: ${config.API_URL}`);
+        
+        // Use the getTimelineDetails utility function instead of direct API call
+        console.log(`Making API request for timeline: ${timelineId}`);
+        
+        // Import the getTimelineDetails function from api.js
+        const { getTimelineDetails } = await import('../../utils/api');
+        const timelineData = await getTimelineDetails(timelineId);
+        
+        console.log('Timeline API response:', timelineData);
+        
+        if (timelineData && timelineData.name) {
+          console.log(`Successfully fetched timeline: ${timelineData.name}`);
+          setTimelineName(timelineData.name);
+          setTimelineType(timelineData.timeline_type || 'hashtag');
+          setVisibility(timelineData.visibility || 'public');
           
           // Check if this is a community timeline and if the user is a member
-          if (response.data.timeline_type === 'community' && user) {
+          if (timelineData.timeline_type === 'community' && user) {
             try {
-              // Check if the user is a member of this community timeline
-              const membershipResponse = await api.get(`/api/timelines/${timelineId}/members`);
-              const members = membershipResponse.data || [];
+              // Use our new API function to check membership status
+              console.log(`Checking membership status for timeline ${timelineId}`);
+              const membershipStatus = await checkMembershipStatus(timelineId);
+              console.log('Membership status response:', membershipStatus);
               
-              // Check if current user is in the members list
-              const userIsMember = members.some(member => member.user_id === user.id);
-              setIsMember(userIsMember);
-              
-              // If user is already a member, they don't need to join
-              if (userIsMember) {
-                setJoinRequestSent(true);
+              // Update state based on membership status - only if we have valid data
+              if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
+                setIsMember(membershipStatus.is_member);
+                
+                // If user is already a member, they don't need to join
+                if (membershipStatus.is_member) {
+                  setJoinRequestSent(true);
+                }
+                
+                console.log(`User membership status for timeline ${timelineId}: ${membershipStatus.is_member ? 'Member' : 'Not a member'}`);
+              } else {
+                console.warn('Membership status response was invalid or incomplete');
+                setIsMember(false);
               }
-              
-              console.log(`User membership status for timeline ${timelineId}: ${userIsMember ? 'Member' : 'Not a member'}`);
             } catch (memberError) {
               console.error('Error checking membership status:', memberError);
+              console.error('Error details:', memberError.response || memberError.message);
               // Default to not a member if we can't determine status
               setIsMember(false);
+              // Continue loading the timeline even if membership check fails
             }
           }
+        } else {
+          console.error('Timeline data is missing or incomplete:', response.data);
         }
       } catch (error) {
         console.error('Error fetching timeline details:', error);
+        console.error('Error response:', error.response);
+        console.error('Error request:', error.request);
+        console.error('Error config:', error.config);
       } finally {
         setIsLoading(false);
         window.scrollTo(0, 0);  // Scroll to the top of the page
@@ -899,7 +924,7 @@ function TimelineV3() {
               });
             }, 150);
             
-            // Actually fetch the events
+            // Actually fetch the events - use api utility which handles prefixes correctly
             const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
             console.log('Events response:', response.data);
             setEvents(response.data);
@@ -964,6 +989,7 @@ function TimelineV3() {
         const params = new URLSearchParams(window.location.search);
         const timelineName = params.get('name') || 'Timeline V3';
         
+        // Use api utility which handles prefixes correctly
         const response = await api.post('/api/timeline-v3', {
           name: timelineName,
           description: `A new timeline created: ${timelineName}`,
@@ -1013,6 +1039,7 @@ function TimelineV3() {
       console.log('=================================');
       
       // Use the original date in the request along with the raw date string
+      // Use api utility which handles prefixes correctly
       const response = await api.post(`/api/timeline-v3/${timelineId}/events`, {
         title: eventData.title,
         description: eventData.description,
@@ -1090,20 +1117,79 @@ function TimelineV3() {
     setEditingEvent(event);
     setDialogOpen(true);
   };
-
-  const handleEventDelete = async (event) => {
+  
+  // Add the missing handleEventDelete function
+  const handleEventDelete = async (eventId) => {
     try {
-      await api.delete(`/api/timeline-v3/${timelineId}/events/${event.id}`);
-      setEvents(events.filter(e => e.id !== event.id));
-      if (selectedEventId === event.id) {
+      console.log(`Deleting event with ID: ${eventId}`);
+      
+      // Use api utility which handles prefixes correctly
+      await api.delete(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      
+      // Remove the deleted event from state
+      const updatedEvents = events.filter(event => event.id !== eventId);
+      setEvents(updatedEvents);
+      
+      // Clear selection if the deleted event was selected
+      if (selectedEventId === eventId) {
         setSelectedEventId(null);
+        setCurrentEventIndex(null);
       }
+      
+      // Show success message
+      setSnackbarMessage('Event deleted successfully');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
     } catch (error) {
       console.error('Error deleting event:', error);
-      // Keep the event in the UI if deletion fails
+      
+      // Show error message
+      setSnackbarMessage('Failed to delete event');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
-
+  
+  // Handle join community button click
+  const handleJoinCommunity = async () => {
+    if (!user) {
+      // Redirect to login if not logged in
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      // Call API to request access to the timeline using our updated function
+      const response = await requestTimelineAccess(timelineId);
+      console.log('Join request response:', response);
+      
+      // Check if we got an error response (our API utility now returns objects with error:true instead of throwing)
+      if (response.error) {
+        console.warn('Join request returned an error response:', response);
+        setJoinRequestStatus('error');
+        setJoinSnackbarOpen(true);
+        return;
+      }
+      
+      // Update UI state for success
+      setJoinRequestSent(true);
+      setJoinRequestStatus('success');
+      setJoinSnackbarOpen(true);
+      
+      // For public timelines, auto-accept the user as a member
+      // The backend now handles this automatically
+      if (response.role === 'member') {
+        setIsMember(true);
+      }
+    } catch (error) {
+      // This catch block should rarely be hit now that our API utility handles errors
+      console.error('Unexpected error joining community:', error);
+      setJoinRequestStatus('error');
+      setJoinSnackbarOpen(true);
+    }
+  };
+  
   // Update hover position when view mode changes
   useEffect(() => {
     setHoverPosition(getExactTimePosition());
@@ -1788,6 +1874,11 @@ const handleRecenter = () => {
                       
                       // Call the API to request access
                       await api.requestTimelineAccess(timelineId);
+                      
+                      // For public community timelines, auto-accept the user as a member
+                      if (visibility !== 'private') {
+                        setIsMember(true); // Auto-accept for public timelines
+                      }
                       
                       // Update state to show success
                       setJoinRequestSent(true);
@@ -2580,23 +2671,7 @@ const handleRecenter = () => {
           // Join Community Button for community timelines (only if not a member and no request sent)
           <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
             <Fab
-              onClick={async () => {
-                try {
-                  // Call the API to request access
-                  await api.requestTimelineAccess(timelineId);
-                  
-                  // Update state to show success
-                  setJoinRequestSent(true);
-                  setJoinRequestStatus('success');
-                  setJoinSnackbarOpen(true);
-                  
-                  console.log(`Successfully ${visibility === 'private' ? 'requested access to' : 'joined'} community timeline ${timelineId}`);
-                } catch (error) {
-                  console.error('Error joining community timeline:', error);
-                  setJoinRequestStatus('error');
-                  setJoinSnackbarOpen(true);
-                }
-              }}
+              onClick={handleJoinCommunity}
               sx={{
                 // Use a different color scheme for the join button
                 bgcolor: theme.palette.mode === 'dark' 
@@ -2646,22 +2721,22 @@ const handleRecenter = () => {
         )}
       </Box>
       
-      {/* Snackbar for join request feedback */}
-      <Snackbar 
-        open={joinSnackbarOpen} 
-        autoHideDuration={6000} 
+      {/* Snackbar for join request status */}
+      <Snackbar
+        open={joinSnackbarOpen}
+        autoHideDuration={6000}
         onClose={() => setJoinSnackbarOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert 
           onClose={() => setJoinSnackbarOpen(false)} 
-          severity={joinRequestStatus === 'success' ? 'success' : 'error'} 
+          severity={joinRequestStatus} 
           sx={{ width: '100%' }}
         >
           {joinRequestStatus === 'success' 
-            ? visibility === 'private'
-              ? 'Your request to join this community has been sent!'
-              : 'You have successfully joined this community!'
+            ? visibility === 'private' 
+              ? 'Request Sent! An admin will review your request.' 
+              : 'You have successfully joined this community timeline!'
             : 'There was an error processing your request. Please try again.'}
         </Alert>
       </Snackbar>

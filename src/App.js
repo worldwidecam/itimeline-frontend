@@ -15,6 +15,7 @@ import LandingPage from './components/LandingPage';
 import AudioTester from './components/AudioTester';
 import MemberListTab from './components/timeline-v3/community/MemberListTab';
 import AdminPanel from './components/timeline-v3/community/AdminPanel';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
 import { EmailBlurProvider } from './contexts/EmailBlurContext';
@@ -1001,7 +1002,9 @@ function App() {
                 <Route path="/timeline-v3/:id" element={
                   <Box sx={{ pt: 8 }}>
                     <ProtectedRoute>
-                      <TimelineV3 />
+                      <ErrorBoundary onReset={() => window.location.reload()}>
+                        <TimelineV3 />
+                      </ErrorBoundary>
                     </ProtectedRoute>
                   </Box>
                 } />
