@@ -48,6 +48,107 @@ The iTimeline application now supports Community Timelines, a new type of timeli
 #### Current Status
 - ✅ Timeline prefix styling and display
 - ✅ Visual indicators for timeline visibility
+
+## Community Timeline Management Systems
+
+### Frontend Components
+
+1. **MemberListTab** (`src/components/timeline-v3/community/MemberListTab.js`)
+   - Displays the list of members for a community timeline
+   - Features:
+     - Member search functionality
+     - Role-based styling (Admin, Moderator, Member)
+     - Pagination with infinite scroll
+     - Member removal functionality (for admins/moderators)
+     - Action requirements display based on member count thresholds
+
+2. **AdminPanel** (`src/components/timeline-v3/community/AdminPanel.js`)
+   - Administrative interface for community timeline management
+   - Features:
+     - Tabbed interface (Member Management, Settings)
+     - Timeline visibility controls (public/private)
+     - Member approval settings
+     - Action requirement configuration (gold, silver, bronze tiers)
+     - Member role management
+
+3. **CommunityDotTabs** (`src/components/timeline-v3/community/CommunityDotTabs.js`)
+   - Navigation component for switching between timeline views
+   - Tabs: Timeline, Members, Admin (conditional based on permissions)
+
+4. **TimelineNameDisplay** (`src/components/timeline-v3/TimelineNameDisplay.js`)
+   - Renders timeline names with proper formatting
+   - Features:
+     - Community timelines: "i-" prefix in Lobster font
+     - Hashtag timelines: "#" prefix
+     - Lock icon for private community timelines
+
+### Backend API Endpoints
+
+1. **Create Community Timeline**
+   - `POST /api/timelines/community`
+   - Creates a new community timeline and adds creator as admin
+   - Parameters: name, description, visibility (public/private)
+
+2. **Get Timeline Members**
+   - `GET /api/timelines/{timeline_id}/members`
+   - Returns all members of a timeline with their roles
+   - Special handling for SiteOwner role (user ID 1)
+
+3. **Add Timeline Member**
+   - `POST /api/timelines/{timeline_id}/members`
+   - Adds a new member to a timeline
+   - Requires moderator or admin permissions
+   - Parameters: user_id, role
+
+4. **Remove Timeline Member**
+   - `DELETE /api/timelines/{timeline_id}/members/{user_id}`
+   - Removes a member from a timeline
+   - Requires moderator or admin permissions
+   - Cannot remove the SiteOwner or last admin
+
+5. **Update Member Role**
+   - `PUT /api/timelines/{timeline_id}/members/{user_id}/role`
+   - Updates a member's role in a timeline
+   - Requires admin permissions
+   - Parameters: role (admin, moderator, member)
+   - SiteOwner role is reserved for user ID 1
+
+6. **Update Timeline Visibility**
+   - `PUT /api/timelines/{timeline_id}/visibility`
+   - Updates a timeline's visibility (public/private)
+   - Requires admin permissions
+   - Parameters: visibility
+
+7. **Request Timeline Access**
+   - `POST /api/timelines/{timeline_id}/access-request`
+   - Requests access to a private timeline
+
+8. **Respond to Access Request**
+   - `PUT /api/timelines/{timeline_id}/access-request/{user_id}`
+   - Approves or denies an access request
+   - Requires admin permissions
+   - Parameters: approved (true/false)
+
+### Role System
+
+- **SiteOwner**: Special role reserved exclusively for user ID 1
+  - Has all admin and moderator privileges
+  - Cannot be removed from any timeline
+  - Cannot have role changed by other users
+
+- **Admin**: Timeline administrators
+  - Can manage all timeline settings
+  - Can add/remove members and change roles
+  - Can approve/deny access requests
+
+- **Moderator**: Timeline moderators
+  - Can add/remove regular members
+  - Cannot modify admin roles
+  - Cannot change timeline settings
+
+- **Member**: Regular timeline members
+  - Can view and contribute to the timeline
+  - No special management permissions
 - ✅ Timeline creation with type selection
 - ✅ Community dot tabs navigation with enhanced visual design
 - ✅ Members tab with "Current Action" plaque

@@ -276,4 +276,19 @@ export const updateTimelineDetails = async (timelineId, data) => {
   }
 };
 
+// Request access to join a private community timeline
+// @param {number} timelineId - The ID of the timeline to request access to
+// @returns {Promise} - Promise resolving to success message or error
+api.requestTimelineAccess = async (timelineId) => {
+  try {
+    console.log(`Requesting access to timeline ${timelineId}`);
+    const response = await api.post(`/api/timelines/${timelineId}/access-requests`);
+    console.log('Access request response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error requesting access to timeline ${timelineId}:`, error);
+    throw error;
+  }
+};
+
 export default api;

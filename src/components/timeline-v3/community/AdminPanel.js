@@ -75,60 +75,98 @@ const AdminPanel = () => {
   const [isPostLoading, setIsPostLoading] = useState(true);
   const theme = useTheme();
 
-  // Simulated data loading
+  // Load data from backend API
   useEffect(() => {
-    // In a real implementation, this would be an API call
-    const loadTimelineData = () => {
-      setTimeout(() => {
+    // Load timeline details
+    const loadTimelineData = async () => {
+      try {
+        setIsLoading(true);
+        console.log('Fetching timeline details for ID:', id);
+        const response = await getTimelineDetails(id);
+        console.log('Timeline details response:', response);
+        
+        // Format the timeline data
         setTimelineData({
-          name: 'USC',
-          description: 'University of Southern California community timeline',
-          visibility: 'public',
-          createdAt: '2025-01-10',
-          memberCount: 42
+          name: response.name,
+          description: response.description || '',
+          visibility: response.visibility || 'public',
+          createdAt: new Date(response.created_at).toISOString().split('T')[0],
+          memberCount: response.member_count || 0
         });
+        
+        // Set visibility state based on timeline data
+        setIsPrivate(response.visibility === 'private');
         setIsLoading(false);
-      }, 1000); // Simulate network delay
+      } catch (error) {
+        console.error('Error fetching timeline details:', error);
+        setIsLoading(false);
+        
+        // Don't use mock data, show error state instead
+        console.log('Unable to load timeline details - API error');
+        // Keep previous state if any, otherwise initialize with empty values
+        setTimelineData(prev => prev || {
+          name: '',
+          description: '',
+          visibility: 'public',
+          createdAt: '',
+          memberCount: 0
+        });
+      }
     };
     
-    // Simulated member data loading
-    const loadMembers = () => {
-      // Generate 15 members with different roles
-      const mockMembers = Array(15).fill().map((_, index) => {
-        // Determine role - make first one admin, some moderators, rest members
-        let role = 'member';
-        if (index === 0) role = 'admin';
-        else if (index < 3) role = 'moderator';
+    // Load members data
+    const loadMembers = async () => {
+      try {
+        console.log('Fetching members for timeline ID:', id);
+        const response = await getTimelineMembers(id);
+        console.log('Members API response:', response);
         
-        return {
-          id: index + 1,
-          name: `Member ${index + 1}`,
-          role: role,
-          avatar: `https://i.pravatar.cc/150?img=${(index % 70) + 1}`, // Cycle through available avatars
-          joinDate: new Date(Date.now() - Math.random() * 10000000000).toISOString().split('T')[0] // Random recent date
-        };
-      });
-      
-      setMembers(mockMembers);
+        // Format the member data
+        const membersData = Array.isArray(response) ? response : response.data || [];
+        
+        const formattedMembers = membersData.map(member => {
+          // Extract user data - it might be nested in different ways depending on API response
+          const userData = member.user || {};
+          
+          return {
+            id: member.user_id,
+            name: userData.username || member.username || `User ${member.user_id}`,
+            role: member.role,
+            joinDate: new Date(member.joined_at).toISOString().split('T')[0],
+            avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+          };
+        });
+        
+        setMembers(formattedMembers);
+      } catch (error) {
+        console.error('Error fetching members:', error);
+        
+        // Don't use mock data, show empty members list instead
+        console.log('Unable to load members - API error');
+        setMembers([]);
+        // Display an error message to the user (could be implemented with a toast notification)
+        // For now, we'll just log to console
+      }
     };
+    
+    // For now, we'll keep using mock data for blocked members and reported posts
+    // since the backend API doesn't support these features yet
     
     // Simulated blocked members data loading
     const loadBlockedMembers = () => {
-      // Generate 5 blocked members
-      const mockBlockedMembers = Array(5).fill().map((_, index) => {
+      // Generate 3 blocked members
+      const mockBlockedMembers = Array(3).fill().map((_, index) => {
         const id = 100 + index; // Use different ID range to avoid conflicts
         return {
           id,
           name: `Blocked User ${index + 1}`,
-          avatar: `https://i.pravatar.cc/150?img=${((id + 20) % 70) + 1}`, // Different avatar set
-          blockedDate: new Date(Date.now() - Math.random() * 5000000000).toISOString().split('T')[0], // Random recent date
+          avatar: `https://i.pravatar.cc/150?img=${((id + 20) % 70) + 1}`,
+          blockedDate: new Date(Date.now() - Math.random() * 5000000000).toISOString().split('T')[0],
           reason: [
             'Spam content',
             'Inappropriate behavior',
-            'Multiple community guideline violations',
-            'Harassment',
-            'Fake account'
-          ][index % 5] // Cycle through reasons
+            'Multiple community guideline violations'
+          ][index % 3]
         };
       });
       
@@ -137,57 +175,40 @@ const AdminPanel = () => {
     
     // Simulated reported posts data loading
     const loadReportedPosts = () => {
-      // Generate 8 reported posts with different statuses
+      // Generate 4 reported posts with different statuses
       const reportReasons = [
         'Inappropriate content',
         'Spam',
         'Misinformation',
-        'Harassment',
-        'Hate speech',
-        'Violence',
-        'Copyright violation',
-        'Other'
+        'Harassment'
       ];
       
       const eventTypes = ['remark', 'media', 'link', 'milestone'];
       
-      const mockReportedPosts = Array(8).fill().map((_, index) => {
-        // Create different statuses - most pending, some reviewing, few resolved
+      const mockReportedPosts = Array(4).fill().map((_, index) => {
+        // Create different statuses - most pending, some reviewing
         let status = 'pending';
         let assignedTo = null;
         
-        if (index < 2) {
+        if (index < 1) {
           status = 'reviewing';
-          // Assign to a moderator (index 1 or 2 from members)
-          const modIndex = (index % 2) + 1;
           assignedTo = {
-            id: modIndex + 1,
-            name: `Member ${modIndex + 1}`,
-            avatar: `https://i.pravatar.cc/150?img=${((modIndex) % 70) + 1}`
-          };
-        } else if (index === 7) {
-          status = 'resolved';
-          // Assign to admin
-          assignedTo = {
-            id: 1,
-            name: 'Member 1',
-            avatar: `https://i.pravatar.cc/150?img=${1}`
+            id: 2,
+            name: 'Moderator',
+            avatar: `https://i.pravatar.cc/150?img=2`
           };
         }
-        
-        // Random reporter from members (not admin or mods)
-        const reporterId = Math.floor(Math.random() * 12) + 4; // Members 4-15
         
         return {
           id: `post${index + 1}`,
           title: `Reported ${eventTypes[index % eventTypes.length]} ${index + 1}`,
           content: `This is a reported ${eventTypes[index % eventTypes.length]} that may violate community guidelines.`,
           reportedBy: {
-            id: reporterId,
-            name: `Member ${reporterId}`,
-            avatar: `https://i.pravatar.cc/150?img=${(reporterId % 70) + 1}`
+            id: index + 10,
+            name: `Reporter ${index + 1}`,
+            avatar: `https://i.pravatar.cc/150?img=${(index + 10) % 70 + 1}`
           },
-          reportDate: new Date(Date.now() - Math.random() * 2000000000).toISOString(), // Within last ~3 weeks
+          reportDate: new Date(Date.now() - Math.random() * 2000000000).toISOString(),
           reportReason: reportReasons[index % reportReasons.length],
           status: status,
           assignedTo: assignedTo,
@@ -204,7 +225,7 @@ const AdminPanel = () => {
     loadMembers();
     loadBlockedMembers();
     loadReportedPosts();
-  }, []);
+  }, [id]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);

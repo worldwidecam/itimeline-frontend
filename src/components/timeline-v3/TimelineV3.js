@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../utils/api';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
@@ -25,6 +25,8 @@ import Newspaper from '@mui/icons-material/Newspaper';
 import PermMedia from '@mui/icons-material/PermMedia';
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
 import Settings from '@mui/icons-material/Settings';
+import PersonAdd from '@mui/icons-material/PersonAdd';
+import Check from '@mui/icons-material/Check';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -33,6 +35,8 @@ const NewspaperIcon = Newspaper;
 const PermMediaIcon = PermMedia;
 const ArrowDropDownIcon = ArrowDropDown;
 const SettingsIcon = Settings;
+const PersonAddIcon = PersonAdd;
+const CheckIcon = Check;
 
 const API_BASE_URL = '/api';
 
@@ -46,6 +50,10 @@ function TimelineV3() {
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
   const [isLoading, setIsLoading] = useState(true);
+  const [joinRequestSent, setJoinRequestSent] = useState(false);
+  const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
+  const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
+  const [isMember, setIsMember] = useState(false); // Track if user is a member of the community timeline
 
   // Fetch timeline details when component mounts or timelineId changes
   useEffect(() => {
@@ -59,6 +67,30 @@ function TimelineV3() {
           setTimelineName(response.data.name);
           setTimelineType(response.data.timeline_type || 'hashtag');
           setVisibility(response.data.visibility || 'public');
+          
+          // Check if this is a community timeline and if the user is a member
+          if (response.data.timeline_type === 'community' && user) {
+            try {
+              // Check if the user is a member of this community timeline
+              const membershipResponse = await api.get(`/api/timelines/${timelineId}/members`);
+              const members = membershipResponse.data || [];
+              
+              // Check if current user is in the members list
+              const userIsMember = members.some(member => member.user_id === user.id);
+              setIsMember(userIsMember);
+              
+              // If user is already a member, they don't need to join
+              if (userIsMember) {
+                setJoinRequestSent(true);
+              }
+              
+              console.log(`User membership status for timeline ${timelineId}: ${userIsMember ? 'Member' : 'Not a member'}`);
+            } catch (memberError) {
+              console.error('Error checking membership status:', memberError);
+              // Default to not a member if we can't determine status
+              setIsMember(false);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching timeline details:', error);
@@ -1746,28 +1778,75 @@ const handleRecenter = () => {
               {getViewDescription()}
             </Box>
             <Box sx={{ position: 'relative' }}>
-              <Button
-                onClick={handleAddEventClick}
-                variant="contained"
-                startIcon={<AddIcon />}
-                endIcon={<ArrowDropDownIcon />}
-                sx={{
-                  bgcolor: theme.palette.success.main,
-                  color: 'white',
-                  '&:hover': {
-                    bgcolor: theme.palette.success.dark,
-                  },
-                  boxShadow: 2
-                }}
-              >
-                Add Event
-              </Button>
-              <Menu
-                anchorEl={addEventAnchorEl}
-                open={Boolean(addEventAnchorEl)}
-                onClose={handleAddEventMenuClose}
-                sx={{ mt: 1 }}
-              >
+              {timeline_type === 'community' ? (
+                // Join Community button for community timelines
+                <Button
+                  onClick={async () => {
+                    try {
+                      // If already a member or join request already sent, don't do anything
+                      if (isMember || joinRequestSent) return;
+                      
+                      // Call the API to request access
+                      await api.requestTimelineAccess(timelineId);
+                      
+                      // Update state to show success
+                      setJoinRequestSent(true);
+                      setJoinRequestStatus('success');
+                      setJoinSnackbarOpen(true);
+                      
+                      console.log(`Successfully ${visibility === 'private' ? 'requested access to' : 'joined'} community timeline ${timelineId}`);
+                    } catch (error) {
+                      console.error('Error joining community timeline:', error);
+                      setJoinRequestStatus('error');
+                      setJoinSnackbarOpen(true);
+                    }
+                  }}
+                  variant="contained"
+                  startIcon={isMember ? <CheckIcon /> : <PersonAddIcon />}
+                  disabled={isMember || joinRequestSent}
+                  sx={{
+                    bgcolor: isMember || joinRequestSent
+                      ? theme.palette.success.main // Green when member or request sent
+                      : theme.palette.info.main,   // Blue when can join
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: isMember || joinRequestSent
+                        ? theme.palette.success.dark
+                        : theme.palette.info.dark,
+                    },
+                    boxShadow: 2
+                  }}
+                >
+                  {isMember ? 'Joined' : joinRequestSent ? 'Request Sent' : visibility === 'private' ? 'Request to Join' : 'Join Community'}
+                </Button>
+              ) : (
+                // Original Add Event button for non-community timelines
+                <Button
+                  onClick={handleAddEventClick}
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  endIcon={<ArrowDropDownIcon />}
+                  sx={{
+                    bgcolor: theme.palette.success.main,
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: theme.palette.success.dark,
+                    },
+                    boxShadow: 2
+                  }}
+                >
+                  Add Event
+                </Button>
+              )}
+              {/* Only show the menu for non-community timelines */}
+              {timeline_type !== 'community' && (
+                <Menu
+                  anchorEl={addEventAnchorEl}
+                  open={Boolean(addEventAnchorEl)}
+                  onClose={handleAddEventMenuClose}
+                  sx={{ mt: 1 }}
+                >
+
                 <MenuItem onClick={() => {
                   handleAddEventMenuClose();
                   setRemarkDialogOpen(true);
@@ -1796,6 +1875,7 @@ const handleRecenter = () => {
                   <ListItemText>Add Media</ListItemText>
                 </MenuItem>
               </Menu>
+              )}
             </Box>
             <Fade in={timelineOffset !== 0}>
               <Button
@@ -2495,34 +2575,96 @@ const handleRecenter = () => {
           </Box>
         </Box>
         
-        {/* Main Quick Add Button - Always visible */}
-        <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
-          <Fab
-            onClick={() => {
-              // Toggle the expanded state to show/hide the specialized buttons
-              setFloatingButtonsExpanded(!floatingButtonsExpanded);
-            }}
-            sx={{
-              // Better colors for both light and dark themes
-              bgcolor: theme.palette.mode === 'dark' 
-                ? theme.palette.primary.dark  // Use primary color in dark mode
-                : theme.palette.success.light, // Use success light in light mode
-              color: 'white',
-              '&:hover': {
+        {/* Conditional rendering based on timeline type and membership status */}
+        {timeline_type === 'community' && !isMember && !joinRequestSent ? (
+          // Join Community Button for community timelines (only if not a member and no request sent)
+          <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
+            <Fab
+              onClick={async () => {
+                try {
+                  // Call the API to request access
+                  await api.requestTimelineAccess(timelineId);
+                  
+                  // Update state to show success
+                  setJoinRequestSent(true);
+                  setJoinRequestStatus('success');
+                  setJoinSnackbarOpen(true);
+                  
+                  console.log(`Successfully ${visibility === 'private' ? 'requested access to' : 'joined'} community timeline ${timelineId}`);
+                } catch (error) {
+                  console.error('Error joining community timeline:', error);
+                  setJoinRequestStatus('error');
+                  setJoinSnackbarOpen(true);
+                }
+              }}
+              sx={{
+                // Use a different color scheme for the join button
                 bgcolor: theme.palette.mode === 'dark' 
-                  ? theme.palette.primary.main 
-                  : theme.palette.success.main,
-              },
-              boxShadow: 3,
-              transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
-              transition: 'transform 0.3s ease, background-color 0.2s ease',
-              zIndex: 1540
-            }}
-          >
-            <AddIcon />
-          </Fab>
-        </Tooltip>
+                  ? theme.palette.info.dark  // Blue color in dark mode
+                  : theme.palette.info.main, // Blue color in light mode
+                color: 'white',
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark' 
+                    ? theme.palette.info.main 
+                    : theme.palette.info.dark,
+                },
+                boxShadow: 3,
+                zIndex: 1540
+              }}
+            >
+              <PersonAddIcon />
+            </Fab>
+          </Tooltip>
+        ) : (
+          // Add Event Button for all other cases (non-community timelines or members)
+          <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
+            <Fab
+              onClick={() => {
+                // Toggle the expanded state to show/hide the specialized buttons
+                setFloatingButtonsExpanded(!floatingButtonsExpanded);
+              }}
+              sx={{
+                // Better colors for both light and dark themes
+                bgcolor: theme.palette.mode === 'dark' 
+                  ? theme.palette.primary.dark  // Use primary color in dark mode
+                  : theme.palette.success.light, // Use success light in light mode
+                color: 'white',
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark' 
+                    ? theme.palette.primary.main 
+                    : theme.palette.success.main,
+                },
+                boxShadow: 3,
+                transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s ease, background-color 0.2s ease',
+                zIndex: 1540
+              }}
+            >
+              <AddIcon />
+            </Fab>
+          </Tooltip>
+        )}
       </Box>
+      
+      {/* Snackbar for join request feedback */}
+      <Snackbar 
+        open={joinSnackbarOpen} 
+        autoHideDuration={6000} 
+        onClose={() => setJoinSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setJoinSnackbarOpen(false)} 
+          severity={joinRequestStatus === 'success' ? 'success' : 'error'} 
+          sx={{ width: '100%' }}
+        >
+          {joinRequestStatus === 'success' 
+            ? visibility === 'private'
+              ? 'Your request to join this community has been sent!'
+              : 'You have successfully joined this community!'
+            : 'There was an error processing your request. Please try again.'}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -289,39 +289,10 @@ const MemberListTab = () => {
           };
         });
         
-        // If no members returned from API or in development mode, use mock users only on first page
+        // Only use real data from the API, no mock fallback
+        // Log if no members were returned
         if (formattedMembers.length === 0 && page === 1) {
-          console.log('Using mock users for testing');
-          formattedMembers = [
-            {
-              id: 1,
-              name: 'Brahdyssey',
-              role: 'SiteOwner',
-              joinDate: '2023-01-01',
-              avatar: 'https://i.pravatar.cc/150?u=brahdyssey@itimeline.com' // Consistent avatar for Brahdyssey
-            },
-            {
-              id: 2,
-              name: 'AdminUser',
-              role: 'Admin',
-              joinDate: '2023-02-15',
-              avatar: 'https://i.pravatar.cc/150?u=admin@itimeline.com' // Consistent avatar for Admin
-            },
-            {
-              id: 3,
-              name: 'ModeratorUser',
-              role: 'Moderator',
-              joinDate: '2023-03-20',
-              avatar: 'https://i.pravatar.cc/150?u=moderator@itimeline.com' // Consistent avatar for Moderator
-            },
-            {
-              id: 4,
-              name: 'RegularMember',
-              role: 'Member',
-              joinDate: '2023-04-10',
-              avatar: 'https://i.pravatar.cc/150?u=member@itimeline.com' // Consistent avatar for Member
-            }
-          ];
+          console.log('No members returned from API for this timeline');
         }
         
         console.log('Formatted members:', formattedMembers);
@@ -520,7 +491,7 @@ const MemberListTab = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4 }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
       {/* Gold Action Section */}
       {showGoldAction ? (
         <motion.div
