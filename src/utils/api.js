@@ -391,6 +391,16 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       console.warn('Failed to update membership status in localStorage:', storageError);
     }
     
+    // Sync the user passport with the server to update all memberships
+    try {
+      console.log('Syncing user passport after joining community');
+      await syncUserPassport();
+      console.log('User passport synced successfully');
+    } catch (passportError) {
+      console.error('Failed to sync user passport after joining community:', passportError);
+      // Continue even if passport sync fails - the next passport fetch will catch up
+    }
+    
     return result;
   } catch (error) {
     console.error(`Error requesting access to timeline ${timelineId}:`, error);
@@ -421,11 +431,14 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
  * @returns {Promise} - Promise resolving to membership status or default values on error
  */
 export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRefresh = false) => {
+  // Get current user ID from localStorage
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const userId = currentUser.id || 'guest';
   try {
     // Check if we have cached data in localStorage and it's not stale
     if (!forceRefresh) {
       try {
-        const membershipKey = `timeline_membership_${timelineId}`;
+        const membershipKey = `timeline_membership_${userId}_${timelineId}`;
         const cachedData = localStorage.getItem(membershipKey);
         if (cachedData) {
           const parsedData = JSON.parse(cachedData);
@@ -467,7 +480,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
     
     // Store the result in localStorage for future use
     try {
-      const membershipKey = `timeline_membership_${timelineId}`;
+      const membershipKey = `timeline_membership_${userId}_${timelineId}`;
       localStorage.setItem(membershipKey, JSON.stringify({
         ...response.data,
         timestamp: new Date().toISOString()
@@ -490,7 +503,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
     
     // Check if we have any cached data to fall back on
     try {
-      const membershipKey = `timeline_membership_${timelineId}`;
+      const membershipKey = `timeline_membership_${userId}_${timelineId}`;
       const cachedData = localStorage.getItem(membershipKey);
       if (cachedData) {
         const parsedData = JSON.parse(cachedData);
@@ -505,7 +518,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
     try {
       // Check if there's any key in localStorage that indicates the user has joined this timeline
       const keys = Object.keys(localStorage);
-      const membershipKey = `timeline_membership_${timelineId}`;
+      const membershipKey = `timeline_membership_${userId}_${timelineId}`;
       
       if (keys.includes(membershipKey)) {
         // If we find the membership key, assume the user is a member
@@ -535,6 +548,192 @@ export const debugTimelineMembers = async (timelineId) => {
   } catch (error) {
     console.error(`Error debugging members for timeline ${timelineId}:`, error);
     return { error: true, message: 'Failed to debug members' };
+  }
+};
+
+/**
+ * Fetch the user's passport from the server
+ * This contains all timeline memberships for the current user
+ * @returns {Promise} - Promise resolving to an array of membership objects
+ */
+export const fetchUserPassport = async () => {
+  try {
+    console.log('Fetching user passport from server');
+    const response = await api.get('/api/v1/user/passport');
+    console.log('User passport response:', response.data);
+    
+    // Get current user data to make the storage key user-specific
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = userData.id;
+    
+    if (!userId) {
+      console.warn('No user ID found, cannot store user passport');
+      return response.data.memberships || [];
+    }
+    
+    // Store the passport in localStorage with a user-specific key
+    const storageKey = `user_passport_${userId}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        memberships: response.data.memberships || [],
+        last_updated: response.data.last_updated || new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      }));
+      console.log(`Stored passport for user ${userId} in localStorage`);
+    } catch (e) {
+      console.warn('Error storing passport in localStorage:', e);
+    }
+    
+    return response.data.memberships || [];
+  } catch (error) {
+    console.error('Error fetching user passport:', error);
+    
+    // Try to get cached passport from localStorage using user-specific key
+    try {
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = userData.id;
+      
+      if (!userId) {
+        console.warn('No user ID found, cannot retrieve user passport');
+        return [];
+      }
+      
+      const storageKey = `user_passport_${userId}`;
+      const cachedData = localStorage.getItem(storageKey);
+      
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        console.log(`Using cached user passport for user ${userId} due to API error`);
+        return parsedData.memberships || [];
+      }
+    } catch (e) {
+      console.warn('Error reading cached passport from localStorage:', e);
+    }
+    
+    return [];
+  }
+};
+
+/**
+ * Sync the user's passport with the server
+ * This should be called after any membership changes (join/leave community)
+ * @returns {Promise} - Promise resolving to the updated passport
+ */
+export const syncUserPassport = async () => {
+  try {
+    console.log('Syncing user passport with server');
+    const response = await api.post('/api/v1/user/passport/sync');
+    console.log('User passport sync response:', response.data);
+    
+    // Get current user data to make the storage key user-specific
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = userData.id;
+    
+    if (!userId) {
+      console.warn('No user ID found, cannot store synced passport');
+      return response.data.memberships || [];
+    }
+    
+    // Store the updated passport in localStorage
+    const storageKey = `user_passport_${userId}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        memberships: response.data.memberships || [],
+        last_updated: response.data.last_updated || new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      }));
+      console.log(`Stored synced passport for user ${userId} in localStorage`);
+    } catch (e) {
+      console.warn('Error storing synced passport in localStorage:', e);
+    }
+    
+    return response.data.memberships || [];
+  } catch (error) {
+    console.error('Error syncing user passport:', error);
+    return [];
+  }
+};
+
+/**
+ * Legacy function for backward compatibility
+ * Now uses the passport system instead of direct API call
+ * @returns {Promise} - Promise resolving to an array of membership objects
+ */
+export const fetchUserMemberships = async () => {
+  try {
+    console.log('Fetching user memberships via passport system');
+    return await fetchUserPassport();
+  } catch (error) {
+    console.error('Error in legacy fetchUserMemberships:', error);
+    return [];
+  }
+};
+
+/**
+ * Check if the user is a member of a timeline using the user passport
+ * @param {number} timelineId - The ID of the timeline to check
+ * @returns {Promise} - Promise resolving to membership status
+ */
+export const checkMembershipFromUserData = async (timelineId) => {
+  try {
+    // Get current user data to make the storage key user-specific
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = userData.id;
+    
+    if (!userId) {
+      console.warn('No user ID found, cannot check membership from passport');
+      // Fall back to the direct API check
+      return checkMembershipStatus(timelineId);
+    }
+    
+    // Try to get passport from localStorage first using user-specific key
+    let memberships = [];
+    const storageKey = `user_passport_${userId}`;
+    const cachedData = localStorage.getItem(storageKey);
+    
+    if (cachedData) {
+      const parsedData = JSON.parse(cachedData);
+      const timestamp = new Date(parsedData.timestamp);
+      const now = new Date();
+      const diffMinutes = (now - timestamp) / (1000 * 60);
+      
+      // If data is less than 30 minutes old, use it
+      if (diffMinutes < 30) {
+        console.log(`Using cached passport for user ${userId} (${Math.round(diffMinutes)} minutes old)`);
+        memberships = parsedData.memberships || [];
+      } else {
+        // Data is stale, fetch fresh passport
+        console.log(`Cached passport for user ${userId} is stale (${Math.round(diffMinutes)} minutes old)`);
+        memberships = await fetchUserPassport();
+      }
+    } else {
+      // No cached data, fetch fresh passport
+      console.log(`No cached passport found for user ${userId}, fetching from server`);
+      memberships = await fetchUserPassport();
+    }
+    
+    // Check if the user is a member of this timeline
+    const membership = memberships.find(m => m.timeline_id === parseInt(timelineId));
+    
+    if (membership) {
+      return {
+        is_member: true,
+        role: membership.role,
+        joined_at: membership.joined_at,
+        is_creator: membership.is_creator || false,
+        is_site_owner: membership.is_site_owner || false
+      };
+    } else {
+      return {
+        is_member: false,
+        role: null
+      };
+    }
+  } catch (error) {
+    console.error(`Error checking membership from passport for timeline ${timelineId}:`, error);
+    
+    // Fall back to the direct API check
+    return checkMembershipStatus(timelineId);
   }
 };
 

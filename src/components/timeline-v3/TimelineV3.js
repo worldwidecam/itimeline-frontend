@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, requestTimelineAccess } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess } from '../../utils/api';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
@@ -127,10 +127,22 @@ function TimelineV3() {
                 }
               }
               
-              // Use our new API function to check membership status with potential force refresh
-              console.log(`DEBUG: Checking membership status for timeline ${timelineId} for user ${user.id} (${user.username})`);
-              const membershipStatus = await checkMembershipStatus(timelineId, 0, forceRefresh);
-              console.log('DEBUG: Membership status raw response:', membershipStatus);
+              // Use our new user-based membership check first
+              console.log(`DEBUG: Checking membership status from user data for timeline ${timelineId} for user ${user.id} (${user.username})`);
+              const membershipStatus = await checkMembershipFromUserData(timelineId);
+              console.log('DEBUG: Membership status from user data:', membershipStatus);
+              
+              // If we need to force refresh or the user data check failed, fall back to direct API check
+              if (forceRefresh) {
+                console.log(`DEBUG: Force refresh requested, checking membership status directly from API`);
+                const apiMembershipStatus = await checkMembershipStatus(timelineId, 0, true);
+                console.log('DEBUG: Membership status from direct API call:', apiMembershipStatus);
+                
+                // Use the API response if it's valid
+                if (apiMembershipStatus && typeof apiMembershipStatus.is_member !== 'undefined') {
+                  Object.assign(membershipStatus, apiMembershipStatus);
+                }
+              }
               
               // Update state based on membership status - only if we have valid data
               if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
@@ -1225,12 +1237,26 @@ function TimelineV3() {
         console.warn('Failed to clear localStorage cache:', e);
       }
       
-      // Force refresh from server
-
-      // Force refresh from server
-      console.log(`DEBUG: Forcing refresh of membership status for timeline ${timelineId}`);
-      const membershipStatus = await checkMembershipStatus(timelineId, 0, true);
-      console.log('DEBUG: Refreshed membership status:', membershipStatus);
+      // Force refresh user memberships from server
+      console.log('DEBUG: Fetching fresh user memberships data');
+      await fetchUserMemberships();
+      
+      // Check membership from refreshed user data
+      console.log(`DEBUG: Checking membership status from refreshed user data for timeline ${timelineId}`);
+      const membershipStatus = await checkMembershipFromUserData(timelineId);
+      console.log('DEBUG: Membership status from user data:', membershipStatus);
+      
+      // Also do a direct API check as a backup
+      console.log(`DEBUG: Also checking membership status directly from API`);
+      const apiMembershipStatus = await checkMembershipStatus(timelineId, 0, true);
+      console.log('DEBUG: Membership status from direct API call:', apiMembershipStatus);
+      
+      // Use the API response if it's valid and differs from user data
+      if (apiMembershipStatus && typeof apiMembershipStatus.is_member !== 'undefined' && 
+          apiMembershipStatus.is_member !== membershipStatus.is_member) {
+        console.log('DEBUG: API membership status differs from user data, using API response');
+        Object.assign(membershipStatus, apiMembershipStatus);
+      }
       
       // Update state based on membership status
       if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
@@ -1351,6 +1377,14 @@ function TimelineV3() {
       
       // Persist membership status to localStorage
       persistMembershipStatus(true, memberRole);
+      
+      // Refresh user memberships to include this new membership
+      console.log('DEBUG: Refreshing user memberships after successful join');
+      try {
+        await fetchUserMemberships();
+      } catch (err) {
+        console.error('Error refreshing user memberships after join:', err);
+      }
       
       // Force refresh membership status from server after a short delay
       // This ensures backend and frontend are in sync

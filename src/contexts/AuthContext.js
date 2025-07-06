@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../utils/api';
+import api, { fetchUserMemberships, fetchUserPassport, syncUserPassport } from '../utils/api';
 import { setCookie, getCookie, deleteCookie } from '../utils/cookies';
 
 const AuthContext = createContext(null);
@@ -90,13 +90,32 @@ export const AuthProvider = ({ children }) => {
 
       const { access_token, refresh_token, ...userData } = response.data;
     
-    // Store tokens in cookies
-    setCookie('access_token', access_token, 7); // 7 days expiry
-    setCookie('refresh_token', refresh_token, 30); // 30 days expiry
-    
-    // Update user state
-    setUser(userData);
-    console.log('Login successful');
+      // Store tokens in cookies
+      setCookie('access_token', access_token, 7); // 7 days expiry
+      setCookie('refresh_token', refresh_token, 30); // 30 days expiry
+      
+      // Clear any existing membership data from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('timeline_membership_')) {
+          console.log(`Clearing previous membership data: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Store user data in localStorage for API functions to access
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Update user state
+      setUser(userData);
+      console.log('Login successful');
+      
+      // Fetch and store user passport
+      console.log('Fetching user passport after login');
+      try {
+        await fetchUserPassport();
+      } catch (err) {
+        console.error('Error fetching user passport after login:', err);
+      }
       
       return userData;
     } catch (error) {
@@ -147,6 +166,41 @@ export const AuthProvider = ({ children }) => {
     // Clear cookies
     deleteCookie('access_token');
     deleteCookie('refresh_token');
+    
+    // Clear user-specific membership data from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = currentUser.id || 'guest';
+    
+    if (userId) {
+      // Find and remove all membership-related items for this user
+      Object.keys(localStorage).forEach(key => {
+        // Clear old format membership data
+        if (key.includes(`timeline_membership_${userId}_`)) {
+          console.log(`Clearing old format membership data: ${key}`);
+          localStorage.removeItem(key);
+        }
+        
+        // Clear user-specific memberships
+        if (key === `user_memberships_${userId}`) {
+          console.log(`Clearing user-specific memberships for user ${userId}`);
+          localStorage.removeItem(key);
+        }
+        
+        // Clear user passport
+        if (key === `user_passport_${userId}`) {
+          console.log(`Clearing user passport for user ${userId}`);
+          localStorage.removeItem(key);
+        }
+      });
+    }
+    
+    // Remove user data from localStorage
+    localStorage.removeItem('user');
+    
+    // Also remove legacy non-user-specific memberships if they exist
+    localStorage.removeItem('user_memberships');
+    
+    // Clear user data from state
     setUser(null);
   };
 
@@ -177,7 +231,18 @@ export const AuthProvider = ({ children }) => {
       
       if (response.data && response.data.user) {
         console.log('User validation successful:', response.data.user);
+        // Store user data in localStorage for API functions to access
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
+        
+        // Fetch and store user passport
+        console.log('Fetching user passport after session validation');
+        try {
+          await fetchUserPassport();
+        } catch (err) {
+          console.error('Error fetching user passport after session validation:', err);
+        }
+        
         return true;
       } else {
         console.warn('User validation response missing user data');
@@ -207,12 +272,28 @@ export const AuthProvider = ({ children }) => {
           });
           
           if (finalResponse.data) {
-            setUser(prevUser => ({
-              ...prevUser,
+            const userData = {
               ...finalResponse.data,
               avatar_url: finalResponse.data.avatar_url || finalResponse.data.avatar
+            };
+            
+            // Store user data in localStorage for API functions to access
+            localStorage.setItem('user', JSON.stringify(userData));
+            
+            setUser(prevUser => ({
+              ...prevUser,
+              ...userData
             }));
             console.log('User validation successful after token refresh');
+            
+            // Fetch and store user passport
+            console.log('Fetching user passport after token refresh');
+            try {
+              await fetchUserPassport();
+            } catch (err) {
+              console.error('Error fetching user passport after token refresh:', err);
+            }
+            
             return true;
           }
         } catch (secondError) {
