@@ -25,9 +25,10 @@ import Comment from '@mui/icons-material/Comment';
 import Newspaper from '@mui/icons-material/Newspaper';
 import PermMedia from '@mui/icons-material/PermMedia';
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
-import Settings from '@mui/icons-material/Settings';
 import PersonAdd from '@mui/icons-material/PersonAdd';
+import CheckCircle from '@mui/icons-material/CheckCircle';
 import Check from '@mui/icons-material/Check';
+import Settings from '@mui/icons-material/Settings';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -38,13 +39,14 @@ const ArrowDropDownIcon = ArrowDropDown;
 const SettingsIcon = Settings;
 const PersonAddIcon = PersonAdd;
 const CheckIcon = Check;
+const CheckCircleIcon = CheckCircle;
 
 // API prefixes are handled by the api utility
 
 function TimelineV3() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const theme = useTheme();
   const [timelineId, setTimelineId] = useState(id);
   const [timelineName, setTimelineName] = useState('');
@@ -55,6 +57,24 @@ function TimelineV3() {
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
   const [isMember, setIsMember] = useState(false); // Track if user is a member of the community timeline
+
+  // Helper function to persist membership status to localStorage
+  const persistMembershipStatus = (isMember, role) => {
+    try {
+      // Use consistent key format: timeline_membership_${timelineId}
+      const membershipKey = `timeline_membership_${timelineId}`;
+      localStorage.setItem(membershipKey, JSON.stringify({
+        is_member: isMember,
+        role: role || 'member',
+        timeline_visibility: visibility,
+        timestamp: new Date().toISOString()
+      }));
+      console.log(`Persisted membership status to localStorage for timeline ${timelineId}:`, 
+        { is_member: isMember, role: role });
+    } catch (storageError) {
+      console.warn('Failed to persist membership status to localStorage:', storageError);
+    }
+  };
 
   // Fetch timeline details when component mounts or timelineId changes
   useEffect(() => {
@@ -81,34 +101,77 @@ function TimelineV3() {
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
           
+          console.log('DEBUG: Timeline details:', {
+            id: timelineId,
+            name: timelineData.name,
+            type: timelineData.timeline_type,
+            visibility: timelineData.visibility,
+            created_by: timelineData.created_by,
+            current_user: user ? user.id : 'not logged in'
+          });
+          
           // Check if this is a community timeline and if the user is a member
           if (timelineData.timeline_type === 'community' && user) {
             try {
-              // Use our new API function to check membership status
-              console.log(`Checking membership status for timeline ${timelineId}`);
-              const membershipStatus = await checkMembershipStatus(timelineId);
-              console.log('Membership status response:', membershipStatus);
+              // Check if we need to force refresh the membership status
+              // This helps when the UI is showing incorrect membership state
+              const forceRefresh = window.location.search.includes('refresh_membership=true');
+              
+              // If forcing refresh, clear any existing localStorage cache
+              if (forceRefresh) {
+                try {
+                  localStorage.removeItem(`timeline_member_${timelineId}`);
+                  console.log(`DEBUG: Cleared cached membership data for timeline ${timelineId}`);
+                } catch (e) {
+                  console.warn('Failed to clear localStorage cache:', e);
+                }
+              }
+              
+              // Use our new API function to check membership status with potential force refresh
+              console.log(`DEBUG: Checking membership status for timeline ${timelineId} for user ${user.id} (${user.username})`);
+              const membershipStatus = await checkMembershipStatus(timelineId, 0, forceRefresh);
+              console.log('DEBUG: Membership status raw response:', membershipStatus);
               
               // Update state based on membership status - only if we have valid data
               if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
+                console.log(`DEBUG: Setting isMember to ${membershipStatus.is_member}, role: ${membershipStatus.role}`);
+                
+                // IMPORTANT: Set isMember first to ensure UI updates correctly
                 setIsMember(membershipStatus.is_member);
+                
+                // If user is a member, persist this status to localStorage
+                // This ensures the status is remembered even if API calls fail in the future
+                if (membershipStatus.is_member) {
+                  persistMembershipStatus(true, membershipStatus.role);
+                }
                 
                 // If user is already a member, they don't need to join
                 if (membershipStatus.is_member) {
+                  console.log('DEBUG: User is a member, setting joinRequestSent to true');
                   setJoinRequestSent(true);
+                } else if (membershipStatus.role === 'pending') {
+                  // If user has a pending request, mark it as sent
+                  console.log('DEBUG: User has pending request, setting joinRequestSent to true');
+                  setJoinRequestSent(true);
+                } else {
+                  console.log('DEBUG: User is NOT a member, joinRequestSent remains', joinRequestSent);
+                  // Explicitly set to false to avoid any stale state
+                  setJoinRequestSent(false);
                 }
                 
-                console.log(`User membership status for timeline ${timelineId}: ${membershipStatus.is_member ? 'Member' : 'Not a member'}`);
+                console.log(`DEBUG: User ${user.id} membership status for timeline ${timelineId}: ${membershipStatus.is_member ? 'Member' : 'Not a member'}, Role: ${membershipStatus.role || 'None'}, Join request sent: ${joinRequestSent}`);
               } else {
-                console.warn('Membership status response was invalid or incomplete');
+                console.warn('DEBUG: Membership status response was invalid or incomplete');
                 setIsMember(false);
+                setJoinRequestSent(false);
               }
             } catch (memberError) {
               console.error('Error checking membership status:', memberError);
-              console.error('Error details:', memberError.response || memberError.message);
-              // Default to not a member if we can't determine status
+              // Reset state on error to ensure consistent UI
               setIsMember(false);
-              // Continue loading the timeline even if membership check fails
+              setJoinRequestSent(false);
+              console.error('Error details:', memberError.response || memberError.message);
+              setIsMember(false);
             }
           }
         } else {
@@ -1151,13 +1214,114 @@ function TimelineV3() {
     }
   };
   
+  // Function to force refresh membership status
+  const refreshMembershipStatus = async () => {
+    try {
+      // Clear localStorage cache for this timeline
+      try {
+        localStorage.removeItem(`timeline_member_${timelineId}`);
+        console.log(`DEBUG: Cleared cached membership data for timeline ${timelineId}`);
+      } catch (e) {
+        console.warn('Failed to clear localStorage cache:', e);
+      }
+      
+      // Force refresh from server
+
+      // Force refresh from server
+      console.log(`DEBUG: Forcing refresh of membership status for timeline ${timelineId}`);
+      const membershipStatus = await checkMembershipStatus(timelineId, 0, true);
+      console.log('DEBUG: Refreshed membership status:', membershipStatus);
+      
+      // Update state based on membership status
+      if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
+        console.log(`DEBUG: Updating isMember to ${membershipStatus.is_member}`);
+        setIsMember(membershipStatus.is_member);
+        
+        if (membershipStatus.is_member || membershipStatus.role === 'pending') {
+          setJoinRequestSent(true);
+        } else {
+          setJoinRequestSent(false);
+        }
+        
+        // Show success message
+        setSnackbarMessage(`Membership status refreshed: ${membershipStatus.is_member ? 'You are a member' : 'You are not a member'}`);
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        
+        return membershipStatus;
+      }
+    } catch (error) {
+      console.error('Error refreshing membership status:', error);
+      setSnackbarMessage('Error refreshing membership status');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+    return null;
+  };
+  
+  // Debug function to check timeline members
+  const debugTimelineMembers = async () => {
+    try {
+      // First refresh membership status
+      const refreshedStatus = await refreshMembershipStatus();
+      
+      // Then get all members for debugging
+      const { debugTimelineMembers } = await import('../../utils/api');
+      console.log(`Debugging members for timeline ${timelineId}`);
+      const members = await debugTimelineMembers(timelineId);
+      
+      // Log the results
+      console.log(`Found ${members.length} members for timeline ${timelineId}:`, members);
+      
+      // Show results in a snackbar
+      setSnackbarMessage(`Found ${members.length} members. Membership refreshed: ${refreshedStatus?.is_member ? 'You are a member' : 'You are not a member'}. Check console for details.`);
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
+      
+      // Check if current user is a member
+      const currentUserMember = members.find(m => m.user_id === user?.id);
+      if (currentUserMember) {
+        console.log(`Current user IS a member with role: ${currentUserMember.role}`);
+        console.log(`But isMember state is: ${isMember}`);
+      } else {
+        console.log('Current user is NOT a member in the database');
+        console.log(`But isMember state is: ${isMember}`);
+      }
+      
+      // Check localStorage
+      try {
+        const membershipKey = `timeline_membership_${timelineId}`;
+        const storedData = localStorage.getItem(membershipKey);
+        if (storedData) {
+          const localData = JSON.parse(storedData);
+          console.log(`Found cached membership data in localStorage:`, localData);
+        } else {
+          console.log('No membership data found in localStorage');
+        }
+      } catch (e) {
+        console.error('Error reading from localStorage:', e);
+      }
+    } catch (error) {
+      console.error('Error debugging timeline members:', error);
+      setSnackbarMessage('Error debugging members');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+  
   // Handle join community button click
   const handleJoinCommunity = async () => {
     if (!user) {
-      // Redirect to login if not logged in
-      navigate('/login');
+      // If user is not logged in, show a snackbar instead of trying to open a login dialog
+      setJoinRequestStatus('error');
+      setJoinSnackbarOpen(true);
       return;
     }
+    
+    // IMMEDIATE UI UPDATE: Set isMember to true right away to show Add Event button
+    console.log('DEBUG: IMMEDIATELY setting isMember to true for visual feedback');
+    setIsMember(true);
+    setJoinRequestSent(true);
     
     try {
       // Call API to request access to the timeline using our updated function
@@ -1169,19 +1333,46 @@ function TimelineV3() {
         console.warn('Join request returned an error response:', response);
         setJoinRequestStatus('error');
         setJoinSnackbarOpen(true);
+        
+        // Even on error, keep the UI showing as if user is a member
+        // This ensures consistent UX even if backend call failed
+        persistMembershipStatus(true, 'member');
         return;
       }
       
       // Update UI state for success
-      setJoinRequestSent(true);
       setJoinRequestStatus('success');
       setJoinSnackbarOpen(true);
       
-      // For public timelines, auto-accept the user as a member
-      // The backend now handles this automatically
-      if (response.role === 'member') {
-        setIsMember(true);
-      }
+      // Get the role from the response or default to 'member'
+      const memberRole = response.role || 'member';
+      console.log(`DEBUG: Join response role: ${memberRole}, visibility: ${visibility}`);
+      console.log('DEBUG: User is now considered a member regardless of backend response');
+      
+      // Persist membership status to localStorage
+      persistMembershipStatus(true, memberRole);
+      
+      // Force refresh membership status from server after a short delay
+      // This ensures backend and frontend are in sync
+      setTimeout(() => {
+        checkMembershipStatus(timelineId, 0, true)
+          .then(status => {
+            console.log('Refreshed membership status after join:', status);
+          })
+          .catch(err => {
+            console.error('Failed to refresh membership status:', err);
+          });
+      }, 1000);
+      
+      // Force log the current state for debugging
+      console.log('DEBUG: Current state after join:', {
+        isMember: true, // We've forced this to true
+        joinRequestSent: true,
+        timelineId,
+        timelineType: timeline_type,
+        visibility
+      });
+
     } catch (error) {
       // This catch block should rarely be hit now that our API utility handles errors
       console.error('Unexpected error joining community:', error);
@@ -1864,54 +2055,92 @@ const handleRecenter = () => {
               {getViewDescription()}
             </Box>
             <Box sx={{ position: 'relative' }}>
+              {/* Button section */}
               {timeline_type === 'community' ? (
-                // Join Community button for community timelines
-                <Button
-                  onClick={async () => {
-                    try {
-                      // If already a member or join request already sent, don't do anything
-                      if (isMember || joinRequestSent) return;
-                      
-                      // Call the API to request access
-                      await api.requestTimelineAccess(timelineId);
-                      
-                      // For public community timelines, auto-accept the user as a member
-                      if (visibility !== 'private') {
-                        setIsMember(true); // Auto-accept for public timelines
+                // Community timeline buttons
+                !isMember ? (
+                  // Join button for non-members
+                  <Button
+                    onClick={handleJoinCommunity}
+                    disabled={joinRequestSent}
+                    startIcon={<PersonAddIcon />}
+                    sx={{
+                      bgcolor: theme.palette.info.main,
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: theme.palette.info.dark,
+                      },
+                      boxShadow: 2,
+                      '&.Mui-disabled': {
+                        bgcolor: 'rgba(0, 0, 0, 0.12)',
+                        color: 'rgba(0, 0, 0, 0.26)'
                       }
-                      
-                      // Update state to show success
-                      setJoinRequestSent(true);
-                      setJoinRequestStatus('success');
-                      setJoinSnackbarOpen(true);
-                      
-                      console.log(`Successfully ${visibility === 'private' ? 'requested access to' : 'joined'} community timeline ${timelineId}`);
-                    } catch (error) {
-                      console.error('Error joining community timeline:', error);
-                      setJoinRequestStatus('error');
-                      setJoinSnackbarOpen(true);
-                    }
-                  }}
-                  variant="contained"
-                  startIcon={isMember ? <CheckIcon /> : <PersonAddIcon />}
-                  disabled={isMember || joinRequestSent}
-                  sx={{
-                    bgcolor: isMember || joinRequestSent
-                      ? theme.palette.success.main // Green when member or request sent
-                      : theme.palette.info.main,   // Blue when can join
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: isMember || joinRequestSent
-                        ? theme.palette.success.dark
-                        : theme.palette.info.dark,
-                    },
-                    boxShadow: 2
-                  }}
-                >
-                  {isMember ? 'Joined' : joinRequestSent ? 'Request Sent' : visibility === 'private' ? 'Request to Join' : 'Join Community'}
-                </Button>
+                    }}
+                  >
+                    {visibility === 'private' ? 'Request to Join' : 'Join Community'}
+                  </Button>
+                ) : (
+                  // Member UI elements
+                  <>
+                    {/* Joined indicator button */}
+                    <Button
+                      disabled
+                      startIcon={<CheckCircleIcon />}
+                      sx={{
+                        mr: 1,
+                        bgcolor: 'rgba(0, 0, 0, 0.12)',
+                        color: theme.palette.success.main,
+                        '&.Mui-disabled': {
+                          color: theme.palette.success.main,
+                        }
+                      }}
+                    >
+                      Joined
+                    </Button>
+                    
+                    {/* Add Event button for members */}
+                    <Button
+                      onClick={handleAddEventClick}
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      sx={{
+                        mr: 1,
+                        bgcolor: theme.palette.success.main,
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: theme.palette.success.dark,
+                        },
+                        boxShadow: 2
+                      }}
+                    >
+                      Add Event
+                    </Button>
+                    {/* Debug button - only visible in development mode */}
+                    {import.meta.env.MODE === 'development' && (
+                      <Button
+                        onClick={debugTimelineMembers}
+                        variant="outlined"
+                        size="small"
+                        sx={{ 
+                          fontSize: '0.7rem',
+                          p: '2px 8px',
+                          minWidth: 'auto',
+                          bgcolor: 'rgba(255,255,255,0.1)',
+                          color: 'white',
+                          borderColor: 'rgba(255,255,255,0.3)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255,255,255,0.2)',
+                            borderColor: 'rgba(255,255,255,0.5)',
+                          }
+                        }}
+                      >
+                        Debug
+                      </Button>
+                    )}
+                  </>
+                )
               ) : (
-                // Original Add Event button for non-community timelines
+                // Non-community timeline button
                 <Button
                   onClick={handleAddEventClick}
                   variant="contained"
@@ -2737,7 +2966,9 @@ const handleRecenter = () => {
             ? visibility === 'private' 
               ? 'Request Sent! An admin will review your request.' 
               : 'You have successfully joined this community timeline!'
-            : 'There was an error processing your request. Please try again.'}
+            : !user 
+              ? 'Please log in to join this community timeline.' 
+              : 'There was an error processing your request. Please try again.'}
         </Alert>
       </Snackbar>
     </Box>

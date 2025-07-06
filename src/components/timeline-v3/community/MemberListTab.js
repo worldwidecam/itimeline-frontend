@@ -91,23 +91,24 @@ const MemberListTab = () => {
   const [sortBy, setSortBy] = useState('name-asc'); // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
   
   // Handle role change for a member (promote/demote)
-  const handleRoleChange = async (memberId, newRole) => {
+  const handleRoleChange = async (userId, newRole) => {
     try {
+      console.log(`Updating role for user ${userId} to ${newRole} in timeline ${id}`);
       // Call the API to update the member's role
-      await updateMemberRole(id, memberId, newRole);
+      await updateMemberRole(id, userId, newRole);
       
       // Update local state to reflect the change
       setMembers(prevMembers => 
         prevMembers.map(member => 
-          member.id === memberId 
+          member.userId === userId 
             ? { ...member, role: newRole } 
             : member
         )
       );
       
       // Show success message
-      const actionText = newRole === 'moderator' ? 'promoted to moderator' : 'demoted to member';
-      const memberName = members.find(m => m.id === memberId)?.name || 'Member';
+      const actionText = newRole.toLowerCase() === 'moderator' ? 'promoted to moderator' : 'demoted to member';
+      const memberName = members.find(m => m.userId === userId)?.name || 'Member';
       setSnackbarMessage(`${memberName} ${actionText} successfully`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -120,16 +121,17 @@ const MemberListTab = () => {
   };
   
   // Handle removing a member from the community
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = async (userId) => {
     try {
+      console.log(`Removing user ${userId} from timeline ${id}`);
       // Call the API to remove the member
-      await removeMember(id, memberId);
+      await removeMember(id, userId);
       
       // Update local state to reflect the removal
-      setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
+      setMembers(prevMembers => prevMembers.filter(member => member.userId !== userId));
       
       // Show success message
-      const memberName = members.find(m => m.id === memberId)?.name || 'Member';
+      const memberName = members.find(m => m.userId === userId)?.name || 'Member';
       setSnackbarMessage(`${memberName} removed from community`);
       setSnackbarSeverity('info');
       setSnackbarOpen(true);
@@ -236,13 +238,13 @@ const MemberListTab = () => {
   const getFilteredAndSortedMembers = useCallback(() => {
     // First apply search filter
     let filteredMembers = members.filter(member => 
-      member.name.toLowerCase().includes(searchTerm.toLowerCase())
+      member.name && member.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
     // Then apply role filter
     if (activeFilter !== 'all') {
       filteredMembers = filteredMembers.filter(member => 
-        member.role.toLowerCase() === activeFilter.toLowerCase()
+        member.role && member.role.toLowerCase() === activeFilter.toLowerCase()
       );
     }
     
@@ -281,10 +283,12 @@ const MemberListTab = () => {
           const userData = member.user || {};
           
           return {
-            id: member.user_id,
+            id: member.user_id, // This is the user_id for API calls
+            userId: member.user_id, // Store user_id separately for clarity
+            memberId: member.id, // Store the member record ID if needed
             name: userData.username || member.username || `User ${member.user_id}`,
             role: member.role,
-            joinDate: new Date(member.joined_at).toISOString().split('T')[0],
+            joinDate: new Date(member.joined_at || member.joined_at || Date.now()).toISOString().split('T')[0],
             avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
           };
         });
@@ -450,7 +454,7 @@ const MemberListTab = () => {
   // Role chip styling
   const getRoleColor = (role) => {
     // Convert role to lowercase for case-insensitive comparison
-    const roleLower = role.toLowerCase();
+    const roleLower = role ? role.toLowerCase() : 'member';
     
     switch(roleLower) {
       case 'siteowner':
@@ -461,6 +465,8 @@ const MemberListTab = () => {
         return { bg: theme.palette.warning.main, text: '#000' }; // Yellow/orange for moderator
       case 'member':
         return { bg: theme.palette.primary.main, text: '#fff' }; // Blue for regular member
+      case 'pending':
+        return { bg: theme.palette.grey[500], text: '#fff' }; // Grey for pending members
       default: // fallback for any other role
         return { bg: theme.palette.primary.main, text: '#fff' }; // Blue for any other role
     }
@@ -1236,7 +1242,7 @@ const MemberListTab = () => {
               
               return (
                 <motion.div 
-                  key={member.id} 
+                  key={member.userId} 
                   variants={itemVariants}
                   className="member-item"
                   ref={index === getFilteredAndSortedMembers().length - 1 ? lastMemberElementRef : null}
@@ -1291,7 +1297,7 @@ const MemberListTab = () => {
                                   size="small"
                                   color="default"
                                   variant="outlined"
-                                  onClick={() => handleRoleChange(member.id, 'member')}
+                                  onClick={() => handleRoleChange(member.userId, 'member')}
                                   sx={{ 
                                     mr: 1, 
                                     fontSize: '0.7rem',
@@ -1307,7 +1313,7 @@ const MemberListTab = () => {
                                   size="small"
                                   color="primary"
                                   variant="outlined"
-                                  onClick={() => handleRoleChange(member.id, 'moderator')}
+                                  onClick={() => handleRoleChange(member.userId, 'moderator')}
                                   sx={{ 
                                     mr: 1, 
                                     fontSize: '0.7rem',
@@ -1323,7 +1329,7 @@ const MemberListTab = () => {
                                 size="small"
                                 color="error"
                                 variant="outlined"
-                                onClick={() => handleRemoveMember(member.id)}
+                                onClick={() => handleRemoveMember(member.userId)}
                                 sx={{ 
                                   fontSize: '0.7rem',
                                   height: 24,
