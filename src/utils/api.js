@@ -438,7 +438,9 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
     // Check if we have cached data in localStorage and it's not stale
     if (!forceRefresh) {
       try {
-        const membershipKey = `timeline_membership_${userId}_${timelineId}`;
+        // Use consistent key format: timeline_membership_${timelineId}
+        // This matches the format used in persistMembershipStatus and handleJoinCommunity
+        const membershipKey = `timeline_membership_${timelineId}`;
         const cachedData = localStorage.getItem(membershipKey);
         if (cachedData) {
           const parsedData = JSON.parse(cachedData);
@@ -450,6 +452,13 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
           if (diffMinutes < 30) {
             console.log(`Using cached membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
             console.log('Cached membership data:', parsedData);
+            
+            // Special handling for creators and site owners
+            if (parsedData.is_creator || parsedData.is_site_owner) {
+              console.log('User is creator or site owner, forcing is_member to true');
+              parsedData.is_member = true;
+            }
+            
             return parsedData;
           } else {
             console.log(`Cached membership data for timeline ${timelineId} is stale (${Math.round(diffMinutes)} minutes old)`);
@@ -478,9 +487,16 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
       }
     }
     
+    // Special handling for creators and site owners from API response
+    if (response.data && (response.data.is_creator || response.data.is_site_owner)) {
+      console.log('User is creator or site owner, forcing is_member to true');
+      response.data.is_member = true;
+    }
+    
     // Store the result in localStorage for future use
     try {
-      const membershipKey = `timeline_membership_${userId}_${timelineId}`;
+      // Use consistent key format: timeline_membership_${timelineId}
+      const membershipKey = `timeline_membership_${timelineId}`;
       localStorage.setItem(membershipKey, JSON.stringify({
         ...response.data,
         timestamp: new Date().toISOString()
@@ -670,8 +686,8 @@ export const fetchUserMemberships = async () => {
 };
 
 /**
- * Check if the user is a member of a timeline using the user passport
- * @param {number} timelineId - The ID of the timeline to check
+ * Check if the user is a member of a timeline using the user's passport data
+ * @param {number|string} timelineId - The ID of the timeline to check
  * @returns {Promise} - Promise resolving to membership status
  */
 export const checkMembershipFromUserData = async (timelineId) => {
@@ -681,18 +697,47 @@ export const checkMembershipFromUserData = async (timelineId) => {
     const userId = userData.id;
     
     if (!userId) {
-      console.warn('No user ID found, cannot check membership from passport');
-      // Fall back to the direct API check
-      return checkMembershipStatus(timelineId);
+      console.warn('No user ID found, cannot check membership from user data');
+      return { is_member: false, role: null };
     }
     
-    // Try to get passport from localStorage first using user-specific key
-    let memberships = [];
-    const storageKey = `user_passport_${userId}`;
-    const cachedData = localStorage.getItem(storageKey);
+    // First check for direct timeline membership data which is set when joining
+    // This ensures we catch the most recent membership changes
+    const directMembershipKey = `timeline_membership_${timelineId}`;
+    const directMembershipData = localStorage.getItem(directMembershipKey);
     
-    if (cachedData) {
-      const parsedData = JSON.parse(cachedData);
+    if (directMembershipData) {
+      try {
+        const membershipData = JSON.parse(directMembershipData);
+        const timestamp = new Date(membershipData.timestamp);
+        const now = new Date();
+        const diffMinutes = (now - timestamp) / (1000 * 60);
+        
+        // If direct membership data is recent (less than 30 minutes old), use it
+        if (diffMinutes < 30) {
+          console.log(`Using direct membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
+          console.log('Direct membership data:', membershipData);
+          return membershipData;
+        } else {
+          console.log(`Direct membership data for timeline ${timelineId} is stale (${Math.round(diffMinutes)} minutes old)`);
+        }
+      } catch (e) {
+        console.warn('Error parsing direct membership data:', e);
+      }
+    } else {
+      console.log(`No direct membership data found for timeline ${timelineId}`);
+    }
+    
+    // STEP 2: If no direct membership data or it's stale, check passport
+    // Initialize memberships array
+    let memberships = [];
+    
+    // Try to get passport from localStorage
+    const storageKey = `user_passport_${userId}`;
+    const storedData = localStorage.getItem(storageKey);
+    
+    if (storedData) {
+      const parsedData = JSON.parse(storedData);
       const timestamp = new Date(parsedData.timestamp);
       const now = new Date();
       const diffMinutes = (now - timestamp) / (1000 * 60);
@@ -716,14 +761,34 @@ export const checkMembershipFromUserData = async (timelineId) => {
     const membership = memberships.find(m => m.timeline_id === parseInt(timelineId));
     
     if (membership) {
+      console.log(`User ${userId} is a member of timeline ${timelineId} according to passport`);
+      
+      // Store this membership data in the direct timeline membership key for future use
+      try {
+        const membershipData = {
+          is_member: membership.is_active_member || false,
+          role: membership.role,
+          joined_at: membership.joined_at,
+          is_creator: membership.is_creator || false,
+          is_site_owner: membership.is_site_owner || false,
+          timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
+        console.log(`Updated direct membership data for timeline ${timelineId} from passport`);
+      } catch (e) {
+        console.warn('Error storing direct membership data:', e);
+      }
+      
       return {
-        is_member: true,
+        is_member: membership.is_active_member || false,
         role: membership.role,
         joined_at: membership.joined_at,
         is_creator: membership.is_creator || false,
         is_site_owner: membership.is_site_owner || false
       };
     } else {
+      console.log(`User ${userId} is not a member of timeline ${timelineId} according to passport`);
       return {
         is_member: false,
         role: null

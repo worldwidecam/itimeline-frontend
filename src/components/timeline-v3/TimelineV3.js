@@ -63,14 +63,20 @@ function TimelineV3() {
     try {
       // Use consistent key format: timeline_membership_${timelineId}
       const membershipKey = `timeline_membership_${timelineId}`;
-      localStorage.setItem(membershipKey, JSON.stringify({
+      
+      // Create a complete membership data object with all necessary fields
+      const membershipData = {
         is_member: isMember,
         role: role || 'member',
         timeline_visibility: visibility,
+        joined_at: new Date().toISOString(), // Add joined_at for consistency
         timestamp: new Date().toISOString()
-      }));
-      console.log(`Persisted membership status to localStorage for timeline ${timelineId}:`, 
-        { is_member: isMember, role: role });
+      };
+      
+      // Store the membership data
+      localStorage.setItem(membershipKey, JSON.stringify(membershipData));
+      
+      console.log(`Persisted membership status to localStorage for timeline ${timelineId}:`, membershipData);
     } catch (storageError) {
       console.warn('Failed to persist membership status to localStorage:', storageError);
     }
@@ -133,8 +139,8 @@ function TimelineV3() {
               console.log('DEBUG: Membership status from user data:', membershipStatus);
               
               // If we need to force refresh or the user data check failed, fall back to direct API check
-              if (forceRefresh) {
-                console.log(`DEBUG: Force refresh requested, checking membership status directly from API`);
+              if (forceRefresh || !membershipStatus) {
+                console.log(`DEBUG: Force refresh requested or user data check failed, checking membership status directly from API`);
                 const apiMembershipStatus = await checkMembershipStatus(timelineId, 0, true);
                 console.log('DEBUG: Membership status from direct API call:', apiMembershipStatus);
                 
@@ -1375,8 +1381,35 @@ function TimelineV3() {
       console.log(`DEBUG: Join response role: ${memberRole}, visibility: ${visibility}`);
       console.log('DEBUG: User is now considered a member regardless of backend response');
       
-      // Persist membership status to localStorage
+      // Persist membership status to localStorage - this is critical for page refreshes
       persistMembershipStatus(true, memberRole);
+      
+      // IMPORTANT: Also store in the direct timeline membership key format
+      // This ensures the checkMembershipFromUserData function finds it immediately
+      try {
+        const directMembershipKey = `timeline_membership_${timelineId}`;
+        const membershipData = {
+          is_member: true,
+          role: memberRole,
+          joined_at: new Date().toISOString(),
+          timeline_visibility: visibility,
+          timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
+        console.log(`Stored direct membership data for timeline ${timelineId} after join`);
+      } catch (e) {
+        console.warn('Error storing direct membership data after join:', e);
+      }
+      
+      // Sync the user passport with the server to update all memberships
+      console.log('DEBUG: Syncing user passport after successful join');
+      try {
+        await syncUserPassport();
+        console.log('User passport synced successfully after join');
+      } catch (err) {
+        console.error('Error syncing user passport after join:', err);
+      }
       
       // Refresh user memberships to include this new membership
       console.log('DEBUG: Refreshing user memberships after successful join');
