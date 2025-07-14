@@ -589,13 +589,50 @@ export const fetchUserPassport = async () => {
     
     // Store the passport in localStorage with a user-specific key
     const storageKey = `user_passport_${userId}`;
+    const memberships = response.data.memberships || [];
+    
     try {
       localStorage.setItem(storageKey, JSON.stringify({
-        memberships: response.data.memberships || [],
+        memberships: memberships,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
       console.log(`Stored passport for user ${userId} in localStorage`);
+      
+      // IMPORTANT: Also update the direct timeline membership data for each timeline
+      // This ensures that when a user logs in, both the passport and direct timeline
+      // membership data are properly restored
+      console.log('Updating direct timeline membership data from passport');
+      memberships.forEach(membership => {
+        try {
+          const timelineId = membership.timeline_id;
+          if (!timelineId) return;
+          
+          // Create a consistent format for the direct timeline membership data
+          const membershipData = {
+            is_member: membership.is_active_member || false,
+            role: membership.role,
+            joined_at: membership.joined_at || new Date().toISOString(),
+            is_creator: membership.is_creator || false,
+            is_site_owner: membership.is_site_owner || false,
+            timeline_visibility: membership.timeline_visibility || 'public',
+            timestamp: new Date().toISOString()
+          };
+          
+          // Special handling for creators and site owners
+          if (membershipData.is_creator || membershipData.is_site_owner) {
+            console.log(`User is creator or site owner of timeline ${timelineId}, forcing is_member to true`);
+            membershipData.is_member = true;
+          }
+          
+          // Store the direct timeline membership data
+          const directMembershipKey = `timeline_membership_${timelineId}`;
+          localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
+          console.log(`Updated direct membership data for timeline ${timelineId} from passport`);
+        } catch (e) {
+          console.warn('Error updating direct timeline membership data:', e);
+        }
+      });
     } catch (e) {
       console.warn('Error storing passport in localStorage:', e);
     }
@@ -652,18 +689,55 @@ export const syncUserPassport = async () => {
     
     // Store the updated passport in localStorage
     const storageKey = `user_passport_${userId}`;
+    const memberships = response.data.memberships || [];
+    
     try {
       localStorage.setItem(storageKey, JSON.stringify({
-        memberships: response.data.memberships || [],
+        memberships: memberships,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
       console.log(`Stored synced passport for user ${userId} in localStorage`);
+      
+      // IMPORTANT: Also update the direct timeline membership data for each timeline
+      // This ensures that when a user syncs their passport, both the passport and direct timeline
+      // membership data are properly updated
+      console.log('Updating direct timeline membership data from synced passport');
+      memberships.forEach(membership => {
+        try {
+          const timelineId = membership.timeline_id;
+          if (!timelineId) return;
+          
+          // Create a consistent format for the direct timeline membership data
+          const membershipData = {
+            is_member: membership.is_active_member || false,
+            role: membership.role,
+            joined_at: membership.joined_at || new Date().toISOString(),
+            is_creator: membership.is_creator || false,
+            is_site_owner: membership.is_site_owner || false,
+            timeline_visibility: membership.visibility || 'public',
+            timestamp: new Date().toISOString()
+          };
+          
+          // Special handling for creators and site owners
+          if (membershipData.is_creator || membershipData.is_site_owner) {
+            console.log(`User is creator or site owner of timeline ${timelineId}, forcing is_member to true`);
+            membershipData.is_member = true;
+          }
+          
+          // Store the direct timeline membership data
+          const directMembershipKey = `timeline_membership_${timelineId}`;
+          localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
+          console.log(`Updated direct membership data for timeline ${timelineId} from synced passport`);
+        } catch (e) {
+          console.warn('Error updating direct timeline membership data from sync:', e);
+        }
+      });
     } catch (e) {
       console.warn('Error storing synced passport in localStorage:', e);
     }
     
-    return response.data.memberships || [];
+    return memberships;
   } catch (error) {
     console.error('Error syncing user passport:', error);
     return [];

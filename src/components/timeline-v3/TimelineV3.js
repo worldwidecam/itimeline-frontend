@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess } from '../../utils/api';
 import config from '../../config';
@@ -56,7 +56,7 @@ function TimelineV3() {
   const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
-  const [isMember, setIsMember] = useState(false); // Track if user is a member of the community timeline
+  const [isMember, setIsMember] = useState(null); // Track if user is a member of the community timeline (null = loading)
 
   // Helper function to persist membership status to localStorage
   const persistMembershipStatus = (isMember, role) => {
@@ -180,6 +180,7 @@ function TimelineV3() {
                 console.log(`DEBUG: User ${user.id} membership status for timeline ${timelineId}: ${membershipStatus.is_member ? 'Member' : 'Not a member'}, Role: ${membershipStatus.role || 'None'}, Join request sent: ${joinRequestSent}`);
               } else {
                 console.warn('DEBUG: Membership status response was invalid or incomplete');
+                // Set to false only after we've tried to check
                 setIsMember(false);
                 setJoinRequestSent(false);
               }
@@ -2125,7 +2126,22 @@ const handleRecenter = () => {
               {/* Button section */}
               {timeline_type === 'community' ? (
                 // Community timeline buttons
-                !isMember ? (
+                isMember === null ? (
+                  // Loading state - show a loading indicator
+                  <Button
+                    disabled
+                    startIcon={<CircularProgress size={16} />}
+                    sx={{
+                      bgcolor: 'rgba(0, 0, 0, 0.12)',
+                      color: theme.palette.text.secondary,
+                      '&.Mui-disabled': {
+                        color: theme.palette.text.secondary,
+                      }
+                    }}
+                  >
+                    Checking membership...
+                  </Button>
+                ) : !isMember ? (
                   // Join button for non-members
                   <Button
                     onClick={handleJoinCommunity}

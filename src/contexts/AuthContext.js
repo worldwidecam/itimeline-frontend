@@ -113,8 +113,12 @@ export const AuthProvider = ({ children }) => {
       console.log('Fetching user passport after login');
       try {
         await fetchUserPassport();
+        
+        // Force a sync with the server to ensure we have the most up-to-date membership data
+        console.log('Forcing sync of user passport after login');
+        await syncUserPassport();
       } catch (err) {
-        console.error('Error fetching user passport after login:', err);
+        console.error('Error fetching/syncing user passport after login:', err);
       }
       
       return userData;
@@ -177,6 +181,12 @@ export const AuthProvider = ({ children }) => {
         // Clear old format membership data
         if (key.includes(`timeline_membership_${userId}_`)) {
           console.log(`Clearing old format membership data: ${key}`);
+          localStorage.removeItem(key);
+        }
+        
+        // Clear new format timeline membership data (without userId)
+        if (key.startsWith('timeline_membership_')) {
+          console.log(`Clearing new format timeline membership data: ${key}`);
           localStorage.removeItem(key);
         }
         
