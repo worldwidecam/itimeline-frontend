@@ -271,100 +271,99 @@ const MemberListTab = () => {
       try {
         setIsLoading(true);
         console.log('Fetching members for timeline ID:', id, 'page:', page);
+        
+        // Make the API call
         const response = await getTimelineMembers(id, page);
-        console.log('API response for members:', response);
+        console.log('Raw API response for members:', response);
         
         // Handle different response structures
-        const membersData = Array.isArray(response) ? response : response.data || [];
-        
-        let formattedMembers = membersData.map(member => {
-          console.log('Raw member data:', member);
-          // Extract user data - it might be nested in different ways depending on API response
-          const userData = member.user || {};
-          
-          return {
-            id: member.user_id, // This is the user_id for API calls
-            userId: member.user_id, // Store user_id separately for clarity
-            memberId: member.id, // Store the member record ID if needed
-            name: userData.username || member.username || `User ${member.user_id}`,
-            role: member.role,
-            joinDate: new Date(member.joined_at || member.joined_at || Date.now()).toISOString().split('T')[0],
-            avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
-          };
-        });
-        
-        // Only use real data from the API, no mock fallback
-        // Log if no members were returned
-        if (formattedMembers.length === 0 && page === 1) {
-          console.log('No members returned from API for this timeline');
+        let membersData = [];
+        if (Array.isArray(response)) {
+          membersData = response;
+        } else if (response && Array.isArray(response.data)) {
+          membersData = response.data;
+        } else if (response && response.data) {
+          // Handle case where data is an object with members array
+          membersData = response.data.members || [];
         }
+        
+        console.log('Extracted members data:', membersData);
+        
+        // Process member data with better error handling
+        const formattedMembers = membersData.map(member => {
+          try {
+            // Log the raw member object for debugging
+            console.log('Processing member:', member);
+            
+            // Safely extract user data
+            const userData = member.user || {};
+            const userId = member.user_id || userData.id || member.id;
+            const username = userData.username || member.username || `User ${userId}`;
+            
+            // Format join date
+            let joinDate = new Date().toISOString().split('T')[0];
+            if (member.joined_at) {
+              try {
+                joinDate = new Date(member.joined_at).toISOString().split('T')[0];
+              } catch (e) {
+                console.warn('Invalid join date format:', member.joined_at);
+              }
+            }
+            
+            // Create the formatted member object
+            return {
+              id: userId,
+              userId: userId,
+              memberId: member.id,
+              name: username,
+              role: member.role || 'member',
+              joinDate: joinDate,
+              avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?u=${userId}`,
+              // Include raw data for debugging
+              _raw: member
+            };
+          } catch (error) {
+            console.error('Error processing member:', member, error);
+            return null;
+          }
+        }).filter(Boolean); // Remove any null entries from failed processing
         
         console.log('Formatted members:', formattedMembers);
         
-        // If it's the first page, replace members; otherwise append
+        // Update members state
         setMembers(prevMembers => {
           if (page === 1) {
             return formattedMembers;
-          } else {
-            // Filter out duplicates when appending
-            const newMembers = formattedMembers.filter(
-              newMember => !prevMembers.some(existingMember => existingMember.id === newMember.id)
-            );
-            return [...prevMembers, ...newMembers];
           }
+          // Filter out duplicates when appending
+          const existingIds = new Set(prevMembers.map(m => m.id));
+          const newMembers = formattedMembers.filter(member => !existingIds.has(member.id));
+          return [...prevMembers, ...newMembers];
         });
         
-        // Determine if there are more members to load
+        // Update loading states and pagination
         setHasMore(formattedMembers.length > 0);
-        setIsLoading(false);
-        setIsLoadingMore(false);
         
-        // Use actual member count for action thresholds
-        const memberCount = formattedMembers.length;
+        // Update action thresholds based on member count
+        const memberCount = page === 1 ? formattedMembers.length : members.length + formattedMembers.length;
         setShowSilverAction(memberCount >= memberThresholds.silver);
         setShowGoldAction(memberCount >= memberThresholds.gold);
+        
       } catch (error) {
         console.error('Error fetching members:', error);
+        
+        // Show error to user
+        setSnackbarMessage('Failed to load members. Please try again.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        
+        // Clear members on first page error
+        if (page === 1) {
+          setMembers([]);
+        }
+      } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
-        
-        // Use mock users as fallback when API fails, but only on first page
-        if (page === 1) {
-          console.log('Using mock users as fallback after API error');
-          setMembers([
-            {
-              id: 1,
-              name: 'Brahdyssey',
-              role: 'SiteOwner',
-              joinDate: '2023-01-01',
-              avatar: 'https://i.pravatar.cc/150?u=brahdyssey@itimeline.com' // Consistent avatar for Brahdyssey
-            },
-            {
-              id: 2,
-              name: 'AdminUser',
-              role: 'Admin',
-              joinDate: '2023-02-15',
-              avatar: 'https://i.pravatar.cc/150?u=admin@itimeline.com' // Consistent avatar for Admin
-            },
-            {
-              id: 3,
-              name: 'ModeratorUser',
-              role: 'Moderator',
-              joinDate: '2023-03-20',
-              avatar: 'https://i.pravatar.cc/150?u=moderator@itimeline.com' // Consistent avatar for Moderator
-            },
-            {
-              id: 4,
-              name: 'RegularMember',
-              role: 'Member',
-              joinDate: '2023-04-10',
-              avatar: 'https://i.pravatar.cc/150?u=member@itimeline.com' // Consistent avatar for Member
-            }
-          ]);
-        }
-        
-        // Assume no more members on error
-        setHasMore(false);
       }
     };
     

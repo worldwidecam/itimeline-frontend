@@ -138,55 +138,100 @@ api.interceptors.response.use(
  */
 export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retryCount = 0) => {
   try {
-    console.log(`Making request to: ${config.API_URL}/api/v1/timelines/${timelineId}/members (attempt ${retryCount + 1})`);
-    const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
-      params: { page, limit }
-    });
-    console.log('Timeline members API response:', response.data);
+    const url = `${config.API_URL}/api/v1/timelines/${timelineId}/members`;
+    console.log(`[API] Fetching members for timeline ${timelineId} (page ${page}, limit ${limit})`);
+    console.log(`[API] Making request to: ${url}`);
     
-    // Verify the response contains expected data
-    if (!response.data || !Array.isArray(response.data)) {
-      console.warn('Received unexpected response format from members API:', response.data);
-      
-      // If we haven't exceeded retry attempts, try again
+    const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
+      params: { page, limit },
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
+    console.log(`[API] Response status: ${response.status}`, response.data);
+    
+    // Handle different response structures
+    let membersData = [];
+    if (Array.isArray(response.data)) {
+      membersData = response.data;
+      console.log(`[API] Found ${membersData.length} members in array response`);
+    } else if (response.data && Array.isArray(response.data.members)) {
+      membersData = response.data.members;
+      console.log(`[API] Found ${membersData.length} members in response.data.members`);
+    } else if (response.data && Array.isArray(response.data.data)) {
+      membersData = response.data.data;
+      console.log(`[API] Found ${membersData.length} members in response.data.data`);
+    } else {
+      console.warn('[API] Unexpected response format:', response.data);
       if (retryCount < 2) {
-        console.log(`Retrying members request for timeline ${timelineId} (attempt ${retryCount + 2})`);
+        console.log(`[API] Retrying members request (attempt ${retryCount + 2})`);
         return await getTimelineMembers(timelineId, page, limit, retryCount + 1);
       }
     }
     
-    // Store the number of members in localStorage for reference
-    try {
-      const memberCount = Array.isArray(response.data) ? response.data.length : 0;
-      localStorage.setItem(`timeline_member_count_${timelineId}`, JSON.stringify({
-        count: memberCount,
-        timestamp: new Date().toISOString()
-      }));
-      console.log(`Saved member count (${memberCount}) to localStorage for timeline ${timelineId}`);
-    } catch (storageError) {
-      console.warn('Failed to save member count to localStorage:', storageError);
-    }
-    
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching timeline members:', error);
-    if (error.response) {
-      console.error('Error response data:', error.response.data);
-      console.error('Error response status:', error.response.status);
-      console.error('Error response headers:', error.response.headers);
-    } else if (error.request) {
-      console.error('No response received:', error.request);
+    // Log detailed member data for debugging
+    if (membersData.length > 0) {
+      console.log('[API] First member data sample:', membersData[0]);
     } else {
-      console.error('Error setting up request:', error.message);
+      console.log('[API] No members found in response');
     }
     
-    // If we haven't exceeded retry attempts and it's a network error, try again
+    // Cache the member count in localStorage
+    try {
+      localStorage.setItem(`timeline_member_count_${timelineId}`, JSON.stringify({
+        count: membersData.length,
+        timestamp: new Date().toISOString(),
+        page,
+        limit
+      }));
+      console.log(`[API] Cached member count (${membersData.length}) for timeline ${timelineId}`);
+    } catch (storageError) {
+      console.warn('[API] Failed to cache member count:', storageError);
+    }
+    
+    return membersData;
+    
+  } catch (error) {
+    console.error('[API] Error fetching timeline members:', error);
+    
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      console.error('[API] Error response data:', error.response.data);
+      console.error('[API] Error status:', error.response.status);
+      console.error('[API] Error headers:', error.response.headers);
+      
+      // If it's a 401 (Unauthorized), we might need to refresh the token
+      if (error.response.status === 401) {
+        console.log('[API] Unauthorized - attempting token refresh...');
+        try {
+          await refreshToken();
+          if (retryCount < 2) {
+            console.log(`[API] Retrying after token refresh (attempt ${retryCount + 2})`);
+            return await getTimelineMembers(timelineId, page, limit, retryCount + 1);
+          }
+        } catch (refreshError) {
+          console.error('[API] Token refresh failed:', refreshError);
+        }
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('[API] No response received:', error.request);
+    } else {
+      // Something happened in setting up the request
+      console.error('[API] Request setup error:', error.message);
+    }
+    
+    // If we haven't exceeded retry attempts, try again
     if (retryCount < 2 && (!error.response || error.response.status >= 500)) {
-      console.log(`Retrying members request after error for timeline ${timelineId} (attempt ${retryCount + 2})`);
+      console.log(`[API] Retrying after error (attempt ${retryCount + 2})`);
       return await getTimelineMembers(timelineId, page, limit, retryCount + 1);
     }
     
-    // Return a default empty array instead of throwing to prevent component crashes
+    // Return empty array instead of throwing to prevent component crashes
+    console.warn('[API] Returning empty members array after all retry attempts');
     return [];
   }
 };
