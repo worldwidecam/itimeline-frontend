@@ -116,11 +116,28 @@ function TimelineV3() {
             current_user: user ? user.id : 'not logged in'
           });
           
-          // Check if this is a community timeline and if the user is a member
+          // First handle SiteOwner (user ID 1)
+          if (user?.id === 1) {
+            console.log('DEBUG: User is SiteOwner, forcing isMember to true and joinRequestSent to true');
+            setIsMember(true);
+            setJoinRequestSent(true);
+            persistMembershipStatus(true, 'SiteOwner');
+            return;
+          }
+
+          // Then handle creator status
+          if (timelineData.created_by === user?.id) {
+            console.log('DEBUG: User is creator of timeline, forcing isMember to true and joinRequestSent to true');
+            setIsMember(true);
+            setJoinRequestSent(true);
+            persistMembershipStatus(true, 'admin');
+            return;
+          }
+
+          // For regular users, check membership status
           if (timelineData.timeline_type === 'community' && user) {
             try {
               // Check if we need to force refresh the membership status
-              // This helps when the UI is showing incorrect membership state
               const forceRefresh = window.location.search.includes('refresh_membership=true');
               
               // If forcing refresh, clear any existing localStorage cache
@@ -133,56 +150,29 @@ function TimelineV3() {
                 }
               }
               
-              // Use our new user-based membership check first
-              console.log(`DEBUG: Checking membership status from user data for timeline ${timelineId} for user ${user.id} (${user.username})`);
-              const membershipStatus = await checkMembershipFromUserData(timelineId);
-              console.log('DEBUG: Membership status from user data:', membershipStatus);
+              // Check membership status
+              console.log(`DEBUG: Checking membership status for timeline ${timelineId} for user ${user.id}`);
+              const membershipStatus = await checkMembershipStatus(timelineId, 0, forceRefresh);
+              console.log('DEBUG: Membership status:', membershipStatus);
               
-              // If we need to force refresh or the user data check failed, fall back to direct API check
-              if (forceRefresh || !membershipStatus) {
-                console.log(`DEBUG: Force refresh requested or user data check failed, checking membership status directly from API`);
-                const apiMembershipStatus = await checkMembershipStatus(timelineId, 0, true);
-                console.log('DEBUG: Membership status from direct API call:', apiMembershipStatus);
-                
-                // Use the API response if it's valid
-                if (apiMembershipStatus && typeof apiMembershipStatus.is_member !== 'undefined') {
-                  Object.assign(membershipStatus, apiMembershipStatus);
-                }
-              }
-              
-              // Update state based on membership status - only if we have valid data
+              // Update state based on membership status
               if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
                 console.log(`DEBUG: Setting isMember to ${membershipStatus.is_member}, role: ${membershipStatus.role}`);
                 
-                // Special handling for SiteOwner (user ID 1) - they should never see join buttons
-                if (user?.id === 1) {
-                  console.log('DEBUG: User is SiteOwner, forcing isMember to true and joinRequestSent to true');
-                  setIsMember(true);
-                  setJoinRequestSent(true);
-                  persistMembershipStatus(true, 'SiteOwner');
-                  return;
-                }
-                
-                // IMPORTANT: Set isMember first to ensure UI updates correctly
+                // Set membership state
                 setIsMember(membershipStatus.is_member);
                 
-                // If user is a member, persist this status to localStorage
-                // This ensures the status is remembered even if API calls fail in the future
+                // Persist to localStorage if member
                 if (membershipStatus.is_member) {
                   persistMembershipStatus(true, membershipStatus.role);
                 }
                 
-                // If user is already a member, they don't need to join
-                if (membershipStatus.is_member) {
-                  console.log('DEBUG: User is a member, setting joinRequestSent to true');
-                  setJoinRequestSent(true);
-                } else if (membershipStatus.role === 'pending') {
-                  // If user has a pending request, mark it as sent
-                  console.log('DEBUG: User has pending request, setting joinRequestSent to true');
+                // Update join request status
+                if (membershipStatus.is_member || membershipStatus.role === 'pending') {
+                  console.log('DEBUG: User is a member or has pending request, setting joinRequestSent to true');
                   setJoinRequestSent(true);
                 } else {
-                  console.log('DEBUG: User is NOT a member, joinRequestSent remains', joinRequestSent);
-                  // Explicitly set to false to avoid any stale state
+                  console.log('DEBUG: User is NOT a member, setting joinRequestSent to false');
                   setJoinRequestSent(false);
                 }
                 

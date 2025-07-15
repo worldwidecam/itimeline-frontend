@@ -446,6 +446,18 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
         };
       }
 
+      // Check if user is the creator of this timeline
+      const timelineData = await getTimelineDetails(timelineId);
+      if (timelineData && timelineData.created_by === userId) {
+        console.log(`User ${userId} is creator of timeline ${timelineId}, forcing is_member to true`);
+        return {
+          is_member: true,
+          role: 'admin',
+          timeline_visibility: timelineData.visibility || 'public',
+          is_creator: true
+        };
+      }
+
       // Check if we have cached data in localStorage and it's not stale
       if (!forceRefresh) {
         try {
