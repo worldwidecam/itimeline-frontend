@@ -154,6 +154,15 @@ function TimelineV3() {
               if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
                 console.log(`DEBUG: Setting isMember to ${membershipStatus.is_member}, role: ${membershipStatus.role}`);
                 
+                // Special handling for SiteOwner (user ID 1) - they should never see join buttons
+                if (user?.id === 1) {
+                  console.log('DEBUG: User is SiteOwner, forcing isMember to true and joinRequestSent to true');
+                  setIsMember(true);
+                  setJoinRequestSent(true);
+                  persistMembershipStatus(true, 'SiteOwner');
+                  return;
+                }
+                
                 // IMPORTANT: Set isMember first to ensure UI updates correctly
                 setIsMember(membershipStatus.is_member);
                 

@@ -431,123 +431,70 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
  * @returns {Promise} - Promise resolving to membership status or default values on error
  */
 export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRefresh = false) => {
-  // Get current user ID from localStorage
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const userId = currentUser.id || 'guest';
-  try {
-    // Check if we have cached data in localStorage and it's not stale
-    if (!forceRefresh) {
-      try {
-        // Use consistent key format: timeline_membership_${timelineId}
-        // This matches the format used in persistMembershipStatus and handleJoinCommunity
-        const membershipKey = `timeline_membership_${timelineId}`;
-        const cachedData = localStorage.getItem(membershipKey);
-        if (cachedData) {
-          const parsedData = JSON.parse(cachedData);
-          const timestamp = new Date(parsedData.timestamp);
-          const now = new Date();
-          const diffMinutes = (now - timestamp) / (1000 * 60);
-          
-          // If data is less than 30 minutes old, use it
-          if (diffMinutes < 30) {
-            console.log(`Using cached membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
-            console.log('Cached membership data:', parsedData);
-            
-            // Special handling for creators and site owners
-            if (parsedData.is_creator || parsedData.is_site_owner) {
-              console.log('User is creator or site owner, forcing is_member to true');
-              parsedData.is_member = true;
-            }
-            
-            return parsedData;
-          } else {
-            console.log(`Cached membership data for timeline ${timelineId} is stale (${Math.round(diffMinutes)} minutes old)`);
-          }
-        }
-      } catch (e) {
-        console.warn('Error reading from localStorage:', e);
+    // Get current user ID from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = currentUser.id || 'guest';
+    
+    try {
+      // Simple check for SiteOwner status - if user ID is 1, they're always a member
+      if (userId === 1) {
+        console.log('User is SiteOwner (ID 1), forcing is_member to true');
+        return {
+          is_member: true,
+          role: 'SiteOwner',
+          timeline_visibility: 'public' // Default visibility
+        };
       }
-    } else {
-      console.log(`Forcing refresh of membership status for timeline ${timelineId}`);
-    }
-    
-    // Make API call to check membership status
-    console.log(`Checking membership status for timeline ${timelineId} (attempt ${retryCount + 1})`);
-    const response = await api.get(`/api/v1/timelines/${timelineId}/membership-status`);
-    console.log('Membership status response:', response.data);
-    
-    // Verify the response contains expected data
-    if (!response.data || typeof response.data.is_member === 'undefined') {
-      console.warn('Received unexpected response format from membership check:', response.data);
+
+      // Check if we have cached data in localStorage and it's not stale
+      if (!forceRefresh) {
+        try {
+          const membershipKey = `timeline_membership_${timelineId}`;
+          const cachedData = localStorage.getItem(membershipKey);
+          if (cachedData) {
+            const parsedData = JSON.parse(cachedData);
+            const timestamp = new Date(parsedData.timestamp);
+            const now = new Date();
+            const diffMinutes = (now - timestamp) / (1000 * 60);
+            
+            if (diffMinutes < 30) {
+              console.log(`Using cached membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
+              return parsedData;
+            }
+          }
+        } catch (e) {
+          console.warn('Error reading from localStorage:', e);
+        }
+      }
+
+      // Make API call to check membership status
+      console.log(`Checking membership status for timeline ${timelineId} (attempt ${retryCount + 1})`);
+      const response = await api.get(`/api/v1/timelines/${timelineId}/membership-status`);
       
-      // If we haven't exceeded retry attempts, try again
-      if (retryCount < 2) {
-        console.log(`Retrying membership check for timeline ${timelineId} (attempt ${retryCount + 2})`);
+      // Store the result in localStorage for future use
+      try {
+        const membershipKey = `timeline_membership_${timelineId}`;
+        localStorage.setItem(membershipKey, JSON.stringify({
+          ...response.data,
+          timestamp: new Date().toISOString()
+        }));
+        console.log(`Saved membership status to localStorage for timeline ${timelineId}`);
+      } catch (e) {
+        console.warn('Error writing to localStorage:', e);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error(`Error checking membership status for timeline ${timelineId}:`, error);
+      
+      // If we haven't exceeded retry attempts and it's a network error, try again
+      if (retryCount < 2 && (!error.response || error.response.status >= 500)) {
         return await checkMembershipStatus(timelineId, retryCount + 1, forceRefresh);
       }
+
+      // Return a default object instead of throwing to prevent component crashes
+      return { is_member: false, role: null };
     }
-    
-    // Special handling for creators and site owners from API response
-    if (response.data && (response.data.is_creator || response.data.is_site_owner)) {
-      console.log('User is creator or site owner, forcing is_member to true');
-      response.data.is_member = true;
-    }
-    
-    // Store the result in localStorage for future use
-    try {
-      // Use consistent key format: timeline_membership_${timelineId}
-      const membershipKey = `timeline_membership_${timelineId}`;
-      localStorage.setItem(membershipKey, JSON.stringify({
-        ...response.data,
-        timestamp: new Date().toISOString()
-      }));
-      console.log(`Saved membership status to localStorage for timeline ${timelineId}`);
-    } catch (e) {
-      console.warn('Error writing to localStorage:', e);
-    }
-    
-    return response.data;
-  } catch (error) {
-    console.error(`Error checking membership status for timeline ${timelineId}:`, error);
-    console.error('Error details:', error.response?.data || error.message);
-    
-    // If we haven't exceeded retry attempts and it's a network error, try again
-    if (retryCount < 2 && (!error.response || error.response.status >= 500)) {
-      console.log(`Retrying membership check after error for timeline ${timelineId} (attempt ${retryCount + 2})`);
-      return await checkMembershipStatus(timelineId, retryCount + 1, forceRefresh);
-    }
-    
-    // Check if we have any cached data to fall back on
-    try {
-      const membershipKey = `timeline_membership_${userId}_${timelineId}`;
-      const cachedData = localStorage.getItem(membershipKey);
-      if (cachedData) {
-        const parsedData = JSON.parse(cachedData);
-        console.log(`Falling back to cached membership data for timeline ${timelineId} due to API error:`, parsedData);
-        return parsedData;
-      }
-    } catch (e) {
-      console.warn('Error reading from localStorage during fallback:', e);
-    }
-    
-    // If the user has recently joined this timeline (check localStorage for any timeline membership)
-    try {
-      // Check if there's any key in localStorage that indicates the user has joined this timeline
-      const keys = Object.keys(localStorage);
-      const membershipKey = `timeline_membership_${userId}_${timelineId}`;
-      
-      if (keys.includes(membershipKey)) {
-        // If we find the membership key, assume the user is a member
-        console.log(`Found membership key in localStorage for timeline ${timelineId}, assuming user is a member`);
-        return { is_member: true, role: 'member' };
-      }
-    } catch (e) {
-      console.warn('Error checking localStorage for membership keys:', e);
-    }
-    
-    // Return a default object instead of throwing to prevent component crashes
-    return { is_member: false, role: null };
-  }
 };
 
 /**
