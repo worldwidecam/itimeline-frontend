@@ -141,6 +141,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
     const url = `${config.API_URL}/api/v1/timelines/${timelineId}/members`;
     console.log(`[API] Fetching members for timeline ${timelineId} (page ${page}, limit ${limit})`);
     console.log(`[API] Making request to: ${url}`);
+    console.log('[API] Current JWT token:', getCookie('access_token') || localStorage.getItem('access_token')); // Log the token for debugging
     
     const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
       params: { page, limit },
@@ -153,19 +154,25 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
     
     console.log(`[API] Response status: ${response.status}`, response.data);
     
+    // Log raw response for debugging
+    console.log('[API] Raw response data:', JSON.stringify(response.data, null, 2));
+    
     // Handle different response structures
     let membersData = [];
-    if (Array.isArray(response.data)) {
-      membersData = response.data;
-      console.log(`[API] Found ${membersData.length} members in array response`);
-    } else if (response.data && Array.isArray(response.data.members)) {
+    if (response.data && response.data.success !== false && Array.isArray(response.data.members)) {
+      // Handle { success: true, members: [...] } format
       membersData = response.data.members;
       console.log(`[API] Found ${membersData.length} members in response.data.members`);
+    } else if (Array.isArray(response.data)) {
+      // Handle direct array response
+      membersData = response.data;
+      console.log(`[API] Found ${membersData.length} members in array response`);
     } else if (response.data && Array.isArray(response.data.data)) {
+      // Handle { data: [...] } format
       membersData = response.data.data;
       console.log(`[API] Found ${membersData.length} members in response.data.data`);
     } else {
-      console.warn('[API] Unexpected response format:', response.data);
+      console.warn('[API] Unexpected response format or error:', response.data);
       if (retryCount < 2) {
         console.log(`[API] Retrying members request (attempt ${retryCount + 2})`);
         return await getTimelineMembers(timelineId, page, limit, retryCount + 1);
@@ -174,25 +181,51 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
     
     // Log detailed member data for debugging
     if (membersData.length > 0) {
-      console.log('[API] First member data sample:', membersData[0]);
+      console.log('[API] First member data sample (before transformation):', membersData[0]);
     } else {
       console.log('[API] No members found in response');
+    }
+    
+    // Log raw members data before transformation
+    console.log('[API] Raw members data before transformation:', JSON.stringify(membersData, null, 2));
+    
+    // Transform backend data structure to match frontend expectations
+    const transformedMembers = membersData.map(member => {
+      // Extract user data from nested user object
+      const userData = member.user || {};
+      
+      const transformed = {
+        userId: member.user_id || userData.id || member.id,  // Use actual user_id first
+        id: member.user_id || userData.id || member.id,      // Use actual user_id first
+        name: userData.username || member.username || member.name, // Get username from user object
+        avatar: userData.avatar_url || member.avatar_url || member.avatar, // Get avatar from user object
+        role: member.role || 'member',       // Default to 'member' if role not provided
+        joinDate: member.joined_at || member.joinDate || new Date().toISOString(),
+        memberId: member.id  // Keep the membership record ID separate
+      };
+      console.log(`[API] Transformed member:`, transformed);
+      return transformed;
+    });
+    
+    // Log transformed data for debugging
+    if (transformedMembers.length > 0) {
+      console.log('[API] First member data sample (after transformation):', transformedMembers[0]);
     }
     
     // Cache the member count in localStorage
     try {
       localStorage.setItem(`timeline_member_count_${timelineId}`, JSON.stringify({
-        count: membersData.length,
+        count: transformedMembers.length,
         timestamp: new Date().toISOString(),
         page,
         limit
       }));
-      console.log(`[API] Cached member count (${membersData.length}) for timeline ${timelineId}`);
+      console.log(`[API] Cached member count (${transformedMembers.length}) for timeline ${timelineId}`);
     } catch (storageError) {
       console.warn('[API] Failed to cache member count:', storageError);
     }
     
-    return membersData;
+    return transformedMembers;
     
   } catch (error) {
     console.error('[API] Error fetching timeline members:', error);

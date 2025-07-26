@@ -29,7 +29,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, updateMemberRole, removeMember } from '../../../utils/api';
+import { getTimelineMembers } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -41,6 +41,8 @@ const MemberListTab = () => {
   const theme = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [members, setMembers] = useState([]);
+  const [error, setError] = useState(null);
+  const [memberCount, setMemberCount] = useState(0);
   const [goldAction, setGoldAction] = useState(null);
   const [bronzeAction, setBronzeAction] = useState(null);
   const [silverAction, setSilverAction] = useState(null);
@@ -72,6 +74,50 @@ const MemberListTab = () => {
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
+  // Fetch members when component mounts or ID changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchMembers = async () => {
+      try {
+        console.log(`[MemberListTab] Fetching members for timeline ID: ${id}`);
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await getTimelineMembers(id);
+        console.log('[MemberListTab] API Response:', response);
+        
+        if (isMounted) {
+          // The API returns { success: true, members: [...] }
+          const membersData = Array.isArray(response) ? response : (response?.members || []);
+          console.log(`[MemberListTab] Processed ${membersData.length} members`);
+          
+          setMembers(membersData);
+          setMemberCount(membersData.length);
+          
+          // Update action thresholds based on member count
+          setShowSilverAction(membersData.length >= memberThresholds.silver);
+          setShowGoldAction(membersData.length >= memberThresholds.gold);
+        }
+      } catch (err) {
+        console.error('Error fetching members:', err);
+        if (isMounted) {
+          setError('Failed to load members. Please try again later.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchMembers();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
   // Quote display state
   const [communityQuote, setCommunityQuote] = useState({
     text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
@@ -289,39 +335,66 @@ const MemberListTab = () => {
         
         console.log('Extracted members data:', membersData);
         
-        // Process member data with better error handling
+        // Handle already-transformed member data from API
         const formattedMembers = membersData.map(member => {
           try {
-            // Log the raw member object for debugging
+            // Log the member object for debugging
             console.log('Processing member:', member);
             
-            // Safely extract user data
-            const userData = member.user || {};
-            const userId = member.user_id || userData.id || member.id;
-            const username = userData.username || member.username || `User ${userId}`;
-            
-            // Format join date
-            let joinDate = new Date().toISOString().split('T')[0];
-            if (member.joined_at) {
-              try {
-                joinDate = new Date(member.joined_at).toISOString().split('T')[0];
-              } catch (e) {
-                console.warn('Invalid join date format:', member.joined_at);
+            // Check if data is already transformed (has 'name' field) or needs transformation
+            if (member.name && member.userId) {
+              // Data is already transformed by API
+              console.log('Using pre-transformed member data:', member);
+              
+              // Format join date if needed
+              let joinDate = member.joinDate;
+              if (member.joined_at && !joinDate) {
+                try {
+                  joinDate = new Date(member.joined_at).toISOString().split('T')[0];
+                } catch (e) {
+                  console.warn('Invalid join date format:', member.joined_at);
+                  joinDate = new Date().toISOString().split('T')[0];
+                }
               }
+              
+              return {
+                id: member.userId || member.id,
+                userId: member.userId || member.id,
+                memberId: member.memberId || member.id,
+                name: member.name,
+                role: member.role || 'member',
+                joinDate: joinDate || new Date().toISOString().split('T')[0],
+                avatar: member.avatar || `https://i.pravatar.cc/150?u=${member.userId || member.id}`,
+                _raw: member
+              };
+            } else {
+              // Data needs transformation (fallback for raw backend data)
+              console.log('Transforming raw member data:', member);
+              
+              const userData = member.user || {};
+              const userId = member.user_id || userData.id || member.id;
+              const username = userData.username || member.username || (userId ? `User ${userId}` : 'Unknown User');
+              
+              let joinDate = new Date().toISOString().split('T')[0];
+              if (member.joined_at) {
+                try {
+                  joinDate = new Date(member.joined_at).toISOString().split('T')[0];
+                } catch (e) {
+                  console.warn('Invalid join date format:', member.joined_at);
+                }
+              }
+              
+              return {
+                id: userId,
+                userId: userId,
+                memberId: member.id,
+                name: username,
+                role: member.role || 'member',
+                joinDate: joinDate,
+                avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?u=${userId}`,
+                _raw: member
+              };
             }
-            
-            // Create the formatted member object
-            return {
-              id: userId,
-              userId: userId,
-              memberId: member.id,
-              name: username,
-              role: member.role || 'member',
-              joinDate: joinDate,
-              avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?u=${userId}`,
-              // Include raw data for debugging
-              _raw: member
-            };
           } catch (error) {
             console.error('Error processing member:', member, error);
             return null;
@@ -1216,21 +1289,6 @@ const MemberListTab = () => {
               <Typography>Loading members...</Typography>
             </Box>
           )}
-          
-          {/* Loading indicator for pagination */}
-          {isLoadingMore && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-              <Typography>Loading more members...</Typography>
-            </Box>
-          )}
-          
-          {/* No more members message */}
-          {!isLoading && !isLoadingMore && members.length > 0 && !hasMore && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-              <Typography variant="body2" color="text.secondary">No more members to load</Typography>
-            </Box>
-          )}
-      
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -1365,15 +1423,6 @@ const MemberListTab = () => {
           </motion.div>
           {/* End of list message */}
           {!hasMore && members.length > 0 && !isLoading && !isLoadingMore && (
-            <Box sx={{ py: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                You've reached the end of the member list
-              </Typography>
-            </Box>
-          )}
-          
-          {/* End of list message */}
-          {!hasMore && members.length > 0 && (
             <Box sx={{ py: 3, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 You've reached the end of the member list
