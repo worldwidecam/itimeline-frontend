@@ -51,11 +51,39 @@ The iTimeline application now supports Community Timelines, a new type of timeli
 - ✅ Community timeline membership status checking
 - ✅ Join community functionality
 - ✅ Event display and management for community timelines
-- ✅ **End-to-end membership system fully functional** (July 2025)
-  - Members display with correct usernames, roles, and avatars
-  - Proper data flow from backend to frontend
-  - Real-time member count updates
-  - No more fallback displays ("Unknown User" issues resolved)
+- ✅ **MEMBERSHIP SYSTEM REWRITE COMPLETE** (July 29, 2025)
+  - ✅ **User-confirmed working**: Member list shows correct count, join button works end-to-end
+  - ✅ **Backend**: Pure SQLAlchemy implementation, new clean `/api/v1/membership/` endpoints
+  - ✅ **Frontend**: Simplified API calls, streamlined data flow
+  - ✅ **Database**: Proper TimelineMember records, automatic creator admin membership
+  - ✅ **Real-time updates**: Member list refreshes immediately when users join
+  - ✅ **Multi-user tested**: Confirmed working with multiple user accounts
+
+#### Membership System Architecture (July 2025)
+
+The membership system was completely rewritten from scratch to provide a clean, reliable foundation for community timeline features.
+
+**Backend Implementation**:
+- **Pure SQLAlchemy ORM**: Eliminated problematic sqlite3/SQLAlchemy mixing
+- **Clean API Structure**: New `/api/v1/membership/` endpoints with consistent responses
+- **Automatic Membership Logic**: 
+  - Timeline creators automatically get admin role
+  - SiteOwner (User ID 1) has access to all timelines
+  - Join requests create proper database records
+- **Role Hierarchy**: member < moderator < admin < siteowner
+
+**Frontend Implementation**:
+- **Simplified API Calls**: Reduced from 15+ functions to clean, consistent calls
+- **Streamlined Data Flow**: Single source of truth with minimal caching
+- **Real-time Updates**: Member lists refresh immediately when users join
+- **Error Handling**: Robust error handling prevents UI crashes
+
+**Key Endpoints**:
+```
+GET  /api/v1/membership/timelines/{id}/members    # List members
+POST /api/v1/membership/timelines/{id}/join      # Join timeline
+GET  /api/v1/membership/timelines/{id}/status    # Check membership status
+```
 
 ### Recent Bugfixes and Lessons Learned
 
