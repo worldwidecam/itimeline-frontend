@@ -1,53 +1,220 @@
-# CURRENT PROGRESS (June 2025)
+# MEMBERSHIP SYSTEM AUDIT - iTimeline Application
 
-## UI Implementation Strategy
-We are currently following an incremental approach to developing the community timeline features. Our strategy is to:
+## ⚠️ CRITICAL STATUS ASSESSMENT
 
-1. **Build UI First**: Create a complete, polished UI with placeholders before implementing backend functionality
-2. **Use Simulated Data**: Implement loading states and simulated data to test UI components
-3. **Focus on User Experience**: Prioritize animations, transitions, and visual polish
-4. **Prepare for Backend Integration**: Design components with real data integration in mind
+### ✅ CONFIRMED WORKING
+- **UserPassport System**: Only membership-related functionality confirmed to work correctly
 
-## Recently Completed Features
+### ❌ CONFIRMED BROKEN
+- **Timeline Creation Membership**: Creating timeline with User 2 does not add User 2 to TimelineMember table
+- **Join Community Functionality**: User 2 joining timeline 5 does not add User 2 to TimelineMember table
+- **Member List Display**: Shows 0 members when logged in as non-SiteOwner users
 
-### Community Timeline Creation
-- ✅ Enhanced timeline creation dialog with type selection (hashtag/community)
-- ✅ Added visibility options for community timelines (public/private)
-- ✅ Implemented the "i-" prefix styling with Lobster font
-- ✅ Updated API calls to include timeline_type and visibility parameters
+### ❓ UNCONFIRMED/UNTESTED
+- All other membership-related functionality must be considered unconfirmed until explicitly tested
 
-### Community Timeline Navigation
-- ✅ Created minimalist dot tabs for Timeline, Members, and Admin views
-- ✅ Replaced emoji icons with Material-UI icons for better consistency
-- ✅ Enhanced tooltips with detailed descriptions and improved styling
-- ✅ Added smooth animations and transitions between tabs
+---
 
-### Members Tab
-- ✅ Implemented tiered action system with Gold, Silver, and Bronze action elements
-- ✅ Created member list with role-based styling and avatars
-- ✅ Added member counter badge showing total community members
-- ✅ Implemented infinite scroll for efficient member list loading
-- ✅ Added profile linking for member avatars (opens in new tab)
-- ✅ Added loading skeletons for better perceived performance
-- ✅ Implemented smooth staggered animations for list items
+## 📊 DATABASE TABLES
 
-### Admin Panel
-- ✅ Created tabbed interface for "Manage Members" and "Settings"
-- ✅ Added interactive controls for timeline name, description, and visibility
-- ✅ Implemented warning alerts for important actions
-- ✅ Added simulated data loading with placeholders
+### TimelineMember Table (Primary membership storage)
+**Location**: Backend database schema
+**Fields**:
+- `id` - Primary key
+- `timeline_id` - Foreign key to Timeline table
+- `user_id` - Foreign key to User table
+- `role` - Enum: admin, moderator, member, pending, SiteOwner
+- `is_active_member` - Boolean for active status
+- `joined_at` - Timestamp of joining
+- `invited_by` - Foreign key to User table (optional)
 
-## Current Work in Progress
+**Status**: ❌ NOT PROPERLY POPULATED - Timeline creation and join functionality not writing to this table
 
-### Community Timeline Membership System
-- ✅ Added user relationship to TimelineMember model
-- ✅ Implemented eager loading of user data in members endpoint
-- ✅ Updated backend to ensure timeline creator appears as Admin
-- ✅ Reserved SiteOwner role exclusively for Brahdyssey (user ID 1)
-- ✅ Implemented case-insensitive role handling in frontend
-- ✅ Updated role color coordination in member list
-- ✅ Fixed membership status checking API endpoint (/api/v1/timelines/{id}/membership-status)
-- ✅ Implemented join community functionality with proper error handling
+### Timeline Table (Timeline metadata)
+**Location**: Backend database schema
+**Fields**:
+- `id` - Primary key
+- `name` - Timeline name
+- `created_by` - Foreign key to User table
+- `visibility` - Enum: public, private
+- `timeline_type` - Enum: hashtag, community
+- `members` - Relationship to TimelineMember
+
+**Status**: ❓ UNCONFIRMED - Relationship to TimelineMember may not be working
+
+### User Table
+**Location**: Backend database schema
+**Fields**:
+- `id` - Primary key
+- `username` - User display name
+- `email` - User email
+- `avatar_url` - Profile picture URL
+- `memberships` - Relationship to TimelineMember
+
+**Status**: ❓ UNCONFIRMED - Relationship to TimelineMember may not be working
+
+---
+
+## 🔌 BACKEND API ENDPOINTS
+
+### Member List Endpoint
+**Route**: `GET /api/v1/timelines/<int:timeline_id>/members`
+**Location**: `app.py` lines 2601-2704
+**Purpose**: Returns all active members for a timeline
+**Authentication**: JWT required
+**Status**: ❌ BROKEN - Returns empty results for non-SiteOwner users
+
+### Join Community Endpoint
+**Route**: `POST /api/v1/timelines/<int:timeline_id>/access-requests`
+**Location**: `app.py` lines 2690-2787
+**Purpose**: Adds user to TimelineMember table
+**Authentication**: JWT required
+**Status**: ❌ BROKEN - Does not properly write to database
+
+### Membership Status Check Endpoint
+**Route**: `GET /api/v1/timelines/<int:timeline_id>/membership-status`
+**Location**: `routes/community.py` lines 503-551
+**Purpose**: Checks if current user is a member
+**Authentication**: JWT required
+**Status**: ❓ UNCONFIRMED - Recently fixed import issues but functionality unverified
+
+### Timeline Creation Endpoint
+**Route**: `POST /api/timeline-v3`
+**Location**: `app.py` lines 1691-1754
+**Purpose**: Creates new timeline and should add creator as admin
+**Authentication**: JWT required
+**Status**: ❌ BROKEN - Does not add creator to TimelineMember table
+
+### Community Timeline Creation Endpoint
+**Route**: `POST /api/v1/timelines/community`
+**Location**: `routes/community.py` lines 117-165
+**Purpose**: Creates community timeline
+**Authentication**: JWT required
+**Status**: ❓ UNCONFIRMED - May have same issues as main timeline creation
+
+---
+
+## 🎨 FRONTEND COMPONENTS
+
+### MemberListTab Component
+**Location**: `src/components/timeline-v3/community/MemberListTab.js`
+**Purpose**: Displays list of timeline members
+**Dependencies**: `getTimelineMembers()` API function
+**Status**: ❓ UNCONFIRMED - UI works but depends on broken backend
+
+### MembershipGuard Component
+**Location**: `src/components/timeline-v3/community/MembershipGuard.js`
+**Purpose**: Protects routes requiring membership
+**Dependencies**: `checkMembershipStatus()` API function
+**Status**: ❓ UNCONFIRMED - Logic exists but backend dependency unverified
+
+### CommunityDotTabs Component
+**Location**: `src/components/timeline-v3/community/CommunityDotTabs.js`
+**Purpose**: Navigation between Timeline, Members, Admin views
+**Status**: ❓ UNCONFIRMED - UI component, functionality depends on membership system
+
+### AdminPanel Component
+**Location**: `src/components/timeline-v3/community/AdminPanel.js`
+**Purpose**: Administrative interface for timeline management
+**Status**: ❓ UNCONFIRMED - UI component, functionality depends on membership system
+
+### TimelineNameDisplay Component
+**Location**: `src/components/timeline-v3/TimelineNameDisplay.js`
+**Purpose**: Renders timeline names with proper formatting
+**Status**: ✅ LIKELY WORKING - Simple display component
+
+---
+
+## 📡 FRONTEND API FUNCTIONS
+
+### getTimelineMembers()
+**Location**: `src/utils/api.js` lines 139-269
+**Purpose**: Fetches member list from backend
+**Endpoint**: `GET /api/v1/timelines/${timelineId}/members`
+**Status**: ❌ BROKEN - Backend returns empty results
+
+### requestTimelineAccess()
+**Location**: `src/utils/api.js` lines 417-501
+**Purpose**: Sends join community request
+**Endpoint**: `POST /api/v1/timelines/${timelineId}/access-requests`
+**Status**: ❌ BROKEN - Does not properly write to database
+
+### checkMembershipStatus()
+**Location**: `src/utils/api.js` lines 503-587
+**Purpose**: Checks if user is timeline member
+**Endpoint**: `GET /api/v1/timelines/${timelineId}/membership-status`
+**Status**: ❓ UNCONFIRMED - Recently fixed backend import issues
+
+### fetchUserPassport()
+**Location**: `src/utils/api.js` lines 606-704
+**Purpose**: Fetches user's timeline memberships
+**Endpoint**: `GET /api/v1/user/passport`
+**Status**: ❌ BROKEN - Returns 500 error: missing sqlite3 import, blueprint not registered
+
+### syncUserPassport()
+**Location**: `src/utils/api.js` lines 706-781
+**Purpose**: Syncs passport with server after membership changes
+**Endpoint**: `POST /api/v1/user/passport/sync`
+**Status**: ❌ BROKEN - Same issues as fetchUserPassport: missing imports, blueprint not registered
+
+---
+
+## 🔄 DATA FLOW ANALYSIS
+
+### Expected Join Flow
+1. User clicks "Join Community" button
+2. Frontend calls `requestTimelineAccess(timelineId)`
+3. Backend receives POST to `/api/v1/timelines/${timelineId}/access-requests`
+4. Backend creates record in TimelineMember table
+5. Frontend updates localStorage and syncs UserPassport
+6. Member list refreshes and shows new member
+
+**Current Status**: ❌ BROKEN at step 4 - Database record not created
+
+### Expected Member List Flow
+1. Frontend calls `getTimelineMembers(timelineId)`
+2. Backend queries TimelineMember table for timeline
+3. Backend joins with User table for user details
+4. Backend returns processed member list
+5. Frontend displays members in MemberListTab
+
+**Current Status**: ❌ BROKEN at step 2 - Query returns empty results for non-SiteOwner
+
+### Expected Timeline Creation Flow
+1. User creates timeline via frontend form
+2. Frontend calls timeline creation API
+3. Backend creates Timeline record
+4. Backend creates TimelineMember record for creator as admin
+5. Creator appears in member list
+
+**Current Status**: ❌ BROKEN at step 4 - Creator not added to TimelineMember table
+
+---
+
+## 🎯 SPECIAL LOGIC & ROLES
+
+### SiteOwner Role (User ID 1)
+**Expected Behavior**: Should appear as member of all timelines with SiteOwner role
+**Current Behavior**: Only works when User ID 1 is logged in
+**Status**: ❌ BROKEN - Exception logic tied to current user, not member list
+
+### Timeline Creator Role
+**Expected Behavior**: Should automatically be admin member of created timeline
+**Current Behavior**: Not added to TimelineMember table during creation
+**Status**: ❌ BROKEN - Creator membership not established
+
+### Public vs Private Timeline Logic
+**Expected Behavior**: Public allows immediate membership, private requires approval
+
+---
+
+## 🚨 ASSUMPTIONS TO AVOID
+
+- Do not assume any endpoint "works" without explicit database verification
+- Do not assume UI functionality implies backend functionality
+- Do not assume exception logic works without testing all user scenarios
+- Do not assume database relationships work without explicit testing
+- Do not assume error-free API responses indicate successful database operations
 - ✅ Added isMember state to TimelineV3.js for conditional UI rendering
 - ✅ Fixed critical bug in TimelineV3.js (missing handleEventDelete function)
 - ✅ Fixed conditional rendering of Join Community/Add Event buttons

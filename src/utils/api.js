@@ -143,7 +143,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
     console.log(`[API] Making request to: ${url}`);
     console.log('[API] Current JWT token:', getCookie('access_token') || localStorage.getItem('access_token')); // Log the token for debugging
     
-    const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
+    const response = await api.get(`/api/v1/membership/timelines/${timelineId}/members`, {
       params: { page, limit },
       headers: {
         'Cache-Control': 'no-cache',
@@ -433,9 +433,9 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       console.warn('Failed to pre-emptively save membership status to localStorage:', storageError);
     }
     
-    // Make the actual API call
-    const response = await api.post(`/api/v1/timelines/${timelineId}/access-requests`);
-    console.log('Access request response:', response.data);
+    // Make the actual API call using NEW CLEAN JOIN ENDPOINT
+    const response = await api.post(`/api/v1/membership/timelines/${timelineId}/join`);
+    console.log('Join timeline response:', response.data);
     
     // Verify the response contains expected data
     if (!response.data || (typeof response.data.message === 'undefined' && typeof response.data.status === 'undefined')) {
@@ -557,9 +557,9 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
         }
       }
 
-      // Make API call to check membership status
+      // Make API call to check membership status using NEW CLEAN ENDPOINT
       console.log(`Checking membership status for timeline ${timelineId} (attempt ${retryCount + 1})`);
-      const response = await api.get(`/api/v1/timelines/${timelineId}/membership-status`);
+      const response = await api.get(`/api/v1/membership/timelines/${timelineId}/status`);
       
       // Store the result in localStorage for future use
       try {
