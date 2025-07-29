@@ -202,6 +202,33 @@ const LandingPage = () => {
                 WebkitMaskComposite: 'xor',
                 maskComposite: 'exclude',
                 pointerEvents: 'none'
+              },
+              '&::after': {
+                content: '"Not Yet Available, Seeking Funding!"',
+                position: 'absolute',
+                bottom: '-15px',
+                right: '-20px',
+                transform: 'rotate(-15deg)',
+                fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                fontFamily: '"Courier New", monospace',
+                fontWeight: 'bold',
+                color: '#FFD700',
+                textShadow: `
+                  2px 2px 0px #B8860B,
+                  -1px -1px 0px #B8860B,
+                  1px -1px 0px #B8860B,
+                  -1px 1px 0px #B8860B,
+                  1px 1px 0px #B8860B,
+                  0 0 10px rgba(255, 215, 0, 0.8),
+                  0 0 20px rgba(255, 215, 0, 0.6)
+                `,
+                background: 'rgba(0, 0, 0, 0.7)',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '2px solid #FFD700',
+                whiteSpace: 'nowrap',
+                zIndex: 10,
+                animation: 'pulse 2s ease-in-out infinite alternate'
               }
             }}
           >

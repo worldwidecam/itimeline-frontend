@@ -1,404 +1,179 @@
-# MEMBERSHIP SYSTEM AUDIT - iTimeline Application
-
-## 🎉 MEMBERSHIP SYSTEM REWRITE COMPLETE - CONFIRMED WORKING
+# ACTION CARDS IMPLEMENTATION - iTimeline Community Timelines
 
 **Last Updated**: July 29, 2025
-**Status**: ✅ COMPLETE SUCCESS - All core membership functionality working end-to-end
+**Status**: 🔧 IN PROGRESS - Core UI complete, backend integration blocked by authentication errors
 
-### ✅ CONFIRMED WORKING (User Tested)
-- **Member List Display**: Shows correct member count, real-time updates confirmed
-- **Join Community Functionality**: Users can successfully join and are added to database
-- **Timeline Creation Membership**: Creators automatically get admin membership
-- **Backend Endpoints**: New clean `/api/v1/membership/` endpoints returning 200 OK
-- **Frontend API**: Updated to use new endpoints, simplified data flow
-- **Database Operations**: Pure SQLAlchemy implementation, proper TimelineMember records
+## 🎯 PROJECT OVERVIEW
 
-### 🏗️ ARCHITECTURE REWRITE COMPLETED
-- **Backend**: Replaced broken sqlite3/SQLAlchemy mix with pure SQLAlchemy
-- **Frontend**: Simplified from 15+ API functions to clean, consistent calls
-- **Endpoints**: New clean structure with `/api/v1/membership/` prefix
-- **Data Flow**: Single source of truth, streamlined caching
+### What We're Building
+A Bronze/Silver/Gold action card system for community timelines that encourages member engagement through milestone-based rewards and achievements.
 
----
+### Context & Surroundings
+- **Platform**: iTimeline - A modern timeline creation and sharing platform
+- **Feature**: Community Timelines (collaborative spaces with membership systems)
+- **Scope**: Action cards are timeline-specific, configurable by admins, displayed to members
+- **Tech Stack**: React frontend, Flask backend, SQLAlchemy ORM, Material-UI components
 
-## 📊 DATABASE TABLES
-
-### TimelineMember Table (Primary membership storage)
-**Location**: Backend database schema
-**Fields**:
-- `id` - Primary key
-- `timeline_id` - Foreign key to Timeline table
-- `user_id` - Foreign key to User table
-- `role` - Enum: admin, moderator, member, pending, SiteOwner
-- `is_active_member` - Boolean for active status
-- `joined_at` - Timestamp of joining
-- `invited_by` - Foreign key to User table (optional)
-
-**Status**: ❌ NOT PROPERLY POPULATED - Timeline creation and join functionality not writing to this table
-
-### Timeline Table (Timeline metadata)
-**Location**: Backend database schema
-**Fields**:
-- `id` - Primary key
-- `name` - Timeline name
-- `created_by` - Foreign key to User table
-- `visibility` - Enum: public, private
-- `timeline_type` - Enum: hashtag, community
-- `members` - Relationship to TimelineMember
-
-**Status**: ❓ UNCONFIRMED - Relationship to TimelineMember may not be working
-
-### User Table
-**Location**: Backend database schema
-**Fields**:
-- `id` - Primary key
-- `username` - User display name
-- `email` - User email
-- `avatar_url` - Profile picture URL
-- `memberships` - Relationship to TimelineMember
-
-**Status**: ❓ UNCONFIRMED - Relationship to TimelineMember may not be working
+### How We're Implementing It
+1. **Database Layer**: TimelineAction model storing action card configurations per timeline
+2. **Backend API**: CRUD endpoints for action card management with admin permissions
+3. **Frontend UI**: AdminPanel for configuration, MemberListTab for display
+4. **Real-time Updates**: localStorage-based refresh system for immediate UI updates
+5. **Visual Feedback**: Enhanced FAB save button with state transitions
 
 ---
 
-## 🔌 BACKEND API ENDPOINTS
+## ✅ ACCOMPLISHED SO FAR
 
-### Member List Endpoint
-**Route**: `GET /api/v1/timelines/<int:timeline_id>/members`
-**Location**: `app.py` lines 2601-2704
-**Purpose**: Returns all active members for a timeline
-**Authentication**: JWT required
-**Status**: ❌ BROKEN - Returns empty results for non-SiteOwner users
+### Backend Implementation
+- ✅ **TimelineAction Model**: Complete SQLAlchemy model with all required fields
+  - `action_type` (bronze/silver/gold), `title`, `description`, `due_date`
+  - `threshold_type`, `threshold_value`, `timeline_id`, `created_by`, `is_active`
+  - Unique constraint preventing duplicate action types per timeline
+- ✅ **Database Table**: Created `timeline_action` table successfully
+- ✅ **API Endpoints**: Implemented CRUD operations at `/api/v1/timelines/{id}/actions`
+  - GET: Retrieve all action cards for a timeline
+  - POST: Create/update action cards with admin permission checks
+  - Proper error handling and validation
 
-### Join Community Endpoint
-**Route**: `POST /api/v1/timelines/<int:timeline_id>/access-requests`
-**Location**: `app.py` lines 2690-2787
-**Purpose**: Adds user to TimelineMember table
-**Authentication**: JWT required
-**Status**: ❌ BROKEN - Does not properly write to database
+### Frontend Implementation
+- ✅ **AdminPanel Settings Tab**: Complete configuration interface
+  - Form fields for title, description, due date, thresholds
+  - Material-UI components with proper validation
+  - Bronze/Silver/Gold sections with color-coded styling
+- ✅ **MemberListTab Display**: Beautiful action card UI
+  - Bronze action card with bronze-themed styling and gradients
+  - Silver and Gold action cards with tier-appropriate designs
+  - Loading states, error handling, responsive design
+- ✅ **Enhanced FAB Save Button**: Visual feedback system
+  - "Save Changes" → "Saving..." → "SAVED!" state transitions
+  - Color changes (primary → green), icon changes (save → checkmark)
+  - Auto-hide after 2 seconds with smooth animations
+- ✅ **API Integration**: Frontend functions for action card operations
+  - `getTimelineActions()`, `saveTimelineActions()` with error handling
+  - Real-time refresh system using localStorage triggers
+- ✅ **State Management**: Proper React state handling
+  - Action card content states (title, description, dates, thresholds)
+  - Loading states, save states, error states
+  - Snackbar notifications for user feedback
 
-### Membership Status Check Endpoint
-**Route**: `GET /api/v1/timelines/<int:timeline_id>/membership-status`
-**Location**: `routes/community.py` lines 503-551
-**Purpose**: Checks if current user is a member
-**Authentication**: JWT required
-**Status**: ❓ UNCONFIRMED - Recently fixed import issues but functionality unverified
-
-### Timeline Creation Endpoint
-**Route**: `POST /api/timeline-v3`
-**Location**: `app.py` lines 1691-1754
-**Purpose**: Creates new timeline and should add creator as admin
-**Authentication**: JWT required
-**Status**: ❌ BROKEN - Does not add creator to TimelineMember table
-
-### Community Timeline Creation Endpoint
-**Route**: `POST /api/v1/timelines/community`
-**Location**: `routes/community.py` lines 117-165
-**Purpose**: Creates community timeline
-**Authentication**: JWT required
-**Status**: ❓ UNCONFIRMED - May have same issues as main timeline creation
-
----
-
-## 🎨 FRONTEND COMPONENTS
-
-### MemberListTab Component
-**Location**: `src/components/timeline-v3/community/MemberListTab.js`
-**Purpose**: Displays list of timeline members
-**Dependencies**: `getTimelineMembers()` API function
-**Status**: ❓ UNCONFIRMED - UI works but depends on broken backend
-
-### MembershipGuard Component
-**Location**: `src/components/timeline-v3/community/MembershipGuard.js`
-**Purpose**: Protects routes requiring membership
-**Dependencies**: `checkMembershipStatus()` API function
-**Status**: ❓ UNCONFIRMED - Logic exists but backend dependency unverified
-
-### CommunityDotTabs Component
-**Location**: `src/components/timeline-v3/community/CommunityDotTabs.js`
-**Purpose**: Navigation between Timeline, Members, Admin views
-**Status**: ❓ UNCONFIRMED - UI component, functionality depends on membership system
-
-### AdminPanel Component
-**Location**: `src/components/timeline-v3/community/AdminPanel.js`
-**Purpose**: Administrative interface for timeline management
-**Status**: ❓ UNCONFIRMED - UI component, functionality depends on membership system
-
-### TimelineNameDisplay Component
-**Location**: `src/components/timeline-v3/TimelineNameDisplay.js`
-**Purpose**: Renders timeline names with proper formatting
-**Status**: ✅ LIKELY WORKING - Simple display component
+### UI/UX Features
+- ✅ **Dynamic Thresholds**: Action cards appear/disappear based on member count
+- ✅ **Admin Controls**: Only timeline creators and admins can configure cards
+- ✅ **Visual Hierarchy**: Clear distinction between Bronze/Silver/Gold tiers
+- ✅ **Responsive Design**: Works across desktop and mobile devices
+- ✅ **Loading States**: Skeleton loaders and smooth transitions
 
 ---
 
-## 📡 FRONTEND API FUNCTIONS
+## 🚨 REMAINING ISSUES
 
-### getTimelineMembers() - ✅ WORKING
-**Location**: `src/utils/api.js` lines 139-269
-**Purpose**: Fetches member list from backend
-**Endpoint**: `GET /api/v1/membership/timelines/${timelineId}/members` (NEW CLEAN ENDPOINT)
-**Status**: ✅ CONFIRMED WORKING - Returns proper member lists with SiteOwner auto-inclusion
+### Critical Backend Errors
+1. **500 Internal Server Error**: 
+   - Endpoint: `GET /api/v1/timelines/5/actions`
+   - Likely cause: Authentication/JWT token validation issues
+   - Impact: Cannot load existing action cards
 
-### requestTimelineAccess() - ✅ WORKING
-**Location**: `src/utils/api.js` lines 417-501
-**Purpose**: Sends join community request
-**Endpoint**: `POST /api/v1/membership/timelines/${timelineId}/join` (NEW CLEAN ENDPOINT)
-**Status**: ✅ CONFIRMED WORKING - Successfully adds members to database and updates UI
+2. **403 Forbidden Error**:
+   - Endpoint: `POST /api/v1/timelines/5/actions`
+   - Likely cause: Permission validation logic in `is_admin()` check
+   - Impact: Cannot save new action cards
 
-### checkMembershipStatus() - ✅ WORKING
-**Location**: `src/utils/api.js` lines 503-587
-**Purpose**: Checks if user is timeline member
-**Endpoint**: `GET /api/v1/membership/timelines/${timelineId}/status` (NEW CLEAN ENDPOINT)
-**Status**: ✅ CONFIRMED WORKING - Returns proper membership status with 200 OK responses
+3. **Frontend Reference Error** (FIXED):
+   - ~~Error: `setSnackbarMessage is not defined`~~
+   - ✅ Fixed: Added missing snackbar state variables and Snackbar component
 
-### getTimelineMembers() - ✅ WORKING
-**Location**: `src/utils/api.js` lines 139-278
-**Purpose**: Fetches timeline member list
-**Endpoint**: `GET /api/v1/membership/timelines/${timelineId}/members` (NEW CLEAN ENDPOINT)
-**Status**: ✅ CONFIRMED WORKING - Displays member list correctly, shows real-time updates
+### Authentication/Permission Issues
+- Backend endpoints require JWT authentication but may have token validation problems
+- Admin permission checks may be failing for valid admin users
+- Need to debug the `is_admin()` method on TimelineMember model
 
-### fetchUserPassport() - ✅ WORKING
-**Location**: `src/utils/api.js` lines 606-704
-**Purpose**: Fetches user's timeline memberships
-**Endpoint**: `GET /api/v1/user/passport`
-**Status**: ✅ WORKING - Fixed SQLAlchemy import issues, returns proper data
-
-### syncUserPassport() - ⚠️ LEGACY
-**Location**: `src/utils/api.js` lines 706-781
-**Purpose**: Syncs passport with server after membership changes
-**Endpoint**: `POST /api/v1/user/passport/sync`
-**Status**: ⚠️ LEGACY - Still uses raw sqlite3, but new membership system bypasses this complexity
+### Data Flow Problems
+- Action cards not loading from database due to backend errors
+- Save operations failing, preventing persistence
+- Member list not refreshing with saved action card data
 
 ---
 
-## 🔄 DATA FLOW ANALYSIS
+## 🎯 PERFECT IMPLEMENTATION VISION
 
-### ✅ CONFIRMED WORKING Join Flow
-1. User clicks "Join Community" button
-2. Frontend calls `requestTimelineAccess(timelineId)`
-3. Backend receives POST to `/api/v1/membership/timelines/${timelineId}/join` (NEW CLEAN ENDPOINT)
-4. Backend creates record in TimelineMember table using pure SQLAlchemy
-5. Frontend updates localStorage and UI immediately
-6. Member list refreshes and shows new member in real-time
+### User Experience Flow
+1. **Admin Configuration**:
+   - Navigate to Admin Panel → Settings Tab
+   - Fill out Bronze action card (title: "Welcome New Members", description: "Help onboard 5 new community members", threshold: 5 members)
+   - Click FAB save button → Shows "Saving..." → Changes to green "SAVED!" → Disappears
+   - Immediate visual confirmation of successful save
 
-**Current Status**: ✅ CONFIRMED WORKING - Complete end-to-end functionality verified with multiple users
+2. **Member Experience**:
+   - Navigate to Members Tab
+   - See Bronze action card displayed with admin's configuration
+   - Card shows progress: "Currently 2/5 members" with progress indicator
+   - Card unlocks when threshold is reached, showing completion state
 
-### ✅ CONFIRMED WORKING Member List Flow
-1. Frontend calls `getTimelineMembers(timelineId)`
-2. Backend queries TimelineMember table for timeline
-3. Backend joins with User table for user details
-4. Backend returns processed member list
-5. Frontend displays members in MemberListTab
+3. **Real-time Updates**:
+   - Changes in Admin Panel immediately reflect in Members Tab
+   - No page refresh required
+   - Smooth animations and transitions throughout
 
-**Current Status**: ❌ BROKEN at step 2 - Query returns empty results for non-SiteOwner
+### Technical Excellence
+- **Zero Backend Errors**: All API endpoints return 200 OK responses
+- **Seamless Authentication**: JWT tokens validate properly, admin permissions work
+- **Database Persistence**: Action cards save to database and load correctly
+- **Real-time Sync**: Member list updates immediately when action cards change
+- **Error Resilience**: Graceful handling of network errors and edge cases
+- **Performance**: Fast loading, smooth animations, responsive UI
 
-### Expected Timeline Creation Flow
-1. User creates timeline via frontend form
-2. Frontend calls timeline creation API
-3. Backend creates Timeline record
-4. Backend creates TimelineMember record for creator as admin
-5. Creator appears in member list
-
-**Current Status**: ❌ BROKEN at step 4 - Creator not added to TimelineMember table
-
----
-
-## 🎯 SPECIAL LOGIC & ROLES
-
-### SiteOwner Role (User ID 1)
-**Expected Behavior**: Should appear as member of all timelines with SiteOwner role
-**Current Behavior**: Only works when User ID 1 is logged in
-**Status**: ❌ BROKEN - Exception logic tied to current user, not member list
-
-### Timeline Creator Role
-**Expected Behavior**: Should automatically be admin member of created timeline
-**Current Behavior**: Not added to TimelineMember table during creation
-**Status**: ❌ BROKEN - Creator membership not established
-
-### Public vs Private Timeline Logic
-**Expected Behavior**: Public allows immediate membership, private requires approval
+### Feature Completeness
+- **All Three Tiers**: Bronze, Silver, Gold action cards fully functional
+- **Flexible Configuration**: Admins can set custom titles, descriptions, due dates, thresholds
+- **Dynamic Display**: Cards appear/disappear based on member count automatically
+- **Progress Tracking**: Visual indicators showing progress toward thresholds
+- **Achievement System**: Celebration animations when thresholds are reached
 
 ---
 
-## 🚨 ASSUMPTIONS TO AVOID
+## 🔧 IMMEDIATE NEXT STEPS
 
-- Do not assume any endpoint "works" without explicit database verification
-- Do not assume UI functionality implies backend functionality
-- Do not assume exception logic works without testing all user scenarios
-- Do not assume database relationships work without explicit testing
-- Do not assume error-free API responses indicate successful database operations
-- ✅ Added isMember state to TimelineV3.js for conditional UI rendering
-- ✅ Fixed critical bug in TimelineV3.js (missing handleEventDelete function)
-- ✅ Fixed conditional rendering of Join Community/Add Event buttons
-- ✅ Implemented immediate UI feedback when joining communities
-- ✅ Enhanced backend membership status check to handle creators and SiteOwner
-- ✅ Fixed backend API endpoint to add creator as admin during timeline creation
-- ✅ Diagnosed empty database issue causing membership recognition problems
-- ✅ Created database initialization script with test users, timelines, and membership records
-- ✅ Verified membership system logic works correctly with proper database records
-- ✅ Confirmed special cases for SiteOwner and timeline creators are handled correctly
-- ✅ Validated that the backend correctly identifies membership status for all test cases
-- ✅ Created test scripts to verify membership status logic directly from the database
-- 🔄 In progress: Creating a functional way for community timelines to have a members list
-- 🔄 In progress: Adding member count display to timeline header
-- 🔄 In progress: Connecting members page to backend API
-- 🔄 In progress: Adding visual indicators for user roles
+### Priority 1: Fix Backend Authentication
+1. Debug JWT token validation in action card endpoints
+2. Test admin permission logic with actual user accounts
+3. Verify TimelineMember.is_admin() method works correctly
+4. Ensure database queries return proper results
 
-### Recent Bugfixes
-- ✅ Fixed TimelineV3.js crash due to missing handleEventDelete function
-- ✅ Enhanced API error handling to prevent UI crashes
-- ✅ Improved React Error Boundary implementation
-- ✅ Fixed API endpoint prefixing for community timeline endpoints
-- ✅ Added detailed error logging for easier debugging
+### Priority 2: Test Complete Flow
+1. Fill out Bronze action card in Admin Settings
+2. Verify FAB button shows proper "Saving..." → "SAVED!" feedback
+3. Navigate to Members Tab and confirm Bronze card displays
+4. Test with multiple action card tiers
 
-### Community Timeline Membership Debugging Findings
+### Priority 3: Polish & Edge Cases
+1. Add error handling for failed saves
+2. Implement retry logic for network failures
+3. Add validation for required fields
+4. Test with different user roles and permissions
 
-#### Root Cause Analysis
-- ✅ Identified that the database file existed but was empty (0 bytes)
-- ✅ Confirmed that backend code and models were correctly implemented
-- ✅ Verified that frontend membership logic was correctly implemented
-- ✅ Determined that the issue was due to lack of actual data in the database
+---
 
-#### Solution Implementation
-- ✅ Created database initialization script (`init_test_db.py`) that:
-  - Removes any existing database file
-  - Creates all necessary tables with correct schema
-  - Inserts test users including SiteOwner and regular users
-  - Creates test timelines (hashtag and community types)
-  - Inserts timeline membership records with appropriate roles
-  - Adds sample events for testing
+## 📋 TECHNICAL DEBT & IMPROVEMENTS
 
-#### Verification Results
-- ✅ All test cases for membership status passed successfully
-- ✅ SiteOwner correctly has access to all timelines
-- ✅ Timeline creators are correctly recognized as admins
-- ✅ Members have appropriate access based on their roles
-- ✅ Non-members are correctly identified
+### Code Quality
+- Consider extracting action card form logic into reusable components
+- Add TypeScript for better type safety
+- Implement unit tests for action card functionality
+- Add integration tests for end-to-end flows
 
-#### Next Steps
-- Test the frontend with the initialized database
-- Verify that the "Join Community" and "Add Event" buttons appear correctly
-- Test the join functionality for both public and private communities
-- Implement the members list UI connected to the backend
-- Add proper error handling for edge cases
+### Performance Optimizations
+- Implement debounced saving for form fields
+- Add optimistic updates for better perceived performance
+- Consider caching action card data to reduce API calls
 
-### Action Card System
-- ✅ Implemented conditional display requirements for Silver and Gold actions
-- ✅ Added quote fallback system when actions are not configured
-- ✅ Created AdminPanel settings for configuring action cards
-- ✅ Implemented local storage persistence for action settings
-- ✅ Added action card loading states with simulated network delays
-- ✅ Implemented locked state for Gold actions when threshold requirements aren't met
-- 🔄 In progress: Implementing locked state for Silver and Bronze actions
+### User Experience Enhancements
+- Add undo functionality for accidental changes
+- Implement draft saving for incomplete configurations
+- Add bulk operations for managing multiple action cards
+- Create action card templates for common use cases
 
-## Prerequisites List for Community Timeline Features
-
-To successfully implement the community timeline features, we need to develop several foundational systems. This list outlines the prerequisites that must be built before the UI features can be fully functional.
-
-### 1. Core Membership System
-- **User-Timeline Relationship Model**: Database schema to track which users belong to which timelines
-- **Role-Based Access Control**: Database schema for storing user roles within timelines
-- **Follow/Join API Endpoints**: Backend support for users to join/follow timelines
-- **Membership Status Tracking**: Logic to track pending/approved/blocked status
-
-### 2. Timeline Ownership & Permissions
-- **Timeline Creator Attribution**: Store and track who created each timeline
-- **Permission Hierarchy**: Define what actions each role can perform
-- **Access Control Logic**: Backend validation of user permissions before actions
-- **Visibility Settings**: Backend support for public/private timeline access control
-
-### 3. Member Management
-- **Member Invitation System**: API for inviting users to join timelines
-- **Join Request Handling**: Logic for users to request to join and admins to approve
-- **Role Assignment API**: Backend support for promoting/demoting members
-- **Member Removal Logic**: API for removing members from timelines
-
-### 4. Content & Moderation
-- **Content Ownership**: Link events to specific users within a timeline context
-- **Moderation Queue**: System to track reported content
-- **Moderation Actions API**: Backend support for approve/reject/delete actions
-- **Content Visibility Control**: Logic to show/hide content based on moderation status
-
-### 5. Notification System
-- **Event Triggers**: Define events that generate notifications (join requests, etc.)
-- **Notification Storage**: Database schema for storing user notifications
-- **Notification Delivery**: Logic for delivering notifications to appropriate users
-- **Notification UI Components**: Frontend components to display notifications
-
-### 6. Activity & Engagement Tracking
-- **User Activity Metrics**: Track and store user engagement within timelines
-- **Timeline Activity Metrics**: Aggregate activity data for timeline statistics
-- **Achievement Thresholds**: Logic for unlocking tiered actions based on metrics
-- **Progress Indicators**: Data structures for tracking progress toward goals
-
-### 7. UI/UX Enhancements
-- **Timeline Type Indicators**: Visual distinction between hashtag and community timelines
-- **Role Badges & Styling**: Visual indicators of member roles in timeline context
-- **Permission-Based UI**: Conditional rendering based on user permissions
-- **Timeline Discovery**: Search and browse functionality for finding timelines
-
-### Short-term Implementation Plan (UI Refinement)
-1. Complete action card display states (hidden/quote fallback, active, locked overlay)
-2. Improve role coloring on the member list page
-3. Move member management actions (promote, demote, remove) to the Admin Panel
-4. Design and implement join request UI flow for private communities
-5. Add admin controls for setting action requirements and thresholds
-
-### Medium-term (Backend Integration)
-1. Connect member list to real API endpoints
-2. Implement role-based access control
-3. Create backend endpoints for member management
-4. Develop notification system for join requests
-
-### Long-term (Feature Expansion)
-1. Add analytics dashboard for community engagement
-2. Implement community content moderation tools
-3. Create community event scheduling features
-4. Develop community-specific notification preferences
-
-# THE POSSIBLE HURDLES
-
-## Code Architecture Challenges
-1. **Component Overloading**: 
-   - Shared components handling both hashtag and community timelines may become complex and difficult to maintain
-   - Solution: Consider refactoring to use composition or inheritance patterns where appropriate
-   - Consider splitting components into base/shared functionality and timeline-type specific extensions
-
-## Performance Concerns
-1. **Conditional Rendering Overhead**: 
-   - Excessive conditional logic for different timeline types may impact performance
-   - Solution: Use code splitting and lazy loading for timeline-type specific features
-
-## User Experience Consistency
-1. **Navigation Paradigm Shifts**: 
-   - Different interaction models between hashtag and community timelines may confuse users
-   - Solution: Maintain core interaction patterns while clearly indicating different capabilities
-
-## Backend Integration
-1. **API Complexity**: 
-   - Endpoints serving multiple timeline types may become complex
-   - Solution: Consider versioned or specialized endpoints for community-specific features
-
-## Security and Privacy
-1. **Access Control**: 
-   - Private community timelines require robust permission checking throughout the codebase
-   - Solution: Implement consistent permission checking middleware/hooks
-
-## Testing Challenges
-1. **Test Coverage**: 
-   - Different timeline behaviors require more comprehensive test cases
-   - Solution: Create separate test suites for shared and specialized behaviors
-
-# THE GOAL
-Implement a flexible timeline system with three distinct types:
-1. **Hashtag Timelines**: Automatic collections of posts with specific hashtags (existing functionality)
-2. **Community Timelines**: User-created spaces with public/private visibility
-3. **Personal Timelines**: For individual use (future consideration)
-
-# TIMELINE TYPES
-
-## 1. Hashtag Timelines
-- **Type**: `hashtag` (existing)
+This action card system will transform community timelines from static member lists into dynamic, engaging spaces that encourage participation and reward community growth.
 - **Purpose**: Automatic collections of public posts
 - **Characteristics**:
   - Created automatically when a post uses a new hashtag

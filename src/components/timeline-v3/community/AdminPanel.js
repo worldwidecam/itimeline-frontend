@@ -11,6 +11,7 @@ import {
   Switch,
   Button,
   Alert,
+  Snackbar,
   Skeleton,
   useTheme,
   Avatar,
@@ -1647,6 +1648,13 @@ const SettingsTab = ({ id }) => {
   const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedState, setShowSavedState] = useState(false);
+  
+  // Snackbar states
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   
   // Action date states
   const [goldActionDate, setGoldActionDate] = useState(null);
@@ -1786,6 +1794,8 @@ const SettingsTab = ({ id }) => {
   // Handle save changes
   const handleSaveChanges = async () => {
     try {
+      setIsSaving(true);
+      setShowSavedState(false);
       console.log(`[AdminPanel] Saving action cards for timeline ${id}...`);
       
       // Create action objects for saving
@@ -1835,8 +1845,18 @@ const SettingsTab = ({ id }) => {
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
         
-        // Reset unsaved changes flag
+        // Reset unsaved changes flag and show saved state
         setHasUnsavedChanges(false);
+        setIsSaving(false);
+        setShowSavedState(true);
+        
+        // Auto-hide the saved state after 2 seconds
+        setTimeout(() => {
+          setShowSavedState(false);
+        }, 2000);
+        
+        // Trigger member list refresh by updating localStorage timestamp
+        localStorage.setItem('actionCardsLastUpdated', Date.now().toString());
         
         // Save non-action settings to localStorage for now (until we have backend endpoints for these)
         try {
@@ -1854,6 +1874,10 @@ const SettingsTab = ({ id }) => {
       } else {
         console.error('[AdminPanel] Error saving action cards:', saveResult.errors);
         
+        // Reset saving state
+        setIsSaving(false);
+        setShowSavedState(false);
+        
         // Show error message
         const errorMessages = saveResult.errors.map(err => err.error).join(', ');
         setSnackbarMessage(`Error saving settings: ${errorMessages}`);
@@ -1864,12 +1888,15 @@ const SettingsTab = ({ id }) => {
     } catch (error) {
       console.error('[AdminPanel] Error in handleSaveChanges:', error);
       
+      // Reset saving state
+      setIsSaving(false);
+      setShowSavedState(false);
+      
       // Show error message
       setSnackbarMessage('Failed to save settings. Please try again.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
-    setHasUnsavedChanges(false);
   };
   
   return (
@@ -2602,12 +2629,21 @@ const SettingsTab = ({ id }) => {
 
           {/* Floating Action Button for Save Changes */}
           <AnimatePresence>
-            {hasUnsavedChanges && (
+            {(hasUnsavedChanges || showSavedState) && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: 1, 
+                  y: showSavedState ? 10 : 0,
+                  transition: { type: 'spring', stiffness: 300, damping: 25 }
+                }}
+                exit={{ 
+                  opacity: 0, 
+                  scale: 0.8, 
+                  y: 40,
+                  transition: { duration: 0.3 }
+                }}
                 style={{
                   position: 'fixed',
                   bottom: '2rem',
@@ -2617,23 +2653,53 @@ const SettingsTab = ({ id }) => {
               >
                 <Button
                   variant="contained"
-                  color="primary"
+                  color={showSavedState ? 'success' : 'primary'}
                   onClick={handleSaveChanges}
+                  disabled={isSaving || showSavedState}
                   sx={{
                     borderRadius: '28px',
                     padding: '12px 24px',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
+                    boxShadow: showSavedState 
+                      ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
+                      : '0 8px 16px rgba(0,0,0,0.2)',
                     '&:hover': {
-                      boxShadow: '0 12px 20px rgba(0,0,0,0.3)',
-                    }
+                      boxShadow: showSavedState 
+                        ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
+                        : '0 12px 20px rgba(0,0,0,0.3)',
+                    },
+                    '&.Mui-disabled': {
+                      color: 'white',
+                      opacity: showSavedState ? 1 : 0.7
+                    },
+                    transition: 'all 0.3s ease'
                   }}
-                  startIcon={<SaveIcon />}
+                  startIcon={
+                    showSavedState ? <CheckCircleIcon /> : 
+                    isSaving ? null : <SaveIcon />
+                  }
                 >
-                  Save Changes
+                  {showSavedState ? 'SAVED!' : 
+                   isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </motion.div>
             )}
           </AnimatePresence>
+          
+          {/* Snackbar for notifications */}
+          <Snackbar
+            open={snackbarOpen}
+            autoHideDuration={6000}
+            onClose={() => setSnackbarOpen(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          >
+            <Alert 
+              onClose={() => setSnackbarOpen(false)} 
+              severity={snackbarSeverity}
+              sx={{ width: '100%' }}
+            >
+              {snackbarMessage}
+            </Alert>
+          </Snackbar>
         </>
       )}
     </motion.div>

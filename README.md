@@ -85,6 +85,43 @@ POST /api/v1/membership/timelines/{id}/join      # Join timeline
 GET  /api/v1/membership/timelines/{id}/status    # Check membership status
 ```
 
+#### Action Cards System (July 2025)
+
+Community timelines feature a Bronze/Silver/Gold action card system to encourage engagement and provide milestone rewards.
+
+**Current Implementation Status**:
+- ✅ **Frontend UI**: Complete Bronze/Silver/Gold action card display in MemberListTab
+- ✅ **Admin Configuration**: Settings tab in AdminPanel for configuring action cards
+- ✅ **Visual Feedback**: Enhanced FAB save button with "Saving..." → "SAVED!" states
+- ✅ **Database Schema**: TimelineAction model with timeline-specific storage
+- ⚠️ **Backend Issues**: Authentication/permission errors preventing save/load
+
+**Action Card Features**:
+- **Bronze/Silver/Gold Tiers**: Three levels of community actions with different unlock requirements
+- **Configurable Settings**: Title, description, due dates, and unlock thresholds per timeline
+- **Dynamic Display**: Action cards appear/disappear based on member count thresholds
+- **Admin Controls**: Timeline creators and admins can configure action card settings
+- **Real-time Updates**: Member list refreshes immediately when action cards are saved
+
+**Technical Architecture**:
+```
+Backend: TimelineAction model with fields:
+- action_type (bronze/silver/gold)
+- title, description, due_date
+- threshold_type, threshold_value
+- timeline_id, created_by, is_active
+
+Frontend: 
+- AdminPanel/SettingsTab for configuration
+- MemberListTab for display
+- Real-time refresh via localStorage triggers
+```
+
+**Remaining Issues**:
+- Backend 500/403 errors on `/api/v1/timelines/{id}/actions` endpoints
+- Authentication/permission validation needs debugging
+- Action card save/load functionality blocked by backend errors
+
 ### Recent Bugfixes and Lessons Learned
 
 #### Timeline Page Crash (July 2025)

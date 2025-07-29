@@ -205,6 +205,99 @@ const MemberListTab = () => {
       isMounted = false;
     };
   }, [id, members.length]); // Re-run when member count changes
+  
+  // Listen for action card updates from AdminPanel
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const lastUpdated = localStorage.getItem('actionCardsLastUpdated');
+      if (lastUpdated && id) {
+        console.log('[MemberListTab] Action cards updated, refreshing...');
+        // Trigger a re-fetch by updating a state that causes the main useEffect to run
+        setIsGoldActionLoading(true);
+        setIsSilverActionLoading(true);
+        setIsBronzeActionLoading(true);
+        
+        // Re-fetch action cards
+        const fetchActionCards = async () => {
+          try {
+            const response = await getTimelineActions(id);
+            if (response.success && response.actions) {
+              const newThresholds = { silver: 10, gold: 25 };
+              
+              response.actions.forEach(action => {
+                if (action.action_type === 'silver') {
+                  newThresholds.silver = action.threshold_value || 10;
+                  setSilverAction({
+                    id: action.id,
+                    title: action.title || 'Silver Community Action',
+                    description: action.description || 'Complete this action to unlock silver benefits.',
+                    dueDate: action.due_date,
+                    thresholdType: action.threshold_type || 'members',
+                    thresholdValue: action.threshold_value || 10
+                  });
+                } else if (action.action_type === 'gold') {
+                  newThresholds.gold = action.threshold_value || 25;
+                  setGoldAction({
+                    id: action.id,
+                    title: action.title || 'Gold Community Action',
+                    description: action.description || 'Complete this action to unlock gold benefits.',
+                    dueDate: action.due_date,
+                    thresholdType: action.threshold_type || 'members',
+                    thresholdValue: action.threshold_value || 25
+                  });
+                } else if (action.action_type === 'bronze') {
+                  setBronzeAction({
+                    id: action.id,
+                    title: action.title || 'Bronze Community Action',
+                    description: action.description || 'Complete this action to unlock bronze benefits.',
+                    dueDate: action.due_date,
+                    thresholdType: action.threshold_type || 'members',
+                    thresholdValue: action.threshold_value || 5
+                  });
+                }
+              });
+              
+              setThresholds(newThresholds);
+              setShowSilverAction(members.length >= newThresholds.silver);
+              setShowGoldAction(members.length >= newThresholds.gold);
+            }
+            
+            setIsGoldActionLoading(false);
+            setIsSilverActionLoading(false);
+            setIsBronzeActionLoading(false);
+          } catch (err) {
+            console.error('[MemberListTab] Error refreshing action cards:', err);
+            setIsGoldActionLoading(false);
+            setIsSilverActionLoading(false);
+            setIsBronzeActionLoading(false);
+          }
+        };
+        
+        fetchActionCards();
+      }
+    };
+    
+    // Listen for storage changes (cross-tab communication)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check immediately in case we're in the same tab
+    const checkForUpdates = () => {
+      const lastUpdated = localStorage.getItem('actionCardsLastUpdated');
+      const lastChecked = localStorage.getItem('actionCardsLastChecked');
+      
+      if (lastUpdated && lastUpdated !== lastChecked) {
+        localStorage.setItem('actionCardsLastChecked', lastUpdated);
+        handleStorageChange();
+      }
+    };
+    
+    const interval = setInterval(checkForUpdates, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [id, members.length]);
 
   // Quote display state
   const [communityQuote, setCommunityQuote] = useState({
