@@ -133,11 +133,11 @@
 
 ## 📡 FRONTEND API FUNCTIONS
 
-### getTimelineMembers()
+### getTimelineMembers() - ✅ WORKING
 **Location**: `src/utils/api.js` lines 139-269
 **Purpose**: Fetches member list from backend
-**Endpoint**: `GET /api/v1/timelines/${timelineId}/members`
-**Status**: ❌ BROKEN - Backend returns empty results
+**Endpoint**: `GET /api/v1/membership/timelines/${timelineId}/members` (NEW CLEAN ENDPOINT)
+**Status**: ✅ CONFIRMED WORKING - Returns proper member lists with SiteOwner auto-inclusion
 
 ### requestTimelineAccess() - ✅ WORKING
 **Location**: `src/utils/api.js` lines 417-501

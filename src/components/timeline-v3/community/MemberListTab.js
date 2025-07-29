@@ -29,7 +29,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers } from '../../../utils/api';
+import { getTimelineMembers, getTimelineActions, getTimelineActionByType } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -117,6 +117,94 @@ const MemberListTab = () => {
       isMounted = false;
     };
   }, [id]);
+
+  // Fetch action cards when component mounts or ID changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchActionCards = async () => {
+      try {
+        console.log(`[MemberListTab] Fetching action cards for timeline ID: ${id}`);
+        
+        const response = await getTimelineActions(id);
+        console.log('[MemberListTab] Action cards response:', response);
+        
+        if (isMounted && response.success && response.actions) {
+          // Process action cards and update thresholds
+          const newThresholds = { silver: 10, gold: 25 }; // Default values
+          
+          response.actions.forEach(action => {
+            if (action.action_type === 'silver') {
+              newThresholds.silver = action.threshold_value || 10;
+              setSilverAction({
+                id: action.id,
+                title: action.title,
+                description: action.description,
+                due_date: action.due_date,
+                threshold_type: action.threshold_type,
+                threshold_value: action.threshold_value
+              });
+              setSilverActionLocked(false);
+              setIsSilverActionLoading(false);
+            } else if (action.action_type === 'gold') {
+              newThresholds.gold = action.threshold_value || 25;
+              setGoldAction({
+                id: action.id,
+                title: action.title,
+                description: action.description,
+                due_date: action.due_date,
+                threshold_type: action.threshold_type,
+                threshold_value: action.threshold_value
+              });
+              setGoldActionLocked(false);
+              setIsGoldActionLoading(false);
+            } else if (action.action_type === 'bronze') {
+              setBronzeAction({
+                id: action.id,
+                title: action.title,
+                description: action.description,
+                due_date: action.due_date,
+                threshold_type: action.threshold_type,
+                threshold_value: action.threshold_value
+              });
+              setBronzeActionLocked(false);
+              setIsBronzeActionLoading(false);
+            }
+          });
+          
+          // Update thresholds
+          setMemberThresholds(newThresholds);
+          console.log(`[MemberListTab] Updated thresholds:`, newThresholds);
+          
+          // Update action visibility based on current member count
+          setShowSilverAction(members.length >= newThresholds.silver);
+          setShowGoldAction(members.length >= newThresholds.gold);
+        } else {
+          console.log('[MemberListTab] No action cards found, using defaults');
+          // Set loading states to false if no actions found
+          setIsGoldActionLoading(false);
+          setIsSilverActionLoading(false);
+          setIsBronzeActionLoading(false);
+        }
+      } catch (err) {
+        console.error('[MemberListTab] Error fetching action cards:', err);
+        if (isMounted) {
+          // Set loading states to false on error
+          setIsGoldActionLoading(false);
+          setIsSilverActionLoading(false);
+          setIsBronzeActionLoading(false);
+        }
+      }
+    };
+
+    if (id) {
+      fetchActionCards();
+    }
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [id, members.length]); // Re-run when member count changes
 
   // Quote display state
   const [communityQuote, setCommunityQuote] = useState({

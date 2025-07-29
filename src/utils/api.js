@@ -913,4 +913,208 @@ export const checkMembershipFromUserData = async (timelineId) => {
   }
 };
 
+// =============================================================================
+// TIMELINE ACTION CARDS API FUNCTIONS
+// =============================================================================
+
+/**
+ * Get all action cards for a timeline
+ * @param {string|number} timelineId - Timeline ID
+ * @returns {Promise<Object>} - Promise resolving to action cards data
+ */
+export const getTimelineActions = async (timelineId) => {
+  try {
+    console.log(`[API] Getting action cards for timeline ${timelineId}`);
+    
+    const response = await api.get(`/api/v1/timelines/${timelineId}/actions`);
+    
+    if (response.data) {
+      console.log(`[API] Successfully fetched ${response.data.total} action cards`);
+      return {
+        success: true,
+        actions: response.data.actions || [],
+        total: response.data.total || 0,
+        timeline_id: response.data.timeline_id
+      };
+    }
+    
+    return { success: false, actions: [], total: 0 };
+  } catch (error) {
+    console.error(`[API] Error getting timeline actions for ${timelineId}:`, error);
+    return { success: false, actions: [], total: 0, error: error.message };
+  }
+};
+
+/**
+ * Get a specific action card by type (bronze/silver/gold)
+ * @param {string|number} timelineId - Timeline ID
+ * @param {string} actionType - Action type ('bronze', 'silver', 'gold')
+ * @returns {Promise<Object>} - Promise resolving to action card data
+ */
+export const getTimelineActionByType = async (timelineId, actionType) => {
+  try {
+    console.log(`[API] Getting ${actionType} action for timeline ${timelineId}`);
+    
+    const response = await api.get(`/api/v1/timelines/${timelineId}/actions/${actionType}`);
+    
+    if (response.data) {
+      return {
+        success: true,
+        action: response.data.action,
+        message: response.data.message
+      };
+    }
+    
+    return { success: false, action: null };
+  } catch (error) {
+    console.error(`[API] Error getting ${actionType} action for timeline ${timelineId}:`, error);
+    return { success: false, action: null, error: error.message };
+  }
+};
+
+/**
+ * Create or update an action card for a timeline
+ * @param {string|number} timelineId - Timeline ID
+ * @param {Object} actionData - Action card data
+ * @returns {Promise<Object>} - Promise resolving to created/updated action
+ */
+export const createTimelineAction = async (timelineId, actionData) => {
+  try {
+    console.log(`[API] Creating/updating ${actionData.action_type} action for timeline ${timelineId}`);
+    
+    const response = await api.post(`/api/v1/timelines/${timelineId}/actions`, actionData);
+    
+    if (response.data) {
+      console.log(`[API] Successfully created/updated action: ${response.data.message}`);
+      return {
+        success: true,
+        action: response.data.action,
+        message: response.data.message
+      };
+    }
+    
+    return { success: false, error: 'No response data' };
+  } catch (error) {
+    console.error(`[API] Error creating timeline action:`, error);
+    return { 
+      success: false, 
+      error: error.response?.data?.error || error.message 
+    };
+  }
+};
+
+/**
+ * Update a specific action card
+ * @param {string|number} timelineId - Timeline ID
+ * @param {string|number} actionId - Action ID
+ * @param {Object} updateData - Data to update
+ * @returns {Promise<Object>} - Promise resolving to updated action
+ */
+export const updateTimelineAction = async (timelineId, actionId, updateData) => {
+  try {
+    console.log(`[API] Updating action ${actionId} for timeline ${timelineId}`);
+    
+    const response = await api.put(`/api/v1/timelines/${timelineId}/actions/${actionId}`, updateData);
+    
+    if (response.data) {
+      console.log(`[API] Successfully updated action: ${response.data.message}`);
+      return {
+        success: true,
+        action: response.data.action,
+        message: response.data.message
+      };
+    }
+    
+    return { success: false, error: 'No response data' };
+  } catch (error) {
+    console.error(`[API] Error updating timeline action:`, error);
+    return { 
+      success: false, 
+      error: error.response?.data?.error || error.message 
+    };
+  }
+};
+
+/**
+ * Delete an action card
+ * @param {string|number} timelineId - Timeline ID
+ * @param {string|number} actionId - Action ID
+ * @returns {Promise<Object>} - Promise resolving to deletion result
+ */
+export const deleteTimelineAction = async (timelineId, actionId) => {
+  try {
+    console.log(`[API] Deleting action ${actionId} for timeline ${timelineId}`);
+    
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/actions/${actionId}`);
+    
+    if (response.data) {
+      console.log(`[API] Successfully deleted action: ${response.data.message}`);
+      return {
+        success: true,
+        message: response.data.message
+      };
+    }
+    
+    return { success: false, error: 'No response data' };
+  } catch (error) {
+    console.error(`[API] Error deleting timeline action:`, error);
+    return { 
+      success: false, 
+      error: error.response?.data?.error || error.message 
+    };
+  }
+};
+
+/**
+ * Save all action cards for a timeline (batch operation)
+ * @param {string|number} timelineId - Timeline ID
+ * @param {Object} actionsData - Object containing bronze, silver, gold action data
+ * @returns {Promise<Object>} - Promise resolving to save results
+ */
+export const saveTimelineActions = async (timelineId, actionsData) => {
+  try {
+    console.log(`[API] Saving all action cards for timeline ${timelineId}`);
+    
+    const results = {
+      success: true,
+      saved: [],
+      errors: []
+    };
+    
+    // Save each action type if provided
+    for (const actionType of ['bronze', 'silver', 'gold']) {
+      if (actionsData[actionType] && actionsData[actionType].title) {
+        const actionData = {
+          action_type: actionType,
+          title: actionsData[actionType].title,
+          description: actionsData[actionType].description || '',
+          due_date: actionsData[actionType].due_date || null,
+          threshold_type: actionsData[actionType].threshold_type || 'members',
+          threshold_value: actionsData[actionType].threshold_value || 0,
+          is_active: actionsData[actionType].is_active !== false
+        };
+        
+        const result = await createTimelineAction(timelineId, actionData);
+        
+        if (result.success) {
+          results.saved.push({ type: actionType, action: result.action });
+        } else {
+          results.errors.push({ type: actionType, error: result.error });
+          results.success = false;
+        }
+      }
+    }
+    
+    console.log(`[API] Batch save completed: ${results.saved.length} saved, ${results.errors.length} errors`);
+    return results;
+  } catch (error) {
+    console.error(`[API] Error in batch save timeline actions:`, error);
+    return { 
+      success: false, 
+      saved: [],
+      errors: [{ error: error.message }]
+    };
+  }
+};
+
 export default api;

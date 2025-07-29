@@ -49,7 +49,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
-import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType } from '../../../utils/api';
 
 const AdminPanel = () => {
   const { id } = useParams();
@@ -128,11 +128,24 @@ const AdminPanel = () => {
           // Extract user data - it might be nested in different ways depending on API response
           const userData = member.user || {};
           
+          // Safe date parsing
+          let joinDate = 'Unknown';
+          try {
+            if (member.joined_at) {
+              const date = new Date(member.joined_at);
+              if (!isNaN(date.getTime())) {
+                joinDate = date.toISOString().split('T')[0];
+              }
+            }
+          } catch (dateError) {
+            console.warn('Invalid date for member:', member.user_id, member.joined_at);
+          }
+          
           return {
             id: member.user_id,
             name: userData.username || member.username || `User ${member.user_id}`,
             role: member.role,
-            joinDate: new Date(member.joined_at).toISOString().split('T')[0],
+            joinDate,
             avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
           };
         });
@@ -875,7 +888,7 @@ const AdminPanel = () => {
             <AnimatePresence mode="wait">
               {tabValue === 0 && <StandaloneMemberManagementTab key="members" />}
               {tabValue === 1 && <ManagePostsTab key="posts" />}
-              {tabValue === 2 && <SettingsTab key="settings" />}
+              {tabValue === 2 && <SettingsTab key="settings" id={id} />}
             </AnimatePresence>
           </Box>
         </Paper>
@@ -1628,7 +1641,7 @@ const StandaloneMemberManagementTab = () => {
 };
 
 // Settings Tab Component
-const SettingsTab = () => {
+const SettingsTab = ({ id }) => {
   const theme = useTheme();
   const [isPrivate, setIsPrivate] = useState(false);
   const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
@@ -1645,8 +1658,8 @@ const SettingsTab = () => {
   const [goldThresholdValue, setGoldThresholdValue] = useState(100);
   const [silverThresholdType, setSilverThresholdType] = useState('members');
   const [silverThresholdValue, setSilverThresholdValue] = useState(50);
-  const [bronzeThresholdType, setBronzeThresholdType] = useState('');
-  const [bronzeThresholdValue, setBronzeThresholdValue] = useState(0);
+  const [bronzeThresholdType, setBronzeThresholdType] = useState('members');
+  const [bronzeThresholdValue, setBronzeThresholdValue] = useState(5);
   
   // Action content states
   const [goldActionTitle, setGoldActionTitle] = useState('');
@@ -1674,58 +1687,87 @@ const SettingsTab = () => {
     }
   });
   
-  // Load saved settings from localStorage
+  // Load saved settings from backend API
   useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem('communitySettings');
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
+    const loadActionCards = async () => {
+      try {
+        console.log(`[AdminPanel] Loading action cards for timeline ${id}`);
         
-        // Load visibility settings
-        if (settings.isPrivate !== undefined) {
-          setIsPrivate(settings.isPrivate);
+        // Load existing action cards from backend
+        const actionsResult = await getTimelineActions(id);
+        
+        if (actionsResult.success && actionsResult.actions) {
+          console.log(`[AdminPanel] Loaded ${actionsResult.actions.length} action cards`);
+          
+          // Process each action card
+          actionsResult.actions.forEach(action => {
+            const actionType = action.action_type;
+            
+            if (actionType === 'gold') {
+              setGoldActionTitle(action.title || '');
+              setGoldActionDescription(action.description || '');
+              setGoldActionDate(action.due_date ? new Date(action.due_date) : null);
+              setGoldThresholdType(action.threshold_type || 'members');
+              setGoldThresholdValue(action.threshold_value || 25);
+            } else if (actionType === 'silver') {
+              setSilverActionTitle(action.title || '');
+              setSilverActionDescription(action.description || '');
+              setSilverActionDate(action.due_date ? new Date(action.due_date) : null);
+              setSilverThresholdType(action.threshold_type || 'members');
+              setSilverThresholdValue(action.threshold_value || 10);
+            } else if (actionType === 'bronze') {
+              setBronzeActionTitle(action.title || '');
+              setBronzeActionDescription(action.description || '');
+              setBronzeActionDate(action.due_date ? new Date(action.due_date) : null);
+              setBronzeThresholdType(action.threshold_type || 'members');
+              setBronzeThresholdValue(action.threshold_value || 5);
+            }
+          });
+        } else {
+          console.log('[AdminPanel] No existing action cards found, using defaults');
+          // Set default threshold values if no actions exist
+          setGoldThresholdValue(25);
+          setSilverThresholdValue(10);
+          setBronzeThresholdValue(5);
         }
         
-        if (settings.requireMembershipApproval !== undefined) {
-          setRequireMembershipApproval(settings.requireMembershipApproval);
+        // Load legacy localStorage settings for backward compatibility
+        try {
+          const savedSettings = localStorage.getItem('communitySettings');
+          if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            
+            // Load visibility settings (these aren't in action cards)
+            if (settings.isPrivate !== undefined) {
+              setIsPrivate(settings.isPrivate);
+            }
+            
+            if (settings.requireMembershipApproval !== undefined) {
+              setRequireMembershipApproval(settings.requireMembershipApproval);
+            }
+            
+            // Load community quote
+            if (settings.communityQuote) {
+              setCommunityQuote(settings.communityQuote);
+            }
+          }
+        } catch (legacyError) {
+          console.warn('Error loading legacy localStorage settings:', legacyError);
         }
         
-        // Load community quote
-        if (settings.communityQuote) {
-          setCommunityQuote(settings.communityQuote);
-        }
-        
-        // Load gold action
-        if (settings.goldAction) {
-          setGoldActionTitle(settings.goldAction.title || '');
-          setGoldActionDescription(settings.goldAction.description || '');
-          setGoldActionDate(settings.goldAction.dueDate ? new Date(settings.goldAction.dueDate) : null);
-          setGoldThresholdType(settings.goldAction.thresholdType || 'members');
-          setGoldThresholdValue(settings.goldAction.thresholdValue || 100);
-        }
-        
-        // Load silver action
-        if (settings.silverAction) {
-          setSilverActionTitle(settings.silverAction.title || '');
-          setSilverActionDescription(settings.silverAction.description || '');
-          setSilverActionDate(settings.silverAction.dueDate ? new Date(settings.silverAction.dueDate) : null);
-          setSilverThresholdType(settings.silverAction.thresholdType || 'members');
-          setSilverThresholdValue(settings.silverAction.thresholdValue || 50);
-        }
-        
-        // Load bronze action
-        if (settings.bronzeAction) {
-          setBronzeActionTitle(settings.bronzeAction.title || '');
-          setBronzeActionDescription(settings.bronzeAction.description || '');
-          setBronzeActionDate(settings.bronzeAction.dueDate ? new Date(settings.bronzeAction.dueDate) : null);
-          setBronzeThresholdType(settings.bronzeAction.thresholdType || '');
-          setBronzeThresholdValue(settings.bronzeAction.thresholdValue || 0);
-        }
+      } catch (error) {
+        console.error('[AdminPanel] Error loading action cards:', error);
+        // Set default values on error
+        setGoldThresholdValue(25);
+        setSilverThresholdValue(10);
+        setBronzeThresholdValue(5);
       }
-    } catch (error) {
-      console.error('Error loading saved settings:', error);
+    };
+    
+    if (id) {
+      loadActionCards();
     }
-  }, []);
+  }, [id]);
   
   // Handle visibility change
   const handleVisibilityChange = (event) => {
@@ -1742,62 +1784,91 @@ const SettingsTab = () => {
   };
   
   // Handle save changes
-  const handleSaveChanges = () => {
-    // Here you would implement the actual save functionality
-    console.log('Saving changes...');
-    
-    // Create action objects for saving
-    const goldAction = goldActionTitle ? {
-      title: goldActionTitle,
-      description: goldActionDescription,
-      dueDate: goldActionDate,
-      thresholdType: goldThresholdType,
-      thresholdValue: goldThresholdValue,
-      createdBy: timelineData.owner.name,
-      createdAt: new Date().toISOString()
-    } : null;
-    
-    const silverAction = silverActionTitle ? {
-      title: silverActionTitle,
-      description: silverActionDescription,
-      dueDate: silverActionDate,
-      thresholdType: silverThresholdType,
-      thresholdValue: silverThresholdValue,
-      createdBy: timelineData.owner.name,
-      createdAt: new Date().toISOString()
-    } : null;
-    
-    const bronzeAction = bronzeActionTitle ? {
-      title: bronzeActionTitle,
-      description: bronzeActionDescription,
-      dueDate: bronzeActionDate,
-      thresholdType: bronzeThresholdType,
-      thresholdValue: bronzeThresholdValue,
-      createdBy: timelineData.owner.name,
-      createdAt: new Date().toISOString()
-    } : null;
-    
-    // In a real app, you would send these to the backend
-    // For now, we'll store them in localStorage
-    const communitySettings = {
-      isPrivate,
-      requireMembershipApproval,
-      communityQuote,
-      goldAction,
-      silverAction,
-      bronzeAction,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    // Save to localStorage (simulating backend storage)
-    localStorage.setItem('communitySettings', JSON.stringify(communitySettings));
-    
-    // Show success message
-    setSnackbarMessage('Settings saved successfully');
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-    
-    // Reset unsaved changes flag
+  const handleSaveChanges = async () => {
+    try {
+      console.log(`[AdminPanel] Saving action cards for timeline ${id}...`);
+      
+      // Create action objects for saving
+      const actionsToSave = {};
+      
+      if (goldActionTitle) {
+        actionsToSave.gold = {
+          title: goldActionTitle,
+          description: goldActionDescription,
+          due_date: goldActionDate ? goldActionDate.toISOString() : null,
+          threshold_type: goldThresholdType,
+          threshold_value: goldThresholdValue,
+          is_active: true
+        };
+      }
+      
+      if (silverActionTitle) {
+        actionsToSave.silver = {
+          title: silverActionTitle,
+          description: silverActionDescription,
+          due_date: silverActionDate ? silverActionDate.toISOString() : null,
+          threshold_type: silverThresholdType,
+          threshold_value: silverThresholdValue,
+          is_active: true
+        };
+      }
+      
+      if (bronzeActionTitle) {
+        actionsToSave.bronze = {
+          title: bronzeActionTitle,
+          description: bronzeActionDescription,
+          due_date: bronzeActionDate ? bronzeActionDate.toISOString() : null,
+          threshold_type: bronzeThresholdType,
+          threshold_value: bronzeThresholdValue,
+          is_active: true
+        };
+      }
+      
+      // Save action cards to backend
+      const saveResult = await saveTimelineActions(id, actionsToSave);
+      
+      if (saveResult.success) {
+        console.log(`[AdminPanel] Successfully saved ${saveResult.saved.length} action cards`);
+        
+        // Show success message
+        setSnackbarMessage(`Settings saved successfully! ${saveResult.saved.length} action cards updated.`);
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        
+        // Reset unsaved changes flag
+        setHasUnsavedChanges(false);
+        
+        // Save non-action settings to localStorage for now (until we have backend endpoints for these)
+        try {
+          const communitySettings = {
+            isPrivate,
+            requireMembershipApproval,
+            communityQuote,
+            lastUpdated: new Date().toISOString()
+          };
+          localStorage.setItem('communitySettings', JSON.stringify(communitySettings));
+        } catch (legacyError) {
+          console.warn('Error saving legacy settings to localStorage:', legacyError);
+        }
+        
+      } else {
+        console.error('[AdminPanel] Error saving action cards:', saveResult.errors);
+        
+        // Show error message
+        const errorMessages = saveResult.errors.map(err => err.error).join(', ');
+        setSnackbarMessage(`Error saving settings: ${errorMessages}`);
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+      
+    } catch (error) {
+      console.error('[AdminPanel] Error in handleSaveChanges:', error);
+      
+      // Show error message
+      setSnackbarMessage('Failed to save settings. Please try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
     setHasUnsavedChanges(false);
   };
   
@@ -2081,7 +2152,10 @@ const SettingsTab = () => {
                     <DatePicker
                       label="Due Date (Required)"
                       value={goldActionDate}
-                      onChange={(newValue) => setGoldActionDate(newValue)}
+                      onChange={(newValue) => {
+                        setGoldActionDate(newValue);
+                        setHasUnsavedChanges(true);
+                      }}
                       slotProps={{
                         textField: {
                           required: true,
@@ -2132,7 +2206,10 @@ const SettingsTab = () => {
                       <Select
                         value={goldThresholdType}
                         label="Threshold Type"
-                        onChange={(e) => setGoldThresholdType(e.target.value)}
+                        onChange={(e) => {
+                          setGoldThresholdType(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
                         required
                       >
                         <MenuItem value="members">New Members Incentive</MenuItem>
@@ -2151,7 +2228,10 @@ const SettingsTab = () => {
                       label="Threshold Value"
                       type="number"
                       value={goldThresholdValue}
-                      onChange={(e) => setGoldThresholdValue(Math.max(1, parseInt(e.target.value) || 0))}
+                      onChange={(e) => {
+                        setGoldThresholdValue(Math.max(1, parseInt(e.target.value) || 0));
+                        setHasUnsavedChanges(true);
+                      }}
                       InputProps={{
                         endAdornment: <InputAdornment position="end">
                           {goldThresholdType === 'members' ? 'Members' : 'Votes'}
@@ -2202,6 +2282,11 @@ const SettingsTab = () => {
                   label="Action Title"
                   placeholder="E.g., 'Add media to an existing event'"
                   variant="outlined"
+                  value={silverActionTitle}
+                  onChange={(e) => {
+                    setSilverActionTitle(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   sx={{ mb: 2, mt: 1 }}
                 />
                 <TextField
@@ -2211,6 +2296,11 @@ const SettingsTab = () => {
                   label="Action Description"
                   placeholder="Describe what members need to do to complete this action"
                   variant="outlined"
+                  value={silverActionDescription}
+                  onChange={(e) => {
+                    setSilverActionDescription(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   sx={{ mb: 2 }}
                 />
                 <FormControl fullWidth sx={{ mt: 2 }}>
@@ -2218,7 +2308,10 @@ const SettingsTab = () => {
                     <DatePicker
                       label="Due Date (Optional)"
                       value={silverActionDate}
-                      onChange={(newValue) => setSilverActionDate(newValue)}
+                      onChange={(newValue) => {
+                        setSilverActionDate(newValue);
+                        setHasUnsavedChanges(true);
+                      }}
                       slotProps={{
                         textField: {
                           helperText: 'Optional deadline for this action',
@@ -2268,7 +2361,10 @@ const SettingsTab = () => {
                       <Select
                         value={silverThresholdType}
                         label="Threshold Type"
-                        onChange={(e) => setSilverThresholdType(e.target.value)}
+                        onChange={(e) => {
+                          setSilverThresholdType(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
                         required
                       >
                         <MenuItem value="members">New Members Incentive</MenuItem>
@@ -2287,7 +2383,10 @@ const SettingsTab = () => {
                       label="Threshold Value"
                       type="number"
                       value={silverThresholdValue}
-                      onChange={(e) => setSilverThresholdValue(Math.max(1, parseInt(e.target.value) || 0))}
+                      onChange={(e) => {
+                        setSilverThresholdValue(Math.max(1, parseInt(e.target.value) || 0));
+                        setHasUnsavedChanges(true);
+                      }}
                       InputProps={{
                         endAdornment: <InputAdornment position="end">
                           {silverThresholdType === 'members' ? 'Members' : 'Votes'}
@@ -2338,6 +2437,11 @@ const SettingsTab = () => {
                   label="Action Title"
                   placeholder="E.g., 'Comment on an event'"
                   variant="outlined"
+                  value={bronzeActionTitle}
+                  onChange={(e) => {
+                    setBronzeActionTitle(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   sx={{ mb: 2, mt: 1 }}
                 />
                 <TextField
@@ -2347,6 +2451,11 @@ const SettingsTab = () => {
                   label="Action Description"
                   placeholder="Describe what members need to do to complete this action"
                   variant="outlined"
+                  value={bronzeActionDescription}
+                  onChange={(e) => {
+                    setBronzeActionDescription(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   sx={{ mb: 2 }}
                 />
                 <FormControl fullWidth sx={{ mt: 2 }}>
@@ -2354,13 +2463,17 @@ const SettingsTab = () => {
                     <DatePicker
                       label="Due Date (Optional)"
                       value={bronzeActionDate}
-                      onChange={(newValue) => setBronzeActionDate(newValue)}
-                      slotProps={{
-                        textField: {
-                          helperText: 'Optional deadline for this action',
-                          variant: 'outlined'
-                        }
+                      onChange={(newValue) => {
+                        setBronzeActionDate(newValue);
+                        setHasUnsavedChanges(true);
                       }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          helperText="Optional deadline for this action"
+                          variant="outlined"
+                        />
+                      )}
                     />
                   </LocalizationProvider>
                 </FormControl>
@@ -2427,7 +2540,10 @@ const SettingsTab = () => {
                       <Select
                         value={bronzeThresholdType}
                         label="Threshold Type"
-                        onChange={(e) => setBronzeThresholdType(e.target.value)}
+                        onChange={(e) => {
+                          setBronzeThresholdType(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
                       >
                         <MenuItem value="">No Threshold</MenuItem>
                         <MenuItem value="members">New Members Incentive</MenuItem>
@@ -2448,7 +2564,10 @@ const SettingsTab = () => {
                         label="Threshold Value"
                         type="number"
                         value={bronzeThresholdValue}
-                        onChange={(e) => setBronzeThresholdValue(Math.max(1, parseInt(e.target.value) || 0))}
+                        onChange={(e) => {
+                          setBronzeThresholdValue(Math.max(1, parseInt(e.target.value) || 0));
+                          setHasUnsavedChanges(true);
+                        }}
                         InputProps={{
                           endAdornment: <InputAdornment position="end">
                             {bronzeThresholdType === 'members' ? 'Members' : 'Votes'}
