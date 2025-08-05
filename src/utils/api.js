@@ -1078,12 +1078,12 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
       errors: []
     };
     
-    // Save each action type if provided
+    // Save each action type if provided (including cleared/inactive ones)
     for (const actionType of ['bronze', 'silver', 'gold']) {
-      if (actionsData[actionType] && actionsData[actionType].title) {
+      if (actionsData[actionType]) {
         const actionData = {
           action_type: actionType,
-          title: actionsData[actionType].title,
+          title: actionsData[actionType].title || '',
           description: actionsData[actionType].description || '',
           due_date: actionsData[actionType].due_date || null,
           threshold_type: actionsData[actionType].threshold_type || 'members',

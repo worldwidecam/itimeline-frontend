@@ -47,6 +47,7 @@ import ShieldIcon from '@mui/icons-material/Shield';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ModeratorIcon from '@mui/icons-material/VerifiedUser';
 import SaveIcon from '@mui/icons-material/Save';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
@@ -1813,38 +1814,54 @@ const SettingsTab = ({ id }) => {
       // Create action objects for saving
       const actionsToSave = {};
       
-      if (goldActionTitle) {
-        actionsToSave.gold = {
-          title: goldActionTitle,
-          description: goldActionDescription,
-          due_date: formatDateForAPI(goldActionDate),
-          threshold_type: goldThresholdType,
-          threshold_value: goldThresholdValue,
-          is_active: true
-        };
-      }
+      // Always send all three action types to handle both active and cleared states
+      actionsToSave.gold = goldActionTitle ? {
+        title: goldActionTitle,
+        description: goldActionDescription,
+        due_date: formatDateForAPI(goldActionDate),
+        threshold_type: goldThresholdType,
+        threshold_value: goldThresholdValue,
+        is_active: true
+      } : {
+        title: '', // Empty title to indicate cleared state
+        description: '',
+        due_date: null,
+        threshold_type: 'members',
+        threshold_value: 15,
+        is_active: false
+      };
       
-      if (silverActionTitle) {
-        actionsToSave.silver = {
-          title: silverActionTitle,
-          description: silverActionDescription,
-          due_date: formatDateForAPI(silverActionDate),
-          threshold_type: silverThresholdType,
-          threshold_value: silverThresholdValue,
-          is_active: true
-        };
-      }
+      actionsToSave.silver = silverActionTitle ? {
+        title: silverActionTitle,
+        description: silverActionDescription,
+        due_date: formatDateForAPI(silverActionDate),
+        threshold_type: silverThresholdType,
+        threshold_value: silverThresholdValue,
+        is_active: true
+      } : {
+        title: '', // Empty title to indicate cleared state
+        description: '',
+        due_date: null,
+        threshold_type: 'members',
+        threshold_value: 10,
+        is_active: false
+      };
       
-      if (bronzeActionTitle) {
-        actionsToSave.bronze = {
-          title: bronzeActionTitle,
-          description: bronzeActionDescription,
-          due_date: formatDateForAPI(bronzeActionDate),
-          threshold_type: bronzeThresholdType,
-          threshold_value: bronzeThresholdValue,
-          is_active: true
-        };
-      }
+      actionsToSave.bronze = bronzeActionTitle ? {
+        title: bronzeActionTitle,
+        description: bronzeActionDescription,
+        due_date: formatDateForAPI(bronzeActionDate),
+        threshold_type: bronzeThresholdType,
+        threshold_value: bronzeThresholdValue,
+        is_active: true
+      } : {
+        title: '', // Empty title to indicate cleared state
+        description: '',
+        due_date: null,
+        threshold_type: bronzeThresholdType || 'members',
+        threshold_value: bronzeThresholdValue || 5,
+        is_active: false
+      };
       
       // Save action cards to backend
       const saveResult = await saveTimelineActions(id, actionsToSave);
@@ -2148,17 +2165,36 @@ const SettingsTab = ({ id }) => {
                   }
                 }}
               >
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box component="span" sx={{ 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: '50%', 
-                    bgcolor: '#FFD700', 
-                    mr: 1.5,
-                    display: 'inline-block',
-                    boxShadow: '0 0 5px rgba(255, 215, 0, 0.7)'
-                  }}></Box>
-                  Gold Action
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box component="span" sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      borderRadius: '50%', 
+                      bgcolor: '#FFD700', 
+                      mr: 1.5,
+                      display: 'inline-block',
+                      boxShadow: '0 0 5px rgba(255, 215, 0, 0.7)'
+                    }}></Box>
+                    Gold Action
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setGoldActionTitle('');
+                      setGoldActionDescription('');
+                      setGoldActionDate(null);
+                      setGoldThresholdValue(25);
+                      setHasUnsavedChanges(true);
+                    }}
+                    sx={{ 
+                      color: '#FFD700',
+                      '&:hover': { bgcolor: 'rgba(255, 215, 0, 0.1)' }
+                    }}
+                    title="Clear Gold Action (will show quote instead)"
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
                 </Typography>
                 <TextField
                   fullWidth
@@ -2304,17 +2340,36 @@ const SettingsTab = ({ id }) => {
                   }
                 }}
               >
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box component="span" sx={{ 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: '50%', 
-                    bgcolor: '#C0C0C0', 
-                    mr: 1.5,
-                    display: 'inline-block',
-                    boxShadow: '0 0 5px rgba(192, 192, 192, 0.7)'
-                  }}></Box>
-                  Silver Action
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box component="span" sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      borderRadius: '50%', 
+                      bgcolor: '#C0C0C0', 
+                      mr: 1.5,
+                      display: 'inline-block',
+                      boxShadow: '0 0 5px rgba(192, 192, 192, 0.7)'
+                    }}></Box>
+                    Silver Action
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setSilverActionTitle('');
+                      setSilverActionDescription('');
+                      setSilverActionDate(null);
+                      setSilverThresholdValue(10);
+                      setHasUnsavedChanges(true);
+                    }}
+                    sx={{ 
+                      color: '#C0C0C0',
+                      '&:hover': { bgcolor: 'rgba(192, 192, 192, 0.1)' }
+                    }}
+                    title="Clear Silver Action (will show quote instead)"
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
                 </Typography>
                 <TextField
                   fullWidth
@@ -2459,17 +2514,36 @@ const SettingsTab = ({ id }) => {
                   }
                 }}
               >
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box component="span" sx={{ 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: '50%', 
-                    bgcolor: '#CD7F32', 
-                    mr: 1.5,
-                    display: 'inline-block',
-                    boxShadow: '0 0 5px rgba(205, 127, 50, 0.7)'
-                  }}></Box>
-                  Bronze Action
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box component="span" sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      borderRadius: '50%', 
+                      bgcolor: '#CD7F32', 
+                      mr: 1.5,
+                      display: 'inline-block',
+                      boxShadow: '0 0 5px rgba(205, 127, 50, 0.7)'
+                    }}></Box>
+                    Bronze Action
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setBronzeActionTitle('');
+                      setBronzeActionDescription('');
+                      setBronzeActionDate(null);
+                      setBronzeThresholdValue(5);
+                      setHasUnsavedChanges(true);
+                    }}
+                    sx={{ 
+                      color: '#CD7F32',
+                      '&:hover': { bgcolor: 'rgba(205, 127, 50, 0.1)' }
+                    }}
+                    title="Clear Bronze Action (will show quote instead)"
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
                 </Typography>
                 <TextField
                   fullWidth

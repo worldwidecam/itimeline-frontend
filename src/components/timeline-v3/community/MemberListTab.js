@@ -780,14 +780,14 @@ const MemberListTab = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
-      {/* Gold Action Section */}
-      {showGoldAction ? (
+      {/* Gold Action Section - Show if threshold met OR action is inactive */}
+      {(showGoldAction || (goldAction && !goldAction.is_active)) ? (
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          {!isGoldActionLoading && !goldAction ? (
+          {!isGoldActionLoading && (!goldAction || !goldAction.is_active) ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1017,7 +1017,7 @@ const MemberListTab = () => {
           flexDirection: { xs: 'column', sm: 'row' }
         }}>
           {/* Bronze Action or Quote Fallback */}
-          {!isBronzeActionLoading && !bronzeAction ? (
+          {!isBronzeActionLoading && (!bronzeAction || !bronzeAction.is_active) ? (
             <QuoteDisplay 
               quote={communityQuote.text}
               author={communityQuote.author}
@@ -1138,9 +1138,9 @@ const MemberListTab = () => {
             </Card>
           )}
           
-          {/* Silver Action - Only shown when membership threshold is met */}
-          {showSilverAction ? (
-            !isSilverActionLoading && !silverAction ? (
+          {/* Silver Action - Show quote fallback if inactive OR threshold not met */}
+          {(showSilverAction || (silverAction && !silverAction.is_active)) ? (
+            !isSilverActionLoading && (!silverAction || !silverAction.is_active) ? (
               <Box sx={{
                 flex: 1,
                 ml: { xs: 0, sm: 2 },
