@@ -52,6 +52,24 @@ const formatActionDate = (dateValue) => {
   }
 };
 
+// Helper function to check if an action card has meaningful content
+const hasActionContent = (action) => {
+  if (!action) return false;
+  
+  // Check if the action has custom content (not just fallback values)
+  const hasCustomTitle = action.title && 
+    action.title !== 'Gold Community Action' && 
+    action.title !== 'Silver Community Action' && 
+    action.title !== 'Bronze Community Action';
+    
+  const hasCustomDescription = action.description && 
+    action.description !== 'Complete this action to unlock gold benefits.' &&
+    action.description !== 'Complete this action to unlock silver benefits.' &&
+    action.description !== 'Complete this action to unlock bronze benefits.';
+    
+  return hasCustomTitle || hasCustomDescription;
+};
+
 const MemberListTab = () => {
   const { id } = useParams();
   const theme = useTheme();
@@ -161,11 +179,11 @@ const MemberListTab = () => {
               newThresholds.silver = action.threshold_value || 10;
               const silverActionData = {
                 id: action.id,
-                title: action.title,
-                description: action.description,
+                title: action.title || 'Silver Community Action',
+                description: action.description || 'Complete this action to unlock silver benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
-                thresholdType: action.threshold_type,
-                thresholdValue: action.threshold_value
+                thresholdType: action.threshold_type || 'members',
+                thresholdValue: action.threshold_value || 10
               };
               console.log('[DEBUG] Setting silverAction with dueDate:', silverActionData.dueDate);
               setSilverAction(silverActionData);
@@ -175,11 +193,11 @@ const MemberListTab = () => {
               newThresholds.gold = action.threshold_value || 25;
               const goldActionData = {
                 id: action.id,
-                title: action.title,
-                description: action.description,
+                title: action.title || 'Gold Community Action',
+                description: action.description || 'Complete this action to unlock gold benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
-                thresholdType: action.threshold_type,
-                thresholdValue: action.threshold_value
+                thresholdType: action.threshold_type || 'members',
+                thresholdValue: action.threshold_value || 25
               };
               console.log('[DEBUG] Setting goldAction with dueDate:', goldActionData.dueDate);
               setGoldAction(goldActionData);
@@ -188,11 +206,11 @@ const MemberListTab = () => {
             } else if (action.action_type === 'bronze') {
               const bronzeActionData = {
                 id: action.id,
-                title: action.title,
-                description: action.description,
+                title: action.title || 'Bronze Community Action',
+                description: action.description || 'Complete this action to unlock bronze benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
-                thresholdType: action.threshold_type,
-                thresholdValue: action.threshold_value
+                thresholdType: action.threshold_type || 'members',
+                thresholdValue: action.threshold_value || 5
               };
               console.log('[DEBUG] Setting bronzeAction with dueDate:', bronzeActionData.dueDate);
               setBronzeAction(bronzeActionData);
@@ -780,14 +798,14 @@ const MemberListTab = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
-      {/* Gold Action Section - Show if threshold met OR action is inactive */}
-      {(showGoldAction || (goldAction && !goldAction.is_active)) ? (
+      {/* Gold Action Section - Always show quote fallback if no content, show conditional lock if has content but threshold not met */}
+      {(!hasActionContent(goldAction) || showGoldAction || goldAction) ? (
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          {!isGoldActionLoading && (!goldAction || !goldAction.is_active) ? (
+          {!isGoldActionLoading && !hasActionContent(goldAction) ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1017,7 +1035,7 @@ const MemberListTab = () => {
           flexDirection: { xs: 'column', sm: 'row' }
         }}>
           {/* Bronze Action or Quote Fallback */}
-          {!isBronzeActionLoading && (!bronzeAction || !bronzeAction.is_active) ? (
+          {!isBronzeActionLoading && !hasActionContent(bronzeAction) ? (
             <QuoteDisplay 
               quote={communityQuote.text}
               author={communityQuote.author}
@@ -1138,9 +1156,9 @@ const MemberListTab = () => {
             </Card>
           )}
           
-          {/* Silver Action - Show quote fallback if inactive OR threshold not met */}
-          {(showSilverAction || (silverAction && !silverAction.is_active)) ? (
-            !isSilverActionLoading && (!silverAction || !silverAction.is_active) ? (
+          {/* Silver Action - Always show quote fallback if no content, show conditional lock if has content but threshold not met */}
+          {(!hasActionContent(silverAction) || showSilverAction || silverAction) ? (
+            !isSilverActionLoading && !hasActionContent(silverAction) ? (
               <Box sx={{
                 flex: 1,
                 ml: { xs: 0, sm: 2 },
