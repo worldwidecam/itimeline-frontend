@@ -924,12 +924,9 @@ export const checkMembershipFromUserData = async (timelineId) => {
  */
 export const getTimelineActions = async (timelineId) => {
   try {
-    console.log(`[API] Getting action cards for timeline ${timelineId}`);
-    
     const response = await api.get(`/api/v1/timelines/${timelineId}/actions`);
     
     if (response.data) {
-      console.log(`[API] Successfully fetched ${response.data.total} action cards`);
       return {
         success: true,
         actions: response.data.actions || [],

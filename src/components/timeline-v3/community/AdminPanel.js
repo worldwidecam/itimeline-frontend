@@ -52,6 +52,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType } from '../../../utils/api';
 
+// Helper function to format dates as YYYY-MM-DD without timezone issues
+const formatDateForAPI = (date) => {
+  if (!date) return null;
+  
+  // Get the date in local timezone and format as YYYY-MM-DD
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T12:00:00`; // Use noon to avoid timezone edge cases
+};
+
 const AdminPanel = () => {
   const { id } = useParams();
   const [tabValue, setTabValue] = useState(0);
@@ -1805,7 +1817,7 @@ const SettingsTab = ({ id }) => {
         actionsToSave.gold = {
           title: goldActionTitle,
           description: goldActionDescription,
-          due_date: goldActionDate ? goldActionDate.toISOString() : null,
+          due_date: formatDateForAPI(goldActionDate),
           threshold_type: goldThresholdType,
           threshold_value: goldThresholdValue,
           is_active: true
@@ -1816,7 +1828,7 @@ const SettingsTab = ({ id }) => {
         actionsToSave.silver = {
           title: silverActionTitle,
           description: silverActionDescription,
-          due_date: silverActionDate ? silverActionDate.toISOString() : null,
+          due_date: formatDateForAPI(silverActionDate),
           threshold_type: silverThresholdType,
           threshold_value: silverThresholdValue,
           is_active: true
@@ -1827,7 +1839,7 @@ const SettingsTab = ({ id }) => {
         actionsToSave.bronze = {
           title: bronzeActionTitle,
           description: bronzeActionDescription,
-          due_date: bronzeActionDate ? bronzeActionDate.toISOString() : null,
+          due_date: formatDateForAPI(bronzeActionDate),
           threshold_type: bronzeThresholdType,
           threshold_value: bronzeThresholdValue,
           is_active: true

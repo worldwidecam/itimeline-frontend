@@ -36,6 +36,22 @@ import FlagIcon from '@mui/icons-material/Flag';
 import LockIcon from '@mui/icons-material/Lock';
 import QuoteDisplay from './QuoteDisplay';
 
+// Helper function to safely format dates
+const formatActionDate = (dateValue) => {
+  if (!dateValue) return 'No due date';
+  
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.warn('Date parsing error:', error, 'for value:', dateValue);
+    return 'Invalid date';
+  }
+};
+
 const MemberListTab = () => {
   const { id } = useParams();
   const theme = useTheme();
@@ -129,6 +145,13 @@ const MemberListTab = () => {
         const response = await getTimelineActions(id);
         console.log('[MemberListTab] Action cards response:', response);
         
+        // Debug: Log each action's due_date value
+        if (response.actions) {
+          response.actions.forEach(action => {
+            console.log(`[DEBUG] Action ${action.action_type} due_date:`, action.due_date, typeof action.due_date);
+          });
+        }
+        
         if (isMounted && response.success && response.actions) {
           // Process action cards and update thresholds
           const newThresholds = { silver: 10, gold: 25 }; // Default values
@@ -136,37 +159,43 @@ const MemberListTab = () => {
           response.actions.forEach(action => {
             if (action.action_type === 'silver') {
               newThresholds.silver = action.threshold_value || 10;
-              setSilverAction({
+              const silverActionData = {
                 id: action.id,
                 title: action.title,
                 description: action.description,
-                due_date: action.due_date,
-                threshold_type: action.threshold_type,
-                threshold_value: action.threshold_value
-              });
+                dueDate: action.due_date,  // Convert to camelCase
+                thresholdType: action.threshold_type,
+                thresholdValue: action.threshold_value
+              };
+              console.log('[DEBUG] Setting silverAction with dueDate:', silverActionData.dueDate);
+              setSilverAction(silverActionData);
               setSilverActionLocked(false);
               setIsSilverActionLoading(false);
             } else if (action.action_type === 'gold') {
               newThresholds.gold = action.threshold_value || 25;
-              setGoldAction({
+              const goldActionData = {
                 id: action.id,
                 title: action.title,
                 description: action.description,
-                due_date: action.due_date,
-                threshold_type: action.threshold_type,
-                threshold_value: action.threshold_value
-              });
+                dueDate: action.due_date,  // Convert to camelCase
+                thresholdType: action.threshold_type,
+                thresholdValue: action.threshold_value
+              };
+              console.log('[DEBUG] Setting goldAction with dueDate:', goldActionData.dueDate);
+              setGoldAction(goldActionData);
               setGoldActionLocked(false);
               setIsGoldActionLoading(false);
             } else if (action.action_type === 'bronze') {
-              setBronzeAction({
+              const bronzeActionData = {
                 id: action.id,
                 title: action.title,
                 description: action.description,
-                due_date: action.due_date,
-                threshold_type: action.threshold_type,
-                threshold_value: action.threshold_value
-              });
+                dueDate: action.due_date,  // Convert to camelCase
+                thresholdType: action.threshold_type,
+                thresholdValue: action.threshold_value
+              };
+              console.log('[DEBUG] Setting bronzeAction with dueDate:', bronzeActionData.dueDate);
+              setBronzeAction(bronzeActionData);
               setBronzeActionLocked(false);
               setIsBronzeActionLoading(false);
             }
@@ -891,7 +920,8 @@ const MemberListTab = () => {
                     gutterBottom
                     sx={{ 
                       fontWeight: 600,
-                      color: theme.palette.mode === 'dark' ? '#fff' : '#000'
+                      color: theme.palette.mode === 'dark' ? '#fff' : '#000',
+                      textAlign: 'center'
                     }}
                   >
                     {goldAction.title}
@@ -901,7 +931,8 @@ const MemberListTab = () => {
                     variant="body1"
                     sx={{ 
                       mb: 1.5,
-                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
+                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                      textAlign: 'center'
                     }}
                   >
                     {goldAction.description}
@@ -918,12 +949,8 @@ const MemberListTab = () => {
                       borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.2)' : 'rgba(139,111,31,0.2)'
                     }}
                   >
-                    <Typography variant="caption" sx={{ fontStyle: 'italic' }}>
-                      Set by {goldAction.createdBy}
-                    </Typography>
-                    
                     <Chip 
-                      label={`Due: ${new Date(goldAction.dueDate).toLocaleDateString()}`}
+                      label={`Due: ${formatActionDate(goldAction.dueDate)}`}
                       size="small"
                       sx={{
                         bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.15)' : 'rgba(255,215,0,0.2)',
@@ -1093,12 +1120,8 @@ const MemberListTab = () => {
                         borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.2)' : 'rgba(139,90,43,0.2)'
                       }}
                     >
-                      <Typography variant="caption" sx={{ fontStyle: 'italic', fontSize: '0.7rem' }}>
-                        By {bronzeAction.createdBy}
-                      </Typography>
-                      
                       <Chip 
-                        label={`Due: ${new Date(bronzeAction.dueDate).toLocaleDateString()}`}
+                        label={`Due: ${formatActionDate(bronzeAction.dueDate)}`}
                         size="small"
                         sx={{
                           bgcolor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.15)' : 'rgba(205,127,50,0.2)',
@@ -1200,7 +1223,8 @@ const MemberListTab = () => {
                         sx={{ 
                           fontWeight: 600,
                           fontSize: '1rem',
-                          color: theme.palette.mode === 'dark' ? '#fff' : '#000'
+                          color: theme.palette.mode === 'dark' ? '#fff' : '#000',
+                          textAlign: 'right'
                         }}
                       >
                         {silverAction.title}
@@ -1211,7 +1235,8 @@ const MemberListTab = () => {
                         sx={{ 
                           mb: 1,
                           fontSize: '0.8rem',
-                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
+                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                          textAlign: 'right'
                         }}
                       >
                         {silverAction.description}
@@ -1228,12 +1253,8 @@ const MemberListTab = () => {
                           borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.2)' : 'rgba(112,112,112,0.2)'
                         }}
                       >
-                        <Typography variant="caption" sx={{ fontStyle: 'italic', fontSize: '0.7rem' }}>
-                          By {silverAction.createdBy}
-                        </Typography>
-                        
                         <Chip 
-                          label={`Due: ${new Date(silverAction.dueDate).toLocaleDateString()}`}
+                          label={`Due: ${formatActionDate(silverAction.dueDate)}`}
                           size="small"
                           sx={{
                             bgcolor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.15)' : 'rgba(192,192,192,0.2)',
