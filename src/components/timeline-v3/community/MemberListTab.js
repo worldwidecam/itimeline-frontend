@@ -29,7 +29,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, getTimelineActions, getTimelineActionByType } from '../../../utils/api';
+import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -676,9 +676,27 @@ const MemberListTab = () => {
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
         
-        // Set community quote if available
+        // Load community quote from API
+        const loadQuote = async () => {
+          try {
+            const quoteResponse = await getTimelineQuote(id);
+            if (quoteResponse.success) {
+              setCommunityQuote({
+                text: quoteResponse.quote.text,
+                author: quoteResponse.quote.author
+              });
+            }
+          } catch (error) {
+            console.error('[MemberListTab] Error loading quote:', error);
+            // Keep default quote on error
+          }
+        };
+        
+        loadQuote();
+        
+        // Set community quote from localStorage if available (fallback)
         if (settings.communityQuote) {
-          setCustomQuote(settings.communityQuote);
+          setCommunityQuote(settings.communityQuote);
         }
         
         // Load actions with a slight delay to simulate API loading

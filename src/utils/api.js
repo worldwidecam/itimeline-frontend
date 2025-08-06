@@ -914,6 +914,63 @@ export const checkMembershipFromUserData = async (timelineId) => {
 };
 
 // =============================================================================
+// TIMELINE QUOTE API FUNCTIONS
+// =============================================================================
+
+/**
+ * Get the custom quote for a timeline
+ * @param {string|number} timelineId - Timeline ID
+ * @returns {Promise<Object>} - Promise resolving to quote data
+ */
+export const getTimelineQuote = async (timelineId) => {
+  try {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/quote`);
+    return {
+      success: true,
+      quote: response.data.quote
+    };
+  } catch (error) {
+    console.error('Error fetching timeline quote:', error);
+    // Return default quote on error
+    return {
+      success: false,
+      quote: {
+        text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
+        author: "John F. Kennedy",
+        is_custom: false
+      },
+      error: error.response?.data?.error || 'Failed to fetch quote'
+    };
+  }
+};
+
+/**
+ * Update the custom quote for a timeline
+ * @param {string|number} timelineId - Timeline ID
+ * @param {Object} quoteData - Quote data {text, author}
+ * @returns {Promise<Object>} - Promise resolving to updated quote data
+ */
+export const updateTimelineQuote = async (timelineId, quoteData) => {
+  try {
+    const response = await api.put(`/api/v1/timelines/${timelineId}/quote`, {
+      text: quoteData.text || '',
+      author: quoteData.author || ''
+    });
+    return {
+      success: true,
+      quote: response.data.quote,
+      message: response.data.message
+    };
+  } catch (error) {
+    console.error('Error updating timeline quote:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to update quote'
+    };
+  }
+};
+
+// =============================================================================
 // TIMELINE ACTION CARDS API FUNCTIONS
 // =============================================================================
 

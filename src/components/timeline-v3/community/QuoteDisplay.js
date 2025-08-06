@@ -51,7 +51,7 @@ const QuoteDisplay = ({
           boxShadow: theme.palette.mode === 'dark' 
             ? '0 8px 16px rgba(0,0,0,0.3), inset 0 0 8px rgba(192,192,192,0.1)'
             : '0 8px 16px rgba(0,0,0,0.1), inset 0 0 8px rgba(192,192,192,0.1)',
-          borderLeft: '3px solid',
+          borderRight: '3px solid',
           borderColor: '#c0c0c0',
         };
       case 'gold':

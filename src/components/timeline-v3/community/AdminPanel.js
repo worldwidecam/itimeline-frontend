@@ -51,7 +51,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
-import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote } from '../../../utils/api';
 
 // Helper function to format dates as YYYY-MM-DD without timezone issues
 const formatDateForAPI = (date) => {
@@ -1767,13 +1767,27 @@ const SettingsTab = ({ id }) => {
               setRequireMembershipApproval(settings.requireMembershipApproval);
             }
             
-            // Load community quote
+            // Load community quote from localStorage (fallback)
             if (settings.communityQuote) {
               setCommunityQuote(settings.communityQuote);
             }
           }
         } catch (legacyError) {
           console.warn('Error loading legacy localStorage settings:', legacyError);
+        }
+        
+        // Load community quote from API (primary source)
+        try {
+          const quoteResponse = await getTimelineQuote(id);
+          if (quoteResponse.success) {
+            setCommunityQuote({
+              text: quoteResponse.quote.text,
+              author: quoteResponse.quote.author
+            });
+          }
+        } catch (quoteError) {
+          console.error('[AdminPanel] Error loading quote from API:', quoteError);
+          // Keep localStorage fallback or default quote
         }
         
       } catch (error) {
@@ -1887,12 +1901,27 @@ const SettingsTab = ({ id }) => {
         // Trigger member list refresh by updating localStorage timestamp
         localStorage.setItem('actionCardsLastUpdated', Date.now().toString());
         
-        // Save non-action settings to localStorage for now (until we have backend endpoints for these)
+        // Save quote to backend API
+        try {
+          const quoteResult = await updateTimelineQuote(id, {
+            text: communityQuote.text,
+            author: communityQuote.author
+          });
+          
+          if (quoteResult.success) {
+            console.log('[AdminPanel] Quote saved successfully:', quoteResult.message);
+          } else {
+            console.warn('[AdminPanel] Error saving quote:', quoteResult.error);
+          }
+        } catch (quoteError) {
+          console.error('[AdminPanel] Error saving quote to API:', quoteError);
+        }
+        
+        // Save non-quote settings to localStorage (until we have backend endpoints for these)
         try {
           const communitySettings = {
             isPrivate,
             requireMembershipApproval,
-            communityQuote,
             lastUpdated: new Date().toISOString()
           };
           localStorage.setItem('communitySettings', JSON.stringify(communitySettings));
