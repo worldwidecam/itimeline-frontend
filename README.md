@@ -2,11 +2,11 @@
 
 Frontend application for the iTimeline platform, a modern web application for creating and sharing timelines with interactive event cards.
 
-## Current Focus (June 2025)
+## Current Focus (August 2025)
 
-### Community Timelines Implementation
+### Community Timelines & Action Cards System
 
-The iTimeline application now supports Community Timelines, a new type of timeline that allows users to create dedicated spaces for collaboration with customizable visibility settings.
+The iTimeline application now supports Community Timelines with a Bronze/Silver/Gold action card system that encourages member engagement through milestone-based rewards and achievements.
 
 #### Key Features
 - **Timeline Types**: Support for both hashtag timelines (automatic collections) and community timelines (user-created spaces)
@@ -22,6 +22,26 @@ The iTimeline application now supports Community Timelines, a new type of timeli
   - Enhanced timeline creation dialog with type and visibility options
   - Accessibility improvements with ARIA labels and tooltips
   - Responsive design with proper overflow handling for long timeline names
+
+#### Action Cards System
+- **Bronze/Silver/Gold Tiers**: Three levels of community actions with different unlock requirements
+- **Dynamic Thresholds**: Action cards appear/disappear based on member count milestones
+- **Admin Configuration**: Timeline creators can set custom titles, descriptions, and due dates
+- **Quote Fallback System**: When action cards are inactive, displays inspirational quotes
+- **Real-time Updates**: Changes save immediately with visual feedback via enhanced FAB button
+- **Backend Integration**: Full CRUD operations with authentication and admin permissions
+- **Database Layer**: TimelineAction model with SQLAlchemy ORM for persistent storage
+
+#### Privacy & Membership Features
+- **Public Timelines**: Visible and accessible to all users
+- **Private Timelines**: Discoverable but require approval to join
+  - Appear in search results with "Request to Join" button
+  - Timeline creators/admins manage join requests
+  - Members see full timeline content
+- **Privacy Switching**: 10-day cooldown when switching from public to private
+- **Follower Management**: 24-hour grace period for existing followers when going private
+- **Role System**: Admin, moderator, and member roles with different permissions
+- **SiteOwner Access**: Special role for site owner with access to all timelines
 
 #### Community Timeline UI Components
 - **Community Dot Tabs**: Minimalist navigation between Timeline, Members, and Admin views

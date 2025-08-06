@@ -1693,6 +1693,7 @@ const SettingsTab = ({ id }) => {
     text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
     author: "John F. Kennedy"
   });
+  const [isRefreshingQuote, setIsRefreshingQuote] = useState(false);
   
   // Mock data for timeline
   const [timelineData, setTimelineData] = useState({
@@ -1818,6 +1819,27 @@ const SettingsTab = ({ id }) => {
     }
   };
   
+  // Handle quote refresh
+  const refreshQuote = async () => {
+    try {
+      setIsRefreshingQuote(true);
+      
+      // Load the default JFK quote
+      setCommunityQuote({
+        text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
+        author: "John F. Kennedy"
+      });
+      
+      // Trigger unsaved changes to show the FAB save button
+      setHasUnsavedChanges(true);
+      
+    } catch (error) {
+      console.error('[AdminPanel] Error refreshing quote:', error);
+    } finally {
+      setIsRefreshingQuote(false);
+    }
+  };
+  
   // Handle save changes
   const handleSaveChanges = async () => {
     try {
@@ -1884,7 +1906,7 @@ const SettingsTab = ({ id }) => {
         console.log(`[AdminPanel] Successfully saved ${saveResult.saved.length} action cards`);
         
         // Show success message
-        setSnackbarMessage(`Settings saved successfully! ${saveResult.saved.length} action cards updated.`);
+        setSnackbarMessage('Settings Saved Successfully!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
         
@@ -2131,9 +2153,31 @@ const SettingsTab = ({ id }) => {
               
                 {/* Quote Field */}
                 <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Inspiration Quote
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle2">
+                      Inspiration Quote
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={refreshQuote}
+                      disabled={isRefreshingQuote}
+                      sx={{ 
+                        color: 'primary.main',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                          color: 'white'
+                        }
+                      }}
+                    >
+                      <RefreshIcon 
+                        sx={{ 
+                          fontSize: 18,
+                          transform: isRefreshingQuote ? 'rotate(360deg)' : 'none',
+                          transition: 'transform 0.6s ease-in-out'
+                        }} 
+                      />
+                    </IconButton>
+                  </Box>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     Write something inspiring to display to members when no actions are currently set.
                   </Typography>
