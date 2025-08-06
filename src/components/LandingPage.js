@@ -35,6 +35,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import LandingTimelineV3 from './LandingTimelineV3';
 import DonationButtons from './DonationButtons';
+import AnimatedTagline from './AnimatedTagline';
 
 // API Health Check Component
 const ApiHealthCheck = () => {
@@ -235,18 +236,7 @@ const LandingPage = () => {
             iTimeline
           </Typography>
           
-          <Typography 
-            variant="h5" 
-            component="h2"
-            sx={{ 
-              mb: 4,
-              maxWidth: 700,
-              mx: 'auto',
-              color: theme.palette.text.secondary
-            }}
-          >
-            Create beautiful, interactive timelines to visualize events and share your stories
-          </Typography>
+          <AnimatedTagline />
           
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
             {user ? (
