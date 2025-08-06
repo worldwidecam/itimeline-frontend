@@ -36,28 +36,20 @@ const Profile = () => {
         setLoading(true);
         
         if (isOwnProfile) {
-          // If viewing own profile
+          // If viewing own profile, always fetch fresh data from API
+          // This ensures all fields (including bio) are loaded from database
           if (user) {
-            // Make a copy of the user object with properly formatted created_at date
-            // This ensures consistent date formatting between own profile and other profiles
-            const formattedUser = {
-              ...user,
-              // If created_at is already an ISO string, use it; otherwise fetch from API
-              created_at: user.created_at && typeof user.created_at === 'string' ? user.created_at : null
-            };
-            setProfileUser(formattedUser);
-            
-            // If created_at is missing or not properly formatted, fetch it from the API
-            if (!formattedUser.created_at) {
-              try {
-                const userResponse = await api.get(`/api/users/${user.id}`);
-                setProfileUser(prev => ({
-                  ...prev,
-                  created_at: userResponse.data.created_at
-                }));
-              } catch (userError) {
-                console.error('Error fetching user created_at:', userError);
-              }
+            try {
+              const userResponse = await api.get(`/api/users/${user.id}`);
+              setProfileUser(userResponse.data);
+            } catch (userError) {
+              console.error('Error fetching own profile data:', userError);
+              // Fallback to AuthContext user data if API call fails
+              const formattedUser = {
+                ...user,
+                created_at: user.created_at && typeof user.created_at === 'string' ? user.created_at : null
+              };
+              setProfileUser(formattedUser);
             }
           }
           

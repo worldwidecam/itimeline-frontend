@@ -25,11 +25,14 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InfoIcon from '@mui/icons-material/Info';
+import SaveIcon from '@mui/icons-material/Save';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import { useDropzone } from 'react-dropzone';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
@@ -58,7 +61,7 @@ const ProfileSettings = () => {
     showEmail: user?.preferences?.showEmail !== false, // Default to true if not set
     emailNotifications: user?.preferences?.emailNotifications !== false, // Default to true if not set
     defaultTimelineView: user?.preferences?.defaultTimelineView || 'base', // Default to 'base' if not set
-    blurEmail: user?.preferences?.blurEmail || false, // Default to false if not set
+    blurEmail: false // This will be set from localStorage in fetchUserData
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || '');
@@ -76,6 +79,12 @@ const ProfileSettings = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [dragState, setDragState] = useState({ avatar: false, music: false });
   const [fileInfo, setFileInfo] = useState({ avatar: null, music: null });
+
+  // FAB save button states
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedState, setShowSavedState] = useState(false);
+  const [initialFormData, setInitialFormData] = useState(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -125,6 +134,22 @@ const ProfileSettings = () => {
     };
 
     if (user) {
+      const userData = {
+        email: user.email || '',
+        username: user.username || '',
+        bio: user.bio || '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        // Preference settings with defaults
+        showEmail: user?.preferences?.showEmail !== false, // Default to true if not set
+        emailNotifications: user?.preferences?.emailNotifications !== false, // Default to true if not set
+        defaultTimelineView: user?.preferences?.defaultTimelineView || 'base', // Default to 'base' if not set
+        blurEmail: false // This will be set from localStorage in fetchUserData
+      };
+      setFormData(userData);
+      setInitialFormData({ ...userData });
+      setPreviewUrl(user.avatar_url || '');
       fetchUserData();
     }
   }, [user]);
@@ -139,6 +164,9 @@ const ProfileSettings = () => {
       ...prev,
       [name]: value
     }));
+    
+    // Track unsaved changes
+    setHasUnsavedChanges(true);
   };
 
   const onDrop = useCallback((acceptedFiles, type) => {
@@ -173,6 +201,8 @@ const ProfileSettings = () => {
         setPreviewUrl(reader.result);
       };
       reader.readAsDataURL(file);
+      // Track unsaved changes
+      setHasUnsavedChanges(true);
     } else if (type === 'music') {
       if (!file.type.startsWith('audio/')) {
         setError('Please upload an audio file (MP3, WAV, or OGG)');
@@ -180,6 +210,8 @@ const ProfileSettings = () => {
       }
       setMusicFile(file);
       setMusicPreview(URL.createObjectURL(file));
+      // Track unsaved changes
+      setHasUnsavedChanges(true);
     }
   }, []);
 
@@ -214,11 +246,13 @@ const ProfileSettings = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
+    setIsSaving(true);
     setIsUploading(true);
     setUploadProgress(0);
+    setShowSavedState(false);
 
     try {
       const submitData = new FormData();
@@ -274,20 +308,41 @@ const ProfileSettings = () => {
           // Don't reload the page, just update the UI
           // This prevents the token refresh issues that cause logout
           setPreviewUrl(response.data.avatar_url);
+          
+          // Update initial form data and clear unsaved changes
+          setInitialFormData({ ...formData });
+          setHasUnsavedChanges(false);
+          setShowSavedState(true);
+          
+          // Hide saved state after 3 seconds
+          setTimeout(() => {
+            setShowSavedState(false);
+          }, 3000);
         } catch (updateError) {
           console.error('Error updating profile in context:', updateError);
           // Even if context update fails, we still have the updated data from the API
           setSuccess('Profile updated successfully, but there was an issue refreshing the page data');
+          setHasUnsavedChanges(false);
+          setShowSavedState(true);
+          setTimeout(() => {
+            setShowSavedState(false);
+          }, 3000);
         }
       } else {
         setSuccess('Profile updated successfully');
         setPreviewUrl(response.data.avatar_url);
+        setHasUnsavedChanges(false);
+        setShowSavedState(true);
+        setTimeout(() => {
+          setShowSavedState(false);
+        }, 3000);
       }
     } catch (err) {
       console.error('Profile update error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to update profile');
     } finally {
       setIsUploading(false);
+      setIsSaving(false);
     }
   };
 
@@ -490,7 +545,7 @@ const ProfileSettings = () => {
           <Divider sx={{ my: 3 }} />
         </Box>
         
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+        <Box component="form" sx={{ mt: 3 }}>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={4} md={3}>
               <Tooltip title={`Max size: ${formatFileSize(MAX_FILE_SIZE)}`} placement="top">
@@ -630,25 +685,7 @@ const ProfileSettings = () => {
                   />
                 </Grid>
 
-                <Grid item xs={12}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={isUploading}
-                    startIcon={isUploading ? <CircularProgress size={20} /> : null}
-                    sx={{
-                      position: 'relative',
-                      transition: 'all 0.2s ease',
-                      '&:not(:disabled):hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: 2
-                      }
-                    }}
-                  >
-                    {isUploading ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </Grid>
+
               </Grid>
             </Grid>
 
@@ -861,6 +898,64 @@ const ProfileSettings = () => {
         </Snackbar>
       </Paper>
     </Container>
+    
+    {/* Floating Action Button for Save Changes - Outside main container for proper fixed positioning */}
+    <AnimatePresence>
+      {(hasUnsavedChanges || showSavedState) && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            y: showSavedState ? 10 : 0,
+            transition: { type: 'spring', stiffness: 300, damping: 25 }
+          }}
+          exit={{ 
+            opacity: 0, 
+            scale: 0.8, 
+            y: 40,
+            transition: { duration: 0.3 }
+          }}
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 1000,
+          }}
+        >
+          <Button
+            variant="contained"
+            color={showSavedState ? 'success' : 'primary'}
+            onClick={handleSubmit}
+            disabled={isSaving || showSavedState}
+            sx={{
+              borderRadius: '28px',
+              padding: '12px 24px',
+              boxShadow: showSavedState 
+                ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
+                : '0 8px 16px rgba(0,0,0,0.2)',
+              '&:hover': {
+                boxShadow: showSavedState 
+                  ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
+                  : '0 12px 20px rgba(0,0,0,0.3)',
+              },
+              '&.Mui-disabled': {
+                color: 'white',
+                opacity: showSavedState ? 1 : 0.7
+              },
+              transition: 'all 0.3s ease'
+            }}
+            startIcon={
+              showSavedState ? <CheckCircleIcon /> : 
+              isSaving ? null : <SaveIcon />
+            }
+          >
+            {showSavedState ? 'SAVED!' : 
+             isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </Box>
   );
 };
