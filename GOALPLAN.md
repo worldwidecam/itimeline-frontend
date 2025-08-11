@@ -38,6 +38,12 @@
 ### 🎯 Admin Page Focus:
 Significant progress has been made on the Admin Panel implementation. The member management functionality is now complete with real API integration, replacing all mock data with functional backend endpoints.
 
+### 📌 Today's Progress (2025-08-11)
+- [x] Active Members on Admin page now retrieves REAL user info from backend (no mock data in this view)
+- [x] Unified avatar fallback across app using `UserAvatar` (Navbar, Admin Panel, Members list, event cards/popups, profile pages)
+- [x] Fixed initials sizing to scale proportionally with avatar size
+- [x] Removed legacy fallback URLs and inline color overrides where found
+
 ### ✅ Completed Admin Page Tasks:
 - [x] **Manage Members Section** - ✅ COMPLETE - Comprehensive member management functionality implemented
   - [x] Member list display with roles and status
@@ -59,39 +65,31 @@ Significant progress has been made on the Admin Panel implementation. The member
 - [ ] **Manage Posts Tab** - Implement post moderation features
 - [ ] **Admin Dashboard** - Overview and analytics
 - [ ] **Search for and remove mock data from AdminPanel fallback/frontend code**
+  - Note: Active Members now uses real data; verify no mock fallbacks remain in other Admin tabs/paths
+ - [ ] Clean up any unused `Avatar` imports and archive unused legacy components (`old_components/`)
 
-### 🔍 **Key Findings from AdminPanel Analysis:**
+### 🔍 **AdminPanel Status Update:**
 
-**Real Data vs Mock Data Confirmed:**
-- **MemberListTab (Community Members page)**: Shows REAL data (Brahdyssey, test) via `getTimelineMembers(id)` API
-- **AdminPanel (Admin page)**: Shows MOCK data (John Doe, Jane Smith, Mike Wilson, Sarah Parker)
+- **Active Members view**: now shows REAL data via `getTimelineMembers(id)` with proper avatars and roles
+- **Members list (community page)**: continues to show REAL data and now shares the same avatar fallback
+- **Remaining concern**: verify other Admin tabs/edge paths have no mock fallbacks
 
-**API Integration is Working:**
-- The `getTimelineMembers(id)` API function correctly fetches and transforms real backend data
-- Data format includes: `username`, `avatar_url`, `role`, `joinDate` - exactly what we need
-- MemberListTab proves the API integration works perfectly
+### ✅/🛠 Member Removal ("Remove from community") – TODO Checklist
 
-**Mock Data Source Identified:**
-- Mock data is **entirely frontend-only** in the AdminPanel component
-- It was intentionally placed as a **UI placeholder** for visualization during development
-- The mock data has served its purpose and can now be removed
-
-**AdminPanel Code Structure:**
-- AdminPanel calls `getTimelineMembers(id)` correctly in `loadMembers()` function
-- Initial state: `setMembers([])` - starts empty
-- Mock data must be in fallback/error handling sections of the frontend code
+- [ ] Decide behavior with backend: hard delete membership vs soft-disable (preferred?)
+- [ ] Wire UI to backend: call `removeMember(timelineId, userId)` in `handleRemoveMember()`
+- [ ] On success: either re-fetch via `getTimelineMembers(id)` or optimistically update and reconcile
+- [ ] Show success/error Snackbar with actionable copy
+- [ ] Handle permission errors (only admins/mods can remove)
+- [ ] Keep confirmation dialog; finalize copy and warnings
+- [ ] Add basic test flow: remove a member, verify they disappear and member count updates
+- [ ] Audit related views (MemberListTab) for consistent behavior after removal
 
 ### 🎯 **Next Session Action Plan:**
 
-**Primary Task**: Search for mock data in AdminPanel fallback code and delete it
-
-**Search Strategy**:
-1. Look in error handling sections of `loadMembers()` function
-2. Check for any hardcoded arrays or objects with mock member data
-3. Search for fallback conditions that might inject mock data
-4. Remove the placeholder mock data so real API data can display
-
-**Expected Outcome**: AdminPanel will display real member data (Brahdyssey, test, etc.) instead of mock data (John Doe, Jane Smith, etc.)
+1. Verify and remove any lingering mock fallbacks in AdminPanel outside Active Members
+2. Implement search/filtering for members list in AdminPanel
+3. Clean up unused `Avatar` imports and optionally archive `old_components/`
 
 ### 📋 Future Quote System Enhancements (Optional):
 - [ ] Add quote history/versioning for timeline admins

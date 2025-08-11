@@ -4,7 +4,6 @@ import {
   Typography, 
   Paper,
   Divider,
-  Avatar,
   Chip,
   Skeleton,
   useTheme,

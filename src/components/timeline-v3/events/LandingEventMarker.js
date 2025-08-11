@@ -2,7 +2,7 @@
 // This version doesn't include the popup overlay functionality
 
 import React, { useState, useEffect } from 'react';
-import { Box, useTheme, Paper, Typography, Avatar, Divider } from '@mui/material';
+import { Box, useTheme, Paper, Typography, Divider } from '@mui/material';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import BusinessIcon from '@mui/icons-material/Business';

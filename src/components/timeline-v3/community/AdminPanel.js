@@ -14,7 +14,6 @@ import {
   Snackbar,
   Skeleton,
   useTheme,
-  Avatar,
   Chip,
   IconButton,
   Dialog,
