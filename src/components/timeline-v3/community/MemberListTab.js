@@ -35,6 +35,7 @@ import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
 import LockIcon from '@mui/icons-material/Lock';
 import QuoteDisplay from './QuoteDisplay';
+import UserAvatar from '../../common/UserAvatar';
 
 // Helper function to safely format dates
 const formatActionDate = (dateValue) => {
@@ -592,7 +593,7 @@ const MemberListTab = () => {
                 name: member.name,
                 role: member.role || 'member',
                 joinDate: joinDate || new Date().toISOString().split('T')[0],
-                avatar: member.avatar || `https://i.pravatar.cc/150?u=${member.userId || member.id}`,
+                avatar: member.avatar || member.avatar_url || null,
                 _raw: member
               };
             } else {
@@ -619,7 +620,7 @@ const MemberListTab = () => {
                 name: username,
                 role: member.role || 'member',
                 joinDate: joinDate,
-                avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?u=${userId}`,
+                avatar: userData.avatar_url || member.avatar_url || null,
                 _raw: member
               };
             }
@@ -1555,19 +1556,17 @@ const MemberListTab = () => {
                       transition: 'background-color 0.2s ease'
                     }}
                   >
-                    <Avatar 
-                      src={member.avatar} 
-                      alt={member.name}
+                    <UserAvatar
+                      name={member.name}
+                      avatarUrl={member.avatar}
+                      id={member.userId}
+                      size={48}
                       sx={{ 
-                        width: 48, 
-                        height: 48, 
                         mr: 2,
                         boxShadow: '0 0 0 2px ' + roleColor.bg,
                         cursor: 'pointer',
                         transition: 'transform 0.2s ease',
-                        '&:hover': {
-                          transform: 'scale(1.05)'
-                        }
+                        '&:hover': { transform: 'scale(1.05)' }
                       }}
                       onClick={() => window.open(`/profile/${member.id}`, '_blank')}
                     />

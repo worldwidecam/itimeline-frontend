@@ -1,11 +1,11 @@
 import React from 'react';
 import {
   Box,
-  Avatar,
   Typography,
   Link,
   useTheme
 } from '@mui/material';
+import UserAvatar from '../../common/UserAvatar';
 import { Person as PersonIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -43,21 +43,16 @@ const CreatorChip = ({ user, color }) => {
         boxShadow: theme.shadows[1]
       }
     }}>
-      <Avatar 
-        src={user.avatar} 
-        alt={user.username}
+      <UserAvatar 
+        name={user.username}
+        avatarUrl={user.avatar}
+        id={user.id}
+        size={44}
         sx={{ 
-          width: 44, 
-          height: 44, 
           mr: 2,
           border: `2px solid ${chipColor}`,
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.9)',
-          color: chipColor,
-          fontWeight: 600,
         }}
-      >
-        {user.username.charAt(0).toUpperCase()}
-      </Avatar>
+      />
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
           <PersonIcon sx={{ fontSize: 16, mr: 0.75, color: chipColor, opacity: 0.8 }} />

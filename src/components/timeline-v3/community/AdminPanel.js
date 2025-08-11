@@ -51,7 +51,9 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
+import api from '../../../utils/api';
 import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote } from '../../../utils/api';
+import UserAvatar from '../../common/UserAvatar';
 
 // Helper function to format dates as YYYY-MM-DD without timezone issues
 const formatDateForAPI = (date) => {
@@ -535,83 +537,135 @@ const AdminPanel = () => {
                 {/* Active Members Tab */}
                 {memberTabValue === 0 && (
                   <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-                    {members.length === 0 ? (
-                      <Box sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
-                          No active members
+                    {loading ? (
+                      // Loading skeleton
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <Box key={index} sx={{ mb: 1 }}>
+                          <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
+                        </Box>
+                      ))
+                    ) : members.length === 0 ? (
+                      <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                          No active members found
                         </Typography>
                       </Box>
                     ) : (
-                      members.map((member) => {
-                        const roleColor = getRoleColor(member.role);
-                        
-                        return (
-                          <Box 
-                            key={member.id}
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
+                      members.map((member, index) => (
+                        <motion.div
+                          key={member.id || member.user_id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
                               p: 2,
-                              borderBottom: '1px solid',
-                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                              '&:last-child': {
-                                borderBottom: 'none'
-                              },
+                              borderRadius: 2,
+                              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                              mb: 1,
                               '&:hover': {
-                                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
-                              },
-                              transition: 'background-color 0.2s ease'
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+                              }
                             }}
                           >
-                            <Avatar 
-                              src={member.avatar} 
-                              alt={member.name}
-                              sx={{ 
-                                width: 48, 
-                                height: 48, 
-                                mr: 2,
-                                boxShadow: '0 0 0 2px ' + roleColor.bg,
-                                cursor: 'pointer',
-                                transition: 'transform 0.2s ease',
-                                '&:hover': {
-                                  transform: 'scale(1.05)'
-                                }
-                              }}
-                            />
-                            <Box sx={{ display: 'flex', ml: 'auto' }}>
-                                <IconButton 
-                                  size="small" 
-                                  color="error"
-                                  onClick={() => handleOpenConfirmDialog(member, 'remove')}
-                                  title="Remove from community"
-                                  sx={{ 
-                                    mr: 1,
-                                    '&:hover': {
-                                      bgcolor: 'rgba(211, 47, 47, 0.1)'
-                                    }
-                                  }}
-                                >
-                                  <PersonRemoveIcon />
-                                </IconButton>
-                                <IconButton 
-                                  size="small" 
-                                  color="error"
-                                  onClick={() => handleOpenConfirmDialog(member, 'block')}
-                                  title="Block from community"
-                                  sx={{ 
-                                    ml: 1,
-                                    '&:hover': {
-                                      bgcolor: 'rgba(211, 47, 47, 0.1)'
-                                    }
-                                  }}
-                                >
-                                  <DeleteOutlineIcon />
-                                </IconButton>
+                            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                              <UserAvatar
+                                name={member.username || member.name}
+                                avatarUrl={member.avatar_url || member.avatar}
+                                id={member.user_id || member.userId}
+                                size={48}
+                                sx={{ mr: 2 }}
+                              />
+                              <Box>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                  {member.username || member.name || 'Unknown User'}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Unknown'}
+                                </Typography>
                               </Box>
+                            </Box>
+                            
+
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Chip
+                                label={member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                                size="small"
+                                sx={{
+                                  backgroundColor: getRoleColor(member.role).bg,
+                                  color: getRoleColor(member.role).text,
+                                  fontWeight: 600,
+                                  border: 'none'
+                                }}
+                              />
+                              
+
+                              {/* Role management buttons */}
+                              {member.role !== 'admin' && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenConfirmDialog(member, 'promote_admin')}
+                                  sx={{ color: 'primary.main' }}
+                                  title="Promote to Admin"
+                                >
+                                  <AdminPanelSettingsIcon fontSize="small" />
+                                </IconButton>
+                              )}
+
+                              {member.role === 'member' && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenConfirmDialog(member, 'promote_moderator')}
+                                  sx={{ color: 'info.main' }}
+                                  title="Promote to Moderator"
+                                >
+                                  <ModeratorIcon fontSize="small" />
+                                </IconButton>
+                              )}
+
+                              {member.role !== 'member' && member.role !== 'SiteOwner' && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenConfirmDialog(member, 'demote_member')}
+                                  sx={{ color: 'warning.main' }}
+                                  title="Demote to Member"
+                                >
+                                  <PersonRemoveIcon fontSize="small" />
+                                </IconButton>
+                              )}
+
+                              {member.role !== 'SiteOwner' && (
+                                <>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenConfirmDialog(member, 'remove')}
+                                    sx={{ color: 'error.main' }}
+                                    title="Remove Member"
+                                  >
+                                    <PersonRemoveIcon fontSize="small" />
+                                  </IconButton>
+
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenConfirmDialog(member, 'block')}
+                                    sx={{ color: 'warning.main' }}
+                                    title="Block Member"
+                                  >
+                                    <DeleteOutlineIcon fontSize="small" />
+                                  </IconButton>
+                                </>
+                              )}
+                            </Box>
                           </Box>
-                        );
-                      })
-                    )}
+                        </motion.div>
+                      ))
+                    )
+                  }
                   </Box>
                 )}
                 
@@ -643,12 +697,12 @@ const AdminPanel = () => {
                             transition: 'background-color 0.2s ease'
                           }}
                         >
-                          <Avatar 
-                            src={member.avatar} 
-                            alt={member.name}
+                          <UserAvatar 
+                            name={member.name}
+                            avatarUrl={member.avatar}
+                            id={member.userId || member.id}
+                            size={48}
                             sx={{ 
-                              width: 48, 
-                              height: 48, 
                               mr: 2,
                               filter: 'grayscale(100%)',
                               opacity: 0.7,
@@ -900,7 +954,7 @@ const AdminPanel = () => {
           
           <Box sx={{ p: 1 }}>
             <AnimatePresence mode="wait">
-              {tabValue === 0 && <StandaloneMemberManagementTab key="members" />}
+              {tabValue === 0 && <StandaloneMemberManagementTab key="members" timelineId={id} />}
               {tabValue === 1 && <ManagePostsTab key="posts" />}
               {tabValue === 2 && <SettingsTab key="settings" id={id} />}
             </AnimatePresence>
@@ -1299,62 +1353,61 @@ const ManagePostsTab = () => {
 };
 
 // Member Management Tab Component
-const StandaloneMemberManagementTab = () => {
+const StandaloneMemberManagementTab = ({ timelineId }) => {
   const theme = useTheme();
   const [memberTabValue, setMemberTabValue] = useState(0); // 0 = Active Members, 1 = Blocked Members
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [actionType, setActionType] = useState(''); // 'remove' or 'block' or 'unblock'
+  const [actionType, setActionType] = useState(''); // 'remove' or 'block' or 'unblock' or 'promote' or 'demote'
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   
-  // Mock data for members
-  const [members, setMembers] = useState([
-    {
-      id: '1',
-      name: 'John Doe',
-      avatar: 'https://i.pravatar.cc/150?img=1',
-      role: 'admin',
-      joinDate: '2 months ago'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      avatar: 'https://i.pravatar.cc/150?img=2',
-      role: 'moderator',
-      joinDate: '1 month ago'
-    },
-    {
-      id: '3',
-      name: 'Mike Wilson',
-      avatar: 'https://i.pravatar.cc/150?img=3',
-      role: 'member',
-      joinDate: '3 weeks ago'
-    },
-    {
-      id: '4',
-      name: 'Sarah Parker',
-      avatar: 'https://i.pravatar.cc/150?img=4',
-      role: 'member',
-      joinDate: '2 weeks ago'
-    }
-  ]);
+  // Real data for members
+  const [members, setMembers] = useState([]);
+  const [blockedMembers, setBlockedMembers] = useState([]);
   
-  // Mock data for blocked members
-  const [blockedMembers, setBlockedMembers] = useState([
-    {
-      id: '5',
-      name: 'Alex Johnson',
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      blockedDate: '1 week ago',
-      reason: 'Spam content'
-    },
-    {
-      id: '6',
-      name: 'Chris Taylor',
-      avatar: 'https://i.pravatar.cc/150?img=6',
-      blockedDate: '3 days ago',
-      reason: 'Harassment'
+  // Load members data from API
+  const loadMembers = useCallback(async () => {
+    if (!timelineId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const membersArr = await getTimelineMembers(timelineId);
+      console.log('Members response:', membersArr);
+      
+      // Our API util returns a transformed array of members
+      const activeMembers = Array.isArray(membersArr)
+        ? membersArr
+        : (Array.isArray(membersArr?.members) ? membersArr.members : []);
+      
+      setMembers(activeMembers);
+      // Blocked members are not yet supported by backend; keep empty for now
+      setBlockedMembers([]);
+    } catch (error) {
+      console.error('Error loading members:', error);
+      setError('Failed to load members');
+      showSnackbar('Failed to load members', 'error');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, [timelineId]);
+  
+  // Load members on component mount and when timelineId changes
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+  
+  // Show snackbar notification
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
   
   // Handle opening the confirmation dialog
   const handleOpenConfirmDialog = (member, action) => {
@@ -1368,6 +1421,68 @@ const StandaloneMemberManagementTab = () => {
     setConfirmDialogOpen(false);
     setSelectedMember(null);
     setActionType('');
+  };
+  
+  // Handle member actions (remove, block, unblock, role changes)
+  const handleMemberAction = async () => {
+    if (!selectedMember || !actionType) return;
+    
+    try {
+      let success = false;
+      let message = '';
+      
+      switch (actionType) {
+        case 'remove':
+          await api.removeMember(timelineId, selectedMember.user_id);
+          message = `${selectedMember.username} has been removed from the timeline`;
+          success = true;
+          break;
+          
+        case 'block':
+          await api.blockMember(timelineId, selectedMember.user_id, 'Blocked by admin');
+          message = `${selectedMember.username} has been blocked`;
+          success = true;
+          break;
+          
+        case 'unblock':
+          await api.unblockMember(timelineId, selectedMember.user_id);
+          message = `${selectedMember.username} has been unblocked`;
+          success = true;
+          break;
+          
+        case 'promote_admin':
+          await api.updateMemberRole(timelineId, selectedMember.user_id, 'admin');
+          message = `${selectedMember.username} has been promoted to Admin`;
+          success = true;
+          break;
+          
+        case 'promote_moderator':
+          await api.updateMemberRole(timelineId, selectedMember.user_id, 'moderator');
+          message = `${selectedMember.username} has been promoted to Moderator`;
+          success = true;
+          break;
+          
+        case 'demote_member':
+          await api.updateMemberRole(timelineId, selectedMember.user_id, 'member');
+          message = `${selectedMember.username} has been demoted to Member`;
+          success = true;
+          break;
+          
+        default:
+          throw new Error('Unknown action type');
+      }
+      
+      if (success) {
+        showSnackbar(message, 'success');
+        // Reload members to reflect changes
+        await loadMembers();
+      }
+    } catch (error) {
+      console.error('Error performing member action:', error);
+      showSnackbar(error.response?.data?.error || 'Action failed', 'error');
+    } finally {
+      handleCloseConfirmDialog();
+    }
   };
   
   // Get color based on role
@@ -1429,12 +1544,13 @@ const StandaloneMemberManagementTab = () => {
                   bg: '#F3F4F6'
                 };
                 
-                if (member.role === 'admin') {
+                const roleLower = (member.role || '').toLowerCase();
+                if (roleLower === 'admin') {
                   roleColor = {
                     text: '#B91C1C',
                     bg: '#FEE2E2'
                   };
-                } else if (member.role === 'moderator') {
+                } else if (roleLower === 'moderator') {
                   roleColor = {
                     text: '#2563EB',
                     bg: '#DBEAFE'
@@ -1459,19 +1575,17 @@ const StandaloneMemberManagementTab = () => {
                       transition: 'background-color 0.2s ease'
                     }}
                   >
-                    <Avatar 
-                      src={member.avatar} 
-                      alt={member.name}
+                    <UserAvatar 
+                      name={member.name}
+                      avatarUrl={member.avatar}
+                      id={member.userId}
+                      size={48}
                       sx={{ 
-                        width: 48, 
-                        height: 48, 
                         mr: 2,
                         boxShadow: '0 0 0 2px ' + roleColor.bg,
                         cursor: 'pointer',
                         transition: 'transform 0.2s ease',
-                        '&:hover': {
-                          transform: 'scale(1.05)'
-                        }
+                        '&:hover': { transform: 'scale(1.05)' }
                       }}
                     />
                     <Box sx={{ display: 'flex', ml: 'auto' }}>
@@ -1513,12 +1627,12 @@ const StandaloneMemberManagementTab = () => {
                       </Typography>
                     </Box>
                     <Chip 
-                      label={member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                      label={(roleLower ? roleLower.charAt(0).toUpperCase() + roleLower.slice(1) : 'Member')}
                       size="small"
                       icon={
-                        member.role === 'admin' ? 
+                        roleLower === 'admin' ? 
                           <AdminPanelSettingsIcon fontSize="small" /> : 
-                        member.role === 'moderator' ? 
+                        roleLower === 'moderator' ? 
                           <ModeratorIcon fontSize="small" /> : 
                           null
                       }
@@ -1566,12 +1680,12 @@ const StandaloneMemberManagementTab = () => {
                     transition: 'background-color 0.2s ease'
                   }}
                 >
-                  <Avatar 
-                    src={member.avatar} 
-                    alt={member.name}
+                  <UserAvatar 
+                    name={member.name}
+                    avatarUrl={member.avatar}
+                    id={member.userId || member.id}
+                    size={48}
                     sx={{ 
-                      width: 48, 
-                      height: 48, 
                       mr: 2,
                       filter: 'grayscale(100%)',
                       opacity: 0.7

@@ -5,7 +5,6 @@ import {
   Box,
   Container,
   Paper,
-  Avatar,
   Divider,
   CircularProgress,
   Button,
@@ -22,6 +21,7 @@ import {
 } from '@mui/icons-material';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from './common/UserAvatar';
 
 const UserProfileView = () => {
   const { userId } = useParams();
@@ -125,16 +125,13 @@ const UserProfileView = () => {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <Avatar 
-                sx={{ 
-                  width: 80, 
-                  height: 80, 
-                  bgcolor: theme.palette.primary.main,
-                  mr: 2
-                }}
-              >
-                {profileUser.username ? profileUser.username[0].toUpperCase() : <PersonIcon />}
-              </Avatar>
+              <UserAvatar 
+                name={profileUser.username}
+                avatarUrl={profileUser.avatar_url}
+                id={profileUser.id}
+                size={80}
+                sx={{ mr: 2 }}
+              />
               <Box>
                 <Typography variant="h4" component="h1">
                   {profileUser.username}

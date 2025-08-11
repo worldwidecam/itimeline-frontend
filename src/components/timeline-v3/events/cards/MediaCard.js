@@ -10,7 +10,6 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Avatar,
   Chip,
 } from '@mui/material';
 import {
@@ -36,6 +35,7 @@ import PageCornerButton from '../PageCornerButton';
 import VideoDetailsButton from './VideoDetailsButton';
 import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
+import UserAvatar from '../../../common/UserAvatar';
 
 const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
   // Add error boundary state
@@ -889,18 +889,13 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
               {/* Author with avatar */}
               {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar 
-                    src={event.created_by_avatar} 
-                    alt={event.created_by_username}
-                    sx={{ 
-                      width: 24, 
-                      height: 24,
-                      mr: 0.5,
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    {event.created_by_username.charAt(0).toUpperCase()}
-                  </Avatar>
+                  <UserAvatar
+                    name={event.created_by_username}
+                    avatarUrl={event.created_by_avatar}
+                    id={event.created_by}
+                    size={24}
+                    sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                  />
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
                     By
                   </Typography>

@@ -19,6 +19,7 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
+import UserAvatar from './common/UserAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -157,13 +158,13 @@ function Navbar() {
         {user && (
           <ListItem sx={{ pt: 3, pb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-              <Avatar
-                src={user.avatar_url}
-                sx={{ width: 60, height: 60, mr: 2 }}
-                alt={user.username}
-              >
-                {user.username[0].toUpperCase()}
-              </Avatar>
+              <UserAvatar
+                name={user.username}
+                avatarUrl={user.avatar_url}
+                id={user.id}
+                size={60}
+                sx={{ mr: 2 }}
+              />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                   {user.username}
@@ -446,19 +447,16 @@ function Navbar() {
                   {profileTabs}
                 </Drawer>
                 <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-                  <Avatar
-                    alt={user.username}
-                    src={user.avatar_url}
+                  <UserAvatar
+                    name={user.username}
+                    avatarUrl={user.avatar_url}
+                    id={user.id}
+                    size={40}
                     sx={{ 
-                      bgcolor: 'secondary.main',
                       transition: 'transform 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'scale(1.1)',
-                      }
+                      '&:hover': { transform: 'scale(1.1)' }
                     }}
-                  >
-                    {user.username[0].toUpperCase()}
-                  </Avatar>
+                  />
                 </IconButton>
                 <Menu
                   anchorEl={anchorEl}

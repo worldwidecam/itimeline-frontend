@@ -5,7 +5,6 @@ import {
   Container,
   Paper,
   Typography,
-  Avatar,
   Box,
   Grid,
   Divider,
@@ -16,6 +15,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
+import UserAvatar from './common/UserAvatar';
 
 const Profile = () => {
   const { userId } = useParams();
@@ -246,10 +246,11 @@ const Profile = () => {
             {/* Profile Header */}
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <Avatar
-                  src={profileUser.avatar_url}
-                  sx={{ width: 120, height: 120 }}
-                  alt={profileUser.username}
+                <UserAvatar
+                  name={profileUser.username}
+                  avatarUrl={profileUser.avatar_url}
+                  id={profileUser.id}
+                  size={120}
                 />
                 <Box>
                   <Typography variant="h4" gutterBottom>

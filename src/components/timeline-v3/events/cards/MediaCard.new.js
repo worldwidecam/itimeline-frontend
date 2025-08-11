@@ -27,6 +27,7 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import config from '../../../../config';
+import UserAvatar from '../../../common/UserAvatar';
 
 const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
@@ -489,18 +490,13 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
               {/* Author */}
               {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar 
-                    src={event.created_by_avatar} 
-                    alt={event.created_by_username}
-                    sx={{ 
-                      width: 24, 
-                      height: 24,
-                      mr: 0.5,
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    {event.created_by_username.charAt(0).toUpperCase()}
-                  </Avatar>
+                  <UserAvatar
+                    name={event.created_by_username}
+                    avatarUrl={event.created_by_avatar}
+                    id={event.created_by}
+                    size={24}
+                    sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                  />
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
                     By
                   </Typography>

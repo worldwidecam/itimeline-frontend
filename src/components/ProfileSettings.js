@@ -8,7 +8,6 @@ import {
   TextField,
   Button,
   Grid,
-  Avatar,
   Divider,
   Alert,
   Snackbar,
@@ -31,6 +30,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
+import UserAvatar from './common/UserAvatar';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -569,17 +569,15 @@ const ProfileSettings = () => {
                     }
                   }}>
                   <input {...getAvatarInputProps()} />
-                  <Avatar
-                    src={previewUrl || user?.avatar_url || ''}
+                  <UserAvatar
+                    name={formData.username}
+                    avatarUrl={previewUrl || user?.avatar_url || ''}
+                    id={user?.id}
+                    size={100}
                     sx={{ 
-                      width: 100, 
-                      height: 100,
                       transition: 'transform 0.2s ease',
-                      '&:hover': {
-                        transform: 'scale(1.05)'
-                      }
+                      '&:hover': { transform: 'scale(1.05)' }
                     }}
-                    alt={formData.username}
                   />
                   <Box sx={{ textAlign: 'center' }}>
                     <CloudUploadIcon color="primary" sx={{ mb: 1 }} />

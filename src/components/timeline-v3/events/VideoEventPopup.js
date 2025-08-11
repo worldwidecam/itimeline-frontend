@@ -245,8 +245,7 @@ const VideoEventPopup = ({
               display: 'flex',
               flexDirection: 'row',
               height: '90vh',
-              maxHeight: '90vh',
-              overflow: 'hidden'
+              maxHeight: '90vh'
             },
           }}
         >

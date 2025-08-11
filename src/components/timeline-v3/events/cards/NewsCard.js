@@ -14,7 +14,7 @@ import {
   ListItemIcon,
   ListItemText,
   Paper,
-  Avatar
+  
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -38,6 +38,7 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import { alpha } from '@mui/material/styles';
+import UserAvatar from '../../../common/UserAvatar';
 
 const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
   const theme = useTheme();
@@ -556,18 +557,13 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOp
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
               {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar 
-                    src={event.created_by_avatar} 
-                    alt={event.created_by_username}
-                    sx={{ 
-                      width: 24, 
-                      height: 24,
-                      mr: 0.5,
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    {event.created_by_username.charAt(0).toUpperCase()}
-                  </Avatar>
+                  <UserAvatar
+                    name={event.created_by_username}
+                    avatarUrl={event.created_by_avatar}
+                    id={event.created_by}
+                    size={24}
+                    sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                  />
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
                     By
                   </Typography>

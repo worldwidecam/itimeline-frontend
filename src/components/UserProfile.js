@@ -5,10 +5,10 @@ import {
   Paper,
   Typography,
   Box,
-  Avatar,
   Divider
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from './common/UserAvatar';
 
 const UserProfile = () => {
   const { user } = useAuth();
@@ -24,17 +24,13 @@ const UserProfile = () => {
           alignItems: 'center',
           mb: 4
         }}>
-          <Avatar
-            src={user?.avatar_url}
-            sx={{
-              width: 150,
-              height: 150,
-              mb: 2,
-              fontSize: '4rem'
-            }}
-          >
-            {user?.username?.[0]?.toUpperCase()}
-          </Avatar>
+          <UserAvatar
+            name={user?.username}
+            avatarUrl={user?.avatar_url}
+            id={user?.id}
+            size={150}
+            sx={{ mb: 2, fontSize: '4rem' }}
+          />
           <Typography variant="h4" gutterBottom>
             {user?.username}'s Profile
           </Typography>

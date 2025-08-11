@@ -200,16 +200,37 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
         name: userData.username || member.username || member.name, // Get username from user object
         avatar: userData.avatar_url || member.avatar_url || member.avatar, // Get avatar from user object
         role: member.role || 'member',       // Default to 'member' if role not provided
-        joinDate: member.joined_at || member.joinDate || new Date().toISOString(),
+        // Format joinDate properly for display
+        joinDate: (() => {
+          const joinedAt = member.joined_at || member.joinDate;
+          console.log('[API] Processing join date - joinedAt:', joinedAt);
+          if (joinedAt) {
+            try {
+              const date = new Date(joinedAt);
+              console.log('[API] Parsed date object:', date);
+              if (!isNaN(date.getTime())) {
+                const formattedDate = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                console.log('[API] Formatted join date:', formattedDate);
+                return formattedDate;
+              } else {
+                console.warn('[API] Invalid date object:', date);
+              }
+            } catch (e) {
+              console.warn('[API] Error parsing join date:', joinedAt, e);
+            }
+          }
+          console.log('[API] Using fallback join date: Unknown');
+          return 'Unknown'; // Fallback if no valid date
+        })(),
         memberId: member.id  // Keep the membership record ID separate
       };
-      console.log(`[API] Transformed member:`, transformed);
+      console.log(`[API] Transformed member:`, JSON.stringify(transformed, null, 2));
       return transformed;
     });
     
     // Log transformed data for debugging
     if (transformedMembers.length > 0) {
-      console.log('[API] First member data sample (after transformation):', transformedMembers[0]);
+      console.log('[API] First member data sample (after transformation):', JSON.stringify(transformedMembers[0], null, 2));
     }
     
     // Cache the member count in localStorage
