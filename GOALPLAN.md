@@ -67,6 +67,7 @@ Significant progress has been made on the Admin Panel implementation. The member
 - [ ] **Search for and remove mock data from AdminPanel fallback/frontend code**
   - Note: Active Members now uses real data; verify no mock fallbacks remain in other Admin tabs/paths
  - [ ] Clean up any unused `Avatar` imports and archive unused legacy components (`old_components/`)
+ - [ ] Profile Settings: add user avatar fallback color picker (store preference locally; unify with `UserAvatar`)
 
 ### 🔍 **AdminPanel Status Update:**
 
@@ -106,4 +107,4 @@ Significant progress has been made on the Admin Panel implementation. The member
 - ✅ Per-timeline quote persistence
 - ✅ Visual feedback for quote save/load states
 - ✅ Artistic quote display with modern UI elements
-
+( will return to this. currently off-topic migrating to postgres)
