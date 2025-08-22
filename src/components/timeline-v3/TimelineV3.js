@@ -67,6 +67,7 @@ function TimelineV3() {
       // Create a complete membership data object with all necessary fields
       const membershipData = {
         is_member: isMember,
+        is_active_member: isMember, // Set is_active_member to match is_member by default
         role: role || 'member',
         timeline_visibility: visibility,
         joined_at: new Date().toISOString(), // Add joined_at for consistency
@@ -1350,8 +1351,25 @@ function TimelineV3() {
       return;
     }
     
+    // Check if the user was previously a member but was removed (inactive)
+    // This helps us determine if this is a rejoin scenario
+    let isRejoin = false;
+    try {
+      const membershipKey = `timeline_membership_${timelineId}`;
+      const existingData = localStorage.getItem(membershipKey);
+      if (existingData) {
+        const parsedData = JSON.parse(existingData);
+        if (parsedData.is_active_member === false) {
+          console.log(`DEBUG: User was previously removed from timeline ${timelineId}, this is a rejoin scenario`);
+          isRejoin = true;
+        }
+      }
+    } catch (checkError) {
+      console.warn('Error checking previous membership status:', checkError);
+    }
+    
     // IMMEDIATE UI UPDATE: Set isMember to true right away to show Add Event button
-    console.log('DEBUG: IMMEDIATELY setting isMember to true for visual feedback');
+    console.log(`DEBUG: IMMEDIATELY setting isMember to true for visual feedback${isRejoin ? ' (rejoin scenario)' : ''}`);
     setIsMember(true);
     setJoinRequestSent(true);
     
@@ -1390,6 +1408,7 @@ function TimelineV3() {
         const directMembershipKey = `timeline_membership_${timelineId}`;
         const membershipData = {
           is_member: true,
+          is_active_member: true, // Explicitly set active status when joining/rejoining
           role: memberRole,
           joined_at: new Date().toISOString(),
           timeline_visibility: visibility,
@@ -1397,7 +1416,7 @@ function TimelineV3() {
         };
         
         localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
-        console.log(`Stored direct membership data for timeline ${timelineId} after join`);
+        console.log(`Stored direct membership data for timeline ${timelineId} after join${isRejoin ? ' (rejoin)' : ''}`);
       } catch (e) {
         console.warn('Error storing direct membership data after join:', e);
       }
@@ -1435,6 +1454,7 @@ function TimelineV3() {
       console.log('DEBUG: Current state after join:', {
         isMember: true, // We've forced this to true
         joinRequestSent: true,
+        isRejoin,
         timelineId,
         timelineType: timeline_type,
         visibility

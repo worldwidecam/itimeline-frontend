@@ -200,50 +200,29 @@ Frontend:
 
 ### Backend API Endpoints
 
-1. **Create Community Timeline**
-   - `POST /api/timelines/community`
-   - Creates a new community timeline and adds creator as admin
-   - Parameters: name, description, visibility (public/private)
+The frontend proxies API requests to the backend at `http://localhost:5000/api` during local development. All new and actively supported endpoints use the `/api/v1` prefix.
 
-2. **Get Timeline Members**
-   - `GET /api/timelines/{timeline_id}/members`
-   - Returns all members of a timeline with their roles
-   - Special handling for SiteOwner role (user ID 1)
+- **User Passport**
+  - `GET /api/v1/user/passport` — Returns the user's passport (timeline memberships)
+  - `POST /api/v1/user/passport/sync` — Forces a refresh of memberships
 
-3. **Add Timeline Member**
-   - `POST /api/timelines/{timeline_id}/members`
-   - Adds a new member to a timeline
-   - Requires moderator or admin permissions
-   - Parameters: user_id, role
+- **Membership (Community Timelines)**
+  - `GET  /api/v1/membership/timelines/{id}/members` — List members
+  - `POST /api/v1/membership/timelines/{id}/join` — Join timeline
+  - `GET  /api/v1/membership/timelines/{id}/status` — Check membership status
+  - See "Key Endpoints" above for details.
 
-4. **Remove Timeline Member**
-   - `DELETE /api/timelines/{timeline_id}/members/{user_id}`
-   - Removes a member from a timeline
-   - Requires moderator or admin permissions
-   - Cannot remove the SiteOwner or last admin
+- **Media Uploads**
+  - `POST /api/upload-media` — Upload media (current)
+  - `POST /api/upload` — Upload generic file (current)
+  - Note: These are legacy `/api` endpoints. Documentation targets `/api/v1` consistency; code updates may follow. For now, use the above paths in local dev.
 
-5. **Update Member Role**
-   - `PUT /api/timelines/{timeline_id}/members/{user_id}/role`
-   - Updates a member's role in a timeline
-   - Requires admin permissions
-   - Parameters: role (admin, moderator, member)
-   - SiteOwner role is reserved for user ID 1
+- **Media Listing (Legacy)**
+  - `GET /api/media-files` — List media files
+  - `GET /api/cloudinary/audio-files` — List Cloudinary audio files
 
-6. **Update Timeline Visibility**
-   - `PUT /api/timelines/{timeline_id}/visibility`
-   - Updates a timeline's visibility (public/private)
-   - Requires admin permissions
-   - Parameters: visibility
-
-7. **Request Timeline Access**
-   - `POST /api/timelines/{timeline_id}/access-request`
-   - Requests access to a private timeline
-
-8. **Respond to Access Request**
-   - `PUT /api/timelines/{timeline_id}/access-request/{user_id}`
-   - Approves or denies an access request
-   - Requires admin permissions
-   - Parameters: approved (true/false)
+- **Legacy Community Management (Deprecated in docs)**
+  - Older endpoints like `/timelines/...` (without `/api/v1`) are being replaced by the new `/api/v1/membership/...` routes. Avoid relying on undocumented legacy routes.
 
 ### Role System
 

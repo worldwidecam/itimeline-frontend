@@ -194,9 +194,17 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
       // Extract user data from nested user object
       const userData = member.user || {};
       
+      // Log the member ID structure for debugging
+      console.log('[API] Member ID structure:', {
+        member_id: member.id,
+        user_id: member.user_id,
+        userData_id: userData.id
+      });
+      
       const transformed = {
-        userId: member.user_id || userData.id || member.id,  // Use actual user_id first
-        id: member.user_id || userData.id || member.id,      // Use actual user_id first
+        userId: member.user_id || userData.id || member.id,  // The actual user ID for API calls
+        id: member.user_id || userData.id || member.id,      // Frontend component ID (should match userId)
+        memberId: member.id,                                // The membership record ID
         name: userData.username || member.username || member.name, // Get username from user object
         avatar: userData.avatar_url || member.avatar_url || member.avatar, // Get avatar from user object
         role: member.role || 'member',       // Default to 'member' if role not provided
@@ -320,12 +328,51 @@ export const updateMemberRole = async (timelineId, userId, role) => {
  */
 export const removeMember = async (timelineId, userId) => {
   try {
-    console.log(`Removing user ${userId} from timeline ${timelineId}`);
+    console.log(`[API] Removing user ${userId} from timeline ${timelineId}`);
+    console.log(`[API] Making DELETE request to: ${config.API_URL}/api/v1/timelines/${timelineId}/members/${userId}`);
+    console.log('[API] Current JWT token:', getCookie('access_token') || localStorage.getItem('access_token'));
+    
     const response = await api.delete(`/api/v1/timelines/${timelineId}/members/${userId}`);
-    console.log('Member removal response:', response.data);
+    console.log(`[API] Remove member response:`, response.data);
     return response.data;
   } catch (error) {
-    console.error('Error removing member:', error);
+    console.error('[API] Error in removeMember:', error.response || error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get blocked members for a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @returns {Promise} - Promise resolving to blocked members data
+ */
+export const getBlockedMembers = async (timelineId) => {
+  try {
+    console.log(`Fetching blocked members for timeline ${timelineId}`);
+    const response = await api.get(`/api/v1/timelines/${timelineId}/blocked-members`);
+    console.log('Blocked members response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching blocked members:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get reported posts for a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @returns {Promise} - Promise resolving to reported posts data
+ */
+export const getReportedPosts = async (timelineId) => {
+  try {
+    console.log(`Fetching reported posts for timeline ${timelineId}`);
+    const response = await api.get(`/api/v1/timelines/${timelineId}/reported-posts`);
+    console.log('Reported posts response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching reported posts:', error);
     console.error('Error details:', error.response?.data || error.message);
     throw error;
   }
@@ -439,6 +486,23 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
   try {
     console.log(`Requesting access to timeline ${timelineId} (attempt ${retryCount + 1})`);
     
+    // Check if the user was previously a member but was removed (inactive)
+    // This helps us determine if this is a rejoin scenario
+    let isRejoin = false;
+    try {
+      const membershipKey = `timeline_membership_${timelineId}`;
+      const existingData = localStorage.getItem(membershipKey);
+      if (existingData) {
+        const parsedData = JSON.parse(existingData);
+        if (parsedData.is_active_member === false) {
+          console.log(`User was previously removed from timeline ${timelineId}, this is a rejoin`);
+          isRejoin = true;
+        }
+      }
+    } catch (checkError) {
+      console.warn('Error checking previous membership status:', checkError);
+    }
+    
     // Even if the API call fails, we want to show the user as a member in the UI
     // This ensures a good user experience even if there are backend issues
     // Store membership status in localStorage immediately for UI consistency
@@ -446,6 +510,7 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       const membershipKey = `timeline_membership_${timelineId}`;
       localStorage.setItem(membershipKey, JSON.stringify({
         is_member: true,
+        is_active_member: true, // Explicitly set active status
         role: 'member', // Default to member role
         timestamp: new Date().toISOString()
       }));
@@ -455,6 +520,8 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
     }
     
     // Make the actual API call using NEW CLEAN JOIN ENDPOINT
+    // If this is a rejoin, log that information for debugging
+    console.log(`Making API call to join timeline ${timelineId}${isRejoin ? ' (rejoin scenario)' : ''}`);
     const response = await api.post(`/api/v1/membership/timelines/${timelineId}/join`);
     console.log('Join timeline response:', response.data);
     
@@ -482,6 +549,7 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       const membershipKey = `timeline_membership_${timelineId}`;
       localStorage.setItem(membershipKey, JSON.stringify({
         is_member: true, // Always consider the user a member for UI purposes
+        is_active_member: true, // Explicitly set active status when joining
         role: result.role,
         timestamp: new Date().toISOString()
       }));
@@ -517,6 +585,7 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       success: true, // Return success even on error for better UX
       role: 'member', // Default to member role
       status: 'joined',
+      is_active_member: true, // Explicitly set active status
       message: 'You have joined this timeline (offline mode)'
     };
   }
@@ -540,6 +609,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
         console.log('User is SiteOwner (ID 1), forcing is_member to true');
         return {
           is_member: true,
+          is_active_member: true,
           role: 'SiteOwner',
           timeline_visibility: 'public' // Default visibility
         };
@@ -551,6 +621,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
         console.log(`User ${userId} is creator of timeline ${timelineId}, forcing is_member to true`);
         return {
           is_member: true,
+          is_active_member: true,
           role: 'admin',
           timeline_visibility: timelineData.visibility || 'public',
           is_creator: true
@@ -582,11 +653,20 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
       console.log(`Checking membership status for timeline ${timelineId} (attempt ${retryCount + 1})`);
       const response = await api.get(`/api/v1/membership/timelines/${timelineId}/status`);
       
+      // Process the response to ensure is_member reflects is_active_member status
+      const processedResponse = {
+        ...response.data,
+        // Only consider the user a member if they are an active member
+        is_member: response.data.is_active_member === false ? false : response.data.is_member
+      };
+      
+      console.log(`Membership status response for timeline ${timelineId}:`, processedResponse);
+      
       // Store the result in localStorage for future use
       try {
         const membershipKey = `timeline_membership_${timelineId}`;
         localStorage.setItem(membershipKey, JSON.stringify({
-          ...response.data,
+          ...processedResponse,
           timestamp: new Date().toISOString()
         }));
         console.log(`Saved membership status to localStorage for timeline ${timelineId}`);
@@ -594,7 +674,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
         console.warn('Error writing to localStorage:', e);
       }
 
-      return response.data;
+      return processedResponse;
     } catch (error) {
       console.error(`Error checking membership status for timeline ${timelineId}:`, error);
       
@@ -604,7 +684,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
       }
 
       // Return a default object instead of throwing to prevent component crashes
-      return { is_member: false, role: null };
+      return { is_member: false, is_active_member: false, role: null };
     }
 };
 
@@ -830,7 +910,7 @@ export const checkMembershipFromUserData = async (timelineId) => {
     
     if (!userId) {
       console.warn('No user ID found, cannot check membership from user data');
-      return { is_member: false, role: null };
+      return { is_member: false, is_active_member: false, role: null };
     }
     
     // First check for direct timeline membership data which is set when joining
@@ -849,6 +929,12 @@ export const checkMembershipFromUserData = async (timelineId) => {
         if (diffMinutes < 30) {
           console.log(`Using direct membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
           console.log('Direct membership data:', membershipData);
+          
+          // Ensure is_member reflects is_active_member status
+          if (membershipData.is_active_member === false) {
+            membershipData.is_member = false;
+          }
+          
           return membershipData;
         } else {
           console.log(`Direct membership data for timeline ${timelineId} is stale (${Math.round(diffMinutes)} minutes old)`);
@@ -894,11 +980,16 @@ export const checkMembershipFromUserData = async (timelineId) => {
     
     if (membership) {
       console.log(`User ${userId} is a member of timeline ${timelineId} according to passport`);
+      console.log(`Membership active status: ${membership.is_active_member}`);
+      
+      // Only consider the user a member if they are an active member
+      const isMember = membership.is_active_member !== false && membership.is_active_member !== 'false';
       
       // Store this membership data in the direct timeline membership key for future use
       try {
         const membershipData = {
-          is_member: membership.is_active_member || false,
+          is_member: isMember,
+          is_active_member: membership.is_active_member !== false && membership.is_active_member !== 'false',
           role: membership.role,
           joined_at: membership.joined_at,
           is_creator: membership.is_creator || false,
@@ -913,7 +1004,8 @@ export const checkMembershipFromUserData = async (timelineId) => {
       }
       
       return {
-        is_member: membership.is_active_member || false,
+        is_member: isMember,
+        is_active_member: membership.is_active_member !== false && membership.is_active_member !== 'false',
         role: membership.role,
         joined_at: membership.joined_at,
         is_creator: membership.is_creator || false,
@@ -923,6 +1015,7 @@ export const checkMembershipFromUserData = async (timelineId) => {
       console.log(`User ${userId} is not a member of timeline ${timelineId} according to passport`);
       return {
         is_member: false,
+        is_active_member: false,
         role: null
       };
     }

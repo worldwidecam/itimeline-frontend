@@ -124,14 +124,25 @@ const MemberListTab = () => {
         if (isMounted) {
           // The API returns { success: true, members: [...] }
           const membersData = Array.isArray(response) ? response : (response?.members || []);
-          console.log(`[MemberListTab] Processed ${membersData.length} members`);
           
-          setMembers(membersData);
-          setMemberCount(membersData.length);
+          // Filter out inactive members (those with is_active_member=false)
+          const activeMembers = membersData.filter(member => {
+            // Check if is_active_member is explicitly false
+            if (member.is_active_member === false || member.is_active_member === 'false') {
+              console.log(`[MemberListTab] Filtering out inactive member:`, member);
+              return false;
+            }
+            return true;
+          });
+          
+          console.log(`[MemberListTab] Processed ${activeMembers.length} active members out of ${membersData.length} total`);
+          
+          setMembers(activeMembers);
+          setMemberCount(activeMembers.length);
           
           // Update action thresholds based on member count
-          setShowSilverAction(membersData.length >= memberThresholds.silver);
-          setShowGoldAction(membersData.length >= memberThresholds.gold);
+          setShowSilverAction(activeMembers.length >= memberThresholds.silver);
+          setShowGoldAction(activeMembers.length >= memberThresholds.gold);
         }
       } catch (err) {
         console.error('Error fetching members:', err);
@@ -402,7 +413,28 @@ const MemberListTab = () => {
       await removeMember(id, userId);
       
       // Update local state to reflect the removal
+      // Option 1: Filter out the member completely (preferred for UI)
       setMembers(prevMembers => prevMembers.filter(member => member.userId !== userId));
+      
+      // Option 2: Mark as inactive but keep in list (alternative approach)
+      // This would be useful if we wanted to show inactive members with a visual indicator
+      /*
+      setMembers(prevMembers => prevMembers.map(member => 
+        member.userId === userId 
+          ? { ...member, is_active_member: false } 
+          : member
+      ));
+      */
+      
+      // Force refresh of membership status in localStorage
+      try {
+        // Clear the direct membership cache to force a refresh on next check
+        const membershipKey = `timeline_membership_${id}`;
+        localStorage.removeItem(membershipKey);
+        console.log(`Cleared membership cache for timeline ${id} to ensure removal persistence`);
+      } catch (e) {
+        console.warn('Error clearing membership cache:', e);
+      }
       
       // Show success message
       const memberName = members.find(m => m.userId === userId)?.name || 'Member';
@@ -412,6 +444,7 @@ const MemberListTab = () => {
       
       // Update action visibility based on new member count
       const newMemberCount = members.length - 1;
+      setMemberCount(newMemberCount);
       setShowSilverAction(newMemberCount >= memberThresholds.silver);
       setShowGoldAction(newMemberCount >= memberThresholds.gold);
     } catch (error) {
@@ -546,25 +579,45 @@ const MemberListTab = () => {
         setIsLoading(true);
         console.log('Fetching members for timeline ID:', id, 'page:', page);
         
-        // Make the API call
-        const response = await getTimelineMembers(id, page);
-        console.log('Raw API response for members:', response);
+        // Fetch members from API
+        const response = await getTimelineMembers(id, page, pageSize);
+        console.log('Members API response:', response);
         
-        // Handle different response structures
-        let membersData = [];
-        if (Array.isArray(response)) {
-          membersData = response;
-        } else if (response && Array.isArray(response.data)) {
-          membersData = response.data;
-        } else if (response && response.data) {
-          // Handle case where data is an object with members array
-          membersData = response.data.members || [];
+        // Process the response
+        const allMembers = Array.isArray(response) ? response : [];
+        
+        // Filter out inactive members (those with is_active_member=false)
+        const activeMembers = allMembers.filter(member => {
+          // Check if is_active_member is explicitly false
+          if (member.is_active_member === false || member.is_active_member === 'false') {
+            console.log(`Filtering out inactive member:`, member);
+            return false;
+          }
+          return true;
+        });
+        
+        console.log(`Processed ${activeMembers.length} active members out of ${allMembers.length} total`);
+        
+        if (page === 1) {
+          // First page, replace all members
+          setMembers(activeMembers);
+        } else {
+          // Subsequent pages, append to existing members
+          setMembers(prevMembers => [...prevMembers, ...activeMembers]);
         }
         
-        console.log('Extracted members data:', membersData);
+        // Update hasMore flag based on whether we got a full page of results
+        setHasMore(activeMembers.length === pageSize);
+        
+        // Update member count
+        if (page === 1) {
+          setMemberCount(activeMembers.length);
+        } else {
+          setMemberCount(prevCount => prevCount + activeMembers.length);
+        }
         
         // Handle already-transformed member data from API
-        const formattedMembers = membersData.map(member => {
+        const formattedMembers = activeMembers.map(member => {
           try {
             // Log the member object for debugging
             console.log('Processing member:', member);

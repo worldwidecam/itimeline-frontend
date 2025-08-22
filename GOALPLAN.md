@@ -1,5 +1,19 @@
 # Main Goal - Community Timeline Implementation
 
+## Concise Plan (2025-08-22)
+- **Main goal**: Community timeline implementation
+- **Finished recently**: Members page (active/blocked lists, roles, remove/block with real API) and quote system
+- **Where we left off**: Admin Page — "Remove from community" button behavior and persistence
+- **Today's task**: Make the "Remove from community" button work end-to-end
+  - Call backend removal API
+  - Clear/update local caches so member stays removed after refresh
+  - Re-fetch or reconcile UI state
+- **Next 1–2 steps**: Add search/filter to members list; verify no mock fallbacks remain
+
+---
+
+## Detailed history (archive)
+
 ## Sub Goal - Quote System ✅ COMPLETE
 
 ### ✅ Foundation Completed:
@@ -77,20 +91,35 @@ Significant progress has been made on the Admin Panel implementation. The member
 
 ### ✅/🛠 Member Removal ("Remove from community") – TODO Checklist
 
-- [ ] Decide behavior with backend: hard delete membership vs soft-disable (preferred?)
-- [ ] Wire UI to backend: call `removeMember(timelineId, userId)` in `handleRemoveMember()`
-- [ ] On success: either re-fetch via `getTimelineMembers(id)` or optimistically update and reconcile
-- [ ] Show success/error Snackbar with actionable copy
-- [ ] Handle permission errors (only admins/mods can remove)
-- [ ] Keep confirmation dialog; finalize copy and warnings
-- [ ] Add basic test flow: remove a member, verify they disappear and member count updates
-- [ ] Audit related views (MemberListTab) for consistent behavior after removal
+- [x] Decide behavior with backend: hard delete membership vs soft-disable (preferred?) ✅ Using soft-delete with is_active_member=false
+- [x] Wire UI to backend: call `removeMember(timelineId, userId)` in `handleRemoveMember()` ✅ Implemented
+- [x] On success: either re-fetch via `getTimelineMembers(id)` or optimistically update and reconcile ✅ Using both approaches
+- [x] Show success/error Snackbar with actionable copy ✅ Implemented
+- [x] Handle permission errors (only admins/mods can remove) ✅ Backend enforces this
+- [x] Keep confirmation dialog; finalize copy and warnings ✅ Implemented
+- [x] Add basic test flow: remove a member, verify they disappear and member count updates ✅ Verified manually
+- [x] Audit related views (MemberListTab) for consistent behavior after removal ✅ Fixed filtering in MemberListTab.js
+
+### 🚧 Member Removal Persistence Fix - CURRENT WORK
+
+- [x] Identify issue: Removed members still appear after page refresh
+- [x] Analyze backend filtering of inactive members (confirmed working correctly)
+- [x] Update MemberListTab.js to properly filter out inactive members (is_active_member === false)
+- [x] Fix localStorage persistence to prevent stale membership data
+- [x] Clear relevant cache keys after member removal
+- [x] Test changes to ensure proper functionality ⚠️ **WORK IN PROGRESS - LAST POINT REACHED**
+- [ ] Conduct thorough end-to-end testing of member removal, page refresh, and UI updates
+- [ ] Monitor logs for any unexpected reappearance of removed members
 
 ### 🎯 **Next Session Action Plan:**
 
-1. Verify and remove any lingering mock fallbacks in AdminPanel outside Active Members
-2. Implement search/filtering for members list in AdminPanel
-3. Clean up unused `Avatar` imports and optionally archive `old_components/`
+1. Complete thorough end-to-end testing of member removal persistence
+   - Test with multiple browsers/sessions
+   - Verify proper behavior after page refresh
+   - Monitor logs for any unexpected member reappearance
+2. Verify and remove any lingering mock fallbacks in AdminPanel outside Active Members
+3. Implement search/filtering for members list in AdminPanel
+4. Clean up unused `Avatar` imports and optionally archive `old_components/`
 
 ### 📋 Future Quote System Enhancements (Optional):
 - [ ] Add quote history/versioning for timeline admins

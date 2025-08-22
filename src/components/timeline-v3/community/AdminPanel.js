@@ -295,30 +295,105 @@ const AdminPanel = () => {
     setConfirmBlockDialogOpen(false);
     setConfirmUnblockDialogOpen(false);
     setSelectedMember(null);
-    setActionType('');
   };
   
   // Handle removing a member
-  const handleRemoveMember = () => {
-    // In a real implementation, this would be an API call
-    setMembers(members.filter(m => m.id !== selectedMember.id));
-    setConfirmDialogOpen(false);
-    
-    // Update the member count in timeline data
-    if (timelineData) {
-      setTimelineData({
-        ...timelineData,
-        memberCount: timelineData.memberCount - 1
-      });
+  const handleRemoveMember = async () => {
+    console.log('handleRemoveMember called with selectedMember:', selectedMember);
+    try {
+      // Show loading state
+      setIsLoading(true);
+      
+      // 1. Call the API to remove the member
+      // The API expects the actual user_id, not the membership record ID
+      // Log the selected member object to verify we have the right ID
+      console.log('Selected member for removal:', selectedMember);
+      
+      // Make sure we're using the correct ID for the API call
+      const userIdForApi = selectedMember.userId;
+      console.log(`Attempting to remove member with timeline ID: ${id} and user ID: ${userIdForApi}`);
+      await removeMember(id, userIdForApi);
+      
+      // 2. Update local state to remove the member
+      setMembers(members.filter(m => m.id !== selectedMember.id));
+      
+      // 3. Update the member count in timeline data
+      if (timelineData) {
+        setTimelineData({
+          ...timelineData,
+          memberCount: Math.max(0, timelineData.memberCount - 1)
+        });
+      }
+      
+      // 4. Clear ALL relevant localStorage caches to ensure persistence
+      try {
+        // Clear timeline member count cache
+        const memberCountKey = `timeline_${id}_memberCount`;
+        localStorage.removeItem(memberCountKey);
+        
+        // Clear timeline members list cache
+        const membersListKey = `timeline_${id}_members`;
+        localStorage.removeItem(membersListKey);
+        
+        // Clear user passport data to force refresh on next load
+        localStorage.removeItem('userPassport');
+        
+        // Clear user-specific passport cache
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id) {
+          const userPassportKey = `user_passport_${userData.id}`;
+          localStorage.removeItem(userPassportKey);
+        }
+        
+        // Clear direct timeline membership status
+        const membershipKey = `timeline_membership_${id}`;
+        localStorage.removeItem(membershipKey);
+        
+        // Update timestamp to force refresh of related components
+        localStorage.setItem('membershipLastUpdated', Date.now().toString());
+        
+        console.log('Successfully cleared all membership caches after member removal');
+      } catch (cacheError) {
+        console.warn('Error clearing caches after member removal:', cacheError);
+      }
+      
+      // 5. Close the dialog
+      handleCloseConfirmDialog();
+      
+      // 6. Show success message
+      setSnackbarMessage(`${selectedMember.name} has been removed from the community`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
+      // End loading state
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error removing member:', error);
+      
+      // Show error message
+      setSnackbarMessage(`Failed to remove member: ${error.message || 'Unknown error'}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      
+      // End loading state
+      setIsLoading(false);
     }
   };
   
   // Handle blocking a member
   const handleBlockMember = async () => {
     try {
+      // Show loading state
+      setIsLoading(true);
+      
       // 1. Call the API to block the member
       const reason = 'Blocked by administrator';
-      await blockMember(id, selectedMember.id, reason);
+      console.log('Selected member for blocking:', selectedMember);
+      
+      // Make sure we're using the correct ID for the API call
+      const userIdForApi = selectedMember.userId;
+      console.log(`Attempting to block member with timeline ID: ${id} and user ID: ${userIdForApi}`);
+      await blockMember(id, userIdForApi, reason);
       
       // 2. Remove from members list
       const memberToBlock = members.find(m => m.id === selectedMember.id);
@@ -338,20 +413,75 @@ const AdminPanel = () => {
       if (timelineData) {
         setTimelineData({
           ...timelineData,
-          memberCount: timelineData.memberCount - 1
+          memberCount: Math.max(0, timelineData.memberCount - 1)
         });
       }
+      
+      // 5. Clear ALL relevant localStorage caches to ensure persistence
+      try {
+        // Clear timeline member count cache
+        const memberCountKey = `timeline_${id}_memberCount`;
+        localStorage.removeItem(memberCountKey);
+        
+        // Clear timeline members list cache
+        const membersListKey = `timeline_${id}_members`;
+        localStorage.removeItem(membersListKey);
+        
+        // Clear blocked members list cache
+        const blockedMembersKey = `timeline_${id}_blockedMembers`;
+        localStorage.removeItem(blockedMembersKey);
+        
+        // Clear user passport data to force refresh on next load
+        localStorage.removeItem('userPassport');
+        
+        // Clear user-specific passport cache
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id) {
+          const userPassportKey = `user_passport_${userData.id}`;
+          localStorage.removeItem(userPassportKey);
+        }
+        
+        // Update timestamp to force refresh of related components
+        localStorage.setItem('membershipLastUpdated', Date.now().toString());
+        
+        console.log('Successfully cleared all membership caches after blocking member');
+      } catch (cacheError) {
+        console.warn('Error clearing caches after blocking member:', cacheError);
+      }
+      
+      // 6. Show success message
+      setSnackbarMessage(`${selectedMember.name} has been blocked from the community`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
+      // End loading state
+      setIsLoading(false);
     } catch (error) {
       console.error('Error blocking member:', error);
-      // Could add error handling UI here
+      
+      // Show error message
+      setSnackbarMessage(`Failed to block member: ${error.message || 'Unknown error'}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      
+      // End loading state
+      setIsLoading(false);
     }
   };
   
   // Handle unblocking a member
   const handleUnblockMember = async () => {
     try {
+      // Show loading state
+      setIsLoading(true);
+      
       // 1. Call the API to unblock the member
-      await unblockMember(id, selectedMember.id);
+      console.log('Selected member for unblocking:', selectedMember);
+      
+      // Make sure we're using the correct ID for the API call
+      const userIdForApi = selectedMember.userId;
+      console.log(`Attempting to unblock member with timeline ID: ${id} and user ID: ${userIdForApi}`);
+      await unblockMember(id, userIdForApi);
       
       // 2. Remove from blocked members list
       const memberToUnblock = blockedMembers.find(m => m.id === selectedMember.id);
@@ -375,9 +505,56 @@ const AdminPanel = () => {
           memberCount: timelineData.memberCount + 1
         });
       }
+      
+      // 5. Clear ALL relevant localStorage caches to ensure persistence
+      try {
+        // Clear timeline member count cache
+        const memberCountKey = `timeline_${id}_memberCount`;
+        localStorage.removeItem(memberCountKey);
+        
+        // Clear timeline members list cache
+        const membersListKey = `timeline_${id}_members`;
+        localStorage.removeItem(membersListKey);
+        
+        // Clear blocked members list cache
+        const blockedMembersKey = `timeline_${id}_blockedMembers`;
+        localStorage.removeItem(blockedMembersKey);
+        
+        // Clear user passport data to force refresh on next load
+        localStorage.removeItem('userPassport');
+        
+        // Clear user-specific passport cache
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id) {
+          const userPassportKey = `user_passport_${userData.id}`;
+          localStorage.removeItem(userPassportKey);
+        }
+        
+        // Update timestamp to force refresh of related components
+        localStorage.setItem('membershipLastUpdated', Date.now().toString());
+        
+        console.log('Successfully cleared all membership caches after unblocking member');
+      } catch (cacheError) {
+        console.warn('Error clearing caches after unblocking member:', cacheError);
+      }
+      
+      // 6. Show success message
+      setSnackbarMessage(`${selectedMember.name} has been unblocked`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
+      // End loading state
+      setIsLoading(false);
     } catch (error) {
       console.error('Error unblocking member:', error);
-      // Could add error handling UI here
+      
+      // Show error message
+      setSnackbarMessage(`Failed to unblock member: ${error.message || 'Unknown error'}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      
+      // End loading state
+      setIsLoading(false);
     }
   };
   
@@ -1739,27 +1916,21 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
             Cancel
           </Button>
           <Button 
-            onClick={() => {
-              // In a real implementation, these would be API calls
+            onClick={async () => {
+              // Call the appropriate handler based on action type
               if (actionType === 'remove') {
-                setMembers(members.filter(m => m.id !== selectedMember.id));
+                await handleRemoveMember();
               } else if (actionType === 'block') {
-                setMembers(members.filter(m => m.id !== selectedMember.id));
-                setBlockedMembers([...blockedMembers, {
-                  ...selectedMember,
-                  blockedDate: 'Just now',
-                  reason: 'Manual block by admin'
-                }]);
+                await handleBlockMember();
               } else if (actionType === 'unblock') {
-                setBlockedMembers(blockedMembers.filter(m => m.id !== selectedMember.id));
+                await handleUnblockMember();
               }
-              handleCloseConfirmDialog();
             }} 
             color={actionType === 'unblock' ? 'primary' : 'error'} 
             variant="contained"
           >
-            {actionType === 'remove' ? 'Remove' : 
-             actionType === 'block' ? 'Block' : 'Unblock'}
+          {actionType === 'remove' ? 'Remove' : 
+           actionType === 'block' ? 'Block' : 'Unblock'}
           </Button>
         </DialogActions>
       </Dialog>
