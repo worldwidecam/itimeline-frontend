@@ -10,6 +10,19 @@
   - Re-fetch or reconcile UI state
 - **Next 1–2 steps**: Add search/filter to members list; verify no mock fallbacks remain
 
+### Progress Today (alignment with Postgres passport)
+- **Backend** now writes/reads passports from Postgres; endpoints are live: `GET /api/v1/user/passport`, `POST /api/v1/user/passport/sync`.
+- **Frontend** is connected to backend; auth validate calls succeed; ready to drive passport sync after member removal.
+
+### Next Minute Step — Remove Button
+1) Keep current UI flow in `AdminPanel.js` → `removeMember(timelineId, userId)` and, on success, immediately call `syncUserPassport()`.
+2) After sync resolves, invalidate relevant caches (`user_passport_*`, `timeline_members_*`) and re-fetch the member list.
+
+Mini-roadmap after this minute step:
+- [ ] Add debug log in `removeMember` success path to record timelineId/userId and sync results
+- [ ] Verify `getTimelineMembers(id)` excludes inactive members after refresh
+- [ ] E2E: remove → sync → reload → remains removed (across tabs/sessions)
+
 ---
 
 ## Detailed history (archive)
