@@ -992,6 +992,29 @@ const AdminPanel = () => {
 
   // SettingsTab is defined as a standalone component at the bottom of this file
 
+  // While access is loading, show a modern skeleton to avoid flashing admin UI
+  if (accessLoading) {
+    return (
+      <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, py: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
+          <Skeleton variant="text" width={260} height={36} />
+        </Box>
+        <Box sx={{ mb: 2 }}>
+          <Skeleton variant="rectangular" height={40} sx={{ borderRadius: 2 }} />
+        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+          {[1,2,3,4].map((i) => (
+            <Box key={i}>
+              <Skeleton variant="text" width="60%" height={28} sx={{ mb: 1 }} />
+              <Skeleton variant="text" width="40%" height={20} />
+              <Skeleton variant="rectangular" height={120} sx={{ mt: 1.5, borderRadius: 2 }} />
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    );
+  }
+
   // Early guard: show lock view to non-members/non-privileged roles
   if (!accessLoading && (!isMember || !['moderator','admin','creator','siteowner'].includes((userRole || '').toLowerCase()))) {
     return (
