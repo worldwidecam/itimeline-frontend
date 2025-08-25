@@ -296,6 +296,21 @@ const AdminPanel = () => {
     setConfirmUnblockDialogOpen(false);
     setSelectedMember(null);
   };
+
+  // Centralized confirm handler to avoid any scope confusion in JSX
+  const handleConfirmAction = async () => {
+    try {
+      if (actionType === 'remove') {
+        await handleRemoveMember();
+      } else if (actionType === 'block') {
+        await handleBlockMember();
+      } else if (actionType === 'unblock') {
+        await handleUnblockMember();
+      }
+    } catch (e) {
+      console.error('[AdminPanel] Error in handleConfirmAction:', e);
+    }
+  };
   
   // Handle removing a member
   const handleRemoveMember = async () => {
@@ -310,7 +325,7 @@ const AdminPanel = () => {
       console.log('Selected member for removal:', selectedMember);
       
       // Make sure we're using the correct ID for the API call
-      const userIdForApi = selectedMember.userId;
+      const userIdForApi = selectedMember?.userId || selectedMember?.user_id || selectedMember?.id;
       console.log(`Attempting to remove member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await removeMember(id, userIdForApi);
       
@@ -1609,37 +1624,37 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
       
       switch (actionType) {
         case 'remove':
-          await api.removeMember(timelineId, selectedMember.user_id);
+          await removeMember(timelineId, selectedMember.user_id || selectedMember.id);
           message = `${selectedMember.username} has been removed from the timeline`;
           success = true;
           break;
           
         case 'block':
-          await api.blockMember(timelineId, selectedMember.user_id, 'Blocked by admin');
+          await blockMember(timelineId, selectedMember.user_id || selectedMember.id, 'Blocked by admin');
           message = `${selectedMember.username} has been blocked`;
           success = true;
           break;
           
         case 'unblock':
-          await api.unblockMember(timelineId, selectedMember.user_id);
+          await unblockMember(timelineId, selectedMember.user_id || selectedMember.id);
           message = `${selectedMember.username} has been unblocked`;
           success = true;
           break;
           
         case 'promote_admin':
-          await api.updateMemberRole(timelineId, selectedMember.user_id, 'admin');
+          await updateMemberRole(timelineId, selectedMember.user_id || selectedMember.id, 'admin');
           message = `${selectedMember.username} has been promoted to Admin`;
           success = true;
           break;
           
         case 'promote_moderator':
-          await api.updateMemberRole(timelineId, selectedMember.user_id, 'moderator');
+          await updateMemberRole(timelineId, selectedMember.user_id || selectedMember.id, 'moderator');
           message = `${selectedMember.username} has been promoted to Moderator`;
           success = true;
           break;
           
         case 'demote_member':
-          await api.updateMemberRole(timelineId, selectedMember.user_id, 'member');
+          await updateMemberRole(timelineId, selectedMember.user_id || selectedMember.id, 'member');
           message = `${selectedMember.username} has been demoted to Member`;
           success = true;
           break;
@@ -1916,16 +1931,7 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
             Cancel
           </Button>
           <Button 
-            onClick={async () => {
-              // Call the appropriate handler based on action type
-              if (actionType === 'remove') {
-                await handleRemoveMember();
-              } else if (actionType === 'block') {
-                await handleBlockMember();
-              } else if (actionType === 'unblock') {
-                await handleUnblockMember();
-              }
-            }} 
+            onClick={handleMemberAction}
             color={actionType === 'unblock' ? 'primary' : 'error'} 
             variant="contained"
           >

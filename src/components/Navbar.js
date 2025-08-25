@@ -65,7 +65,12 @@ function Navbar() {
   
   const isProfilePage = location.pathname.startsWith('/profile');
   const isTimelinePage = location.pathname.startsWith('/timeline-v3/');
-  const timelineId = isTimelinePage ? location.pathname.split('/').pop() : null;
+  // Extract numeric timelineId even when on nested routes like /timeline-v3/:id/admin
+  const timelineId = (() => {
+    if (!isTimelinePage) return null;
+    const match = location.pathname.match(/^\/timeline-v3\/(\d+)/);
+    return match ? match[1] : null;
+  })();
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
