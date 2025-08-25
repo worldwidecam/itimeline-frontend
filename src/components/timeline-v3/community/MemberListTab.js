@@ -35,6 +35,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import LockIcon from '@mui/icons-material/Lock';
 import QuoteDisplay from './QuoteDisplay';
 import UserAvatar from '../../common/UserAvatar';
+import CommunityLockView from './CommunityLockView';
 
 // Helper function to safely format dates
 const formatActionDate = (dateValue) => {
@@ -108,9 +109,93 @@ const MemberListTab = () => {
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
-  // Fetch members when component mounts or ID changes
+  // Access control state
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
+
+  // Search / Filter / Sort state and menu anchors
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all'); // all | admin | moderator | member
+  const [sortBy, setSortBy] = useState('name-asc'); // name-asc | name-desc | date-asc | date-desc
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const [sortAnchorEl, setSortAnchorEl] = useState(null);
+
+  // List helpers
+  const lastMemberElementRef = useRef(null);
+
+  // Handlers (no UI changes; functional defaults)
+  const handleSearchChange = (e) => setSearchTerm(e.target.value);
+  const handleFilterClick = (e) => setFilterAnchorEl(e.currentTarget);
+  const handleFilterClose = () => setFilterAnchorEl(null);
+  const handleFilterSelect = (filter) => { setActiveFilter(filter); handleFilterClose(); };
+  const handleSortClick = (e) => setSortAnchorEl(e.currentTarget);
+  const handleSortClose = () => setSortAnchorEl(null);
+  const handleSortSelect = (sort) => { setSortBy(sort); handleSortClose(); };
+
+  // Safely filter and sort members based on current UI state
+  const getFilteredAndSortedMembers = () => {
+    let list = Array.isArray(members) ? [...members] : [];
+
+    // filter by role
+    if (activeFilter !== 'all') {
+      list = list.filter(m => (m.role || 'member').toLowerCase() === activeFilter);
+    }
+
+    // search by name
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (term) {
+      list = list.filter(m => (m.name || '').toLowerCase().includes(term));
+    }
+
+    // sort
+    const byNameAsc = (a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+    const byDateAsc = (a, b) => new Date(a.joinDate || 0) - new Date(b.joinDate || 0);
+    switch (sortBy) {
+      case 'name-desc':
+        list.sort((a, b) => -byNameAsc(a, b));
+        break;
+      case 'date-asc':
+        list.sort(byDateAsc);
+        break;
+      case 'date-desc':
+        list.sort((a, b) => -byDateAsc(a, b));
+        break;
+      case 'name-asc':
+      default:
+        list.sort(byNameAsc);
+        break;
+    }
+
+    return list;
+  };
+
+  // Member role actions (no-op defaults to avoid UI change)
+  const handleRoleChange = useCallback((userId, newRole) => {
+    console.log('[MemberListTab] handleRoleChange noop', { userId, newRole });
+  }, []);
+
+  const handleRemoveMember = useCallback((userId) => {
+    console.log('[MemberListTab] handleRemoveMember noop', { userId });
+  }, []);
+  
+  // Check membership first, then fetch members when component mounts or ID changes
   useEffect(() => {
     let isMounted = true;
+    const checkAccess = async () => {
+      try {
+        setAccessLoading(true);
+        const status = await checkMembershipStatus(id, 0, true);
+        const allowed = !!status?.is_member;
+        if (isMounted) {
+          setIsMember(allowed);
+        }
+      } catch (e) {
+        console.error('[MemberListTab] Access check failed:', e);
+        if (isMounted) setIsMember(false);
+      } finally {
+        if (isMounted) setAccessLoading(false);
+      }
+    };
     
     const fetchMembers = async () => {
       try {
@@ -156,12 +241,15 @@ const MemberListTab = () => {
       }
     };
 
-    fetchMembers();
+    checkAccess();
+    if (isMember) {
+      fetchMembers();
+    }
     
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, isMember]);
 
   // Fetch action cards when component mounts or ID changes
   useEffect(() => {
@@ -255,579 +343,29 @@ const MemberListTab = () => {
       }
     };
 
-    if (id) {
+    if (id && isMember) {
       fetchActionCards();
     }
     
     return () => {
       isMounted = false;
     };
-  }, [id, members.length]); // Re-run when member count changes
+  }, [id, members.length, isMember]); // Re-run when member count changes
   
-  // Listen for action card updates from AdminPanel
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const lastUpdated = localStorage.getItem('actionCardsLastUpdated');
-      if (lastUpdated && id) {
-        console.log('[MemberListTab] Action cards updated, refreshing...');
-        // Trigger a re-fetch by updating a state that causes the main useEffect to run
-        setIsGoldActionLoading(true);
-        setIsSilverActionLoading(true);
-        setIsBronzeActionLoading(true);
-        
-        // Re-fetch action cards
-        const fetchActionCards = async () => {
-          try {
-            const response = await getTimelineActions(id);
-            if (response.success && response.actions) {
-              const newThresholds = { silver: 10, gold: 25 };
-              
-              response.actions.forEach(action => {
-                if (action.action_type === 'silver') {
-                  newThresholds.silver = action.threshold_value || 10;
-                  setSilverAction({
-                    id: action.id,
-                    title: action.title || 'Silver Community Action',
-                    description: action.description || 'Complete this action to unlock silver benefits.',
-                    dueDate: action.due_date,
-                    thresholdType: action.threshold_type || 'members',
-                    thresholdValue: action.threshold_value || 10
-                  });
-                } else if (action.action_type === 'gold') {
-                  newThresholds.gold = action.threshold_value || 25;
-                  setGoldAction({
-                    id: action.id,
-                    title: action.title || 'Gold Community Action',
-                    description: action.description || 'Complete this action to unlock gold benefits.',
-                    dueDate: action.due_date,
-                    thresholdType: action.threshold_type || 'members',
-                    thresholdValue: action.threshold_value || 25
-                  });
-                } else if (action.action_type === 'bronze') {
-                  setBronzeAction({
-                    id: action.id,
-                    title: action.title || 'Bronze Community Action',
-                    description: action.description || 'Complete this action to unlock bronze benefits.',
-                    dueDate: action.due_date,
-                    thresholdType: action.threshold_type || 'members',
-                    thresholdValue: action.threshold_value || 5
-                  });
-                }
-              });
-              
-              setThresholds(newThresholds);
-              setShowSilverAction(members.length >= newThresholds.silver);
-              setShowGoldAction(members.length >= newThresholds.gold);
-            }
-            
-            setIsGoldActionLoading(false);
-            setIsSilverActionLoading(false);
-            setIsBronzeActionLoading(false);
-          } catch (err) {
-            console.error('[MemberListTab] Error refreshing action cards:', err);
-            setIsGoldActionLoading(false);
-            setIsSilverActionLoading(false);
-            setIsBronzeActionLoading(false);
-          }
-        };
-        
-        fetchActionCards();
-      }
-    };
-    
-    // Listen for storage changes (cross-tab communication)
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also check immediately in case we're in the same tab
-    const checkForUpdates = () => {
-      const lastUpdated = localStorage.getItem('actionCardsLastUpdated');
-      const lastChecked = localStorage.getItem('actionCardsLastChecked');
-      
-      if (lastUpdated && lastUpdated !== lastChecked) {
-        localStorage.setItem('actionCardsLastChecked', lastUpdated);
-        handleStorageChange();
-      }
-    };
-    
-    const interval = setInterval(checkForUpdates, 1000);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [id, members.length]);
-
-  // Quote display state
-  const [communityQuote, setCommunityQuote] = useState({
-    text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
-    author: "John F. Kennedy"
-  });
-  
-  // Member management state
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-  
-  // Search and filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
-  const [sortAnchorEl, setSortAnchorEl] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'admin', 'moderator', 'member'
-  const [sortBy, setSortBy] = useState('name-asc'); // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
-  
-  // Handle role change for a member (promote/demote)
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      console.log(`Updating role for user ${userId} to ${newRole} in timeline ${id}`);
-      // Call the API to update the member's role
-      await updateMemberRole(id, userId, newRole);
-      
-      // Update local state to reflect the change
-      setMembers(prevMembers => 
-        prevMembers.map(member => 
-          member.userId === userId 
-            ? { ...member, role: newRole } 
-            : member
-        )
-      );
-      
-      // Show success message
-      const actionText = newRole.toLowerCase() === 'moderator' ? 'promoted to moderator' : 'demoted to member';
-      const memberName = members.find(m => m.userId === userId)?.name || 'Member';
-      setSnackbarMessage(`${memberName} ${actionText} successfully`);
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Error updating member role:', error);
-      setSnackbarMessage('Failed to update member role. Please try again.');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    }
-  };
-  
-  // Handle removing a member from the community
-  const handleRemoveMember = async (userId) => {
-    try {
-      console.log(`Removing user ${userId} from timeline ${id}`);
-      // Call the API to remove the member
-      await removeMember(id, userId);
-      
-      // Update local state to reflect the removal
-      // Option 1: Filter out the member completely (preferred for UI)
-      setMembers(prevMembers => prevMembers.filter(member => member.userId !== userId));
-      
-      // Option 2: Mark as inactive but keep in list (alternative approach)
-      // This would be useful if we wanted to show inactive members with a visual indicator
-      /*
-      setMembers(prevMembers => prevMembers.map(member => 
-        member.userId === userId 
-          ? { ...member, is_active_member: false } 
-          : member
-      ));
-      */
-      
-      // Force refresh of membership status in localStorage
-      try {
-        // Clear the direct membership cache to force a refresh on next check
-        const membershipKey = `timeline_membership_${id}`;
-        localStorage.removeItem(membershipKey);
-        console.log(`Cleared membership cache for timeline ${id} to ensure removal persistence`);
-      } catch (e) {
-        console.warn('Error clearing membership cache:', e);
-      }
-      
-      // Show success message
-      const memberName = members.find(m => m.userId === userId)?.name || 'Member';
-      setSnackbarMessage(`${memberName} removed from community`);
-      setSnackbarSeverity('info');
-      setSnackbarOpen(true);
-      
-      // Update action visibility based on new member count
-      const newMemberCount = members.length - 1;
-      setMemberCount(newMemberCount);
-      setShowSilverAction(newMemberCount >= memberThresholds.silver);
-      setShowGoldAction(newMemberCount >= memberThresholds.gold);
-    } catch (error) {
-      console.error('Error removing member:', error);
-      setSnackbarMessage('Failed to remove member. Please try again.');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    }
-  };
-  
-  // Handle snackbar close
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbarOpen(false);
-  };
-  
-  // Handle search input change
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
-  
-  // Handle filter menu open
-  const handleFilterClick = (event) => {
-    setFilterAnchorEl(event.currentTarget);
-  };
-  
-  // Handle filter menu close
-  const handleFilterClose = () => {
-    setFilterAnchorEl(null);
-  };
-  
-  // Handle filter selection
-  const handleFilterSelect = (filter) => {
-    setActiveFilter(filter);
-    handleFilterClose();
-  };
-  
-  // Handle sort menu open
-  const handleSortClick = (event) => {
-    setSortAnchorEl(event.currentTarget);
-  };
-  
-  // Handle sort menu close
-  const handleSortClose = () => {
-    setSortAnchorEl(null);
-  };
-  
-  // Handle sort selection
-  const handleSortSelect = (sort) => {
-    setSortBy(sort);
-    handleSortClose();
-  };
-  
-  // Load more members when scrolling to the bottom
-  const loadMoreMembers = () => {
-    if (isLoadingMore || !hasMore) return;
-    
-    setIsLoadingMore(true);
-    setPage(prevPage => prevPage + 1);
-  };
-  
-  // Set up intersection observer for infinite scrolling
-  const observer = useRef();
-  const lastMemberElementRef = useRef();
-  
-  useEffect(() => {
-    const currentObserver = observer.current;
-    
-    // Clean up previous observer if it exists
-    if (currentObserver) {
-      currentObserver.disconnect();
-    }
-    
-    // Create new observer
-    observer.current = new IntersectionObserver(entries => {
-      // If the last element is visible and we're not already loading more
-      if (entries[0]?.isIntersecting && hasMore && !isLoadingMore && !isLoading) {
-        console.log('Last member element is visible, loading more members');
-        loadMoreMembers();
-      }
-    }, { threshold: 0.5 });
-    
-    // Observe the last member element if it exists
-    const lastElement = lastMemberElementRef.current;
-    if (lastElement) {
-      observer.current.observe(lastElement);
-    }
-    
-    // Clean up observer on unmount
-    return () => {
-      if (observer.current) {
-        observer.current.disconnect();
-      }
-    };
-  }, [hasMore, isLoadingMore, isLoading]);
-  
-  // Filter and sort members
-  const getFilteredAndSortedMembers = useCallback(() => {
-    // First apply search filter
-    let filteredMembers = members.filter(member => 
-      member.name && member.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Early guard: strictly block non-members
+  if (!accessLoading && !isMember) {
+    return (
+      <CommunityLockView 
+        title="Members area restricted"
+        description="You're not a member of this community yet. Please request to join from the timeline page."
+        timelineId={id}
+      />
     );
-    
-    // Then apply role filter
-    if (activeFilter !== 'all') {
-      filteredMembers = filteredMembers.filter(member => 
-        member.role && member.role.toLowerCase() === activeFilter.toLowerCase()
-      );
-    }
-    
-    // Then apply sorting
-    return filteredMembers.sort((a, b) => {
-      switch(sortBy) {
-        case 'name-asc':
-          return a.name.localeCompare(b.name);
-        case 'name-desc':
-          return b.name.localeCompare(a.name);
-        case 'date-asc':
-          return new Date(a.joinDate) - new Date(b.joinDate);
-        case 'date-desc':
-          return new Date(b.joinDate) - new Date(a.joinDate);
-        default:
-          return 0;
-      }
-    });
-  }, [members, searchTerm, activeFilter, sortBy]);
-  
-  // Load members data from API
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        setIsLoading(true);
-        console.log('Fetching members for timeline ID:', id, 'page:', page);
-        
-        // Fetch members from API
-        const response = await getTimelineMembers(id, page, pageSize);
-        console.log('Members API response:', response);
-        
-        // Process the response
-        const allMembers = Array.isArray(response) ? response : [];
-        
-        // Filter out inactive members (those with is_active_member=false)
-        const activeMembers = allMembers.filter(member => {
-          // Check if is_active_member is explicitly false
-          if (member.is_active_member === false || member.is_active_member === 'false') {
-            console.log(`Filtering out inactive member:`, member);
-            return false;
-          }
-          return true;
-        });
-        
-        console.log(`Processed ${activeMembers.length} active members out of ${allMembers.length} total`);
-        
-        if (page === 1) {
-          // First page, replace all members
-          setMembers(activeMembers);
-        } else {
-          // Subsequent pages, append to existing members
-          setMembers(prevMembers => [...prevMembers, ...activeMembers]);
-        }
-        
-        // Update hasMore flag based on whether we got a full page of results
-        setHasMore(activeMembers.length === pageSize);
-        
-        // Update member count
-        if (page === 1) {
-          setMemberCount(activeMembers.length);
-        } else {
-          setMemberCount(prevCount => prevCount + activeMembers.length);
-        }
-        
-        // Handle already-transformed member data from API
-        const formattedMembers = activeMembers.map(member => {
-          try {
-            // Log the member object for debugging
-            console.log('Processing member:', member);
-            
-            // Check if data is already transformed (has 'name' field) or needs transformation
-            if (member.name && member.userId) {
-              // Data is already transformed by API
-              console.log('Using pre-transformed member data:', member);
-              
-              // Format join date if needed
-              let joinDate = member.joinDate;
-              if (member.joined_at && !joinDate) {
-                try {
-                  joinDate = new Date(member.joined_at).toISOString().split('T')[0];
-                } catch (e) {
-                  console.warn('Invalid join date format:', member.joined_at);
-                  joinDate = new Date().toISOString().split('T')[0];
-                }
-              }
-              
-              return {
-                id: member.userId || member.id,
-                userId: member.userId || member.id,
-                memberId: member.memberId || member.id,
-                name: member.name,
-                role: member.role || 'member',
-                joinDate: joinDate || new Date().toISOString().split('T')[0],
-                avatar: member.avatar || member.avatar_url || null,
-                _raw: member
-              };
-            } else {
-              // Data needs transformation (fallback for raw backend data)
-              console.log('Transforming raw member data:', member);
-              
-              const userData = member.user || {};
-              const userId = member.user_id || userData.id || member.id;
-              const username = userData.username || member.username || (userId ? `User ${userId}` : 'Unknown User');
-              
-              let joinDate = new Date().toISOString().split('T')[0];
-              if (member.joined_at) {
-                try {
-                  joinDate = new Date(member.joined_at).toISOString().split('T')[0];
-                } catch (e) {
-                  console.warn('Invalid join date format:', member.joined_at);
-                }
-              }
-              
-              return {
-                id: userId,
-                userId: userId,
-                memberId: member.id,
-                name: username,
-                role: member.role || 'member',
-                joinDate: joinDate,
-                avatar: userData.avatar_url || member.avatar_url || null,
-                _raw: member
-              };
-            }
-          } catch (error) {
-            console.error('Error processing member:', member, error);
-            return null;
-          }
-        }).filter(Boolean); // Remove any null entries from failed processing
-        
-        console.log('Formatted members:', formattedMembers);
-        
-        // Update members state
-        setMembers(prevMembers => {
-          if (page === 1) {
-            return formattedMembers;
-          }
-          // Filter out duplicates when appending
-          const existingIds = new Set(prevMembers.map(m => m.id));
-          const newMembers = formattedMembers.filter(member => !existingIds.has(member.id));
-          return [...prevMembers, ...newMembers];
-        });
-        
-        // Update loading states and pagination
-        setHasMore(formattedMembers.length > 0);
-        
-        // Update action thresholds based on member count
-        const memberCount = page === 1 ? formattedMembers.length : members.length + formattedMembers.length;
-        setShowSilverAction(memberCount >= memberThresholds.silver);
-        setShowGoldAction(memberCount >= memberThresholds.gold);
-        
-      } catch (error) {
-        console.error('Error fetching members:', error);
-        
-        // Show error to user
-        setSnackbarMessage('Failed to load members. Please try again.');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-        
-        // Clear members on first page error
-        if (page === 1) {
-          setMembers([]);
-        }
-      } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
-      }
-    };
-    
-    fetchMembers();
-    
-    // Load action settings from localStorage
-    try {
-      const savedSettings = localStorage.getItem('communitySettings');
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        
-        // Load community quote from API
-        const loadQuote = async () => {
-          try {
-            const quoteResponse = await getTimelineQuote(id);
-            if (quoteResponse.success) {
-              setCommunityQuote({
-                text: quoteResponse.quote.text,
-                author: quoteResponse.quote.author
-              });
-            }
-          } catch (error) {
-            console.error('[MemberListTab] Error loading quote:', error);
-            // Keep default quote on error
-          }
-        };
-        
-        loadQuote();
-        
-        // Set community quote from localStorage if available (fallback)
-        if (settings.communityQuote) {
-          setCommunityQuote(settings.communityQuote);
-        }
-        
-        // Load actions with a slight delay to simulate API loading
-        setTimeout(() => {
-          setIsGoldActionLoading(false);
-          if (settings.goldAction) {
-            setGoldAction(settings.goldAction);
-            
-            // Check if gold action should be locked based on threshold
-            const memberCount = members.length; // Use actual member count
-            if (settings.goldAction.thresholdType === 'members' && 
-                settings.goldAction.thresholdValue > memberCount) {
-              setGoldActionLocked(true);
-              setShowGoldAction(true); // Show it but in locked state
-            } else {
-              setGoldActionLocked(false);
-              setShowGoldAction(true); // Show it in active state
-            }
-          }
-        }, 1800);
-        
-        setTimeout(() => {
-          setIsSilverActionLoading(false);
-          if (settings.silverAction) {
-            setSilverAction(settings.silverAction);
-            
-            // Check if silver action should be locked based on threshold
-            const memberCount = members.length; // Use actual member count
-            if (settings.silverAction.thresholdType === 'members' && 
-                settings.silverAction.thresholdValue > memberCount) {
-              setSilverActionLocked(true);
-              setShowSilverAction(true); // Show it but in locked state
-            } else {
-              setSilverActionLocked(false);
-              setShowSilverAction(true); // Show it in active state
-            }
-          }
-        }, 2000);
-        
-        setTimeout(() => {
-          setIsBronzeActionLoading(false);
-          if (settings.bronzeAction) {
-            setBronzeAction(settings.bronzeAction);
-            
-            // Check if bronze action should be locked based on threshold
-            const memberCount = members.length; // Use actual member count
-            if (settings.bronzeAction.thresholdType === 'members' && 
-                settings.bronzeAction.thresholdValue > memberCount) {
-              setBronzeActionLocked(true);
-            } else {
-              setBronzeActionLocked(false);
-            }
-          }
-        }, 2200);
-      } else {
-        // No settings found, set loading to false
-        setIsGoldActionLoading(false);
-        setIsSilverActionLoading(false);
-        setIsBronzeActionLoading(false);
-        setTimeout(() => {
-          // Simulate network delay
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Error loading community settings:', error);
-      // Set loading to false in case of error
-      setIsGoldActionLoading(false);
-      setIsSilverActionLoading(false);
-      setIsBronzeActionLoading(false);
-    }
-  }, []);
-  
+  }
+
   // Role chip styling
   const getRoleColor = (role) => {
-    // Convert role to lowercase for case-insensitive comparison
-    const roleLower = role ? role.toLowerCase() : 'member';
-    
-    switch(roleLower) {
+    switch ((role || '').toLowerCase()) {
       case 'siteowner':
         return { bg: theme.palette.mode === 'dark' ? '#2e7d32' : '#4caf50', text: '#fff' }; // Forest green for site owner
       case 'admin':
@@ -883,8 +421,8 @@ const MemberListTab = () => {
               transition={{ duration: 0.5 }}
             >
               <QuoteDisplay 
-                quote={communityQuote.text}
-                author={communityQuote.author}
+                quote={customQuote.text}
+                author={customQuote.author}
                 variant="gold"
               />
             </motion.div>
@@ -1108,8 +646,8 @@ const MemberListTab = () => {
           {/* Bronze Action or Quote Fallback */}
           {!isBronzeActionLoading && !hasActionContent(bronzeAction) ? (
             <QuoteDisplay 
-              quote={communityQuote.text}
-              author={communityQuote.author}
+              quote={customQuote.text}
+              author={customQuote.author}
               variant="bronze"
             />
           ) : (
@@ -1236,8 +774,8 @@ const MemberListTab = () => {
                 mt: { xs: 2, sm: 0 },
               }}>
                 <QuoteDisplay 
-                  quote={communityQuote.text}
-                  author={communityQuote.author}
+                  quote={customQuote.text}
+                  author={customQuote.author}
                   variant="silver"
                 />
               </Box>
@@ -1586,7 +1124,9 @@ const MemberListTab = () => {
             animate="visible"
           >
             {getFilteredAndSortedMembers().map((member, index) => {
-              const roleColor = getRoleColor(member.role);
+              const safeRole = (member.role || 'member');
+              const roleLower = safeRole.toLowerCase();
+              const roleColor = getRoleColor(safeRole);
               
               return (
                 <motion.div 
@@ -1635,9 +1175,9 @@ const MemberListTab = () => {
                             opacity: 1
                           }
                         }}>
-                          {member.role.toLowerCase() !== 'admin' && (
+                          {roleLower !== 'admin' && (
                             <>
-                              {member.role.toLowerCase() === 'moderator' ? (
+                              {roleLower === 'moderator' ? (
                                 <Chip
                                   label="Demote"
                                   size="small"
@@ -1690,7 +1230,7 @@ const MemberListTab = () => {
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                         <Chip 
-                          label={member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                          label={safeRole.charAt(0).toUpperCase() + safeRole.slice(1)}
                           size="small"
                           sx={{ 
                             bgcolor: roleColor.bg, 

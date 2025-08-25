@@ -51,8 +51,9 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
+import CommunityLockView from './CommunityLockView';
 
 // Helper function to format dates as YYYY-MM-DD without timezone issues
 const formatDateForAPI = (date) => {
@@ -81,6 +82,10 @@ const AdminPanel = () => {
   const [confirmUnblockDialogOpen, setConfirmUnblockDialogOpen] = useState(false);
   const [confirmBlockDialogOpen, setConfirmBlockDialogOpen] = useState(false);
   const [actionType, setActionType] = useState('');  // 'remove', 'block', or 'unblock'
+  // Access control state
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   
   // State for reported posts
   const [reportedPosts, setReportedPosts] = useState([]);
@@ -90,7 +95,7 @@ const AdminPanel = () => {
   const [isPostLoading, setIsPostLoading] = useState(true);
   const theme = useTheme();
 
-  // Load data from backend API
+  // Load data from backend API with access check
   useEffect(() => {
     // Load timeline details
     const loadTimelineData = async () => {
@@ -249,10 +254,36 @@ const AdminPanel = () => {
       setIsPostLoading(false);
     };
 
-    loadTimelineData();
-    loadMembers();
-    loadBlockedMembers();
-    loadReportedPosts();
+    // First, check access
+    const checkAccess = async () => {
+      try {
+        setAccessLoading(true);
+        const status = await checkMembershipStatus(id, 0, true);
+        const role = (status?.role || '').toLowerCase();
+        const allowed = status?.is_member && ['moderator', 'admin', 'creator', 'siteowner'].includes(role);
+        setIsMember(!!status?.is_member);
+        setUserRole(status?.role || null);
+        if (!allowed) {
+          // Not authorized to view Admin Panel
+          setIsLoading(false);
+          return;
+        }
+        // Authorized, proceed to load data
+        loadTimelineData();
+        loadMembers();
+        loadBlockedMembers();
+        loadReportedPosts();
+      } catch (e) {
+        console.error('[AdminPanel] Access check failed:', e);
+        setIsMember(false);
+        setUserRole(null);
+        setIsLoading(false);
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+
+    checkAccess();
   }, [id]);
 
   const handleTabChange = (event, newValue) => {
@@ -960,6 +991,17 @@ const AdminPanel = () => {
   );
 
   // SettingsTab is defined as a standalone component at the bottom of this file
+
+  // Early guard: show lock view to non-members/non-privileged roles
+  if (!accessLoading && (!isMember || !['moderator','admin','creator','siteowner'].includes((userRole || '').toLowerCase()))) {
+    return (
+      <CommunityLockView 
+        title="Admin tools restricted"
+        description="You're not a moderator or admin of this community. Please go to the timeline page to join or request access."
+        timelineId={id}
+      />
+    );
+  }
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4 }}>
