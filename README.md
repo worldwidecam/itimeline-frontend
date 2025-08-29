@@ -56,6 +56,16 @@ The iTimeline application now supports Community Timelines with a Bronze/Silver/
   - Smooth staggered animations for better perceived performance
   - Loading skeletons for improved user experience
 
+- **CommunityLockView**:
+  - Protects private/admin-only areas with a clear lockout screen
+  - Contextual title/description with call-to-action to navigate back to the timeline
+  - Used when users lack membership or role permissions
+
+- **Admin Panel Access Guard**:
+  - Top-level loading skeleton while access status is being checked
+  - Prevents brief flash of admin UI before authorization completes
+  - Renders `CommunityLockView` for unauthorized users; otherwise renders full admin UI
+
 - **Admin Panel**:
   - Tabbed interface for "Manage Members" and "Settings"
   - Interactive controls for timeline name, description, and visibility
@@ -78,6 +88,7 @@ The iTimeline application now supports Community Timelines with a Bronze/Silver/
   - ✅ **Database**: Proper TimelineMember records, automatic creator admin membership
   - ✅ **Real-time updates**: Member list refreshes immediately when users join
   - ✅ **Multi-user tested**: Confirmed working with multiple user accounts
+  - ✅ **Lockout UX**: CommunityLockView integrated; AdminPanel guards with loading skeleton (Aug 25, 2025)
 
 #### Membership System Architecture (July 2025)
 
@@ -164,6 +175,40 @@ Frontend:
 3. Implement thorough error handling for API calls to prevent cascading failures
 4. Add detailed logging for easier debugging
 5. When making code changes, verify that all necessary functions are implemented
+
+### Frontend Coding Guidelines (Admin Panel & Member Removal)
+
+These practices prevent blank screens and ensure permission logic is consistent with the backend.
+
+- **Module-scope helpers**
+  - Define shared helpers at module scope in `AdminPanel.js` so subcomponents can access them.
+  - Current helpers: `normalizeRole(r)`, `canRemoveMember(currentRole, currentId, target, timelineData)`.
+
+- **Prop passing for subcomponents**
+  - When a subcomponent needs parent state, pass it explicitly as props.
+  - Example: `StandaloneMemberManagementTab` must receive `userRole`, `currentUserId`, and `timelineData`.
+
+- **Never reference undefined state**
+  - Do not read variables that aren’t in scope or not yet initialized. This causes `ReferenceError` and a blank page.
+  - If needed, add a guarded localStorage fallback for current user ID inside helpers (already implemented in `canRemoveMember`).
+
+- **UI permission guards (UX only)**
+  - Hide the Remove button when `canRemoveMember(...)` is false. Never render Remove on the current user’s own row.
+  - Still rely on backend for actual enforcement; surface backend error messages in snackbars.
+
+- **Error messaging**
+  - Show backend error text when removal fails: `error.response?.data?.error || 'Action failed'`.
+
+- **Error boundaries**
+  - Consider adding a small error boundary wrapper around `AdminPanel` to prevent a total blank page on render-time errors.
+
+- **Testing checklist**
+  - Verify Remove does not render for self (including SiteOwner/user 1) and creator when disallowed.
+  - Verify Remove renders for allowed targets based on role hierarchy.
+  - Confirm backend error messages surface in snackbar on failed attempts.
+
+File references:
+- `src/components/timeline-v3/community/AdminPanel.js` (helpers and member actions)
 
 ## Community Timeline Management Systems
 

@@ -10,6 +10,11 @@
   - Re-fetch or reconcile UI state
 - **Next 1–2 steps**: Add search/filter to members list; verify no mock fallbacks remain
 
+### New Progress (2025-08-25)
+- ✅ CommunityLockView integrated across community UI where appropriate
+- ✅ AdminPanel access-loading guard added (skeleton shown during access check to prevent UI flash)
+- ℹ️ No backend changes required for the above; frontend-only improvements
+
 ### Progress Today (alignment with Postgres passport)
 - **Backend** now writes/reads passports from Postgres; endpoints are live: `GET /api/v1/user/passport`, `POST /api/v1/user/passport/sync`.
 - **Frontend** is connected to backend; auth validate calls succeed; ready to drive passport sync after member removal.
@@ -123,6 +128,12 @@ Significant progress has been made on the Admin Panel implementation. The member
 - [x] Test changes to ensure proper functionality ⚠️ **WORK IN PROGRESS - LAST POINT REACHED**
 - [ ] Conduct thorough end-to-end testing of member removal, page refresh, and UI updates
 - [ ] Monitor logs for any unexpected reappearance of removed members
+
+### ✅ Lock View Work — COMPLETE (for now)
+- [x] Implement `CommunityLockView` component with clear messaging and CTA
+- [x] Gate AdminPanel with access-loading skeleton; render lock view on unauthorized
+- [x] Update README with lock view behavior and admin access guard
+- [ ] Revisit copy/UX polish after broader testing (defer)
 
 ### 🎯 **Next Session Action Plan:**
 

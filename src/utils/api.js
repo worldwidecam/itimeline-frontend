@@ -433,10 +433,10 @@ export const updateTimelineVisibility = async (timelineId, visibility) => {
  */
 export const blockMember = async (timelineId, userId, reason = '') => {
   try {
-    // For now, we'll use the remove member endpoint and handle blocking in the frontend
-    // In a future update, a dedicated block endpoint should be added to the backend
-    const response = await removeMember(timelineId, userId);
-    return response;
+    console.log(`[API] Blocking user ${userId} on timeline ${timelineId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/members/${userId}/block`, { reason });
+    console.log('[API] Block member response:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Error blocking member:', error);
     throw error;
@@ -451,9 +451,10 @@ export const blockMember = async (timelineId, userId, reason = '') => {
  */
 export const unblockMember = async (timelineId, userId) => {
   try {
-    // For now, we'll simulate unblocking by returning a success response
-    // In a future update, a dedicated unblock endpoint should be added to the backend
-    return { success: true, message: 'Member unblocked successfully' };
+    console.log(`[API] Unblocking user ${userId} on timeline ${timelineId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/members/${userId}/unblock`);
+    console.log('[API] Unblock member response:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Error unblocking member:', error);
     throw error;

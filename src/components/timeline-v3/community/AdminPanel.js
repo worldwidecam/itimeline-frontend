@@ -51,9 +51,57 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers as apiGetBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
+import ErrorBoundary from '../../ErrorBoundary';
+
+// ----- Shared helpers (module scope) -----
+// Normalize role string
+const normalizeRole = (r) => (r || '').toLowerCase();
+
+// Client-side check to determine if current user can remove target member
+export const canRemoveMember = (currentRoleRaw, currentId, target, tlData) => {
+  const currentRole = normalizeRole(currentRoleRaw);
+  const targetRole = normalizeRole(target?.role);
+  const targetId = target?.userId || target?.user_id || target?.id;
+  const creatorId = tlData?.createdBy;
+  // Fallback: read current user id directly from localStorage if state not yet set
+  let effectiveCurrentId = currentId;
+  if (!effectiveCurrentId) {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (storedUser && storedUser.id) effectiveCurrentId = storedUser.id;
+    } catch (_) {}
+  }
+
+  // No role or ids -> deny
+  if (!currentRole || !targetId) return false;
+
+  // Cannot remove self
+  if (effectiveCurrentId && Number(effectiveCurrentId) === Number(targetId)) return false;
+
+  // Cannot remove SiteOwner or user_id 1
+  if (targetRole === 'siteowner' || Number(targetId) === 1) return false;
+
+  // Protect timeline creator except SiteOwner can
+  if (creatorId && Number(targetId) === Number(creatorId) && currentRole !== 'siteowner') return false;
+
+  // Members cannot remove anyone
+  if (currentRole === 'member' || currentRole === '') return false;
+
+  // Moderators can remove only members
+  if (currentRole === 'moderator') {
+    return targetRole === 'member' || targetRole === '' || !targetRole;
+  }
+
+  // Admin, Creator, SiteOwner can remove member/moderator/admin (backend enforces last-admin etc.)
+  if (['admin', 'creator', 'siteowner'].includes(currentRole)) {
+    return ['member', 'moderator', 'admin', ''].includes(targetRole);
+  }
+
+  return false;
+};
 
 // Helper function to format dates as YYYY-MM-DD without timezone issues
 const formatDateForAPI = (date) => {
@@ -86,6 +134,7 @@ const AdminPanel = () => {
   const [accessLoading, setAccessLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   
   // State for reported posts
   const [reportedPosts, setReportedPosts] = useState([]);
@@ -111,7 +160,8 @@ const AdminPanel = () => {
           description: response.description || '',
           visibility: response.visibility || 'public',
           createdAt: new Date(response.created_at).toISOString().split('T')[0],
-          memberCount: response.member_count || 0
+          memberCount: response.member_count || 0,
+          createdBy: response.created_by || response.createdBy || null
         });
         
         // Set visibility state based on timeline data
@@ -129,11 +179,12 @@ const AdminPanel = () => {
           description: '',
           visibility: 'public',
           createdAt: '',
-          memberCount: 0
+          memberCount: 0,
+          createdBy: null
         });
       }
     };
-    
+
     // Load members data
     const loadMembers = async () => {
       try {
@@ -182,28 +233,37 @@ const AdminPanel = () => {
       }
     };
     
-    // For now, we'll keep using mock data for blocked members and reported posts
-    // since the backend API doesn't support these features yet
-    
-    // Simulated blocked members data loading
-    const loadBlockedMembers = () => {
-      // Generate 3 blocked members
-      const mockBlockedMembers = Array(3).fill().map((_, index) => {
-        const id = 100 + index; // Use different ID range to avoid conflicts
-        return {
-          id,
-          name: `Blocked User ${index + 1}`,
-          avatar: `https://i.pravatar.cc/150?img=${((id + 20) % 70) + 1}`,
-          blockedDate: new Date(Date.now() - Math.random() * 5000000000).toISOString().split('T')[0],
-          reason: [
-            'Spam content',
-            'Inappropriate behavior',
-            'Multiple community guideline violations'
-          ][index % 3]
-        };
-      });
-      
-      setBlockedMembers(mockBlockedMembers);
+    // Blocked members loader using backend
+    const loadBlockedMembers = async () => {
+      try {
+        console.log('Fetching blocked members for timeline ID:', id);
+        const response = await apiGetBlockedMembers(id);
+        const list = Array.isArray(response) ? response : response?.data || [];
+        const formatted = list.map((item) => {
+          const user = item.user || {};
+          // prefer backend-provided fields
+          const avatar = user.avatar_url || item.avatar_url || `https://i.pravatar.cc/150?img=${((item.user_id || item.id || 1) % 70) + 1}`;
+          const blockedAt = item.blocked_at || item.blockedDate;
+          let blockedDate = 'Unknown';
+          try {
+            if (blockedAt) {
+              const d = new Date(blockedAt);
+              if (!isNaN(d.getTime())) blockedDate = d.toISOString().split('T')[0];
+            }
+          } catch (_) {}
+          return {
+            id: item.user_id || item.id,
+            name: user.username || item.username || `User ${item.user_id || item.id}`,
+            avatar,
+            blockedDate,
+            reason: item.blocked_reason || item.reason || ''
+          };
+        });
+        setBlockedMembers(formatted);
+      } catch (err) {
+        console.error('Error fetching blocked members:', err);
+        setBlockedMembers([]);
+      }
     };
     
     // Simulated reported posts data loading
@@ -263,6 +323,13 @@ const AdminPanel = () => {
         const allowed = status?.is_member && ['moderator', 'admin', 'creator', 'siteowner'].includes(role);
         setIsMember(!!status?.is_member);
         setUserRole(status?.role || null);
+        // Capture current user id from passport cache if available
+        try {
+          const userData = JSON.parse(localStorage.getItem('user') || '{}');
+          if (userData && userData.id) setCurrentUserId(userData.id);
+        } catch (e) {
+          console.warn('Unable to parse current user from localStorage', e);
+        }
         if (!allowed) {
           // Not authorized to view Admin Panel
           setIsLoading(false);
@@ -271,7 +338,7 @@ const AdminPanel = () => {
         // Authorized, proceed to load data
         loadTimelineData();
         loadMembers();
-        loadBlockedMembers();
+        await loadBlockedMembers();
         loadReportedPosts();
       } catch (e) {
         console.error('[AdminPanel] Access check failed:', e);
@@ -312,6 +379,13 @@ const AdminPanel = () => {
     setActionType(action);
     
     if (action === 'remove') {
+      // Guard: if not allowed to remove, show feedback and do nothing
+      if (!canRemoveMember(userRole, currentUserId, member, timelineData)) {
+        setSnackbarMessage("You don't have permission to remove this member.");
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+        return;
+      }
       setConfirmDialogOpen(true);
     } else if (action === 'block') {
       setConfirmBlockDialogOpen(true);
@@ -350,13 +424,24 @@ const AdminPanel = () => {
       // Show loading state
       setIsLoading(true);
       
+      // Prevent self-removal at UI level
+      const selfId = currentUserId;
+      const targetId = selectedMember?.userId || selectedMember?.user_id || selectedMember?.id;
+      if (selfId && targetId && Number(selfId) === Number(targetId)) {
+        setSnackbarMessage('Cannot remove yourself. Use the Leave timeline feature instead.');
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+        setIsLoading(false);
+        return;
+      }
+
       // 1. Call the API to remove the member
       // The API expects the actual user_id, not the membership record ID
       // Log the selected member object to verify we have the right ID
       console.log('Selected member for removal:', selectedMember);
       
       // Make sure we're using the correct ID for the API call
-      const userIdForApi = selectedMember?.userId || selectedMember?.user_id || selectedMember?.id;
+      const userIdForApi = targetId;
       console.log(`Attempting to remove member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await removeMember(id, userIdForApi);
       
@@ -417,7 +502,8 @@ const AdminPanel = () => {
       console.error('Error removing member:', error);
       
       // Show error message
-      setSnackbarMessage(`Failed to remove member: ${error.message || 'Unknown error'}`);
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+      setSnackbarMessage(`Failed to remove member: ${serverMsg || error.message || 'Unknown error'}`);
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
       
@@ -437,23 +523,14 @@ const AdminPanel = () => {
       console.log('Selected member for blocking:', selectedMember);
       
       // Make sure we're using the correct ID for the API call
-      const userIdForApi = selectedMember.userId;
+      const userIdForApi = selectedMember.userId ?? selectedMember.id;
       console.log(`Attempting to block member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await blockMember(id, userIdForApi, reason);
-      
-      // 2. Remove from members list
-      const memberToBlock = members.find(m => m.id === selectedMember.id);
-      setMembers(members.filter(m => m.id !== selectedMember.id));
-      
-      // 3. Add to blocked members with current date and reason
-      const blockedMember = {
-        ...memberToBlock,
-        blockedDate: new Date().toISOString().split('T')[0],
-        reason: reason
-      };
-      
-      setBlockedMembers([...blockedMembers, blockedMember]);
+      // Re-fetch lists from backend for accuracy
+      await Promise.all([loadMembers(), loadBlockedMembers()]);
       setConfirmBlockDialogOpen(false);
+      // Switch to Blocked tab so the result is visible
+      setMemberTabValue(1);
       
       // 4. Update the member count in timeline data
       if (timelineData) {
@@ -525,24 +602,14 @@ const AdminPanel = () => {
       console.log('Selected member for unblocking:', selectedMember);
       
       // Make sure we're using the correct ID for the API call
-      const userIdForApi = selectedMember.userId;
+      const userIdForApi = selectedMember.userId ?? selectedMember.id;
       console.log(`Attempting to unblock member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await unblockMember(id, userIdForApi);
-      
-      // 2. Remove from blocked members list
-      const memberToUnblock = blockedMembers.find(m => m.id === selectedMember.id);
-      setBlockedMembers(blockedMembers.filter(m => m.id !== selectedMember.id));
-      
-      // 3. Add back to members with original data (minus the blocked-specific fields)
-      const { blockedDate, reason, ...memberData } = memberToUnblock;
-      const unblockMemberData = {
-        ...memberData,
-        role: 'member', // Reset to basic member role
-        joinDate: new Date().toISOString().split('T')[0] // Reset join date to today
-      };
-      
-      setMembers([...members, unblockMemberData]);
+      // Re-fetch lists from backend for accuracy
+      await Promise.all([loadMembers(), loadBlockedMembers()]);
       setConfirmUnblockDialogOpen(false);
+      // Switch back to Active Members tab
+      setMemberTabValue(0);
       
       // 4. Update the member count in timeline data
       if (timelineData) {
@@ -614,6 +681,50 @@ const AdminPanel = () => {
       default:
         return { bg: theme.palette.primary.main, text: '#fff' };
     }
+  };
+
+  // Normalize role string
+  const normalizeRole = (r) => (r || '').toLowerCase();
+
+  // Client-side check to determine if current user can remove target member
+  const canRemoveMember = (currentRoleRaw, currentId, target, tlData) => {
+    const currentRole = normalizeRole(currentRoleRaw);
+    const targetRole = normalizeRole(target?.role);
+    const targetId = target?.userId || target?.user_id || target?.id;
+    const creatorId = tlData?.createdBy;
+    // Fallback: read current user id directly from localStorage if state not yet set
+    let effectiveCurrentId = currentId;
+    if (!effectiveCurrentId) {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        if (storedUser && storedUser.id) effectiveCurrentId = storedUser.id;
+      } catch (_) {}
+    }
+
+    // No role or ids -> deny
+    if (!currentRole || !targetId) return false;
+
+    // Cannot remove self
+    if (effectiveCurrentId && Number(effectiveCurrentId) === Number(targetId)) return false;
+
+    // Cannot remove SiteOwner or user_id 1
+    if (targetRole === 'siteowner' || Number(targetId) === 1) return false;
+
+    // Protect timeline creator except SiteOwner can
+    if (creatorId && Number(targetId) === Number(creatorId) && currentRole !== 'siteowner') return false;
+
+    // Members cannot remove anyone
+    if (currentRole === 'member' || currentRole === '') return false;
+
+    // Moderators: can remove members only
+    if (currentRole === 'moderator') return targetRole === 'member';
+
+    // Admins and creator and siteowner: can remove moderators and members, and admins (subject to server last-admin rule)
+    if (['admin', 'creator', 'siteowner'].includes(currentRole)) {
+      return ['member', 'moderator', 'admin'].includes(targetRole);
+    }
+
+    return false;
   };
 
   // Animation variants
@@ -863,14 +974,16 @@ const AdminPanel = () => {
 
                               {member.role !== 'SiteOwner' && (
                                 <>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleOpenConfirmDialog(member, 'remove')}
-                                    sx={{ color: 'error.main' }}
-                                    title="Remove Member"
-                                  >
-                                    <PersonRemoveIcon fontSize="small" />
-                                  </IconButton>
+                                  {canRemoveMember(userRole, currentUserId, member, timelineData) && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleOpenConfirmDialog(member, 'remove')}
+                                      sx={{ color: 'error.main' }}
+                                      title="Remove Member"
+                                    >
+                                      <PersonRemoveIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
 
                                   <IconButton
                                     size="small"
@@ -1210,7 +1323,15 @@ const AdminPanel = () => {
           
           <Box sx={{ p: 1 }}>
             <AnimatePresence mode="wait">
-              {tabValue === 0 && <StandaloneMemberManagementTab key="members" timelineId={id} />}
+              {tabValue === 0 && (
+                <StandaloneMemberManagementTab 
+                  key="members" 
+                  timelineId={id} 
+                  userRole={userRole} 
+                  currentUserId={currentUserId} 
+                  timelineData={timelineData}
+                />
+              )}
               {tabValue === 1 && <ManagePostsTab key="posts" />}
               {tabValue === 2 && <SettingsTab key="settings" id={id} />}
             </AnimatePresence>
@@ -1609,7 +1730,7 @@ const ManagePostsTab = () => {
 };
 
 // Member Management Tab Component
-const StandaloneMemberManagementTab = ({ timelineId }) => {
+const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, timelineData }) => {
   const theme = useTheme();
   const [memberTabValue, setMemberTabValue] = useState(0); // 0 = Active Members, 1 = Blocked Members
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -1642,8 +1763,8 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
         : (Array.isArray(membersArr?.members) ? membersArr.members : []);
       
       setMembers(activeMembers);
-      // Blocked members are not yet supported by backend; keep empty for now
-      setBlockedMembers([]);
+      // Note: Do NOT overwrite blockedMembers here because backend does not
+      // provide blocked users yet. We manage it locally based on actions.
     } catch (error) {
       console.error('Error loading members:', error);
       setError('Failed to load members');
@@ -1667,7 +1788,18 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
   
   // Handle opening the confirmation dialog
   const handleOpenConfirmDialog = (member, action) => {
-    setSelectedMember(member);
+    // Normalize the selected member shape to ensure id/name/avatar fields exist
+    const normalized = {
+      id: member.user_id ?? member.id ?? member.userId,
+      user_id: member.user_id ?? member.id ?? member.userId,
+      userId: member.user_id ?? member.id ?? member.userId,
+      username: member.username ?? member.name,
+      name: member.name ?? member.username,
+      avatar: member.avatar ?? member.avatar_url,
+      avatar_url: member.avatar_url ?? member.avatar,
+      role: member.role || 'member'
+    };
+    setSelectedMember({ ...member, ...normalized });
     setActionType(action);
     setConfirmDialogOpen(true);
   };
@@ -1678,12 +1810,29 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
     setSelectedMember(null);
     setActionType('');
   };
-  
+
   // Handle member actions (remove, block, unblock, role changes)
   const handleMemberAction = async () => {
     if (!selectedMember || !actionType) return;
     
     try {
+      console.log('Selected member:', selectedMember);
+      console.log('Action type:', actionType);
+      
+      // Normalize the selected member shape to ensure id/name/avatar fields exist
+      const normalizedMember = {
+        id: selectedMember.user_id ?? selectedMember.id ?? selectedMember.userId,
+        user_id: selectedMember.user_id ?? selectedMember.id ?? selectedMember.userId,
+        userId: selectedMember.user_id ?? selectedMember.id ?? selectedMember.userId,
+        username: selectedMember.username ?? selectedMember.name,
+        name: selectedMember.name ?? selectedMember.username,
+        avatar: selectedMember.avatar ?? selectedMember.avatar_url,
+        avatar_url: selectedMember.avatar_url ?? selectedMember.avatar,
+        role: selectedMember.role || 'member'
+      };
+      
+      console.log('Normalized member:', normalizedMember);
+      
       let success = false;
       let message = '';
       
@@ -1730,8 +1879,43 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
       
       if (success) {
         showSnackbar(message, 'success');
-        // Reload members to reflect changes
-        await loadMembers();
+        const selKey = selectedMember.user_id ?? selectedMember.id ?? selectedMember.userId;
+        if (actionType === 'block') {
+          // Move from members to blockedMembers
+          setMembers(prev => prev.filter(m => (m.user_id ?? m.id ?? m.userId) !== selKey));
+          const blocked = {
+            id: selectedMember.user_id ?? selectedMember.id ?? selectedMember.userId,
+            name: selectedMember.username || selectedMember.name || `User ${selKey}`,
+            avatar: selectedMember.avatar_url || selectedMember.avatar,
+            role: selectedMember.role || 'member',
+            blockedDate: new Date().toISOString().split('T')[0],
+            reason: 'Blocked by admin'
+          };
+          setBlockedMembers(prev => {
+            const next = [...prev, blocked];
+            console.log('Blocked list updated (size):', next.length, next);
+            return next;
+          });
+          setMemberTabValue(1);
+        } else if (actionType === 'unblock') {
+          // Move from blockedMembers back to members
+          setBlockedMembers(prev => {
+            const next = prev.filter(m => (m.user_id ?? m.id ?? m.userId) !== selKey);
+            console.log('Blocked list after unblock (size):', next.length, next);
+            return next;
+          });
+          const unblocked = {
+            id: selectedMember.user_id ?? selectedMember.id ?? selectedMember.userId,
+            name: selectedMember.username || selectedMember.name || `User ${selKey}`,
+            avatar: selectedMember.avatar_url || selectedMember.avatar,
+            role: 'member',
+          };
+          setMembers(prev => [...prev, unblocked]);
+          setMemberTabValue(0);
+        } else {
+          // For other actions, reload active members to reflect role changes
+          await loadMembers();
+        }
       }
     } catch (error) {
       console.error('Error performing member action:', error);
@@ -1845,20 +2029,22 @@ const StandaloneMemberManagementTab = ({ timelineId }) => {
                       }}
                     />
                     <Box sx={{ display: 'flex', ml: 'auto' }}>
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleOpenConfirmDialog(member, 'remove')}
-                          title="Remove from community"
-                          sx={{ 
-                            mr: 1,
-                            '&:hover': {
-                              bgcolor: 'rgba(211, 47, 47, 0.1)'
-                            }
-                          }}
-                        >
-                          <PersonRemoveIcon />
-                        </IconButton>
+                        {canRemoveMember(userRole, currentUserId, member, timelineData) && (
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleOpenConfirmDialog(member, 'remove')}
+                            title="Remove from community"
+                            sx={{ 
+                              mr: 1,
+                              '&:hover': {
+                                bgcolor: 'rgba(211, 47, 47, 0.1)'
+                              }
+                            }}
+                          >
+                            <PersonRemoveIcon />
+                          </IconButton>
+                        )}
                         <IconButton 
                           size="small" 
                           color="error"
@@ -3220,4 +3406,10 @@ const SettingsTab = ({ id }) => {
   );
 };
 
-export default AdminPanel;
+const AdminPanelWithBoundary = (props) => (
+  <ErrorBoundary>
+    <AdminPanel {...props} />
+  </ErrorBoundary>
+);
+
+export default AdminPanelWithBoundary;
