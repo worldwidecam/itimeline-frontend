@@ -28,7 +28,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote } from '../../../utils/api';
+import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote, removeMember } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -174,13 +174,44 @@ const MemberListTab = () => {
     console.log('[MemberListTab] handleRoleChange noop', { userId, newRole });
   }, []);
 
-  const handleRemoveMember = useCallback((userId) => {
-    console.log('[MemberListTab] handleRemoveMember noop', { userId });
-  }, []);
+  const handleRemoveMember = useCallback(async (userId) => {
+    try {
+      console.log(`[MemberListTab] Removing member with userId: ${userId} from timeline: ${id}`);
+      setIsLoading(true);
+      
+      // Call the API to remove the member
+      const response = await removeMember(id, userId);
+      console.log('[MemberListTab] Remove member response:', response);
+      
+      // Update the members list by filtering out the removed member
+      setMembers(prevMembers => {
+        const updatedMembers = prevMembers.filter(member => member.userId !== userId);
+        console.log(`[MemberListTab] Updated members list: ${updatedMembers.length} members (removed userId: ${userId})`);
+        
+        // Update member count
+        setMemberCount(updatedMembers.length);
+        
+        // Update action thresholds based on new member count
+        setShowSilverAction(updatedMembers.length >= memberThresholds.silver);
+        setShowGoldAction(updatedMembers.length >= memberThresholds.gold);
+        
+        return updatedMembers;
+      });
+      
+      // Show success message
+      console.log('[MemberListTab] Member removed successfully');
+    } catch (error) {
+      console.error('[MemberListTab] Error removing member:', error);
+      setError('Failed to remove member. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
   
-  // Check membership first, then fetch members when component mounts or ID changes
+  // Check membership and fetch members when component mounts or ID changes
   useEffect(() => {
     let isMounted = true;
+    
     const checkAccess = async () => {
       try {
         setAccessLoading(true);
@@ -188,6 +219,7 @@ const MemberListTab = () => {
         const allowed = !!status?.is_member;
         if (isMounted) {
           setIsMember(allowed);
+          console.log(`[MemberListTab] Membership status for timeline ${id}:`, allowed);
         }
       } catch (e) {
         console.error('[MemberListTab] Access check failed:', e);
@@ -207,20 +239,16 @@ const MemberListTab = () => {
         console.log('[MemberListTab] API Response:', response);
         
         if (isMounted) {
-          // The API returns { success: true, members: [...] }
+          // The API returns { success: true, members: [...] } or direct array
           const membersData = Array.isArray(response) ? response : (response?.members || []);
+          console.log('[MemberListTab] Raw members data:', membersData);
           
-          // Filter out inactive members (those with is_active_member=false)
-          const activeMembers = membersData.filter(member => {
-            // Check if is_active_member is explicitly false
-            if (member.is_active_member === false || member.is_active_member === 'false') {
-              console.log(`[MemberListTab] Filtering out inactive member:`, member);
-              return false;
-            }
-            return true;
-          });
+          // Don't filter out inactive members for now - show all members
+          // This helps debug if the issue is with filtering or with the API response
+          const activeMembers = membersData;
           
-          console.log(`[MemberListTab] Processed ${activeMembers.length} active members out of ${membersData.length} total`);
+          console.log(`[MemberListTab] Using ${activeMembers.length} members out of ${membersData.length} total`);
+          console.log('[MemberListTab] First few members:', activeMembers.slice(0, 3));
           
           setMembers(activeMembers);
           setMemberCount(activeMembers.length);
@@ -241,15 +269,17 @@ const MemberListTab = () => {
       }
     };
 
+    // Always check access
     checkAccess();
-    if (isMember) {
-      fetchMembers();
-    }
+    
+    // Always fetch members regardless of membership status
+    // This helps debug if the issue is with the membership check
+    fetchMembers();
     
     return () => {
       isMounted = false;
     };
-  }, [id, isMember]);
+  }, [id]); // Remove isMember dependency to ensure members are always fetched
 
   // Fetch action cards when component mounts or ID changes
   useEffect(() => {

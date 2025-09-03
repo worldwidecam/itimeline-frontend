@@ -29,6 +29,11 @@ const Login = () => {
 
     try {
       await login(formData.email, formData.password);
+      // Clear form data on successful login
+      setFormData({
+        email: '',
+        password: '',
+      });
       navigate('/home');
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to login');

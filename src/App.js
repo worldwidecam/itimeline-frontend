@@ -981,14 +981,18 @@ function App() {
                 
                 {/* Login/Register routes */}
                 <Route path="/login" element={
-                  <Box sx={{ pt: 8 }}>
-                    <Login />
-                  </Box>
+                  <AuthRoute>
+                    <Box sx={{ pt: 8 }}>
+                      <Login />
+                    </Box>
+                  </AuthRoute>
                 } />
                 <Route path="/register" element={
-                  <Box sx={{ pt: 8 }}>
-                    <Register />
-                  </Box>
+                  <AuthRoute>
+                    <Box sx={{ pt: 8 }}>
+                      <Register />
+                    </Box>
+                  </AuthRoute>
                 } />
                 
                 {/* Protected routes */}

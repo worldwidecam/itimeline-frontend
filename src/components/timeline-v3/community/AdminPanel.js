@@ -51,7 +51,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers as apiGetBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -447,6 +447,15 @@ const AdminPanel = () => {
       
       // 2. Update local state to remove the member
       setMembers(members.filter(m => m.id !== selectedMember.id));
+      
+      // 2.5. Fetch updated blocked members list to show the removed user
+      try {
+        const blockedData = await getBlockedMembers(id);
+        setBlockedMembers(blockedData);
+        console.log(`Updated blocked members list after removal:`, blockedData);
+      } catch (blockedError) {
+        console.warn('Failed to fetch blocked members after removal:', blockedError);
+      }
       
       // 3. Update the member count in timeline data
       if (timelineData) {

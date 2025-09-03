@@ -143,7 +143,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
     console.log(`[API] Making request to: ${url}`);
     console.log('[API] Current JWT token:', getCookie('access_token') || localStorage.getItem('access_token')); // Log the token for debugging
     
-    const response = await api.get(`/api/v1/membership/timelines/${timelineId}/members`, {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
       params: { page, limit },
       headers: {
         'Cache-Control': 'no-cache',
@@ -152,7 +152,9 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
       }
     });
     
-    console.log(`[API] Response status: ${response.status}`, response.data);
+    console.log(`[API] Response status: ${response.status}`);
+    console.log('[API] Response data type:', typeof response.data);
+    console.log('[API] Response data structure:', Array.isArray(response.data) ? 'array' : 'object');
     
     // Log raw response for debugging
     console.log('[API] Raw response data:', JSON.stringify(response.data, null, 2));
@@ -171,6 +173,16 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
       // Handle { data: [...] } format
       membersData = response.data.data;
       console.log(`[API] Found ${membersData.length} members in response.data.data`);
+    } else if (response.data && typeof response.data === 'object') {
+      // Try to extract any array we can find in the response
+      const possibleArrays = Object.values(response.data).filter(val => Array.isArray(val));
+      if (possibleArrays.length > 0) {
+        // Use the first array found
+        membersData = possibleArrays[0];
+        console.log(`[API] Found ${membersData.length} members in response object array property`);
+      } else {
+        console.warn('[API] No arrays found in response data:', response.data);
+      }
     } else {
       console.warn('[API] Unexpected response format or error:', response.data);
       if (retryCount < 2) {
@@ -184,61 +196,71 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
       console.log('[API] First member data sample (before transformation):', membersData[0]);
     } else {
       console.log('[API] No members found in response');
+      // Return empty array early if no members found
+      return [];
     }
-    
-    // Log raw members data before transformation
-    console.log('[API] Raw members data before transformation:', JSON.stringify(membersData, null, 2));
     
     // Transform backend data structure to match frontend expectations
     const transformedMembers = membersData.map(member => {
-      // Extract user data from nested user object
+      // Handle case where member might be null or undefined
+      if (!member) {
+        console.warn('[API] Skipping null/undefined member in data');
+        return null;
+      }
+      
+      // Extract user data from nested user object or use member directly
       const userData = member.user || {};
       
-      // Log the member ID structure for debugging
-      console.log('[API] Member ID structure:', {
-        member_id: member.id,
+      // Log the member structure for debugging
+      console.log('[API] Member structure:', {
+        id: member.id,
         user_id: member.user_id,
-        userData_id: userData.id
+        userData_id: userData.id,
+        role: member.role,
+        is_active_member: member.is_active_member
       });
       
-      const transformed = {
-        userId: member.user_id || userData.id || member.id,  // The actual user ID for API calls
-        id: member.user_id || userData.id || member.id,      // Frontend component ID (should match userId)
-        memberId: member.id,                                // The membership record ID
-        name: userData.username || member.username || member.name, // Get username from user object
-        avatar: userData.avatar_url || member.avatar_url || member.avatar, // Get avatar from user object
-        role: member.role || 'member',       // Default to 'member' if role not provided
-        // Format joinDate properly for display
-        joinDate: (() => {
-          const joinedAt = member.joined_at || member.joinDate;
-          console.log('[API] Processing join date - joinedAt:', joinedAt);
-          if (joinedAt) {
-            try {
-              const date = new Date(joinedAt);
-              console.log('[API] Parsed date object:', date);
-              if (!isNaN(date.getTime())) {
-                const formattedDate = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-                console.log('[API] Formatted join date:', formattedDate);
-                return formattedDate;
-              } else {
-                console.warn('[API] Invalid date object:', date);
-              }
-            } catch (e) {
-              console.warn('[API] Error parsing join date:', joinedAt, e);
-            }
+      // Determine the best user ID to use
+      const userId = member.user_id || userData.id || member.id;
+      
+      // Determine the best username to use
+      const name = userData.username || member.username || member.name || `User ${userId}`;
+      
+      // Determine avatar URL
+      const avatar = userData.avatar_url || member.avatar_url || member.avatar || null;
+      
+      // Format join date
+      let joinDate = 'Unknown';
+      const joinedAt = member.joined_at || member.joinDate;
+      if (joinedAt) {
+        try {
+          const date = new Date(joinedAt);
+          if (!isNaN(date.getTime())) {
+            joinDate = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
           }
-          console.log('[API] Using fallback join date: Unknown');
-          return 'Unknown'; // Fallback if no valid date
-        })(),
-        memberId: member.id  // Keep the membership record ID separate
+        } catch (e) {
+          console.warn('[API] Error parsing join date:', joinedAt, e);
+        }
+      }
+      
+      const transformed = {
+        userId: userId,
+        id: userId,
+        memberId: member.id || userId,
+        name: name,
+        avatar: avatar,
+        role: member.role || 'member',
+        joinDate: joinDate,
+        is_active_member: member.is_active_member !== false // Default to true unless explicitly false
       };
-      console.log(`[API] Transformed member:`, JSON.stringify(transformed, null, 2));
+      
       return transformed;
-    });
+    }).filter(Boolean); // Remove any null entries
     
     // Log transformed data for debugging
+    console.log(`[API] Transformed ${transformedMembers.length} members`);
     if (transformedMembers.length > 0) {
-      console.log('[API] First member data sample (after transformation):', JSON.stringify(transformedMembers[0], null, 2));
+      console.log('[API] First transformed member:', transformedMembers[0]);
     }
     
     // Cache the member count in localStorage
@@ -249,7 +271,6 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
         page,
         limit
       }));
-      console.log(`[API] Cached member count (${transformedMembers.length}) for timeline ${timelineId}`);
     } catch (storageError) {
       console.warn('[API] Failed to cache member count:', storageError);
     }

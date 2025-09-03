@@ -1,13 +1,13 @@
 # Main Goal - Community Timeline Implementation
 
-## Concise Plan (2025-08-22)
+## Concise Plan (2025-08-31)
 - **Main goal**: Community timeline implementation
 - **Finished recently**: Members page (active/blocked lists, roles, remove/block with real API) and quote system
 - **Where we left off**: Admin Page — "Remove from community" button behavior and persistence
-- **Today's task**: Make the "Remove from community" button work end-to-end
-  - Call backend removal API
-  - Clear/update local caches so member stays removed after refresh
-  - Re-fetch or reconcile UI state
+- **Today's task**: Validate end-to-end removal persistence
+  - Call backend removal API (active under `/api/v1/timelines/{id}/members/{userId}`)
+  - After success, call `POST /api/v1/user/passport/sync`
+  - Clear/update caches so member stays removed after refresh, then re-fetch
 - **Next 1–2 steps**: Add search/filter to members list; verify no mock fallbacks remain
 
 ### New Progress (2025-08-25)
@@ -16,12 +16,13 @@
 - ℹ️ No backend changes required for the above; frontend-only improvements
 
 ### Progress Today (alignment with Postgres passport)
-- **Backend** now writes/reads passports from Postgres; endpoints are live: `GET /api/v1/user/passport`, `POST /api/v1/user/passport/sync`.
+- **Backend** now writes/reads passports from Postgres; endpoints are live: `GET /api/v1/user/passport`, `POST /api/v1/user/passport/sync`. `community_bp` is registered under `/api/v1` so the DELETE member route is active.
 - **Frontend** is connected to backend; auth validate calls succeed; ready to drive passport sync after member removal.
 
 ### Next Minute Step — Remove Button
 1) Keep current UI flow in `AdminPanel.js` → `removeMember(timelineId, userId)` and, on success, immediately call `syncUserPassport()`.
 2) After sync resolves, invalidate relevant caches (`user_passport_*`, `timeline_members_*`) and re-fetch the member list.
+3) Confirm that subsequent UI renders and fresh fetches exclude the removed member.
 
 Mini-roadmap after this minute step:
 - [ ] Add debug log in `removeMember` success path to record timelineId/userId and sync results
@@ -128,6 +129,14 @@ Significant progress has been made on the Admin Panel implementation. The member
 - [x] Test changes to ensure proper functionality ⚠️ **WORK IN PROGRESS - LAST POINT REACHED**
 - [ ] Conduct thorough end-to-end testing of member removal, page refresh, and UI updates
 - [ ] Monitor logs for any unexpected reappearance of removed members
+
+### E2E Verification Checklist
+
+- [ ] Delete member via `DELETE /api/v1/timelines/{timelineId}/members/{userId}` (admin/mod).
+- [ ] Call `POST /api/v1/user/passport/sync` and verify success + updated `last_updated`.
+- [ ] Clear/invalidate `user_passport_*` and `timeline_members_*` caches; re-fetch member list.
+- [ ] Reload the page; confirm removed member does not reappear in AdminPanel or MemberList.
+- [ ] Repeat in another browser/profile to confirm cross-session persistence.
 
 ### ✅ Lock View Work — COMPLETE (for now)
 - [x] Implement `CommunityLockView` component with clear messaging and CTA
