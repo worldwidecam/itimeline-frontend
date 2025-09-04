@@ -185,6 +185,68 @@ const AdminPanel = () => {
       }
     };
 
+  // Reload helpers (component scope) to avoid useEffect scoping issues
+  const reloadMembers = async () => {
+    try {
+      const response = await getTimelineMembers(id);
+      const membersData = Array.isArray(response) ? response : response.data || [];
+      const formatted = membersData.map(member => {
+        const userData = member.user || {};
+        let joinDate = 'Unknown';
+        try {
+          if (member.joined_at) {
+            const date = new Date(member.joined_at);
+            if (!isNaN(date.getTime())) joinDate = date.toISOString().split('T')[0];
+          }
+        } catch (_) {}
+        return {
+          id: member.user_id,
+          name: userData.username || member.username || `User ${member.user_id}`,
+          role: member.role,
+          joinDate,
+          avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+        };
+      });
+      setMembers(formatted);
+    } catch (e) {
+      console.error('[AdminPanel] reloadMembers failed:', e);
+      setMembers([]);
+    }
+  };
+
+  const reloadBlockedMembers = async () => {
+    try {
+      console.log('[AdminPanel] reloadBlockedMembers called for timeline:', id);
+      const response = await getBlockedMembers(id);
+      console.log('[AdminPanel] reloadBlockedMembers response:', response);
+      const list = Array.isArray(response) ? response : response?.data || [];
+      const formatted = list.map((item) => {
+        const user = item.user || {};
+        const avatar = user.avatar_url || item.avatar_url || `https://i.pravatar.cc/150?img=${((item.user_id || item.id || 1) % 70) + 1}`;
+        const blockedAt = item.blocked_at || item.blockedDate;
+        let blockedDate = 'Unknown';
+        try {
+          if (blockedAt) {
+            const d = new Date(blockedAt);
+            if (!isNaN(d.getTime())) blockedDate = d.toISOString().split('T')[0];
+          }
+        } catch (_) {}
+        return {
+          id: item.user_id || item.id,
+          name: user.username || item.username || `User ${item.user_id || item.id}`,
+          avatar,
+          blockedDate,
+          reason: item.blocked_reason || item.reason || ''
+        };
+      });
+      console.log('[AdminPanel] reloadBlockedMembers formatted:', formatted);
+      setBlockedMembers(formatted);
+    } catch (e) {
+      console.error('[AdminPanel] reloadBlockedMembers failed:', e);
+      setBlockedMembers([]);
+    }
+  };
+
     // Load members data
     const loadMembers = async () => {
       try {
@@ -237,7 +299,7 @@ const AdminPanel = () => {
     const loadBlockedMembers = async () => {
       try {
         console.log('Fetching blocked members for timeline ID:', id);
-        const response = await apiGetBlockedMembers(id);
+        const response = await getBlockedMembers(id);
         const list = Array.isArray(response) ? response : response?.data || [];
         const formatted = list.map((item) => {
           const user = item.user || {};
@@ -317,10 +379,13 @@ const AdminPanel = () => {
     // First, check access
     const checkAccess = async () => {
       try {
+        console.log('[AdminPanel] Starting access check for timeline:', id);
         setAccessLoading(true);
         const status = await checkMembershipStatus(id, 0, true);
+        console.log('[AdminPanel] Membership status:', status);
         const role = (status?.role || '').toLowerCase();
         const allowed = status?.is_member && ['moderator', 'admin', 'creator', 'siteowner'].includes(role);
+        console.log('[AdminPanel] Role:', role, 'Allowed:', allowed);
         setIsMember(!!status?.is_member);
         setUserRole(status?.role || null);
         // Capture current user id from passport cache if available
@@ -332,13 +397,17 @@ const AdminPanel = () => {
         }
         if (!allowed) {
           // Not authorized to view Admin Panel
+          console.log('[AdminPanel] Access denied - not authorized');
           setIsLoading(false);
           return;
         }
         // Authorized, proceed to load data
+        console.log('[AdminPanel] Starting data load...');
         loadTimelineData();
         loadMembers();
+        console.log('[AdminPanel] About to call loadBlockedMembers...');
         await loadBlockedMembers();
+        console.log('[AdminPanel] loadBlockedMembers completed');
         loadReportedPosts();
       } catch (e) {
         console.error('[AdminPanel] Access check failed:', e);
@@ -350,7 +419,21 @@ const AdminPanel = () => {
       }
     };
 
+    console.log('[AdminPanel] useEffect triggered for timeline:', id);
+    
+    // Test direct API call
+    console.log('[AdminPanel] Testing direct getBlockedMembers call...');
+    getBlockedMembers(id).then(result => {
+      console.log('[AdminPanel] Direct API test result:', result);
+    }).catch(err => {
+      console.error('[AdminPanel] Direct API test failed:', err);
+    });
+
     checkAccess();
+    
+    // Force load blocked members directly
+    console.log('[AdminPanel] Force loading blocked members...');
+    reloadBlockedMembers();
   }, [id]);
 
   const handleTabChange = (event, newValue) => {
@@ -450,9 +533,8 @@ const AdminPanel = () => {
       
       // 2.5. Fetch updated blocked members list to show the removed user
       try {
-        const blockedData = await getBlockedMembers(id);
-        setBlockedMembers(blockedData);
-        console.log(`Updated blocked members list after removal:`, blockedData);
+        await reloadBlockedMembers();
+        console.log(`Updated blocked members list after removal`);
       } catch (blockedError) {
         console.warn('Failed to fetch blocked members after removal:', blockedError);
       }
@@ -536,7 +618,7 @@ const AdminPanel = () => {
       console.log(`Attempting to block member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await blockMember(id, userIdForApi, reason);
       // Re-fetch lists from backend for accuracy
-      await Promise.all([loadMembers(), loadBlockedMembers()]);
+      await Promise.all([reloadMembers(), reloadBlockedMembers()]);
       setConfirmBlockDialogOpen(false);
       // Switch to Blocked tab so the result is visible
       setMemberTabValue(1);
@@ -615,7 +697,7 @@ const AdminPanel = () => {
       console.log(`Attempting to unblock member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await unblockMember(id, userIdForApi);
       // Re-fetch lists from backend for accuracy
-      await Promise.all([loadMembers(), loadBlockedMembers()]);
+      await Promise.all([reloadMembers(), reloadBlockedMembers()]);
       setConfirmUnblockDialogOpen(false);
       // Switch back to Active Members tab
       setMemberTabValue(0);
@@ -1772,8 +1854,37 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         : (Array.isArray(membersArr?.members) ? membersArr.members : []);
       
       setMembers(activeMembers);
-      // Note: Do NOT overwrite blockedMembers here because backend does not
-      // provide blocked users yet. We manage it locally based on actions.
+      // Load blocked members independently to avoid conflicts
+      console.log('[AdminPanel] Loading blocked members after active members...');
+      try {
+        const blockedResponse = await getBlockedMembers(timelineId);
+        console.log('[AdminPanel] Blocked members from API:', blockedResponse);
+        const blockedList = Array.isArray(blockedResponse) ? blockedResponse : blockedResponse?.data || [];
+        const formattedBlocked = blockedList.map((item) => {
+          const user = item.user || {};
+          const avatar = user.avatar_url || item.avatar_url || `https://i.pravatar.cc/150?img=${((item.user_id || item.id || 1) % 70) + 1}`;
+          const blockedAt = item.blocked_at || item.blockedDate;
+          let blockedDate = 'Unknown';
+          try {
+            if (blockedAt) {
+              const d = new Date(blockedAt);
+              if (!isNaN(d.getTime())) blockedDate = d.toISOString().split('T')[0];
+            }
+          } catch (_) {}
+          return {
+            id: item.user_id || item.id,
+            name: user.username || item.username || `User ${item.user_id || item.id}`,
+            avatar,
+            blockedDate,
+            reason: item.blocked_reason || item.reason || ''
+          };
+        });
+        console.log('[AdminPanel] Formatted blocked members:', formattedBlocked);
+        setBlockedMembers(formattedBlocked);
+      } catch (blockedError) {
+        console.error('[AdminPanel] Failed to load blocked members:', blockedError);
+        setBlockedMembers([]);
+      }
     } catch (error) {
       console.error('Error loading members:', error);
       setError('Failed to load members');
