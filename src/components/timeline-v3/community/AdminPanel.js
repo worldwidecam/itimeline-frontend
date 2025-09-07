@@ -37,6 +37,7 @@ import SecurityIcon from '@mui/icons-material/Security';
 import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import BlockIcon from '@mui/icons-material/Block';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import ForumIcon from '@mui/icons-material/Forum';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -222,7 +223,7 @@ const AdminPanel = () => {
       const list = Array.isArray(response) ? response : response?.data || [];
       const formatted = list.map((item) => {
         const user = item.user || {};
-        const avatar = user.avatar_url || item.avatar_url || `https://i.pravatar.cc/150?img=${((item.user_id || item.id || 1) % 70) + 1}`;
+        const avatar = user.avatar_url || item.avatar_url || null;
         const blockedAt = item.blocked_at || item.blockedDate;
         let blockedDate = 'Unknown';
         try {
@@ -303,8 +304,8 @@ const AdminPanel = () => {
         const list = Array.isArray(response) ? response : response?.data || [];
         const formatted = list.map((item) => {
           const user = item.user || {};
-          // prefer backend-provided fields
-          const avatar = user.avatar_url || item.avatar_url || `https://i.pravatar.cc/150?img=${((item.user_id || item.id || 1) % 70) + 1}`;
+          // prefer backend-provided fields; no mock fallback
+          const avatar = user.avatar_url || item.avatar_url || null;
           const blockedAt = item.blocked_at || item.blockedDate;
           let blockedDate = 'Unknown';
           try {
@@ -1076,14 +1077,17 @@ const AdminPanel = () => {
                                     </IconButton>
                                   )}
 
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleOpenConfirmDialog(member, 'block')}
-                                    sx={{ color: 'warning.main' }}
-                                    title="Block Member"
-                                  >
-                                    <DeleteOutlineIcon fontSize="small" />
-                                  </IconButton>
+                                  {/* Block button: hide for self; use red crossed circle icon */}
+                                  {!(currentUserId && Number(currentUserId) === Number(member.userId ?? member.user_id ?? member.id)) && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleOpenConfirmDialog(member, 'block')}
+                                      sx={{ color: 'warning.main' }}
+                                      title="Block Member"
+                                    >
+                                      <BlockIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
                                 </>
                               )}
                             </Box>
@@ -1862,7 +1866,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         const blockedList = Array.isArray(blockedResponse) ? blockedResponse : blockedResponse?.data || [];
         const formattedBlocked = blockedList.map((item) => {
           const user = item.user || {};
-          const avatar = user.avatar_url || item.avatar_url || `https://i.pravatar.cc/150?img=${((item.user_id || item.id || 1) % 70) + 1}`;
+          const avatar = user.avatar_url || item.avatar_url || null;
           const blockedAt = item.blocked_at || item.blockedDate;
           let blockedDate = 'Unknown';
           try {
@@ -2165,20 +2169,23 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                             <PersonRemoveIcon />
                           </IconButton>
                         )}
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleOpenConfirmDialog(member, 'block')}
-                          title="Block from community"
-                          sx={{ 
-                            ml: 1,
-                            '&:hover': {
-                              bgcolor: 'rgba(211, 47, 47, 0.1)'
-                            }
-                          }}
-                        >
-                          <DeleteOutlineIcon />
-                        </IconButton>
+                        {/* Block button: hide for self; use BlockIcon */}
+                        {!(currentUserId && Number(currentUserId) === Number(member.userId ?? member.user_id ?? member.id)) && (
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleOpenConfirmDialog(member, 'block')}
+                            title="Block from community"
+                            sx={{ 
+                              ml: 1,
+                              '&:hover': {
+                                bgcolor: 'rgba(211, 47, 47, 0.1)'
+                              }
+                            }}
+                          >
+                            <BlockIcon />
+                          </IconButton>
+                        )}
                       </Box>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="subtitle1" component="div">
