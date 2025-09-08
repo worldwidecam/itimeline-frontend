@@ -2284,73 +2284,92 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                         '&:hover': { transform: 'scale(1.05)' }
                       }}
                     />
-                    <Box sx={{ display: 'flex', ml: 'auto' }}>
-                        {canRemoveMember(userRole, currentUserId, member, timelineData) && (
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleOpenConfirmDialog(member, 'remove')}
-                            title="Remove from community"
-                            sx={{ 
-                              mr: 1,
-                              '&:hover': {
-                                bgcolor: 'rgba(211, 47, 47, 0.1)'
-                              }
-                            }}
-                          >
-                            <PersonRemoveIcon />
-                          </IconButton>
-                        )}
-                        {/* Block button: hide for self; use BlockIcon */}
-                        {!(currentUserId && Number(currentUserId) === Number(member.userId ?? member.user_id ?? member.id)) && (
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleOpenConfirmDialog(member, 'block')}
-                            title="Block from community"
-                            sx={{ 
-                              ml: 1,
-                              '&:hover': {
-                                bgcolor: 'rgba(211, 47, 47, 0.1)'
-                              }
-                            }}
-                          >
-                            <BlockIcon />
-                          </IconButton>
-                        )}
-                        {/* Promote/Demote one-step controls (styled like MemberListTab) */}
-                        {(() => {
-                          const uid = member.userId ?? member.user_id ?? member.id;
-                          const isSelf = currentUserId && Number(currentUserId) === Number(uid);
-                          const isSiteOwner = Number(uid) === 1 || (member.role || '').toLowerCase() === 'siteowner';
-                          const nextRole = getNextRole(member.role);
-                          const prevRole = getPrevRole(member.role);
-                          return (
-                            <>
-                              {!isSelf && !isSiteOwner && nextRole && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => performRoleChange(member, 'promote')}
-                                  sx={{ ml: 1, color: 'info.main' }}
-                                  title={`Promote to ${nextRole.charAt(0).toUpperCase() + nextRole.slice(1)}`}
-                                >
-                                  <ModeratorIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                              {!isSelf && !isSiteOwner && prevRole && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => performRoleChange(member, 'demote')}
-                                  sx={{ ml: 1, color: 'warning.main' }}
-                                  title={`Demote to ${prevRole.charAt(0).toUpperCase() + prevRole.slice(1)}`}
-                                >
-                                  <PersonRemoveIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </Box>
+                    {/* Hover-reveal actions container cloned from MemberListTab style */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      ml: 'auto',
+                      opacity: 0,
+                      transition: 'opacity 0.2s ease',
+                      '.MuiBox-root:hover > &': { opacity: 1 }
+                    }}>
+                      {(() => {
+                        const uid = member.userId ?? member.user_id ?? member.id;
+                        const isSelf = currentUserId && Number(currentUserId) === Number(uid);
+                        const roleLower = (member.role || '').toLowerCase();
+                        const isSiteOwner = Number(uid) === 1 || roleLower === 'siteowner';
+                        const nextRole = getNextRole(member.role);
+                        const prevRole = getPrevRole(member.role);
+                        return (
+                          <>
+                            {/* Promote/Demote as outlined Chips with hover tint */}
+                            {!isSelf && !isSiteOwner && nextRole && (
+                              <Chip
+                                label="Promote"
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                onClick={() => performRoleChange(member, 'promote')}
+                                sx={{ 
+                                  mr: 1, 
+                                  fontSize: '0.7rem',
+                                  height: 24,
+                                  '&:hover': {
+                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.1)' : 'rgba(25,118,210,0.05)'
+                                  }
+                                }}
+                              />
+                            )}
+                            {!isSelf && !isSiteOwner && prevRole && (
+                              <Chip
+                                label="Demote"
+                                size="small"
+                                color="default"
+                                variant="outlined"
+                                onClick={() => performRoleChange(member, 'demote')}
+                                sx={{ 
+                                  mr: 1, 
+                                  fontSize: '0.7rem',
+                                  height: 24,
+                                  '&:hover': {
+                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
+                                  }
+                                }}
+                              />
+                            )}
+
+                            {/* Keep Remove/Block actions, now inside the same hover-reveal container */}
+                            {canRemoveMember(userRole, currentUserId, member, timelineData) && (
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleOpenConfirmDialog(member, 'remove')}
+                                title="Remove from community"
+                                sx={{ 
+                                  mr: 1,
+                                  '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.1)' }
+                                }}
+                              >
+                                <PersonRemoveIcon />
+                              </IconButton>
+                            )}
+                            {!(currentUserId && Number(currentUserId) === Number(uid)) && (
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleOpenConfirmDialog(member, 'block')}
+                                title="Block from community"
+                                sx={{ 
+                                  '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.1)' }
+                                }}
+                              >
+                                <BlockIcon />
+                              </IconButton>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </Box>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="subtitle1" component="div">
                         {member.name}
