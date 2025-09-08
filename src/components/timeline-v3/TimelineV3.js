@@ -2110,15 +2110,6 @@ const handleRecenter = () => {
                       >
                         Blocked from this community
                       </Button>
-                      <Button
-                        onClick={handleSyncPassport}
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        sx={{ fontWeight: 600 }}
-                      >
-                        Refresh Access
-                      </Button>
                     </Stack>
                   ) : (
                     <Button
@@ -2420,8 +2411,8 @@ const handleRecenter = () => {
                 position: 'absolute',
                 inset: 0,
                 zIndex: 2000,
-                backdropFilter: 'blur(4px)',
-                backgroundColor: 'rgba(0,0,0,0.06)',
+                backdropFilter: 'blur(12px)',
+                backgroundColor: 'rgba(0,0,0,0.30)',
                 pointerEvents: 'auto',
                 display: 'flex',
                 alignItems: 'center',
@@ -2777,26 +2768,12 @@ const handleRecenter = () => {
               position: 'absolute',
               inset: 0,
               zIndex: 2000,
-              backdropFilter: 'blur(4px)',
-              backgroundColor: 'rgba(0,0,0,0.06)',
+              backdropFilter: 'blur(12px)',
+              backgroundColor: 'rgba(0,0,0,0.30)',
               pointerEvents: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              // Visual-only: no status text here to avoid duplicates
             }}
-          >
-            <Box sx={{
-              px: 2,
-              py: 1,
-              borderRadius: 2,
-              bgcolor: theme.palette.background.paper,
-              boxShadow: 2,
-              fontSize: '0.85rem',
-              color: theme.palette.text.secondary
-            }}>
-              {isMember === null ? 'Checking access…' : 'Access blocked'}
-            </Box>
-          </Box>
+          />
         )}
         {/* Loading Indicator - Fixed to bottom left corner as overlay */}
         {progressiveLoadingState !== 'complete' && (
@@ -2910,6 +2887,7 @@ const handleRecenter = () => {
       />
 
       {/* Animated Floating Action Buttons */}
+      {!shouldBlur && (
       <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
         {/* Specialized Event Buttons - These animate in and out */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
@@ -3023,59 +3001,75 @@ const handleRecenter = () => {
         </Box>
         
         {/* Conditional rendering based on timeline type and membership status */}
-        {timeline_type === 'community' && !isMember && !joinRequestSent ? (
-          // Join Community Button for community timelines (only if not a member and no request sent)
-          <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
-            <Fab
-              onClick={handleJoinCommunity}
-              sx={{
-                // Use a different color scheme for the join button
-                bgcolor: theme.palette.mode === 'dark' 
-                  ? theme.palette.info.dark  // Blue color in dark mode
-                  : theme.palette.info.main, // Blue color in light mode
-                color: 'white',
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' 
-                    ? theme.palette.info.main 
-                    : theme.palette.info.dark,
-                },
-                boxShadow: 3,
-                zIndex: 1540
-              }}
-            >
-              <PersonAddIcon />
-            </Fab>
-          </Tooltip>
-        ) : (
-          // Add Event Button for all other cases (non-community timelines or members)
-          <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
-            <Fab
-              onClick={() => {
-                // Toggle the expanded state to show/hide the specialized buttons
-                setFloatingButtonsExpanded(!floatingButtonsExpanded);
-              }}
-              sx={{
-                // Better colors for both light and dark themes
-                bgcolor: theme.palette.mode === 'dark' 
-                  ? theme.palette.primary.dark  // Use primary color in dark mode
-                  : theme.palette.success.light, // Use success light in light mode
-                color: 'white',
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' 
-                    ? theme.palette.primary.main 
-                    : theme.palette.success.main,
-                },
-                boxShadow: 3,
-                transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease, background-color 0.2s ease',
-                zIndex: 1540
-              }}
-            >
-              <AddIcon />
-            </Fab>
-          </Tooltip>
-        )}
+        {timeline_type === 'community'
+          ? (
+              (!isMember && !joinRequestSent && !joinLoading && !isBlocked) 
+                ? (
+                    // Show Join only when verdict is "not a member" and not blocked/loading
+                    <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
+                      <Fab
+                        onClick={handleJoinCommunity}
+                        sx={{
+                          bgcolor: theme.palette.mode === 'dark' ? theme.palette.info.dark : theme.palette.info.main,
+                          color: 'white',
+                          '&:hover': {
+                            bgcolor: theme.palette.mode === 'dark' ? theme.palette.info.main : theme.palette.info.dark,
+                          },
+                          boxShadow: 3,
+                          zIndex: 1540
+                        }}
+                      >
+                        <PersonAddIcon />
+                      </Fab>
+                    </Tooltip>
+                  )
+                : (
+                    // For community: only members get the Add button
+                    isMember === true && (
+                      <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
+                        <Fab
+                          onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
+                          sx={{
+                            bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
+                            color: 'white',
+                            '&:hover': {
+                              bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.success.main,
+                            },
+                            boxShadow: 3,
+                            transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.3s ease, background-color 0.2s ease',
+                            zIndex: 1540
+                          }}
+                        >
+                          <AddIcon />
+                        </Fab>
+                      </Tooltip>
+                    )
+                  )
+            )
+          : (
+              // Non-community timelines always get Add button (when not blurred)
+              <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
+                <Fab
+                  onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
+                  sx={{
+                    bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.success.main,
+                    },
+                    boxShadow: 3,
+                    transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.3s ease, background-color 0.2s ease',
+                    zIndex: 1540
+                  }}
+                >
+                  <AddIcon />
+                </Fab>
+              </Tooltip>
+            )}
       </Box>
+      )}
       
       {/* Snackbar for join request status */}
       <Snackbar
