@@ -52,7 +52,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, syncUserPassport } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -528,6 +528,13 @@ const AdminPanel = () => {
       const userIdForApi = targetId;
       console.log(`Attempting to remove member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await removeMember(id, userIdForApi);
+      // 1.1 Sync passport to persist changes across sessions
+      try {
+        await syncUserPassport();
+        console.log('[AdminPanel] Synced user passport after removal');
+      } catch (syncErr) {
+        console.warn('[AdminPanel] Passport sync failed after removal (continuing):', syncErr);
+      }
       
       // 2. Update local state to remove the member
       setMembers(members.filter(m => m.id !== selectedMember.id));
@@ -618,6 +625,13 @@ const AdminPanel = () => {
       const userIdForApi = selectedMember.userId ?? selectedMember.id;
       console.log(`Attempting to block member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await blockMember(id, userIdForApi, reason);
+      // Sync passport to persist changes
+      try {
+        await syncUserPassport();
+        console.log('[AdminPanel] Synced user passport after block');
+      } catch (syncErr) {
+        console.warn('[AdminPanel] Passport sync failed after block (continuing):', syncErr);
+      }
       // Re-fetch lists from backend for accuracy
       await Promise.all([reloadMembers(), reloadBlockedMembers()]);
       setConfirmBlockDialogOpen(false);
@@ -697,6 +711,13 @@ const AdminPanel = () => {
       const userIdForApi = selectedMember.userId ?? selectedMember.id;
       console.log(`Attempting to unblock member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await unblockMember(id, userIdForApi);
+      // Sync passport to persist changes
+      try {
+        await syncUserPassport();
+        console.log('[AdminPanel] Synced user passport after unblock');
+      } catch (syncErr) {
+        console.warn('[AdminPanel] Passport sync failed after unblock (continuing):', syncErr);
+      }
       // Re-fetch lists from backend for accuracy
       await Promise.all([reloadMembers(), reloadBlockedMembers()]);
       setConfirmUnblockDialogOpen(false);
