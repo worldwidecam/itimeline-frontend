@@ -203,6 +203,40 @@ Significant progress has been made on the Admin Panel implementation. The member
   - After unblocking and refresh, the banner is gone and Join appears (or Joined if reinstated).
 
 ### Tasks
-- [ ] Remove legacy debug helpers that reference `setSnackbarMessage` from `TimelineV3.js`.
-- [ ] Optionally extract `JoinCommunityControl.jsx` (no visual change); wire it where buttons render.
-- [ ] When backend exposes `is_blocked`, wire it as the primary signal and keep fallbacks as safety.
+- [x] Remove legacy debug helpers that reference `setSnackbarMessage` from `TimelineV3.js`.
+- [x] Optionally extract/gate Join controls (no visual change); wire verdict gating in `TimelineV3.js`.
+- [x] While backend `is_blocked` signal is limited, use fallbacks (`getBlockedMembers`, passport) safely.
+
+---
+
+## New Focus — Promote/Demote Controls (2025-09-08)
+
+### Goal
+Implement Promote/Demote actions in AdminPanel → Active Members, cloning the style/behavior/animation you like from `MemberListTab` but without altering approved layout/typography.
+
+### Backend
+- Use existing endpoint: `PUT /api/v1/timelines/<timeline_id>/members/<user_id>/role`
+- Enforce rank rules already present (actor > target; no self; creator treated as admin; SiteOwner special-case)
+- No schema changes.
+
+### Frontend Plan
+- Location: `src/components/timeline-v3/community/AdminPanel.js` (Active Members list)
+- Add two actions next to user role on the right:
+  - Promote: member → moderator → admin (respect rank rules; cap at admin unless SiteOwner)
+  - Demote: admin → moderator → member (respect restrictions; cannot downgrade SiteOwner)
+- Clone the MemberListTab buttons’ style and animation; do not change sizes/margins/typography without approval.
+- After role update:
+  - Call `syncUserPassport()`
+  - Invalidate role-related caches (member lists/count) and refresh view
+
+### Acceptance Criteria
+- Promote/Demote buttons appear only when the action is permitted for the current actor vs target.
+- Successful role change persists across refresh and sessions (passport sync done).
+- No UI layout shifts; animations match MemberListTab style.
+
+### Tasks
+- [ ] Add `promoteMemberRole(userId)` and `demoteMemberRole(userId)` helpers in `utils/api.js` (thin wrappers around the role PUT).
+- [ ] Render Promote/Demote controls in AdminPanel Active Members with permission gating (UI identical style to MemberListTab buttons).
+- [ ] Wire success path: call PUT, then `syncUserPassport()`, then refresh members list and counts; clear relevant caches.
+- [ ] Add minimal error snackbar using server message.
+- [ ] E2E: promote/demote across roles and refresh; verify persistence and permission enforcement.

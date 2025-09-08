@@ -475,6 +475,10 @@ const AdminPanel = () => {
       setConfirmBlockDialogOpen(true);
     } else if (action === 'unblock') {
       setConfirmUnblockDialogOpen(true);
+    } else if (['promote_admin','promote_moderator','demote_member'].includes(action)) {
+      // Execute role change immediately (no modal)
+      const direction = action.startsWith('promote') ? 'promote' : 'demote';
+      performRoleChange(member, direction);
     }
   };
   
@@ -498,6 +502,70 @@ const AdminPanel = () => {
       }
     } catch (e) {
       console.error('[AdminPanel] Error in handleConfirmAction:', e);
+    }
+  };
+
+  // ----- Role change helpers (no rank jumping) -----
+  const getNextRole = (role) => {
+    const r = (role || '').toLowerCase();
+    if (r === 'member') return 'moderator';
+    if (r === 'moderator') return 'admin';
+    return null;
+  };
+
+  const getPrevRole = (role) => {
+    const r = (role || '').toLowerCase();
+    if (r === 'admin') return 'moderator';
+    if (r === 'moderator') return 'member';
+    return null;
+  };
+
+  const performRoleChange = async (member, direction) => {
+    try {
+      const targetId = member?.userId || member?.user_id || member?.id;
+      if (!targetId) return;
+      // Guard: no self and no SiteOwner
+      if (Number(targetId) === Number(currentUserId)) {
+        setSnackbarMessage('You cannot change your own role');
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+        return;
+      }
+      if (Number(targetId) === 1 || (member?.role || '').toLowerCase() === 'siteowner') {
+        setSnackbarMessage('Cannot change SiteOwner role');
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      const currentRole = member?.role;
+      const newRole = direction === 'promote' ? getNextRole(currentRole) : getPrevRole(currentRole);
+      if (!newRole) {
+        // Already at bounds; no action
+        setSnackbarMessage('No further role change available');
+        setSnackbarSeverity('info');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      setIsLoading(true);
+      await updateMemberRole(id, targetId, newRole);
+      try {
+        await syncUserPassport();
+      } catch (e) {
+        console.warn('[AdminPanel] Passport sync failed after role change (continuing):', e);
+      }
+      await reloadMembers();
+      setSnackbarMessage(`Updated role to ${newRole} for ${member?.name || 'member'}`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      const serverMsg = e?.response?.data?.error || e?.response?.data?.message;
+      setSnackbarMessage(`Failed to update role: ${serverMsg || e.message || 'Unknown error'}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -1051,39 +1119,38 @@ const AdminPanel = () => {
                               />
                               
 
-                              {/* Role management buttons */}
-                              {member.role !== 'admin' && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenConfirmDialog(member, 'promote_admin')}
-                                  sx={{ color: 'primary.main' }}
-                                  title="Promote to Admin"
-                                >
-                                  <AdminPanelSettingsIcon fontSize="small" />
-                                </IconButton>
-                              )}
-
-                              {member.role === 'member' && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenConfirmDialog(member, 'promote_moderator')}
-                                  sx={{ color: 'info.main' }}
-                                  title="Promote to Moderator"
-                                >
-                                  <ModeratorIcon fontSize="small" />
-                                </IconButton>
-                              )}
-
-                              {member.role !== 'member' && member.role !== 'SiteOwner' && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenConfirmDialog(member, 'demote_member')}
-                                  sx={{ color: 'warning.main' }}
-                                  title="Demote to Member"
-                                >
-                                  <PersonRemoveIcon fontSize="small" />
-                                </IconButton>
-                              )}
+                              {/* Role management buttons: Promote / Demote (one-step, no jumping) */}
+                              {(() => {
+                                const uid = member.userId ?? member.user_id ?? member.id;
+                                const isSelf = currentUserId && Number(currentUserId) === Number(uid);
+                                const isSiteOwner = Number(uid) === 1 || (member.role || '').toLowerCase() === 'siteowner';
+                                const nextRole = getNextRole(member.role);
+                                const prevRole = getPrevRole(member.role);
+                                return (
+                                  <>
+                                    {!isSelf && !isSiteOwner && nextRole && (
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => performRoleChange(member, 'promote')}
+                                        sx={{ color: 'info.main' }}
+                                        title={`Promote to ${nextRole.charAt(0).toUpperCase() + nextRole.slice(1)}`}
+                                      >
+                                        <ModeratorIcon fontSize="small" />
+                                      </IconButton>
+                                    )}
+                                    {!isSelf && !isSiteOwner && prevRole && (
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => performRoleChange(member, 'demote')}
+                                        sx={{ color: 'warning.main' }}
+                                        title={`Demote to ${prevRole.charAt(0).toUpperCase() + prevRole.slice(1)}`}
+                                      >
+                                        <PersonRemoveIcon fontSize="small" />
+                                      </IconButton>
+                                    )}
+                                  </>
+                                );
+                              })()}
 
                               {member.role !== 'SiteOwner' && (
                                 <>
@@ -1931,6 +1998,50 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
     setSnackbarOpen(true);
   };
   
+  // Role change helpers (one-step, no jumping)
+  const getNextRole = (role) => {
+    const r = (role || '').toLowerCase();
+    if (r === 'member') return 'moderator';
+    if (r === 'moderator') return 'admin';
+    return null;
+  };
+
+  const getPrevRole = (role) => {
+    const r = (role || '').toLowerCase();
+    if (r === 'admin') return 'moderator';
+    if (r === 'moderator') return 'member';
+    return null;
+  };
+
+  const performRoleChange = async (member, direction) => {
+    try {
+      const uid = member.user_id ?? member.id ?? member.userId;
+      if (!uid) return;
+      // Guard: self and SiteOwner
+      if (currentUserId && Number(currentUserId) === Number(uid)) {
+        showSnackbar('You cannot change your own role', 'warning');
+        return;
+      }
+      if (Number(uid) === 1 || (member.role || '').toLowerCase() === 'siteowner') {
+        showSnackbar('Cannot change SiteOwner role', 'warning');
+        return;
+      }
+
+      const newRole = direction === 'promote' ? getNextRole(member.role) : getPrevRole(member.role);
+      if (!newRole) {
+        showSnackbar('No further role change available', 'info');
+        return;
+      }
+
+      await updateMemberRole(timelineId, uid, newRole);
+      try { await syncUserPassport(); } catch (_) {}
+      await loadMembers();
+      showSnackbar(`Updated role to ${newRole} for ${member.name || 'member'}`, 'success');
+    } catch (e) {
+      showSnackbar(e?.response?.data?.error || e?.response?.data?.message || 'Failed to update role', 'error');
+    }
+  };
+  
   // Handle opening the confirmation dialog
   const handleOpenConfirmDialog = (member, action) => {
     // Normalize the selected member shape to ensure id/name/avatar fields exist
@@ -2207,6 +2318,38 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                             <BlockIcon />
                           </IconButton>
                         )}
+                        {/* Promote/Demote one-step controls (styled like MemberListTab) */}
+                        {(() => {
+                          const uid = member.userId ?? member.user_id ?? member.id;
+                          const isSelf = currentUserId && Number(currentUserId) === Number(uid);
+                          const isSiteOwner = Number(uid) === 1 || (member.role || '').toLowerCase() === 'siteowner';
+                          const nextRole = getNextRole(member.role);
+                          const prevRole = getPrevRole(member.role);
+                          return (
+                            <>
+                              {!isSelf && !isSiteOwner && nextRole && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => performRoleChange(member, 'promote')}
+                                  sx={{ ml: 1, color: 'info.main' }}
+                                  title={`Promote to ${nextRole.charAt(0).toUpperCase() + nextRole.slice(1)}`}
+                                >
+                                  <ModeratorIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                              {!isSelf && !isSiteOwner && prevRole && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => performRoleChange(member, 'demote')}
+                                  sx={{ ml: 1, color: 'warning.main' }}
+                                  title={`Demote to ${prevRole.charAt(0).toUpperCase() + prevRole.slice(1)}`}
+                                >
+                                  <PersonRemoveIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                            </>
+                          );
+                        })()}
                       </Box>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="subtitle1" component="div">
