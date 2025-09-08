@@ -112,8 +112,8 @@ export default function useJoinStatus(timelineId, { user } = {}) {
           return;
         }
 
-        // Regular users — membership status primary call
-        const resp = await checkMembershipStatus(timelineId);
+        // Regular users — membership status primary call (force fresh read to avoid stale cache)
+        const resp = await checkMembershipStatus(timelineId, 0, true);
         if (!mounted) return;
         let processed = {
           ...resp,
