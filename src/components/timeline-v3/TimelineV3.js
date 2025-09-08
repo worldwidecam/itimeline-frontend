@@ -87,32 +87,8 @@ function TimelineV3() {
     }
   }, [hookIsMember, hookIsBlocked, hookStatus]);
 
-  // Helper function to persist membership status to localStorage
-  const persistMembershipStatus = (isMember, role) => {
-    try {
-      // Use consistent key format: timeline_membership_${timelineId}
-      const membershipKey = `timeline_membership_${timelineId}`;
-      
-      // Create a complete membership data object with all necessary fields
-      const membershipData = {
-        is_member: isMember,
-        is_active_member: isMember, // Set is_active_member to match is_member by default
-        role: role || 'member',
-        timeline_visibility: visibility,
-        joined_at: new Date().toISOString(), // Add joined_at for consistency
-        timestamp: new Date().toISOString()
-      };
-      
-      // Store the membership data
-      localStorage.setItem(membershipKey, JSON.stringify(membershipData));
-      
-      console.log(`Persisted membership status to localStorage for timeline ${timelineId}:`, membershipData);
-    } catch (storageError) {
-      console.warn('Failed to persist membership status to localStorage:', storageError);
-    }
-  };
 
-  // Fetch timeline details when component mounts or timelineId changes
+  // Fetch timeline details when component mounts or timelineId changes (membership handled by useJoinStatus)
   useEffect(() => {
     const fetchTimelineDetails = async () => {
       if (!timelineId || timelineId === 'new') return;
@@ -136,140 +112,6 @@ function TimelineV3() {
           setTimelineName(timelineData.name);
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
-          
-          console.log('DEBUG: Timeline details:', {
-            id: timelineId,
-            name: timelineData.name,
-            type: timelineData.timeline_type,
-            visibility: timelineData.visibility,
-            created_by: timelineData.created_by,
-            current_user: user ? user.id : 'not logged in'
-          });
-          
-          // First handle SiteOwner (user ID 1)
-          if (user?.id === 1) {
-            console.log('DEBUG: User is SiteOwner, forcing isMember to true and joinRequestSent to true');
-            setIsMember(true);
-            setJoinRequestSent(true);
-            persistMembershipStatus(true, 'SiteOwner');
-            return;
-          }
-
-          // Then handle creator status
-          if (timelineData.created_by === user?.id) {
-            console.log('DEBUG: User is creator of timeline, forcing isMember to true and joinRequestSent to true');
-            setIsMember(true);
-            setJoinRequestSent(true);
-            persistMembershipStatus(true, 'admin');
-            return;
-          }
-
-          // For regular users, check membership status
-          if (timelineData.timeline_type === 'community' && user) {
-            try {
-              // Check if we need to force refresh the membership status
-              const forceRefresh = window.location.search.includes('refresh_membership=true');
-              
-              // If forcing refresh, clear any existing localStorage cache
-              if (forceRefresh) {
-                try {
-                  localStorage.removeItem(`timeline_member_${timelineId}`);
-                  console.log(`DEBUG: Cleared cached membership data for timeline ${timelineId}`);
-                } catch (e) {
-                  console.warn('Failed to clear localStorage cache:', e);
-                }
-              }
-              
-              // Check membership status
-              console.log(`DEBUG: Checking membership status for timeline ${timelineId} for user ${user.id}`);
-              const membershipStatus = await checkMembershipStatus(timelineId, 0, forceRefresh);
-              console.log('DEBUG: Membership status:', membershipStatus);
-              
-              // Update state based on membership status
-              if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
-                console.log(`DEBUG: Setting isMember to ${membershipStatus.is_member}, role: ${membershipStatus.role}`);
-                
-                // Set membership state
-                setIsMember(membershipStatus.is_member);
-                // Capture blocked state if provided by API; otherwise, fall back to blocked-members endpoint
-                if (Object.prototype.hasOwnProperty.call(membershipStatus, 'is_blocked')) {
-                  setIsBlocked(!!membershipStatus.is_blocked);
-                } else if (membershipStatus.is_member === false) {
-                  // Fallback A: try blocked-members (may 403 for non-privileged)
-                  let resolved = false;
-                  try {
-                    const blocked = await getBlockedMembers(timelineId);
-                    const list = Array.isArray(blocked) ? blocked : blocked?.data || [];
-                    const currentUserId = user?.id;
-                    const found = !!list.find((m) => Number(m.user_id || m.id) === Number(currentUserId));
-                    setIsBlocked(found);
-                    resolved = true;
-                  } catch (e) {
-                    console.warn('Blocked fallback A failed (likely 403):', e?.response?.status || e);
-                  }
-
-                  // Fallback B: user passport (authoritative for the user, does not require admin privileges)
-                  if (!resolved) {
-                    try {
-                      const memberships = await fetchUserPassport();
-                      const m = memberships.find((mm) => Number(mm.timeline_id) === Number(timelineId));
-                      setIsBlocked(!!m?.is_blocked);
-                    } catch (e2) {
-                      console.warn('Blocked fallback B (passport) failed:', e2);
-                      setIsBlocked(false);
-                    }
-                  }
-
-                  // Final safety: immediately force-refresh membership once to bust any stale cache
-                  try {
-                    const fresh = await checkMembershipStatus(timelineId, 0, true);
-                    if (Object.prototype.hasOwnProperty.call(fresh, 'is_blocked')) {
-                      setIsBlocked(!!fresh.is_blocked);
-                    }
-                  } catch (e3) {
-                    console.warn('Forced membership refresh failed:', e3);
-                  }
-                }
-                
-                // Debug: inspect server membership listing row for this timeline and user
-                try {
-                  const dbg = await debugTimelineMembers(timelineId);
-                  const row = Array.isArray(dbg?.members) ? dbg.members.find(r => Number(r.user_id) === Number(user?.id)) : null;
-                  console.log('[JoinControl][Debug] Membership row for current user:', row);
-                } catch (e) {
-                  console.warn('[JoinControl][Debug] debugTimelineMembers failed:', e?.response?.status || e);
-                }
-
-                // Persist to localStorage if member
-                if (membershipStatus.is_member) {
-                  persistMembershipStatus(true, membershipStatus.role);
-                }
-                
-                // Update join request status
-                if (membershipStatus.is_member || membershipStatus.role === 'pending') {
-                  console.log('DEBUG: User is a member or has pending request, setting joinRequestSent to true');
-                  setJoinRequestSent(true);
-                } else {
-                  console.log('DEBUG: User is NOT a member, setting joinRequestSent to false');
-                  setJoinRequestSent(false);
-                }
-                
-                console.log(`DEBUG: User ${user.id} membership status for timeline ${timelineId}: ${membershipStatus.is_member ? 'Member' : 'Not a member'}, Role: ${membershipStatus.role || 'None'}, Join request sent: ${joinRequestSent}`);
-              } else {
-                console.warn('DEBUG: Membership status response was invalid or incomplete');
-                // Set to false only after we've tried to check
-                setIsMember(false);
-                setJoinRequestSent(false);
-              }
-            } catch (memberError) {
-              console.error('Error checking membership status:', memberError);
-              // Reset state on error to ensure consistent UI
-              setIsMember(false);
-              setJoinRequestSent(false);
-              console.error('Error details:', memberError.response || memberError.message);
-              setIsMember(false);
-            }
-          }
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
         }
@@ -301,12 +143,8 @@ function TimelineV3() {
     try {
       const { syncUserPassport } = await import('../../utils/api');
       await syncUserPassport();
-      // Re-check membership after sync
-      const refreshed = await checkMembershipStatus(timelineId, 0, true);
-      setIsMember(!!refreshed.is_member);
-      if (Object.prototype.hasOwnProperty.call(refreshed, 'is_blocked')) {
-        setIsBlocked(!!refreshed.is_blocked);
-      }
+      // Let the hook refresh and update state
+      await refreshMembership();
     } catch (e) {
       console.error('Failed to sync passport:', e);
     }
@@ -800,6 +638,9 @@ function TimelineV3() {
       clearTimeout(hideBarTimeout);
     };
   }, [progressiveLoadingState]);
+  
+  // Scoped blur flag: only for community timelines, while membership is loading or when blocked
+  const shouldBlur = (timeline_type === 'community') && (isMember === null || isBlocked === true);
   
   // View transition states
   const [isViewTransitioning, setIsViewTransitioning] = useState(false);
@@ -2276,7 +2117,7 @@ const handleRecenter = () => {
                         size="small"
                         sx={{ fontWeight: 600 }}
                       >
-                        Sync Passport
+                        Refresh Access
                       </Button>
                     </Stack>
                   ) : (
@@ -2359,23 +2200,36 @@ const handleRecenter = () => {
                   </>
                 )
               ) : (
-                // Non-community timeline button
-                <Button
-                  onClick={handleAddEventClick}
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  endIcon={<ArrowDropDownIcon />}
-                  sx={{
-                    bgcolor: theme.palette.success.main,
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: theme.palette.success.dark,
-                    },
-                    boxShadow: 2
-                  }}
-                >
-                  Add Event
-                </Button>
+                // Non-community timeline button (delay until details loaded to avoid flicker)
+                isLoading ? (
+                  <Button
+                    disabled
+                    sx={{
+                      bgcolor: 'rgba(0, 0, 0, 0.12)',
+                      color: theme.palette.text.secondary,
+                      '&.Mui-disabled': { color: theme.palette.text.secondary }
+                    }}
+                  >
+                    Loading...
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleAddEventClick}
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    endIcon={<ArrowDropDownIcon />}
+                    sx={{
+                      bgcolor: theme.palette.success.main,
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: theme.palette.success.dark,
+                      },
+                      boxShadow: 2
+                    }}
+                  >
+                    Add Event
+                  </Button>
+                )
               )}
               {/* Only show the menu for non-community timelines */}
               {timeline_type !== 'community' && (
@@ -2560,6 +2414,33 @@ const handleRecenter = () => {
             filter: isViewTransitioning && viewTransitionPhase === 'dataProcessing' ? 'blur(1px)' : 'none'
           }}
         >
+          {shouldBlur && (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 2000,
+                backdropFilter: 'blur(4px)',
+                backgroundColor: 'rgba(0,0,0,0.06)',
+                pointerEvents: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Box sx={{
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                bgcolor: theme.palette.background.paper,
+                boxShadow: 2,
+                fontSize: '0.85rem',
+                color: theme.palette.text.secondary
+              }}>
+                {isMember === null ? 'Checking access…' : 'Access blocked'}
+              </Box>
+            </Box>
+          )}
           {/* View Transition Indicator */}
           {isViewTransitioning && (
             <Box
@@ -2890,6 +2771,33 @@ const handleRecenter = () => {
         filter: progressiveLoadingState === 'complete' ? 'blur(0)' : 'blur(1px)',
         willChange: 'opacity, transform, filter'
       }}>
+        {shouldBlur && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 2000,
+              backdropFilter: 'blur(4px)',
+              backgroundColor: 'rgba(0,0,0,0.06)',
+              pointerEvents: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Box sx={{
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              bgcolor: theme.palette.background.paper,
+              boxShadow: 2,
+              fontSize: '0.85rem',
+              color: theme.palette.text.secondary
+            }}>
+              {isMember === null ? 'Checking access…' : 'Access blocked'}
+            </Box>
+          </Box>
+        )}
         {/* Loading Indicator - Fixed to bottom left corner as overlay */}
         {progressiveLoadingState !== 'complete' && (
           <Box sx={{

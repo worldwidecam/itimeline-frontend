@@ -13,13 +13,15 @@ import {
  * - Mirrors existing logic from TimelineV3 (SiteOwner/creator short-circuit, fallbacks, cache writes)
  */
 export default function useJoinStatus(timelineId, { user } = {}) {
-  const [isMember, setIsMember] = useState(false);
+  // Initialize as null so consumers can distinguish "unknown/loading" from a real boolean
+  const [isMember, setIsMember] = useState(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [role, setRole] = useState(null);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [visibility, setVisibility] = useState('public');
   const [creatorId, setCreatorId] = useState(null);
+  const [timelineType, setTimelineType] = useState(null);
 
   // Persist to localStorage in the same format as existing code
   const persistMembershipStatus = (timelineIdArg, membership) => {
@@ -85,6 +87,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
         const t = await getTimelineDetails(timelineId);
         if (!mounted) return;
         setVisibility(t?.visibility || 'public');
+        setTimelineType(t?.timeline_type || null);
         setCreatorId(t?.created_by ?? null);
 
         // SiteOwner short-circuit
@@ -182,6 +185,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
     loading,
     visibility,
     creatorId,
+    timelineType,
     join,
     refresh,
   };
