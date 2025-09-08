@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers } from '../../utils/api';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
@@ -18,6 +18,7 @@ import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
 import CommunityDotTabs from './community/CommunityDotTabs';
+import useJoinStatus from '../../hooks/useJoinStatus';
 
 // Material UI Icons - importing each icon separately to ensure they're properly loaded
 import Add from '@mui/icons-material/Add';
@@ -27,6 +28,7 @@ import PermMedia from '@mui/icons-material/PermMedia';
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
 import PersonAdd from '@mui/icons-material/PersonAdd';
 import CheckCircle from '@mui/icons-material/CheckCircle';
+import Block from '@mui/icons-material/Block';
 import Check from '@mui/icons-material/Check';
 import Settings from '@mui/icons-material/Settings';
 
@@ -57,6 +59,33 @@ function TimelineV3() {
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
   const [isMember, setIsMember] = useState(null); // Track if user is a member of the community timeline (null = loading)
+  const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
+
+  // Centralized, headless membership logic (no UI changes)
+  const {
+    isMember: hookIsMember,
+    isBlocked: hookIsBlocked,
+    role: hookRole,
+    status: hookStatus,
+    loading: joinLoading,
+    join: joinFromHook,
+    refresh: refreshMembership,
+  } = useJoinStatus(timelineId, { user });
+
+  // Make the hook authoritative for membership/blocked state while preserving existing UI
+  useEffect(() => {
+    // Only sync when the hook has produced a value
+    if (typeof hookIsMember !== 'undefined' && hookIsMember !== null) {
+      setIsMember(!!hookIsMember);
+    }
+    if (typeof hookIsBlocked !== 'undefined') {
+      setIsBlocked(!!hookIsBlocked);
+    }
+    // Maintain existing joinRequestSent semantics
+    if ((hookIsMember === true) || (hookStatus === 'pending')) {
+      setJoinRequestSent(true);
+    }
+  }, [hookIsMember, hookIsBlocked, hookStatus]);
 
   // Helper function to persist membership status to localStorage
   const persistMembershipStatus = (isMember, role) => {
@@ -162,7 +191,55 @@ function TimelineV3() {
                 
                 // Set membership state
                 setIsMember(membershipStatus.is_member);
+                // Capture blocked state if provided by API; otherwise, fall back to blocked-members endpoint
+                if (Object.prototype.hasOwnProperty.call(membershipStatus, 'is_blocked')) {
+                  setIsBlocked(!!membershipStatus.is_blocked);
+                } else if (membershipStatus.is_member === false) {
+                  // Fallback A: try blocked-members (may 403 for non-privileged)
+                  let resolved = false;
+                  try {
+                    const blocked = await getBlockedMembers(timelineId);
+                    const list = Array.isArray(blocked) ? blocked : blocked?.data || [];
+                    const currentUserId = user?.id;
+                    const found = !!list.find((m) => Number(m.user_id || m.id) === Number(currentUserId));
+                    setIsBlocked(found);
+                    resolved = true;
+                  } catch (e) {
+                    console.warn('Blocked fallback A failed (likely 403):', e?.response?.status || e);
+                  }
+
+                  // Fallback B: user passport (authoritative for the user, does not require admin privileges)
+                  if (!resolved) {
+                    try {
+                      const memberships = await fetchUserPassport();
+                      const m = memberships.find((mm) => Number(mm.timeline_id) === Number(timelineId));
+                      setIsBlocked(!!m?.is_blocked);
+                    } catch (e2) {
+                      console.warn('Blocked fallback B (passport) failed:', e2);
+                      setIsBlocked(false);
+                    }
+                  }
+
+                  // Final safety: immediately force-refresh membership once to bust any stale cache
+                  try {
+                    const fresh = await checkMembershipStatus(timelineId, 0, true);
+                    if (Object.prototype.hasOwnProperty.call(fresh, 'is_blocked')) {
+                      setIsBlocked(!!fresh.is_blocked);
+                    }
+                  } catch (e3) {
+                    console.warn('Forced membership refresh failed:', e3);
+                  }
+                }
                 
+                // Debug: inspect server membership listing row for this timeline and user
+                try {
+                  const dbg = await debugTimelineMembers(timelineId);
+                  const row = Array.isArray(dbg?.members) ? dbg.members.find(r => Number(r.user_id) === Number(user?.id)) : null;
+                  console.log('[JoinControl][Debug] Membership row for current user:', row);
+                } catch (e) {
+                  console.warn('[JoinControl][Debug] debugTimelineMembers failed:', e?.response?.status || e);
+                }
+
                 // Persist to localStorage if member
                 if (membershipStatus.is_member) {
                   persistMembershipStatus(true, membershipStatus.role);
@@ -218,6 +295,22 @@ function TimelineV3() {
       fetchTimelineDetails();
     }
   }, [timelineId]);
+
+  // Action: Manual sync passport when blocked banner is shown
+  const handleSyncPassport = async () => {
+    try {
+      const { syncUserPassport } = await import('../../utils/api');
+      await syncUserPassport();
+      // Re-check membership after sync
+      const refreshed = await checkMembershipStatus(timelineId, 0, true);
+      setIsMember(!!refreshed.is_member);
+      if (Object.prototype.hasOwnProperty.call(refreshed, 'is_blocked')) {
+        setIsBlocked(!!refreshed.is_blocked);
+      }
+    } catch (e) {
+      console.error('Failed to sync passport:', e);
+    }
+  };
 
   const getCurrentDateTime = () => {
     // Return the current date and time
@@ -2161,26 +2254,50 @@ const handleRecenter = () => {
                     Checking membership...
                   </Button>
                 ) : !isMember ? (
-                  // Join button for non-members
-                  <Button
-                    onClick={handleJoinCommunity}
-                    disabled={joinRequestSent}
-                    startIcon={<PersonAddIcon />}
-                    sx={{
-                      bgcolor: theme.palette.info.main,
-                      color: 'white',
-                      '&:hover': {
-                        bgcolor: theme.palette.info.dark,
-                      },
-                      boxShadow: 2,
-                      '&.Mui-disabled': {
-                        bgcolor: 'rgba(0, 0, 0, 0.12)',
-                        color: 'rgba(0, 0, 0, 0.26)'
-                      }
-                    }}
-                  >
-                    {visibility === 'private' ? 'Request to Join' : 'Join Community'}
-                  </Button>
+                  // Non-member: show Blocked banner if blocked, else Join button
+                  isBlocked ? (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Button
+                        disabled
+                        startIcon={<Block />}
+                        sx={{
+                          bgcolor: theme.palette.error.light,
+                          color: theme.palette.error.contrastText,
+                          '&.Mui-disabled': { color: theme.palette.error.contrastText },
+                          fontWeight: 700
+                        }}
+                      >
+                        Blocked from this community
+                      </Button>
+                      <Button
+                        onClick={handleSyncPassport}
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Sync Passport
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Button
+                      onClick={handleJoinCommunity}
+                      disabled={joinRequestSent}
+                      startIcon={<PersonAddIcon />}
+                      sx={{
+                        bgcolor: theme.palette.info.main,
+                        color: 'white',
+                        '&:hover': { bgcolor: theme.palette.info.dark },
+                        boxShadow: 2,
+                        '&.Mui-disabled': {
+                          bgcolor: 'rgba(0, 0, 0, 0.12)',
+                          color: 'rgba(0, 0, 0, 0.26)'
+                        }
+                      }}
+                    >
+                      {visibility === 'private' ? 'Request to Join' : 'Join Community'}
+                    </Button>
+                  )
                 ) : (
                   // Member UI elements
                   <>

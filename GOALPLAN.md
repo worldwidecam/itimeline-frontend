@@ -170,3 +170,39 @@ Significant progress has been made on the Admin Panel implementation. The member
 - ✅ Visual feedback for quote save/load states
 - ✅ Artistic quote display with modern UI elements
 ( will return to this. currently off-topic migrating to postgres)
+
+## New Focus — Blocked-Aware Join Control (2025-09-07)
+
+### Current Status
+- The Join/Joined control lives in `src/components/timeline-v3/TimelineV3.js`.
+- UI now supports a red "Blocked from this community" banner and hides join/member actions when `isBlocked === true && isMember === false`.
+- Data flow for detection (in order):
+  1) `checkMembershipStatus(timelineId)` — now preserves `is_blocked` through local cache and forces `is_member=false` when blocked.
+  2) Fallback A: `getBlockedMembers(timelineId)` — may 403 for non-privileged users (expected), used only when `is_member === false` and API omitted `is_blocked`.
+  3) Fallback B: `fetchUserPassport()` — reads `is_blocked` for this timeline membership if available.
+  4) Final safety: one forced refresh of membership to bust stale caches.
+- Known gap: the clean membership-status endpoint currently returns no `is_blocked`, so blocked users may still see Join when both fallbacks cannot resolve (403 + stale passport).
+- Temporary debug logs added; legacy debug helpers referencing `setSnackbarMessage` caused console errors and will be removed.
+
+### What We’re Trying to Accomplish
+- Deterministic blocked gating for the Join control, without relying on admin-only endpoints or stale passport data.
+- Keep all visuals identical to approved designs; only functional gating changes.
+
+### Plan (Frontend)
+- Short-term (no backend changes):
+  - Keep current fallback chain and remove noisy legacy debug helpers in `TimelineV3.js`.
+  - Optional: extract `JoinCommunityControl.jsx` to encapsulate detection and make testing simpler (no UI change).
+- Preferred (with minimal backend support):
+  - Consume `is_blocked` directly from membership-status response and short-circuit UI to red banner.
+  - Keep a small "Sync Passport" button on the banner to reconcile local caches.
+
+### Acceptance Criteria
+- As a blocked user on a community timeline:
+  - I see a red "Blocked from this community" banner where Join would be.
+  - I do not see Join or member-only buttons.
+  - After unblocking and refresh, the banner is gone and Join appears (or Joined if reinstated).
+
+### Tasks
+- [ ] Remove legacy debug helpers that reference `setSnackbarMessage` from `TimelineV3.js`.
+- [ ] Optionally extract `JoinCommunityControl.jsx` (no visual change); wire it where buttons render.
+- [ ] When backend exposes `is_blocked`, wire it as the primary signal and keep fallbacks as safety.

@@ -663,7 +663,14 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
             
             if (diffMinutes < 30) {
               console.log(`Using cached membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
-              return parsedData;
+              // Ensure is_blocked is present in cached returns (backward compatible)
+              const cached = { ...parsedData, is_blocked: !!parsedData.is_blocked };
+              // If blocked is true, do not consider them a member
+              if (cached.is_blocked === true) {
+                cached.is_member = false;
+                cached.is_active_member = false;
+              }
+              return cached;
             }
           }
         } catch (e) {
@@ -678,9 +685,11 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
       // Process the response to ensure is_member reflects is_active_member status
       const processedResponse = {
         ...response.data,
-        // Only consider the user a member if they are an active member
-        is_member: response.data.is_active_member === false ? false : response.data.is_member
+        // Preserve explicit blocked flag if provided by API
+        is_blocked: response.data.is_blocked === true,
       };
+      // Only consider the user a member if active and not blocked
+      processedResponse.is_member = (response.data.is_active_member !== false) && (response.data.is_member === true) && (processedResponse.is_blocked !== true);
       
       console.log(`Membership status response for timeline ${timelineId}:`, processedResponse);
       
@@ -689,6 +698,8 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
         const membershipKey = `timeline_membership_${timelineId}`;
         localStorage.setItem(membershipKey, JSON.stringify({
           ...processedResponse,
+          // Ensure is_blocked is stored for future cached reads
+          is_blocked: processedResponse.is_blocked === true,
           timestamp: new Date().toISOString()
         }));
         console.log(`Saved membership status to localStorage for timeline ${timelineId}`);
