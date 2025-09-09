@@ -28,7 +28,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote, removeMember, syncUserPassport } from '../../../utils/api';
+import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -169,67 +169,7 @@ const MemberListTab = () => {
     return list;
   };
 
-  // Member role actions (no-op defaults to avoid UI change)
-  // TODO(Community Admin): The Promote/Remove actions in this MemberListTab are
-  // legacy and kept ONLY as a style/animation reference. We will CLONE their
-  // look & feel into AdminPanel Active Members as new Promote/Demote actions.
-  // After cloning to AdminPanel, REMOVE these from MemberListTab entirely.
-  const handleRoleChange = useCallback((userId, newRole) => {
-    console.log('[MemberListTab] handleRoleChange noop', { userId, newRole });
-  }, []);
-
-  // TODO(Community Admin): Remove button behavior here is kept for STYLE ONLY.
-  // AdminPanel hosts the real Remove/Block/Unblock flows now. Once we port the
-  // style to AdminPanel Promote/Demote, delete this handler and its UI.
-  const handleRemoveMember = useCallback(async (userId) => {
-    try {
-      console.log(`[MemberListTab] Removing member with userId: ${userId} from timeline: ${id}`);
-      setIsLoading(true);
-      
-      // Call the API to remove the member
-      const response = await removeMember(id, userId);
-      console.log('[MemberListTab] Remove member response:', response);
-      // Sync passport to persist membership change across sessions
-      try {
-        await syncUserPassport();
-        console.log('[MemberListTab] Synced user passport after removal');
-      } catch (e) {
-        console.warn('[MemberListTab] Passport sync failed after removal (continuing):', e);
-      }
-      
-      // Update the members list by filtering out the removed member
-      setMembers(prevMembers => {
-        const updatedMembers = prevMembers.filter(member => member.userId !== userId);
-        console.log(`[MemberListTab] Updated members list: ${updatedMembers.length} members (removed userId: ${userId})`);
-        
-        // Update member count
-        setMemberCount(updatedMembers.length);
-        
-        // Update action thresholds based on new member count
-        setShowSilverAction(updatedMembers.length >= memberThresholds.silver);
-        setShowGoldAction(updatedMembers.length >= memberThresholds.gold);
-        
-        return updatedMembers;
-      });
-
-      // Clear minimal related caches (no UI changes)
-      try {
-        localStorage.removeItem(`timeline_${id}_members`);
-        localStorage.removeItem(`timeline_${id}_memberCount`);
-        localStorage.setItem('membershipLastUpdated', Date.now().toString());
-      } catch (cacheErr) {
-        console.warn('[MemberListTab] Cache clear failed (continuing):', cacheErr);
-      }
-      
-      // Show success message
-      console.log('[MemberListTab] Member removed successfully');
-    } catch (error) {
-      console.error('[MemberListTab] Error removing member:', error);
-      setError('Failed to remove member. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
+  // Legacy management actions were removed. MemberListTab is now read-only.
   
   // Check membership and fetch members when component mounts or ID changes
   useEffect(() => {
@@ -1219,67 +1159,7 @@ const MemberListTab = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="subtitle1">{member.name}</Typography>
                         
-                        {/* Member management actions */}
-                        <Box sx={{ 
-                          display: 'flex', 
-                          opacity: 0,
-                          transition: 'opacity 0.2s ease',
-                          '.MuiBox-root:hover > &': {
-                            opacity: 1
-                          }
-                        }}>
-                          {roleLower !== 'admin' && (
-                            <>
-                              {roleLower === 'moderator' ? (
-                                <Chip
-                                  label="Demote"
-                                  size="small"
-                                  color="default"
-                                  variant="outlined"
-                                  onClick={() => handleRoleChange(member.userId, 'member')}
-                                  sx={{ 
-                                    mr: 1, 
-                                    fontSize: '0.7rem',
-                                    height: 24,
-                                    '&:hover': {
-                                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
-                                    }
-                                  }}
-                                />
-                              ) : (
-                                <Chip
-                                  label="Promote"
-                                  size="small"
-                                  color="primary"
-                                  variant="outlined"
-                                  onClick={() => handleRoleChange(member.userId, 'moderator')}
-                                  sx={{ 
-                                    mr: 1, 
-                                    fontSize: '0.7rem',
-                                    height: 24,
-                                    '&:hover': {
-                                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.1)' : 'rgba(25,118,210,0.05)'
-                                    }
-                                  }}
-                                />
-                              )}
-                              <Chip
-                                label="Remove"
-                                size="small"
-                                color="error"
-                                variant="outlined"
-                                onClick={() => handleRemoveMember(member.userId)}
-                                sx={{ 
-                                  fontSize: '0.7rem',
-                                  height: 24,
-                                  '&:hover': {
-                                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.1)' : 'rgba(211,47,47,0.05)'
-                                  }
-                                }}
-                              />
-                            </>
-                          )}
-                        </Box>
+                        {/* Management actions removed: MemberListTab is read-only. */}
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                         <Chip 
