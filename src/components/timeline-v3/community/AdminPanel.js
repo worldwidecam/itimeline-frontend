@@ -2284,11 +2284,18 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                         '&:hover': { transform: 'scale(1.05)' }
                       }}
                     />
-                    {/* Hover-reveal actions container cloned from MemberListTab style */}
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="subtitle1" component="div">
+                        {member.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Joined {member.joinDate}
+                      </Typography>
+                    </Box>
+                    {/* Hover-reveal actions container cloned from MemberListTab style (moved after name/join) */}
                     <Box sx={{ 
                       display: 'flex', 
                       alignItems: 'center',
-                      ml: 'auto',
                       opacity: 0,
                       transition: 'opacity 0.2s ease',
                       '.MuiBox-root:hover > &': { opacity: 1 }
@@ -2302,7 +2309,6 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                         const prevRole = getPrevRole(member.role);
                         return (
                           <>
-                            {/* Promote/Demote as outlined Chips with hover tint */}
                             {!isSelf && !isSiteOwner && nextRole && (
                               <Chip
                                 label="Promote"
@@ -2337,8 +2343,6 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                                 }}
                               />
                             )}
-
-                            {/* Keep Remove/Block actions, now inside the same hover-reveal container */}
                             {canRemoveMember(userRole, currentUserId, member, timelineData) && (
                               <IconButton 
                                 size="small" 
@@ -2369,14 +2373,6 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                           </>
                         );
                       })()}
-                    </Box>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle1" component="div">
-                        {member.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Joined {member.joinDate}
-                      </Typography>
                     </Box>
                     <Chip 
                       label={(roleLower ? roleLower.charAt(0).toUpperCase() + roleLower.slice(1) : 'Member')}
