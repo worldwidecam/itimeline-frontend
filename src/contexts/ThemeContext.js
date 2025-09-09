@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { useAuth } from './AuthContext';
+import { updateUserPreferences } from '../utils/api';
 
 const ThemeContext = createContext();
 
@@ -7,6 +9,7 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const CustomThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const { user } = useAuth() || {};
 
   const darkTheme = createTheme({
     palette: {
@@ -178,16 +181,69 @@ export const CustomThemeProvider = ({ children }) => {
   });
 
   const toggleTheme = () => {
-    setIsDarkMode(prev => !prev);
-    localStorage.setItem('darkMode', (!isDarkMode).toString());
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    try {
+      if (user && user.id) {
+        // Persist per-user preference
+        localStorage.setItem(`theme_pref_user_${user.id}`, next ? 'true' : 'false');
+        // For backward compatibility, also set global but do not rely on it for logged-in users
+        localStorage.setItem('darkMode', next.toString());
+        // Persist to server (fire-and-forget)
+        try {
+          updateUserPreferences({ theme: next ? 'dark' : 'light' });
+        } catch (_) {}
+      } else {
+        // Guest fallback: maintain legacy behavior
+        localStorage.setItem('darkMode', next.toString());
+      }
+    } catch (_) {}
   };
 
   useEffect(() => {
+    // 1) On the Landing Page ('/') while not logged in, re-roll on every mount/refresh
+    const currentPath = typeof window !== 'undefined' ? window.location?.pathname : undefined;
+    if (!user && currentPath === '/') {
+      const randomDark = Math.random() < 0.5;
+      setIsDarkMode(randomDark);
+      // Do NOT store to sessionStorage here – we want a re-roll on each refresh
+      return;
+    }
+
+    // 2) If legacy savedMode exists, respect it (guest or otherwise)
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode !== null) {
       setIsDarkMode(savedMode === 'true');
+      return;
     }
-  }, []);
+
+    // 3) For other pages (or unknown paths), keep prior session behavior to avoid jarring flips
+    const sessionApplied = sessionStorage.getItem('rand_theme_applied');
+    if (!sessionApplied) {
+      const randomDark = Math.random() < 0.5;
+      setIsDarkMode(randomDark);
+      sessionStorage.setItem('rand_theme_applied', 'true');
+      sessionStorage.setItem('rand_theme_value', randomDark ? 'true' : 'false');
+    } else {
+      const v = sessionStorage.getItem('rand_theme_value');
+      if (v === 'true' || v === 'false') setIsDarkMode(v === 'true');
+    }
+  }, [user]);
+
+  // When the authenticated user changes, apply their per-user preference if present
+  useEffect(() => {
+    try {
+      if (user && user.id) {
+        const userPref = localStorage.getItem(`theme_pref_user_${user.id}`);
+        if (userPref === 'true' || userPref === 'false') {
+          const val = userPref === 'true';
+          setIsDarkMode(val);
+          // Set global for compatibility with any legacy checks
+          localStorage.setItem('darkMode', val.toString());
+        }
+      }
+    } catch (_) {}
+  }, [user?.id]);
 
   useEffect(() => {
     // Apply to both HTML and body elements
@@ -203,8 +259,21 @@ export const CustomThemeProvider = ({ children }) => {
     }
   }, [isDarkMode]);
 
+  // Optional helper: allow callers to explicitly apply a preferred theme string ('dark'|'light')
+  const applyPreferredTheme = (pref) => {
+    const val = pref === 'dark' ? true : pref === 'light' ? false : null;
+    if (val === null) return;
+    setIsDarkMode(val);
+    try {
+      if (user && user.id) {
+        localStorage.setItem(`theme_pref_user_${user.id}`, val ? 'true' : 'false');
+      }
+      localStorage.setItem('darkMode', val ? 'true' : 'false');
+    } catch (_) {}
+  };
+
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDarkMode, toggleTheme, applyPreferredTheme }}>
       <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
         {children}
       </ThemeProvider>

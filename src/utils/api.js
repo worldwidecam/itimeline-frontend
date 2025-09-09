@@ -761,14 +761,34 @@ export const fetchUserPassport = async () => {
     // Store the passport in localStorage with a user-specific key
     const storageKey = `user_passport_${userId}`;
     const memberships = response.data.memberships || [];
+    const preferences = response.data.preferences || {};
     
     try {
       localStorage.setItem(storageKey, JSON.stringify({
         memberships: memberships,
+        preferences: preferences,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
       console.log(`Stored passport for user ${userId} in localStorage`);
+
+      // If server sent preferences, hydrate localStorage for clients that read directly
+      try {
+        if (preferences && typeof preferences === 'object') {
+          if (preferences.theme === 'dark' || preferences.theme === 'light') {
+            const isDark = preferences.theme === 'dark';
+            localStorage.setItem(`theme_pref_user_${userId}`, isDark ? 'true' : 'false');
+            // Legacy global for compatibility
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+          }
+          if (typeof preferences.email_blur === 'boolean') {
+            // Current EmailBlurContext uses a non-user-scoped key
+            localStorage.setItem('emailBlurPreference', preferences.email_blur.toString());
+          }
+        }
+      } catch (e) {
+        console.warn('[API] Failed to hydrate local preferences from passport:', e);
+      }
       
       // IMPORTANT: Also update the direct timeline membership data for each timeline
       // This ensures that when a user logs in, both the passport and direct timeline
@@ -1315,6 +1335,32 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
       saved: [],
       errors: [{ error: error.message }]
     };
+  }
+};
+
+/**
+ * Update user preferences on the server via Passport
+ * Allowed fields: { theme: 'dark'|'light', email_blur: boolean }
+ * @param {object} prefs
+ * @returns {Promise<object>} Server response with merged preferences
+ */
+export const updateUserPreferences = async (prefs = {}) => {
+  try {
+    const payload = {};
+    if (prefs.theme === 'dark' || prefs.theme === 'light') {
+      payload.theme = prefs.theme;
+    }
+    if (typeof prefs.email_blur === 'boolean') {
+      payload.email_blur = prefs.email_blur;
+    }
+    if (Object.keys(payload).length === 0) {
+      return { message: 'No valid preference fields provided' };
+    }
+    const response = await api.put('/api/v1/user/preferences', payload);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Failed to update user preferences:', error.response?.data || error.message);
+    throw error;
   }
 };
 

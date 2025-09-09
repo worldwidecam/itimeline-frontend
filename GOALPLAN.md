@@ -99,8 +99,8 @@ Significant progress has been made on the Admin Panel implementation. The member
 - [ ] **Admin Dashboard** - Overview and analytics
 - [ ] **Search for and remove mock data from AdminPanel fallback/frontend code**
   - Note: Active Members now uses real data; verify no mock fallbacks remain in other Admin tabs/paths
- - [ ] Clean up any unused `Avatar` imports and archive unused legacy components (`old_components/`)
- - [ ] Profile Settings: add user avatar fallback color picker (store preference locally; unify with `UserAvatar`)
+- [ ] Clean up any unused `Avatar` imports and archive unused legacy components (`old_components/`)
+- [ ] Profile Settings: add user avatar fallback color picker (store preference locally; unify with `UserAvatar`)
 
 ### 🔍 **AdminPanel Status Update:**
 
@@ -235,8 +235,85 @@ Implement Promote/Demote actions in AdminPanel → Active Members, cloning the s
 - No UI layout shifts; animations match MemberListTab style.
 
 ### Tasks
-- [ ] Add `promoteMemberRole(userId)` and `demoteMemberRole(userId)` helpers in `utils/api.js` (thin wrappers around the role PUT).
-- [ ] Render Promote/Demote controls in AdminPanel Active Members with permission gating (UI identical style to MemberListTab buttons).
-- [ ] Wire success path: call PUT, then `syncUserPassport()`, then refresh members list and counts; clear relevant caches.
-- [ ] Add minimal error snackbar using server message.
-- [ ] E2E: promote/demote across roles and refresh; verify persistence and permission enforcement.
+- [x] Add `promoteMemberRole(userId)` and `demoteMemberRole(userId)` helpers in `utils/api.js` (thin wrappers around the role PUT). (covered via `updateMemberRole` usage)
+- [x] Render Promote/Demote controls in AdminPanel Active Members with permission gating (UI identical style to MemberListTab buttons).
+- [x] Wire success path: call PUT, then `syncUserPassport()`, then refresh members list and counts; clear relevant caches.
+- [x] Add minimal error snackbar using server message.
+- [x] E2E: promote/demote across roles and refresh; verify persistence and permission enforcement.
+- [x] Remove legacy inline buttons from `MemberListTab.js` (read-only now).
+
+### Next Focus
+- Manage Posts tab in Admin Panel: implement moderation actions (delete/safeguard), status filtering, and real backend wiring for reported posts.
+
+---
+
+## Manage Posts Tab — TODO Breakdown (Wireframe Audit)
+
+Source: `src/components/timeline-v3/community/AdminPanel.js` → `ManagePostsTab` component (currently mock data and UX only)
+
+### UI Sections and Controls (as-is)
+- [ ] Header: "Reported Posts" with `FlagIcon`
+- [ ] Status Tabs (counts shown):
+  - [ ] All (computed from total)
+  - [ ] Pending (warning style)
+  - [ ] Reviewing (info style)
+  - [ ] Resolved (success style)
+- [ ] Post List Item contents:
+  - [ ] Event type label (e.g., "Media Event", "Remark Event")
+  - [ ] Status chip with icon and color (Pending/Reviewing/Resolved)
+  - [ ] Report timestamp (e.g., "Reported 2 days ago")
+  - [ ] Reporter: name (avatar optional later)
+  - [ ] Reason: short text (e.g., spam, harassment, copyright)
+  - [ ] Assigned moderator display when present
+  - [ ] Action buttons (right aligned):
+    - [ ] Accept for Review (only when Pending)
+    - [ ] Delete Post (not when Resolved)
+    - [ ] Safeguard Post (not when Resolved)
+  - [ ] Resolution label when Resolved (deleted/safeguarded)
+- [ ] Confirmation Dialog for Delete/Safeguard with copy
+
+### Data and State Requirements
+- [ ] Replace mock `reportedPosts` array with real API data
+- [ ] Pagination support for long lists (page, pageSize)
+- [ ] Filters derived from tabs (status) and optional search (by reporter/title/reason)
+- [ ] Sorting (newest first by default; optional controls later)
+- [ ] Assignment data structure (assignedModerator) and transition from Pending → Reviewing
+
+### Backend Integration Plan (no schema changes without approval)
+- Endpoints under `/api/v1` (proposal):
+  - [ ] GET `/api/v1/timelines/{timeline_id}/reports?status=<pending|reviewing|resolved>&page=&page_size=`
+  - [ ] POST `/api/v1/timelines/{timeline_id}/reports/{report_id}/accept` → set status=reviewing, assign current user
+  - [ ] POST `/api/v1/timelines/{timeline_id}/reports/{report_id}/resolve` body: `{ action: 'delete' | 'safeguard' }`
+  - [ ] Optional: POST `/api/v1/timelines/{timeline_id}/reports/{report_id}/assign` body: `{ moderator_id }`
+- Notes:
+  - [ ] We will NOT alter database schema without explicit approval. If a new field is needed (e.g., timeline moderation mode), we will request approval before any migration work.
+
+### Settings Tab dependency (Approval Required)
+- [ ] Add a toggle in Settings: moderation mode for this timeline
+  - Mode A: All posts require approval (pre-moderation queue)
+  - Mode B: Only reported posts appear in Manage Posts
+- [ ] This likely needs backend persistence (field on `timeline` or a separate settings table). Defer implementation pending your approval to add such a setting.
+
+### Step-by-Step Implementation Checklist
+1) Wiring skeleton (frontend only, no UX changes):
+   - [ ] Create API utils: `listReports`, `acceptReport`, `resolveReport`, `assignReport` (thin wrappers)
+   - [ ] Replace mock with GET call, map to existing card fields
+   - [ ] Handle loading/empty/error states
+2) Actions:
+   - [ ] Accept for Review → POST accept, update status to reviewing, set `assignedModerator` to current user
+   - [ ] Delete Post → POST resolve with `action=delete`, refresh list
+   - [ ] Safeguard Post → POST resolve with `action=safeguard`, refresh list
+3) Filters and pagination:
+   - [ ] Status tabs filter using backend query where possible; fall back to client-side filter for first pass
+   - [ ] Add simple pagination controls (Next/Prev) if backend supports; otherwise infinite scroll later
+4) Assignment (optional phase 2):
+   - [ ] Add Assign/Unassign flows if desired
+5) Settings integration:
+   - [ ] UI toggle in Settings (disabled until backend field is approved)
+   - [ ] When approved, wire toggle to backend and reflect in Manage Posts behavior
+
+### Acceptance Criteria
+- [ ] Moderators/Admins can see reported posts filtered by status and take actions
+- [ ] Actions persist across refresh; state reflects backend (no mock data)
+- [ ] No schema changes were made without explicit approval
+- [ ] No UX/visual changes beyond wiring functionality (unless explicitly approved)

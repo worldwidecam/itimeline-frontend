@@ -55,6 +55,7 @@ The iTimeline application now supports Community Timelines with a Bronze/Silver/
   - Member list with role-based styling and avatars
   - Smooth staggered animations for better perceived performance
   - Loading skeletons for improved user experience
+  - Read-only member rows (legacy inline promote/remove controls removed; management lives in Admin Panel)
 
 - **CommunityLockView**:
   - Protects private/admin-only areas with a clear lockout screen
@@ -74,6 +75,10 @@ The iTimeline application now supports Community Timelines with a Bronze/Silver/
   - Community Action Settings with gold, silver, and bronze tiers
   - Modern UI with color-coded sections and visual hierarchy
   - Floating Action Button (FAB) for saving changes that appears when modifications are made
+  - Promote/Demote controls in Manage Members (Active Members)
+    - One-step transitions only: member → moderator → admin and reverse
+    - UI chips cloned from `MemberListTab` style (outlined, hover-tinted)
+    - Guards: no self, cannot act on SiteOwner; backend enforces rank rules
 
 #### Current Status
 - ✅ Timeline prefix styling and display
@@ -256,6 +261,10 @@ The frontend proxies API requests to the backend at `http://localhost:5000/api` 
   - `POST /api/v1/membership/timelines/{id}/join` — Join timeline
   - `GET  /api/v1/membership/timelines/{id}/status` — Check membership status
   - See "Key Endpoints" above for details.
+
+- **Member Role Management**
+  - `PUT /api/v1/timelines/{timeline_id}/members/{user_id}/role` — Update a member's role (admin/moderator/member)
+  - Notes: CORS enabled for PUT/OPTIONS; one-step transitions enforced server-side; SiteOwner protected
 
 - **Media Uploads**
   - `POST /api/upload-media` — Upload media (current)

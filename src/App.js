@@ -958,8 +958,8 @@ function App() {
   }, []);
 
   return (
-    <CustomThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <CustomThemeProvider>
         <EmailBlurProvider>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
           <CssBaseline />
@@ -1046,8 +1046,8 @@ function App() {
           </PageTransition>
           </LocalizationProvider>
         </EmailBlurProvider>
-      </AuthProvider>
-    </CustomThemeProvider>
+      </CustomThemeProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import api from '../utils/api';
+import api, { updateUserPreferences } from '../utils/api';
 
 // Key for localStorage
 const BLUR_PREFERENCE_KEY = 'emailBlurPreference';
@@ -59,6 +59,12 @@ export const EmailBlurProvider = ({ children }) => {
     const newValue = !blurEmail;
     setBlurEmail(newValue);
     localStorage.setItem(BLUR_PREFERENCE_KEY, newValue.toString());
+    // Persist to server when logged in (fire-and-forget)
+    if (user && user.id) {
+      try {
+        updateUserPreferences({ email_blur: newValue });
+      } catch (_) {}
+    }
   };
   
   // Function to blur an email address
