@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useAuth } from './AuthContext';
 import { updateUserPreferences } from '../utils/api';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const ThemeContext = createContext();
 
@@ -9,7 +11,47 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const CustomThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showTransition, setShowTransition] = useState(false);
+  const [overlayFading, setOverlayFading] = useState(false);
   const { user } = useAuth() || {};
+
+  // Inline overlay to avoid separate JSX module parse issues
+  const ThemeTransitionOverlay = () => (
+    <Box
+      aria-live="polite"
+      aria-busy="true"
+      role="status"
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        background: isDarkMode ? '#000' : '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000,
+        pointerEvents: 'auto',
+        opacity: overlayFading ? 0 : 1,
+        transition: 'opacity 1000ms ease',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+          p: 0,
+          transform: overlayFading ? 'translateY(-8px) scale(0.98)' : 'translateY(0) scale(1)',
+          transition: 'transform 1000ms ease',
+        }}
+      >
+        <Box sx={{ fontWeight: 700, letterSpacing: '0.3px', color: 'text.primary', fontSize: 18, mb: 1 }}>
+          Loading your theme...
+        </Box>
+        <CircularProgress color="primary" size={48} thickness={4} />
+      </Box>
+    </Box>
+  );
 
   const darkTheme = createTheme({
     palette: {
@@ -37,6 +79,14 @@ export const CustomThemeProvider = ({ children }) => {
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          'html, body, #root': {
+            transition: 'background-color 200ms ease, color 200ms ease',
+          },
+          '@media (prefers-reduced-motion: reduce)': {
+            'html, body, #root': {
+              transition: 'none',
+            }
+          },
           body: {
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(100, 100, 100, 0.6) transparent',
@@ -118,6 +168,14 @@ export const CustomThemeProvider = ({ children }) => {
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          'html, body, #root': {
+            transition: 'background-color 200ms ease, color 200ms ease',
+          },
+          '@media (prefers-reduced-motion: reduce)': {
+            'html, body, #root': {
+              transition: 'none',
+            }
+          },
           body: {
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(180, 180, 180, 0.8) transparent',
@@ -237,9 +295,20 @@ export const CustomThemeProvider = ({ children }) => {
         const userPref = localStorage.getItem(`theme_pref_user_${user.id}`);
         if (userPref === 'true' || userPref === 'false') {
           const val = userPref === 'true';
+          // If applying a different theme than current, show a short transition overlay
+          if (val !== isDarkMode) {
+            setShowTransition(true);
+          }
           setIsDarkMode(val);
           // Set global for compatibility with any legacy checks
           localStorage.setItem('darkMode', val.toString());
+          // Two-phase hide: 3s total visible, fade last 1000ms with slight slide+scale
+          if (val !== isDarkMode) {
+            setOverlayFading(false);
+            const t1 = setTimeout(() => setOverlayFading(true), 2000); // start fade
+            const t2 = setTimeout(() => setShowTransition(false), 3000); // unmount
+            return () => { clearTimeout(t1); clearTimeout(t2); };
+          }
         }
       }
     } catch (_) {}
@@ -276,6 +345,7 @@ export const CustomThemeProvider = ({ children }) => {
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme, applyPreferredTheme }}>
       <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
         {children}
+        {showTransition && <ThemeTransitionOverlay />}
       </ThemeProvider>
     </ThemeContext.Provider>
   );
