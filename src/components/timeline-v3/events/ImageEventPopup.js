@@ -704,7 +704,15 @@ const ImageEventPopup = ({
                       size="small"
                       onClick={handleOpenReport}
                       disabled={reportedOnce}
-                      sx={{ textTransform: 'none' }}
+                      sx={{ 
+                        textTransform: 'none',
+                        color: imageColor,
+                        borderColor: imageColor,
+                        '&:hover': {
+                          borderColor: imageColor,
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,150,136,0.12)' : 'rgba(0,150,136,0.08)'
+                        }
+                      }}
                     >
                       {reportedOnce ? 'Reported' : 'Report'}
                     </Button>

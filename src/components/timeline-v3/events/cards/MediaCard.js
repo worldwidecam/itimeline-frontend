@@ -259,19 +259,66 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
       fullUrl = `${config.API_URL}${mediaSource}`;
     }
     
-    // Add all possible URLs to try
+    // If Cloudinary ID exists, prefer Cloudinary video URL candidates FIRST
+    if (event.cloudinary_id) {
+      const cloudName = 'dnjwvuxn7';
+      const isVideo = (event.media_subtype === 'video') || (event.media_type && event.media_type.includes('video'));
+      const isAudio = (event.media_subtype === 'audio') || (event.media_type && event.media_type.includes('audio'));
+      const resourcePath = (isVideo || isAudio) ? 'video/upload' : 'image/upload';
+      const base = `https://res.cloudinary.com/${cloudName}/${resourcePath}/${event.cloudinary_id}`;
+      if (isVideo) {
+        mediaSources.push(`${base}.mp4`);
+        mediaSources.push(`${base}.webm`);
+        mediaSources.push(`${base}`);
+      } else if (isAudio) {
+        mediaSources.push(`${base}.mp3`);
+        mediaSources.push(`${base}.m4a`);
+        mediaSources.push(`${base}`);
+      } else {
+        mediaSources.push(`${base}.jpg`);
+        mediaSources.push(`${base}`);
+      }
+    }
+
+    // Add all possible URLs to try (uploaded URL or path)
     mediaSources.push(fullUrl);
     
     if (mediaSource.startsWith('/uploads/')) {
       mediaSources.push(`${config.API_URL}${mediaSource}`);
     }
     
-    if (event.cloudinary_id) {
+    // If the provided URL looks like a Cloudinary thumbnail (.jpg under video/upload),
+    // and we have a cloudinary_id, replace it with a likely playable video URL
+    if (fullUrl && fullUrl.includes('/video/upload/') && fullUrl.endsWith('.jpg') && event.cloudinary_id) {
       const cloudName = 'dnjwvuxn7';
-      mediaSources.push(`https://res.cloudinary.com/${cloudName}/image/upload/${event.cloudinary_id}`);
+      const replacement = `https://res.cloudinary.com/${cloudName}/video/upload/${event.cloudinary_id}.mp4`;
+      mediaSources.unshift(replacement);
     }
     
-    return { mediaSources, fullUrl };
+    // De-duplicate while preserving order
+    const deduped = Array.from(new Set(mediaSources));
+    console.log('MediaCard.prepareMediaSources sources:', deduped);
+    return { mediaSources: deduped, fullUrl };
+  };
+
+  // Derive Cloudinary public_id from a Cloudinary URL if cloudinary_id is missing
+  const getCloudinaryPublicIdFromUrl = (url) => {
+    try {
+      if (!url || typeof url !== 'string') return '';
+      if (!url.includes('res.cloudinary.com') && !url.includes('cloudinary.com')) return '';
+      // Expect pattern: .../upload/v<ver>/<public_id>.<ext>
+      const parts = url.split('/');
+      const uploadIdx = parts.findIndex(p => p === 'upload');
+      if (uploadIdx === -1 || uploadIdx >= parts.length - 1) return '';
+      const afterUpload = parts.slice(uploadIdx + 1).join('/');
+      // Remove version (e.g., v1757609015/) if present
+      const afterNoVersion = afterUpload.replace(/^v\d+\//, '');
+      // Strip extension and query params
+      const publicId = afterNoVersion.replace(/\.[^\.\/?]+(\?.*)?$/, '');
+      return publicId;
+    } catch (_) {
+      return '';
+    }
   };
 
   // Simple error boundary component for video rendering
@@ -409,6 +456,50 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
         );
       }
 
+      // If we have a Cloudinary public_id (direct or derived), prefer Cloudinary Player for consistent playback
+      const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
+      const cloudinaryPublicId = (event && event.cloudinary_id) || derivedPublicId;
+      if (cloudinaryPublicId) {
+        return (
+          <Box 
+            sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overflow: 'hidden',
+              zIndex: 1,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Box sx={{ width: '100%', height: '100%' }}>
+              <iframe
+                title={`cloudinary-player-${event.id}`}
+                src={`https://player.cloudinary.com/embed/?cloud_name=dnjwvuxn7&public_id=${encodeURIComponent(cloudinaryPublicId)}&profile=cld-default&autoplay=false&controls=true`}
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 0,
+                  background: 'black'
+                }}
+              />
+            </Box>
+            <PageCornerButton 
+              position="top-right" 
+              onClick={handleDetailsClick}
+              tooltip="View Details"
+              icon={<MediaIcon />}
+              color={color}
+            />
+          </Box>
+        );
+      }
+
       // Safely prepare media sources
       const preparedMedia = prepareMediaSources(mediaSource);
       if (!preparedMedia) {
@@ -483,13 +574,20 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
                   playsInline
                   muted={!isSelected}
                 >
-                  {validMediaSources.map((src, index) => (
-                    <source 
-                      key={index} 
-                      src={src} 
-                      type={`video/${fileExt}`} 
-                    />
-                  ))}
+                  {validMediaSources.map((src, index) => {
+                    const ext = (typeof src === 'string' && src.includes('.')) ? src.split('.').pop().toLowerCase() : '';
+                    const typeMap = {
+                      mp4: 'video/mp4',
+                      webm: 'video/webm',
+                      mov: 'video/quicktime',
+                      m4v: 'video/x-m4v',
+                      ogg: 'video/ogg'
+                    };
+                    const mime = typeMap[ext];
+                    return (
+                      <source key={index} src={src} {...(mime ? { type: mime } : {})} />
+                    );
+                  })}
                   Your browser does not support the video tag.
                 </video>
                 <Box 

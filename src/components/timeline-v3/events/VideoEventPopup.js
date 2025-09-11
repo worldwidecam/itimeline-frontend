@@ -78,6 +78,8 @@ const VideoEventPopup = ({
   const [localEventData, setLocalEventData] = useState(event);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
+  // Prefer Cloudinary Player when a Cloudinary public_id is available
+  const [useCloudinaryPlayer, setUseCloudinaryPlayer] = useState(!!(event && event.cloudinary_id));
   // Level 1 report overlay state
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -88,6 +90,67 @@ const VideoEventPopup = ({
   const videoColor = '#4a148c'; // Deep purple for video theme
   
   // Get user data with fallbacks
+  // Helper function to prepare video sources (similar to MediaCard)
+  const prepareVideoSources = (mediaSource) => {
+    let videoSources = [];
+    
+    const isCloudinaryUrl = (
+      (mediaSource && (
+        mediaSource.includes('cloudinary.com') || 
+        mediaSource.includes('res.cloudinary')
+      )) ||
+      (event.media_type && event.media_type.includes('cloudinary'))
+    );
+    
+    let fullUrl = mediaSource;
+    
+    if (isCloudinaryUrl) {
+      fullUrl = mediaSource;
+    }
+    else if (mediaSource && mediaSource.startsWith('/')) {
+      fullUrl = `http://localhost:5000${mediaSource}`;
+    }
+    
+    // Add all possible URLs to try
+    if (fullUrl) {
+      videoSources.push(fullUrl);
+    }
+    
+    if (mediaSource && mediaSource.startsWith('/uploads/')) {
+      videoSources.push(`http://localhost:5000${mediaSource}`);
+    }
+    
+    if (event.cloudinary_id) {
+      const cloudName = 'dnjwvuxn7';
+      // For videos, use video/upload path and try common video extensions
+      const baseUrl = `https://res.cloudinary.com/${cloudName}/video/upload/${event.cloudinary_id}`;
+      videoSources.push(`${baseUrl}.mp4`);
+      videoSources.push(`${baseUrl}.webm`);
+      videoSources.push(`${baseUrl}.mov`);
+      // Also try without extension in case Cloudinary auto-detects
+      videoSources.push(baseUrl);
+    }
+    
+    return videoSources.filter(Boolean);
+  };
+
+  // Derive Cloudinary public_id from a Cloudinary URL if cloudinary_id is missing
+  const getCloudinaryPublicIdFromUrl = (url) => {
+    try {
+      if (!url || typeof url !== 'string') return '';
+      if (!url.includes('res.cloudinary.com') && !url.includes('cloudinary.com')) return '';
+      const parts = url.split('/');
+      const uploadIdx = parts.findIndex(p => p === 'upload');
+      if (uploadIdx === -1 || uploadIdx >= parts.length - 1) return '';
+      const afterUpload = parts.slice(uploadIdx + 1).join('/');
+      const afterNoVersion = afterUpload.replace(/^v\d+\//, '');
+      const publicId = afterNoVersion.replace(/\.[^\.\/?]+(\?.*)?$/, '');
+      return publicId;
+    } catch (_) {
+      return '';
+    }
+  };
+
   const getUserData = () => {
     // First try to get from created_by object (nested)
     if (event.created_by && typeof event.created_by === 'object') {
@@ -324,26 +387,69 @@ const VideoEventPopup = ({
                 position: 'relative',
               }}
             >
+              {(() => {
+                const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
+                const cloudinaryPublicId = (event && event.cloudinary_id) || derivedPublicId;
+                const shouldUsePlayer = (useCloudinaryPlayer || !!cloudinaryPublicId) && !!cloudinaryPublicId;
+                if (shouldUsePlayer) {
+                  return (
+                    <Box sx={{ width: '100%', height: '100%' }}>
+                      <iframe
+                        title="cloudinary-player"
+                        src={`https://player.cloudinary.com/embed/?cloud_name=dnjwvuxn7&public_id=${encodeURIComponent(cloudinaryPublicId)}&profile=cld-default&autoplay=true&controls=true`}
+                        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          border: 0,
+                          borderRadius: 8,
+                          background: 'black'
+                        }}
+                      />
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
+              {!useCloudinaryPlayer && (
               <video
                 ref={el => setVideoElement(el)}
                 controls
                 autoPlay={true}
                 style={{ 
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  width: 'auto',
-                  height: 'auto',
+                  width: '100%',
+                  height: '100%',
                   objectFit: 'contain',
+                  backgroundColor: 'black',
+                  borderRadius: 8,
                   display: 'block',
                 }}
                 onError={(e) => {
                   console.error('Error loading video:', e);
-                  e.target.onerror = null;
+                  const currentSrc = e.target.src;
+                  const videoSources = prepareVideoSources(mediaSource);
+                  const currentIndex = videoSources.indexOf(currentSrc);
+                  
+                  if (currentIndex >= 0 && currentIndex < videoSources.length - 1) {
+                    // Try the next source
+                    console.log(`Trying next video source: ${videoSources[currentIndex + 1]}`);
+                    e.target.src = videoSources[currentIndex + 1];
+                  } else {
+                    console.error('All video sources failed to load. Falling back to Cloudinary Player.');
+                    setUseCloudinaryPlayer(true);
+                  }
                 }}
               >
-                <source src={mediaSource} type={event.media_type || 'video/mp4'} />
+                {prepareVideoSources(mediaSource).map((src, index) => (
+                  <source 
+                    key={index} 
+                    src={src} 
+                    type={event.media_type || 'video/mp4'} 
+                  />
+                ))}
                 Your browser does not support the video tag.
               </video>
+              )}
               
               {/* Fullscreen button overlay */}
               <Box
@@ -784,7 +890,15 @@ const VideoEventPopup = ({
                       size="small"
                       onClick={handleOpenReport}
                       disabled={reportedOnce}
-                      sx={{ textTransform: 'none' }}
+                      sx={{ 
+                        textTransform: 'none',
+                        color: videoColor,
+                        borderColor: videoColor,
+                        '&:hover': {
+                          borderColor: videoColor,
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(74,20,140,0.12)' : 'rgba(74,20,140,0.08)'
+                        }
+                      }}
                     >
                       {reportedOnce ? 'Reported' : 'Report'}
                     </Button>

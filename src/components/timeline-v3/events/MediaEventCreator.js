@@ -105,142 +105,64 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
 
   // Handle form submission
   const handleSubmit = async () => {
-    // Look for upload result in the DOM
-    let fileUrl = '';
+    // Require an upload result
+    if (!uploadResult || !uploadResult.url) {
+      setError('Please upload a media file before creating the event');
+      return;
+    }
+
+    // Prefer values from uploadResult
+    const fileUrl = uploadResult.secure_url || uploadResult.url;
+    const cloudinaryId = uploadResult.cloudinary_id || uploadResult.public_id || '';
+    // Normalize type/subtype
     let fileType = 'image';
-    let cloudinaryId = '';
-    
-    // First, try to get the URL from the upload result displayed in the UI
-    const uploadResultElement = document.querySelector('body');
-    const uploadResultText = uploadResultElement?.innerText || '';
-    
-    // Look for the URL in the text content of the page
-    const urlMatch = uploadResultText.match(/URL:\s*(https?:\/\/[^\s]+)/i);
-    if (urlMatch && urlMatch[1]) {
-      console.log('Found URL in upload result text:', urlMatch[1]);
-      fileUrl = urlMatch[1];
-      
-      // Try to determine the file type from the URL
-      if (fileUrl.match(/\.(mp4|webm|mov|avi|mkv)($|\?)/i)) {
-        fileType = 'video';
-      } else if (fileUrl.match(/\.(mp3|wav|ogg|aac|flac|m4a)($|\?)/i)) {
-        fileType = 'audio';
-      } else if (uploadResult && uploadResult.media_subtype) {
-        // Use the media_subtype from the upload result if available
-        fileType = uploadResult.media_subtype;
-      }
-      
-      // Try to extract cloudinary ID from the URL
-      if (fileUrl.includes('cloudinary.com')) {
-        const parts = fileUrl.split('/');
-        const uploadIndex = parts.findIndex(part => part === 'upload');
-        if (uploadIndex !== -1 && uploadIndex < parts.length - 1) {
-          cloudinaryId = parts.slice(uploadIndex + 1).join('/');
-          // Remove file extension and query parameters
-          cloudinaryId = cloudinaryId.replace(/\.[^\.]+($|\?).*/, '');
-        }
-      }
-    }
-    
-    // If we couldn't find the URL in the text, try to find it in the media elements
-    if (!fileUrl) {
-      const uploadedImages = document.querySelectorAll('.uploaded-media-container img');
-      const uploadedVideos = document.querySelectorAll('.uploaded-media-container video');
-      const uploadedAudios = document.querySelectorAll('.uploaded-media-container audio');
-      
-      if (uploadedImages.length > 0) {
-        fileUrl = uploadedImages[0].src;
-        fileType = 'image';
-      } else if (uploadedVideos.length > 0) {
-        fileUrl = uploadedVideos[0].src;
-        fileType = 'video';
-      } else if (uploadedAudios.length > 0) {
-        fileUrl = uploadedAudios[0].src;
-        fileType = 'audio';
-      }
-    }
-    
-    // If we still don't have a URL, check for success messages
-    if (!fileUrl) {
-      const uploadSuccessMessage = document.querySelector('.upload-success-message');
-      const uploadResult = document.querySelector('.upload-result');
-      
-      if (uploadSuccessMessage || uploadResult) {
-        // Look for the upload result data in the page
-        const resultText = document.querySelector('.upload-result-text');
-        if (resultText && resultText.textContent) {
-          try {
-            // Try to parse the JSON from the result text
-            const resultData = JSON.parse(resultText.textContent);
-            if (resultData.url) {
-              fileUrl = resultData.url;
-              cloudinaryId = resultData.cloudinary_id || resultData.public_id || '';
-              fileType = resultData.type || 'image';
-            }
-          } catch (e) {
-            console.error('Error parsing upload result:', e);
-          }
-        }
-      }
-    }
-    
-    // If we still don't have a URL, use a placeholder
-    if (!fileUrl) {
-      console.warn('No media URL found, using placeholder');
-      fileUrl = 'https://res.cloudinary.com/dnjwvuxn7/image/upload/v1744827085/timeline_media/placeholder.jpg';
+    if (uploadResult.category) {
+      fileType = uploadResult.category; // 'image' | 'video' | 'audio'
+    } else if (uploadResult.type) {
+      // If a MIME like 'video/mp4' is returned, map to 'video'
+      fileType = uploadResult.type.startsWith('video') ? 'video' : uploadResult.type.startsWith('audio') ? 'audio' : 'image';
     }
 
     try {
-      console.log('Preparing event data for submission...');
-      
-      // Create a new date object from the event_date
+      // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
       const originalDate = new Date(eventDate);
-      
-      // Extract date components for raw date string
       const year = originalDate.getFullYear();
-      const month = originalDate.getMonth() + 1; // Month is 0-indexed in JS
+      const month = originalDate.getMonth() + 1;
       const day = originalDate.getDate();
       const hours = originalDate.getHours();
       const minutes = String(originalDate.getMinutes()).padStart(2, '0');
-      
-      // Determine AM/PM
       const ampm = hours >= 12 ? 'PM' : 'AM';
-      
-      // Convert to 12-hour format for display
       const displayHours = hours % 12;
-      const displayHoursFormatted = displayHours ? displayHours : 12; // Convert 0 to 12
-      
-      // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
+      const displayHoursFormatted = displayHours ? displayHours : 12;
       const rawDateString = `${month}.${day}.${year}.${displayHoursFormatted}.${minutes}.${ampm}`;
-      
-      // Create the event data to match the format expected by handleEventSubmit in TimelineV3.js
+
+      // Build event payload using authoritative uploadResult data
       const eventData = {
         title: title.trim(),
         description: description.trim(),
         event_date: eventDate.toISOString(),
         raw_event_date: rawDateString,
         is_exact_user_time: true,
-        type: EVENT_TYPES.MEDIA, // Use 'type' instead of 'event_type'
+        type: EVENT_TYPES.MEDIA,
         url: fileUrl,
         media_url: fileUrl,
-        // Set media object to match what handleEventSubmit expects
         media: {
           type: fileType,
           url: fileUrl,
-          // Add media_subtype to ensure proper handling in the backend
           media_subtype: fileType
         },
-        // Add media_subtype at the top level as well
         media_subtype: fileType,
         tags: tags
       };
-      
-      // Log the final event data for debugging
+
+      // Include Cloudinary public_id when available so UI can use the Cloudinary Player
+      if (cloudinaryId) {
+        eventData.cloudinary_id = cloudinaryId;
+      }
+
       console.log('Final event data being submitted:', eventData);
-      
-      console.log('Submitting event data:', eventData);
       onSave(eventData);
-      
+
       // Reset form and close dialog
       resetForm();
       onClose();

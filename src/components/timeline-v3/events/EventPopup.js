@@ -978,7 +978,15 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                     size="small"
                     onClick={handleOpenReport}
                     disabled={reportedOnce}
-                    sx={{ textTransform: 'none' }}
+                    sx={{ 
+                      textTransform: 'none',
+                      color: remarkColor,
+                      borderColor: remarkColor,
+                      '&:hover': {
+                        borderColor: remarkColor,
+                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(33,150,243,0.12)' : 'rgba(33,150,243,0.08)'
+                      }
+                    }}
                   >
                     {reportedOnce ? 'Reported' : 'Report'}
                   </Button>
