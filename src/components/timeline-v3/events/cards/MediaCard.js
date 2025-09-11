@@ -460,6 +460,12 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
       const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
       const cloudinaryPublicId = (event && event.cloudinary_id) || derivedPublicId;
       if (cloudinaryPublicId) {
+        const base = `https://res.cloudinary.com/dnjwvuxn7/video/upload/${cloudinaryPublicId}`;
+        const poster = `${base}.jpg`;
+        const srcFillAuto = `https://res.cloudinary.com/dnjwvuxn7/video/upload/c_fill,g_auto,f_auto,vc_auto/${cloudinaryPublicId}`;
+        const srcAuto = `https://res.cloudinary.com/dnjwvuxn7/video/upload/f_auto,vc_auto/${cloudinaryPublicId}`;
+        const srcMp4 = `${base}.mp4`;
+        const srcWebm = `${base}.webm`;
         return (
           <Box 
             sx={{ 
@@ -477,17 +483,43 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
             }}
           >
             <Box sx={{ width: '100%', height: '100%' }}>
-              <iframe
-                title={`cloudinary-player-${event.id}`}
-                src={`https://player.cloudinary.com/embed/?cloud_name=dnjwvuxn7&public_id=${encodeURIComponent(cloudinaryPublicId)}&profile=cld-default&autoplay=false&controls=true`}
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              <video
+                ref={videoRef}
+                controls={isSelected}
+                playsInline
+                preload="metadata"
+                muted={!isSelected}
+                poster={poster}
                 style={{
                   width: '100%',
                   height: '100%',
-                  border: 0,
-                  background: 'black'
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  background: 'black',
+                  display: 'block'
                 }}
-              />
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                  // Try a sequence of fallbacks
+                  const current = e.target.currentSrc || e.target.src;
+                  const candidates = [srcFillAuto, srcAuto, srcMp4, srcWebm, base, mediaSource].filter(Boolean);
+                  const idx = candidates.findIndex(u => current && current.startsWith(u));
+                  const next = idx >= 0 && idx < candidates.length - 1 ? candidates[idx + 1] : null;
+                  if (next) {
+                    e.target.src = next;
+                  }
+                }}
+              >
+                {[srcFillAuto, srcAuto, srcMp4, srcWebm, base].filter(Boolean).map((src, i) => {
+                  const ext = src.split('.').pop();
+                  const type = ext === 'mp4' ? 'video/mp4' : ext === 'webm' ? 'video/webm' : undefined;
+                  return (
+                    <source key={i} src={src} {...(type ? { type } : {})} />
+                  );
+                })}
+              </video>
             </Box>
             <PageCornerButton 
               position="top-right" 

@@ -451,7 +451,8 @@ const VideoEventPopup = ({
               </video>
               )}
               
-              {/* Fullscreen button overlay */}
+              {/* Fullscreen button overlay (only for native video; Cloudinary Player has its own fullscreen) */}
+              {!useCloudinaryPlayer && (
               <Box
                 sx={{
                   position: 'absolute',
@@ -479,6 +480,7 @@ const VideoEventPopup = ({
               >
                 <FullscreenIcon />
               </Box>
+              )}
             </Box>
           </Box>
           
