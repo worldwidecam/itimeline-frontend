@@ -41,6 +41,7 @@ import { format, parseISO } from 'date-fns';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import TagList from './cards/TagList';
 import api from '../../../utils/api';
+import { submitReport } from '../../../utils/api';
 import config from '../../../config';
 
 /**
@@ -55,6 +56,7 @@ import config from '../../../config';
  */
 const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   const theme = useTheme();
+  const location = useLocation();
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -82,6 +84,11 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   // Store the updated event data after adding a tag
   const [localEventData, setLocalEventData] = useState(null);
+  // Level 1 report overlay state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportedOnce, setReportedOnce] = useState(false);
   // Reference to the audio visualizer for controlling playback
   const audioVisualizerRef = useRef(null);
   
@@ -194,6 +201,51 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   const handleSnackbarClose = (event, reason) => {
     if (reason === 'clickaway') return;
     setSnackbarOpen(false);
+  };
+
+  // Derive timelineId from URL or event payload as fallback
+  const deriveTimelineId = () => {
+    try {
+      const match = location?.pathname?.match(/timeline\/(\d+)/);
+      if (match && match[1]) return Number(match[1]);
+    } catch (_) {}
+    return event?.timeline_id || event?.timelineId || null;
+  };
+
+  const handleOpenReport = () => {
+    setReportReason('');
+    setReportOpen(true);
+  };
+
+  const handleCloseReport = () => {
+    if (reportSubmitting) return;
+    setReportOpen(false);
+  };
+
+  const handleSubmitReport = async () => {
+    const timelineId = deriveTimelineId();
+    if (!timelineId || !event?.id) {
+      setSuccess('');
+      setError('Unable to submit report: missing timeline or event id');
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      setReportSubmitting(true);
+      setError('');
+      const resp = await submitReport(timelineId, event.id, reportReason || '');
+      setSuccess('Report submitted');
+      setSnackbarOpen(true);
+      setReportedOnce(true);
+      setReportOpen(false);
+    } catch (e) {
+      const msg = e?.response?.data?.error || e.message || 'Failed to submit report';
+      setError(msg);
+      setSuccess('');
+      setSnackbarOpen(true);
+    } finally {
+      setReportSubmitting(false);
+    }
   };
   
   // Function to fetch existing timelines
@@ -391,7 +443,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   
   // For news events, use the specialized NewsEventPopup component
   if (isNews) {
-    return (
+    return (<>
       <NewsEventPopup
         event={event}
         open={open}
@@ -413,7 +465,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
       />
-    );
+    </>);
   }
   
   // For image media, use the specialized ImageEventPopup component
@@ -501,7 +553,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   }
 
   // For all other event types, use the standard popup
-  return (
+  return (<>
     <Dialog
       open={open}
       onClose={handleClose}
@@ -822,12 +874,11 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                   color: theme.palette.mode === 'dark'
                     ? 'rgba(255,255,255,0.7)'
                     : 'rgba(0,0,0,0.6)',
-                  fontWeight: 500,
                 }}
               >
                 Event Details
               </Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {/* Creator Chip */}
                 <CreatorChip user={userData} color={remarkColor} />
                 
@@ -920,6 +971,18 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                     </Box>
                   </Box>
                 )}
+                {/* Report action - Level 1 */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handleOpenReport}
+                    disabled={reportedOnce}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    {reportedOnce ? 'Reported' : 'Report'}
+                  </Button>
+                </Box>
               </Box>
             </Paper>
           </DialogContent>
@@ -940,7 +1003,49 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
             </Alert>
           </Snackbar>
         </Dialog>
-  );
+
+        {/* Level 1 Report Overlay */}
+        <Dialog
+          open={reportOpen}
+          onClose={handleCloseReport}
+          maxWidth="xs"
+          fullWidth
+          closeAfterTransition
+          TransitionComponent={motion.div}
+          TransitionProps={{
+            initial: { opacity: 0, y: 10, scale: 0.98 },
+            animate: { opacity: 1, y: 0, scale: 1 },
+            exit: { opacity: 0, y: 10, scale: 0.98 },
+            transition: { duration: 0.2 }
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10,10,20,0.9)' : 'rgba(255,255,255,0.95)',
+              backdropFilter: 'blur(20px)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Reason (optional)"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              multiline
+              minRows={3}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+              <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
+              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting}>
+                {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+  </>);
 };
 
 export default EventPopup;

@@ -400,6 +400,120 @@ export const getReportedPosts = async (timelineId) => {
 };
 
 /**
+ * PHASE 0 standardization: Reports endpoints (frontend utilities only)
+ * Target canonical paths (per GOALPLAN):
+ *  - GET    /api/v1/timelines/{timeline_id}/reports?status=&page=&page_size=
+ *  - POST   /api/v1/timelines/{timeline_id}/reports/{report_id}/accept
+ *  - POST   /api/v1/timelines/{timeline_id}/reports/{report_id}/resolve  body: { action: 'delete' | 'safeguard' }
+ *  - POST   /api/v1/timelines/{timeline_id}/reports/{report_id}/assign   body: { moderator_id }
+ * Notes:
+ *  - These utilities intentionally do not change any UI behavior yet.
+ *  - Backend may initially return no-op/placeholder responses until wired.
+ *  - getReportedPosts above is legacy (reported-posts); callers should migrate to listReports.
+ */
+
+/**
+ * List reported posts for a timeline with optional filters/paging
+ * @param {number} timelineId
+ * @param {{status?: 'pending'|'reviewing'|'resolved'|'all', page?: number, page_size?: number}} params
+ */
+export const listReports = async (timelineId, params = {}) => {
+  try {
+    const query = {
+      ...(params.status && params.status !== 'all' ? { status: params.status } : {}),
+      ...(typeof params.page === 'number' ? { page: params.page } : {}),
+      ...(typeof params.page_size === 'number' ? { page_size: params.page_size } : {}),
+    };
+    console.log(`[API] Listing reports for timeline ${timelineId}`, query);
+    const response = await api.get(`/api/v1/timelines/${timelineId}/reports`, { params: query });
+    console.log('[API] listReports response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error listing reports:', error);
+    throw error;
+  }
+};
+
+/**
+ * Accept a report for review (transitions status -> reviewing and assigns current user server-side)
+ * @param {number} timelineId
+ * @param {number|string} reportId
+ */
+export const acceptReport = async (timelineId, reportId) => {
+  try {
+    console.log(`[API] Accepting report ${reportId} on timeline ${timelineId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/accept`);
+    console.log('[API] acceptReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error accepting report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Resolve a report by deleting or safeguarding the post
+ * @param {number} timelineId
+ * @param {number|string} reportId
+ * @param {'delete'|'safeguard'} action
+ */
+export const resolveReport = async (timelineId, reportId, action) => {
+  try {
+    if (action !== 'delete' && action !== 'safeguard') {
+      throw new Error(`Invalid resolve action: ${action}`);
+    }
+    console.log(`[API] Resolving report ${reportId} on timeline ${timelineId} with action '${action}'`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/resolve`, { action });
+    console.log('[API] resolveReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error resolving report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Assign a report to a moderator (optional flow)
+ * @param {number} timelineId
+ * @param {number|string} reportId
+ * @param {number} moderatorId
+ */
+export const assignReport = async (timelineId, reportId, moderatorId) => {
+  try {
+    console.log(`[API] Assigning report ${reportId} on timeline ${timelineId} to moderator ${moderatorId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/assign`, { moderator_id: moderatorId });
+    console.log('[API] assignReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error assigning report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Submit a report for an event/post (Level 1 placeholder-ready)
+ * Authentication optional: backend accepts anonymous or authenticated reporters
+ * @param {number} timelineId
+ * @param {number|string} eventId
+ * @param {string} reason
+ */
+export const submitReport = async (timelineId, eventId, reason = '') => {
+  try {
+    console.log(`[API] Submitting report for event ${eventId} on timeline ${timelineId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports`, {
+      event_id: eventId,
+      reason: reason || ''
+    });
+    console.log('[API] submitReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error submitting report:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
  * Get timeline details including name, description, visibility, etc.
  * @param {number} timelineId - The ID of the timeline
  * @returns {Promise} - Promise resolving to timeline data

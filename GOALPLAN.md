@@ -317,3 +317,32 @@ Source: `src/components/timeline-v3/community/AdminPanel.js` → `ManagePostsTab
 - [ ] Actions persist across refresh; state reflects backend (no mock data)
 - [ ] No schema changes were made without explicit approval
 - [ ] No UX/visual changes beyond wiring functionality (unless explicitly approved)
+
+---
+
+## Reporting System — Level 1 Notes and Next Steps (2025-09-10)
+
+### Level 1 (Foundation) — Implemented
+- Report button added to all Event popups (Standard, Image, Video, Audio, News) with a minimal overlay input.
+- Submission goes to placeholder backend endpoint `POST /api/v1/timelines/{timeline_id}/reports` (no schema changes).
+- Authentication optional for Level 1 (anonymous allowed). Button disables to "Reported" after submission.
+
+### Scope Toggle (Settings) — To Be Designed
+- A per-timeline moderation scope toggle will be introduced in Admin > Settings:
+  - Mode 1: Accept reports from any user (default Level 1 behavior).
+  - Mode 2: Only accept reports from active members of that timeline.
+- Backend persistence for this setting will require approval if a schema field is needed. We will prepare an impact report and request approval before any migration.
+
+### Multi‑Timeline Review Semantics
+- Posts can exist in multiple timelines; each timeline’s review workflow is isolated and should not affect other timelines.
+- Cross-timeline impact only converges at the deletion decision:
+  - A global deletion removes the underlying post for all timelines.
+  - Safeguard/resolution within one timeline does not alter moderation state in other timelines.
+
+### Next Step — Level 1.2
+- Color-match the "Report" button to the event type’s accent color in each popup (e.g., remark/news/media-specific hues) while keeping the approved layout/typography unchanged.
+- No schema changes. No UX redesign; color only.
+
+### Future Levels (Preview)
+- Level 2: Replace the minimal overlay with the site’s standardized, artistically consistent input palette (animation/close/tap-out behavior).
+- Level 3: Wire Manage Posts list to consume real submitted reports with status tabs, infinite scroll (20/page), and per-status actions.

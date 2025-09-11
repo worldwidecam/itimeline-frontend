@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import CreatorChip from './CreatorChip';
 import {
   Dialog,
@@ -36,6 +37,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import TagList from './cards/TagList';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
+import { submitReport } from '../../../utils/api';
 
 /**
  * AudioMediaPopup - A specialized popup for audio media events
@@ -69,9 +71,15 @@ const AudioMediaPopup = ({
   fetchExistingTimelines
 }) => {
   const theme = useTheme();
+  const location = useLocation();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   const [localEventData, setLocalEventData] = useState(null);
   const audioVisualizerRef = useRef(null);
+  // Level 1 report overlay state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportedOnce, setReportedOnce] = useState(false);
   
   // Audio theme color
   const audioColor = '#e65100'; // Orange for audio theme
@@ -113,7 +121,46 @@ const AudioMediaPopup = ({
     }
   };
 
+  const deriveTimelineId = () => {
+    try {
+      const match = location?.pathname?.match(/timeline-v3\/(\d+)/);
+      if (match && match[1]) return Number(match[1]);
+    } catch (_) {}
+    return (localEventData || event)?.timeline_id || (localEventData || event)?.timelineId || null;
+  };
+
+  const handleOpenReport = () => {
+    setReportReason('');
+    setReportOpen(true);
+  };
+
+  const handleCloseReport = () => {
+    if (reportSubmitting) return;
+    setReportOpen(false);
+  };
+
+  const handleSubmitReport = async () => {
+    const timelineId = deriveTimelineId();
+    const ev = localEventData || event;
+    if (!timelineId || !ev?.id) {
+      // use provided error channel if available
+      // (we keep this minimal for Level 1)
+      return;
+    }
+    try {
+      setReportSubmitting(true);
+      await submitReport(timelineId, ev.id, reportReason || '');
+      setReportedOnce(true);
+      setReportOpen(false);
+    } catch (e) {
+      // surface error via Snackbar upstream props if desired
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   return (
+    <>
     <Dialog
       open={open}
       onClose={onClose}
@@ -528,6 +575,18 @@ const AudioMediaPopup = ({
                 </Typography>
               </Box>
             </Box>
+            {/* Report action - Level 1 */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleOpenReport}
+                disabled={reportedOnce}
+                sx={{ textTransform: 'none' }}
+              >
+                {reportedOnce ? 'Reported' : 'Report'}
+              </Button>
+            </Box>
           </Box>
           </Box>
         </Box>
@@ -549,6 +608,41 @@ const AudioMediaPopup = ({
         </Alert>
       </Snackbar>
     </Dialog>
+    {/* Level 1 Report Overlay */}
+    <Dialog
+      open={reportOpen}
+      onClose={handleCloseReport}
+      maxWidth="xs"
+      fullWidth
+      closeAfterTransition
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10,10,20,0.9)' : 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(20px)'
+        }
+      }}
+    >
+      <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
+      <DialogContent sx={{ pt: 1 }}>
+        <TextField
+          autoFocus
+          fullWidth
+          label="Reason (optional)"
+          value={reportReason}
+          onChange={(e) => setReportReason(e.target.value)}
+          multiline
+          minRows={3}
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+          <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
+          <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting}>
+            {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
+          </Button>
+        </Box>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 

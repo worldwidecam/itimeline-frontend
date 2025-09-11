@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import CreatorChip from './CreatorChip';
 import {
   Dialog,
@@ -37,6 +38,7 @@ import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import TagList from './cards/TagList';
+import { submitReport } from '../../../utils/api';
 
 /**
  * VideoEventPopup - A specialized popup for video media events
@@ -71,10 +73,16 @@ const VideoEventPopup = ({
   fetchExistingTimelines
 }) => {
   const theme = useTheme();
+  const location = useLocation();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
   const [localEventData, setLocalEventData] = useState(event);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
+  // Level 1 report overlay state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportedOnce, setReportedOnce] = useState(false);
   
   // Video theme color
   const videoColor = '#4a148c'; // Deep purple for video theme
@@ -212,9 +220,50 @@ const VideoEventPopup = ({
 
   if (!event) return null;
 
+  const deriveTimelineId = () => {
+    try {
+      const match = location?.pathname?.match(/timeline-v3\/(\d+)/);
+      if (match && match[1]) return Number(match[1]);
+    } catch (_) {}
+    return event?.timeline_id || event?.timelineId || null;
+  };
+
+  const handleOpenReport = () => {
+    setReportReason('');
+    setReportOpen(true);
+  };
+
+  const handleCloseReport = () => {
+    if (reportSubmitting) return;
+    setReportOpen(false);
+  };
+
+  const handleSubmitReport = async () => {
+    const timelineId = deriveTimelineId();
+    if (!timelineId || !event?.id) {
+      if (typeof setError === 'function') {
+        setError('Unable to submit report: missing timeline or event id');
+      }
+      return;
+    }
+    try {
+      setReportSubmitting(true);
+      if (typeof setError === 'function') setError('');
+      await submitReport(timelineId, event.id, reportReason || '');
+      setReportedOnce(true);
+      setReportOpen(false);
+    } catch (e) {
+      const msg = e?.response?.data?.error || e.message || 'Failed to submit report';
+      if (typeof setError === 'function') setError(msg);
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {open && (
+        <>
         <Dialog
           open={open}
           onClose={handleClose}
@@ -728,6 +777,18 @@ const VideoEventPopup = ({
                   </Box>
                   
                   {/* The outdated creator info section has been removed as we now use the CreatorChip component above */}
+                  {/* Report action - Level 1 */}
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleOpenReport}
+                      disabled={reportedOnce}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {reportedOnce ? 'Reported' : 'Report'}
+                    </Button>
+                  </Box>
                 </Box>
               </Paper>
             </DialogContent>
@@ -758,6 +819,41 @@ const VideoEventPopup = ({
             </Alert>
           </Snackbar>
         </Dialog>
+        {/* Level 1 Report Overlay */}
+        <Dialog
+          open={reportOpen}
+          onClose={handleCloseReport}
+          maxWidth="xs"
+          fullWidth
+          closeAfterTransition
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10,10,20,0.9)' : 'rgba(255,255,255,0.95)',
+              backdropFilter: 'blur(20px)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Reason (optional)"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              multiline
+              minRows={3}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+              <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
+              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting}>
+                {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+        </>
       )}
     </AnimatePresence>
   );
