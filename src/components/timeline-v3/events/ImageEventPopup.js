@@ -20,6 +20,11 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -78,6 +83,7 @@ const ImageEventPopup = ({
   const [reportReason, setReportReason] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
+  const [reportCategory, setReportCategory] = useState('');
   
   // Image theme color
   const imageColor = '#009688'; // Teal for image theme (matching the color in README)
@@ -153,6 +159,7 @@ const ImageEventPopup = ({
 
   const handleOpenReport = () => {
     setReportReason('');
+    setReportCategory('');
     setReportOpen(true);
   };
 
@@ -169,10 +176,13 @@ const ImageEventPopup = ({
       }
       return;
     }
+    if (!reportCategory) {
+      return;
+    }
     try {
       setReportSubmitting(true);
       if (typeof setError === 'function') setError('');
-      await submitReport(timelineId, event.id, reportReason || '');
+      await submitReport(timelineId, event.id, reportReason || '', reportCategory);
       if (typeof setError === 'function') setError('');
       if (typeof handleSnackbarClose === 'function') {
         // trigger success via parent success prop pattern
@@ -763,7 +773,25 @@ const ImageEventPopup = ({
           }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
-          <DialogContent sx={{ pt: 1 }}>
+          <DialogContent sx={{ pt: 1, overflow: 'visible' }}>
+            <FormControl fullWidth required sx={{ mb: 2 }}>
+              <InputLabel id="report-category-label">Violation Type</InputLabel>
+              <Select
+                labelId="report-category-label"
+                id="report-category"
+                label="Violation Type"
+                value={reportCategory}
+                onChange={(e) => setReportCategory(e.target.value)}
+              >
+                <MenuItem value={''} disabled>Select a category</MenuItem>
+                <MenuItem value={'website_policy'}>Website Policy</MenuItem>
+                <MenuItem value={'government_policy'}>Government Policy</MenuItem>
+                <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
+              </Select>
+              {!reportCategory && (
+                <FormHelperText error>Required</FormHelperText>
+              )}
+            </FormControl>
             <TextField
               autoFocus
               fullWidth
@@ -775,7 +803,7 @@ const ImageEventPopup = ({
             />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
               <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
-              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting}>
+              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting || !reportCategory}>
                 {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
               </Button>
             </Box>

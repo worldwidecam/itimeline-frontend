@@ -497,13 +497,12 @@ export const assignReport = async (timelineId, reportId, moderatorId) => {
  * @param {number|string} eventId
  * @param {string} reason
  */
-export const submitReport = async (timelineId, eventId, reason = '') => {
+export const submitReport = async (timelineId, eventId, reason = '', category) => {
   try {
     console.log(`[API] Submitting report for event ${eventId} on timeline ${timelineId}`);
-    const response = await api.post(`/api/v1/timelines/${timelineId}/reports`, {
-      event_id: eventId,
-      reason: reason || ''
-    });
+    const payload = { event_id: eventId, reason: reason || '' };
+    if (category) payload.category = category;
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports`, payload);
     console.log('[API] submitReport response:', response.data);
     return response.data;
   } catch (error) {

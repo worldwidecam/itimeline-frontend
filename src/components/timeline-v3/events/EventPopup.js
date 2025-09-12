@@ -23,7 +23,12 @@ import {
   Button,
   CircularProgress,
   Link,
-  Avatar
+  Avatar,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -89,6 +94,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   const [reportReason, setReportReason] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
+  const [reportCategory, setReportCategory] = useState('');
   // Reference to the audio visualizer for controlling playback
   const audioVisualizerRef = useRef(null);
   
@@ -214,6 +220,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
 
   const handleOpenReport = () => {
     setReportReason('');
+    setReportCategory('');
     setReportOpen(true);
   };
 
@@ -230,10 +237,13 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
       setSnackbarOpen(true);
       return;
     }
+    if (!reportCategory) {
+      return;
+    }
     try {
       setReportSubmitting(true);
       setError('');
-      const resp = await submitReport(timelineId, event.id, reportReason || '');
+      const resp = await submitReport(timelineId, event.id, reportReason || '', reportCategory);
       setSuccess('Report submitted');
       setSnackbarOpen(true);
       setReportedOnce(true);
@@ -1035,7 +1045,25 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
           }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
-          <DialogContent sx={{ pt: 1 }}>
+          <DialogContent sx={{ pt: 1, overflow: 'visible' }}>
+            <FormControl fullWidth required sx={{ mb: 2 }}>
+              <InputLabel id="report-category-label">Violation Type</InputLabel>
+              <Select
+                labelId="report-category-label"
+                id="report-category"
+                label="Violation Type"
+                value={reportCategory}
+                onChange={(e) => setReportCategory(e.target.value)}
+              >
+                <MenuItem value={''} disabled>Select a category</MenuItem>
+                <MenuItem value={'website_policy'}>Website Policy</MenuItem>
+                <MenuItem value={'government_policy'}>Government Policy</MenuItem>
+                <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
+              </Select>
+              {!reportCategory && (
+                <FormHelperText error>Required</FormHelperText>
+              )}
+            </FormControl>
             <TextField
               autoFocus
               fullWidth
@@ -1047,7 +1075,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
             />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
               <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
-              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting}>
+              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting || !reportCategory}>
                 {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
               </Button>
             </Box>

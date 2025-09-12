@@ -52,7 +52,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, syncUserPassport } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, syncUserPassport, listReports, acceptReport, resolveReport } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -1515,7 +1515,7 @@ const AdminPanel = () => {
                   timelineData={timelineData}
                 />
               )}
-              {tabValue === 1 && <ManagePostsTab key="posts" />}
+              {tabValue === 1 && <ManagePostsTab key="posts" timelineId={id} />}
               {tabValue === 2 && <SettingsTab key="settings" id={id} />}
             </AnimatePresence>
           </Box>
@@ -1526,80 +1526,18 @@ const AdminPanel = () => {
 };
 
 // Manage Posts Tab Component
-const ManagePostsTab = () => {
+const ManagePostsTab = ({ timelineId }) => {
   const theme = useTheme();
   const [postTabValue, setPostTabValue] = useState(0); // 0 = All, 1 = Pending, 2 = Reviewing, 3 = Resolved
   const [selectedPost, setSelectedPost] = useState(null);
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState(''); // 'delete' or 'safeguard'
   
-  // Mock data for reported posts
-  const [reportedPosts, setReportedPosts] = useState([
-    {
-      id: '1',
-      eventType: 'Media',
-      status: 'pending',
-      reportDate: '2 days ago',
-      reporter: {
-        id: 'reporter-1',
-        name: 'John Doe',
-        avatar: 'https://i.pravatar.cc/150?img=1'
-      },
-      reason: 'Inappropriate content',
-      assignedModerator: null,
-      resolution: null
-    },
-    {
-      id: '2',
-      eventType: 'Remark',
-      status: 'reviewing',
-      reportDate: '3 days ago',
-      reporter: {
-        id: 'reporter-2',
-        name: 'Jane Smith',
-        avatar: 'https://i.pravatar.cc/150?img=2'
-      },
-      reason: 'Harassment',
-      assignedModerator: {
-        id: 'mod-1',
-        name: 'Alex Johnson',
-        avatar: 'https://i.pravatar.cc/150?img=3'
-      },
-      resolution: null
-    },
-    {
-      id: '3',
-      eventType: 'Media',
-      status: 'resolved',
-      reportDate: '5 days ago',
-      reporter: {
-        id: 'reporter-3',
-        name: 'Mike Wilson',
-        avatar: 'https://i.pravatar.cc/150?img=4'
-      },
-      reason: 'Copyright violation',
-      assignedModerator: {
-        id: 'mod-2',
-        name: 'Sarah Parker',
-        avatar: 'https://i.pravatar.cc/150?img=5'
-      },
-      resolution: 'deleted'
-    },
-    {
-      id: '4',
-      eventType: 'Remark',
-      status: 'pending',
-      reportDate: '1 day ago',
-      reporter: {
-        id: 'reporter-4',
-        name: 'Chris Taylor',
-        avatar: 'https://i.pravatar.cc/150?img=6'
-      },
-      reason: 'Spam content',
-      assignedModerator: null,
-      resolution: null
-    }
-  ])
+  // Real data for reported posts (wired to /api/v1/timelines/:id/reports)
+  const [reportedPosts, setReportedPosts] = useState([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
+  const [counts, setCounts] = useState({ all: 0, pending: 0, reviewing: 0, resolved: 0 });
+  const [pageInfo, setPageInfo] = useState({ page: 1, page_size: 20, total: 0 });
   
   // Handle post tab change
   const handlePostTabChange = (event, newValue) => {
@@ -1620,61 +1558,76 @@ const ManagePostsTab = () => {
     setPostActionType('');
   };
   
-  // Handle accepting a report for review
-  const handleAcceptReport = (post) => {
-    // In a real implementation, this would be an API call
-    const updatedPosts = reportedPosts.map(p => {
-      if (p.id === post.id) {
-        return {
-          ...p,
-          status: 'reviewing',
-          assignedModerator: {
-            id: 'current-user-id',
-            name: 'Current User',
-            avatar: 'https://i.pravatar.cc/150?img=5'
-          }
-        };
+  // Load reports from backend
+  useEffect(() => {
+    const fetchReports = async () => {
+      if (!timelineId) return;
+      try {
+        setIsLoadingReports(true);
+        const status = postTabValue === 1 ? 'pending' : postTabValue === 2 ? 'reviewing' : postTabValue === 3 ? 'resolved' : 'all';
+        const data = await listReports(timelineId, { status, page: 1, page_size: 20 });
+        // Normalize items into the structure used below
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const mapped = items.map((it) => ({
+          id: it.id || it.report_id || String(Math.random()),
+          eventType: it.event_type || it.type || 'Event',
+          status: it.status || 'pending',
+          reportDate: it.reported_at || it.created_at || it.reportDate || '',
+          reporter: it.reporter || { id: it.reporter_id, name: it.reporter_name || 'Reporter' },
+          reason: it.reason || '',
+          assignedModerator: it.assigned_to ? { id: it.assigned_to, name: it.assigned_to_name || 'Moderator' } : null,
+          resolution: it.resolution || null,
+          reportId: it.id || it.report_id
+        }));
+        setReportedPosts(mapped);
+        setCounts(data?.counts || { all: mapped.length, pending: mapped.filter(p=>p.status==='pending').length, reviewing: mapped.filter(p=>p.status==='reviewing').length, resolved: mapped.filter(p=>p.status==='resolved').length });
+        setPageInfo({ page: data?.page || 1, page_size: data?.page_size || 20, total: data?.total || mapped.length });
+      } catch (e) {
+        console.warn('[ManagePostsTab] listReports failed (showing empty):', e);
+        setReportedPosts([]);
+        setCounts({ all: 0, pending: 0, reviewing: 0, resolved: 0 });
+        setPageInfo({ page: 1, page_size: 20, total: 0 });
+      } finally {
+        setIsLoadingReports(false);
       }
-      return p;
-    });
-    
-    setReportedPosts(updatedPosts);
+    };
+    fetchReports();
+  }, [timelineId, postTabValue]);
+
+  // Handle accepting a report for review
+  const handleAcceptReport = async (post) => {
+    try {
+      await acceptReport(timelineId, post.reportId || post.id);
+      // refresh current tab
+      const status = postTabValue; // trigger useEffect by toggling
+      setPostTabValue(status);
+    } catch (e) {
+      console.warn('[ManagePostsTab] acceptReport failed:', e);
+    }
   };
   
   // Handle deleting a reported post
-  const handleDeletePost = () => {
-    // In a real implementation, this would be an API call
-    const updatedPosts = reportedPosts.map(p => {
-      if (p.id === selectedPost.id) {
-        return {
-          ...p,
-          status: 'resolved',
-          resolution: 'deleted'
-        };
-      }
-      return p;
-    });
-    
-    setReportedPosts(updatedPosts);
-    setConfirmPostActionDialogOpen(false);
+  const handleDeletePost = async () => {
+    try {
+      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'delete');
+      setConfirmPostActionDialogOpen(false);
+      const status = postTabValue; setPostTabValue(status);
+    } catch (e) {
+      console.warn('[ManagePostsTab] resolveReport(delete) failed:', e);
+      setConfirmPostActionDialogOpen(false);
+    }
   };
   
   // Handle safeguarding a post
-  const handleSafeguardPost = () => {
-    // In a real implementation, this would be an API call
-    const updatedPosts = reportedPosts.map(p => {
-      if (p.id === selectedPost.id) {
-        return {
-          ...p,
-          status: 'resolved',
-          resolution: 'safeguarded'
-        };
-      }
-      return p;
-    });
-    
-    setReportedPosts(updatedPosts);
-    setConfirmPostActionDialogOpen(false);
+  const handleSafeguardPost = async () => {
+    try {
+      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'safeguard');
+      setConfirmPostActionDialogOpen(false);
+      const status = postTabValue; setPostTabValue(status);
+    } catch (e) {
+      console.warn('[ManagePostsTab] resolveReport(safeguard) failed:', e);
+      setConfirmPostActionDialogOpen(false);
+    }
   };
   
   // Filter posts based on selected tab
@@ -1687,9 +1640,9 @@ const ManagePostsTab = () => {
   });
   
   // Count posts by status for tab badges
-  const pendingCount = reportedPosts.filter(post => post.status === 'pending').length;
-  const reviewingCount = reportedPosts.filter(post => post.status === 'reviewing').length;
-  const resolvedCount = reportedPosts.filter(post => post.status === 'resolved').length;
+  const pendingCount = counts.pending;
+  const reviewingCount = counts.reviewing;
+  const resolvedCount = counts.resolved;
   
   return (
     <motion.div
@@ -1711,26 +1664,26 @@ const ManagePostsTab = () => {
         onChange={handlePostTabChange}
         sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
       >
-        <Tab label={`All (${reportedPosts.length})`} />
+        <Tab label={`All (${counts.all})`} />
         <Tab 
           label={`Pending (${pendingCount})`} 
           sx={{ 
-            color: pendingCount > 0 ? 'warning.main' : 'inherit',
-            fontWeight: pendingCount > 0 ? 'bold' : 'normal'
+            color: 'warning.main',
+            fontWeight: 'bold'
           }} 
         />
         <Tab 
           label={`Reviewing (${reviewingCount})`} 
           sx={{ 
-            color: reviewingCount > 0 ? 'info.main' : 'inherit',
-            fontWeight: reviewingCount > 0 ? 'bold' : 'normal'
+            color: 'info.main',
+            fontWeight: 'bold'
           }} 
         />
         <Tab 
           label={`Resolved (${resolvedCount})`} 
           sx={{ 
-            color: resolvedCount > 0 ? 'success.main' : 'inherit',
-            fontWeight: resolvedCount > 0 ? 'bold' : 'normal'
+            color: 'success.main',
+            fontWeight: 'bold'
           }} 
         />
       </Tabs>

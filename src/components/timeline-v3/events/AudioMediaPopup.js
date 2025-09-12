@@ -20,6 +20,11 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -80,6 +85,7 @@ const AudioMediaPopup = ({
   const [reportReason, setReportReason] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
+  const [reportCategory, setReportCategory] = useState('');
   
   // Audio theme color
   const audioColor = '#e65100'; // Orange for audio theme
@@ -131,6 +137,7 @@ const AudioMediaPopup = ({
 
   const handleOpenReport = () => {
     setReportReason('');
+    setReportCategory('');
     setReportOpen(true);
   };
 
@@ -143,13 +150,17 @@ const AudioMediaPopup = ({
     const timelineId = deriveTimelineId();
     const ev = localEventData || event;
     if (!timelineId || !ev?.id) {
-      // use provided error channel if available
-      // (we keep this minimal for Level 1)
+      if (typeof setError === 'function') {
+        setError('Unable to submit report: missing timeline or event id');
+      }
+      return;
+    }
+    if (!reportCategory) {
       return;
     }
     try {
       setReportSubmitting(true);
-      await submitReport(timelineId, ev.id, reportReason || '');
+      await submitReport(timelineId, ev.id, reportReason || '', reportCategory);
       setReportedOnce(true);
       setReportOpen(false);
     } catch (e) {
@@ -576,13 +587,24 @@ const AudioMediaPopup = ({
               </Box>
             </Box>
             {/* Report action - Level 1 */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, pr: 2, pb: 2 }}>
               <Button
-                variant="outlined"
+                variant="contained"
                 size="small"
                 onClick={handleOpenReport}
                 disabled={reportedOnce}
-                sx={{ textTransform: 'none' }}
+                sx={{ 
+                  textTransform: 'none',
+                  bgcolor: audioColor,
+                  color: 'white',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: `${audioColor}E6`,
+                    boxShadow: 'none'
+                  },
+                  borderRadius: 1.5,
+                  px: 2.25,
+                }}
               >
                 {reportedOnce ? 'Reported' : 'Report'}
               </Button>
@@ -624,7 +646,25 @@ const AudioMediaPopup = ({
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
-      <DialogContent sx={{ pt: 1 }}>
+      <DialogContent sx={{ pt: 1, overflow: 'visible' }}>
+        <FormControl fullWidth required sx={{ mb: 2 }}>
+          <InputLabel id="report-category-label">Violation Type</InputLabel>
+          <Select
+            labelId="report-category-label"
+            id="report-category"
+            label="Violation Type"
+            value={reportCategory}
+            onChange={(e) => setReportCategory(e.target.value)}
+          >
+            <MenuItem value={''} disabled>Select a category</MenuItem>
+            <MenuItem value={'website_policy'}>Website Policy</MenuItem>
+            <MenuItem value={'government_policy'}>Government Policy</MenuItem>
+            <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
+          </Select>
+          {!reportCategory && (
+            <FormHelperText error>Required</FormHelperText>
+          )}
+        </FormControl>
         <TextField
           autoFocus
           fullWidth
@@ -636,7 +676,7 @@ const AudioMediaPopup = ({
         />
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
           <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting}>
+          <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting || !reportCategory}>
             {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
           </Button>
         </Box>

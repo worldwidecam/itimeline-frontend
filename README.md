@@ -353,6 +353,45 @@ The iTimeline application implements a consistent styling approach across all ev
 - The type icon in the dialog title should match the event theme color
 - Maintain consistent spacing, typography, and visual hierarchy across all popups
 
+### Reporting UI (Level 1)
+
+All Report buttons across event popups share a consistent, minimal UI and behavior to enable end-to-end reporting without schema churn.
+
+#### Components Updated
+- `src/components/timeline-v3/events/EventPopup.js`
+- `src/components/timeline-v3/events/NewsEventPopup.js`
+- `src/components/timeline-v3/events/VideoEventPopup.js`
+- `src/components/timeline-v3/events/ImageEventPopup.js`
+- `src/components/timeline-v3/events/AudioMediaPopup.js`
+
+#### UI Rules
+- Required dropdown: "Violation Type" with options
+  - `Website Policy` → value: `website_policy`
+  - `Government Policy` → value: `government_policy`
+  - `Unethical Boundary` → value: `unethical_boundary`
+- Reason field: optional multiline text.
+- Submit button is disabled until a violation type is selected.
+- Dialog content uses `overflow: 'visible'` to prevent floating label clipping.
+- Button placement and padding consistent across all popups.
+
+#### Frontend API
+- `submitReport(timelineId, eventId, reason?, category)` in `src/utils/api.js`
+  - Sends `POST /api/v1/timelines/{timeline_id}/reports` with `{ event_id, reason, category }`.
+
+#### Backend Behavior (Level 1 persistence)
+- `routes/reports.py` stores reports in a new `reports` table.
+- Accepted fields: timeline_id, event_id, reporter_id (nullable), reason, status, assigned_to, resolution, timestamps.
+- Category is accepted and currently prefixed into `reason` as `[category] ...` to avoid schema churn.
+- Moderation endpoints:
+  - `GET /api/v1/timelines/{timeline_id}/reports` — lists items with counts/pagination.
+  - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/accept` — marks `reviewing` and assigns current user.
+  - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/resolve` with `{ action: 'delete'|'safeguard' }` — marks `resolved` with resolution.
+
+#### Admin Panel Integration
+- Manage Posts tab now reads from the real endpoints via `listReports`, `acceptReport`, `resolveReport`.
+- Status tabs are always color-tinted (Pending=warning, Reviewing=info, Resolved=success).
+- Future: display parsed category badge from reason prefix without schema change.
+
 ### Form Validation Improvements
 
 #### Media Event Form Validation
