@@ -49,12 +49,14 @@ import ModeratorIcon from '@mui/icons-material/VerifiedUser';
 import SaveIcon from '@mui/icons-material/Save';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useParams } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
 import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, syncUserPassport, listReports, acceptReport, resolveReport } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
+import EventPopup from '../events/EventPopup';
 import ErrorBoundary from '../../ErrorBoundary';
 
 // ----- Shared helpers (module scope) -----
@@ -329,53 +331,7 @@ const AdminPanel = () => {
       }
     };
     
-    // Simulated reported posts data loading
-    const loadReportedPosts = () => {
-      // Generate 4 reported posts with different statuses
-      const reportReasons = [
-        'Inappropriate content',
-        'Spam',
-        'Misinformation',
-        'Harassment'
-      ];
-      
-      const eventTypes = ['remark', 'media', 'link', 'milestone'];
-      
-      const mockReportedPosts = Array(4).fill().map((_, index) => {
-        // Create different statuses - most pending, some reviewing
-        let status = 'pending';
-        let assignedTo = null;
-        
-        if (index < 1) {
-          status = 'reviewing';
-          assignedTo = {
-            id: 2,
-            name: 'Moderator',
-            avatar: `https://i.pravatar.cc/150?img=2`
-          };
-        }
-        
-        return {
-          id: `post${index + 1}`,
-          title: `Reported ${eventTypes[index % eventTypes.length]} ${index + 1}`,
-          content: `This is a reported ${eventTypes[index % eventTypes.length]} that may violate community guidelines.`,
-          reportedBy: {
-            id: index + 10,
-            name: `Reporter ${index + 1}`,
-            avatar: `https://i.pravatar.cc/150?img=${(index + 10) % 70 + 1}`
-          },
-          reportDate: new Date(Date.now() - Math.random() * 2000000000).toISOString(),
-          reportReason: reportReasons[index % reportReasons.length],
-          status: status,
-          assignedTo: assignedTo,
-          eventType: eventTypes[index % eventTypes.length],
-          eventId: `event${100 + index}`
-        };
-      });
-      
-      setReportedPosts(mockReportedPosts);
-      setIsPostLoading(false);
-    };
+    // Note: Manage Posts now exclusively loads real data via listReports in ManagePostsTab
 
     // First, check access
     const checkAccess = async () => {
@@ -409,7 +365,7 @@ const AdminPanel = () => {
         console.log('[AdminPanel] About to call loadBlockedMembers...');
         await loadBlockedMembers();
         console.log('[AdminPanel] loadBlockedMembers completed');
-        loadReportedPosts();
+        // Manage Posts data will be loaded by ManagePostsTab via listReports
       } catch (e) {
         console.error('[AdminPanel] Access check failed:', e);
         setIsMember(false);
@@ -1532,6 +1488,8 @@ const ManagePostsTab = ({ timelineId }) => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState(''); // 'delete' or 'safeguard'
+  const [eventPopupOpen, setEventPopupOpen] = useState(false);
+  const [popupEvent, setPopupEvent] = useState(null);
   
   // Real data for reported posts (wired to /api/v1/timelines/:id/reports)
   const [reportedPosts, setReportedPosts] = useState([]);
@@ -1557,6 +1515,24 @@ const ManagePostsTab = ({ timelineId }) => {
     setSelectedPost(null);
     setPostActionType('');
   };
+
+  // Open EventPopup overlay for investigation
+  const handleViewEvent = async (post) => {
+    try {
+      if (!post?.eventId || !timelineId) return;
+      // Fetch only the relevant event (optimization)
+      const res = await api.get(`/api/timeline-v3/${timelineId}/events/${post.eventId}`);
+      const ev = res?.data;
+      if (ev && ev.id) {
+        setPopupEvent(ev);
+        setEventPopupOpen(true);
+      } else {
+        console.warn('[ManagePostsTab] Event not found for id', post.eventId);
+      }
+    } catch (e) {
+      console.warn('[ManagePostsTab] Failed to load event for popup:', e);
+    }
+  };
   
   // Load reports from backend
   useEffect(() => {
@@ -1573,9 +1549,18 @@ const ManagePostsTab = ({ timelineId }) => {
           eventType: it.event_type || it.type || 'Event',
           status: it.status || 'pending',
           reportDate: it.reported_at || it.created_at || it.reportDate || '',
-          reporter: it.reporter || { id: it.reporter_id, name: it.reporter_name || 'Reporter' },
+          eventId: it.event_id,
+          reporter: it.reporter || {
+            id: it.reporter_id,
+            name: it.reporter_username || 'Reporter',
+            avatar: it.reporter_avatar_url || null,
+          },
           reason: it.reason || '',
-          assignedModerator: it.assigned_to ? { id: it.assigned_to, name: it.assigned_to_name || 'Moderator' } : null,
+          assignedModerator: it.assigned_to ? { 
+            id: it.assigned_to, 
+            name: it.assigned_to_username || it.assigned_to_name || 'Moderator', 
+            avatar: it.assigned_to_avatar_url || null,
+          } : null,
           resolution: it.resolution || null,
           reportId: it.id || it.report_id
         }));
@@ -1644,6 +1629,27 @@ const ManagePostsTab = ({ timelineId }) => {
   const reviewingCount = counts.reviewing;
   const resolvedCount = counts.resolved;
   
+  // Helper to parse category from reason like "[website_policy] text" and return { chipLabel, chipColor, cleaned }
+  const parseReasonCategory = (reasonRaw) => {
+    const out = { chipLabel: null, chipColor: null, cleaned: reasonRaw || '' };
+    if (!reasonRaw || typeof reasonRaw !== 'string') return out;
+    const m = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
+    if (!m) return out;
+    const key = (m[1] || '').toLowerCase();
+    out.cleaned = m[2] || '';
+    if (key === 'website_policy') {
+      out.chipLabel = 'Website Policy';
+      out.chipColor = 'default';
+    } else if (key === 'government_policy') {
+      out.chipLabel = 'Government Policy';
+      out.chipColor = 'warning';
+    } else if (key === 'unethical_boundary') {
+      out.chipLabel = 'Unethical Boundary';
+      out.chipColor = 'error';
+    }
+    return out;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1699,6 +1705,7 @@ const ManagePostsTab = ({ timelineId }) => {
         ) : (
           <Box>
             {filteredPosts.map((post) => {
+              const { chipLabel, chipColor, cleaned } = parseReasonCategory(post.reason);
               // Determine status color
               let statusColor = {
                 text: '#6B7280',
@@ -1766,16 +1773,45 @@ const ManagePostsTab = ({ timelineId }) => {
                   </Box>
                   
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Reporter:</strong> {post.reporter.name}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Reason:</strong> {post.reason}
-                    </Typography>
-                    {post.assignedModerator && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                       <Typography variant="body2">
-                        <strong>Assigned to:</strong> {post.assignedModerator.name}
+                        <strong>Reporter:</strong>
                       </Typography>
+                      {post.reporter?.avatar && (
+                        <UserAvatar
+                          name={post.reporter?.name || 'Reporter'}
+                          avatarUrl={post.reporter?.avatar}
+                          id={post.reporter?.id}
+                          size={24}
+                          sx={{ ml: 1 }}
+                        />
+                      )}
+                      <Typography variant="body2">{post.reporter?.name || 'Reporter'}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Typography variant="body2">
+                        <strong>Reason:</strong>
+                      </Typography>
+                      {chipLabel && (
+                        <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
+                      )}
+                      <Typography variant="body2">{cleaned}</Typography>
+                    </Box>
+                    {(post.status === 'reviewing' || post.status === 'resolved') && post.assignedModerator && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">
+                          <strong>Accepted by:</strong>
+                        </Typography>
+                        {post.assignedModerator.avatar && (
+                          <UserAvatar
+                            name={post.assignedModerator.name || 'Moderator'}
+                            avatarUrl={post.assignedModerator.avatar}
+                            id={post.assignedModerator.id}
+                            size={22}
+                          />
+                        )}
+                        <Typography variant="body2">{post.assignedModerator.name}</Typography>
+                      </Box>
                     )}
                   </Box>
                   
@@ -1793,7 +1829,7 @@ const ManagePostsTab = ({ timelineId }) => {
                       </Button>
                     )}
                     
-                    {post.status !== 'resolved' && (
+                    {post.status === 'reviewing' && (
                       <>
                         <Button
                           variant="outlined"
@@ -1815,6 +1851,18 @@ const ManagePostsTab = ({ timelineId }) => {
                           Safeguard Post
                         </Button>
                       </>
+                    )}
+
+                    {/* View Event button to jump to the event for investigation */}
+                    {post.eventId && (
+                      <Button
+                        onClick={() => handleViewEvent(post)}
+                        variant="text"
+                        size="small"
+                        sx={{ ml: 1 }}
+                      >
+                        View Event
+                      </Button>
                     )}
                     
                     {post.status === 'resolved' && (
@@ -1861,6 +1909,14 @@ const ManagePostsTab = ({ timelineId }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* In-place Event Popup overlay */}
+      {eventPopupOpen && popupEvent && (
+        <EventPopup
+          event={popupEvent}
+          open={eventPopupOpen}
+          onClose={() => setEventPopupOpen(false)}
+        />
+      )}
     </motion.div>
   );
 };

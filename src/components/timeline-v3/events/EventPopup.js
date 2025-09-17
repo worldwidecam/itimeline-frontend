@@ -212,6 +212,9 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
   // Derive timelineId from URL or event payload as fallback
   const deriveTimelineId = () => {
     try {
+      // Support both /timeline/123 and /timeline-v3/123
+      const matchV3 = location?.pathname?.match(/timeline-v3\/(\d+)/);
+      if (matchV3 && matchV3[1]) return Number(matchV3[1]);
       const match = location?.pathname?.match(/timeline\/(\d+)/);
       if (match && match[1]) return Number(match[1]);
     } catch (_) {}

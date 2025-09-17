@@ -84,6 +84,8 @@ const ImageEventPopup = ({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
   const [reportCategory, setReportCategory] = useState('');
+  // Local snackbar for report submission feedback
+  const [reportSnackOpen, setReportSnackOpen] = useState(false);
   
   // Image theme color
   const imageColor = '#009688'; // Teal for image theme (matching the color in README)
@@ -183,12 +185,9 @@ const ImageEventPopup = ({
       setReportSubmitting(true);
       if (typeof setError === 'function') setError('');
       await submitReport(timelineId, event.id, reportReason || '', reportCategory);
-      if (typeof setError === 'function') setError('');
-      if (typeof handleSnackbarClose === 'function') {
-        // trigger success via parent success prop pattern
-      }
       setReportedOnce(true);
       setReportOpen(false);
+      setReportSnackOpen(true);
     } catch (e) {
       const msg = e?.response?.data?.error || e.message || 'Failed to submit report';
       if (typeof setError === 'function') setError(msg);
@@ -732,21 +731,12 @@ const ImageEventPopup = ({
             </DialogContent>
           </Box>
           
-          {/* Success/Error Snackbar - Positioned inside the Dialog */}
+          {/* Success/Error Snackbar - Parent-driven */}
           <Snackbar
             open={snackbarOpen}
             autoHideDuration={6000}
             onClose={handleSnackbarClose}
-            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            sx={{
-              position: 'absolute',
-              top: '16px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 'calc(100% - 48px)',
-              maxWidth: '400px',
-              zIndex: 9999
-            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           >
             <Alert 
               onClose={handleSnackbarClose} 
@@ -754,6 +744,17 @@ const ImageEventPopup = ({
               sx={{ width: '100%' }}
             >
               {error || success}
+            </Alert>
+          </Snackbar>
+          {/* Local success snackbar for report submission */}
+          <Snackbar
+            open={reportSnackOpen}
+            autoHideDuration={3000}
+            onClose={() => setReportSnackOpen(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>
+              Report submitted
             </Alert>
           </Snackbar>
         </Dialog>

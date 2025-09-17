@@ -86,6 +86,8 @@ const AudioMediaPopup = ({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
   const [reportCategory, setReportCategory] = useState('');
+  // Local snackbar for report submission feedback
+  const [reportSnackOpen, setReportSnackOpen] = useState(false);
   
   // Audio theme color
   const audioColor = '#e65100'; // Orange for audio theme
@@ -163,6 +165,7 @@ const AudioMediaPopup = ({
       await submitReport(timelineId, ev.id, reportReason || '', reportCategory);
       setReportedOnce(true);
       setReportOpen(false);
+      setReportSnackOpen(true);
     } catch (e) {
       // surface error via Snackbar upstream props if desired
     } finally {
@@ -627,6 +630,17 @@ const AudioMediaPopup = ({
           sx={{ width: '100%' }}
         >
           {error || success}
+        </Alert>
+      </Snackbar>
+      {/* Local success snackbar for report submission */}
+      <Snackbar
+        open={reportSnackOpen}
+        autoHideDuration={3000}
+        onClose={() => setReportSnackOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>
+          Report submitted
         </Alert>
       </Snackbar>
     </Dialog>

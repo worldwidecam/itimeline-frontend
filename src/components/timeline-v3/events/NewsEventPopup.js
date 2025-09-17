@@ -82,6 +82,8 @@ const NewsEventPopup = ({
   const [reportCategory, setReportCategory] = React.useState('');
   const [tagSectionExpanded, setTagSectionExpanded] = React.useState(false);
   const [localEventData, setLocalEventData] = React.useState(event);
+  // Local snackbar for report submission feedback
+  const [reportSnackOpen, setReportSnackOpen] = React.useState(false);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   React.useEffect(() => {
@@ -155,6 +157,7 @@ const NewsEventPopup = ({
       await submitReport(timelineId, event.id, reportReason || '', reportCategory);
       setReportedOnce(true);
       setReportOpen(false);
+      setReportSnackOpen(true);
     } catch (e) {
       const msg = e?.response?.data?.error || e.message || 'Failed to submit report';
       if (typeof setError === 'function') setError(msg);
@@ -825,6 +828,17 @@ const NewsEventPopup = ({
           >
             <Alert onClose={handleSnackbarClose} severity={error ? 'error' : 'success'} sx={{ width: '100%' }}>
               {error || success}
+            </Alert>
+          </Snackbar>
+          {/* Local success snackbar for report submission */}
+          <Snackbar
+            open={reportSnackOpen}
+            autoHideDuration={3000}
+            onClose={() => setReportSnackOpen(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>
+              Report submitted
             </Alert>
           </Snackbar>
         </Dialog>

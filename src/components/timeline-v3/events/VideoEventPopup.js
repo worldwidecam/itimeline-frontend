@@ -91,6 +91,8 @@ const VideoEventPopup = ({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
   const [reportCategory, setReportCategory] = useState(''); // required
+  // Local snackbar for report submission feedback
+  const [reportSnackOpen, setReportSnackOpen] = useState(false);
   
   // Video theme color
   const videoColor = '#4a148c'; // Deep purple for video theme
@@ -325,6 +327,8 @@ const VideoEventPopup = ({
       await submitReport(timelineId, event.id, reportReason || '', reportCategory);
       setReportedOnce(true);
       setReportOpen(false);
+      // Show local snackbar confirmation
+      setReportSnackOpen(true);
     } catch (e) {
       const msg = e?.response?.data?.error || e.message || 'Failed to submit report';
       if (typeof setError === 'function') setError(msg);
@@ -337,6 +341,17 @@ const VideoEventPopup = ({
     <AnimatePresence>
       {open && (
         <>
+        {/* Local snackbar for report submission */}
+        <Snackbar
+          open={reportSnackOpen}
+          autoHideDuration={3000}
+          onClose={() => setReportSnackOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>
+            Report submitted
+          </Alert>
+        </Snackbar>
         <Dialog
           open={open}
           onClose={handleClose}

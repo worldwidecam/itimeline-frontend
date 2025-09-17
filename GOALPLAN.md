@@ -1,5 +1,48 @@
 # Main Goal - Community Timeline Implementation
 
+## Lean Plan (2025-09-13)
+
+### Main GOAL
+- Community timeline implementation
+
+### Sub GOALS
+- Members page
+- Admin page
+- Reporting system (Manage Posts)
+
+### Current Sub GOAL
+- Admin page
+
+### Current Goal within Sub GOAL
+- Report system wiring (submit from event popups/cards → visible and actionable in AdminPanel → Manage Posts tab)
+
+### CURRENT TODO
+- Verify that the Report button on all event types successfully creates items that appear in AdminPanel → Manage Posts tab.
+- Replace any mock data in Manage Posts with real API data via `src/utils/api.js`:
+  - `listReports(timelineId, params)`
+  - `acceptReport(timelineId, reportId)`
+  - `resolveReport(timelineId, reportId, { action: 'delete'|'safeguard' })`
+- After actions, re-fetch list and update counts/tabs; no UI/UX changes.
+
+### Notes for Current Context
+- Completed recently:
+  - Members page with real API; roles promote/demote; remove/block/unblock; loading/error states; snackbars; tabs for active/blocked.
+  - Join/Blocked gating in `TimelineV3.js` showing red banner when blocked.
+  - Report button added across all popups/cards, calls `/api/v1/timelines/{timeline_id}/reports`.
+- Where we could keep working but moved past for now:
+  - Promote/Demote controls style parity achieved; MemberListTab set to read-only.
+  - Passport sync after admin actions is in place; cache invalidation patterns established.
+- Knowledge to remember for tomorrow:
+  - Back end routes for reports exist in `itimeline-backend/routes/reports.py`:
+    - `GET /api/v1/timelines/{timeline_id}/reports`
+    - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/accept`
+    - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/resolve` with `{ action }`
+  - Avoid schema changes; only wire existing endpoints. Keep UI unchanged; replace mocks with real data.
+
+---
+
+# Main Goal - Community Timeline Implementation
+
 ## Concise Plan (2025-08-31)
 - **Main goal**: Community timeline implementation
 - **Finished recently**: Members page (active/blocked lists, roles, remove/block with real API) and quote system
