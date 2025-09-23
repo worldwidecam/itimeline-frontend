@@ -1488,8 +1488,31 @@ const ManagePostsTab = ({ timelineId }) => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState(''); // 'delete' or 'safeguard'
+  // Mandatory verdict text for delete/safeguard
+  const [actionVerdict, setActionVerdict] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [popupEvent, setPopupEvent] = useState(null);
+  // Remove-from-community verdict dialog state
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeVerdict, setRemoveVerdict] = useState('');
+  const [removeSubmitting, setRemoveSubmitting] = useState(false);
+  // Snackbars for Manage Posts
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+
+  // Helper: if EventPopup is open for this event, refresh it from backend so chips reflect latest associations
+  const refreshPopupEventIfOpen = async (eventId) => {
+    try {
+      if (!eventPopupOpen || !eventId || !timelineId) return;
+      const res = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      if (res?.data && res.data.id) {
+        setPopupEvent(res.data);
+      }
+    } catch (e) {
+      console.warn('[ManagePostsTab] Failed to refresh popup event after action:', e);
+    }
+  };
   
   // Real data for reported posts (wired to /api/v1/timelines/:id/reports)
   const [reportedPosts, setReportedPosts] = useState([]);
@@ -1506,7 +1529,15 @@ const ManagePostsTab = ({ timelineId }) => {
   const handleOpenPostActionDialog = (post, action) => {
     setSelectedPost(post);
     setPostActionType(action);
+    setActionVerdict('');
     setConfirmPostActionDialogOpen(true);
+  };
+
+  // Open remove-from-community dialog with mandatory verdict
+  const handleOpenRemoveDialog = (post) => {
+    setSelectedPost(post);
+    setRemoveVerdict('');
+    setRemoveDialogOpen(true);
   };
   
   // Handle closing the confirmation dialog
@@ -1514,6 +1545,14 @@ const ManagePostsTab = ({ timelineId }) => {
     setConfirmPostActionDialogOpen(false);
     setSelectedPost(null);
     setPostActionType('');
+    setActionVerdict('');
+  };
+
+  const handleCloseRemoveDialog = () => {
+    setRemoveDialogOpen(false);
+    setSelectedPost(null);
+    setRemoveVerdict('');
+    setRemoveSubmitting(false);
   };
 
   // Open EventPopup overlay for investigation
@@ -1534,84 +1573,134 @@ const ManagePostsTab = ({ timelineId }) => {
     }
   };
   
-  // Load reports from backend
-  useEffect(() => {
-    const fetchReports = async () => {
-      if (!timelineId) return;
-      try {
-        setIsLoadingReports(true);
-        const status = postTabValue === 1 ? 'pending' : postTabValue === 2 ? 'reviewing' : postTabValue === 3 ? 'resolved' : 'all';
-        const data = await listReports(timelineId, { status, page: 1, page_size: 20 });
-        // Normalize items into the structure used below
-        const items = Array.isArray(data?.items) ? data.items : [];
-        const mapped = items.map((it) => ({
-          id: it.id || it.report_id || String(Math.random()),
-          eventType: it.event_type || it.type || 'Event',
-          status: it.status || 'pending',
-          reportDate: it.reported_at || it.created_at || it.reportDate || '',
-          eventId: it.event_id,
-          reporter: it.reporter || {
-            id: it.reporter_id,
-            name: it.reporter_username || 'Reporter',
-            avatar: it.reporter_avatar_url || null,
-          },
-          reason: it.reason || '',
-          assignedModerator: it.assigned_to ? { 
-            id: it.assigned_to, 
-            name: it.assigned_to_username || it.assigned_to_name || 'Moderator', 
-            avatar: it.assigned_to_avatar_url || null,
-          } : null,
-          resolution: it.resolution || null,
-          reportId: it.id || it.report_id
-        }));
-        setReportedPosts(mapped);
-        setCounts(data?.counts || { all: mapped.length, pending: mapped.filter(p=>p.status==='pending').length, reviewing: mapped.filter(p=>p.status==='reviewing').length, resolved: mapped.filter(p=>p.status==='resolved').length });
-        setPageInfo({ page: data?.page || 1, page_size: data?.page_size || 20, total: data?.total || mapped.length });
-      } catch (e) {
-        console.warn('[ManagePostsTab] listReports failed (showing empty):', e);
-        setReportedPosts([]);
-        setCounts({ all: 0, pending: 0, reviewing: 0, resolved: 0 });
-        setPageInfo({ page: 1, page_size: 20, total: 0 });
-      } finally {
-        setIsLoadingReports(false);
-      }
-    };
-    fetchReports();
+  // Extracted: Load reports from backend; callable from actions
+  const fetchReports = React.useCallback(async () => {
+    if (!timelineId) return;
+    try {
+      setIsLoadingReports(true);
+      const status = postTabValue === 1 ? 'pending' : postTabValue === 2 ? 'reviewing' : postTabValue === 3 ? 'resolved' : 'all';
+      const data = await listReports(timelineId, { status, page: 1, page_size: 20 });
+      // Normalize items into the structure used below
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const mapped = items.map((it) => ({
+        id: it.id || it.report_id || String(Math.random()),
+        eventType: it.event_type || it.type || 'Event',
+        status: it.status || 'pending',
+        reportDate: it.reported_at || it.created_at || it.reportDate || '',
+        eventId: it.event_id,
+        reporter: it.reporter || {
+          id: it.reporter_id,
+          name: it.reporter_username || 'Reporter',
+          avatar: it.reporter_avatar_url || null,
+        },
+        reason: it.reason || '',
+        assignedModerator: it.assigned_to ? { 
+          id: it.assigned_to, 
+          name: it.assigned_to_username || it.assigned_to_name || 'Moderator', 
+          avatar: it.assigned_to_avatar_url || null,
+        } : null,
+        resolution: it.resolution || null,
+        verdict: it.verdict || '',
+        reportId: it.id || it.report_id
+      }));
+      setReportedPosts(mapped);
+      setCounts(data?.counts || { all: mapped.length, pending: mapped.filter(p=>p.status==='pending').length, reviewing: mapped.filter(p=>p.status==='reviewing').length, resolved: mapped.filter(p=>p.status==='resolved').length });
+      setPageInfo({ page: data?.page || 1, page_size: data?.page_size || 20, total: data?.total || mapped.length });
+    } catch (e) {
+      console.warn('[ManagePostsTab] listReports failed (showing empty):', e);
+      setReportedPosts([]);
+      setCounts({ all: 0, pending: 0, reviewing: 0, resolved: 0 });
+      setPageInfo({ page: 1, page_size: 20, total: 0 });
+    } finally {
+      setIsLoadingReports(false);
+    }
   }, [timelineId, postTabValue]);
+
+  // Load on mount and when tab changes
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
 
   // Handle accepting a report for review
   const handleAcceptReport = async (post) => {
     try {
       await acceptReport(timelineId, post.reportId || post.id);
-      // refresh current tab
-      const status = postTabValue; // trigger useEffect by toggling
-      setPostTabValue(status);
+      // Re-fetch reports directly for correctness
+      await fetchReports();
+      setSnackbarMessage('Report accepted for review');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
     } catch (e) {
       console.warn('[ManagePostsTab] acceptReport failed:', e);
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to accept report');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
   
   // Handle deleting a reported post
   const handleDeletePost = async () => {
     try {
-      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'delete');
+      if (!actionVerdict.trim()) return;
+      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'delete', actionVerdict.trim());
       setConfirmPostActionDialogOpen(false);
-      const status = postTabValue; setPostTabValue(status);
+      await fetchReports();
+      setSnackbarMessage('Resolved: action=delete');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
     } catch (e) {
       console.warn('[ManagePostsTab] resolveReport(delete) failed:', e);
       setConfirmPostActionDialogOpen(false);
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to resolve (delete)');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
   
   // Handle safeguarding a post
   const handleSafeguardPost = async () => {
     try {
-      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'safeguard');
+      if (!actionVerdict.trim()) return;
+      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'safeguard', actionVerdict.trim());
       setConfirmPostActionDialogOpen(false);
-      const status = postTabValue; setPostTabValue(status);
+      await fetchReports();
+      setSnackbarMessage('Resolved: action=safeguard');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
     } catch (e) {
       console.warn('[ManagePostsTab] resolveReport(safeguard) failed:', e);
       setConfirmPostActionDialogOpen(false);
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to resolve (safeguard)');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  // Handle remove-from-community with mandatory verdict
+  const handleConfirmRemoveFromCommunity = async () => {
+    try {
+      if (!removeVerdict || !String(removeVerdict).trim()) return;
+      setRemoveSubmitting(true);
+      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'remove', removeVerdict.trim());
+      setRemoveDialogOpen(false);
+      // Refresh the list of reports immediately
+      await fetchReports();
+      setSnackbarMessage('Resolved: action=remove');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      // Also refresh the popup event if it's currently open so TagList sees updated associated_timelines
+      await refreshPopupEventIfOpen(selectedPost?.eventId);
+    } catch (e) {
+      console.warn('[ManagePostsTab] resolveReport(remove) failed:', e);
+      setRemoveDialogOpen(false);
+      const msg = e?.response?.status === 409
+        ? (e?.response?.data?.message || 'Remove blocked: event exists only on this timeline. Use Delete instead.')
+        : (e?.response?.data?.error || 'Failed to resolve (remove)');
+      setSnackbarMessage(msg);
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+    } finally {
+      setRemoveSubmitting(false);
     }
   };
   
@@ -1834,6 +1923,16 @@ const ManagePostsTab = ({ timelineId }) => {
                         <Button
                           variant="outlined"
                           size="small"
+                          color="warning"
+                          startIcon={<PersonRemoveIcon />}
+                          onClick={() => handleOpenRemoveDialog(post)}
+                          sx={{ mr: 1 }}
+                        >
+                          Remove from Community
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
                           color="error"
                           startIcon={<CancelIcon />}
                           onClick={() => handleOpenPostActionDialog(post, 'delete')}
@@ -1866,9 +1965,18 @@ const ManagePostsTab = ({ timelineId }) => {
                     )}
                     
                     {post.status === 'resolved' && (
-                      <Typography variant="body2" color="text.secondary">
-                        Resolution: <strong>{post.resolution || 'Unknown'}</strong>
-                      </Typography>
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+                        <Box sx={{ maxWidth: 720, width: '100%' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Resolution: <strong>{post.resolution || 'Unknown'}</strong>
+                          </Typography>
+                          {post.verdict && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                              Verdict: {post.verdict}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
                     )}
                   </Box>
                 </Paper>
@@ -1894,6 +2002,17 @@ const ManagePostsTab = ({ timelineId }) => {
               'This action will permanently remove this post from the timeline. This action cannot be undone.' : 
               'This action will mark the post as reviewed and safe, dismissing the report. The post will remain visible on the timeline.'}
           </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={3}
+            label="Verdict (required)"
+            placeholder="Write your findings and rationale"
+            value={actionVerdict}
+            onChange={(e) => setActionVerdict(e.target.value)}
+            sx={{ mt: 2 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClosePostActionDialog} color="primary">
@@ -1904,6 +2023,7 @@ const ManagePostsTab = ({ timelineId }) => {
             color={postActionType === 'delete' ? 'error' : 'success'} 
             variant="contained"
             startIcon={postActionType === 'delete' ? <CancelIcon /> : <CheckCircleIcon />}
+            disabled={!actionVerdict.trim()}
           >
             {postActionType === 'delete' ? 'Delete Post' : 'Safeguard Post'}
           </Button>
@@ -1917,6 +2037,53 @@ const ManagePostsTab = ({ timelineId }) => {
           onClose={() => setEventPopupOpen(false)}
         />
       )}
+
+      {/* Remove from Community Verdict Dialog */}
+      <Dialog
+        open={removeDialogOpen}
+        onClose={handleCloseRemoveDialog}
+        aria-labelledby="remove-dialog-title"
+      >
+        <DialogTitle id="remove-dialog-title">Remove from Community</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            This will remove the event from this community timeline. Please enter your moderation verdict. This verdict will be saved on the ticket.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={3}
+            label="Verdict (required)"
+            placeholder="Write your findings and rationale"
+            value={removeVerdict}
+            onChange={(e) => setRemoveVerdict(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRemoveDialog}>Cancel</Button>
+          <Button 
+            onClick={handleConfirmRemoveFromCommunity}
+            variant="contained"
+            color="warning"
+            disabled={!removeVerdict.trim() || removeSubmitting}
+            startIcon={<PersonRemoveIcon />}
+          >
+            {removeSubmitting ? 'Removing…' : 'Remove from Community'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Snackbars for Manage Posts tab */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </motion.div>
   );
 };

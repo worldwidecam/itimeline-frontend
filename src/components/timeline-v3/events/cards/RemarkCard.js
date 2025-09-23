@@ -233,7 +233,11 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopup
           </Box>
 
           <Box sx={{ mt: 'auto' }}>
-            <TagList tags={event.tags} />
+            <TagList 
+              tags={event.tags} 
+              associatedTimelines={event.associated_timelines || []} 
+              removedTimelineIds={event.removed_timeline_ids || []}
+            />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
               {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>

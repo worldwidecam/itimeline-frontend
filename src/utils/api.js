@@ -452,18 +452,31 @@ export const acceptReport = async (timelineId, reportId) => {
 };
 
 /**
- * Resolve a report by deleting or safeguarding the post
+ * Resolve a report by taking an action.
+ * Supports:
+ *  - action 'delete' | 'safeguard' (no verdict required)
+ *  - action 'remove' (timeline-only removal) requires a non-empty verdict string
+ * Backwards compatible with previous signature resolveReport(timelineId, reportId, action).
  * @param {number} timelineId
  * @param {number|string} reportId
- * @param {'delete'|'safeguard'} action
+ * @param {'delete'|'safeguard'|'remove'} action
+ * @param {string} [verdict] - required when action === 'remove'
  */
-export const resolveReport = async (timelineId, reportId, action) => {
+export const resolveReport = async (timelineId, reportId, action, verdict = '') => {
   try {
-    if (action !== 'delete' && action !== 'safeguard') {
+    const allowed = ['delete', 'safeguard', 'remove'];
+    if (!allowed.includes(action)) {
       throw new Error(`Invalid resolve action: ${action}`);
     }
+    const payload = { action };
+    if (action === 'remove') {
+      if (!verdict || !String(verdict).trim()) {
+        throw new Error('A non-empty verdict is required to remove from community');
+      }
+      payload.verdict = verdict.trim();
+    }
     console.log(`[API] Resolving report ${reportId} on timeline ${timelineId} with action '${action}'`);
-    const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/resolve`, { action });
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/resolve`, payload);
     console.log('[API] resolveReport response:', response.data);
     return response.data;
   } catch (error) {

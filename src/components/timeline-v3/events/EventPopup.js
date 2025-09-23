@@ -712,7 +712,11 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                   >
                     Tags
                   </Typography>
-                  <TagList tags={localEventData?.tags || event.tags} />
+                  <TagList 
+                    tags={localEventData?.tags || event.tags}
+                    associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
+                    removedTimelineIds={(localEventData?.removed_timeline_ids || event.removed_timeline_ids) || ((event && event.removed_from_this_timeline) ? [deriveTimelineId()] : [])}
+                  />
                 </Box>
               )}
               

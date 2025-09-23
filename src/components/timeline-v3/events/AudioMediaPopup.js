@@ -365,7 +365,10 @@ const AudioMediaPopup = ({
                 >
                   Tags
                 </Typography>
-                <TagList tags={localEventData?.tags || eventData.tags} />
+                <TagList 
+                  tags={localEventData?.tags || eventData.tags}
+                  associatedTimelines={(localEventData?.associated_timelines || eventData.associated_timelines) || []}
+                />
               </Box>
             )}
             

@@ -5,9 +5,51 @@ import { alpha } from '@mui/material/styles';
 import api from '../../../../utils/api';
 import TimelineNameDisplay from '../../TimelineNameDisplay';
 
-const TagList = ({ tags }) => {
+const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) => {
   const theme = useTheme();
-  const [timelineData, setTimelineData] = useState({});
+  // Seed timeline classification from associatedTimelines (optimistic, reduces flicker)
+  const seedTimelineData = React.useMemo(() => {
+    try {
+      const seed = {};
+      if (Array.isArray(tags)) {
+        tags.forEach((tag) => {
+          const tagName = typeof tag === 'string' ? tag : (tag?.name || tag?.tag_name || '');
+          if (!tagName) return;
+          // If this tag matches any associated community timeline by name, seed as community
+          const match = (associatedTimelines || []).find((tl) => tl && tl.name && String(tl.name).toLowerCase() === String(tagName).toLowerCase() && (String(tl.type || tl.timeline_type).toLowerCase() === 'community'));
+          if (match) {
+            seed[tagName] = { id: match.id, type: 'community', visibility: match.visibility || 'public' };
+            seed[String(tagName).toLowerCase()] = { id: match.id, type: 'community', visibility: match.visibility || 'public' };
+          }
+        });
+      }
+      return seed;
+    } catch (_) {
+      return {};
+    }
+  }, [tags, associatedTimelines]);
+
+  const [timelineData, setTimelineData] = useState(seedTimelineData);
+  
+  // Build a case-insensitive set of currently associated community timeline names
+  const associatedCommunityNames = React.useMemo(() => {
+    try {
+      const set = new Set();
+      if (Array.isArray(associatedTimelines)) {
+        associatedTimelines.forEach((tl) => {
+          if (!tl || !tl.name) return;
+          // Only track community timelines for validation
+          const type = tl.type || tl.timeline_type || 'hashtag';
+          if (String(type).toLowerCase() === 'community') {
+            set.add(String(tl.name).toLowerCase());
+          }
+        });
+      }
+      return set;
+    } catch (_) {
+      return new Set();
+    }
+  }, [associatedTimelines]);
   
   // Handle various potential issues with tags data
   if (!tags) {
@@ -23,44 +65,33 @@ const TagList = ({ tags }) => {
     return null;
   }
   
-  // Fetch timeline data for all tags when component mounts
+  // Fetch timeline data for tags that are not already seeded
   useEffect(() => {
     const fetchTimelineData = async () => {
       try {
-        // Extract unique tag names
+        // Extract unique tag names that are not already known from seed
         const uniqueTags = new Set();
         tagsArray.forEach(tag => {
-          // Extract tag name from different possible formats
           const tagName = typeof tag === 'string' ? tag : (tag?.name || tag?.tag_name || '');
-          // Store the original tag name for reference
-          if (tagName) uniqueTags.add(tagName);
+          if (!tagName) return;
+          const hasSeed = !!(seedTimelineData[tagName] || seedTimelineData[String(tagName).toLowerCase()] || seedTimelineData[String(tagName).toUpperCase()]);
+          if (!hasSeed) uniqueTags.add(tagName);
         });
-        
-        console.log('Unique tags to fetch:', Array.from(uniqueTags));
-        
-        // Fetch timeline data for each unique tag
+
+        if (uniqueTags.size === 0) {
+          // Nothing to fetch; ensure state is at least seed
+          setTimelineData((prev) => ({ ...seedTimelineData, ...prev }));
+          return;
+        }
+
+        // Fetch timeline data for each remaining unique tag
         const timelineInfo = {};
         for (const tagName of uniqueTags) {
           try {
-            console.log(`Fetching timeline data for tag: ${tagName}`);
             // Always query the API with uppercase tag name as that's how timelines are stored
             const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(tagName.toUpperCase())}`);
-            
-            console.log(`API response for ${tagName}:`, response.data);
-            
             if (response.data && response.data.id) {
-              // Log the raw timeline_type value from the API
-              console.log(`Raw timeline_type for ${tagName}:`, response.data.timeline_type);
-              
               const type = response.data.timeline_type || 'hashtag';
-              console.log(`Determined type for ${tagName}:`, type);
-              console.log(`Is type === 'community'?`, type === 'community');
-              console.log(`Found timeline for ${tagName}:`, {
-                id: response.data.id,
-                type: type,
-                visibility: response.data.visibility || 'public'
-              });
-              
               // Store the timeline info using both original case and lowercase versions
               // This ensures we can look it up regardless of case
               timelineInfo[tagName] = {
@@ -77,22 +108,20 @@ const TagList = ({ tags }) => {
               };
             }
           } catch (error) {
-            console.log(`No timeline found for tag: ${tagName}, assuming hashtag`);
             // If timeline not found, assume it's a regular hashtag
             timelineInfo[tagName] = { type: 'hashtag' };
             timelineInfo[tagName.toLowerCase()] = { type: 'hashtag' };
           }
         }
-        
-        console.log('Final timeline data:', timelineInfo);
-        setTimelineData(timelineInfo);
+        // Merge seed + fetched info to avoid flicker for seeded entries
+        setTimelineData((prev) => ({ ...seedTimelineData, ...prev, ...timelineInfo }));
       } catch (error) {
         console.error('Error fetching timeline data for tags:', error);
       }
     };
     
     fetchTimelineData();
-  }, [tagsArray]);
+  }, [tagsArray, seedTimelineData]);
 
   // Function to handle tag click - opens the respective timeline in a new tab
   const handleTagClick = async (e, tagName) => {
@@ -148,32 +177,37 @@ const TagList = ({ tags }) => {
         }
         
         // Get timeline info for this tag - try multiple ways to look it up
-        console.log(`Rendering tag: ${tagName}`);
-        console.log('Available timeline data keys:', Object.keys(timelineData));
         
         // Try to find the timeline info using different case variations
         let timelineInfo;
         if (timelineData[tagName]) {
           // Try exact match first
           timelineInfo = timelineData[tagName];
-          console.log(`Found timeline info for exact match: ${tagName}`);
         } else if (timelineData[tagName.toLowerCase()]) {
           // Try lowercase
           timelineInfo = timelineData[tagName.toLowerCase()];
-          console.log(`Found timeline info for lowercase: ${tagName.toLowerCase()}`);
         } else if (timelineData[tagName.toUpperCase()]) {
           // Try uppercase
           timelineInfo = timelineData[tagName.toUpperCase()];
-          console.log(`Found timeline info for uppercase: ${tagName.toUpperCase()}`);
         } else {
           // Default to hashtag if not found
           timelineInfo = { type: 'hashtag' };
-          console.log(`No timeline info found for ${tagName}, defaulting to hashtag`);
         }
         
-        console.log(`Timeline info for ${tagName}:`, timelineInfo);
         const isCommunityTimeline = timelineInfo.type === 'community';
-        console.log(`Is ${tagName} a community timeline?`, isCommunityTimeline);
+        const tagNameLower = String(tagName).toLowerCase();
+        let isCurrentlyAssociated = isCommunityTimeline
+          ? associatedCommunityNames.has(tagNameLower)
+          : false;
+        
+        // Override: if this community chip corresponds to a timeline ID explicitly marked as removed,
+        // force it to be treated as not associated, regardless of associatedCommunityNames.
+        if (isCommunityTimeline && Array.isArray(removedTimelineIds) && removedTimelineIds.length > 0) {
+          const tlId = timelineInfo?.id;
+          if (tlId && removedTimelineIds.includes(tlId)) {
+            isCurrentlyAssociated = false;
+          }
+        }
         
         // Generate a unique color based on the tag name
         const stringToColor = (str) => {
@@ -196,7 +230,7 @@ const TagList = ({ tags }) => {
           return (
             <Tooltip 
               key={`${tagId}-${index}`}
-              title="Community Timeline" 
+              title={isCurrentlyAssociated ? "Community Timeline" : "No longer associated with this event"}
               arrow
             >
               <Chip
@@ -215,21 +249,21 @@ const TagList = ({ tags }) => {
                     visibility={timelineInfo.visibility || 'public'}
                     typographyProps={{
                       variant: 'body2',
-                      sx: { fontSize: '0.75rem' }
+                      sx: { fontSize: '0.75rem', textDecoration: isCurrentlyAssociated ? 'none' : 'line-through' }
                     }}
                   />
                 }
                 size="small"
-                onClick={(e) => handleTagClick(e, tagName)}
+                onClick={isCurrentlyAssociated ? (e) => handleTagClick(e, tagName) : undefined}
                 sx={{
                   height: '24px',
                   backgroundColor: theme.palette.mode === 'dark' 
-                    ? alpha(chipColor, 0.2)
-                    : alpha(chipColor, 0.1),
+                    ? alpha(chipColor, isCurrentlyAssociated ? 0.2 : 0.08)
+                    : alpha(chipColor, isCurrentlyAssociated ? 0.1 : 0.05),
                   color: theme.palette.mode === 'dark' 
                     ? theme.palette.common.white 
                     : chipColor,
-                  border: `1px solid ${alpha(chipColor, 0.3)}`,
+                  border: `1px solid ${alpha(chipColor, isCurrentlyAssociated ? 0.3 : 0.15)}`,
                   borderRadius: '6px',
                   transition: theme.transitions.create(
                     ['background-color', 'box-shadow', 'transform'],
@@ -237,11 +271,11 @@ const TagList = ({ tags }) => {
                   ),
                   '&:hover': {
                     backgroundColor: theme.palette.mode === 'dark'
-                      ? alpha(chipColor, 0.3)
-                      : alpha(chipColor, 0.2),
-                    transform: 'translateY(-1px)',
-                    boxShadow: `0 4px 8px ${alpha(chipColor, 0.2)}`,
-                    cursor: 'pointer',
+                      ? alpha(chipColor, isCurrentlyAssociated ? 0.3 : 0.08)
+                      : alpha(chipColor, isCurrentlyAssociated ? 0.2 : 0.05),
+                    transform: isCurrentlyAssociated ? 'translateY(-1px)' : 'none',
+                    boxShadow: isCurrentlyAssociated ? `0 4px 8px ${alpha(chipColor, 0.2)}` : 'none',
+                    cursor: isCurrentlyAssociated ? 'pointer' : 'not-allowed',
                   },
                   '& .MuiChip-label': {
                     px: 1,
@@ -252,11 +286,14 @@ const TagList = ({ tags }) => {
                     mr: 0.5,
                     ml: 0.5,
                   },
+                  opacity: isCurrentlyAssociated ? 1 : 0.6,
+                  pointerEvents: isCurrentlyAssociated ? 'auto' : 'none',
                 }}
               />
             </Tooltip>
           );
         } else {
+
           // Standard hashtag timeline chip
           return (
             <Tooltip 

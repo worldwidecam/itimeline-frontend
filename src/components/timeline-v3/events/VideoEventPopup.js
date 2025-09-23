@@ -645,7 +645,11 @@ const VideoEventPopup = ({
                 </Typography>
                 
                 {(localEventData?.tags || event.tags) && (localEventData?.tags || event.tags).length > 0 && (
-                  <TagList tags={localEventData?.tags || event.tags} />
+                  <TagList 
+                    tags={localEventData?.tags || event.tags}
+                    associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
+                    removedTimelineIds={(event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []}
+                  />
                 )}
                 
                 {/* Tag a Timeline button - smaller and positioned at bottom left */}

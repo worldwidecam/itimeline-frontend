@@ -1003,7 +1003,11 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
             {/* Tags */}
             {event.tags && event.tags.length > 0 && (
               <Box sx={{ mb: 1.5 }}>
-                <TagList tags={event.tags} size="small" />
+                <TagList 
+                  tags={event.tags} 
+                  associatedTimelines={event.associated_timelines || []}
+                  removedTimelineIds={event.removed_timeline_ids || []}
+                />
               </Box>
             )}
             
