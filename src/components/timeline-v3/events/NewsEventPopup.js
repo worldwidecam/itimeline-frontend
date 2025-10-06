@@ -34,6 +34,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   OpenInNew as OpenInNewIcon,
   RateReview as RateReviewIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -73,7 +74,8 @@ const NewsEventPopup = ({
   setError,
   handleAddToTimeline,
   fetchExistingTimelines,
-  isInReview = false
+  isInReview = false,
+  isSafeguarded = false
 }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -845,25 +847,68 @@ const NewsEventPopup = ({
                 </Typography>
               </Box>
             )}
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleOpenReport}
-              disabled={reportedOnce}
-              sx={{
-                textTransform: 'none',
-                backgroundColor: newsColor,
-                color: '#fff',
-                '&:hover': {
+            {isSafeguarded ? (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.25,
+                  borderRadius: '12px',
                   backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(211, 47, 47, 0.9)' 
-                    : 'rgba(211, 47, 47, 0.85)',
-                },
-                px: 2.25,
-              }}
-            >
-              {reportedOnce ? 'Reported' : 'Report'}
-            </Button>
+                    ? 'rgba(76, 175, 80, 0.2)' 
+                    : 'rgba(76, 175, 80, 0.15)',
+                  transform: 'rotate(-2deg)',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 2px 4px rgba(0,0,0,0.3)'
+                    : '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+              >
+                <CheckCircleIcon 
+                  sx={{ 
+                    fontSize: 14,
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(76, 175, 80, 1)' 
+                      : 'rgba(56, 142, 60, 1)',
+                  }} 
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(76, 175, 80, 1)' 
+                      : 'rgba(56, 142, 60, 1)',
+                  }}
+                >
+                  Safeguarded
+                </Typography>
+              </Box>
+            ) : (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleOpenReport}
+                disabled={reportedOnce}
+                sx={{ 
+                  textTransform: 'none',
+                  backgroundColor: newsColor,
+                  color: '#fff',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(211, 47, 47, 0.9)' 
+                      : 'rgba(211, 47, 47, 0.85)',
+                  },
+                  px: 2.25,
+                }}
+              >
+                {reportedOnce ? 'Reported' : 'Report'}
+              </Button>
+            )}
           </Box>
           
           {/* Snackbar for notifications */}

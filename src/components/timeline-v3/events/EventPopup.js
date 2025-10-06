@@ -41,6 +41,7 @@ import {
   Person as PersonIcon,
   AccessTime as AccessTimeIcon,
   RateReview as RateReviewIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -64,22 +65,24 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
   const theme = useTheme();
   const location = useLocation();
   const [isInReview, setIsInReview] = useState(false);
+  const [isSafeguarded, setIsSafeguarded] = useState(false);
   
-  // Fetch reviewing status when popup opens
+  // Fetch reviewing and safeguarded status when popup opens
   useEffect(() => {
-    const checkReviewStatus = async () => {
+    const checkReportStatus = async () => {
       if (!open || !event?.id) {
         setIsInReview(false);
+        setIsSafeguarded(false);
         return;
       }
       
       // First check if reviewingEventIds prop is provided (from AdminPanel)
       if (reviewingEventIds.size > 0) {
         setIsInReview(reviewingEventIds.has(event.id));
-        return;
+        // AdminPanel doesn't provide safeguarded IDs yet, so fetch separately
       }
       
-      // Otherwise, fetch from API (for timeline page)
+      // Fetch from API (for timeline page or to get safeguarded status)
       // We need to get the current timeline ID from the URL, not from the event
       try {
         // Extract timeline ID from current URL path
@@ -88,25 +91,42 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         
         if (!currentTimelineId) {
           setIsInReview(false);
+          setIsSafeguarded(false);
           return;
         }
         
-        const response = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
-          params: { status: 'reviewing' }
+        // Fetch reviewing reports
+        if (reviewingEventIds.size === 0) {
+          const reviewingResponse = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
+            params: { status: 'reviewing' }
+          });
+          
+          const reviewingIds = (reviewingResponse.data?.items || [])
+            .map(report => report.event_id)
+            .filter(Boolean);
+          
+          setIsInReview(reviewingIds.includes(event.id));
+        }
+        
+        // Fetch resolved reports with safeguard resolution
+        const resolvedResponse = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
+          params: { status: 'resolved' }
         });
         
-        const reviewingEventIds = (response.data?.items || [])
+        const safeguardedIds = (resolvedResponse.data?.items || [])
+          .filter(report => report.resolution === 'safeguard')
           .map(report => report.event_id)
           .filter(Boolean);
         
-        setIsInReview(reviewingEventIds.includes(event.id));
+        setIsSafeguarded(safeguardedIds.includes(event.id));
       } catch (error) {
         // Silently fail - user might not have permission
         setIsInReview(false);
+        setIsSafeguarded(false);
       }
     };
     
-    checkReviewStatus();
+    checkReportStatus();
   }, [open, event?.id, location.pathname, reviewingEventIds]);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
@@ -524,6 +544,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
+        isSafeguarded={isSafeguarded}
       />
     </>);
   }
@@ -553,6 +574,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
+        isSafeguarded={isSafeguarded}
       />
     );
   }
@@ -582,6 +604,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
+        isSafeguarded={isSafeguarded}
       />
     );
   }
@@ -611,6 +634,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
+        isSafeguarded={isSafeguarded}
       />
     );
   }
@@ -1082,23 +1106,66 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
                       </Typography>
                     </Box>
                   )}
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={handleOpenReport}
-                    disabled={reportedOnce}
-                    sx={{ 
-                      textTransform: 'none',
-                      color: remarkColor,
-                      borderColor: remarkColor,
-                      '&:hover': {
+                  {isSafeguarded ? (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        px: 1.5,
+                        py: 0.25,
+                        borderRadius: '12px',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? 'rgba(76, 175, 80, 0.2)' 
+                          : 'rgba(76, 175, 80, 0.15)',
+                        transform: 'rotate(-2deg)',
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 2px 4px rgba(0,0,0,0.3)'
+                          : '0 2px 4px rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <CheckCircleIcon 
+                        sx={{ 
+                          fontSize: 14,
+                          color: theme.palette.mode === 'dark' 
+                            ? 'rgba(76, 175, 80, 1)' 
+                            : 'rgba(56, 142, 60, 1)',
+                        }} 
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          color: theme.palette.mode === 'dark' 
+                            ? 'rgba(76, 175, 80, 1)' 
+                            : 'rgba(56, 142, 60, 1)',
+                        }}
+                      >
+                        Safeguarded
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleOpenReport}
+                      disabled={reportedOnce}
+                      sx={{ 
+                        textTransform: 'none',
+                        color: remarkColor,
                         borderColor: remarkColor,
-                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(33,150,243,0.12)' : 'rgba(33,150,243,0.08)'
-                      }
-                    }}
-                  >
-                    {reportedOnce ? 'Reported' : 'Report'}
-                  </Button>
+                        '&:hover': {
+                          borderColor: remarkColor,
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(33,150,243,0.12)' : 'rgba(33,150,243,0.08)'
+                        }
+                      }}
+                    >
+                      {reportedOnce ? 'Reported' : 'Report'}
+                    </Button>
+                  )}
                 </Box>
               </Box>
             </Paper>

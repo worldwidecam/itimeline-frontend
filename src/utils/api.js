@@ -468,13 +468,14 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '') 
     if (!allowed.includes(action)) {
       throw new Error(`Invalid resolve action: ${action}`);
     }
-    const payload = { action };
-    if (action === 'remove') {
-      if (!verdict || !String(verdict).trim()) {
-        throw new Error('A non-empty verdict is required to remove from community');
-      }
-      payload.verdict = verdict.trim();
+    // Verdict is required for all resolve actions (delete, safeguard, remove)
+    if (!verdict || !String(verdict).trim()) {
+      throw new Error('A non-empty verdict is required');
     }
+    const payload = { 
+      action,
+      verdict: verdict.trim()
+    };
     console.log(`[API] Resolving report ${reportId} on timeline ${timelineId} with action '${action}'`);
     const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/resolve`, payload);
     console.log('[API] resolveReport response:', response.data);
