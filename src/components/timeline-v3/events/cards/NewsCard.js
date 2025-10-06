@@ -40,7 +40,7 @@ import PageCornerButton from '../PageCornerButton';
 import { alpha } from '@mui/material/styles';
 import UserAvatar from '../../../common/UserAvatar';
 
-const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
+const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen, reviewingEventIds = new Set() }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -613,6 +613,7 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOp
           }
         }}
         setIsPopupOpen={setIsPopupOpen}
+        reviewingEventIds={reviewingEventIds}
       />
     </>
   );

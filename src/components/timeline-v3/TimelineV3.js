@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports } from '../../utils/api';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
@@ -60,6 +60,7 @@ function TimelineV3() {
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
   const [isMember, setIsMember] = useState(null); // Track if user is a member of the community timeline (null = loading)
   const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
+  const [reviewingEventIds, setReviewingEventIds] = useState(new Set()); // Track event IDs that are "in review" on this timeline
 
   // Centralized, headless membership logic (no UI changes)
   const {
@@ -996,6 +997,44 @@ function TimelineV3() {
 
     fetchEvents();
   }, [timelineId, userInteracted]);
+
+  // Fetch reviewing reports to show "In Review" icon on event popups
+  useEffect(() => {
+    const fetchReviewingReports = async () => {
+      if (!timelineId || timelineId === 'new' || !isAuthenticated) return;
+      
+      try {
+        console.log('[TimelineV3] Fetching reviewing reports for timeline:', timelineId);
+        const response = await listReports(timelineId, { status: 'reviewing' });
+        
+        console.log('[TimelineV3] Full response from listReports:', response);
+        
+        // Extract event IDs from the reports
+        const eventIds = new Set(
+          (response.items || []).map(report => {
+            console.log('[TimelineV3] Processing report:', report);
+            return report.event_id;
+          }).filter(Boolean)
+        );
+        
+        console.log('[TimelineV3] Reviewing event IDs (Set):', Array.from(eventIds));
+        console.log('[TimelineV3] Total reviewing reports:', response.items?.length || 0);
+        setReviewingEventIds(eventIds);
+      } catch (error) {
+        // Silently fail - user might not have permission to view reports (non-moderator)
+        console.error('[TimelineV3] Could not fetch reviewing reports:', error);
+        console.log('[TimelineV3] Error details:', error.response?.data || error.message);
+        setReviewingEventIds(new Set());
+      }
+    };
+
+    fetchReviewingReports();
+    
+    // Also set up an interval to refresh every 10 seconds
+    const interval = setInterval(fetchReviewingReports, 10000);
+    
+    return () => clearInterval(interval);
+  }, [timelineId, isAuthenticated]);
 
   // Create timeline when component mounts
   useEffect(() => {
@@ -2840,7 +2879,8 @@ const handleRecenter = () => {
             goToPrevious={navigateToPrevEvent}
             goToNext={navigateToNextEvent}
             currentEventIndex={currentEventIndex}
-            setIsPopupOpen={setIsPopupOpen} // Add this line to pass the function
+            setIsPopupOpen={setIsPopupOpen}
+            reviewingEventIds={reviewingEventIds}
           />
         )}
       </Box>

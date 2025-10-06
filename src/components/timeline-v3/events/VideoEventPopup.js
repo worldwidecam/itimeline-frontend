@@ -37,6 +37,7 @@ import {
   Fullscreen as FullscreenIcon,
   VolumeUp as VolumeUpIcon,
   Settings as SettingsIcon,
+  RateReview as RateReviewIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -75,7 +76,8 @@ const VideoEventPopup = ({
   addingToTimeline,
   setError,
   handleAddToTimeline,
-  fetchExistingTimelines
+  fetchExistingTimelines,
+  isInReview = false
 }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -915,7 +917,49 @@ const VideoEventPopup = ({
                   
                   {/* The outdated creator info section has been removed as we now use the CreatorChip component above */}
                   {/* Report action - Level 1 */}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, mt: 1, position: 'relative' }}>
+                    {isInReview && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          px: 1.5,
+                          py: 0.25,
+                          borderRadius: '12px',
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 152, 0, 0.2)' 
+                            : 'rgba(255, 152, 0, 0.15)',
+                          transform: 'rotate(-2deg)',
+                          boxShadow: theme.palette.mode === 'dark'
+                            ? '0 2px 4px rgba(0,0,0,0.3)'
+                            : '0 2px 4px rgba(0,0,0,0.1)',
+                        }}
+                      >
+                        <RateReviewIcon 
+                          sx={{ 
+                            fontSize: 14,
+                            color: theme.palette.mode === 'dark' 
+                              ? 'rgba(255, 152, 0, 1)' 
+                              : 'rgba(255, 152, 0, 1)',
+                          }} 
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: theme.palette.mode === 'dark' 
+                              ? 'rgba(255, 152, 0, 1)' 
+                              : 'rgba(255, 152, 0, 1)',
+                          }}
+                        >
+                          In Review
+                        </Typography>
+                      </Box>
+                    )}
                     <Button
                       variant="outlined"
                       size="small"

@@ -29,7 +29,7 @@ import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import UserAvatar from '../../../common/UserAvatar';
 
-const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
+const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen, reviewingEventIds = new Set() }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -294,6 +294,7 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopup
           }
         }}
         setIsPopupOpen={setIsPopupOpen}
+        reviewingEventIds={reviewingEventIds}
       />
     </>
   );

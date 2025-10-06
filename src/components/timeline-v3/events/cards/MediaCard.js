@@ -37,7 +37,7 @@ import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisuali
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
 
-const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen }, ref) => {
+const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen, reviewingEventIds = new Set() }, ref) => {
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
   
@@ -1080,6 +1080,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
         }}
         event={event}
         setIsPopupOpen={setIsPopupOpen}
+        reviewingEventIds={reviewingEventIds}
       />
     </>
   );

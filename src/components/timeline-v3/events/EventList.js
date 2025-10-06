@@ -65,7 +65,8 @@ const EventList = ({
   setIsPopupOpen, // Function to notify TimelineV3 when popups are open/closed
   goToPrevious, // Function to navigate to previous event
   goToNext, // Function to navigate to next event
-  currentEventIndex // Current event index for carousel navigation
+  currentEventIndex, // Current event index for carousel navigation
+  reviewingEventIds = new Set() // Set of event IDs that are "in review" on this timeline
 }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -225,7 +226,8 @@ const EventList = ({
       const finalCardProps = {
         ...cardProps,
         ref: cardRef,
-        setIsPopupOpen // Pass the setIsPopupOpen function to card components
+        setIsPopupOpen, // Pass the setIsPopupOpen function to card components
+        reviewingEventIds // Pass the set of reviewing event IDs
       };
       
       // Return the appropriate card component with key as a direct prop

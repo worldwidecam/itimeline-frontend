@@ -1520,6 +1520,9 @@ const ManagePostsTab = ({ timelineId }) => {
   const [counts, setCounts] = useState({ all: 0, pending: 0, reviewing: 0, resolved: 0 });
   const [pageInfo, setPageInfo] = useState({ page: 1, page_size: 20, total: 0 });
   
+  // Track reviewing event IDs for "In Review" badge in EventPopup
+  const [reviewingEventIds, setReviewingEventIds] = useState(new Set());
+  
   // Handle post tab change
   const handlePostTabChange = (event, newValue) => {
     setPostTabValue(newValue);
@@ -1606,11 +1609,19 @@ const ManagePostsTab = ({ timelineId }) => {
       setReportedPosts(mapped);
       setCounts(data?.counts || { all: mapped.length, pending: mapped.filter(p=>p.status==='pending').length, reviewing: mapped.filter(p=>p.status==='reviewing').length, resolved: mapped.filter(p=>p.status==='resolved').length });
       setPageInfo({ page: data?.page || 1, page_size: data?.page_size || 20, total: data?.total || mapped.length });
+      
+      // Extract event IDs that are in "reviewing" status for the "In Review" badge
+      const reviewingIds = new Set(
+        items.filter(it => it.status === 'reviewing').map(it => it.event_id).filter(Boolean)
+      );
+      console.log('[ManagePostsTab] Reviewing event IDs:', Array.from(reviewingIds));
+      setReviewingEventIds(reviewingIds);
     } catch (e) {
       console.warn('[ManagePostsTab] listReports failed (showing empty):', e);
       setReportedPosts([]);
       setCounts({ all: 0, pending: 0, reviewing: 0, resolved: 0 });
       setPageInfo({ page: 1, page_size: 20, total: 0 });
+      setReviewingEventIds(new Set());
     } finally {
       setIsLoadingReports(false);
     }
@@ -2035,6 +2046,7 @@ const ManagePostsTab = ({ timelineId }) => {
           event={popupEvent}
           open={eventPopupOpen}
           onClose={() => setEventPopupOpen(false)}
+          reviewingEventIds={reviewingEventIds}
         />
       )}
 

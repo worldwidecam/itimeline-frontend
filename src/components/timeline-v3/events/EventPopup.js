@@ -40,6 +40,7 @@ import {
   Event as EventIcon,
   Person as PersonIcon,
   AccessTime as AccessTimeIcon,
+  RateReview as RateReviewIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -59,9 +60,54 @@ import config from '../../../config';
  * When open, it signals to TimelineV3 to pause its refresh interval to prevent
  * disruptions to media playback.
  */
-const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
+const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = new Set() }) => {
   const theme = useTheme();
   const location = useLocation();
+  const [isInReview, setIsInReview] = useState(false);
+  
+  // Fetch reviewing status when popup opens
+  useEffect(() => {
+    const checkReviewStatus = async () => {
+      if (!open || !event?.id) {
+        setIsInReview(false);
+        return;
+      }
+      
+      // First check if reviewingEventIds prop is provided (from AdminPanel)
+      if (reviewingEventIds.size > 0) {
+        setIsInReview(reviewingEventIds.has(event.id));
+        return;
+      }
+      
+      // Otherwise, fetch from API (for timeline page)
+      // We need to get the current timeline ID from the URL, not from the event
+      try {
+        // Extract timeline ID from current URL path
+        const pathMatch = location.pathname.match(/timeline(?:-v3)?\/(\d+)/);
+        const currentTimelineId = pathMatch ? pathMatch[1] : null;
+        
+        if (!currentTimelineId) {
+          setIsInReview(false);
+          return;
+        }
+        
+        const response = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
+          params: { status: 'reviewing' }
+        });
+        
+        const reviewingEventIds = (response.data?.items || [])
+          .map(report => report.event_id)
+          .filter(Boolean);
+        
+        setIsInReview(reviewingEventIds.includes(event.id));
+      } catch (error) {
+        // Silently fail - user might not have permission
+        setIsInReview(false);
+      }
+    };
+    
+    checkReviewStatus();
+  }, [open, event?.id, location.pathname, reviewingEventIds]);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -477,6 +523,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
         setError={setError}
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
+        isInReview={isInReview}
       />
     </>);
   }
@@ -505,6 +552,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
         setError={setError}
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
+        isInReview={isInReview}
       />
     );
   }
@@ -533,6 +581,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
         setError={setError}
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
+        isInReview={isInReview}
       />
     );
   }
@@ -561,6 +610,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
         setError={setError}
         handleAddToTimeline={handleAddToTimeline}
         fetchExistingTimelines={fetchExistingTimelines}
+        isInReview={isInReview}
       />
     );
   }
@@ -989,7 +1039,49 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen }) => {
                   </Box>
                 )}
                 {/* Report action - Level 1 */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, mt: 1, position: 'relative' }}>
+                  {isInReview && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        px: 1.5,
+                        py: 0.25,
+                        borderRadius: '12px',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? 'rgba(255, 152, 0, 0.2)' 
+                          : 'rgba(255, 152, 0, 0.15)',
+                        transform: 'rotate(-2deg)',
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 2px 4px rgba(0,0,0,0.3)'
+                          : '0 2px 4px rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <RateReviewIcon 
+                        sx={{ 
+                          fontSize: 14,
+                          color: theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 152, 0, 1)' 
+                            : 'rgba(255, 152, 0, 1)',
+                        }} 
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          color: theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 152, 0, 1)' 
+                            : 'rgba(255, 152, 0, 1)',
+                        }}
+                      >
+                        In Review
+                      </Typography>
+                    </Box>
+                  )}
                   <Button
                     variant="outlined"
                     size="small"
