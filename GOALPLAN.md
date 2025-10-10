@@ -1,43 +1,125 @@
 # Main Goal - Community Timeline Implementation
 
-## Lean Plan (2025-09-13)
+## Lean Plan (2025-10-10)
 
 ### Main GOAL
-- Community timeline implementation
+- Prepare application for production launch
 
-### Sub GOALS
-- Members page
-- Admin page
-- Reporting system (Manage Posts)
+### Sub GOALS (In Order)
+1. ✅ Community timeline implementation (MOSTLY COMPLETE)
+2. 🔄 Finish Community Timeline Implementation (CURRENT)
+3. ⏳ Timeline Reference Point B System (NEXT - MAJOR)
+4. ⏳ Promote/Demote Voting System
+5. ⏳ Better Auth Migration (FINAL PRE-PRODUCTION)
 
 ### Current Sub GOAL
-- Admin page
+- Finish Community Timeline Implementation
 
 ### Current Goal within Sub GOAL
-- Report system wiring (submit from event popups/cards → visible and actionable in AdminPanel → Manage Posts tab)
+- Complete Settings Tab in Admin Panel
 
 ### CURRENT TODO
-- Verify that the Report button on all event types successfully creates items that appear in AdminPanel → Manage Posts tab.
-- Replace any mock data in Manage Posts with real API data via `src/utils/api.js`:
-  - `listReports(timelineId, params)`
-  - `acceptReport(timelineId, reportId)`
-  - `resolveReport(timelineId, reportId, { action: 'delete'|'safeguard' })`
-- After actions, re-fetch list and update counts/tabs; no UI/UX changes.
+- [ ] Implement Settings Tab in Admin Panel
+  - [ ] Timeline visibility settings (public/private/community)
+  - [ ] Timeline name/description editing
+  - [ ] Timeline deletion functionality
+  - [ ] Other timeline configuration options
+
+### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
+- ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'
+- ✅ Add event type icons to Manage Posts report cards (color-coded)
+- ✅ Update report reason chip colors (Blue/Orange/Red palette)
+- ✅ Fix EventPopup grey border visual issue (removed subtle border artifacts)
+- ✅ Redesign image media marker popover (moved title/date outside image preview)
+- ✅ Fix EventCounter/Carousel filter synchronization (respects EventList type filter + no auto-scroll)
+- ✅ Restore left border colors on Manage Posts report cards (status phase indicator)
+- ✅ Update README with October 2025 improvements and current focus
+
+### DEFERRED QUALITY OF LIFE (For Later)
+- [ ] Add search/filter functionality to Manage Posts list
+- [ ] Consider pagination controls for Manage Posts (currently loads all)
+- [ ] Add loading states for report actions (Accept/Remove/Delete/Safeguard)
+- [ ] Add favicon/site icon for branding
+
+### NEXT MAJOR TODO (After Quality of Life)
+- [ ] **Timeline Reference Point B System** ⭐ CRITICAL ARCHITECTURE CHANGE
+  - **Problem**: Current system only tracks distance from point [0], causing issues:
+    - Filter view switches lose user context (e.g., 8 hours in day view = 8 years in year view)
+    - Clunky event marker movement
+    - Poor scroll position memory across view changes
+  - **Solution**: Dual reference point system:
+    - **Point A**: Today's current date/time (absolute reference)
+    - **Point B**: User's focus position relative to Point A (tracks distance from today, not from [0])
+  - **Impact**: Fixes navigation, maintains context across filter views, smoother scrolling
+  - **Complexity**: HIGH - Core timeline coordinate system refactor
+  - **Priority**: NEXT after Quality of Life improvements
+
+### COMPLETED TODO (2025-10-10)
+- ✅ **Report System** - Complete end-to-end implementation:
+  - Report button on all event types creates items in AdminPanel → Manage Posts tab
+  - Manage Posts tab uses real API data (no mock data)
+  - All three resolve actions implemented: remove, delete, safeguard
+  - List refreshes and counts update after actions
+  - Verdict requirement enforced
+  - View Event button for investigation
+
+### Production Roadmap
+
+**Phase 1: Quality of Life** (Current - Est. 1-2 weeks)
+- Polish existing features
+- Fix minor UX issues
+- Add missing loading states
+
+**Phase 2: Timeline Reference Point B** (Next - Est. 2-3 weeks) ⭐
+- Refactor core coordinate system
+- Implement dual reference points
+- Fix filter view context switching
+- Optimize event marker movement
+
+**Phase 3: Promote/Demote Voting System** (Est. 3-4 weeks)
+- Reddit-style upvote/downvote toggle
+- Vote aggregation and display
+- Visual indicators (green/red dots, financial chart style)
+- Database schema for votes
+- Vote manipulation prevention
+
+**Phase 4: Event Marker Scaling** (Est. 1-2 weeks)
+- Optimize for 1000s of events
+- Clustering/grouping when zoomed out
+- Virtual rendering for visible markers only
+- Performance testing
+
+**Phase 5: Better Auth Migration** (Final - Est. 2-3 weeks) 🚢
+- Migrate from Flask-JWT-Extended to Better Auth
+- Database schema migration with user preservation
+- Add 2FA, social OAuth
+- Comprehensive testing
+- **PRODUCTION LAUNCH** 🎉
 
 ### Notes for Current Context
+- ✅ **Reporting System COMPLETE** (2025-10-10):
+  - Report button across all event popups (Standard, Image, Video, Audio, News)
+  - Manage Posts tab fully wired to real backend API
+  - All three resolution actions implemented and working:
+    - **Remove from Community** - Timeline-specific removal via blocklist
+    - **Delete Post** - Global deletion (removes from ALL timelines)
+    - **Safeguard Post** - Marks as reviewed/safe, dismisses report
+  - Status workflow: Pending → Reviewing → Resolved
+  - Real-time list updates after actions
+  - Verdict requirement enforced for all actions
+  - View Event button opens EventPopup for investigation
+
 - Completed recently:
-  - Members page with real API; roles promote/demote; remove/block/unblock; loading/error states; snackbars; tabs for active/blocked.
-  - Join/Blocked gating in `TimelineV3.js` showing red banner when blocked.
-  - Report button added across all popups/cards, calls `/api/v1/timelines/{timeline_id}/reports`.
-- Where we could keep working but moved past for now:
-  - Promote/Demote controls style parity achieved; MemberListTab set to read-only.
-  - Passport sync after admin actions is in place; cache invalidation patterns established.
-- Knowledge to remember for tomorrow:
-  - Back end routes for reports exist in `itimeline-backend/routes/reports.py`:
-    - `GET /api/v1/timelines/{timeline_id}/reports`
-    - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/accept`
-    - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/resolve` with `{ action }`
-  - Avoid schema changes; only wire existing endpoints. Keep UI unchanged; replace mocks with real data.
+  - Members page with real API; roles promote/demote; remove/block/unblock
+  - Join/Blocked gating with red banner
+  - Quote system complete
+  - CommunityLockView and AdminPanel access guards
+
+- Backend endpoints (all working):
+  - `GET /api/v1/timelines/{timeline_id}/reports` - List reports with pagination
+  - `POST /api/v1/timelines/{timeline_id}/reports` - Submit report
+  - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/accept` - Accept for review
+  - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/resolve` - Resolve with action
 
 ---
 

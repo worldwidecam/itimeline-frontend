@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
@@ -519,10 +519,12 @@ function TimelineV3() {
     // Find the index of the clicked event in the events array
     const eventIndex = events.findIndex(e => e.id === event.id);
     
+    // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
+    setShouldScrollToEvent(false);
+    
     // Select the event to highlight it in the list
     setSelectedEventId(event.id);
     setCurrentEventIndex(eventIndex);
-    setShouldScrollToEvent(false);
     
     // Find the card reference for this event
     let cardRef;
@@ -549,11 +551,11 @@ function TimelineV3() {
   const handleMarkerClick = (event, index) => {
     console.log('Marker clicked for event:', event, 'at index:', index);
     
+    // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
+    setShouldScrollToEvent(false);
+    
     // Set the selected event ID to highlight it in the list
     setSelectedEventId(event.id);
-    
-    // Don't scroll to the event in the list
-    setShouldScrollToEvent(false);
     
     // Get the filtered events array that's used by the EventCounter
     const filteredEvents = events.filter(e => {
@@ -707,6 +709,10 @@ function TimelineV3() {
     // Get the next event
     const nextEvent = filteredEvents[nextFilteredIndex];
     
+    // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
+    // to prevent EventList from scrolling when the ID changes
+    setShouldScrollToEvent(false);
+    
     // Update the selected event ID and current event index
     setSelectedEventId(nextEvent.id);
     
@@ -715,9 +721,6 @@ function TimelineV3() {
     if (fullEventsIndex !== -1) {
       setCurrentEventIndex(fullEventsIndex);
     }
-    
-    // Don't scroll to the event in the list for filter views
-    setShouldScrollToEvent(viewMode === 'position');
   };
   
   // Function to navigate to the previous event in the carousel and update the selected marker
@@ -779,6 +782,10 @@ function TimelineV3() {
     // Get the previous event
     const prevEvent = filteredEvents[prevFilteredIndex];
     
+    // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
+    // to prevent EventList from scrolling when the ID changes
+    setShouldScrollToEvent(false);
+    
     // Update the selected event ID and current event index
     setSelectedEventId(prevEvent.id);
     
@@ -787,9 +794,6 @@ function TimelineV3() {
     if (fullEventsIndex !== -1) {
       setCurrentEventIndex(fullEventsIndex);
     }
-    
-    // Don't scroll to the event in the list for filter views
-    setShouldScrollToEvent(viewMode === 'position');
   };
   
   // Handle view mode transitions with a multi-phase approach
@@ -2320,11 +2324,18 @@ const handleRecenter = () => {
 
           <Stack direction="row" spacing={2} alignItems="center">
             {/* Event Counter - Now shows filtered events count */}
-            <EventCounter
-              count={filteredEventsCount}
-              events={events.filter(event => {
+            {(() => {
+              // Compute filtered events for EventCounter (memoized inline)
+              const filteredEventsForCounter = events.filter(event => {
                 // Apply the same filtering logic as in EventList
-                if (viewMode === 'position') return true;
+                if (viewMode === 'position') {
+                  // In position mode, still apply type filter if selected
+                  if (selectedType) {
+                    const eventType = (event.type || '').toLowerCase();
+                    return eventType === selectedType.toLowerCase();
+                  }
+                  return true;
+                }
                 
                 if (!event.event_date) return false;
                 
@@ -2363,29 +2374,46 @@ const handleRecenter = () => {
                 }
                 
                 const eventDate = new Date(event.event_date);
-                return eventDate >= startDate && eventDate <= endDate;
-              })}
-              currentIndex={currentEventIndex}
-              onChangeIndex={(index) => {
-                setCurrentEventIndex(index);
-                // Also update the selected event ID to ensure marker highlighting
-                if (events[index]) {
-                  setSelectedEventId(events[index].id);
+                const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
+                
+                // Apply type filter if selected
+                if (selectedType) {
+                  const eventType = (event.type || '').toLowerCase();
+                  return passesDateFilter && eventType === selectedType.toLowerCase();
                 }
-              }}
-              onDotClick={(event) => {
-                handleDotClick(event);
-                // Ensure the marker is highlighted
-                setSelectedEventId(event.id);
-              }}
-              viewMode={viewMode}
-              timelineOffset={timelineOffset}
-              goToPrevious={navigateToPrevEvent}
-              goToNext={navigateToNextEvent}
-              markerSpacing={100}
-              sortOrder={sortOrder}
-              selectedType={selectedType}
-            />
+                
+                return passesDateFilter;
+              });
+              
+              return (
+                <EventCounter
+                  count={filteredEventsCount}
+                  events={filteredEventsForCounter}
+                  currentIndex={currentEventIndex}
+                  onChangeIndex={(index) => {
+                    // Disable auto-scroll before updating selection
+                    setShouldScrollToEvent(false);
+                    setCurrentEventIndex(index);
+                    // Use the filtered events array to get the correct event
+                    if (filteredEventsForCounter[index]) {
+                      setSelectedEventId(filteredEventsForCounter[index].id);
+                    }
+                  }}
+                  onDotClick={(event) => {
+                    handleDotClick(event);
+                    // Ensure the marker is highlighted
+                    setSelectedEventId(event.id);
+                  }}
+                  viewMode={viewMode}
+                  timelineOffset={timelineOffset}
+                  goToPrevious={navigateToPrevEvent}
+                  goToNext={navigateToNextEvent}
+                  markerSpacing={100}
+                  sortOrder={sortOrder}
+                  selectedType={selectedType}
+                />
+              );
+            })()}
             <Stack direction="row" spacing={1}>
               <Button
                 variant={viewMode === 'day' ? "contained" : "outlined"}

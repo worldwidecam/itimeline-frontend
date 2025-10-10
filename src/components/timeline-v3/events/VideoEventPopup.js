@@ -379,9 +379,7 @@ const VideoEventPopup = ({
               boxShadow: theme.palette.mode === 'dark'
                 ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
                 : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
-              border: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255,255,255,0.05)'
-                : '1px solid rgba(0,0,0,0.05)',
+              border: 'none',
               // Two-container layout
               display: 'flex',
               flexDirection: 'row',

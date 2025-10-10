@@ -248,7 +248,7 @@ const MediaEventMarker = ({ event }) => {
           sx={{
             maxWidth: 250, 
             cursor: 'pointer',
-            overflow: 'hidden',
+            overflow: 'visible',
             borderRadius: '12px',
             bgcolor: theme.palette.mode === 'dark' 
               ? 'rgba(30,20,40,0.95)'
@@ -261,57 +261,48 @@ const MediaEventMarker = ({ event }) => {
               : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(100,50,150,0.15)'
           }}
         >
-          <Box sx={{ position: 'relative' }}>
-            {/* Image */}
-            <Box 
-              component="img"
-              src={mediaSource}
-              alt={event.title || 'Media'}
-              onError={(e) => {
-                // Fallback to a placeholder if image fails to load
-                e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/300x150?text=Image+Not+Available';
-              }}
-              sx={{
-                width: '100%',
-                height: 150,
-                objectFit: 'cover',
-                borderRadius: '4px',
-              }}
-            />
-            
-            {/* Title overlay at bottom */}
-            <Box sx={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              color: 'white',
-              p: 1,
-              borderRadius: '0 0 4px 4px'
+          {/* Image - Full view without overlay */}
+          <Box 
+            component="img"
+            src={mediaSource}
+            alt={event.title || 'Media'}
+            onError={(e) => {
+              // Fallback to a placeholder if image fails to load
+              e.target.onerror = null;
+              e.target.src = 'https://via.placeholder.com/300x150?text=Image+Not+Available';
+            }}
+            sx={{
+              width: '100%',
+              height: 150,
+              objectFit: 'cover',
+              borderRadius: '12px 12px 0 0',
+              display: 'block'
+            }}
+          />
+          
+          {/* Title and date below image */}
+          <Box sx={{
+            p: 1.5,
+            pt: 1,
+          }}>
+            <Typography variant="subtitle2" sx={{ 
+              fontWeight: 600,
+              lineHeight: 1.3,
+              fontSize: '0.85rem',
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.87)',
+              mb: 0.5
             }}>
-              <Typography variant="subtitle2" sx={{ 
-                fontWeight: 'bold',
-                lineHeight: 1.2,
-                textAlign: 'center',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontSize: '0.8rem'
-              }}>
-                {event.title}
-              </Typography>
-              
-              {/* Date in small text */}
-              <Typography variant="caption" sx={{ 
-                display: 'block',
-                textAlign: 'center',
-                mt: 0.5,
-                opacity: 0.8
-              }}>
-                {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-              </Typography>
-            </Box>
+              {event.title}
+            </Typography>
+            
+            {/* Date */}
+            <Typography variant="caption" sx={{ 
+              display: 'block',
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+              fontSize: '0.7rem'
+            }}>
+              {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
+            </Typography>
           </Box>
         </Paper>
       </>

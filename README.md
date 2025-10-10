@@ -2,11 +2,28 @@
 
 Frontend application for the iTimeline platform, a modern web application for creating and sharing timelines with interactive event cards.
 
-## Current Focus (August 2025)
+## Current Focus (October 2025)
+
+### Finishing Community Timeline Implementation
+
+The iTimeline application now supports Community Timelines with a comprehensive moderation system, member management, and action card features. Current work focuses on completing the Settings Tab in the Admin Panel to finalize community timeline management capabilities.
+
+#### Recent Completions (October 2025)
+- ✅ **Report & Moderation System**: Full end-to-end reporting with Manage Posts interface
+- ✅ **Quality of Life Improvements**: 7 UI/UX enhancements for better user experience
+- ✅ **Event Status Indicators**: Visual badges for posts under review
+- ✅ **Carousel Filter Sync**: Fixed navigation to respect event type filters
+
+#### Current Priority
+- 🔄 **Settings Tab Implementation**: Complete timeline configuration interface
+  - Timeline visibility settings (public/private/community)
+  - Timeline name/description editing
+  - Timeline deletion functionality
+  - Other configuration options
 
 ### Community Timelines & Action Cards System
 
-The iTimeline application now supports Community Timelines with a Bronze/Silver/Gold action card system that encourages member engagement through milestone-based rewards and achievements.
+The iTimeline application supports Community Timelines with a Bronze/Silver/Gold action card system that encourages member engagement through milestone-based rewards and achievements.
 
 #### Key Features
 - **Timeline Types**: Support for both hashtag timelines (automatic collections) and community timelines (user-created spaces)
@@ -391,6 +408,66 @@ All Report buttons across event popups share a consistent, minimal UI and behavi
 - Manage Posts tab now reads from the real endpoints via `listReports`, `acceptReport`, `resolveReport`.
 - Status tabs are always color-tinted (Pending=warning, Reviewing=info, Resolved=success).
 - Future: display parsed category badge from reason prefix without schema change.
+
+### Quality of Life Improvements (October 2025)
+
+A series of UI/UX enhancements were implemented to improve the overall user experience and visual polish of the application:
+
+#### Event Status Indicators
+- **"Under Review" Visual Indicator**: Event cards now display an orange "Under Review" badge when their status is 'reviewing'
+  - Appears in EventList for quick visual scanning
+  - Helps moderators track which posts are actively being moderated
+  - Color-coded with warning icon for immediate recognition
+
+#### Manage Posts Enhancements
+- **Event Type Icons**: Report cards now display color-coded icons indicating the type of content reported
+  - News events: Red newspaper icon
+  - Media events: Purple media icon (image/video/audio)
+  - Remark events: Blue comment icon
+  - Provides instant visual context about the reported content
+
+- **Report Reason Chip Colors**: Violation type chips now use a cohesive color palette
+  - Website Policy: Blue (#1976d2)
+  - Government Policy: Orange (#ed6c02)
+  - Unethical Boundary: Red (#d32f2f)
+  - Solid colors with white text for better readability
+
+- **Status Phase Borders**: Report cards feature a 4px colored left border indicating their phase
+  - Pending: Orange border (#D97706)
+  - Reviewing: Blue border (#2563EB)
+  - Resolved: Green border (#059669)
+  - Enables quick visual scanning of report status in the ALL tab
+
+#### Event Popup Improvements
+- **Grey Border Removal**: Removed subtle border artifacts from all event popup dialogs
+  - Affected components: EventPopup, ImageEventPopup, VideoEventPopup, AudioMediaPopup, NewsEventPopup
+  - Changed from `border: '1px solid rgba(0,0,0,0.05)'` to `border: 'none'`
+  - Cleaner visual appearance without compromising definition (boxShadow still provides depth)
+
+#### Event Marker Redesign
+- **Image Media Marker Popover**: Redesigned preview cards for image events
+  - Removed grey overlay box that obscured image preview
+  - Title and date now displayed below the image in a dedicated info section
+  - Full, unobstructed view of image preview
+  - Better visual hierarchy and readability
+
+#### EventCounter/Carousel Improvements
+- **Filter Synchronization**: Fixed carousel navigation to respect EventList type filters
+  - Carousel now cycles through only the filtered events (e.g., only Media events when Media filter is active)
+  - Properly switches between ALL/Media/News/Remark filters without showing hidden events
+  - Index lookup fixed to use filtered events array instead of unfiltered array
+
+- **Auto-Scroll Behavior**: Eliminated disruptive viewport jumping when using carousel navigation
+  - Fixed state update order: `setShouldScrollToEvent(false)` now called BEFORE `setSelectedEventId()`
+  - Prevents EventList from auto-scrolling when using left/right carousel arrows
+  - Consistent behavior across all navigation methods (arrows, dots, marker clicks)
+  - Users can browse events via carousel without being redirected to EventList
+
+#### Technical Implementation Notes
+- All changes maintain existing functionality while improving visual consistency
+- No database schema changes required
+- Backward compatible with existing data
+- Performance impact: negligible (primarily CSS and state management improvements)
 
 ### Form Validation Improvements
 
@@ -1230,6 +1307,82 @@ As create-react-app is no longer maintained, a future migration to Vite is plann
 This migration will provide a modern, faster development experience while maintaining the same application structure and functionality.
 
 ## Future Work and To-Do
+
+### Backlog: Ideas & Improvements (When Bored)
+
+This section contains low-priority improvements, polish items, and feature ideas that can be tackled when looking for something to work on. These are not blocking production but would enhance the user experience.
+
+#### UI/UX Polish
+- [ ] Add "Under Review" visual indicator on event cards when status is 'reviewing'
+- [ ] Add search/filter functionality to Manage Posts list
+- [ ] Consider pagination controls for Manage Posts (currently loads all)
+- [ ] Add loading states for report actions (Accept/Remove/Delete/Safeguard)
+- [ ] Add subtle animations for timeline marker hover states
+- [ ] Improve loading skeleton designs across components
+- [ ] Add empty state illustrations for timelines with no events
+- [ ] Enhance error messages with actionable suggestions
+
+#### Performance Optimizations
+- [ ] Implement virtual scrolling for very long event lists (>1000 events)
+- [ ] Optimize image loading with lazy loading and blur-up placeholders
+- [ ] Implement request debouncing for search inputs
+- [ ] Add caching strategy for frequently accessed timelines
+
+#### Feature Enhancements
+- [ ] Add event templates for quick creation
+- [ ] Implement event duplication feature
+- [ ] Add bulk event operations (select multiple, delete/move)
+- [ ] Create timeline export functionality (PDF, JSON, CSV)
+- [ ] Add timeline analytics dashboard (event count over time, most active members)
+
+#### Admin/Moderation Tools
+- [ ] Add bulk moderation actions
+- [ ] Create moderation activity log/audit trail
+- [ ] Implement automated spam detection
+- [ ] Add customizable auto-moderation rules
+
+#### Mobile Experience
+- [ ] Optimize touch gestures for timeline navigation (per UX/UI Guidelines)
+- [ ] Add pull-to-refresh on mobile
+- [ ] Add haptic feedback for touch interactions
+- [ ] Optimize for one-handed mobile use
+
+#### Media & Content
+- [ ] Add support for more media types (GIFs, documents, embeds)
+- [ ] Implement rich text editor for event descriptions
+- [ ] Add markdown support for formatting
+- [ ] Add image editing tools (crop, rotate, filters)
+
+#### Your Physical Notes
+*(Add your bullet point notes here)*
+- [ ] is email blur preference saved to passport?
+- [ ] Submission idea box for users with ideas
+- [ ] i'm worried about event markers. lets brainstorm a better wat to visualize and optimize the event markers to plan for 1000s of events
+- [ ] the website needs a little icon image. like the one that comes with the URL  
+- [ ] we need to create on timelineV3 a second Reference point (reference point B), because currently everything moves only depending on 1 reference point A (point [0]). with a second reference point, we can better track what the user wants to see. even if they change filter views. Reference point B will be in relevance to the distance from Point A. and our new definition of Point A will be today's current date/time. the problem with our current understanding is that we are not tracking the distance from point A. we are tracking the distance from point 0. this is a MAJOR TODO. parent level.
+- [ ] we need to create a sort of influence system, where users can influence the timeline. for instance, i'm envisioning a nuetral dot hovering above all event markers. events can be given a positive or negative vote feature. our version will be called "Promote" / "Demote".promoting and demoting will affect the position/look of this dot above the event's marker. if it is overall promoted, the dot will be green. if it is overall demoted, it will be red. we should connect all the dots horizontally like a financial chart. more thoughts on this upon request.also we must actually be working on this. this is a major parent TODO. 
+- [ ] special flare to event markers with the most interaction in view. 
+- [ ] take a day to audit all files. delete old unneccessary files.
+- [ ] possibly add an additional row to "last visited" in hamburger menu.
+- [ ] still need to figure out a way to make eventPopups not dependent on timelineV3.currently you can tell on audio media eventpopups , that the audio does not play all the way through. i think this is because the timelinev3 in the back is updating the eventpopup. 
+- [ ] remember to test production server port 4173
+- [ ] revisit homepage design once ratings system is in place
+- [ ] create ratings system. as mentioned above in passing thought, promote and demote will be the ratings system. also we will add user ability to vote on one of the event's listed tags. that way we can use the tags in a more dynamic way. for instance, if someone added the tag #fakenews to an event, we can use this tag to rate the event. if this was the most voted tag on the event, we can stamp the event with a "fakenews" label. 
+- [ ] community timelines need an overall status dropdown on their timeline pages. a fast way to see where something currently is, and if its positive or negative.
+- [ ] we probably should cleanup the media event field input.
+- [ ] EventPopup overlay has this weird grey border line. i can see it sometimes. it pulls me out of focus and i don't know how to better explain it.
+- [ ] we need to talk about creating a comment section on events/posts. how easy/complex is this?
+- [ ] home page sorting options? another thing to consider once we have a ratings system.
+- [ ] profile background customization?
+- [ ] Image media Popover that appears on click of event marker, should not display large info text or even title info. it takes away from viewing the image.
+- [ ] notification system.
+- [ ] is profile Bio saved to passport? also, profile bio could be styled better. lets make it look like a test word bubble coming from the profile picture.
+- [ ] create sharing feature
+- [ ] upgrage media event field input. we need new tab options for URL links to Youtube videos, tiktok videos, instagram videos, etc. that way we can outsource hosting these videos, while still being able to play them without leaving the timeline/ website.
+- [ ] 
+
+
+---
 
 ### Database Migration Strategy
 

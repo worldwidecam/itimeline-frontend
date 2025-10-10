@@ -48,6 +48,12 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ModeratorIcon from '@mui/icons-material/VerifiedUser';
 import SaveIcon from '@mui/icons-material/Save';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CommentIcon from '@mui/icons-material/Comment';
+import MovieIcon from '@mui/icons-material/Movie';
+import ImageIcon from '@mui/icons-material/Image';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import AudiotrackIcon from '@mui/icons-material/Audiotrack';
+import NewspaperIcon from '@mui/icons-material/Newspaper';
 import { useParams } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1761,9 +1767,30 @@ const ManagePostsTab = ({ timelineId }) => {
   const reviewingCount = counts.reviewing;
   const resolvedCount = counts.resolved;
   
-  // Helper to parse category from reason like "[website_policy] text" and return { chipLabel, chipColor, cleaned }
+  // Helper to get event type icon and color
+  const getEventTypeDisplay = (eventType) => {
+    const type = (eventType || '').toLowerCase();
+    switch (type) {
+      case 'remark':
+        return { icon: CommentIcon, color: '#2196f3', label: 'Remark' };
+      case 'media':
+        return { icon: MovieIcon, color: '#9c27b0', label: 'Media' };
+      case 'image':
+        return { icon: ImageIcon, color: '#4caf50', label: 'Image' };
+      case 'video':
+        return { icon: VideocamIcon, color: '#f44336', label: 'Video' };
+      case 'audio':
+        return { icon: AudiotrackIcon, color: '#ff9800', label: 'Audio' };
+      case 'news':
+        return { icon: NewspaperIcon, color: '#e53935', label: 'News' };
+      default:
+        return { icon: CommentIcon, color: '#757575', label: eventType || 'Event' };
+    }
+  };
+
+  // Helper to parse category from reason like "[website_policy] text" and return { chipLabel, chipColor, chipStyle, cleaned }
   const parseReasonCategory = (reasonRaw) => {
-    const out = { chipLabel: null, chipColor: null, cleaned: reasonRaw || '' };
+    const out = { chipLabel: null, chipColor: null, chipStyle: {}, cleaned: reasonRaw || '' };
     if (!reasonRaw || typeof reasonRaw !== 'string') return out;
     const m = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
     if (!m) return out;
@@ -1771,13 +1798,16 @@ const ManagePostsTab = ({ timelineId }) => {
     out.cleaned = m[2] || '';
     if (key === 'website_policy') {
       out.chipLabel = 'Website Policy';
-      out.chipColor = 'default';
+      out.chipColor = 'primary';
+      out.chipStyle = { bgcolor: '#1976d2', color: '#fff' }; // Blue
     } else if (key === 'government_policy') {
       out.chipLabel = 'Government Policy';
       out.chipColor = 'warning';
+      out.chipStyle = { bgcolor: '#ed6c02', color: '#fff' }; // Orange
     } else if (key === 'unethical_boundary') {
       out.chipLabel = 'Unethical Boundary';
       out.chipColor = 'error';
+      out.chipStyle = { bgcolor: '#d32f2f', color: '#fff' }; // Red
     }
     return out;
   };
@@ -1837,7 +1867,10 @@ const ManagePostsTab = ({ timelineId }) => {
         ) : (
           <Box>
             {filteredPosts.map((post) => {
-              const { chipLabel, chipColor, cleaned } = parseReasonCategory(post.reason);
+              const { chipLabel, chipColor, chipStyle, cleaned } = parseReasonCategory(post.reason);
+              const eventTypeDisplay = getEventTypeDisplay(post.eventType);
+              const EventTypeIcon = eventTypeDisplay.icon;
+              
               // Determine status color
               let statusColor = {
                 text: '#6B7280',
@@ -1866,16 +1899,15 @@ const ManagePostsTab = ({ timelineId }) => {
               }
               
               return (
-                <Paper 
+                <Paper
                   key={post.id}
-                  elevation={1}
+                  elevation={2}
                   sx={{
                     p: 2,
                     mb: 2,
-                    borderLeft: '4px solid',
-                    borderColor: post.status === 'pending' ? 'warning.main' : 
-                                post.status === 'reviewing' ? 'info.main' : 'success.main',
-                    transition: 'transform 0.2s ease',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    borderLeft: `4px solid ${statusColor.text}`,
                     '&:hover': {
                       transform: 'translateY(-2px)',
                       boxShadow: 3
@@ -1883,9 +1915,10 @@ const ManagePostsTab = ({ timelineId }) => {
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <EventTypeIcon sx={{ color: eventTypeDisplay.color, fontSize: 20 }} />
                       <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
-                        Event Type: {post.eventType}
+                        {eventTypeDisplay.label}
                       </Typography>
                       <Chip 
                         label={post.status.charAt(0).toUpperCase() + post.status.slice(1)}
@@ -1925,7 +1958,11 @@ const ManagePostsTab = ({ timelineId }) => {
                         <strong>Reason:</strong>
                       </Typography>
                       {chipLabel && (
-                        <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
+                        <Chip 
+                          label={chipLabel} 
+                          size="small" 
+                          sx={chipStyle}
+                        />
                       )}
                       <Typography variant="body2">{cleaned}</Typography>
                     </Box>
