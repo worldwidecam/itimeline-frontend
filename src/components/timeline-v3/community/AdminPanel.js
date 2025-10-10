@@ -1585,27 +1585,59 @@ const ManagePostsTab = ({ timelineId }) => {
       const data = await listReports(timelineId, { status, page: 1, page_size: 20 });
       // Normalize items into the structure used below
       const items = Array.isArray(data?.items) ? data.items : [];
-      const mapped = items.map((it) => ({
-        id: it.id || it.report_id || String(Math.random()),
-        eventType: it.event_type || it.type || 'Event',
-        status: it.status || 'pending',
-        reportDate: it.reported_at || it.created_at || it.reportDate || '',
-        eventId: it.event_id,
-        reporter: it.reporter || {
-          id: it.reporter_id,
-          name: it.reporter_username || 'Reporter',
-          avatar: it.reporter_avatar_url || null,
-        },
-        reason: it.reason || '',
-        assignedModerator: it.assigned_to ? { 
-          id: it.assigned_to, 
-          name: it.assigned_to_username || it.assigned_to_name || 'Moderator', 
-          avatar: it.assigned_to_avatar_url || null,
-        } : null,
-        resolution: it.resolution || null,
-        verdict: it.verdict || '',
-        reportId: it.id || it.report_id
-      }));
+      
+      // Fetch event details for each report to get the actual event type
+      // Since backend doesn't include event_type in reports response
+      const mappedPromises = items.map(async (it) => {
+        let displayType = 'Post';
+        
+        // Try to fetch the event details to get the type
+        if (it.event_id) {
+          try {
+            const eventRes = await api.get(`/api/timeline-v3/${timelineId}/events/${it.event_id}`);
+            const event = eventRes?.data;
+            
+            if (event) {
+              // Check media_subtype first
+              if (event.media_subtype) {
+                displayType = event.media_subtype.charAt(0).toUpperCase() + event.media_subtype.slice(1);
+              } else if (event.type) {
+                const type = String(event.type).toLowerCase();
+                if (type === 'remark') displayType = 'Remark';
+                else if (type === 'news') displayType = 'News';
+                else if (type === 'media') displayType = 'Media';
+                else displayType = event.type.charAt(0).toUpperCase() + event.type.slice(1);
+              }
+            }
+          } catch (err) {
+            console.warn('[ManagePostsTab] Failed to fetch event type for event', it.event_id, err);
+          }
+        }
+        
+        return {
+          id: it.id || it.report_id || String(Math.random()),
+          eventType: displayType,
+          status: it.status || 'pending',
+          reportDate: it.reported_at || it.created_at || it.reportDate || '',
+          eventId: it.event_id,
+          reporter: it.reporter || {
+            id: it.reporter_id,
+            name: it.reporter_username || 'Reporter',
+            avatar: it.reporter_avatar_url || null,
+          },
+          reason: it.reason || '',
+          assignedModerator: it.assigned_to ? { 
+            id: it.assigned_to, 
+            name: it.assigned_to_username || it.assigned_to_name || 'Moderator', 
+            avatar: it.assigned_to_avatar_url || null,
+          } : null,
+          resolution: it.resolution || null,
+          verdict: it.verdict || '',
+          reportId: it.id || it.report_id
+        };
+      });
+      
+      const mapped = await Promise.all(mappedPromises);
       setReportedPosts(mapped);
       setCounts(data?.counts || { all: mapped.length, pending: mapped.filter(p=>p.status==='pending').length, reviewing: mapped.filter(p=>p.status==='reviewing').length, resolved: mapped.filter(p=>p.status==='resolved').length });
       setPageInfo({ page: data?.page || 1, page_size: data?.page_size || 20, total: data?.total || mapped.length });
@@ -1853,7 +1885,7 @@ const ManagePostsTab = ({ timelineId }) => {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
-                        {post.eventType} Event
+                        Event Type: {post.eventType}
                       </Typography>
                       <Chip 
                         label={post.status.charAt(0).toUpperCase() + post.status.slice(1)}

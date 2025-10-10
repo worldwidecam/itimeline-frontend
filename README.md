@@ -710,6 +710,48 @@ This section provides a detailed overview of the iTimeline frontend component st
 
 ## Design Standards
 
+### UX/UI Guidelines
+
+#### Touch Screen Support (REQUIRED)
+**All user interactions must support touch screen input.** When creating new UX features or updating existing ones, always consider touch-based gestures:
+
+- **Tapping**: Primary interaction method for touch devices
+  - Single tap for selection/activation
+  - Double tap for detailed views (equivalent to double-click)
+  - Long press for context menus or additional options
+  
+- **Swiping**: Navigation and dismissal gestures
+  - Horizontal swipes for navigating between views or items
+  - Vertical swipes for scrolling lists
+  - Swipe-to-dismiss for removable items
+  
+- **Pinching**: Zoom and scale operations
+  - Pinch-to-zoom for images, videos, and timeline views
+  - Spread gesture for expanding content
+  
+- **Multi-touch**: Advanced interactions
+  - Two-finger gestures for secondary actions
+  - Rotation gestures where applicable
+
+**Implementation Requirements:**
+- All clickable elements must have adequate touch target size (minimum 44x44px recommended)
+- All hover states should have touch equivalents (tap-to-reveal)
+- All drag operations must work with touch drag
+- Ensure no functionality is exclusively mouse-dependent
+- Test all interactions on actual touch devices or browser touch emulation
+
+#### Accessibility Standards
+- **ARIA Labels**: All interactive elements must have descriptive ARIA labels
+- **Keyboard Navigation**: Full keyboard support for all interactions
+- **Screen Reader Support**: Semantic HTML and proper labeling
+- **Focus Indicators**: Clear visual indicators for focused elements
+
+#### Responsive Design Principles
+- **Mobile-First Approach**: Design for mobile, enhance for desktop
+- **Breakpoints**: Consistent responsive breakpoints across components
+- **Flexible Layouts**: Use flexbox/grid for adaptive layouts
+- **Touch-Friendly Spacing**: Adequate spacing between interactive elements on mobile
+
 ### Event Card Interactions
 
 #### Double-Click Behavior
@@ -1223,3 +1265,46 @@ The application currently uses SQLite for local development, but production depl
 - Timeline for production deployment
 
 This database strategy is a high-priority item that needs to be addressed before production deployment.
+
+### Authentication Migration to Better Auth
+
+#### Planned Migration
+The iTimeline project plans to migrate from the current Flask-JWT-Extended authentication system to **Better Auth** (https://www.better-auth.com/) as the final major migration before production deployment.
+
+**Why Better Auth?**
+- Framework-agnostic TypeScript authentication library
+- Comprehensive security features (CSRF protection, rate limiting, password breach detection)
+- Native PostgreSQL support
+- Plugin ecosystem for advanced features (2FA, passkeys, social OAuth, magic links)
+- Built-in role-based access control and session management
+- Active maintenance and growing community
+
+**Migration Timing:**
+- **Status**: Planned for pre-production
+- **Priority**: Final migration before production launch
+- **Rationale**: Avoid schema changes during active development; current Flask-JWT system is stable and meeting needs
+
+**Migration Scope:**
+1. **Backend**: Replace Flask-JWT-Extended with Better Auth Express adapter
+2. **Frontend**: Integrate Better Auth React client
+3. **Database**: Migrate user/session tables to Better Auth schema (requires careful planning)
+4. **Features**: Preserve all existing authentication functionality
+5. **Enhancements**: Add 2FA, social OAuth, and improved session management
+
+**Pre-Migration Checklist:**
+- [ ] Complete all core features and stabilize application
+- [ ] Document current authentication flow and dependencies
+- [ ] Create comprehensive test suite for auth-dependent features
+- [ ] Plan database migration strategy with rollback capability
+- [ ] Set up staging environment for migration testing
+- [ ] Obtain explicit approval for schema changes (per project guidelines)
+
+**Risk Mitigation:**
+- Database schema changes require explicit approval
+- Full backup before migration
+- Incremental rollout with feature flags
+- Comprehensive testing of timeline membership, admin panel, and community features
+- User communication plan for any downtime
+
+**Alternative Considered:**
+Incremental enhancement of Flask-JWT (rate limiting, 2FA via PyOTP, social OAuth via Authlib) was considered but Better Auth provides a more comprehensive, maintainable solution for long-term production needs.
