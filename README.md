@@ -1379,7 +1379,7 @@ This section contains low-priority improvements, polish items, and feature ideas
 - [ ] is profile Bio saved to passport? also, profile bio could be styled better. lets make it look like a test word bubble coming from the profile picture.
 - [ ] create sharing feature
 - [ ] upgrage media event field input. we need new tab options for URL links to Youtube videos, tiktok videos, instagram videos, etc. that way we can outsource hosting these videos, while still being able to play them without leaving the timeline/ website.
-- [ ] 
+- [ ] speaking of /reports page. users should be able to report timelines. and one of the reasons in our website policy will be monopolizing general words. so that way if someone is sitting on #Saturday for example, someone else can report it for monopolizing general words. and a reporting option for timelines can be to delete it, or convert it to a community timeline. or the reverse! convert a community timeline to a hashtag timeline.
 
 
 ---

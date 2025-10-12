@@ -2799,25 +2799,33 @@ const SettingsTab = ({ id }) => {
   });
   const [isRefreshingQuote, setIsRefreshingQuote] = useState(false);
   
-  // Mock data for timeline
-  const [timelineData, setTimelineData] = useState({
-    id: '123',
-    name: 'Community Timeline',
-    description: 'A community timeline for sharing events and media related to our community.',
-    memberCount: 42,
-    createdDate: 'January 15, 2025',
-    visibility: 'public',
-    owner: {
-      id: '1',
-      name: 'John Doe'
-    }
-  });
+  // Timeline data loaded from backend
+  const [timelineData, setTimelineData] = useState(null);
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState(true);
   
   // Load saved settings from backend API
   useEffect(() => {
-    const loadActionCards = async () => {
+    const loadSettingsData = async () => {
       try {
-        console.log(`[AdminPanel] Loading action cards for timeline ${id}`);
+        console.log(`[SettingsTab] Loading settings for timeline ${id}`);
+        
+        // Load timeline details first
+        setIsLoadingTimeline(true);
+        const timelineDetails = await getTimelineDetails(id);
+        console.log(`[SettingsTab] Timeline details:`, timelineDetails);
+        
+        if (timelineDetails) {
+          setTimelineData({
+            id: timelineDetails.id,
+            name: timelineDetails.name,
+            description: timelineDetails.description || '',
+            memberCount: timelineDetails.member_count || 0,
+            createdDate: timelineDetails.created_at ? new Date(timelineDetails.created_at).toLocaleDateString() : 'Unknown',
+            visibility: timelineDetails.visibility || 'public',
+            createdBy: timelineDetails.created_by
+          });
+        }
+        setIsLoadingTimeline(false);
         
         // Load existing action cards from backend
         const actionsResult = await getTimelineActions(id);
@@ -2905,7 +2913,7 @@ const SettingsTab = ({ id }) => {
     };
     
     if (id) {
-      loadActionCards();
+      loadSettingsData();
     }
   }, [id]);
   
@@ -2949,7 +2957,23 @@ const SettingsTab = ({ id }) => {
     try {
       setIsSaving(true);
       setShowSavedState(false);
-      console.log(`[AdminPanel] Saving action cards for timeline ${id}...`);
+      console.log(`[SettingsTab] Saving settings for timeline ${id}...`);
+      
+      // Save timeline description if changed
+      if (timelineData && timelineData.description !== undefined) {
+        try {
+          console.log(`[SettingsTab] Updating timeline description...`);
+          await updateTimelineDetails(id, {
+            description: timelineData.description
+          });
+          console.log(`[SettingsTab] Timeline description updated successfully`);
+        } catch (descError) {
+          console.error('[SettingsTab] Error updating timeline description:', descError);
+          throw descError;
+        }
+      }
+      
+      console.log(`[SettingsTab] Saving action cards for timeline ${id}...`);
       
       // Create action objects for saving
       const actionsToSave = {};
@@ -3007,7 +3031,7 @@ const SettingsTab = ({ id }) => {
       const saveResult = await saveTimelineActions(id, actionsToSave);
       
       if (saveResult.success) {
-        console.log(`[AdminPanel] Successfully saved ${saveResult.saved.length} action cards`);
+        console.log(`[SettingsTab] Successfully saved ${saveResult.saved.length} action cards`);
         
         // Show success message
         setSnackbarMessage('Settings Saved Successfully!');
@@ -3056,7 +3080,7 @@ const SettingsTab = ({ id }) => {
         }
         
       } else {
-        console.error('[AdminPanel] Error saving action cards:', saveResult.errors);
+        console.error('[SettingsTab] Error saving action cards:', saveResult.errors);
         
         // Reset saving state
         setIsSaving(false);
@@ -3070,7 +3094,7 @@ const SettingsTab = ({ id }) => {
       }
       
     } catch (error) {
-      console.error('[AdminPanel] Error in handleSaveChanges:', error);
+      console.error('[SettingsTab] Error in handleSaveChanges:', error);
       
       // Reset saving state
       setIsSaving(false);
@@ -3123,16 +3147,24 @@ const SettingsTab = ({ id }) => {
                   variant="outlined"
                   multiline
                   rows={3}
-                  value={timelineData.description || ''}
+                  value={timelineData?.description || ''}
+                  onChange={(e) => {
+                    setTimelineData(prev => ({
+                      ...prev,
+                      description: e.target.value
+                    }));
+                    setHasUnsavedChanges(true);
+                  }}
+                  disabled={isLoadingTimeline}
                   sx={{ mb: 3 }}
                 />
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="body1">
-                    Member Count: <strong>{timelineData.memberCount}</strong>
+                    Member Count: <strong>{timelineData?.memberCount || 0}</strong>
                   </Typography>
                   <Typography variant="body1">
-                    Created: <strong>{timelineData.createdDate}</strong>
+                    Created: <strong>{timelineData?.createdDate || 'Unknown'}</strong>
                   </Typography>
                 </Box>
               </Box>
