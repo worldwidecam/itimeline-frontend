@@ -54,6 +54,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import AudiotrackIcon from '@mui/icons-material/Audiotrack';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
+import LockIcon from '@mui/icons-material/Lock';
 import { useParams } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -2802,6 +2803,9 @@ const SettingsTab = ({ id }) => {
   // Timeline data loaded from backend
   const [timelineData, setTimelineData] = useState(null);
   const [isLoadingTimeline, setIsLoadingTimeline] = useState(true);
+  const [privacyChangedAt, setPrivacyChangedAt] = useState(null);
+  const [cooldownDaysLeft, setCooldownDaysLeft] = useState(null);
+  const [isChangingVisibility, setIsChangingVisibility] = useState(false);
   
   // Load saved settings from backend API
   useEffect(() => {
@@ -2822,8 +2826,38 @@ const SettingsTab = ({ id }) => {
             memberCount: timelineDetails.member_count || 0,
             createdDate: timelineDetails.created_at ? new Date(timelineDetails.created_at).toLocaleDateString() : 'Unknown',
             visibility: timelineDetails.visibility || 'public',
-            createdBy: timelineDetails.created_by
+            createdBy: timelineDetails.created_by,
+            privacyChangedAt: timelineDetails.privacy_changed_at
           });
+          
+          // Set initial privacy state from backend
+          setIsPrivate(timelineDetails.visibility === 'private');
+          
+          // Calculate cooldown if privacy was changed
+          console.log(`[SettingsTab] privacy_changed_at from backend:`, timelineDetails.privacy_changed_at);
+          console.log(`[SettingsTab] Current visibility:`, timelineDetails.visibility);
+          
+          if (timelineDetails.privacy_changed_at) {
+            setPrivacyChangedAt(new Date(timelineDetails.privacy_changed_at));
+            const changedDate = new Date(timelineDetails.privacy_changed_at);
+            const cooldownEnd = new Date(changedDate);
+            cooldownEnd.setDate(cooldownEnd.getDate() + 10);
+            const now = new Date();
+            const daysLeft = Math.ceil((cooldownEnd - now) / (1000 * 60 * 60 * 24));
+            
+            console.log(`[SettingsTab] Cooldown calculation:`, {
+              changedDate: changedDate.toISOString(),
+              cooldownEnd: cooldownEnd.toISOString(),
+              now: now.toISOString(),
+              daysLeft
+            });
+            
+            // Always set cooldown days left (even if 0 or negative) to show the chip
+            setCooldownDaysLeft(daysLeft);
+            console.log(`[SettingsTab] Cooldown set to: ${daysLeft} days left`);
+          } else {
+            console.log(`[SettingsTab] No privacy_changed_at timestamp, cooldown not set`);
+          }
         }
         setIsLoadingTimeline(false);
         
@@ -2866,15 +2900,14 @@ const SettingsTab = ({ id }) => {
         }
         
         // Load legacy localStorage settings for backward compatibility
+        // NOTE: Only use localStorage as fallback if backend data is missing
         try {
           const savedSettings = localStorage.getItem('communitySettings');
           if (savedSettings) {
             const settings = JSON.parse(savedSettings);
             
-            // Load visibility settings (these aren't in action cards)
-            if (settings.isPrivate !== undefined) {
-              setIsPrivate(settings.isPrivate);
-            }
+            // DON'T load visibility from localStorage - backend is source of truth
+            // The backend visibility state was already set above (line 2834)
             
             if (settings.requireMembershipApproval !== undefined) {
               setRequireMembershipApproval(settings.requireMembershipApproval);
@@ -2917,17 +2950,90 @@ const SettingsTab = ({ id }) => {
     }
   }, [id]);
   
-  // Handle visibility change
-  const handleVisibilityChange = (event) => {
-    const newValue = event.target.checked;
-    setIsPrivate(newValue);
-    setHasUnsavedChanges(true);
+  // Live countdown timer - updates every minute
+  useEffect(() => {
+    if (!privacyChangedAt) return;
     
-    // Show warning when switching to private
-    if (newValue) {
-      setShowWarning(true);
-    } else {
-      setShowWarning(false);
+    const updateCooldown = () => {
+      const cooldownEnd = new Date(privacyChangedAt);
+      cooldownEnd.setDate(cooldownEnd.getDate() + 10);
+      const now = new Date();
+      const daysLeft = Math.ceil((cooldownEnd - now) / (1000 * 60 * 60 * 24));
+      
+      setCooldownDaysLeft(daysLeft);
+      console.log(`[SettingsTab] Cooldown timer updated: ${daysLeft} days left`);
+    };
+    
+    // Update immediately
+    updateCooldown();
+    
+    // Then update every minute
+    const interval = setInterval(updateCooldown, 60000);
+    
+    return () => clearInterval(interval);
+  }, [privacyChangedAt]);
+  
+  // Handle visibility change - saves immediately to backend
+  const handleVisibilityChange = async (event) => {
+    const newValue = event.target.checked;
+    const newVisibility = newValue ? 'private' : 'public';
+    
+    try {
+      setIsChangingVisibility(true);
+      console.log(`[SettingsTab] Changing visibility to ${newVisibility}...`);
+      
+      // Call backend to update visibility
+      const result = await updateTimelineVisibility(id, newVisibility);
+      
+      console.log(`[SettingsTab] Visibility updated successfully:`, result);
+      
+      // Update local state
+      setIsPrivate(newValue);
+      setTimelineData(prev => ({
+        ...prev,
+        visibility: newVisibility,
+        privacyChangedAt: result.privacy_changed_at || new Date().toISOString()
+      }));
+      
+      // Update privacy changed timestamp and cooldown from backend response
+      if (result.privacy_changed_at) {
+        const changedDate = new Date(result.privacy_changed_at);
+        setPrivacyChangedAt(changedDate);
+        
+        // Calculate cooldown days left
+        const cooldownEnd = new Date(changedDate);
+        cooldownEnd.setDate(cooldownEnd.getDate() + 10);
+        const now = new Date();
+        const daysLeft = Math.ceil((cooldownEnd - now) / (1000 * 60 * 60 * 24));
+        setCooldownDaysLeft(daysLeft);
+        console.log(`[SettingsTab] Cooldown set to ${daysLeft} days after visibility change`);
+      }
+      
+      // Show/hide warning based on new state
+      if (newValue) {
+        setShowWarning(true);
+      } else {
+        setShowWarning(false);
+      }
+      
+      // Show success message
+      setSnackbarMessage(`Timeline is now ${newVisibility}`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
+    } catch (error) {
+      console.error('[SettingsTab] Error updating visibility:', error);
+      
+      // Show error message
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to update visibility';
+      setSnackbarMessage(errorMsg);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      
+      // Revert toggle state on error
+      // Don't change isPrivate state
+    } finally {
+      setIsChangingVisibility(false);
     }
   };
   
@@ -3186,16 +3292,54 @@ const SettingsTab = ({ id }) => {
               </Typography>
               
               <Box sx={{ mt: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={isPrivate}
-                      onChange={handleVisibilityChange}
-                      color="primary"
-                    />
-                  }
-                  label="Private Timeline"
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={isPrivate}
+                        onChange={handleVisibilityChange}
+                        color="primary"
+                        disabled={isChangingVisibility || isLoadingTimeline}
+                      />
+                    }
+                    label="Private Timeline"
+                  />
+                  
+                  {/* Cooldown Countdown Chip - only show if timeline is private */}
+                  {isPrivate && cooldownDaysLeft !== null && (
+                    cooldownDaysLeft > 0 ? (
+                      <Chip
+                        icon={<LockIcon />}
+                        label={`Cooldown: ${cooldownDaysLeft} day${cooldownDaysLeft !== 1 ? 's' : ''} left`}
+                        color="warning"
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          animation: 'pulse 2s ease-in-out infinite',
+                          '@keyframes pulse': {
+                            '0%, 100%': { opacity: 1 },
+                            '50%': { opacity: 0.7 }
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        icon={<CheckCircleIcon />}
+                        label="You may go Public now!"
+                        color="success"
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          animation: 'glow 2s ease-in-out infinite',
+                          '@keyframes glow': {
+                            '0%, 100%': { boxShadow: '0 0 5px rgba(76, 175, 80, 0.5)' },
+                            '50%': { boxShadow: '0 0 15px rgba(76, 175, 80, 0.8)' }
+                          }
+                        }}
+                      />
+                    )
+                  )}
+                </Box>
                 
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                   {isPrivate ? 

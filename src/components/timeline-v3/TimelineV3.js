@@ -2081,6 +2081,16 @@ const handleRecenter = () => {
     setFilteredEventsCount(count);
   };
 
+  // Check if this is a private community timeline and user is not a member
+  if (timeline_type === 'community' && visibility === 'private' && isMember === false && !isLoading) {
+    const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
+    return (
+      <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
+        <PrivateTimelineLock timelineName={timelineName} />
+      </React.Suspense>
+    );
+  }
+
   return (
     <Box sx={{ 
       display: 'flex',
