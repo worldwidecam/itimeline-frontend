@@ -16,6 +16,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
   // Initialize as null so consumers can distinguish "unknown/loading" from a real boolean
   const [isMember, setIsMember] = useState(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const [role, setRole] = useState(null);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,11 +51,16 @@ export default function useJoinStatus(timelineId, { user } = {}) {
         ...resp,
         is_blocked: resp.is_blocked === true,
       };
+      
+      // Check if user has a pending request
+      const hasPendingRequest = resp.role === 'pending';
+      
       processed.is_member = (resp.is_active_member !== false) && (resp.is_member === true) && (processed.is_blocked !== true);
       setIsMember(!!processed.is_member);
       setIsBlocked(!!processed.is_blocked);
+      setIsPending(hasPendingRequest);
       setRole(processed.role || null);
-      setStatus(processed.status || null);
+      setStatus(hasPendingRequest ? 'pending' : (processed.status || null));
       persistMembershipStatus(timelineId, processed);
       return processed;
     } catch (e) {
@@ -114,11 +120,17 @@ export default function useJoinStatus(timelineId, { user } = {}) {
 
         // Regular users — membership status primary call (force fresh read to avoid stale cache)
         const resp = await checkMembershipStatus(timelineId, 0, true);
+        console.log('[useJoinStatus] Membership status response:', resp);
         if (!mounted) return;
         let processed = {
           ...resp,
           is_blocked: resp?.is_blocked === true,
         };
+        
+        // Check if user has a pending request
+        const hasPendingRequest = resp?.role === 'pending';
+        console.log('[useJoinStatus] hasPendingRequest:', hasPendingRequest, 'role:', resp?.role);
+        
         processed.is_member = (resp?.is_active_member !== false) && (resp?.is_member === true) && (processed.is_blocked !== true);
 
         // If API didn't include is_blocked and user is not a member, run fallbacks
@@ -157,16 +169,19 @@ export default function useJoinStatus(timelineId, { user } = {}) {
         }
 
         if (!mounted) return;
+        console.log('[useJoinStatus] Setting states - isMember:', !!processed.is_member, 'isPending:', hasPendingRequest, 'role:', processed.role);
         setIsMember(!!processed.is_member);
         setIsBlocked(!!processed.is_blocked);
+        setIsPending(hasPendingRequest);
         setRole(processed.role || null);
-        setStatus(processed.status || null);
+        setStatus(hasPendingRequest ? 'pending' : (processed.status || null));
         persistMembershipStatus(timelineId, { ...processed, timeline_visibility: t?.visibility });
       } catch (e) {
         if (!mounted) return;
         // Default to non-member on error
         setIsMember(false);
         setIsBlocked(false);
+        setIsPending(false);
         setRole(null);
         setStatus(null);
       } finally {
@@ -180,6 +195,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
   return {
     isMember,
     isBlocked,
+    isPending,
     role,
     status,
     loading,

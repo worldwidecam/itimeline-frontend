@@ -382,6 +382,24 @@ export const getBlockedMembers = async (timelineId) => {
 };
 
 /**
+ * Get pending membership requests for a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @returns {Promise} - Promise resolving to pending members data
+ */
+export const getPendingMembers = async (timelineId) => {
+  try {
+    console.log(`Fetching pending members for timeline ${timelineId}`);
+    const response = await api.get(`/api/v1/timelines/${timelineId}/pending-members`);
+    console.log('Pending members response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching pending members:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
  * Get reported posts for a community timeline
  * @param {number} timelineId - The ID of the timeline
  * @returns {Promise} - Promise resolving to reported posts data

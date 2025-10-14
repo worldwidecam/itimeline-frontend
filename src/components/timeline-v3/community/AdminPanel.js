@@ -60,7 +60,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
@@ -2187,6 +2187,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
   // Real data for members
   const [members, setMembers] = useState([]);
   const [blockedMembers, setBlockedMembers] = useState([]);
+  const [pendingMembers, setPendingMembers] = useState([]);
   
   // Load members data from API
   const loadMembers = useCallback(async () => {
@@ -2245,10 +2246,47 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
     }
   }, [timelineId]);
   
+  // Load pending members data from API
+  const loadPendingMembers = useCallback(async () => {
+    if (!timelineId) return;
+    
+    try {
+      console.log('[AdminPanel] Loading pending members...');
+      const response = await getPendingMembers(timelineId);
+      console.log('[AdminPanel] Pending members response:', response);
+      
+      const pendingList = Array.isArray(response?.pending_members) 
+        ? response.pending_members 
+        : (Array.isArray(response) ? response : []);
+      
+      const formattedPending = pendingList.map((member) => ({
+        id: member.user_id,
+        userId: member.user_id,
+        name: member.username || `User ${member.user_id}`,
+        role: member.role,
+        joinDate: member.requested_at ? new Date(member.requested_at).toISOString().split('T')[0] : 'Unknown',
+        avatar: member.avatar_url || null  // Use null instead of pravatar fallback
+      }));
+      
+      console.log('[AdminPanel] Formatted pending members:', formattedPending);
+      setPendingMembers(formattedPending);
+    } catch (error) {
+      console.error('[AdminPanel] Error loading pending members:', error);
+      setPendingMembers([]);
+    }
+  }, [timelineId]);
+  
   // Load members on component mount and when timelineId changes
   useEffect(() => {
     loadMembers();
   }, [loadMembers]);
+  
+  // Load pending members when Pending Requests tab is opened
+  useEffect(() => {
+    if (memberTabValue === 1) {
+      loadPendingMembers();
+    }
+  }, [memberTabValue, loadPendingMembers]);
   
   // Show snackbar notification
   const showSnackbar = (message, severity = 'success') => {
@@ -2441,16 +2479,13 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
           setMembers(prev => [...prev, unblocked]);
           setMemberTabValue(0);
         } else if (actionType === 'approve') {
-          // Update pending member to active member
-          setMembers(prev => prev.map(m => 
-            (m.user_id ?? m.id ?? m.userId) === selKey 
-              ? { ...m, role: 'member' }
-              : m
-          ));
-          setMemberTabValue(0);
+          // Remove from pending list and reload active members
+          setPendingMembers(prev => prev.filter(m => (m.user_id ?? m.id ?? m.userId) !== selKey));
+          await loadMembers();  // Reload active members to show the newly approved member
+          setMemberTabValue(0);  // Switch to Active Members tab
         } else if (actionType === 'deny') {
-          // Remove denied member from list
-          setMembers(prev => prev.filter(m => (m.user_id ?? m.id ?? m.userId) !== selKey));
+          // Remove denied member from pending list
+          setPendingMembers(prev => prev.filter(m => (m.user_id ?? m.id ?? m.userId) !== selKey));
           // Stay on Pending Requests tab
         } else {
           // For other actions, reload active members to reflect role changes
@@ -2687,7 +2722,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
       {/* Pending Requests Tab */}
       {memberTabValue === 1 && (
         <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-          {members.filter(m => m.role === 'pending').length === 0 ? (
+          {pendingMembers.length === 0 ? (
             <Box sx={{ p: 3, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 No pending requests
@@ -2695,7 +2730,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
             </Box>
           ) : (
             <Box>
-              {members.filter(m => m.role === 'pending').map((member) => (
+              {pendingMembers.map((member) => (
                 <Box 
                   key={member.id}
                   sx={{

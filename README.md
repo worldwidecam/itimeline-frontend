@@ -311,15 +311,39 @@ File references:
 
 The frontend proxies API requests to the backend at `http://localhost:5000/api` during local development. All new and actively supported endpoints use the `/api/v1` prefix.
 
+#### ⚠️ CRITICAL: Use Correct Membership Endpoints (October 2025)
+
+**Issue**: Multiple membership status endpoints exist. Always use the community blueprint endpoints to avoid bugs.
+
+**✅ CORRECT Endpoints to Use:**
+
+- **Membership Status Check** (PRIMARY - Use This):
+  - `GET /api/v1/timelines/{timeline_id}/membership-status`
+  - **Location**: Backend `routes/community.py`
+  - **Returns**: `{is_member, role, timeline_visibility, was_removed}`
+  - **Behavior**: ✅ Returns `role: 'pending'` for pending users
+  - **Use in**: `useJoinStatus` hook, join button logic, all access checks
+
+- **Community Membership Operations**:
+  - `POST /api/v1/timelines/{timeline_id}/access-requests` — Request to join timeline
+  - `GET /api/v1/timelines/{timeline_id}/members` — Get active members
+  - `GET /api/v1/timelines/{timeline_id}/pending-members` — Get pending membership requests (admin/moderator only)
+  - `GET /api/v1/timelines/{timeline_id}/blocked-members` — Get blocked members (admin/moderator only)
+  - `PUT /api/v1/timelines/{timeline_id}/access-requests/{user_id}` — Approve/deny pending request
+
+**❌ AVOID (Legacy - Different behavior):**
+- `GET /api/v1/membership/timelines/{id}/status` — Legacy endpoint in `app.py`
+  - Now fixed but prefer community blueprint version above
+  - Returns extra fields (timeline_name, etc.) not always needed
+
+**Frontend Implementation:**
+- Use `getPendingMembers()` from `api.js` for pending requests list
+- Use `checkMembershipStatus()` from `api.js` for status checks
+- Hook: `useJoinStatus.js` handles pending state with `isPending` flag
+
 - **User Passport**
   - `GET /api/v1/user/passport` — Returns the user's passport (timeline memberships)
   - `POST /api/v1/user/passport/sync` — Forces a refresh of memberships
-
-- **Membership (Community Timelines)**
-  - `GET  /api/v1/membership/timelines/{id}/members` — List members
-  - `POST /api/v1/membership/timelines/{id}/join` — Join timeline
-  - `GET  /api/v1/membership/timelines/{id}/status` — Check membership status
-  - See "Key Endpoints" above for details.
 
 - **Member Role Management**
   - `PUT /api/v1/timelines/{timeline_id}/members/{user_id}/role` — Update a member's role (admin/moderator/member)

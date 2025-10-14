@@ -67,6 +67,7 @@ function TimelineV3() {
   const {
     isMember: hookIsMember,
     isBlocked: hookIsBlocked,
+    isPending: hookIsPending,
     role: hookRole,
     status: hookStatus,
     loading: joinLoading,
@@ -83,11 +84,14 @@ function TimelineV3() {
     if (typeof hookIsBlocked !== 'undefined') {
       setIsBlocked(!!hookIsBlocked);
     }
+    if (typeof hookIsPending !== 'undefined') {
+      setIsPendingApproval(!!hookIsPending);
+    }
     // Maintain existing joinRequestSent semantics
-    if ((hookIsMember === true) || (hookStatus === 'pending')) {
+    if ((hookIsMember === true) || (hookStatus === 'pending') || (hookIsPending === true)) {
       setJoinRequestSent(true);
     }
-  }, [hookIsMember, hookIsBlocked, hookStatus]);
+  }, [hookIsMember, hookIsBlocked, hookIsPending, hookStatus]);
 
 
   // Fetch timeline details when component mounts or timelineId changes (membership handled by useJoinStatus)
