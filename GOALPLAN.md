@@ -18,12 +18,24 @@
 ### Current Goal within Sub GOAL
 - Complete Settings Tab in Admin Panel
 
+### COMPLETED TODO (2025-10-13)
+- ✅ **Settings Tab in Admin Panel** - Core functionality complete:
+  - ✅ Timeline visibility settings with private toggle
+  - ✅ 10-day cooldown system for privacy switching
+  - ✅ Live countdown timer (updates every minute)
+  - ✅ Member count display
+  - ✅ Timeline name/description display
+  - ✅ Immersive redirect pages (PrivateTimelineLock, CommunityLockView, MembershipGuard)
+  - ⏳ Timeline name/description editing (DEFERRED - requires uniqueness logic)
+  - ⏳ Timeline deletion functionality (DEFERRED - requires confirmation flow)
+  - ⏳ Require Membership Approval toggle (NEXT)
+
 ### CURRENT TODO
-- [ ] Implement Settings Tab in Admin Panel
-  - [ ] Timeline visibility settings (public/private/community)
-  - [ ] Timeline name/description editing
-  - [ ] Timeline deletion functionality
-  - [ ] Other timeline configuration options
+- [ ] Implement "Require Membership Approval" toggle in Settings Tab
+  - [ ] Toggle switch to control join request behavior
+  - [ ] Auto-accept vs manual approval modes
+  - [ ] Backend persistence of approval requirement setting
+  - [ ] Update join flow to respect approval setting
 
 ### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
 - ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'

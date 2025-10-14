@@ -55,7 +55,19 @@ The iTimeline application supports Community Timelines with a Bronze/Silver/Gold
   - Appear in search results with "Request to Join" button
   - Timeline creators/admins manage join requests
   - Members see full timeline content
-- **Privacy Switching**: 10-day cooldown when switching from public to private
+  - Non-members see immersive `PrivateTimelineLock` redirect page
+- **Privacy Toggle System** (October 2025):
+  - Located in Admin Panel → Settings Tab
+  - Toggle switch to set timeline visibility (public/private)
+  - **10-Day Cooldown**: Prevents switching FROM private back to public for 10 days
+    - Cooldown starts when timeline is set to private
+    - Orange countdown chip displays: "Cooldown: X days left"
+    - Green success chip when ready: "You may go Public now!"
+    - Live countdown updates every minute
+    - Backend enforces cooldown (frontend cannot bypass)
+  - **Backend Persistence**: `privacy_changed_at` timestamp stored in database
+  - **Member Count Display**: Shows active member count in Settings Tab
+  - **Purpose**: Prevents abuse of privacy feature (e.g., hiding controversial content temporarily)
 - **Follower Management**: 24-hour grace period for existing followers when going private
 - **Role System**: Admin, moderator, and member roles with different permissions
 - **SiteOwner Access**: Special role for site owner with access to all timelines
@@ -74,8 +86,38 @@ The iTimeline application supports Community Timelines with a Bronze/Silver/Gold
   - Loading skeletons for improved user experience
   - Read-only member rows (legacy inline promote/remove controls removed; management lives in Admin Panel)
 
+- **Redirect Page Standards** (October 2025):
+  - All access denial/lock pages follow immersive design standard
+  - **Visual Design**:
+    - Full-screen fixed positioning (`position: fixed`, covers entire viewport)
+    - Gradient backgrounds that adapt to theme mode
+    - Floating animated background circles with blur effects
+    - Glassmorphism effects on key elements (icons, buttons)
+    - High z-index (9999) to stay above all content
+  - **Animation Requirements**:
+    - 0.6s fade-in entrance animation
+    - Staggered content appearance (0.2s, 0.4s, 0.5s delays)
+    - Scale animation (0.8 to 1.0) for depth effect
+    - Hover lift effects on buttons
+  - **Content Structure**:
+    - Large circular icon container (120x120px) with glassmorphism
+    - Bold white heading (variant="h3")
+    - Clear description text (variant="h6")
+    - Single prominent action button with icon
+  - **Button Styling**:
+    - Glassmorphism with `backdrop-filter: blur(10px)`
+    - Rounded pill shape (`borderRadius: '50px'`)
+    - Large size with generous padding
+    - Leading icon for visual clarity
+    - Hover state with lift effect and increased shadow
+  - **Implementation Examples**:
+    - `PrivateTimelineLock.js` - Private timeline access denial (blue gradient, lock icon, "Go to Home")
+    - `CommunityLockView.js` - Members/Admin page access denial (blue gradient, lock icon, "Go to Timeline")
+    - `MembershipGuard.js` - Role-based access denial (red gradient, warning icon, "Go to Timeline Now")
+
 - **CommunityLockView**:
-  - Protects private/admin-only areas with a clear lockout screen
+  - Protects private/admin-only areas with immersive lock screen
+  - Follows October 2025 redirect page standard
   - Contextual title/description with call-to-action to navigate back to the timeline
   - Used when users lack membership or role permissions
 

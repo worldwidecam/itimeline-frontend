@@ -60,7 +60,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, syncUserPassport, listReports, acceptReport, resolveReport } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
@@ -513,11 +513,12 @@ const AdminPanel = () => {
 
       setIsLoading(true);
       await updateMemberRole(id, targetId, newRole);
-      try {
-        await syncUserPassport();
-      } catch (e) {
-        console.warn('[AdminPanel] Passport sync failed after role change (continuing):', e);
-      }
+      // Note: Passport sync endpoint not implemented
+      // try {
+      //   await syncUserPassport();
+      // } catch (e) {
+      //   console.warn('[AdminPanel] Passport sync failed after role change (continuing):', e);
+      // }
       await reloadMembers();
       setSnackbarMessage(`Updated role to ${newRole} for ${member?.name || 'member'}`);
       setSnackbarSeverity('success');
@@ -559,13 +560,13 @@ const AdminPanel = () => {
       const userIdForApi = targetId;
       console.log(`Attempting to remove member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await removeMember(id, userIdForApi);
-      // 1.1 Sync passport to persist changes across sessions
-      try {
-        await syncUserPassport();
-        console.log('[AdminPanel] Synced user passport after removal');
-      } catch (syncErr) {
-        console.warn('[AdminPanel] Passport sync failed after removal (continuing):', syncErr);
-      }
+      // Note: Passport sync endpoint not implemented
+      // try {
+      //   await syncUserPassport();
+      //   console.log('[AdminPanel] Synced user passport after removal');
+      // } catch (syncErr) {
+      //   console.warn('[AdminPanel] Passport sync failed after removal (continuing):', syncErr);
+      // }
       
       // 2. Update local state to remove the member
       setMembers(members.filter(m => m.id !== selectedMember.id));
@@ -656,13 +657,13 @@ const AdminPanel = () => {
       const userIdForApi = selectedMember.userId ?? selectedMember.id;
       console.log(`Attempting to block member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await blockMember(id, userIdForApi, reason);
-      // Sync passport to persist changes
-      try {
-        await syncUserPassport();
-        console.log('[AdminPanel] Synced user passport after block');
-      } catch (syncErr) {
-        console.warn('[AdminPanel] Passport sync failed after block (continuing):', syncErr);
-      }
+      // Note: Passport sync endpoint not implemented
+      // try {
+      //   await syncUserPassport();
+      //   console.log('[AdminPanel] Synced user passport after block');
+      // } catch (syncErr) {
+      //   console.warn('[AdminPanel] Passport sync failed after block (continuing):', syncErr);
+      // }
       // Re-fetch lists from backend for accuracy
       await Promise.all([reloadMembers(), reloadBlockedMembers()]);
       setConfirmBlockDialogOpen(false);
@@ -742,13 +743,13 @@ const AdminPanel = () => {
       const userIdForApi = selectedMember.userId ?? selectedMember.id;
       console.log(`Attempting to unblock member with timeline ID: ${id} and user ID: ${userIdForApi}`);
       await unblockMember(id, userIdForApi);
-      // Sync passport to persist changes
-      try {
-        await syncUserPassport();
-        console.log('[AdminPanel] Synced user passport after unblock');
-      } catch (syncErr) {
-        console.warn('[AdminPanel] Passport sync failed after unblock (continuing):', syncErr);
-      }
+      // Note: Passport sync endpoint not implemented
+      // try {
+      //   await syncUserPassport();
+      //   console.log('[AdminPanel] Synced user passport after unblock');
+      // } catch (syncErr) {
+      //   console.warn('[AdminPanel] Passport sync failed after unblock (continuing):', syncErr);
+      // }
       // Re-fetch lists from backend for accuracy
       await Promise.all([reloadMembers(), reloadBlockedMembers()]);
       setConfirmUnblockDialogOpen(false);
@@ -2292,7 +2293,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
       }
 
       await updateMemberRole(timelineId, uid, newRole);
-      try { await syncUserPassport(); } catch (_) {}
+      // Note: Passport sync endpoint not implemented
+      // try { await syncUserPassport(); } catch (_) {}
       await loadMembers();
       showSnackbar(`Updated role to ${newRole} for ${member.name || 'member'}`, 'success');
     } catch (e) {
@@ -2387,6 +2389,18 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
           success = true;
           break;
           
+        case 'approve':
+          await approvePendingMember(timelineId, selectedMember.user_id || selectedMember.id);
+          message = `${selectedMember.username} has been approved`;
+          success = true;
+          break;
+          
+        case 'deny':
+          await denyPendingMember(timelineId, selectedMember.user_id || selectedMember.id);
+          message = `${selectedMember.username}'s request has been denied`;
+          success = true;
+          break;
+          
         default:
           throw new Error('Unknown action type');
       }
@@ -2410,7 +2424,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
             console.log('Blocked list updated (size):', next.length, next);
             return next;
           });
-          setMemberTabValue(1);
+          setMemberTabValue(2);
         } else if (actionType === 'unblock') {
           // Move from blockedMembers back to members
           setBlockedMembers(prev => {
@@ -2426,6 +2440,18 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
           };
           setMembers(prev => [...prev, unblocked]);
           setMemberTabValue(0);
+        } else if (actionType === 'approve') {
+          // Update pending member to active member
+          setMembers(prev => prev.map(m => 
+            (m.user_id ?? m.id ?? m.userId) === selKey 
+              ? { ...m, role: 'member' }
+              : m
+          ));
+          setMemberTabValue(0);
+        } else if (actionType === 'deny') {
+          // Remove denied member from list
+          setMembers(prev => prev.filter(m => (m.user_id ?? m.id ?? m.userId) !== selKey));
+          // Stay on Pending Requests tab
         } else {
           // For other actions, reload active members to reflect role changes
           await loadMembers();
@@ -2477,6 +2503,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
       >
         <Tab label="Active Members" />
+        <Tab label="Pending Requests" />
         <Tab label="Blocked Members" />
       </Tabs>
       
@@ -2657,8 +2684,77 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         </Box>
       )}
       
-      {/* Blocked Members Tab */}
+      {/* Pending Requests Tab */}
       {memberTabValue === 1 && (
+        <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+          {members.filter(m => m.role === 'pending').length === 0 ? (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                No pending requests
+              </Typography>
+            </Box>
+          ) : (
+            <Box>
+              {members.filter(m => m.role === 'pending').map((member) => (
+                <Box 
+                  key={member.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    p: 2,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    '&:last-child': {
+                      borderBottom: 'none'
+                    },
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
+                    },
+                    transition: 'background-color 0.2s ease'
+                  }}
+                >
+                  <UserAvatar 
+                    name={member.name}
+                    avatarUrl={member.avatar}
+                    id={member.userId || member.id}
+                    size={48}
+                    sx={{ mr: 2 }}
+                  />
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="subtitle1" component="div">
+                      {member.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Requested {member.joinDate}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      onClick={() => handleOpenConfirmDialog(member, 'approve')}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => handleOpenConfirmDialog(member, 'deny')}
+                    >
+                      Deny
+                    </Button>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+      )}
+      
+      {/* Blocked Members Tab */}
+      {memberTabValue === 2 && (
         <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
           {blockedMembers.length === 0 ? (
             <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -2732,13 +2828,18 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
       >
         <DialogTitle id="member-action-dialog-title">
           {actionType === 'remove' ? 'Remove Member?' : 
-           actionType === 'block' ? 'Block Member?' : 'Unblock Member?'}
+           actionType === 'block' ? 'Block Member?' : 
+           actionType === 'unblock' ? 'Unblock Member?' :
+           actionType === 'approve' ? 'Approve Member?' :
+           actionType === 'deny' ? 'Deny Request?' : 'Confirm Action'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="member-action-dialog-description">
             {actionType === 'remove' && 'This will remove the member from the community. They can rejoin later if the community is public.'}
             {actionType === 'block' && 'This will block the member from the community. They will not be able to view or participate in this community.'}
             {actionType === 'unblock' && 'This will unblock the member. They will be able to rejoin the community if it is public.'}
+            {actionType === 'approve' && 'This will approve the membership request and grant them access to the community.'}
+            {actionType === 'deny' && 'This will deny the membership request. The user will not be added to the community.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -2747,11 +2848,14 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
           </Button>
           <Button 
             onClick={handleMemberAction}
-            color={actionType === 'unblock' ? 'primary' : 'error'} 
+            color={actionType === 'unblock' || actionType === 'approve' ? 'success' : 'error'} 
             variant="contained"
           >
           {actionType === 'remove' ? 'Remove' : 
-           actionType === 'block' ? 'Block' : 'Unblock'}
+           actionType === 'block' ? 'Block' : 
+           actionType === 'unblock' ? 'Unblock' :
+           actionType === 'approve' ? 'Approve' :
+           actionType === 'deny' ? 'Deny' : 'Confirm'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2833,6 +2937,10 @@ const SettingsTab = ({ id }) => {
           // Set initial privacy state from backend
           setIsPrivate(timelineDetails.visibility === 'private');
           
+          // Set requires_approval state from backend
+          setRequireMembershipApproval(timelineDetails.requires_approval || false);
+          console.log(`[SettingsTab] Loaded requires_approval: ${timelineDetails.requires_approval}`);
+          
           // Calculate cooldown if privacy was changed
           console.log(`[SettingsTab] privacy_changed_at from backend:`, timelineDetails.privacy_changed_at);
           console.log(`[SettingsTab] Current visibility:`, timelineDetails.visibility);
@@ -2899,28 +3007,8 @@ const SettingsTab = ({ id }) => {
           setBronzeThresholdValue(5);
         }
         
-        // Load legacy localStorage settings for backward compatibility
-        // NOTE: Only use localStorage as fallback if backend data is missing
-        try {
-          const savedSettings = localStorage.getItem('communitySettings');
-          if (savedSettings) {
-            const settings = JSON.parse(savedSettings);
-            
-            // DON'T load visibility from localStorage - backend is source of truth
-            // The backend visibility state was already set above (line 2834)
-            
-            if (settings.requireMembershipApproval !== undefined) {
-              setRequireMembershipApproval(settings.requireMembershipApproval);
-            }
-            
-            // Load community quote from localStorage (fallback)
-            if (settings.communityQuote) {
-              setCommunityQuote(settings.communityQuote);
-            }
-          }
-        } catch (legacyError) {
-          console.warn('Error loading legacy localStorage settings:', legacyError);
-        }
+        // requires_approval is now loaded from backend (timelineDetails.requires_approval)
+        // No need for localStorage fallback
         
         // Load community quote from API (primary source)
         try {
@@ -3065,18 +3153,23 @@ const SettingsTab = ({ id }) => {
       setShowSavedState(false);
       console.log(`[SettingsTab] Saving settings for timeline ${id}...`);
       
-      // Save timeline description if changed
-      if (timelineData && timelineData.description !== undefined) {
-        try {
-          console.log(`[SettingsTab] Updating timeline description...`);
-          await updateTimelineDetails(id, {
-            description: timelineData.description
-          });
-          console.log(`[SettingsTab] Timeline description updated successfully`);
-        } catch (descError) {
-          console.error('[SettingsTab] Error updating timeline description:', descError);
-          throw descError;
+      // Save timeline description and requires_approval to backend
+      try {
+        console.log(`[SettingsTab] Updating timeline settings (description, requires_approval)...`);
+        const updateData = {
+          requires_approval: requireMembershipApproval
+        };
+        
+        // Only include description if it exists
+        if (timelineData && timelineData.description !== undefined) {
+          updateData.description = timelineData.description;
         }
+        
+        await updateTimelineDetails(id, updateData);
+        console.log(`[SettingsTab] Timeline settings updated successfully. requires_approval: ${requireMembershipApproval}`);
+      } catch (descError) {
+        console.error('[SettingsTab] Error updating timeline settings:', descError);
+        throw descError;
       }
       
       console.log(`[SettingsTab] Saving action cards for timeline ${id}...`);
@@ -3171,18 +3264,6 @@ const SettingsTab = ({ id }) => {
           }
         } catch (quoteError) {
           console.error('[AdminPanel] Error saving quote to API:', quoteError);
-        }
-        
-        // Save non-quote settings to localStorage (until we have backend endpoints for these)
-        try {
-          const communitySettings = {
-            isPrivate,
-            requireMembershipApproval,
-            lastUpdated: new Date().toISOString()
-          };
-          localStorage.setItem('communitySettings', JSON.stringify(communitySettings));
-        } catch (legacyError) {
-          console.warn('Error saving legacy settings to localStorage:', legacyError);
         }
         
       } else {

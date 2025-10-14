@@ -610,6 +610,42 @@ export const unblockMember = async (timelineId, userId) => {
 };
 
 /**
+ * Approve a pending membership request
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} userId - The ID of the user to approve
+ * @returns {Promise} - Promise resolving to success message
+ */
+export const approvePendingMember = async (timelineId, userId) => {
+  try {
+    console.log(`[API] Approving pending member ${userId} for timeline ${timelineId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/members/${userId}/approve`);
+    console.log('[API] Approve member response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error approving member:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deny a pending membership request
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} userId - The ID of the user to deny
+ * @returns {Promise} - Promise resolving to success message
+ */
+export const denyPendingMember = async (timelineId, userId) => {
+  try {
+    console.log(`[API] Denying pending member ${userId} for timeline ${timelineId}`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/members/${userId}/deny`);
+    console.log('[API] Deny member response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error denying member:', error);
+    throw error;
+  }
+};
+
+/**
  * Update timeline details (name, description)
  * @param {number} timelineId - The ID of the timeline
  * @param {object} data - Object containing fields to update
@@ -652,26 +688,11 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       console.warn('Error checking previous membership status:', checkError);
     }
     
-    // Even if the API call fails, we want to show the user as a member in the UI
-    // This ensures a good user experience even if there are backend issues
-    // Store membership status in localStorage immediately for UI consistency
-    try {
-      const membershipKey = `timeline_membership_${timelineId}`;
-      localStorage.setItem(membershipKey, JSON.stringify({
-        is_member: true,
-        is_active_member: true, // Explicitly set active status
-        role: 'member', // Default to member role
-        timestamp: new Date().toISOString()
-      }));
-      console.log(`Pre-emptively saved membership status to localStorage for timeline ${timelineId}`);
-    } catch (storageError) {
-      console.warn('Failed to pre-emptively save membership status to localStorage:', storageError);
-    }
-    
-    // Make the actual API call using NEW CLEAN JOIN ENDPOINT
+    // Make the actual API call using the access-requests endpoint
+    // This endpoint properly checks requires_approval toggle and handles pending status
     // If this is a rejoin, log that information for debugging
     console.log(`Making API call to join timeline ${timelineId}${isRejoin ? ' (rejoin scenario)' : ''}`);
-    const response = await api.post(`/api/v1/membership/timelines/${timelineId}/join`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/access-requests`);
     console.log('Join timeline response:', response.data);
     
     // Verify the response contains expected data
@@ -696,26 +717,22 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
     // Update localStorage with the actual role from the server
     try {
       const membershipKey = `timeline_membership_${timelineId}`;
+      const isPending = result.role === 'pending' || result.status === 'pending';
+      
       localStorage.setItem(membershipKey, JSON.stringify({
-        is_member: true, // Always consider the user a member for UI purposes
-        is_active_member: true, // Explicitly set active status when joining
+        is_member: !isPending, // Only true if not pending
+        is_active_member: !isPending, // Pending members are not active
         role: result.role,
         timestamp: new Date().toISOString()
       }));
-      console.log(`Updated membership status in localStorage for timeline ${timelineId} with role: ${result.role}`);
+      console.log(`Updated membership status in localStorage for timeline ${timelineId} with role: ${result.role}, pending: ${isPending}`);
     } catch (storageError) {
       console.warn('Failed to update membership status in localStorage:', storageError);
     }
     
-    // Sync the user passport with the server to update all memberships
-    try {
-      console.log('Syncing user passport after joining community');
-      await syncUserPassport();
-      console.log('User passport synced successfully');
-    } catch (passportError) {
-      console.error('Failed to sync user passport after joining community:', passportError);
-      // Continue even if passport sync fails - the next passport fetch will catch up
-    }
+    // Note: Passport sync endpoint not implemented yet
+    // Membership data is already stored in localStorage above
+    console.log('Membership data stored successfully');
     
     return result;
   } catch (error) {
@@ -728,14 +745,11 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
       return await requestTimelineAccess(timelineId, retryCount + 1);
     }
     
-    // Even if the API call fails, we want to show the user as a member in the UI
-    // Return a success object to ensure the UI updates correctly
+    // Return error object so the UI can handle it properly
     return { 
-      success: true, // Return success even on error for better UX
-      role: 'member', // Default to member role
-      status: 'joined',
-      is_active_member: true, // Explicitly set active status
-      message: 'You have joined this timeline (offline mode)'
+      error: true,
+      message: error.response?.data?.message || error.message || 'Failed to join timeline',
+      status: 'error'
     };
   }
 };

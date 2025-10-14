@@ -60,6 +60,7 @@ function TimelineV3() {
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
   const [isMember, setIsMember] = useState(null); // Track if user is a member of the community timeline (null = loading)
   const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
+  const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
   const [reviewingEventIds, setReviewingEventIds] = useState(new Set()); // Track event IDs that are "in review" on this timeline
 
   // Centralized, headless membership logic (no UI changes)
@@ -1245,16 +1246,28 @@ function TimelineV3() {
       // Update state based on membership status
       if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
         console.log(`DEBUG: Updating isMember to ${membershipStatus.is_member}`);
-        setIsMember(membershipStatus.is_member);
+        console.log(`DEBUG: Member role: ${membershipStatus.role}`);
         
-        if (membershipStatus.is_member || membershipStatus.role === 'pending') {
+        // Check if user has a pending request
+        const hasPendingRequest = membershipStatus.role === 'pending';
+        setIsPendingApproval(hasPendingRequest);
+        
+        // Set isMember based on active membership (not pending)
+        setIsMember(membershipStatus.is_member && !hasPendingRequest);
+        
+        if (membershipStatus.is_member || hasPendingRequest) {
           setJoinRequestSent(true);
         } else {
           setJoinRequestSent(false);
         }
         
         // Show success message
-        setSnackbarMessage(`Membership status refreshed: ${membershipStatus.is_member ? 'You are a member' : 'You are not a member'}`);
+        const statusMsg = hasPendingRequest 
+          ? 'Request pending approval' 
+          : membershipStatus.is_member 
+            ? 'You are a member' 
+            : 'You are not a member';
+        setSnackbarMessage(`Membership status refreshed: ${statusMsg}`);
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
         
@@ -1345,9 +1358,8 @@ function TimelineV3() {
       console.warn('Error checking previous membership status:', checkError);
     }
     
-    // IMMEDIATE UI UPDATE: Set isMember to true right away to show Add Event button
-    console.log(`DEBUG: IMMEDIATELY setting isMember to true for visual feedback${isRejoin ? ' (rejoin scenario)' : ''}`);
-    setIsMember(true);
+    // Show loading state while request is being processed
+    console.log(`DEBUG: Sending join request${isRejoin ? ' (rejoin scenario)' : ''}`);
     setJoinRequestSent(true);
     
     try {
@@ -1361,9 +1373,10 @@ function TimelineV3() {
         setJoinRequestStatus('error');
         setJoinSnackbarOpen(true);
         
-        // Even on error, keep the UI showing as if user is a member
-        // This ensures consistent UX even if backend call failed
-        persistMembershipStatus(true, 'member');
+        // Revert UI state on error
+        setIsMember(false);
+        setJoinRequestSent(false);
+        setIsPendingApproval(false);
         return;
       }
       
@@ -1373,19 +1386,27 @@ function TimelineV3() {
       
       // Get the role from the response or default to 'member'
       const memberRole = response.role || 'member';
-      console.log(`DEBUG: Join response role: ${memberRole}, visibility: ${visibility}`);
-      console.log('DEBUG: User is now considered a member regardless of backend response');
+      const isPending = memberRole === 'pending';
+      console.log(`DEBUG: Join response role: ${memberRole}, visibility: ${visibility}, isPending: ${isPending}`);
       
-      // Persist membership status to localStorage - this is critical for page refreshes
-      persistMembershipStatus(true, memberRole);
+      // Update pending state
+      if (isPending) {
+        setIsPendingApproval(true);
+        setIsMember(false); // Not a full member yet
+        console.log('DEBUG: User has pending membership request');
+      } else {
+        setIsPendingApproval(false);
+        setIsMember(true); // Full member
+        console.log('DEBUG: User is now an active member');
+      }
       
-      // IMPORTANT: Also store in the direct timeline membership key format
+      // IMPORTANT: Store in the direct timeline membership key format
       // This ensures the checkMembershipFromUserData function finds it immediately
       try {
         const directMembershipKey = `timeline_membership_${timelineId}`;
         const membershipData = {
-          is_member: true,
-          is_active_member: true, // Explicitly set active status when joining/rejoining
+          is_member: !isPending, // Only true if not pending
+          is_active_member: !isPending, // Pending members are not active
           role: memberRole,
           joined_at: new Date().toISOString(),
           timeline_visibility: visibility,
@@ -1393,27 +1414,14 @@ function TimelineV3() {
         };
         
         localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
-        console.log(`Stored direct membership data for timeline ${timelineId} after join${isRejoin ? ' (rejoin)' : ''}`);
+        console.log(`Stored direct membership data for timeline ${timelineId} after join${isRejoin ? ' (rejoin)' : ''}, pending: ${isPending}`);
       } catch (e) {
         console.warn('Error storing direct membership data after join:', e);
       }
       
-      // Sync the user passport with the server to update all memberships
-      console.log('DEBUG: Syncing user passport after successful join');
-      try {
-        await syncUserPassport();
-        console.log('User passport synced successfully after join');
-      } catch (err) {
-        console.error('Error syncing user passport after join:', err);
-      }
-      
-      // Refresh user memberships to include this new membership
-      console.log('DEBUG: Refreshing user memberships after successful join');
-      try {
-        await fetchUserMemberships();
-      } catch (err) {
-        console.error('Error refreshing user memberships after join:', err);
-      }
+      // Note: Passport sync endpoint not implemented yet
+      // The membership data is already stored in localStorage above
+      console.log('DEBUG: Membership data stored successfully');
       
       // Force refresh membership status from server after a short delay
       // This ensures backend and frontend are in sync
@@ -2148,7 +2156,7 @@ const handleRecenter = () => {
                     Checking membership...
                   </Button>
                 ) : !isMember ? (
-                  // Non-member: show Blocked banner if blocked, else Join button
+                  // Non-member: show Blocked banner if blocked, pending request, or Join button
                   isBlocked ? (
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Button
@@ -2164,6 +2172,22 @@ const handleRecenter = () => {
                         Blocked from this community
                       </Button>
                     </Stack>
+                  ) : isPendingApproval ? (
+                    <Button
+                      disabled
+                      startIcon={<CheckCircleIcon />}
+                      sx={{
+                        bgcolor: theme.palette.warning.light,
+                        color: theme.palette.warning.contrastText,
+                        '&.Mui-disabled': { 
+                          color: theme.palette.warning.contrastText,
+                          bgcolor: theme.palette.warning.light
+                        },
+                        fontWeight: 700
+                      }}
+                    >
+                      Request Sent!
+                    </Button>
                   ) : (
                     <Button
                       onClick={handleJoinCommunity}
@@ -3081,9 +3105,28 @@ const handleRecenter = () => {
         {/* Conditional rendering based on timeline type and membership status */}
         {timeline_type === 'community'
           ? (
-              (!isMember && !joinRequestSent && !joinLoading && !isBlocked) 
+              isPendingApproval ? (
+                // Show "Request Sent!" FAB for pending members
+                <Tooltip title="Request Pending Approval">
+                  <Fab
+                    disabled
+                    sx={{
+                      bgcolor: theme.palette.warning.light,
+                      color: theme.palette.warning.contrastText,
+                      '&.Mui-disabled': {
+                        bgcolor: theme.palette.warning.light,
+                        color: theme.palette.warning.contrastText,
+                      },
+                      boxShadow: 3,
+                      zIndex: 1540
+                    }}
+                  >
+                    <CheckCircleIcon />
+                  </Fab>
+                </Tooltip>
+              ) : (!isMember && !joinRequestSent && !joinLoading && !isBlocked) 
                 ? (
-                    // Show Join only when verdict is "not a member" and not blocked/loading
+                    // Show Join only when verdict is "not a member" and not blocked/loading/pending
                     <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
                       <Fab
                         onClick={handleJoinCommunity}
@@ -3162,7 +3205,7 @@ const handleRecenter = () => {
           sx={{ width: '100%' }}
         >
           {joinRequestStatus === 'success' 
-            ? visibility === 'private' 
+            ? isPendingApproval
               ? 'Request Sent! An admin will review your request.' 
               : 'You have successfully joined this community timeline!'
             : !user 
