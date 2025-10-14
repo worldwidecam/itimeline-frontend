@@ -55,6 +55,7 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import AudiotrackIcon from '@mui/icons-material/Audiotrack';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import LockIcon from '@mui/icons-material/Lock';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import { useParams } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1001,9 +1002,33 @@ const AdminPanel = () => {
                       sx={{ textTransform: 'none' }}
                     />
                     <Tab 
+                      label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <HourglassEmptyIcon sx={{ fontSize: '1.1rem' }} />
+                        <Typography variant="button" sx={{ fontWeight: memberTabValue === 1 ? 'bold' : 'normal' }}>
+                          Pending Requests
+                        </Typography>
+                        {pendingMembers.length > 0 && (
+                          <Chip 
+                            label={pendingMembers.length} 
+                            size="small" 
+                            sx={{ 
+                              height: 20,
+                              minWidth: 20,
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold',
+                              bgcolor: 'warning.main',
+                              color: 'white',
+                              '& .MuiChip-label': { px: 0.75 }
+                            }} 
+                          />
+                        )}
+                      </Box>} 
+                      sx={{ textTransform: 'none' }}
+                    />
+                    <Tab 
                       label={<Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <DeleteOutlineIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
-                        <Typography variant="button" sx={{ fontWeight: memberTabValue === 1 ? 'bold' : 'normal' }}>
+                        <Typography variant="button" sx={{ fontWeight: memberTabValue === 2 ? 'bold' : 'normal' }}>
                           Blocked Users ({blockedMembers.length})
                         </Typography>
                       </Box>} 
@@ -1151,8 +1176,128 @@ const AdminPanel = () => {
                   </Box>
                 )}
                 
-                {/* Blocked Members Tab */}
+                {/* Pending Requests Tab */}
                 {memberTabValue === 1 && (
+                  <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+                    {pendingMembers.length === 0 ? (
+                      <Box sx={{ p: 3, textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No pending membership requests
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <>
+                        {/* Accept All Button */}
+                        <Box sx={{ 
+                          p: 2, 
+                          borderBottom: '1px solid',
+                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          display: 'flex',
+                          justifyContent: 'flex-end'
+                        }}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            startIcon={<CheckCircleIcon />}
+                            onClick={async () => {
+                              try {
+                                // Approve all pending members
+                                await Promise.all(
+                                  pendingMembers.map(member => 
+                                    approvePendingMember(timelineId, member.user_id || member.id)
+                                  )
+                                );
+                                showSnackbar(`Approved ${pendingMembers.length} member${pendingMembers.length > 1 ? 's' : ''}`, 'success');
+                                // Reload both pending and active members
+                                await Promise.all([loadPendingMembers(), loadMembers()]);
+                                // Switch to Active Members tab
+                                setMemberTabValue(0);
+                              } catch (error) {
+                                console.error('Error approving all members:', error);
+                                showSnackbar('Failed to approve all members', 'error');
+                              }
+                            }}
+                            sx={{ fontWeight: 'bold' }}
+                          >
+                            Accept All ({pendingMembers.length})
+                          </Button>
+                        </Box>
+                        
+                        {pendingMembers.map((member) => (
+                          <Box 
+                            key={member.id}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              p: 2,
+                              borderBottom: '1px solid',
+                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                              '&:last-child': {
+                                borderBottom: 'none'
+                              },
+                              '&:hover': {
+                                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
+                              },
+                              transition: 'background-color 0.2s ease'
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                              <UserAvatar 
+                                name={member.name}
+                                avatarUrl={member.avatar}
+                                id={member.userId || member.id}
+                                size={48}
+                                sx={{ mr: 2 }}
+                              />
+                              <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                  {member.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Requested {new Date(member.requestDate).toLocaleDateString()}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <IconButton 
+                                size="small" 
+                                color="success"
+                                onClick={() => handleOpenConfirmDialog(member, 'approve')}
+                                title="Approve request"
+                                sx={{ 
+                                  '&:hover': {
+                                    bgcolor: 'rgba(46, 125, 50, 0.1)'
+                                  }
+                                }}
+                              >
+                                <CheckCircleIcon />
+                              </IconButton>
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleOpenConfirmDialog(member, 'deny')}
+                                title="Deny request"
+                                sx={{ 
+                                  '&:hover': {
+                                    bgcolor: 'rgba(211, 47, 47, 0.1)'
+                                  }
+                                }}
+                              >
+                                <CancelIcon />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        ))}
+                      </>
+                    )}
+                  </Box>
+                )}
+                
+                {/* Blocked Members Tab */}
+                {memberTabValue === 2 && (
                   <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
                     {blockedMembers.length === 0 ? (
                       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -2287,6 +2432,11 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
       loadPendingMembers();
     }
   }, [memberTabValue, loadPendingMembers]);
+  
+  // Also load pending members on initial mount to show badge count
+  useEffect(() => {
+    loadPendingMembers();
+  }, [loadPendingMembers]);
   
   // Show snackbar notification
   const showSnackbar = (message, severity = 'success') => {
