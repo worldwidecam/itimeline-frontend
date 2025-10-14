@@ -18,6 +18,7 @@ import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
 import CommunityDotTabs from './community/CommunityDotTabs';
+import CommunityMembershipControl from './community/CommunityMembershipControl.js';
 import useJoinStatus from '../../hooks/useJoinStatus';
 
 // Material UI Icons - importing each icon separately to ensure they're properly loaded
@@ -54,6 +55,7 @@ function TimelineV3() {
   const [timelineName, setTimelineName] = useState('');
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
+  const [requiresApproval, setRequiresApproval] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
@@ -118,6 +120,7 @@ function TimelineV3() {
           setTimelineName(timelineData.name);
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
+          setRequiresApproval(timelineData.requires_approval || false);
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
         }
@@ -2143,134 +2146,23 @@ const handleRecenter = () => {
             <Box sx={{ position: 'relative' }}>
               {/* Button section */}
               {timeline_type === 'community' ? (
-                // Community timeline buttons
-                isMember === null ? (
-                  // Loading state - show a loading indicator
-                  <Button
-                    disabled
-                    startIcon={<CircularProgress size={16} />}
-                    sx={{
-                      bgcolor: 'rgba(0, 0, 0, 0.12)',
-                      color: theme.palette.text.secondary,
-                      '&.Mui-disabled': {
-                        color: theme.palette.text.secondary,
-                      }
-                    }}
-                  >
-                    Checking membership...
-                  </Button>
-                ) : !isMember ? (
-                  // Non-member: show Blocked banner if blocked, pending request, or Join button
-                  isBlocked ? (
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Button
-                        disabled
-                        startIcon={<Block />}
-                        sx={{
-                          bgcolor: theme.palette.error.light,
-                          color: theme.palette.error.contrastText,
-                          '&.Mui-disabled': { color: theme.palette.error.contrastText },
-                          fontWeight: 700
-                        }}
-                      >
-                        Blocked from this community
-                      </Button>
-                    </Stack>
-                  ) : isPendingApproval ? (
-                    <Button
-                      disabled
-                      startIcon={<CheckCircleIcon />}
-                      sx={{
-                        bgcolor: theme.palette.warning.light,
-                        color: theme.palette.warning.contrastText,
-                        '&.Mui-disabled': { 
-                          color: theme.palette.warning.contrastText,
-                          bgcolor: theme.palette.warning.light
-                        },
-                        fontWeight: 700
-                      }}
-                    >
-                      Request Sent!
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleJoinCommunity}
-                      disabled={joinRequestSent}
-                      startIcon={<PersonAddIcon />}
-                      sx={{
-                        bgcolor: theme.palette.info.main,
-                        color: 'white',
-                        '&:hover': { bgcolor: theme.palette.info.dark },
-                        boxShadow: 2,
-                        '&.Mui-disabled': {
-                          bgcolor: 'rgba(0, 0, 0, 0.12)',
-                          color: 'rgba(0, 0, 0, 0.26)'
-                        }
-                      }}
-                    >
-                      {visibility === 'private' ? 'Request to Join' : 'Join Community'}
-                    </Button>
-                  )
-                ) : (
-                  // Member UI elements
-                  <>
-                    {/* Joined indicator button */}
-                    <Button
-                      disabled
-                      startIcon={<CheckCircleIcon />}
-                      sx={{
-                        mr: 1,
-                        bgcolor: 'rgba(0, 0, 0, 0.12)',
-                        color: theme.palette.success.main,
-                        '&.Mui-disabled': {
-                          color: theme.palette.success.main,
-                        }
-                      }}
-                    >
-                      Joined
-                    </Button>
-                    
-                    {/* Add Event button for members */}
-                    <Button
-                      onClick={handleAddEventClick}
-                      variant="contained"
-                      startIcon={<AddIcon />}
-                      sx={{
-                        mr: 1,
-                        bgcolor: theme.palette.success.main,
-                        color: 'white',
-                        '&:hover': {
-                          bgcolor: theme.palette.success.dark,
-                        },
-                        boxShadow: 2
-                      }}
-                    >
-                      Add Event
-                    </Button>
-                    {/* Debug button - only visible in development mode */}
-                    {import.meta.env.MODE === 'development' && (
-                      <Button
-                        onClick={debugTimelineMembers}
-                        variant="outlined"
-                        size="small"
-                        sx={{ 
-                          fontSize: '0.7rem',
-                          p: '2px 8px',
-                          minWidth: 'auto',
-                          bgcolor: 'rgba(255,255,255,0.1)',
-                          color: 'white',
-                          borderColor: 'rgba(255,255,255,0.3)',
-                          '&:hover': {
-                            bgcolor: 'rgba(255,255,255,0.2)',
-                            borderColor: 'rgba(255,255,255,0.5)',
-                          }
-                        }}
-                      >
-                        Debug
-                      </Button>
-                    )}
-                  </>
-                )
+                // Community timeline membership control
+                <CommunityMembershipControl
+                  timelineId={timelineId}
+                  user={user}
+                  visibility={visibility}
+                  requiresApproval={requiresApproval}
+                  onJoinSuccess={(data) => {
+                    console.log('[TimelineV3] Join success:', data);
+                    // Refresh membership status
+                    refreshMembership();
+                  }}
+                  onLeaveSuccess={() => {
+                    console.log('[TimelineV3] Leave success');
+                    // Refresh membership status
+                    refreshMembership();
+                  }}
+                />
               ) : (
                 // Non-community timeline button (delay until details loaded to avoid flicker)
                 isLoading ? (
