@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Stack, CircularProgress, Snackbar, Alert, useTheme } from '@mui/material';
+import { Button, Stack, CircularProgress, Snackbar, Alert, useTheme, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import PeopleIcon from '@mui/icons-material/People';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import useJoinStatus from '../../../hooks/useJoinStatus';
-import { requestTimelineAccess, getTimelineMembers } from '../../../utils/api';
+import { requestTimelineAccess, getTimelineMembers, leaveCommunity } from '../../../utils/api';
 
 /**
  * Format large numbers with K/M suffixes
@@ -61,6 +61,7 @@ const CommunityMembershipControl = ({
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [memberCount, setMemberCount] = useState(0);
   const [loadingMemberCount, setLoadingMemberCount] = useState(true);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
 
   // Sync hook state to local state
   const [isMember, setIsMember] = useState(null);
@@ -163,12 +164,40 @@ const CommunityMembershipControl = ({
 
   // Handle leave community button click
   const handleLeaveCommunity = () => {
-    // TODO: Implement leave community logic
-    // This will require a new backend endpoint
-    console.log('[CommunityMembershipControl] Leave community clicked');
-    setSnackbarMessage('Leave community feature coming soon');
-    setSnackbarSeverity('info');
-    setSnackbarOpen(true);
+    setLeaveDialogOpen(true);
+  };
+
+  // Handle leave confirmation
+  const handleLeaveConfirm = async () => {
+    setLeaveDialogOpen(false);
+    
+    try {
+      await leaveCommunity(timelineId);
+      setSnackbarMessage('Successfully left the community');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
+      // Update local state
+      setIsMember(false);
+      
+      // Refresh membership status
+      await refreshMembership();
+      
+      // Notify parent component
+      if (onLeaveSuccess) {
+        onLeaveSuccess();
+      }
+    } catch (error) {
+      console.error('[CommunityMembershipControl] Error leaving community:', error);
+      setSnackbarMessage(error.message || 'Failed to leave community. Please try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  // Handle leave cancellation
+  const handleLeaveCancel = () => {
+    setLeaveDialogOpen(false);
   };
 
   // Close snackbar
@@ -351,6 +380,31 @@ const CommunityMembershipControl = ({
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Leave Community Confirmation Dialog */}
+      <Dialog
+        open={leaveDialogOpen}
+        onClose={handleLeaveCancel}
+        aria-labelledby="leave-dialog-title"
+        aria-describedby="leave-dialog-description"
+      >
+        <DialogTitle id="leave-dialog-title">
+          Leave Community?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="leave-dialog-description">
+            Are you sure you want to leave this community? You will lose access to member-only content and will need to rejoin to regain access.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleLeaveCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleLeaveConfirm} color="error" variant="contained" autoFocus>
+            Leave Community
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

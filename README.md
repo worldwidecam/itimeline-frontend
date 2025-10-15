@@ -457,6 +457,38 @@ All Report buttons across event popups share a consistent, minimal UI and behavi
 - Dialog content uses `overflow: 'visible'` to prevent floating label clipping.
 - Button placement and padding consistent across all popups.
 
+#### UI Number Formatting Standards
+
+All numeric counters in the application follow consistent formatting rules for better readability:
+
+**Member Counts & General Counters**:
+- **0-999**: Display exact number (e.g., "55 Members", "123 Events")
+- **1,000-999,999**: Display with K suffix, 1 decimal place (e.g., "1.2K Members", "5.7K Events")
+- **1,000,000+**: Display with M suffix, 1 decimal place (e.g., "1.5M Members", "2.3M Events")
+
+**Implementation**:
+```javascript
+const formatCount = (count) => {
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
+  return count.toString();
+};
+```
+
+**Examples**:
+- 55 → "55 Members"
+- 1,234 → "1.2K Members"
+- 5,678 → "5.7K Members"
+- 1,234,567 → "1.2M Members"
+
+**Current Implementations**:
+- `CommunityMembershipControl.js` - Member count display (formatMemberCount function)
+- Future: Event counts, post counts, and other numeric displays should follow the same pattern
+
 #### Frontend API
 - `submitReport(timelineId, eventId, reason?, category)` in `src/utils/api.js`
   - Sends `POST /api/v1/timelines/{timeline_id}/reports` with `{ event_id, reason, category }`.

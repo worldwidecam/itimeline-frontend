@@ -773,6 +773,39 @@ export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
 };
 
 /**
+ * Leave a community timeline (self-removal)
+ * @param {number} timelineId - The ID of the timeline to leave
+ * @returns {Promise} - Promise resolving to success message
+ */
+export const leaveCommunity = async (timelineId) => {
+  try {
+    console.log(`Leaving community timeline ${timelineId}`);
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/leave`);
+    console.log('Leave community response:', response.data);
+    
+    // Clear membership cache
+    try {
+      const membershipKey = `timeline_membership_${timelineId}`;
+      localStorage.removeItem(membershipKey);
+      console.log(`Cleared membership cache for timeline ${timelineId}`);
+    } catch (storageError) {
+      console.warn('Failed to clear membership cache:', storageError);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error leaving community timeline ${timelineId}:`, error);
+    
+    // Return error details for UI handling
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    
+    throw new Error('Failed to leave community. Please try again.');
+  }
+};
+
+/**
  * Check if the current user is a member of a timeline
  * @param {number} timelineId - The ID of the timeline to check
  * @param {number} retryCount - Number of retry attempts (internal use)

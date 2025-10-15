@@ -4,6 +4,20 @@ import EventIcon from '@mui/icons-material/Event';
 import EventCarousel from './EventCarousel';
 import { EVENT_TYPE_COLORS } from './EventTypes';
 
+/**
+ * Format large numbers with K/M suffixes
+ * Examples: 1234 -> "1.2K", 1500000 -> "1.5M"
+ */
+const formatCount = (count) => {
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
+  return count.toString();
+};
+
 const EventCounter = ({ 
   count, 
   events = [], 
@@ -309,7 +323,7 @@ const EventCounter = ({
           Events
         </Typography>
         <Badge
-          badgeContent={count}
+          badgeContent={formatCount(count)}
           color="primary"
           sx={{
             '& .MuiBadge-badge': {
