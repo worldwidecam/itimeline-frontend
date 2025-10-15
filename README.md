@@ -114,6 +114,16 @@ The iTimeline application supports Community Timelines with a Bronze/Silver/Gold
     - `PrivateTimelineLock.js` - Private timeline access denial (blue gradient, lock icon, "Go to Home")
     - `CommunityLockView.js` - Members/Admin page access denial (blue gradient, lock icon, "Go to Timeline")
     - `MembershipGuard.js` - Role-based access denial (red gradient, warning icon, "Go to Timeline Now")
+    - `BlockedFromCommunity.js` - Blocked user access denial (red gradient, block icon, "Go to Home") - **NEW October 2025**
+
+- **BlockedFromCommunity** (October 2025):
+  - Full-screen immersive redirect for users blocked from a community
+  - **Red gradient theme** to indicate error/blocked status
+  - Displays when `isBlocked === true` in TimelineV3
+  - Clear messaging: "You have been blocked from this community"
+  - Suggests contacting community administrators
+  - Single action: "Go to Home" button
+  - **Trigger**: Admin blocks user via Admin Panel → Manage Members → Blocked Users tab
 
 - **CommunityLockView**:
   - Protects private/admin-only areas with immersive lock screen

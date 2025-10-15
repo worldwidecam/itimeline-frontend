@@ -2106,6 +2106,16 @@ const handleRecenter = () => {
     );
   }
 
+  // Check if user is blocked from this community timeline
+  if (timeline_type === 'community' && isBlocked === true && !isLoading) {
+    const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCommunity'));
+    return (
+      <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
+        <BlockedFromCommunity timelineName={timelineName} />
+      </React.Suspense>
+    );
+  }
+
   return (
     <Box sx={{ 
       display: 'flex',
