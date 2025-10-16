@@ -1,41 +1,44 @@
-# Main Goal - Community Timeline Implementation
+# Main Goal - Timeline Architectural Improvements
 
-## Lean Plan (2025-10-10)
+## Lean Plan (2025-10-14)
 
 ### Main GOAL
 - Prepare application for production launch
 
 ### Sub GOALS (In Order)
-1. ✅ Community timeline implementation (MOSTLY COMPLETE)
-2. 🔄 Finish Community Timeline Implementation (CURRENT)
-3. ⏳ Timeline Reference Point B System (NEXT - MAJOR)
-4. ⏳ Promote/Demote Voting System
-5. ⏳ Better Auth Migration (FINAL PRE-PRODUCTION)
+1. ✅ Community Timeline Implementation (COMPLETE - Oct 14, 2025)
+2. 🎯 Timeline Reference Point B System (CURRENT - MAJOR)
+3. ⏳ Promote/Demote Voting System
+4. ⏳ Better Auth Migration (FINAL PRE-PRODUCTION)
 
 ### Current Sub GOAL
-- Finish Community Timeline Implementation
+- Timeline Reference Point B System
 
 ### Current Goal within Sub GOAL
-- Complete Settings Tab in Admin Panel
+- Understand and document current timeline coordinate system
 
-### COMPLETED TODO (2025-10-13)
-- ✅ **Settings Tab in Admin Panel** - Core functionality complete:
-  - ✅ Timeline visibility settings with private toggle
-  - ✅ 10-day cooldown system for privacy switching
-  - ✅ Live countdown timer (updates every minute)
-  - ✅ Member count display
-  - ✅ Timeline name/description display
-  - ✅ Immersive redirect pages (PrivateTimelineLock, CommunityLockView, MembershipGuard)
-  - ⏳ Timeline name/description editing (DEFERRED - requires uniqueness logic)
-  - ⏳ Timeline deletion functionality (DEFERRED - requires confirmation flow)
-  - ⏳ Require Membership Approval toggle (NEXT)
+### COMPLETED TODO (2025-10-14)
+- ✅ **Community Timeline Implementation** - COMPLETE:
+  - ✅ Admin Panel with three tabs (Manage Members, Pending Requests, Settings)
+  - ✅ Member management (promote/demote, remove, block/unblock)
+  - ✅ Pending requests workflow with auto-expiry
+  - ✅ Settings tab with privacy toggle and approval requirements
+  - ✅ Four redirect pages for access control
+  - ✅ Smart join button with status indicators
+  - ✅ PostgreSQL migration with coding guidelines
+  - ✅ BlockedFromCommunity redirect page
 
 ### CURRENT TODO
-- [ ] Implement "Require Membership Approval" toggle in Settings Tab
-  - [ ] Toggle switch to control join request behavior
-  - [ ] Auto-accept vs manual approval modes
-  - [ ] Backend persistence of approval requirement setting
-  - [ ] Update join flow to respect approval setting
+- [ ] **Timeline Reference Point B System** ⭐ CRITICAL ARCHITECTURE CHANGE
+  - [ ] Document current coordinate system (Point [0] based)
+  - [ ] Identify all issues with current system
+  - [ ] Design dual reference point system (Point A + Point B)
+  - [ ] Plan refactoring approach
+  - [ ] Implement Point A (Today's date/time)
+  - [ ] Implement Point B (User focus position relative to Point A)
+  - [ ] Update all view mode calculations
+  - [ ] Test navigation across filter views
+  - [ ] Verify scroll position memory
 
 ### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
 - ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'
@@ -47,46 +50,50 @@
 - ✅ Restore left border colors on Manage Posts report cards (status phase indicator)
 - ✅ Update README with October 2025 improvements and current focus
 
-### DEFERRED QUALITY OF LIFE (For Later)
-- [ ] Add search/filter functionality to Manage Posts list
-- [ ] Consider pagination controls for Manage Posts (currently loads all)
-- [ ] Add loading states for report actions (Accept/Remove/Delete/Safeguard)
-- [ ] Add favicon/site icon for branding
+### Timeline Reference Point B System - DETAILED PLAN
 
-### NEXT MAJOR TODO (After Quality of Life)
-- [ ] **Timeline Reference Point B System** ⭐ CRITICAL ARCHITECTURE CHANGE
-  - **Problem**: Current system only tracks distance from point [0], causing issues:
-    - Filter view switches lose user context (e.g., 8 hours in day view = 8 years in year view)
-    - Clunky event marker movement
-    - Poor scroll position memory across view changes
-  - **Solution**: Dual reference point system:
-    - **Point A**: Today's current date/time (absolute reference)
-    - **Point B**: User's focus position relative to Point A (tracks distance from today, not from [0])
-  - **Impact**: Fixes navigation, maintains context across filter views, smoother scrolling
-  - **Complexity**: HIGH - Core timeline coordinate system refactor
-  - **Priority**: NEXT after Quality of Life improvements
+**Problem Statement**:
+Current system only tracks distance from point [0], causing issues:
+- Filter view switches lose user context (e.g., 8 hours in day view = 8 years in year view)
+- Clunky event marker movement
+- Poor scroll position memory across view changes
+- User loses their place when switching between day/week/month/year views
 
-### COMPLETED TODO (2025-10-10)
-- ✅ **Report System** - Complete end-to-end implementation:
-  - Report button on all event types creates items in AdminPanel → Manage Posts tab
-  - Manage Posts tab uses real API data (no mock data)
-  - All three resolve actions implemented: remove, delete, safeguard
-  - List refreshes and counts update after actions
-  - Verdict requirement enforced
-  - View Event button for investigation
+**Solution**: Dual reference point system:
+- **Point A**: Today's current date/time (absolute reference)
+  - Always represents "now"
+  - Updates in real-time
+  - Serves as the anchor for all calculations
+- **Point B**: User's focus position relative to Point A
+  - Tracks distance from today, not from [0]
+  - Maintains context across view changes
+  - Preserves user's scroll position
+  - Example: "3 days ago" stays "3 days ago" regardless of view mode
+
+**Impact**:
+- ✅ Fixes navigation across filter views
+- ✅ Maintains user context when switching views
+- ✅ Smoother scrolling and marker movement
+- ✅ Better UX for timeline exploration
+
+**Complexity**: HIGH - Core timeline coordinate system refactor
+**Priority**: CURRENT FOCUS
 
 ### Production Roadmap
 
-**Phase 1: Quality of Life** (Current - Est. 1-2 weeks)
-- Polish existing features
-- Fix minor UX issues
-- Add missing loading states
+**Phase 1: Community Timeline Implementation** ✅ COMPLETE (Oct 14, 2025)
+- ✅ Admin Panel with full member management
+- ✅ Pending requests workflow
+- ✅ Privacy and approval settings
+- ✅ Access control redirect pages
+- ✅ PostgreSQL migration
 
-**Phase 2: Timeline Reference Point B** (Next - Est. 2-3 weeks) ⭐
+**Phase 2: Timeline Reference Point B** (Current - Est. 2-3 weeks) ⭐
 - Refactor core coordinate system
 - Implement dual reference points
 - Fix filter view context switching
 - Optimize event marker movement
+- Improve scroll position memory
 
 **Phase 3: Promote/Demote Voting System** (Est. 3-4 weeks)
 - Reddit-style upvote/downvote toggle
@@ -108,67 +115,46 @@
 - Comprehensive testing
 - **PRODUCTION LAUNCH** 🎉
 
-### Notes for Current Context
-- ✅ **Reporting System COMPLETE** (2025-10-10):
-  - Report button across all event popups (Standard, Image, Video, Audio, News)
-  - Manage Posts tab fully wired to real backend API
-  - All three resolution actions implemented and working:
-    - **Remove from Community** - Timeline-specific removal via blocklist
-    - **Delete Post** - Global deletion (removes from ALL timelines)
-    - **Safeguard Post** - Marks as reviewed/safe, dismisses report
-  - Status workflow: Pending → Reviewing → Resolved
-  - Real-time list updates after actions
-  - Verdict requirement enforced for all actions
-  - View Event button opens EventPopup for investigation
-
-- Completed recently:
-  - Members page with real API; roles promote/demote; remove/block/unblock
-  - Join/Blocked gating with red banner
-  - Quote system complete
-  - CommunityLockView and AdminPanel access guards
-
-- Backend endpoints (all working):
-  - `GET /api/v1/timelines/{timeline_id}/reports` - List reports with pagination
-  - `POST /api/v1/timelines/{timeline_id}/reports` - Submit report
-  - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/accept` - Accept for review
-  - `POST /api/v1/timelines/{timeline_id}/reports/{report_id}/resolve` - Resolve with action
+### Deferred Features (Post-Production)
+- [ ] Timeline name/description editing (requires uniqueness logic)
+- [ ] Timeline deletion functionality (requires confirmation flow)
+- [ ] Search/filter functionality for Manage Posts list
+- [ ] Pagination controls for Manage Posts
+- [ ] Loading states for report actions
+- [ ] Favicon/site icon for branding
+- [ ] Bulk member actions in Admin Panel
+- [ ] Member search and filtering in Admin Panel
 
 ---
 
-# Main Goal - Community Timeline Implementation
+## Archive - Community Timeline Implementation (COMPLETE)
 
-## Concise Plan (2025-08-31)
-- **Main goal**: Community timeline implementation
-- **Finished recently**: Members page (active/blocked lists, roles, remove/block with real API) and quote system
-- **Where we left off**: Admin Page — "Remove from community" button behavior and persistence
-- **Today's task**: Validate end-to-end removal persistence
-  - Call backend removal API (active under `/api/v1/timelines/{id}/members/{userId}`)
-  - After success, call `POST /api/v1/user/passport/sync`
-  - Clear/update caches so member stays removed after refresh, then re-fetch
-- **Next 1–2 steps**: Add search/filter to members list; verify no mock fallbacks remain
+### Final Status (2025-10-14)
+✅ **Community Timeline System - PRODUCTION READY**
 
-### New Progress (2025-08-25)
-- ✅ CommunityLockView integrated across community UI where appropriate
-- ✅ AdminPanel access-loading guard added (skeleton shown during access check to prevent UI flash)
-- ℹ️ No backend changes required for the above; frontend-only improvements
+All core features implemented and tested:
+- Admin Panel with three tabs (Manage Members, Pending Requests, Settings)
+- Member management (promote/demote, remove, block/unblock)
+- Pending requests workflow with auto-expiry (30 days)
+- Settings tab with privacy toggle and approval requirements
+- 10-day cooldown system for privacy switching
+- Four redirect pages (PrivateTimelineLock, CommunityLockView, MembershipGuard, BlockedFromCommunity)
+- Smart join button with status indicators (Member, Pending, Blocked)
+- Report & moderation system with Manage Posts interface
+- PostgreSQL backend with proper migrations
+- Comprehensive documentation in README
 
-### Progress Today (alignment with Postgres passport)
-- **Backend** now writes/reads passports from Postgres; endpoints are live: `GET /api/v1/user/passport`, `POST /api/v1/user/passport/sync`. `community_bp` is registered under `/api/v1` so the DELETE member route is active.
-- **Frontend** is connected to backend; auth validate calls succeed; ready to drive passport sync after member removal.
-
-### Next Minute Step — Remove Button
-1) Keep current UI flow in `AdminPanel.js` → `removeMember(timelineId, userId)` and, on success, immediately call `syncUserPassport()`.
-2) After sync resolves, invalidate relevant caches (`user_passport_*`, `timeline_members_*`) and re-fetch the member list.
-3) Confirm that subsequent UI renders and fresh fetches exclude the removed member.
-
-Mini-roadmap after this minute step:
-- [ ] Add debug log in `removeMember` success path to record timelineId/userId and sync results
-- [ ] Verify `getTimelineMembers(id)` excludes inactive members after refresh
-- [ ] E2E: remove → sync → reload → remains removed (across tabs/sessions)
+### Key Achievements
+- ✅ Zero mock data - all features use real backend APIs
+- ✅ Real-time updates across all actions
+- ✅ Passport sync for cross-session consistency
+- ✅ Permission guards and role enforcement
+- ✅ Immersive redirect pages following October 2025 standard
+- ✅ PostgreSQL compatibility with coding guidelines documented
 
 ---
 
-## Detailed history (archive)
+## Detailed History (Archive)
 
 ## Sub Goal - Quote System ✅ COMPLETE
 
