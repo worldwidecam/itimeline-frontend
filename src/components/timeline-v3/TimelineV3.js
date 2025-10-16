@@ -9,6 +9,7 @@ import TimelineBackground from './TimelineBackground';
 import TimelineBar from './TimelineBar';
 import TimeMarkers from './TimeMarkers';
 import HoverMarker from './HoverMarker';
+import PointBIndicator from './PointBIndicator';
 import EventMarker from './events/EventMarker';
 import TimelineNameDisplay from './TimelineNameDisplay';
 import EventCounter from './events/EventCounter';
@@ -298,6 +299,30 @@ function TimelineV3() {
     return params.get('view') || 'day';
   });
   
+  // ============================================================================
+  // POINT A & POINT B DUAL REFERENCE SYSTEM
+  // ============================================================================
+  // Point A: Current time reference (always tracking "now")
+  // Point B: User focus reference (where user is currently looking)
+  // When Point B is active, UI follows Point B instead of Point A
+  // This solves the "moving ruler" problem where current time updates shift everything
+  
+  // Point A state (current time tracking)
+  const [pointA_currentTime, setPointA_currentTime] = useState(new Date());
+  const [pointA_markerValue, setPointA_markerValue] = useState(0); // Always 0 in current implementation
+  
+  // Point B state (user focus tracking)
+  const [pointB_active, setPointB_active] = useState(false);
+  const [pointB_markerValue, setPointB_markerValue] = useState(null);
+  const [pointB_timestamp, setPointB_timestamp] = useState(null);
+  const [pointB_viewMode, setPointB_viewMode] = useState(null);
+  const [pointB_eventId, setPointB_eventId] = useState(null); // Optional: track which event Point B is focused on
+  
+  // Pre-load buffer for smooth scrolling (especially important for touch gestures)
+  const PRELOAD_MARGIN_MULTIPLIER = 2.5; // Pre-load 2.5x viewport width on each side
+  
+  // ============================================================================
+  
   // Track debounce timers with refs for wheel event handling
   const wheelTimer = useRef(null);
   const wheelDebounceTimer = useRef(null);
@@ -556,13 +581,26 @@ function TimelineV3() {
     }
   };
 
-  const handleMarkerClick = (event, index) => {
-    console.log('Marker clicked for event:', event, 'at index:', index);
+  const handleMarkerClick = (event, index, clickEvent, exactMarkerValue) => {
+    console.log('[TimelineV3] Marker clicked for event:', event.id, 'exactMarkerValue:', exactMarkerValue, 'type:', typeof exactMarkerValue);
+    
+    // Always activate Point B at this event's position when clicking event marker
+    // Use the exact marker value from EventMarker's calculation (includes fractional positions)
+    // Note: exactMarkerValue can be 0 (valid), so check for undefined/null specifically
+    if (event.event_date && viewMode !== 'position' && exactMarkerValue != null) {
+      const eventDate = new Date(event.event_date);
+      
+      // Activate Point B at this event's EXACT position (not rounded)
+      console.log('[Point B] Event marker clicked - Activating Point B at exact position:', exactMarkerValue);
+      activatePointB(exactMarkerValue, eventDate, viewMode, event.id, false); // shouldCenter = false
+    } else {
+      console.log('[Point B] Skipped activation - exactMarkerValue:', exactMarkerValue, 'event_date:', event.event_date, 'viewMode:', viewMode);
+    }
     
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
     setShouldScrollToEvent(false);
     
-    // Set the selected event ID to highlight it in the list
+    // Set the selected event ID to highlight it in the list (shows hover card)
     setSelectedEventId(event.id);
     
     // Get the filtered events array that's used by the EventCounter
@@ -1459,6 +1497,207 @@ function TimelineV3() {
       setJoinSnackbarOpen(true);
     }
   };
+  
+  // ============================================================================
+  // POINT B ACTIVATION & DEACTIVATION FUNCTIONS
+  // ============================================================================
+  
+  /**
+   * Activate Point B at a specific marker position
+   * This "locks" the user's focus to a specific point on the timeline
+   * 
+   * @param {number} markerValue - The marker position to focus on (e.g., 5 = 5 hours/days/months/years from Point A)
+   * @param {Date} timestamp - The actual date/time this marker represents
+   * @param {string} viewMode - The current view mode when Point B was set
+   * @param {string} eventId - Optional: ID of event that Point B is focused on
+   */
+  const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false) => {
+    console.log('[Point B] Activating at marker:', markerValue, 'timestamp:', timestamp, 'viewMode:', currentViewMode);
+    
+    setPointB_active(true);
+    setPointB_markerValue(markerValue);
+    setPointB_timestamp(timestamp);
+    setPointB_viewMode(currentViewMode);
+    setPointB_eventId(eventId);
+    
+    // Pre-load markers in both directions for smooth scrolling
+    const viewportWidth = window.innerWidth;
+    const preloadDistance = viewportWidth * PRELOAD_MARGIN_MULTIPLIER;
+    const markersToPreload = Math.ceil(preloadDistance / 100); // 100 = markerSpacing
+    
+    const currentMinMarker = Math.min(...markers);
+    const currentMaxMarker = Math.max(...markers);
+    
+    // Calculate how many markers we need to add
+    const targetMinMarker = markerValue - markersToPreload;
+    const targetMaxMarker = markerValue + markersToPreload;
+    
+    const newMarkers = [];
+    
+    // Add markers to the left if needed
+    if (targetMinMarker < currentMinMarker) {
+      for (let i = targetMinMarker; i < currentMinMarker; i++) {
+        newMarkers.push(i);
+      }
+    }
+    
+    // Add markers to the right if needed
+    if (targetMaxMarker > currentMaxMarker) {
+      for (let i = currentMaxMarker + 1; i <= targetMaxMarker; i++) {
+        newMarkers.push(i);
+      }
+    }
+    
+    if (newMarkers.length > 0) {
+      console.log('[Point B] Pre-loading', newMarkers.length, 'markers for smooth scrolling');
+      setMarkers(prevMarkers => [...prevMarkers, ...newMarkers].sort((a, b) => a - b));
+    }
+    
+    // ONLY center Point B on screen if explicitly requested (e.g., 'B' key press)
+    // When clicking markers, Point B should stay where clicked, not move timeline
+    if (shouldCenter) {
+      console.log('[Point B] Centering Point B on screen');
+      const currentPosition = window.innerWidth / 2 + (markerValue * 100) + timelineOffset;
+      const screenCenter = window.innerWidth / 2;
+      const offsetAdjustment = screenCenter - currentPosition;
+      
+      setTimelineOffset(prevOffset => prevOffset + offsetAdjustment);
+    } else {
+      console.log('[Point B] Point B activated at clicked position (timeline NOT moved)');
+    }
+    
+    console.log('[Point B] Activated successfully. Pre-loaded buffer:', markersToPreload, 'markers on each side');
+  };
+  
+  /**
+   * Deactivate Point B and return to Point A (current time) reference
+   */
+  const deactivatePointB = () => {
+    console.log('[Point B] Deactivating');
+    
+    setPointB_active(false);
+    setPointB_markerValue(null);
+    setPointB_timestamp(null);
+    setPointB_viewMode(null);
+    setPointB_eventId(null);
+    
+    // Note: We don't reset timelineOffset here to maintain visual continuity
+    // The user can use "Back to Present" button to recenter to Point A if desired
+  };
+  
+  /**
+   * Convert Point B to a new view mode
+   * This preserves the semantic meaning of Point B when switching views
+   * For example: "5:00 PM Tuesday" in day view becomes "Tuesday" in week view
+   */
+  const convertPointBToViewMode = (newViewMode) => {
+    if (!pointB_active || !pointB_timestamp) return null;
+    
+    const currentDate = new Date();
+    const pointBDate = new Date(pointB_timestamp);
+    
+    console.log('[Point B] Converting from', pointB_viewMode, 'to', newViewMode);
+    console.log('[Point B] Timestamp:', pointBDate.toLocaleString());
+    
+    let newMarkerValue = 0;
+    
+    switch (newViewMode) {
+      case 'day': {
+        // Calculate hours from current time
+        const dayDiff = Math.floor((pointBDate - currentDate) / (1000 * 60 * 60 * 24));
+        const hourDiff = Math.floor((pointBDate - currentDate) / (1000 * 60 * 60)) - (dayDiff * 24);
+        newMarkerValue = (dayDiff * 24) + hourDiff;
+        break;
+      }
+      case 'week': {
+        // Calculate days from current date
+        const dayDiff = Math.floor((pointBDate - currentDate) / (1000 * 60 * 60 * 24));
+        newMarkerValue = dayDiff;
+        break;
+      }
+      case 'month': {
+        // Calculate months from current month
+        const monthDiff = (pointBDate.getFullYear() - currentDate.getFullYear()) * 12 
+                        + (pointBDate.getMonth() - currentDate.getMonth());
+        newMarkerValue = monthDiff;
+        break;
+      }
+      case 'year': {
+        // Calculate years from current year
+        const yearDiff = pointBDate.getFullYear() - currentDate.getFullYear();
+        newMarkerValue = yearDiff;
+        break;
+      }
+      default:
+        newMarkerValue = 0;
+    }
+    
+    console.log('[Point B] Converted marker value:', newMarkerValue);
+    
+    // Update Point B with new marker value and view mode
+    setPointB_markerValue(newMarkerValue);
+    setPointB_viewMode(newViewMode);
+    
+    return newMarkerValue;
+  };
+  
+  // ============================================================================
+  
+  // Keyboard shortcut: Press 'B' to toggle Point B at current center position
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Only activate if 'B' key is pressed (not in an input field)
+      if (e.key === 'b' || e.key === 'B') {
+        // Check if we're in an input field
+        const activeElement = document.activeElement;
+        const isInputField = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        
+        if (isInputField) return; // Don't trigger if typing in an input
+        
+        if (pointB_active) {
+          // Deactivate Point B if already active
+          console.log('[Point B] Keyboard shortcut: Deactivating Point B');
+          deactivatePointB();
+        } else {
+          // Activate Point B at current center position (marker 0 relative to current offset)
+          console.log('[Point B] Keyboard shortcut: Activating Point B at center');
+          
+          // Calculate the marker value at screen center
+          const centerMarkerValue = Math.round(-timelineOffset / 100);
+          
+          // Calculate the timestamp for this marker
+          const currentDate = new Date();
+          let timestamp = new Date(currentDate);
+          
+          switch (viewMode) {
+            case 'day':
+              timestamp.setHours(currentDate.getHours() + centerMarkerValue);
+              break;
+            case 'week':
+              timestamp.setDate(currentDate.getDate() + centerMarkerValue);
+              break;
+            case 'month':
+              timestamp.setMonth(currentDate.getMonth() + centerMarkerValue);
+              break;
+            case 'year':
+              timestamp.setFullYear(currentDate.getFullYear() + centerMarkerValue);
+              break;
+          }
+          
+          activatePointB(centerMarkerValue, timestamp, viewMode, null, true); // shouldCenter = true for 'B' key
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [pointB_active, timelineOffset, viewMode]);
+  
+  // ============================================================================
   
   // Update hover position when view mode changes
   useEffect(() => {
@@ -2655,7 +2894,7 @@ const handleRecenter = () => {
                               timelineOffset={timelineOffset}
                               markerSpacing={100}
                               isSelected={event.id === selectedEventId}
-                              onClick={(e) => handleMarkerClick(event, originalIndex)}
+                              onClick={handleMarkerClick}
                             />
                           </div>
                         </Fade>
@@ -2686,6 +2925,10 @@ const handleRecenter = () => {
                 viewMode={viewMode}
                 theme={theme}
                 style={timelineTransitionStyles}
+                onMarkerClick={(markerValue, timestamp, viewMode) => {
+                  console.log('[Point B] Timeline marker clicked - Activating Point B');
+                  activatePointB(markerValue, timestamp, viewMode, null);
+                }}
               />
             </div>
           </Fade>
@@ -2708,6 +2951,15 @@ const handleRecenter = () => {
               />
             </div>
           </Fade>
+          
+          {/* Point B Indicator - Shows where user focus is locked */}
+          <PointBIndicator
+            active={pointB_active}
+            markerValue={pointB_markerValue}
+            timelineOffset={timelineOffset}
+            markerSpacing={100}
+          />
+          
           <Button
             onClick={handleLeft}
             sx={{

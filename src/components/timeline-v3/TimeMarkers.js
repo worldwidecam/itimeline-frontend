@@ -7,7 +7,8 @@ const TimeMarkers = ({
   markerStyles,
   markers,
   viewMode = 'position',
-  theme 
+  theme,
+  onMarkerClick // New prop for handling marker clicks
 }) => {
   const getCurrentDateTime = () => {
     // This will be updated with the latest timestamp from the system
@@ -149,6 +150,31 @@ const TimeMarkers = ({
         return (
           <Box
             key={value}
+            onClick={() => {
+              // Calculate the timestamp for this marker
+              const currentDate = new Date();
+              let timestamp = new Date(currentDate);
+              
+              switch (viewMode) {
+                case 'day':
+                  timestamp.setHours(currentDate.getHours() + value);
+                  break;
+                case 'week':
+                  timestamp.setDate(currentDate.getDate() + value);
+                  break;
+                case 'month':
+                  timestamp.setMonth(currentDate.getMonth() + value);
+                  break;
+                case 'year':
+                  timestamp.setFullYear(currentDate.getFullYear() + value);
+                  break;
+              }
+              
+              // Call the click handler if provided
+              if (onMarkerClick) {
+                onMarkerClick(value, timestamp, viewMode);
+              }
+            }}
             sx={{
               position: 'absolute',
               left: `${window.innerWidth/2 + (value * markerSpacing)}px`,
@@ -158,6 +184,7 @@ const TimeMarkers = ({
               transform: 'translateX(-50%)',
               top: '75%',
               pointerEvents: 'auto',
+              cursor: 'pointer', // Show pointer cursor on hover
               ...(value === 0 ? markerStyles.reference : markerStyles.regular),
               '&:hover': {
                 '& .marker-line': {

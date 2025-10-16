@@ -56,6 +56,7 @@ const EventMarker = ({
   const [overlappingFactor, setOverlappingFactor] = useState(1);
   const [horizontalOffset, setHorizontalOffset] = useState(0);
   const [position, setPosition] = useState(null);
+  const [markerPosition, setMarkerPosition] = useState(0); // Store the exact marker value for Point B
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -377,6 +378,7 @@ const EventMarker = ({
       return {
         x: Math.round(window.innerWidth/2 + positionValue + timelineOffset),
         y: 70,
+        markerValue: markerPosition // Include the exact marker value
       };
     } else {
       const centerX = window.innerWidth / 2;
@@ -385,13 +387,19 @@ const EventMarker = ({
       return {
         x: Math.round(centerX + positionValue + timelineOffset),
         y: 70,
+        markerValue: index - currentIndex // For position view
       };
     }
   };
 
   useEffect(() => {
-    const position = calculatePosition();
-    setPosition(position);
+    const positionData = calculatePosition();
+    if (positionData) {
+      setPosition(positionData);
+      const exactMarkerValue = positionData.markerValue || 0;
+      setMarkerPosition(exactMarkerValue);
+      console.log('[EventMarker] Position calculated for event:', event.id, 'markerValue:', exactMarkerValue);
+    }
   }, [viewMode, freshCurrentDate, index, currentIndex, timelineOffset, markerSpacing, minMarker, maxMarker]);
 
   const getColor = () => {
@@ -404,10 +412,11 @@ const EventMarker = ({
     return theme.palette.mode === 'dark' ? typeColors.hover.dark : typeColors.hover.light;
   };
 
-  const handleMarkerClick = () => {
-    // Call the onClick handler if provided
+  const handleMarkerClick = (clickEvent) => {
+    console.log('[EventMarker] Click handler called for event:', event.id, 'markerPosition:', markerPosition);
+    // Call the onClick handler if provided, passing the exact marker position for Point B
     if (onClick) {
-      onClick(event, index);
+      onClick(event, index, clickEvent, markerPosition); // Pass the exact marker value
     } else {
       // Fallback to the old behavior if onClick is not provided
       if (index !== currentIndex) {

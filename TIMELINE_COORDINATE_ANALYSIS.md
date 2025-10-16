@@ -732,6 +732,81 @@ const deactivatePointB = () => {
 - Screen reader announcements for Point B activation
 - Clear visual distinction between Point A and Point B
 
+### 13.5 Touch Gestures & Modern Scrolling (Oct 15, 2025)
+
+**Goal**: Phone-intuitive swiping with smooth left/right dragging
+
+**Current Limitations**:
+- Only wheel scroll and button navigation supported
+- No touch/swipe gestures
+- Markers load on-demand, causing buffer delays during rapid scrolling
+
+**Proposed Enhancements with Point B**:
+
+1. **Pre-load Buffer Zones**
+   ```javascript
+   // With Point B active, pre-load markers beyond viewport
+   const PRELOAD_MARGIN_MULTIPLIER = 2.5; // 2.5x viewport width on each side
+   const viewportWidth = window.innerWidth;
+   const preloadDistance = viewportWidth * PRELOAD_MARGIN_MULTIPLIER;
+   
+   // Pre-load markers in both directions from Point B
+   const markersToPreload = Math.ceil(preloadDistance / markerSpacing);
+   ```
+
+2. **Touch Event Handlers**
+   ```javascript
+   // Add to TimelineV3.js
+   const [touchStart, setTouchStart] = useState(null);
+   const [touchDelta, setTouchDelta] = useState(0);
+   
+   const handleTouchStart = (e) => {
+     setTouchStart(e.touches[0].clientX);
+   };
+   
+   const handleTouchMove = (e) => {
+     if (!touchStart) return;
+     const delta = e.touches[0].clientX - touchStart;
+     setTouchDelta(delta);
+     // Update timelineOffset in real-time for smooth dragging
+     setTimelineOffset(prevOffset => prevOffset + delta);
+   };
+   
+   const handleTouchEnd = () => {
+     setTouchStart(null);
+     setTouchDelta(0);
+     // Snap to nearest marker or maintain momentum
+   };
+   ```
+
+3. **Momentum Scrolling**
+   - Track velocity during touch drag
+   - Apply easing function after touch release
+   - Gradually decelerate like native mobile scrolling
+
+4. **Pinch-to-Zoom for View Mode Switching**
+   - Pinch in: Zoom out (day → week → month → year)
+   - Pinch out: Zoom in (year → month → week → day)
+   - Maintain Point B position during zoom
+
+5. **Benefits of Point B for Touch**
+   - **Stable reference**: Point B doesn't shift during drag
+   - **Wide pre-load margins**: No loading delays during swipe
+   - **Smooth performance**: Pre-loaded markers render instantly
+   - **Natural feel**: Like scrolling a physical timeline
+
+6. **Implementation Priority**
+   - Phase 1: Basic touch drag (horizontal pan)
+   - Phase 2: Momentum scrolling with deceleration
+   - Phase 3: Pinch-to-zoom view mode switching
+   - Phase 4: Haptic feedback on marker snap (mobile devices)
+
+**Technical Notes**:
+- Use `touch-action: pan-x` CSS to prevent vertical scroll interference
+- Implement passive event listeners for better scroll performance
+- Consider using `react-use-gesture` library for advanced gesture handling
+- Test on iOS Safari, Chrome Mobile, and Android browsers
+
 ---
 
 ## 14. Questions to Resolve
