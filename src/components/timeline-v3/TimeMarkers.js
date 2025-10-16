@@ -8,7 +8,9 @@ const TimeMarkers = ({
   markers,
   viewMode = 'position',
   theme,
-  onMarkerClick // New prop for handling marker clicks
+  onMarkerClick, // New prop for handling marker clicks
+  pointB_active = false, // Whether Point B is active
+  pointB_reference_markerValue = 0 // Point B reference marker (integer)
 }) => {
   const getCurrentDateTime = () => {
     // This will be updated with the latest timestamp from the system
@@ -144,6 +146,9 @@ const TimeMarkers = ({
         const january = isJanuary(value);
         const isSpecialMarker = midnight || sunday || january;
         
+        // Check if this is the Point B reference marker
+        const isPointBReference = pointB_active && value === pointB_reference_markerValue;
+        
         // Don't apply special styling to markers that were just navigated to
         const isDestination = isDestinationMarker(value);
         
@@ -204,7 +209,12 @@ const TimeMarkers = ({
                 transform: 'translateY(-50%)',
                 height: isSpecialMarker ? '25px' : '15px',
                 width: isSpecialMarker ? '3px' : '2px',
-                backgroundColor: isDestination ? theme.palette.text.secondary : undefined
+                // Point B reference: light red/orange, Point A (0): primary, others: default
+                backgroundColor: isPointBReference 
+                  ? theme.palette.mode === 'dark' ? '#ff6b6b' : '#ff8787'
+                  : isDestination 
+                    ? theme.palette.text.secondary 
+                    : undefined
               }}
             />
             <Typography 
@@ -212,7 +222,12 @@ const TimeMarkers = ({
               variant="caption" 
               sx={{ 
                 mt: 2,
-                color: value === 0 ? theme.palette.primary.main : theme.palette.text.secondary,
+                // Point B reference: light red/orange, Point A (0): primary blue, others: secondary
+                color: isPointBReference
+                  ? theme.palette.mode === 'dark' ? '#ff6b6b' : '#ff8787'
+                  : value === 0 
+                    ? theme.palette.primary.main 
+                    : theme.palette.text.secondary,
                 transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy transition
                 transform: 'scale(1)',
                 opacity: 1,

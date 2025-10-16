@@ -300,23 +300,44 @@ function TimelineV3() {
   });
   
   // ============================================================================
-  // POINT A & POINT B DUAL REFERENCE SYSTEM
+  // POINT B STATE - Dual Reference System (Decoupled Arrow + Reference)
   // ============================================================================
-  // Point A: Current time reference (always tracking "now")
-  // Point B: User focus reference (where user is currently looking)
-  // When Point B is active, UI follows Point B instead of Point A
-  // This solves the "moving ruler" problem where current time updates shift everything
   
+  /**
+   * Point B represents a user-selected focus point on the timeline.
+   * When active, the timeline UI follows Point B instead of Point A (current time).
+   * This solves the "moving ruler" problem where current time updates shift everything.
+   * 
+   * ARCHITECTURE:
+   * - Arrow: Visual indicator at exact click position (fractional)
+   * - Reference: Calculation anchor at integer coordinate (stable)
+   * - Margin: Viewport + buffer zone where arrow can move without updating reference
+   */
+  const [pointB_active, setPointB_active] = useState(false);
+  
+  // Arrow position (visual, fractional) - shows exact click location
+  const [pointB_arrow_markerValue, setPointB_arrow_markerValue] = useState(0);
+  
+  // Reference position (calculation, integer) - what EventMarkers calculate from
+  const [pointB_reference_markerValue, setPointB_reference_markerValue] = useState(0);
+  const [pointB_reference_timestamp, setPointB_reference_timestamp] = useState(null);
+  
+  const [pointB_viewMode, setPointB_viewMode] = useState('day');
+  const [pointB_eventId, setPointB_eventId] = useState(null); // Optional: track which event Point B is focused on
+  
+  // Margin configuration: Viewport + buffer
+  // User's viewport shows ~18 markers (-9 to +9), +10 buffer on each side = 38 total
+  const calculatePointBMargin = () => {
+    const viewportWidth = window.innerWidth;
+    const markerSpacing = 100;
+    const visibleMarkers = Math.ceil(viewportWidth / markerSpacing);
+    const bufferMarkers = 10; // +10 on each side
+    return Math.ceil(visibleMarkers / 2) + bufferMarkers; // Half viewport + buffer
+  };
+
   // Point A state (current time tracking)
   const [pointA_currentTime, setPointA_currentTime] = useState(new Date());
   const [pointA_markerValue, setPointA_markerValue] = useState(0); // Always 0 in current implementation
-  
-  // Point B state (user focus tracking)
-  const [pointB_active, setPointB_active] = useState(false);
-  const [pointB_markerValue, setPointB_markerValue] = useState(null);
-  const [pointB_timestamp, setPointB_timestamp] = useState(null);
-  const [pointB_viewMode, setPointB_viewMode] = useState(null);
-  const [pointB_eventId, setPointB_eventId] = useState(null); // Optional: track which event Point B is focused on
   
   // Pre-load buffer for smooth scrolling (especially important for touch gestures)
   const PRELOAD_MARGIN_MULTIPLIER = 2.5; // Pre-load 2.5x viewport width on each side
@@ -1506,21 +1527,73 @@ function TimelineV3() {
    * Activate Point B at a specific marker position
    * This "locks" the user's focus to a specific point on the timeline
    * 
-   * @param {number} markerValue - The marker position to focus on (e.g., 5 = 5 hours/days/months/years from Point A)
+   * DECOUPLED ARCHITECTURE:
+   * - Arrow always moves to exact click position (fractional)
+   * - Reference only updates if arrow moves outside margin zone
+   * - This prevents constant re-renders when scrolling within viewport
+   * 
+   * @param {number} markerValue - The exact marker position clicked (fractional, e.g., -4.41)
    * @param {Date} timestamp - The actual date/time this marker represents
-   * @param {string} viewMode - The current view mode when Point B was set
+   * @param {string} currentViewMode - The current view mode when Point B was set
    * @param {string} eventId - Optional: ID of event that Point B is focused on
+   * @param {boolean} shouldCenter - Whether to center Point B on screen
    */
   const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false) => {
     console.log('[Point B] Activating at marker:', markerValue, 'timestamp:', timestamp, 'viewMode:', currentViewMode);
     
     setPointB_active(true);
-    setPointB_markerValue(markerValue);
-    setPointB_timestamp(timestamp);
     setPointB_viewMode(currentViewMode);
     setPointB_eventId(eventId);
     
+    // ALWAYS update arrow to exact click position (fractional)
+    setPointB_arrow_markerValue(markerValue);
+    
+    // Calculate margin zone (viewport + buffer)
+    const margin = calculatePointBMargin();
+    
+    // Check if we need to update reference (integer anchor for calculations)
+    const isFirstActivation = !pointB_active;
+    const isOutsideMargin = Math.abs(markerValue - pointB_reference_markerValue) > margin;
+    
+    if (isFirstActivation || isOutsideMargin) {
+      // Update reference to nearest integer
+      const newReference = Math.round(markerValue);
+      setPointB_reference_markerValue(newReference);
+      
+      // Calculate timestamp at integer marker position
+      const currentDate = new Date();
+      let referenceTimestamp = new Date(currentDate);
+      
+      switch (currentViewMode) {
+        case 'day':
+          referenceTimestamp.setHours(currentDate.getHours() + newReference);
+          break;
+        case 'week':
+          referenceTimestamp.setDate(currentDate.getDate() + newReference);
+          break;
+        case 'month':
+          referenceTimestamp.setMonth(currentDate.getMonth() + newReference);
+          break;
+        case 'year':
+          referenceTimestamp.setFullYear(currentDate.getFullYear() + newReference);
+          break;
+      }
+      
+      setPointB_reference_timestamp(referenceTimestamp);
+      
+      console.log('[Point B] Reference updated to integer:', newReference, 'margin:', margin);
+      console.log('[Point B] Reference timestamp:', referenceTimestamp);
+    } else {
+      console.log('[Point B] Arrow moved within margin zone, reference unchanged');
+      console.log('[Point B] Arrow:', markerValue, 'Reference:', pointB_reference_markerValue, 'Margin:', margin);
+    }
+    
     // Pre-load markers in both directions for smooth scrolling
+    // Use reference value (integer) for pre-loading, not arrow value (fractional)
+    const referenceForPreload = isFirstActivation || isOutsideMargin 
+      ? Math.round(markerValue)
+      : pointB_reference_markerValue;
+    
     const viewportWidth = window.innerWidth;
     const preloadDistance = viewportWidth * PRELOAD_MARGIN_MULTIPLIER;
     const markersToPreload = Math.ceil(preloadDistance / 100); // 100 = markerSpacing
@@ -1528,9 +1601,9 @@ function TimelineV3() {
     const currentMinMarker = Math.min(...markers);
     const currentMaxMarker = Math.max(...markers);
     
-    // Calculate how many markers we need to add
-    const targetMinMarker = markerValue - markersToPreload;
-    const targetMaxMarker = markerValue + markersToPreload;
+    // Calculate how many markers we need to add (using integer reference)
+    const targetMinMarker = Math.floor(referenceForPreload - markersToPreload);
+    const targetMaxMarker = Math.ceil(referenceForPreload + markersToPreload);
     
     const newMarkers = [];
     
@@ -1553,17 +1626,17 @@ function TimelineV3() {
       setMarkers(prevMarkers => [...prevMarkers, ...newMarkers].sort((a, b) => a - b));
     }
     
-    // ONLY center Point B on screen if explicitly requested (e.g., 'B' key press)
-    // When clicking markers, Point B should stay where clicked, not move timeline
+    // NEVER center when clicking markers - Point B should stay where clicked
+    // Only center when explicitly requested (e.g., 'B' key press)
     if (shouldCenter) {
-      console.log('[Point B] Centering Point B on screen');
+      console.log('[Point B] Centering Point B on screen (B key pressed)');
       const currentPosition = window.innerWidth / 2 + (markerValue * 100) + timelineOffset;
       const screenCenter = window.innerWidth / 2;
       const offsetAdjustment = screenCenter - currentPosition;
       
       setTimelineOffset(prevOffset => prevOffset + offsetAdjustment);
     } else {
-      console.log('[Point B] Point B activated at clicked position (timeline NOT moved)');
+      console.log('[Point B] Point B activated at clicked position (timeline stays put)');
     }
     
     console.log('[Point B] Activated successfully. Pre-loaded buffer:', markersToPreload, 'markers on each side');
@@ -1576,8 +1649,9 @@ function TimelineV3() {
     console.log('[Point B] Deactivating');
     
     setPointB_active(false);
-    setPointB_markerValue(null);
-    setPointB_timestamp(null);
+    setPointB_arrow_markerValue(0);
+    setPointB_reference_markerValue(0);
+    setPointB_reference_timestamp(null);
     setPointB_viewMode(null);
     setPointB_eventId(null);
     
@@ -2925,9 +2999,11 @@ const handleRecenter = () => {
                 viewMode={viewMode}
                 theme={theme}
                 style={timelineTransitionStyles}
+                pointB_active={pointB_active}
+                pointB_reference_markerValue={pointB_reference_markerValue}
                 onMarkerClick={(markerValue, timestamp, viewMode) => {
                   console.log('[Point B] Timeline marker clicked - Activating Point B');
-                  activatePointB(markerValue, timestamp, viewMode, null);
+                  activatePointB(markerValue, timestamp, viewMode, null, false);
                 }}
               />
             </div>
@@ -2955,7 +3031,7 @@ const handleRecenter = () => {
           {/* Point B Indicator - Shows where user focus is locked */}
           <PointBIndicator
             active={pointB_active}
-            markerValue={pointB_markerValue}
+            markerValue={pointB_arrow_markerValue}
             timelineOffset={timelineOffset}
             markerSpacing={100}
           />

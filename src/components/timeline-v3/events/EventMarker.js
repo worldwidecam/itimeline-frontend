@@ -238,10 +238,14 @@ const EventMarker = ({
       let positionValue = 0;
       let markerPosition = 0;
       
+      // ALWAYS calculate positions from Point A (current time)
+      // Point B only affects which events are visible and timeline centering
+      const referenceDate = freshCurrentDate;
+      
       switch (viewMode) {
         case 'day':
           // First determine if the event is on the same day as the reference point [0]
-          const isSameDayAsRef = eventDate ? isSameDay(eventDate, freshCurrentDate) : false;
+          const isSameDayAsRef = eventDate ? isSameDay(eventDate, referenceDate) : false;
           
           // For day view, we need to align with how TimeMarkers.js represents hours
           // In TimeMarkers.js, each marker represents an hour, with special markers at 12AM for each day
@@ -249,13 +253,13 @@ const EventMarker = ({
           // Calculate day difference
           const dayDiffMs = eventDate ? differenceInMilliseconds(
             new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate()),
-            new Date(freshCurrentDate.getFullYear(), freshCurrentDate.getMonth(), freshCurrentDate.getDate())
+            new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())
           ) : 0;
           
           const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
           
           // Calculate hours from midnight of the reference day
-          const currentHour = freshCurrentDate.getHours();
+          const currentHour = referenceDate.getHours();
           const eventHour = eventDate ? eventDate.getHours() : 0;
           const eventMinute = eventDate ? eventDate.getMinutes() : 0;
           
@@ -280,9 +284,9 @@ const EventMarker = ({
               eventDate.getDate()
             ),
             new Date(
-              freshCurrentDate.getFullYear(),
-              freshCurrentDate.getMonth(),
-              freshCurrentDate.getDate()
+              referenceDate.getFullYear(),
+              referenceDate.getMonth(),
+              referenceDate.getDate()
             )
           ) : 0;
           
@@ -312,8 +316,8 @@ const EventMarker = ({
           const isWithinVisibleRange = minMarker <= markerPosition && markerPosition <= maxMarker;
           
           // We'll keep the week interval check, but only use it for debugging purposes
-          const weekStart = startOfWeek(freshCurrentDate, { weekStartsOn: 0 });
-          const weekEnd = endOfWeek(freshCurrentDate, { weekStartsOn: 0 });
+          const weekStart = startOfWeek(referenceDate, { weekStartsOn: 0 });
+          const weekEnd = endOfWeek(referenceDate, { weekStartsOn: 0 });
           const isWithinWeek = eventDate ? isWithinInterval(eventDate, { start: weekStart, end: weekEnd }) : false;
           
           // For week view, we'll show all events within the visible timeline range
@@ -325,9 +329,9 @@ const EventMarker = ({
           
         case 'month':
           const monthEventYear = eventDate ? eventDate.getFullYear() : 0;
-          const monthCurrentYear = freshCurrentDate.getFullYear();
+          const monthCurrentYear = referenceDate.getFullYear();
           const monthEventMonth = eventDate ? eventDate.getMonth() : 0;
-          const currentMonth = freshCurrentDate.getMonth();
+          const currentMonth = referenceDate.getMonth();
           const monthEventDay = eventDate ? eventDate.getDate() : 0;
           const monthDaysInMonth = eventDate ? new Date(monthEventYear, monthEventMonth + 1, 0).getDate() : 0;
           
@@ -343,8 +347,8 @@ const EventMarker = ({
           
         case 'year':
           // Calculate the exact year difference including fractional parts
-          const yearEventYear = eventDate ? eventDate.getFullYear() : freshCurrentDate.getFullYear();
-          const yearCurrentYear = freshCurrentDate.getFullYear();
+          const yearEventYear = eventDate ? eventDate.getFullYear() : referenceDate.getFullYear();
+          const yearCurrentYear = referenceDate.getFullYear();
           const yearDiff = yearEventYear - yearCurrentYear;
           
           // Calculate month as a fraction of a year (0-11 months = 0-0.92 of a year)
