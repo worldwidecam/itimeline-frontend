@@ -1,7 +1,17 @@
 import React from 'react';
 import { Box, useTheme } from '@mui/material';
 
-const TimelineBackground = ({ onBackgroundClick }) => {
+const TimelineBackground = ({ 
+  onBackgroundClick,
+  onWheel,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onMouseDown,
+  onMouseMove,
+  onMouseUp,
+  onMouseLeave
+}) => {
   const theme = useTheme();
 
   const handleClick = (e) => {
@@ -14,6 +24,14 @@ const TimelineBackground = ({ onBackgroundClick }) => {
   return (
     <Box 
       onClick={handleClick}
+      onWheel={onWheel}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
       sx={{ 
         flex: 1,
         background: theme.palette.mode === 'light' 
@@ -27,7 +45,11 @@ const TimelineBackground = ({ onBackgroundClick }) => {
         right: 0,
         bottom: 0,
         zIndex: 0, // Lowest z-index
-        pointerEvents: 'auto' // Ensure it can receive clicks
+        pointerEvents: 'auto', // Ensure it can receive clicks
+        cursor: 'grab', // Show grab cursor
+        '&:active': {
+          cursor: 'grabbing' // Show grabbing cursor when dragging
+        }
       }} 
     />
   );

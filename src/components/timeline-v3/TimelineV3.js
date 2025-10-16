@@ -349,63 +349,121 @@ function TimelineV3() {
   const wheelDebounceTimer = useRef(null);
   const wheelEvents = useRef([]);
   
+  // Touch/drag handling refs
+  const touchStartX = useRef(null);
+  const touchStartOffset = useRef(null);
+  const isDragging = useRef(false);
+  
+  // Settle detection for smooth fade-in
+  const settleTimer = useRef(null);
+  const [isSettled, setIsSettled] = useState(true); // Timeline is settled (not moving)
+  
   // Handle wheel events with debouncing for better performance
   const handleWheelEvent = (event) => {
     event.preventDefault();
     
-    // Performance optimization: Collect wheel events and process them in batches
-    // This significantly reduces the number of state updates and re-renders
+    // Collect wheel events for batching (performance optimization)
     const now = Date.now();
     wheelEvents.current.push({
       delta: event.deltaY || event.deltaX,
       timestamp: now
     });
     
-    // If we're already in moving state, just collect the event
-    if (isMoving) {
-      return;
-    }
-    
-    // Set moving state to hide markers during scrolling
-    setIsMoving(true);
-    
-    // If an event is selected, close its popup during scrolling
+    // Close event popup if open
     if (selectedEventId) {
       setSelectedEventId(null);
     }
     
-    // Performance optimization: Debounce the actual timeline movement
-    // Only process wheel events after a short delay of no wheel activity
+    // Debounce: Process wheel events after a short delay of no wheel activity
     clearTimeout(wheelDebounceTimer.current);
     wheelDebounceTimer.current = setTimeout(() => {
-      // Calculate the total scroll amount from all collected events
+      // Calculate total scroll amount from all collected events
       const totalDelta = wheelEvents.current.reduce((sum, evt) => sum + evt.delta, 0);
-      const scrollAmount = Math.sign(totalDelta) * Math.min(Math.abs(totalDelta) / 2, 300); // Limit max scroll amount
+      const scrollAmount = Math.sign(totalDelta) * Math.min(Math.abs(totalDelta) / 2, 300);
       
-      // Update timeline offset
-      setTimelineOffset(prevOffset => prevOffset - scrollAmount);
+      // Use smooth scroll - same as buttons, but with variable amount
+      const direction = scrollAmount > 0 ? 'right' : 'left';
+      smoothScroll(direction, Math.abs(scrollAmount));
       
-      // Add new markers if needed
-      if (scrollAmount > 0) {
-        // Scrolling right (negative delta) - add markers to the right
-        const maxMarker = Math.max(...markers);
-        setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
-      } else {
-        // Scrolling left (positive delta) - add markers to the left
-        const minMarker = Math.min(...markers);
-        setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
-      }
-      
-      // Clear the collected events
+      // Clear collected events
       wheelEvents.current = [];
-      
-      // Wait for timeline to settle before showing markers again
-      clearTimeout(wheelTimer.current);
-      wheelTimer.current = setTimeout(() => {
-        setIsMoving(false);
-      }, 200); // Delay after scrolling stops
-    }, 50); // Short debounce delay for responsive feel while still batching updates
+    }, 50); // Short debounce for responsive feel
   };
+  
+  /**
+   * Touch/Drag event handlers for smooth timeline scrolling
+   * Provides real-time feedback as user drags the timeline
+   */
+  const handleTouchStart = (event) => {
+    const touch = event.touches ? event.touches[0] : event;
+    touchStartX.current = touch.clientX;
+    touchStartOffset.current = timelineOffset;
+    isDragging.current = true;
+    
+    // Mark as not settled ONCE when drag starts (not on every move!)
+    setIsSettled(false);
+    
+    // Set cursor to grabbing
+    if (event.currentTarget) {
+      event.currentTarget.style.cursor = 'grabbing';
+    }
+    
+    console.log('[Drag] Started at:', touch.clientX);
+  };
+  
+  const handleTouchMove = (event) => {
+    if (!isDragging.current || touchStartX.current === null) return;
+    
+    // Prevent default for both touch and mouse
+    if (event.preventDefault) {
+      event.preventDefault();
+    }
+    
+    // NO setIsSettled here! It's already set in handleTouchStart
+    // Calling it here causes hundreds of re-renders = choppy drag
+    
+    const touch = event.touches ? event.touches[0] : event;
+    const deltaX = touch.clientX - touchStartX.current;
+    const newOffset = touchStartOffset.current + deltaX;
+    
+    // Update offset in real-time (no debounce for immediate feedback)
+    setTimelineOffset(newOffset);
+    
+    // Ensure markers as user drags
+    if (Math.abs(deltaX) > 100) {
+      ensureMarkers(deltaX > 0 ? 'left' : 'right');
+    }
+    
+    console.log('[Drag] Moving, deltaX:', deltaX, 'newOffset:', newOffset);
+  };
+  
+  const handleTouchEnd = (event) => {
+    if (!isDragging.current) return;
+    
+    isDragging.current = false;
+    touchStartX.current = null;
+    touchStartOffset.current = null;
+    
+    // Reset cursor to grab
+    if (event.currentTarget) {
+      event.currentTarget.style.cursor = 'grab';
+    }
+    
+    console.log('[Drag] Ended');
+    
+    // Detect when timeline has settled after drag
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      setIsSettled(true); // Triggers event marker fade in
+      console.log('[Drag] Timeline settled');
+    }, 200); // Shorter delay for drag since there's no CSS transition
+    
+    // Optional: Snap to nearest marker for cleaner positioning
+    // Uncomment if you want snapping behavior
+    // const nearestMarker = Math.round(timelineOffset / 100) * 100;
+    // setTimelineOffset(nearestMarker);
+  };
+  
   const [hoverPosition, setHoverPosition] = useState(getExactTimePosition());
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState(null);
@@ -1520,6 +1578,138 @@ function TimelineV3() {
   };
   
   // ============================================================================
+  // SMOOTH NAVIGATION FUNCTIONS (Phase 3A)
+  // ============================================================================
+  
+  /**
+   * Ensure markers exist in the specified direction
+   * Pre-loads markers to prevent running out during smooth scrolling
+   * 
+   * @param {string} direction - 'left' or 'right'
+   */
+  const ensureMarkers = (direction) => {
+    const currentMin = Math.min(...markers);
+    const currentMax = Math.max(...markers);
+    const buffer = 50; // Always maintain 50 markers ahead in each direction
+    
+    const newMarkers = [];
+    
+    if (direction === 'left') {
+      // Check if we need more markers to the left
+      if (currentMin > -buffer) {
+        // Add 10 markers at a time to the left
+        for (let i = currentMin - 1; i >= currentMin - 10; i--) {
+          // Only add if marker doesn't already exist
+          if (!markers.includes(i)) {
+            newMarkers.push(i);
+          }
+        }
+        if (newMarkers.length > 0) {
+          console.log('[SmoothScroll] Pre-loading', newMarkers.length, 'markers to the left');
+          setMarkers(prevMarkers => {
+            const combined = [...newMarkers, ...prevMarkers];
+            // Remove duplicates and sort
+            return [...new Set(combined)].sort((a, b) => a - b);
+          });
+        }
+      }
+    } else if (direction === 'right') {
+      // Check if we need more markers to the right
+      if (currentMax < buffer) {
+        // Add 10 markers at a time to the right
+        for (let i = currentMax + 1; i <= currentMax + 10; i++) {
+          // Only add if marker doesn't already exist
+          if (!markers.includes(i)) {
+            newMarkers.push(i);
+          }
+        }
+        if (newMarkers.length > 0) {
+          console.log('[SmoothScroll] Pre-loading', newMarkers.length, 'markers to the right');
+          setMarkers(prevMarkers => {
+            const combined = [...prevMarkers, ...newMarkers];
+            // Remove duplicates and sort
+            return [...new Set(combined)].sort((a, b) => a - b);
+          });
+        }
+      }
+    }
+  };
+  
+  /**
+   * Smooth scroll the timeline in the specified direction
+   * Uses CSS transitions for hardware-accelerated animation
+   * Event markers fade out during movement, fade in when settled
+   * 
+   * @param {string} direction - 'left' or 'right'
+   * @param {number} amount - Scroll amount in pixels (default: 100 = 1 marker)
+   */
+  const smoothScroll = (direction, amount = 100) => {
+    console.log('[SmoothScroll] Scrolling', direction, 'by', amount, 'px');
+    
+    // 1. Mark timeline as moving (triggers event marker fade out)
+    setIsSettled(false);
+    
+    // 2. Ensure markers exist in the scroll direction
+    ensureMarkers(direction);
+    
+    // 3. Update timeline offset (CSS transition handles the animation)
+    setTimelineOffset(prevOffset => {
+      const newOffset = direction === 'left' 
+        ? prevOffset + amount 
+        : prevOffset - amount;
+      
+      console.log('[SmoothScroll] Offset:', prevOffset, '→', newOffset);
+      return newOffset;
+    });
+    
+    // 4. Update Point B reference if active and arrow moves outside margin
+    if (pointB_active) {
+      // Calculate where the arrow will be after scroll
+      const newArrowScreenPosition = window.innerWidth / 2 + 
+        (pointB_arrow_markerValue * 100) + 
+        (direction === 'left' ? amount : -amount);
+      
+      const arrowMarkerFromCenter = (newArrowScreenPosition - window.innerWidth / 2) / 100;
+      const margin = calculatePointBMargin();
+      
+      // Check if arrow moved outside margin zone
+      if (Math.abs(arrowMarkerFromCenter - pointB_reference_markerValue) > margin) {
+        const newReference = Math.round(arrowMarkerFromCenter);
+        setPointB_reference_markerValue(newReference);
+        
+        // Calculate timestamp at new reference
+        const currentDate = new Date();
+        let referenceTimestamp = new Date(currentDate);
+        
+        switch (viewMode) {
+          case 'day':
+            referenceTimestamp.setHours(currentDate.getHours() + newReference);
+            break;
+          case 'week':
+            referenceTimestamp.setDate(currentDate.getDate() + newReference);
+            break;
+          case 'month':
+            referenceTimestamp.setMonth(currentDate.getMonth() + newReference);
+            break;
+          case 'year':
+            referenceTimestamp.setFullYear(currentDate.getFullYear() + newReference);
+            break;
+        }
+        
+        setPointB_reference_timestamp(referenceTimestamp);
+        console.log('[SmoothScroll] Point B reference updated to:', newReference);
+      }
+    }
+    
+    // 5. Detect when timeline has settled (stopped moving)
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      setIsSettled(true); // Triggers event marker fade in
+      console.log('[SmoothScroll] Timeline settled');
+    }, 400); // Wait 400ms after last scroll for CSS transition to complete
+  };
+  
+  // ============================================================================
   // POINT B ACTIVATION & DEACTIVATION FUNCTIONS
   // ============================================================================
   
@@ -1893,68 +2083,26 @@ function TimelineV3() {
   
   const handleLeft = () => {
     console.log('Executing LEFT button press');
-    // Set moving state to hide markers during movement
-    setIsMoving(true);
-    // Set markers as loading
-    setMarkersLoading(true);
     
-    // If an event is selected, close its popup during movement
+    // Close event popup if open (for cleaner UX)
     if (selectedEventId) {
       setSelectedEventId(null);
     }
     
-    // Wait for markers to completely disappear before moving the timeline
-    setTimeout(() => {
-      const minMarker = Math.min(...markers);
-      setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
-      setTimelineOffset(prevOffset => prevOffset + 100);
-      
-      // Wait for timeline to fully render and settle before starting to show markers
-      setTimeout(() => {
-        // First allow the timeline to finish rendering
-        requestAnimationFrame(() => {
-          // Then start loading markers
-          setMarkersLoading(false);
-          // Finally, after markers have started loading, remove the moving state
-          setTimeout(() => {
-            setIsMoving(false);
-          }, 100);
-        });
-      }, 400); // Longer delay to ensure timeline is fully rendered
-    }, 200); // Add a small delay for the fade-out animation
+    // Use smooth scroll - no fade, no delays, just smooth CSS transition
+    smoothScroll('left', 100);
   };
   
   const handleRight = () => {
     console.log('Executing RIGHT button press');
-    // Set moving state to hide markers during movement
-    setIsMoving(true);
-    // Set markers as loading
-    setMarkersLoading(true);
     
-    // If an event is selected, close its popup during movement
+    // Close event popup if open (for cleaner UX)
     if (selectedEventId) {
       setSelectedEventId(null);
     }
     
-    // Wait for markers to completely disappear before moving the timeline
-    setTimeout(() => {
-      const maxMarker = Math.max(...markers);
-      setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
-      setTimelineOffset(prevOffset => prevOffset - 100);
-      
-      // Wait for timeline to fully render and settle before starting to show markers
-      setTimeout(() => {
-        // First allow the timeline to finish rendering
-        requestAnimationFrame(() => {
-          // Then start loading markers
-          setMarkersLoading(false);
-          // Finally, after markers have started loading, remove the moving state
-          setTimeout(() => {
-            setIsMoving(false);
-          }, 100);
-        });
-      }, 400); // Longer delay to ensure timeline is fully rendered
-    }, 200); // Add a small delay for the fade-out animation
+    // Use smooth scroll - no fade, no delays, just smooth CSS transition
+    smoothScroll('right', 100);
   };
   
   // Process wheel events with debouncing (using the implementation from line 221)
@@ -2805,10 +2953,17 @@ const handleRecenter = () => {
               </Box>
             </Box>
           )}
-          {/* Track wheel events for debounced scrolling */}
+          {/* Track wheel and touch events for smooth scrolling */}
           <TimelineBackground 
             onBackgroundClick={handleBackgroundClick}
             onWheel={handleWheelEvent}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleTouchStart}
+            onMouseMove={handleTouchMove}
+            onMouseUp={handleTouchEnd}
+            onMouseLeave={handleTouchEnd}
           />
           <TimelineBar
             timelineOffset={timelineOffset}
@@ -2955,10 +3110,10 @@ const handleRecenter = () => {
                       return (
                         <Fade
                           key={`marker-${event.id}`}
-                          in={!isMoving && !markersLoading}
-                          timeout={{ enter: 600, exit: 150 }}
+                          in={isSettled && !markersLoading}
+                          timeout={{ enter: 600, exit: 200 }}
                           style={{
-                            transitionDelay: `${delay}ms`,
+                            transitionDelay: isSettled ? `${delay}ms` : '0ms',
                           }}
                         >
                           <div>

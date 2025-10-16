@@ -86,12 +86,12 @@ const PointBIndicator = ({
             justifyContent: 'center',
           }}
         >
-          {/* Pulsing glow background - 10% smaller */}
+          {/* Pulsing glow background - reduced by 30% (now 63% of original) */}
           <Box
             sx={{
               position: 'absolute',
-              width: '72px', // 80px * 0.9 = 72px
-              height: '72px',
+              width: '50.4px', // 72px * 0.7 = 50.4px (63% of original 80px)
+              height: '50.4px',
               borderRadius: '50%',
               background: `radial-gradient(circle, ${theme.palette.secondary.main}40 0%, transparent 70%)`,
               animation: 'glowPulse 2s ease-in-out infinite',
@@ -108,12 +108,12 @@ const PointBIndicator = ({
             }}
           />
 
-          {/* Arrow icon - pointing up at timeline - 10% smaller with rounded style */}
+          {/* Arrow icon - pointing up at timeline - reduced by 30% (now 63% of original) */}
           <ArrowUpwardIcon
             sx={{
-              fontSize: '50.4px', // 56px * 0.9 = 50.4px
+              fontSize: '35.28px', // 50.4px * 0.7 = 35.28px (63% of original 56px)
               color: theme.palette.secondary.main,
-              filter: `drop-shadow(0 0 10.8px ${theme.palette.secondary.main}80)`, // 12px * 0.9 = 10.8px
+              filter: `drop-shadow(0 0 7.56px ${theme.palette.secondary.main}80)`, // 10.8px * 0.7 = 7.56px (63% of original 12px)
               position: 'relative',
               zIndex: 1,
               // Make arrow more rounded/modern (only tip stays sharp)
@@ -128,7 +128,7 @@ const PointBIndicator = ({
                   transform: 'translateY(0) scale(1)',
                 },
                 '50%': {
-                  transform: 'translateY(-7.2px) scale(1.045)', // 8px * 0.9 = 7.2px, 1.05 * 0.99 ≈ 1.045
+                  transform: 'translateY(-5.04px) scale(1.032)', // 7.2px * 0.7 = 5.04px, 1.045 * 0.988 ≈ 1.032
                 },
               },
             }}
