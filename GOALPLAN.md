@@ -29,16 +29,22 @@
   - ✅ BlockedFromCommunity redirect page
 
 ### CURRENT TODO
-- [ ] **Timeline Reference Point B System** ⭐ CRITICAL ARCHITECTURE CHANGE
-  - [ ] Document current coordinate system (Point [0] based)
-  - [ ] Identify all issues with current system
-  - [ ] Design dual reference point system (Point A + Point B)
-  - [ ] Plan refactoring approach
-  - [ ] Implement Point A (Today's date/time)
-  - [ ] Implement Point B (User focus position relative to Point A)
-  - [ ] Update all view mode calculations
-  - [ ] Test navigation across filter views
-  - [ ] Verify scroll position memory
+- [ ] **Timeline V4 - Point B System Integration** ⭐ CRITICAL ARCHITECTURE CHANGE
+  - [x] Core Point B architecture implemented (Phase 1)
+  - [x] Decoupled arrow/reference system (Phase 2)
+  - [x] Smooth navigation (buttons, wheel, drag) (Phase 3A)
+  - [x] Performance fixes (settle detection, drag optimization) (Phase 3A)
+  - [ ] **CURRENT: Timeline V4 Component Integration (Phase 3B)**
+    - [x] 🎯 Fix EventCounter to respect Point B margin rules (uses activatePointB which has margin logic)
+    - [x] 🎯 Fix arrow selection logic: uses EXACT same calculation as EventMarker.js (includes minutes!)
+    - [x] 🎯 EventCarousel dot click: smooth slide to center + select (gives dot unique purpose)
+    - [x] 🎯 EventCarousel arrows (left/right): activate Point B when cycling through events
+    - [x] 🎯 Created helper function calculateEventMarkerPosition() to avoid code duplication
+    - [ ] 🎯 **CRITICAL: Fix view mode switching - arrow must follow TIMESTAMP not POSITION**
+    - [ ] 🎯 Investigate and fix Reference B system test failure (specific scenario to discuss)
+  - [ ] EventList Point B integration
+  - [ ] Filter system Point B behavior
+  - [ ] Comprehensive V4 testing
 
 ### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
 - ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'

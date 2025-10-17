@@ -625,8 +625,131 @@ function TimelineV3() {
     }
   };
 
+  /**
+   * TIMELINE V4: Calculate exact marker position for an event
+   * Uses EXACT same logic as EventMarker.js for precision (includes minutes!)
+   * @param {Object} event - Event object with event_date
+   * @param {string} currentViewMode - Current view mode (day/week/month/year)
+   * @returns {number} Exact marker position (fractional)
+   */
+  const calculateEventMarkerPosition = (event, currentViewMode) => {
+    if (!event.event_date || currentViewMode === 'position') {
+      return 0;
+    }
+    
+    const eventDate = new Date(event.event_date);
+    const currentDate = new Date();
+    let markerValue;
+    
+    switch (currentViewMode) {
+      case 'day': {
+        const dayDiffMs = differenceInMilliseconds(
+          new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate()),
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+        );
+        const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
+        const currentHour = currentDate.getHours();
+        const eventHour = eventDate.getHours();
+        const eventMinute = eventDate.getMinutes();
+        markerValue = (dayDiff * 24) + eventHour - currentHour + (eventMinute / 60);
+        break;
+      }
+      case 'week': {
+        const dayDiffMs = differenceInMilliseconds(
+          new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate()),
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+        );
+        const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
+        if (dayDiff === 0) {
+          const totalMinutesInDay = 24 * 60;
+          const eventMinutesIntoDay = eventDate.getHours() * 60 + eventDate.getMinutes();
+          markerValue = eventMinutesIntoDay / totalMinutesInDay;
+        } else {
+          const eventHour = eventDate.getHours();
+          const eventMinute = eventDate.getMinutes();
+          const totalMinutesInDay = 24 * 60;
+          const eventMinutesIntoDay = eventHour * 60 + eventMinute;
+          const eventFractionOfDay = eventMinutesIntoDay / totalMinutesInDay;
+          markerValue = Math.floor(dayDiff) + eventFractionOfDay;
+        }
+        break;
+      }
+      case 'month': {
+        const monthEventYear = eventDate.getFullYear();
+        const monthCurrentYear = currentDate.getFullYear();
+        const monthEventMonth = eventDate.getMonth();
+        const currentMonth = currentDate.getMonth();
+        const monthEventDay = eventDate.getDate();
+        const monthDaysInMonth = new Date(monthEventYear, monthEventMonth + 1, 0).getDate();
+        const monthYearDiff = monthEventYear - monthCurrentYear;
+        const monthDiff = monthEventMonth - currentMonth + (monthYearDiff * 12);
+        const monthDayFraction = (monthEventDay - 1) / monthDaysInMonth;
+        markerValue = monthDiff + monthDayFraction;
+        break;
+      }
+      case 'year': {
+        const yearEventYear = eventDate.getFullYear();
+        const yearCurrentYear = currentDate.getFullYear();
+        const yearDiff = yearEventYear - yearCurrentYear;
+        const yearEventMonth = eventDate.getMonth();
+        const yearMonthFraction = yearEventMonth / 12;
+        const yearEventDay = eventDate.getDate();
+        const yearDaysInMonth = new Date(yearEventYear, yearEventMonth + 1, 0).getDate();
+        const yearDayFraction = (yearEventDay - 1) / yearDaysInMonth / 12;
+        markerValue = yearDiff + yearMonthFraction + yearDayFraction;
+        break;
+      }
+      default:
+        markerValue = 0;
+    }
+    
+    return markerValue;
+  };
+
   const handleDotClick = (event) => {
-    console.log('Dot clicked for event:', event); // Debug log
+    console.log('[EventCounter] Dot clicked for event:', event);
+    
+    // ============================================================================
+    // TIMELINE V4: Activate Point B when clicking event in EventCounter
+    // ============================================================================
+    if (event.event_date && viewMode !== 'position') {
+      const eventDate = new Date(event.event_date);
+      
+      // Calculate exact marker position using helper function
+      const markerValue = calculateEventMarkerPosition(event, viewMode);
+      console.log('[Point B] EventCounter dot clicked - Activating Point B at exact position:', markerValue);
+      
+      // TIMELINE V4: EventCarousel dot click should CENTER the event
+      // To center an event, we need to calculate the offset that puts it at screen center
+      // Event position on screen = (window.innerWidth / 2) + (markerValue * markerSpacing) + timelineOffset
+      // For centering: Event position should equal window.innerWidth / 2
+      // Therefore: (window.innerWidth / 2) + (markerValue * 100) + newOffset = window.innerWidth / 2
+      // Solving for newOffset: newOffset = -(markerValue * 100)
+      
+      const targetOffset = -(markerValue * 100);
+      const currentOffset = timelineOffset;
+      
+      // Only center if event is not already centered (more than 5px off)
+      if (Math.abs(targetOffset - currentOffset) > 5) {
+        console.log('[EventCarousel] Centering event - markerValue:', markerValue, 'currentOffset:', currentOffset, 'targetOffset:', targetOffset);
+        
+        // Set offset directly - CSS transition will handle smooth animation
+        setTimelineOffset(targetOffset);
+        
+        // Mark as not settled during animation
+        setIsSettled(false);
+        
+        // Detect when animation completes
+        clearTimeout(settleTimer.current);
+        settleTimer.current = setTimeout(() => {
+          setIsSettled(true);
+          console.log('[EventCarousel] Centering animation complete');
+        }, 400); // Match CSS transition duration
+      }
+      
+      // Activate Point B at this position
+      activatePointB(markerValue, eventDate, viewMode, event.id, false); // shouldCenter = false (we handle it manually)
+    }
     
     // Find the index of the clicked event in the events array
     const eventIndex = events.findIndex(e => e.id === event.id);
@@ -2795,9 +2918,20 @@ const handleRecenter = () => {
                     // Disable auto-scroll before updating selection
                     setShouldScrollToEvent(false);
                     setCurrentEventIndex(index);
-                    // Use the filtered events array to get the correct event
-                    if (filteredEventsForCounter[index]) {
-                      setSelectedEventId(filteredEventsForCounter[index].id);
+                    
+                    // TIMELINE V4: Activate Point B when cycling through events with arrows
+                    const event = filteredEventsForCounter[index];
+                    if (event) {
+                      setSelectedEventId(event.id);
+                      
+                      // Activate Point B at this event's position
+                      if (event.event_date && viewMode !== 'position') {
+                        const eventDate = new Date(event.event_date);
+                        const markerValue = calculateEventMarkerPosition(event, viewMode);
+                        
+                        console.log('[EventCarousel Arrows] Activating Point B at exact position:', markerValue);
+                        activatePointB(markerValue, eventDate, viewMode, event.id, false);
+                      }
                     }
                   }}
                   onDotClick={(event) => {
