@@ -22,11 +22,102 @@ The iTimeline application now has a **fully implemented Community Timeline syste
 - ✅ **Carousel Filter Sync**: Fixed navigation to respect event type filters
 - ✅ **PostgreSQL Migration**: Backend fully migrated with coding guidelines documented
 
-#### Next Major Focus
-- 🎯 **Timeline Architectural Improvements**: Dual reference point system (Point A/Point B)
-  - Refactor core coordinate system for better navigation
-  - Fix filter view context switching issues
-  - Improve scroll position memory across view changes
+#### Current Major Focus (October 16, 2025)
+- 🎯 **Timeline V4 - Point B System Integration** (In Progress)
+  - ✅ Core Point B architecture with dual reference system
+  - ✅ Smooth navigation (buttons, wheel, drag with CSS transitions)
+  - ✅ EventCounter & EventCarousel Point B integration
+  - 🔄 View mode switching improvements (arrow follows timestamp)
+  - 🔄 Filter system Point B behavior
+  - 🔄 Comprehensive V4 testing
+
+### Timeline V4 - Point B Reference System
+
+**Timeline V4** introduces a revolutionary dual reference point system that fundamentally changes how users navigate and interact with the timeline.
+
+#### Core Concept: Dual Reference Points
+
+**Point A (Current Time)**:
+- Always represents "now" (current date/time)
+- Updates in real-time
+- The default reference point when timeline loads
+
+**Point B (User Focus)**:
+- Tracks where the user is focusing their attention
+- Activated when user clicks on any event
+- Persists across view mode changes (day/week/month/year)
+- Visual indicator: Animated arrow pointing at focused position
+
+#### Key Features
+
+**1. Smart Reference System**:
+- **Point B Arrow**: Shows exact fractional position (e.g., 6:40 PM, not just 6 PM)
+- **Point B Reference**: Integer anchor for calculations and margin zones
+- **Margin System**: Arrow can move within viewport without resetting reference
+- **Precision**: Includes minutes/seconds for exact event positioning
+
+**2. EventCounter Integration** ✅:
+- Click event dot → Arrow appears at exact event position
+- Cycle with arrows → Arrow moves to each event
+- Respects margin rules (doesn't reset reference unnecessarily)
+- Uses exact same calculation as event markers (fractional precision)
+
+**3. EventCarousel Integration** ✅:
+- **Dot Click**: Smoothly slides timeline to center event + activates Point B
+- **Arrow Navigation**: Cycles through events + activates Point B at each
+- **Unique Purpose**: Dot centers event, arrows just select
+- **Smooth Animation**: CSS transitions for springy, natural movement
+
+**4. Event Marker Integration** ✅:
+- Click any event marker → Activates Point B at that position
+- Arrow appears with bounce animation
+- Fractional positioning for sub-hour/day/month/year precision
+
+**5. Smooth Navigation** ✅:
+- Button navigation (left/right arrows)
+- Mouse wheel scrolling
+- Touch/mouse drag
+- All respect Point B when active
+- CSS transitions for smooth, performant animations
+
+#### Technical Implementation
+
+**Helper Function**:
+```javascript
+calculateEventMarkerPosition(event, viewMode)
+```
+- Single source of truth for marker calculations
+- Matches EventMarker.js logic exactly
+- Handles all view modes (day/week/month/year)
+- Includes fractional components (minutes, days, etc.)
+
+**Margin Logic**:
+- First activation → Sets Reference B
+- Arrow within margin → Reference B unchanged
+- Arrow outside margin → Updates Reference B
+- Prevents unnecessary reference resets during navigation
+
+**View Mode Calculations**:
+- Day view: Hours + minute fraction
+- Week view: Days + time fraction
+- Month view: Months + day fraction
+- Year view: Years + month + day fractions
+
+#### Benefits
+
+1. **Context Preservation**: User's focus persists across view changes
+2. **Precise Positioning**: Arrow points to exact event time (not rounded)
+3. **Smooth Experience**: No jarring jumps or resets
+4. **Consistent Behavior**: All event interactions work the same way
+5. **Performance**: Efficient margin system reduces re-renders
+
+#### Upcoming V4 Features
+
+- 🔄 View mode switching: Arrow follows timestamp (not position)
+- 🔄 Filter system: Point B behavior when events hidden
+- 🔄 EventList integration: Side panel event clicks
+- 🔄 URL deep linking: Share links with Point B state
+- 🔄 Keyboard shortcuts: Navigate with Point B awareness
 
 ### Community Timelines & Action Cards System
 
@@ -1518,6 +1609,10 @@ This section contains low-priority improvements, polish items, and feature ideas
 - [ ] create sharing feature
 - [ ] upgrage media event field input. we need new tab options for URL links to Youtube videos, tiktok videos, instagram videos, etc. that way we can outsource hosting these videos, while still being able to play them without leaving the timeline/ website.
 - [ ] speaking of /reports page. users should be able to report timelines. and one of the reasons in our website policy will be monopolizing general words. so that way if someone is sitting on #Saturday for example, someone else can report it for monopolizing general words. and a reporting option for timelines can be to delete it, or convert it to a community timeline. or the reverse! convert a community timeline to a hashtag timeline.
+- [ ] the event markers look to be vertically too low. their vertical bottom is intersecting the timelines horizontal line and coming out the other side
+- [ ] make a subsection tab of news event type for social media. that way we can spend less space storing social media posts. 
+- [ ] make SiteAdmin role
+- [ ] make remarks more like tweet phone convo word bubbles, featuring the user's profile picture and name. 
 
 
 ---

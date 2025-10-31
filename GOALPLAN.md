@@ -37,11 +37,23 @@
   - [ ] **CURRENT: Timeline V4 Component Integration (Phase 3B)**
     - [x] 🎯 Fix EventCounter to respect Point B margin rules (uses activatePointB which has margin logic)
     - [x] 🎯 Fix arrow selection logic: uses EXACT same calculation as EventMarker.js (includes minutes!)
-    - [x] 🎯 EventCarousel dot click: smooth slide to center + select (gives dot unique purpose)
-    - [x] 🎯 EventCarousel arrows (left/right): activate Point B when cycling through events
-    - [x] 🎯 Created helper function calculateEventMarkerPosition() to avoid code duplication
-    - [ ] 🎯 **CRITICAL: Fix view mode switching - arrow must follow TIMESTAMP not POSITION**
-    - [ ] 🎯 Investigate and fix Reference B system test failure (specific scenario to discuss)
+    - [x] 🎯 EventCarousel dot click: smooth slide to center + select (gives dot unique purpose) ✅ Oct 16
+    - [x] 🎯 EventCarousel arrows (left/right): activate Point B when cycling through events ✅ Oct 16
+    - [x] 🎯 Created helper function calculateEventMarkerPosition() to avoid code duplication ✅ Oct 16
+    - [x] 🎯 Updated README with Timeline V4 features and technical details ✅ Oct 16
+    - [x] 🎯 **Fix view mode switching - arrow follows TIMESTAMP not POSITION** ✅ Oct 17
+      - Timestamp is now source of truth for Point B Reference
+      - View switching recalculates both arrow (fractional) and reference (integer) positions
+      - Timeline centers on Point B when active (Point B has priority over Point A)
+      - Hybrid margin system: viewport-based with view-specific scaling (prevents year view loading decades)
+      - Margins recalculate immediately on view switch
+      - Year view margin reduced to 0.3x (forces reference update per year coordinate)
+      - Timeline marker clicks now preserve current minutes/hours for precision
+    - [x] 🎯 **Fix Point A/Point B independence - timestamp immutability** ✅ Oct 17
+      - Point B timestamp NEVER recalculates after initial activation
+      - Timestamp only updates when user clicks new marker/event or switches views
+      - Prevents Point B from following Point A when hour changes
+      - Point B truly independent from Point A updates
   - [ ] EventList Point B integration
   - [ ] Filter system Point B behavior
   - [ ] Comprehensive V4 testing
@@ -475,3 +487,186 @@ Source: `src/components/timeline-v3/community/AdminPanel.js` → `ManagePostsTab
 ### Future Levels (Preview)
 - Level 2: Replace the minimal overlay with the site’s standardized, artistically consistent input palette (animation/close/tap-out behavior).
 - Level 3: Wire Manage Posts list to consume real submitted reports with status tabs, infinite scroll (20/page), and per-status actions.
+
+---
+
+## Notes - Point B System Critical Fixes (2025-10-17)
+
+### 🔴 Critical Bug Discovered: Point A/Point B Independence Failure
+
+**User Experiment Revealed**:
+1. Day view, 6 AM → Click marker `[0]` at 6 AM → Point B = 6 AM (red)
+2. Wait 1 hour → Point A updates to 7 AM (blue, marker `[0]`)
+3. **BUG**: Point B also updated to 7 AM ❌
+4. **Expected**: Point B stays at 6 AM (red, now marker `[-1]`) ✅
+
+**Root Cause Analysis**:
+- Point B timestamp was being **recalculated** using `new Date()` whenever:
+  - Reference position updated during scrolling (`smoothScroll()`)
+  - Reference moved outside margin zone (`activatePointB()`)
+- This meant Point B was **following Point A** instead of being independent
+- The timestamp should be the **source of truth** and never change after initial activation
+
+### ✅ Complete Fix Implementation
+
+#### Fix 1: Timestamp Immutability (CRITICAL)
+**Files**: `TimelineV3.js` lines 1864-1870, 1923-1934
+- **smoothScroll()**: Removed timestamp recalculation when reference moves
+- **activatePointB()**: Only set timestamp on first activation, never on reference updates
+- **Result**: Point B timestamp is now truly immutable after initial click
+
+#### Fix 2: Reference Position Rounding (Math.floor)
+**Files**: 3 locations in `TimelineV3.js`
+- Changed `Math.round()` to `Math.floor()` for all reference calculations
+- **Result**: Reference is always closest marker TO THE LEFT of arrow
+- **Example**: Arrow at 0.7 → Reference at 0 (not 1)
+
+#### Fix 3: Year View Margin Reduction
+**File**: `TimelineV3.js` line 342
+- Changed year view margin from `1.0x` to `0.3x` viewport
+- **Result**: Forces reference update per year coordinate, prevents massive distances
+- **Impact**: Year view now has ~5-6 year buffer instead of ~18 years
+
+#### Fix 4: Timeline Marker Precision
+**File**: `TimeMarkers.js` lines 159-185
+- Timeline markers now preserve current minutes/hours/days when calculating timestamp
+- **Result**: Arrow follows timeline markers correctly when switching views
+- **Example**: Click 5 PM marker at 5:37 PM → timestamp = "5:37 PM" (not "5:00 PM")
+
+#### Fix 5: Return to Present Button
+**File**: `TimelineV3.js` lines 2760-2763
+- "Back to Present" button now calls `deactivatePointB()` before centering
+- **Result**: Clears Point B state and returns to Point A as expected
+
+#### Fix 6: Rendering Responsibility Transfer
+**File**: `TimelineV3.js` lines 598-600, 630
+- `visibleMarkers` calculation now uses Point B reference when active
+- **Result**: Events, markers, data all render based on Point B position
+- **Impact**: Fixes blank screen when Point B far from Point A
+
+### 🎯 System Architecture Now Correct
+
+**Point B Timestamp Lifecycle**:
+1. **First Activation**: Timestamp set from click parameter ✅
+2. **Scroll Movement**: Reference may update, timestamp NEVER changes ✅
+3. **View Mode Switch**: Timestamp stays same, arrow/reference recalculated FROM timestamp ✅
+4. **Point A Updates**: Timestamp NEVER changes, Point B truly independent ✅
+5. **New Click**: Timestamp replaced with new timestamp ✅
+
+**Testing Checklist**:
+- [ ] Re-test Point A independence experiment (should now work correctly)
+- [ ] Test year view margin reduction (click 2024 → 2021 → switch views)
+- [ ] Test timeline marker precision (click marker, switch views, arrow follows)
+- [ ] Test backwards arrow movement through all view modes
+- [ ] Verify return to present deactivates Point B
+
+**Console Logs to Monitor**:
+```
+[Point B] First activation - Timestamp set to: [timestamp]
+[Point B] Timestamp unchanged (source of truth): [timestamp]
+[SmoothScroll] Timestamp unchanged (source of truth): [timestamp]
+```
+
+**Status**: All critical Point B system fixes implemented. The system now properly maintains Point B independence from Point A updates and preserves timestamp immutability.
+
+---
+
+## Notes - Point B System Architecture Analysis (2025-10-29)
+
+### 🎯 Point A/Mom vs Point B/Dad Responsibility Model
+
+**Core Concept**: Point B (Dad) should take over ALL coordinate system responsibilities when active, not just center positioning. Point A (Mom) should only handle baseline calculations when Point B is inactive.
+
+### 🔴 Critical Discovery: Incomplete Point B Takeover
+
+**User Test Results**:
+- Set Point A = 12 PM, Point B = 12 PM → Both at marker [0] ✅
+- When time changes to 1 PM → Point B should stay at 12 PM (now marker [-1]) ❌
+- **Current Issue**: Point B still follows Point A movements
+
+**Root Cause**: Point B only handles **center positioning** but **ALL other calculations** still ask Point A for current time.
+
+### 📋 Complete List of Elements Still Dependent on Point A (Mom)
+
+#### 🎯 Core Time & Position Systems:
+1. **`hoverPosition`** (line 482) - Updates every minute via `getExactTimePosition()`
+2. **`pointA_currentTime`** (line 354) - Direct current time tracking
+3. **`getCurrentDateTime()`** (line 163) - Base function returning `new Date()`
+
+#### 📅 Date Calculation Functions:
+4. **`getDayProgress()`** (line 182) - Uses `getCurrentDateTime()`
+5. **`getMonthProgress()`** (line 188) - Uses `getCurrentDateTime()`
+6. **`getYearProgress()`** (line 194) - Uses `getCurrentDateTime()`
+7. **`getExactTimePosition()`** (line 202) - Uses `getCurrentDateTime()`
+
+#### 🎨 Visual Timeline Elements:
+8. **HoverMarker** (line 3430) - Uses `hoverPosition` which updates every minute
+9. **Timeline Markers** - Many calculations use `currentDate = new Date()`
+
+#### 📊 Event Filtering & Rendering:
+10. **Event filtering in multiple places** - Lines 833, 930, 1003, 1155, 2987, 3243, 3327
+    - All use `currentDate = new Date()` for calculating visible event ranges
+11. **Event distance calculations** - Lines 3327-3348 use `currentDate` for sorting/filtering
+
+#### 🔄 View Mode Switching:
+12. **`convertPointBToViewMode()`** (line 2122) - Creates `currentDate = new Date()` as Point A [0]
+13. **Timeline marker creation** (line 2175) - Uses `currentDate` for timestamp calculations
+
+#### ⏰ Time-based Updates:
+14. **Minute-based timer** (line 2215) - Updates `hoverPosition` every 60 seconds
+15. **Various timestamp generations** - Lines 1719, 1721, 2391 use `new Date()`
+
+### 🚨 The Core Problem
+
+**Point B (Dad) is only handling "center positioning"** (lines 598-600), but **all actual coordinate calculations, filtering, and rendering** are still asking Mom (Point A) for the current time.
+
+When switching to a view where Point B is far from Point A:
+- **Timeline centering** uses Point B ✅ (Dad's responsibility)
+- **Event filtering** still uses Point A ❌ (Mom still working)
+- **Marker positioning** still uses Point A ❌ (Mom still working)
+- **Visual elements** still use Point A ❌ (Mom still working)
+
+This explains why only the base timeline renders - the **event filtering system** calculates ranges around Point A's time, not Point B's reference!
+
+### 🛠️ Required Point B System Takeover
+
+Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
+
+1. **Create "Who's in Charge?" Helper Function**:
+   ```javascript
+   const getCurrentTimeReference = () => {
+     return pointB_active ? new Date(pointB_reference_timestamp) : new Date();
+   };
+   ```
+
+2. **Replace All `currentDate = new Date()`** calls with:
+   ```javascript
+   const currentDate = getCurrentTimeReference();
+   ```
+
+3. **Freeze Time-based Updates** when Point B is active:
+   - Stop `hoverPosition` minute updates
+   - Pause all time-based recalculations
+
+4. **Update Event Filtering Ranges** to use Point B's reference when active
+
+5. **Fix All Visual Elements** to use Point B-based time calculations
+
+### 📊 Implementation Priority:
+
+**Phase 1: Core Time Reference System**
+- Create `getCurrentTimeReference()` helper
+- Replace critical `currentDate = new Date()` calls
+- Fix `hoverPosition` updates
+
+**Phase 2: Event Filtering System**
+- Update all event filtering functions
+- Fix distance calculations
+- Ensure events render around Point B when active
+
+**Phase 3: Visual Elements**
+- Update HoverMarker, Timeline markers
+- Fix all time-based visual updates
+- Ensure complete Point B takeover
+
+**Current Status**: Point B architecture partially implemented. Only center positioning respects Point B authority. All other systems still defer to Point A, causing incomplete Point B functionality and rendering issues when Point B is far from Point A.

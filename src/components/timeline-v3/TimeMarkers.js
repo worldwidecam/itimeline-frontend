@@ -156,22 +156,31 @@ const TimeMarkers = ({
           <Box
             key={value}
             onClick={() => {
-              // Calculate the timestamp for this marker
+              // TIMELINE V4: Calculate precise timestamp including current minutes
+              // This makes timeline marker clicks as accurate as hover marker
               const currentDate = new Date();
               let timestamp = new Date(currentDate);
               
               switch (viewMode) {
                 case 'day':
+                  // Keep current minutes for precision (e.g., 5:37 PM, not just 5:00 PM)
                   timestamp.setHours(currentDate.getHours() + value);
+                  // Minutes and seconds stay at current time
                   break;
                 case 'week':
+                  // Keep current time of day for precision (e.g., Friday 5:37 PM)
                   timestamp.setDate(currentDate.getDate() + value);
+                  // Hours, minutes, seconds stay at current time
                   break;
                 case 'month':
+                  // Keep current day and time for precision (e.g., Oct 17, 5:37 PM)
                   timestamp.setMonth(currentDate.getMonth() + value);
+                  // Day, hours, minutes stay at current time
                   break;
                 case 'year':
+                  // Keep current month, day, and time for precision (e.g., 2025 Oct 17, 5:37 PM)
                   timestamp.setFullYear(currentDate.getFullYear() + value);
+                  // Month, day, hours, minutes stay at current time
                   break;
               }
               

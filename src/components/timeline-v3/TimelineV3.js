@@ -165,6 +165,21 @@ function TimelineV3() {
     return new Date();
   };
 
+  /**
+   * TIMELINE V4: "Who's in Charge?" Time Reference Function
+   * Point B (Dad) takes priority when active, otherwise Point A (Mom) handles baseline
+   * This is the CORE function that enables complete Point B system takeover
+   */
+  const getCurrentTimeReference = () => {
+    if (pointB_active && pointB_reference_timestamp) {
+      console.log('[Point B] Dad is in charge - using Point B timestamp:', new Date(pointB_reference_timestamp).toLocaleString());
+      return new Date(pointB_reference_timestamp);
+    } else {
+      console.log('[Point A] Mom is in charge - using current time');
+      return new Date();
+    }
+  };
+
   const getInitialMarkers = () => {
     const markerSpacing = 100; // pixels between each marker
     const screenWidth = window.innerWidth;
@@ -195,6 +210,27 @@ function TimelineV3() {
     const now = getCurrentDateTime();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const diff = now - startOfYear;
+    const oneYear = 1000 * 60 * 60 * 24 * 365; // milliseconds in a year
+    return diff / oneYear; // Returns a value between 0 and 1
+  };
+
+  /**
+   * TIMELINE V4: Progress functions based on specific timestamp (for Point B)
+   * These allow Point B to calculate progress from its frozen timestamp instead of current time
+   */
+  const getDayProgressFromTimestamp = (timestamp) => {
+    const minutes = timestamp.getHours() * 60 + timestamp.getMinutes();
+    return minutes / (24 * 60); // Returns a value between 0 and 1
+  };
+
+  const getMonthProgressFromTimestamp = (timestamp) => {
+    const daysInMonth = new Date(timestamp.getFullYear(), timestamp.getMonth() + 1, 0).getDate();
+    return timestamp.getDate() / daysInMonth; // Returns a value between 0 and 1
+  };
+
+  const getYearProgressFromTimestamp = (timestamp) => {
+    const startOfYear = new Date(timestamp.getFullYear(), 0, 1);
+    const diff = timestamp - startOfYear;
     const oneYear = 1000 * 60 * 60 * 24 * 365; // milliseconds in a year
     return diff / oneYear; // Returns a value between 0 and 1
   };
@@ -324,15 +360,41 @@ function TimelineV3() {
   
   const [pointB_viewMode, setPointB_viewMode] = useState('day');
   const [pointB_eventId, setPointB_eventId] = useState(null); // Optional: track which event Point B is focused on
+  // Prevent auto-selection overrides right after a user click/select
+  const userSelectionLockUntilRef = useRef(0);
+  const lockUserSelection = (ms = 1200) => {
+    userSelectionLockUntilRef.current = Date.now() + ms;
+  };
   
-  // Margin configuration: Viewport + buffer
-  // User's viewport shows ~18 markers (-9 to +9), +10 buffer on each side = 38 total
-  const calculatePointBMargin = () => {
+  // Margin configuration: Viewport + buffer (HYBRID APPROACH)
+  // Golden rule: Always match viewport + reasonable buffer, scaled per view mode
+  // Prevents absurd margins in year view while maintaining smooth scrolling
+  const calculatePointBMargin = (currentViewMode = viewMode) => {
     const viewportWidth = window.innerWidth;
     const markerSpacing = 100;
     const visibleMarkers = Math.ceil(viewportWidth / markerSpacing);
-    const bufferMarkers = 10; // +10 on each side
-    return Math.ceil(visibleMarkers / 2) + bufferMarkers; // Half viewport + buffer
+    const baseMargin = Math.ceil(visibleMarkers / 2); // Half viewport
+    
+    // View-specific buffer scaling to prevent year view from loading decades
+    const bufferMultipliers = {
+      'day': 1.5,    // ±1.5x viewport (e.g., ~27 hours if viewport shows 18 hours)
+      'week': 1.5,   // ±1.5x viewport (e.g., ~27 days if viewport shows 18 days)
+      'month': 1.2,  // ±1.2x viewport (smaller buffer for larger time scales)
+      'year': 0.3,   // placeholder, overridden below for strict per-year margin
+      'position': 1.5 // Default for coordinate view
+    };
+    
+    // STRICT year margin: remain within the selected year's single marker band
+    if (currentViewMode === 'year') {
+      console.log('[Point B Margin] Year view strict margin: 0.49 markers');
+      return 0.49; // Less than one marker so crossing into next year updates reference
+    }
+
+    const multiplier = bufferMultipliers[currentViewMode] || 1.5;
+    const margin = Math.ceil(baseMargin * multiplier);
+    
+    console.log('[Point B Margin] View:', currentViewMode, 'Viewport markers:', visibleMarkers, 'Margin:', margin);
+    return margin;
   };
 
   // Point A state (current time tracking)
@@ -578,15 +640,14 @@ function TimelineV3() {
     const markerWidth = 100;
     const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
     
-    // Calculate the center marker based on the timeline offset
+    // Always compute center from timelineOffset (single source of truth for visual centering)
     const centerMarkerPosition = -timelineOffset / markerWidth;
     
     // Calculate the range of visible markers
     const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
     
-    // Add a small buffer to ensure we capture all visible markers
-    // This helps account for any rounding or calculation discrepancies
-    const buffer = 0; // Reduced buffer to show only exactly visible markers
+    // No buffer to avoid double-counting; keep exactly visible window
+    const buffer = 0;
     
     const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount - buffer);
     const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount + buffer);
@@ -609,7 +670,7 @@ function TimelineV3() {
     console.log('Current visible markers:', currentVisibleMarkers);
     
     setVisibleMarkers(currentVisibleMarkers);
-  }, [timelineOffset, markers]);
+  }, [timelineOffset, markers, viewMode]);
 
   // Add state to track filtered events count
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
@@ -617,6 +678,8 @@ function TimelineV3() {
   const handleEventSelect = (event) => {
     setSelectedEventId(event.id);
     setShouldScrollToEvent(true);
+    // Lock selection so auto-sync (carousel or others) doesn't override right away
+    lockUserSelection(1500);
     
     // Also update the currentEventIndex to keep carousel in sync
     const eventIndex = events.findIndex(e => e.id === event.id);
@@ -638,6 +701,7 @@ function TimelineV3() {
     }
     
     const eventDate = new Date(event.event_date);
+    // Use current time as the base reference; positioning is handled via timelineOffset
     const currentDate = new Date();
     let markerValue;
     
@@ -812,6 +876,8 @@ function TimelineV3() {
       
       if (!e.event_date) return false;
       
+      // TIMELINE V4: Event filtering should use current time for date ranges
+      // Point B controls CENTER positioning, but events are filtered relative to current time
       const currentDate = new Date();
       let startDate, endDate;
       
@@ -1053,6 +1119,11 @@ function TimelineV3() {
     const currentlySelectedEventId = selectedEventId;
     const currentlySelectedEventIndex = currentEventIndex;
     
+    // TIMELINE V4: Store Point B state before transition
+    const pointBWasActive = pointB_active;
+    const pointBTimestamp = pointB_reference_timestamp;
+    const pointBEventId = pointB_eventId;
+    
     // Mark that user has interacted to bypass progressive loading delays
     setUserInteracted(true);
     
@@ -1069,6 +1140,44 @@ function TimelineV3() {
       // Actually change the view mode to update the timeline structure
       setViewMode(newViewMode);
       setViewTransitionPhase('structureTransition');
+      
+      // TIMELINE V4: If Point B was active, recalculate from timestamp
+      if (pointBWasActive && pointBTimestamp) {
+        console.log('[Point B] View switch detected - Recalculating Point B from timestamp');
+        
+        // Convert Point B to new view mode (timestamp-based calculation)
+        const converted = convertPointBToViewMode(newViewMode);
+        
+        if (converted) {
+          const { arrowPosition, referencePosition } = converted;
+          
+          // Update Point B system with new positions
+          setPointB_arrow_markerValue(arrowPosition);
+          setPointB_reference_markerValue(referencePosition);
+          setPointB_viewMode(newViewMode);
+          // Timestamp stays the same (source of truth)
+          // Event ID stays the same
+          
+          // Center timeline on Point B (Point B has priority over Point A)
+          const targetOffset = -(arrowPosition * 100);
+          setTimelineOffset(targetOffset);
+          
+          // Recalculate margins for new view mode (hybrid approach)
+          // This happens automatically via calculatePointBMargin(newViewMode)
+          
+          console.log('[Point B] Successfully recentered on Point B:', {
+            timestamp: new Date(pointBTimestamp).toLocaleString(),
+            oldView: pointB_viewMode,
+            newView: newViewMode,
+            arrowPosition,
+            referencePosition,
+            newOffset: targetOffset,
+            newMargin: calculatePointBMargin(newViewMode)
+          });
+        } else {
+          console.warn('[Point B] Failed to convert Point B to new view mode');
+        }
+      }
       
       // Phase 3: Data processing (200ms after structure transition)
       setTimeout(() => {
@@ -1793,34 +1902,20 @@ function TimelineV3() {
         (direction === 'left' ? amount : -amount);
       
       const arrowMarkerFromCenter = (newArrowScreenPosition - window.innerWidth / 2) / 100;
-      const margin = calculatePointBMargin();
+      const margin = calculatePointBMargin(viewMode);
       
       // Check if arrow moved outside margin zone
       if (Math.abs(arrowMarkerFromCenter - pointB_reference_markerValue) > margin) {
-        const newReference = Math.round(arrowMarkerFromCenter);
+        const newReference = Math.floor(arrowMarkerFromCenter);
         setPointB_reference_markerValue(newReference);
         
-        // Calculate timestamp at new reference
-        const currentDate = new Date();
-        let referenceTimestamp = new Date(currentDate);
+        // TIMELINE V4: DO NOT recalculate timestamp when reference moves during scroll
+        // The timestamp is the SOURCE OF TRUTH and should never change
+        // Only the reference marker position updates to track which marker is closest
+        // The timestamp stays locked to the original click position
         
-        switch (viewMode) {
-          case 'day':
-            referenceTimestamp.setHours(currentDate.getHours() + newReference);
-            break;
-          case 'week':
-            referenceTimestamp.setDate(currentDate.getDate() + newReference);
-            break;
-          case 'month':
-            referenceTimestamp.setMonth(currentDate.getMonth() + newReference);
-            break;
-          case 'year':
-            referenceTimestamp.setFullYear(currentDate.getFullYear() + newReference);
-            break;
-        }
-        
-        setPointB_reference_timestamp(referenceTimestamp);
         console.log('[SmoothScroll] Point B reference updated to:', newReference);
+        console.log('[SmoothScroll] Timestamp unchanged (source of truth):', pointB_reference_timestamp);
       }
     }
     
@@ -1861,44 +1956,31 @@ function TimelineV3() {
     // ALWAYS update arrow to exact click position (fractional)
     setPointB_arrow_markerValue(markerValue);
     
-    // Calculate margin zone (viewport + buffer)
-    const margin = calculatePointBMargin();
+    // Calculate margin zone (viewport + buffer) for current view mode
+    const margin = calculatePointBMargin(currentViewMode);
     
     // Check if we need to update reference (integer anchor for calculations)
     const isFirstActivation = !pointB_active;
     const isOutsideMargin = Math.abs(markerValue - pointB_reference_markerValue) > margin;
+    const isNewEventSelection = !!eventId && pointB_eventId !== eventId;
     
     if (isFirstActivation || isOutsideMargin) {
-      // Update reference to nearest integer
-      const newReference = Math.round(markerValue);
+      // Update reference to closest integer TO THE LEFT (use floor, not round)
+      const newReference = Math.floor(markerValue);
       setPointB_reference_markerValue(newReference);
       
-      // Calculate timestamp at integer marker position
-      const currentDate = new Date();
-      let referenceTimestamp = new Date(currentDate);
-      
-      switch (currentViewMode) {
-        case 'day':
-          referenceTimestamp.setHours(currentDate.getHours() + newReference);
-          break;
-        case 'week':
-          referenceTimestamp.setDate(currentDate.getDate() + newReference);
-          break;
-        case 'month':
-          referenceTimestamp.setMonth(currentDate.getMonth() + newReference);
-          break;
-        case 'year':
-          referenceTimestamp.setFullYear(currentDate.getFullYear() + newReference);
-          break;
+      // TIMELINE V4: Timestamp immutability EXCEPT when user selects a different event
+      // If a new event is explicitly selected, we must update the Point B timestamp
+      if (isFirstActivation || isNewEventSelection) {
+        setPointB_reference_timestamp(timestamp);
+        console.log('[Point B] Timestamp set from user selection:', new Date(timestamp).toLocaleString());
+      } else {
+        console.log('[Point B] Reference updated to integer:', newReference, 'margin:', margin);
       }
-      
-      setPointB_reference_timestamp(referenceTimestamp);
-      
-      console.log('[Point B] Reference updated to integer:', newReference, 'margin:', margin);
-      console.log('[Point B] Reference timestamp:', referenceTimestamp);
     } else {
       console.log('[Point B] Arrow moved within margin zone, reference unchanged');
       console.log('[Point B] Arrow:', markerValue, 'Reference:', pointB_reference_markerValue, 'Margin:', margin);
+      console.log('[Point B] Timestamp unchanged (source of truth):', pointB_reference_timestamp);
     }
     
     // Pre-load markers in both directions for smooth scrolling
@@ -1973,59 +2055,154 @@ function TimelineV3() {
   };
   
   /**
-   * Convert Point B to a new view mode
-   * This preserves the semantic meaning of Point B when switching views
-   * For example: "5:00 PM Tuesday" in day view becomes "Tuesday" in week view
+   * TIMELINE V4: Calculate exact fractional marker position from timestamp
+   * This is the inverse of the marker-to-timestamp calculation
+   * Used to find where a timestamp lives in a specific view mode
+   * 
+   * @param {Date} timestamp - The timestamp to locate
+   * @param {Date} currentDate - Point A reference (current time)
+   * @param {string} targetViewMode - The view mode to calculate for
+   * @returns {number} Fractional marker position (can include minutes/hours/days)
    */
-  const convertPointBToViewMode = (newViewMode) => {
-    if (!pointB_active || !pointB_timestamp) return null;
+  const calculateMarkerPositionFromTimestamp = (timestamp, currentDate, targetViewMode) => {
+    const pointBDate = new Date(timestamp);
+    let markerValue = 0;
     
-    const currentDate = new Date();
-    const pointBDate = new Date(pointB_timestamp);
-    
-    console.log('[Point B] Converting from', pointB_viewMode, 'to', newViewMode);
-    console.log('[Point B] Timestamp:', pointBDate.toLocaleString());
-    
-    let newMarkerValue = 0;
-    
-    switch (newViewMode) {
+    switch (targetViewMode) {
       case 'day': {
-        // Calculate hours from current time
-        const dayDiff = Math.floor((pointBDate - currentDate) / (1000 * 60 * 60 * 24));
-        const hourDiff = Math.floor((pointBDate - currentDate) / (1000 * 60 * 60)) - (dayDiff * 24);
-        newMarkerValue = (dayDiff * 24) + hourDiff;
+        // Calculate exact position including fractional hours
+        const dayDiffMs = differenceInMilliseconds(
+          new Date(pointBDate.getFullYear(), pointBDate.getMonth(), pointBDate.getDate()),
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+        );
+        const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
+        const currentHour = currentDate.getHours();
+        const pointBHour = pointBDate.getHours();
+        const pointBMinute = pointBDate.getMinutes();
+        // Arrow position includes fractional hours (minutes)
+        markerValue = (dayDiff * 24) + pointBHour - currentHour + (pointBMinute / 60);
         break;
       }
       case 'week': {
-        // Calculate days from current date
-        const dayDiff = Math.floor((pointBDate - currentDate) / (1000 * 60 * 60 * 24));
-        newMarkerValue = dayDiff;
+        // Calculate exact position including fractional days (time of day)
+        const dayDiffMs = differenceInMilliseconds(
+          new Date(pointBDate.getFullYear(), pointBDate.getMonth(), pointBDate.getDate()),
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+        );
+        const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
+        
+        if (dayDiff === 0) {
+          // Same day - calculate position within the day
+          const totalMinutesInDay = 24 * 60;
+          const pointBMinutesIntoDay = pointBDate.getHours() * 60 + pointBDate.getMinutes();
+          markerValue = pointBMinutesIntoDay / totalMinutesInDay;
+        } else {
+          // Different day - include time of day as fraction
+          const pointBHour = pointBDate.getHours();
+          const pointBMinute = pointBDate.getMinutes();
+          const totalMinutesInDay = 24 * 60;
+          const pointBMinutesIntoDay = pointBHour * 60 + pointBMinute;
+          const pointBFractionOfDay = pointBMinutesIntoDay / totalMinutesInDay;
+          markerValue = Math.floor(dayDiff) + pointBFractionOfDay;
+        }
         break;
       }
       case 'month': {
-        // Calculate months from current month
-        const monthDiff = (pointBDate.getFullYear() - currentDate.getFullYear()) * 12 
-                        + (pointBDate.getMonth() - currentDate.getMonth());
-        newMarkerValue = monthDiff;
+        // Calculate exact position including fractional months (day of month)
+        const pointBYear = pointBDate.getFullYear();
+        const currentYear = currentDate.getFullYear();
+        const pointBMonth = pointBDate.getMonth();
+        const currentMonth = currentDate.getMonth();
+        const pointBDay = pointBDate.getDate();
+        const daysInMonth = new Date(pointBYear, pointBMonth + 1, 0).getDate();
+        const yearDiff = pointBYear - currentYear;
+        const monthDiff = pointBMonth - currentMonth + (yearDiff * 12);
+        const dayFraction = (pointBDay - 1) / daysInMonth;
+        markerValue = monthDiff + dayFraction;
         break;
       }
       case 'year': {
-        // Calculate years from current year
-        const yearDiff = pointBDate.getFullYear() - currentDate.getFullYear();
-        newMarkerValue = yearDiff;
+        // Calculate exact position including fractional years (month + day)
+        const pointBYear = pointBDate.getFullYear();
+        const currentYear = currentDate.getFullYear();
+        const yearDiff = pointBYear - currentYear;
+        const pointBMonth = pointBDate.getMonth();
+        const monthFraction = pointBMonth / 12;
+        const pointBDay = pointBDate.getDate();
+        const daysInMonth = new Date(pointBYear, pointBMonth + 1, 0).getDate();
+        const dayFraction = (pointBDay - 1) / daysInMonth / 12;
+        markerValue = yearDiff + monthFraction + dayFraction;
         break;
       }
+      case 'position':
       default:
-        newMarkerValue = 0;
+        markerValue = 0;
     }
     
-    console.log('[Point B] Converted marker value:', newMarkerValue);
+    return markerValue;
+  };
+  
+  /**
+   * TIMELINE V4: Convert Point B to a new view mode (TIMESTAMP-BASED)
+   * This preserves the semantic meaning of Point B when switching views
+   * 
+   * Example: "Friday Oct 17, 2025 7:00 AM" in day view
+   *   -> Becomes "Friday Oct 17, 2025" (marker 0) in week view
+   *   -> Because week view granularity is days, not hours
+   * 
+   * B Reference = Integer coordinate (closest timeline marker)
+   * Arrow = Fractional coordinate (precise timestamp location)
+   * 
+   * @param {string} newViewMode - The view mode to convert to
+   * @returns {Object} { arrowPosition, referencePosition } or null
+   */
+  const convertPointBToViewMode = (newViewMode) => {
+    if (!pointB_active) {
+      console.log('[Point B] Cannot convert - Point B not active');
+      return null;
+    }
     
-    // Update Point B with new marker value and view mode
-    setPointB_markerValue(newMarkerValue);
-    setPointB_viewMode(newViewMode);
+    // Priority: if an event is selected, ALWAYS use its timestamp for conversion
+    let effectiveTimestamp = null;
+    if (pointB_eventId) {
+      const evt = Array.isArray(events) ? events.find(e => e.id === pointB_eventId) : null;
+      if (evt && evt.event_date) {
+        effectiveTimestamp = evt.event_date;
+        setPointB_reference_timestamp(effectiveTimestamp);
+        console.log('[Point B] Using selected event timestamp for conversion:', new Date(effectiveTimestamp).toLocaleString());
+      }
+    }
+    // Otherwise, use stored reference timestamp
+    if (!effectiveTimestamp) {
+      effectiveTimestamp = pointB_reference_timestamp;
+    }
+    if (!effectiveTimestamp) {
+      console.log('[Point B] Cannot convert - missing timestamp');
+      return null;
+    }
     
-    return newMarkerValue;
+    const currentDate = new Date(); // Point A [0] in new view
+    const pointBDate = new Date(effectiveTimestamp);
+    
+    console.log('[Point B] Converting from', pointB_viewMode, 'to', newViewMode);
+    console.log('[Point B] Timestamp (source of truth):', pointBDate.toLocaleString());
+    console.log('[Point B] Current Point A [0]:', currentDate.toLocaleString());
+    
+    // Calculate exact fractional position (for arrow)
+    const arrowPosition = calculateMarkerPositionFromTimestamp(pointBDate, currentDate, newViewMode);
+    
+    // B Reference is always integer (closest timeline marker TO THE LEFT of arrow)
+    // Use Math.floor() not Math.round() - arrow can be at integer position too
+    const referencePosition = Math.floor(arrowPosition);
+    
+    console.log('[Point B] New arrow position (fractional):', arrowPosition);
+    console.log('[Point B] New reference position (integer):', referencePosition);
+    console.log('[Point B] Distance from Point A [0]:', referencePosition, 'markers');
+    
+    return {
+      arrowPosition,
+      referencePosition
+    };
   };
   
   // ============================================================================
@@ -2057,7 +2234,8 @@ function TimelineV3() {
           const centerMarkerValue = Math.round(-timelineOffset / 100);
           
           // Calculate the timestamp for this marker
-          const currentDate = new Date();
+          // TIMELINE V4: Use Point B reference when active (Dad is in charge!)
+          const currentDate = getCurrentTimeReference();
           let timestamp = new Date(currentDate);
           
           switch (viewMode) {
@@ -2086,26 +2264,52 @@ function TimelineV3() {
   
   // ============================================================================
   
-  // Update hover position when view mode changes
+  // Update hover position when view mode changes OR Point B activates/deactivates
   useEffect(() => {
-    setHoverPosition(getExactTimePosition());
-  }, [viewMode]);
+    // TIMELINE V4: Use Point B timestamp when active, otherwise current time
+    if (pointB_active && pointB_reference_timestamp) {
+      // Calculate hover position based on Point B's timestamp
+      const pointBDate = new Date(pointB_reference_timestamp);
+      let position;
+      
+      if (viewMode === 'year') {
+        position = getYearProgressFromTimestamp(pointBDate);
+      } else if (viewMode === 'month') {
+        position = getMonthProgressFromTimestamp(pointBDate);
+      } else if (viewMode === 'week') {
+        position = getDayProgressFromTimestamp(pointBDate);
+      } else {
+        // Day view - Calculate position relative to Point B's hour
+        position = pointBDate.getMinutes() / 60;
+      }
+      
+      setHoverPosition(position);
+      console.log('[Point B] Hover position set from Point B timestamp:', position);
+    } else {
+      // Use current time (Mom's default behavior)
+      setHoverPosition(getExactTimePosition());
+      console.log('[Point A] Hover position set from current time');
+    }
+  }, [viewMode, pointB_active, pointB_reference_timestamp]);
 
   // Add state to track if any popup is currently open
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
-  // Update hover position every minute, but pause when popup is open
+  // Update hover position every minute, but pause when popup is open OR Point B is active
   useEffect(() => {
     if (viewMode === 'day') {
       const interval = setInterval(() => {
-        // Only update if no popup is currently open
-        if (!isPopupOpen) {
+        // TIMELINE V4: Don't update when Point B is active - Dad is in charge!
+        // Only update if no popup is currently open AND Point B is not active
+        if (!isPopupOpen && !pointB_active) {
           setHoverPosition(getExactTimePosition());
+        } else if (pointB_active) {
+          console.log('[Point B] Hover position frozen - Dad is in charge');
         }
       }, 60000); // Update every minute
       return () => clearInterval(interval);
     }
-  }, [viewMode, isPopupOpen]);
+  }, [viewMode, isPopupOpen, pointB_active]);
 
   // Update markers on window resize
   useEffect(() => {
@@ -2488,6 +2692,7 @@ function TimelineV3() {
   const calculateTemporalDistance = (eventDate) => {
     if (!eventDate) return 0;
     
+    // Use current time for temporal distance calculations (not Point B timestamp)
     const currentDate = new Date();
     const eventDateObj = new Date(eventDate);
     
@@ -2618,6 +2823,12 @@ function TimelineV3() {
 
 const handleRecenter = () => {
   console.log('Executing Return to Present');
+  
+  // TIMELINE V4: Deactivate Point B when returning to present
+  if (pointB_active) {
+    console.log('[Point B] Deactivating Point B - Returning to Point A');
+    deactivatePointB();
+  }
   
   // First, hide all elements with a fade
   setIsRecentering(true);
@@ -3118,7 +3329,7 @@ const handleRecenter = () => {
               
               {/* Render event markers with performance optimizations */}
               {(() => {
-                // Performance optimization: Calculate date boundaries once
+                // Calculate date boundaries once using current time; visual centering handled by timelineOffset
                 const currentDate = new Date();
                 let startDate, endDate;
                 
