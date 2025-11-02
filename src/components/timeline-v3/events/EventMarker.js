@@ -240,7 +240,8 @@ const EventMarker = ({
       
       // ALWAYS calculate positions from Point A (current time)
       // Point B only affects which events are visible and timeline centering
-      const referenceDate = freshCurrentDate;
+      // CRITICAL: Do NOT use freshCurrentDate here - it changes with Point B
+      const referenceDate = new Date(); // Always Point A [0]
       
       switch (viewMode) {
         case 'day':

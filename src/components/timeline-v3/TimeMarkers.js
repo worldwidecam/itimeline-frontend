@@ -10,10 +10,11 @@ const TimeMarkers = ({
   theme,
   onMarkerClick, // New prop for handling marker clicks
   pointB_active = false, // Whether Point B is active
-  pointB_reference_markerValue = 0 // Point B reference marker (integer)
+  pointB_reference_markerValue = 0, // Point B reference marker (integer)
+  pointB_reference_timestamp = null // Point B timestamp (for labels)
 }) => {
+  // Always compute labels from Point A (current time)
   const getCurrentDateTime = () => {
-    // This will be updated with the latest timestamp from the system
     return new Date();
   };
 

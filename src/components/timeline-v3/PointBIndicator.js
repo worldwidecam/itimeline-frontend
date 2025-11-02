@@ -23,7 +23,8 @@ const PointBIndicator = ({
   active = false,
   markerValue = 0,
   timelineOffset = 0,
-  markerSpacing = 100
+  markerSpacing = 100,
+  label
 }) => {
   const theme = useTheme();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -51,7 +52,7 @@ const PointBIndicator = ({
         sx={{
           position: 'absolute',
           left: `${arrowPosition}px`, // Position at the clicked marker
-          bottom: '20px', // Position below timeline
+          bottom: '8px', // Lower than timeline text/markers
           transform: 'translateX(-50%)',
           zIndex: 1100, // Above event markers (1000) and hover marker (900)
           display: 'flex',
@@ -68,7 +69,7 @@ const PointBIndicator = ({
               transform: 'translateX(-50%) translateY(50px) scale(0.8)',
             },
             '50%': {
-              transform: 'translateX(-50%) translateY(-5px) scale(1.1)',
+              transform: 'translateX(-50%) translateY(-3px) scale(1.06)', // smaller peak to avoid intersecting baseline
             },
             '100%': {
               opacity: 1,
@@ -93,7 +94,7 @@ const PointBIndicator = ({
               width: '50.4px', // 72px * 0.7 = 50.4px (63% of original 80px)
               height: '50.4px',
               borderRadius: '50%',
-              background: `radial-gradient(circle, ${theme.palette.secondary.main}40 0%, transparent 70%)`,
+              background: `radial-gradient(circle, ${theme.palette.error.main}40 0%, transparent 70%)`,
               animation: 'glowPulse 2s ease-in-out infinite',
               '@keyframes glowPulse': {
                 '0%, 100%': {
@@ -112,8 +113,8 @@ const PointBIndicator = ({
           <ArrowUpwardIcon
             sx={{
               fontSize: '35.28px', // 50.4px * 0.7 = 35.28px (63% of original 56px)
-              color: theme.palette.secondary.main,
-              filter: `drop-shadow(0 0 7.56px ${theme.palette.secondary.main}80)`, // 10.8px * 0.7 = 7.56px (63% of original 12px)
+              color: theme.palette.error.main,
+              filter: `drop-shadow(0 0 7.56px ${theme.palette.error.main}80)`, // match opposing color (red)
               position: 'relative',
               zIndex: 1,
               // Make arrow more rounded/modern (only tip stays sharp)
@@ -128,12 +129,40 @@ const PointBIndicator = ({
                   transform: 'translateY(0) scale(1)',
                 },
                 '50%': {
-                  transform: 'translateY(-5.04px) scale(1.032)', // 7.2px * 0.7 = 5.04px, 1.045 * 0.988 ≈ 1.032
+                  transform: 'translateY(-3px) scale(1.02)', // reduced peak to avoid intersecting baseline
                 },
               },
             }}
           />
         </Box>
+        {label && (
+          <Typography 
+            variant="caption"
+            sx={{
+              mt: 1,
+              opacity: 0.95,
+              fontFamily: 'Lobster Two',
+              fontSize: '1rem',
+              color: theme.palette.error.main,
+              padding: '6px 16px',
+              borderRadius: '16px',
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(244, 67, 54, 0.15)'
+                : 'rgba(244, 67, 54, 0.08)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid',
+              borderColor: theme.palette.mode === 'dark'
+                ? 'rgba(244, 67, 54, 0.3)'
+                : 'rgba(244, 67, 54, 0.2)',
+              whiteSpace: 'nowrap',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 4px 12px rgba(244, 67, 54, 0.1)'
+                : '0 4px 12px rgba(244, 67, 54, 0.05)'
+            }}
+          >
+            {label}
+          </Typography>
+        )}
       </Box>
     </Fade>
   );
