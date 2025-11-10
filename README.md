@@ -119,6 +119,14 @@ calculateEventMarkerPosition(event, viewMode)
 - 🔄 URL deep linking: Share links with Point B state
 - 🔄 Keyboard shortcuts: Navigate with Point B awareness
 
+#### Baseline Timeline Bar Behavior (Nov 2025)
+
+- The baseline timeline bar is now visually locked across the viewport.
+- It no longer translates or resizes with scroll or visible marker range.
+- The baseline remains rendered at a fixed vertical position within the timeline container.
+- Coordinate markers and labels can scroll independently above the fixed baseline.
+- Result: The baseline and timeline coordinates remain visible regardless of how far Point B is from Point A [0].
+
 ### Community Timelines & Action Cards System
 
 The iTimeline application supports Community Timelines with a Bronze/Silver/Gold action card system that encourages member engagement through milestone-based rewards and achievements.

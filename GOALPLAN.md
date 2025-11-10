@@ -34,29 +34,63 @@
   - [x] Decoupled arrow/reference system (Phase 2)
   - [x] Smooth navigation (buttons, wheel, drag) (Phase 3A)
   - [x] Performance fixes (settle detection, drag optimization) (Phase 3A)
-  - [ ] **CURRENT: Timeline V4 Component Integration (Phase 3B)**
-    - [x] 🎯 Fix EventCounter to respect Point B margin rules (uses activatePointB which has margin logic)
-    - [x] 🎯 Fix arrow selection logic: uses EXACT same calculation as EventMarker.js (includes minutes!)
-    - [x] 🎯 EventCarousel dot click: smooth slide to center + select (gives dot unique purpose) ✅ Oct 16
-    - [x] 🎯 EventCarousel arrows (left/right): activate Point B when cycling through events ✅ Oct 16
-    - [x] 🎯 Created helper function calculateEventMarkerPosition() to avoid code duplication ✅ Oct 16
-    - [x] 🎯 Updated README with Timeline V4 features and technical details ✅ Oct 16
-    - [x] 🎯 **Fix view mode switching - arrow follows TIMESTAMP not POSITION** ✅ Oct 17
-      - Timestamp is now source of truth for Point B Reference
-      - View switching recalculates both arrow (fractional) and reference (integer) positions
-      - Timeline centers on Point B when active (Point B has priority over Point A)
-      - Hybrid margin system: viewport-based with view-specific scaling (prevents year view loading decades)
-      - Margins recalculate immediately on view switch
-      - Year view margin reduced to 0.3x (forces reference update per year coordinate)
-      - Timeline marker clicks now preserve current minutes/hours for precision
-    - [x] 🎯 **Fix Point A/Point B independence - timestamp immutability** ✅ Oct 17
-      - Point B timestamp NEVER recalculates after initial activation
-      - Timestamp only updates when user clicks new marker/event or switches views
-      - Prevents Point B from following Point A when hour changes
-      - Point B truly independent from Point A updates
-  - [ ] EventList Point B integration
-  - [ ] Filter system Point B behavior
-  - [ ] Comprehensive V4 testing
+  - [ ] **CURRENT: Point B System Consolidation (Phase 3B)**
+    - [x] 🎯 EventCounter/Carousel integration (dot centers + select; arrows select) ✅ Oct 16
+    - [x] 🎯 Helper `calculateEventMarkerPosition()` (exact, minute-precise) ✅ Oct 16
+    - [x] 🎯 View switching uses TIMESTAMP as source of truth ✅ Oct 17
+    - [x] 🎯 B timestamp immutability (no re-calc on scroll/settle) ✅ Oct 17
+    - [ ] 🧩 TimeMarkers labels and click timestamps use Point A only → switch to Point B reference when active
+    - [ ] 🧩 Propagate a single `currentReferenceDate` (Point B when active, else now) to all subcomponents that compute time-based UI
+    - [ ] 🧩 Remove/deprecate band-aids (`pointA_compensation`, scattered `new Date()` calls) once reference is centralized
+    - [ ] 🧩 Ensure event filtering, visible ranges, and hover markers derive from the same reference
+    - [ ] 🧪 Comprehensive V4 testing across views (see checklist below)
+
+### Point B Quarantine — Pointer Arrow + Label Only (2025-11)
+
+- **Purpose (temporary)**: Keep a precise, performant focus indicator (pointer arrow + timestamp label) while disabling all other Point B behaviors that impact viewport math and could cause lag.
+- **Scope**:
+  - Included: `focusActive`, `focusTimestamp`, pointer arrow, and its label.
+  - Excluded: timeline centering/scrolling to B, margin/reference-index logic, view-switch carryover of B, and any timeline math driven by B.
+- **Rules**:
+  - On day/week/month/year switch, forcibly call `deactivatePointB()` before switching view.
+  - Do not auto-center on dot clicks or marker clicks (no implicit centering in quarantine mode).
+  - Timeline math/filters/visible ranges continue to use Point A (now).
+- **Performance Targets**:
+  - 60fps pointer motion.
+  - ≤4ms JS per animation frame (Chrome Performance).
+  - 0 React renders per animation frame during pointer motion (use rAF + CSS transforms where applicable).
+- **Acceptance Criteria**:
+  - Arrow and label reflect `focusTimestamp` precisely (fractional timing where applicable).
+  - B never triggers recentering; view switches always deactivate B first.
+  - No perceived lag on arrow/label movement compared to pre-quarantine baseline.
+
+#### Acceptance Criteria — Point B “Done”
+- [ ] Reference unification: No direct `new Date()` usages in timeline components that affect coordinates, filtering, or labels — all go through a single reference function/prop.
+- [ ] Label correctness: TimeMarkers show labels consistent with Point B reference when active (e.g., Sunday/12AM alignment holds when B is far from A).
+- [ ] No drift: Point B timestamp remains unchanged until explicit user action (click marker/event) or view switch.
+- [ ] Filter stability: Changing filters neither teleports nor silently deactivates Point B; selection remains valid or is explicitly cleared with UX notice.
+- [ ] Performance: Drag, wheel, and button navigation remain smooth with no blank renders; no excessive re-renders from timers.
+
+#### Decision Gate — Salvage vs Pivot (Time-box: 2 focused sessions)
+- **Salvage Plan (preferred, minimal churn):**
+  1) Create `getCurrentTimeReference()` at TimelineV3 root (already present) and pass `currentReferenceDate` to subcomponents (TimeMarkers, EventList, EventMarker, HoverMarker).
+  2) Refactor those components to use the prop for all time math and label formatting.
+  3) Replace remaining `new Date()` calls in timeline-v3 subtree with the reference, delete `pointA_compensation` hacks.
+  4) Add console safeguards: warn on direct `new Date()` in timeline-v3 (dev only).
+
+- **Pivot Plan (if salvage fails):**
+  - Collapse to a single canonical `focusTimestamp` model:
+    - State: `focusActive`, `focusTimestamp`, `viewMode`.
+    - All coordinates/filters derive from `focusTimestamp` when active, else from `now()`.
+    - Arrow is purely visual; reference markers are derived, not stateful.
+  - Pros: simpler invariants, less state churn. Cons: moderate refactor of current B reference math.
+
+#### Test Checklist (must pass before removing “experimental” tag)
+- [ ] Re-run the “Point A independence” experiment — B must stay fixed while A moves.
+- [ ] Switch views repeatedly with B active; arrow/reference recompute from timestamp only.
+- [ ] Navigate via carousel dots/arrows and event markers; selection never jumps unexpectedly.
+- [ ] Toggle filters and sorting; either keep valid selection or clearly clear it; no hidden deactivation.
+- [ ] Year/month/week/day label sanity: labels reflect B’s context when active; Sundays/12AM boundaries align.
 
 ### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
 - ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'

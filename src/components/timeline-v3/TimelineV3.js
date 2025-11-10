@@ -351,6 +351,8 @@ function TimelineV3() {
    * - Reference: Calculation anchor at integer coordinate (stable)
    * - Margin: Viewport + buffer zone where arrow can move without updating reference
    */
+  // Quarantine mode: keep Point B limited to pointer arrow + label only
+  const B_POINTER_MINIMAL = true;
   const [pointB_active, setPointB_active] = useState(false);
   
   // Arrow position (visual, fractional) - shows exact click location
@@ -1148,6 +1150,12 @@ function TimelineV3() {
     const pointBWasActive = pointB_active;
     const pointBTimestamp = pointB_reference_timestamp;
     const pointBEventId = pointB_eventId;
+
+    // Quarantine: forcibly deactivate Point B before switching views
+    if (pointB_active) {
+      console.log('[Point B] Quarantine: deactivating before view switch');
+      deactivatePointB();
+    }
     
     // Mark that user has interacted to bypass progressive loading delays
     setUserInteracted(true);
@@ -1166,69 +1174,28 @@ function TimelineV3() {
       setViewMode(newViewMode);
       setViewTransitionPhase('structureTransition');
       
-      // TIMELINE V4: If Point B was active, recalculate from timestamp
-      if (pointBWasActive && pointBTimestamp) {
+      // Quarantine: skip all Point B conversions/recentering during view switch
+      if (!B_POINTER_MINIMAL && pointBWasActive && pointBTimestamp) {
         console.log('[Point B] View switch detected - Recalculating Point B from timestamp');
-        
-        // Convert Point B to new view mode (timestamp-based calculation)
         const converted = convertPointBToViewMode(newViewMode);
-        
         if (converted) {
           const { arrowPosition, referencePosition } = converted;
-          
-          // Update Point B system with new positions
           setPointB_arrow_markerValue(arrowPosition);
           setPointB_reference_markerValue(referencePosition);
           setPointB_viewMode(newViewMode);
-          // Timestamp stays the same (source of truth)
-          // Event ID stays the same
-          
-          // Center timeline on Point B (Point B has priority over Point A)
           const targetOffset = -(arrowPosition * 100);
           setTimelineOffset(targetOffset);
-          
-          // TIMELINE V4: "Measuring Tape" - Populate markers around Point B's position
-          // Calculate viewport + wiggle room around Point B
           const viewportWidth = window.innerWidth;
           const markerSpacing = 100;
           const markersInViewport = Math.ceil(viewportWidth / markerSpacing);
-          const wiggleRoom = 10; // Extra markers on each side for smooth scrolling
+          const wiggleRoom = 10;
           const totalMarkersNeeded = markersInViewport + (wiggleRoom * 2);
-          
-          // Generate markers centered on Point B's reference position
           const halfMarkers = Math.floor(totalMarkersNeeded / 2);
           const minMarker = Math.floor(referencePosition) - halfMarkers;
           const maxMarker = Math.floor(referencePosition) + halfMarkers;
-          
           const newMarkers = [];
-          for (let i = minMarker; i <= maxMarker; i++) {
-            newMarkers.push(i);
-          }
-          
-          console.log('[Point B] Populating markers around Point B position:', {
-            referencePosition,
-            minMarker,
-            maxMarker,
-            totalMarkers: newMarkers.length
-          });
-          
-          // Replace markers array with Point B-centered markers
+          for (let i = minMarker; i <= maxMarker; i++) newMarkers.push(i);
           setMarkers(newMarkers);
-          
-          // Recalculate margins for new view mode (hybrid approach)
-          // This happens automatically via calculatePointBMargin(newViewMode)
-          
-          console.log('[Point B] Successfully recentered on Point B:', {
-            timestamp: new Date(pointBTimestamp).toLocaleString(),
-            oldView: pointB_viewMode,
-            newView: newViewMode,
-            arrowPosition,
-            referencePosition,
-            newOffset: targetOffset,
-            newMargin: calculatePointBMargin(newViewMode)
-          });
-        } else {
-          console.warn('[Point B] Failed to convert Point B to new view mode');
         }
       }
       
@@ -1948,7 +1915,7 @@ function TimelineV3() {
     });
     
     // 4. Update Point B reference if active and arrow moves outside margin
-    if (pointB_active) {
+    if (pointB_active && !B_POINTER_MINIMAL) {
       // Calculate where the arrow will be after scroll
       const newArrowScreenPosition = window.innerWidth / 2 + 
         (pointB_arrow_markerValue * 100) + 
@@ -2002,107 +1969,32 @@ function TimelineV3() {
   const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false) => {
     console.log('[Point B] Activating at marker:', markerValue, 'timestamp:', timestamp, 'viewMode:', currentViewMode);
     
+    if (B_POINTER_MINIMAL) {
+      // Minimal mode: only track active state, arrow position, timestamp, event, view
+      setPointB_active(true);
+      setPointB_viewMode(currentViewMode);
+      setPointB_eventId(eventId);
+      setPointB_arrow_markerValue(markerValue);
+      setPointB_reference_timestamp(timestamp);
+      console.log('[Point B] Minimal mode activation - arrow+label only');
+      return;
+    }
+    
     setPointB_active(true);
     setPointB_viewMode(currentViewMode);
     setPointB_eventId(eventId);
-    
-    // ALWAYS update arrow to exact click position (fractional)
     setPointB_arrow_markerValue(markerValue);
-    
-    // Calculate margin zone (viewport + buffer) for current view mode
     const margin = calculatePointBMargin(currentViewMode);
-    
-    // Check if we need to update reference (integer anchor for calculations)
     const isFirstActivation = !pointB_active;
     const isOutsideMargin = Math.abs(markerValue - pointB_reference_markerValue) > margin;
     const isNewEventSelection = !!eventId && pointB_eventId !== eventId;
-    
     if (isFirstActivation || isOutsideMargin) {
-      // Update reference to closest integer TO THE LEFT (use floor, not round)
       const newReference = Math.floor(markerValue);
       setPointB_reference_markerValue(newReference);
-      
-      // TIMELINE V4: Timestamp immutability EXCEPT when user selects a different event
-      // If a new event is explicitly selected, we must update the Point B timestamp
       if (isFirstActivation || isNewEventSelection) {
         setPointB_reference_timestamp(timestamp);
-        console.log('[Point B] Timestamp set from user selection:', new Date(timestamp).toLocaleString());
-        
-        // TIMELINE V4: Cache view interpretations for all view modes
-        // This allows instant view switching without recalculating from timestamp
-        const pointBDate = new Date(timestamp);
-        const currentDate = new Date(); // Point A [0]
-        
-        const interpretations = {
-          year: Math.floor(calculateMarkerPositionFromTimestamp(pointBDate, currentDate, 'year')),
-          month: Math.floor(calculateMarkerPositionFromTimestamp(pointBDate, currentDate, 'month')),
-          week: Math.floor(calculateMarkerPositionFromTimestamp(pointBDate, currentDate, 'week')),
-          day: Math.floor(calculateMarkerPositionFromTimestamp(pointBDate, currentDate, 'day'))
-        };
-        
-        setPointB_cached_interpretations(interpretations);
-        console.log('[Point B] Cached view interpretations:', interpretations);
-      } else {
-        console.log('[Point B] Reference updated to integer:', newReference, 'margin:', margin);
-      }
-    } else {
-      console.log('[Point B] Arrow moved within margin zone, reference unchanged');
-      console.log('[Point B] Arrow:', markerValue, 'Reference:', pointB_reference_markerValue, 'Margin:', margin);
-      console.log('[Point B] Timestamp unchanged (source of truth):', pointB_reference_timestamp);
-    }
-    
-    // Pre-load markers in both directions for smooth scrolling
-    // Use reference value (integer) for pre-loading, not arrow value (fractional)
-    const referenceForPreload = isFirstActivation || isOutsideMargin 
-      ? Math.round(markerValue)
-      : pointB_reference_markerValue;
-    
-    const viewportWidth = window.innerWidth;
-    const preloadDistance = viewportWidth * PRELOAD_MARGIN_MULTIPLIER;
-    const markersToPreload = Math.ceil(preloadDistance / 100); // 100 = markerSpacing
-    
-    const currentMinMarker = Math.min(...markers);
-    const currentMaxMarker = Math.max(...markers);
-    
-    // Calculate how many markers we need to add (using integer reference)
-    const targetMinMarker = Math.floor(referenceForPreload - markersToPreload);
-    const targetMaxMarker = Math.ceil(referenceForPreload + markersToPreload);
-    
-    const newMarkers = [];
-    
-    // Add markers to the left if needed
-    if (targetMinMarker < currentMinMarker) {
-      for (let i = targetMinMarker; i < currentMinMarker; i++) {
-        newMarkers.push(i);
       }
     }
-    
-    // Add markers to the right if needed
-    if (targetMaxMarker > currentMaxMarker) {
-      for (let i = currentMaxMarker + 1; i <= targetMaxMarker; i++) {
-        newMarkers.push(i);
-      }
-    }
-    
-    if (newMarkers.length > 0) {
-      console.log('[Point B] Pre-loading', newMarkers.length, 'markers for smooth scrolling');
-      setMarkers(prevMarkers => [...prevMarkers, ...newMarkers].sort((a, b) => a - b));
-    }
-    
-    // NEVER center when clicking markers - Point B should stay where clicked
-    // Only center when explicitly requested (e.g., 'B' key press)
-    if (shouldCenter) {
-      console.log('[Point B] Centering Point B on screen (B key pressed)');
-      const currentPosition = window.innerWidth / 2 + (markerValue * 100) + timelineOffset;
-      const screenCenter = window.innerWidth / 2;
-      const offsetAdjustment = screenCenter - currentPosition;
-      
-      setTimelineOffset(prevOffset => prevOffset + offsetAdjustment);
-    } else {
-      console.log('[Point B] Point B activated at clicked position (timeline stays put)');
-    }
-    
-    console.log('[Point B] Activated successfully. Pre-loaded buffer:', markersToPreload, 'markers on each side');
   };
   
   /**
@@ -3575,11 +3467,16 @@ const handleRecenter = () => {
                 viewMode={viewMode}
                 theme={theme}
                 style={timelineTransitionStyles}
-                pointB_active={pointB_active}
-                pointB_reference_markerValue={pointB_reference_markerValue}
+                pointB_active={B_POINTER_MINIMAL ? false : pointB_active}
+                pointB_reference_markerValue={B_POINTER_MINIMAL ? 0 : pointB_reference_markerValue}
                 pointB_reference_timestamp={pointB_reference_timestamp}
                 onMarkerClick={(markerValue, timestamp, viewMode) => {
                   console.log('[Point B] Timeline marker clicked - Activating Point B');
+                  // Deselect any previously selected event when clicking a non-event marker
+                  if (selectedEventId) {
+                    setSelectedEventId(null);
+                    setCurrentEventIndex(-1);
+                  }
                   activatePointB(markerValue, timestamp, viewMode, null, false);
                 }}
               />
