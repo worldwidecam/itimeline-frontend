@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Box, Typography, useTheme, Fade } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 
@@ -28,6 +28,7 @@ const PointBIndicator = ({
 }) => {
   const theme = useTheme();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const containerRef = useRef(null);
 
   // Update window width on resize (handles dev console open/close)
   useEffect(() => {
@@ -39,112 +40,100 @@ const PointBIndicator = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Calculate the arrow's position on screen (memoized)
+  const arrowPosition = useMemo(() => {
+    return windowWidth / 2 + (markerValue * markerSpacing) + timelineOffset;
+  }, [windowWidth, markerValue, markerSpacing, timelineOffset]);
+
+  // Apply transform updates via rAF and useLayoutEffect to avoid initial flash
+  useLayoutEffect(() => {
+    let rafId;
+    const el = containerRef.current;
+    if (!el || !active) return;
+    const apply = () => {
+      el.style.transform = `translate3d(${arrowPosition}px, 0, 0) translateX(-50%)`;
+    };
+    rafId = requestAnimationFrame(apply);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [arrowPosition, active]);
+
+  // Keep hooks order stable; conditionally render after hooks are set up
   if (!active) return null;
-  
-  // Calculate the arrow's position on screen
-  // This matches how EventMarker and TimeMarkers calculate positions
-  // Uses reactive windowWidth instead of window.innerWidth
-  const arrowPosition = windowWidth / 2 + (markerValue * markerSpacing) + timelineOffset;
 
   return (
     <Fade in={active} timeout={300}>
       <Box
+        ref={containerRef}
         sx={{
           position: 'absolute',
-          left: `${arrowPosition}px`, // Position at the clicked marker
-          bottom: '8px', // Lower than timeline text/markers
-          transform: 'translateX(-50%)',
+          left: 0,
+          bottom: '2px', // Sit directly below the baseline without overlapping
+          willChange: 'transform',
           zIndex: 1100, // Above event markers (1000) and hover marker (900)
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           pointerEvents: 'auto',
           // Smooth transition when arrow moves to new position
-          transition: 'left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          // Bounce animation on mount - comes from below
-          animation: 'bounceUpFromBelow 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-          '@keyframes bounceUpFromBelow': {
-            '0%': {
-              opacity: 0,
-              transform: 'translateX(-50%) translateY(50px) scale(0.8)',
-            },
-            '50%': {
-              transform: 'translateX(-50%) translateY(-3px) scale(1.06)', // smaller peak to avoid intersecting baseline
-            },
-            '100%': {
-              opacity: 1,
-              transform: 'translateX(-50%) translateY(0) scale(1)',
-            },
-          },
+          transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        {/* Main arrow icon with glow effect */}
+        {/* Animation wrapper to avoid overriding container's horizontal transform */}
         <Box
           sx={{
-            position: 'relative',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
+            // Bounce on mount, then subtle float loop (vertical only)
+            animation: 'bounceUpFromBelow 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), floatY 2.4s ease-in-out 0.6s infinite alternate',
+            '@keyframes bounceUpFromBelow': {
+              '0%': {
+                opacity: 0,
+                transform: 'translateY(50px) scale(0.8)',
+              },
+              '50%': {
+                transform: 'translateY(-3px) scale(1.06)', // smaller peak to avoid intersecting baseline
+              },
+              '100%': {
+                opacity: 1,
+                transform: 'translateY(0) scale(1)',
+              },
+            },
+            '@keyframes floatY': {
+              '0%': {
+                transform: 'translateY(0)'
+              },
+              '100%': {
+                transform: 'translateY(-4px)'
+              }
+            },
           }}
         >
-          {/* Pulsing glow background - reduced by 30% (now 63% of original) */}
+          {/* Main arrow icon with glow effect */}
           <Box
             sx={{
-              position: 'absolute',
-              width: '50.4px', // 72px * 0.7 = 50.4px (63% of original 80px)
-              height: '50.4px',
-              borderRadius: '50%',
-              background: `radial-gradient(circle, ${theme.palette.error.main}40 0%, transparent 70%)`,
-              animation: 'glowPulse 2s ease-in-out infinite',
-              '@keyframes glowPulse': {
-                '0%, 100%': {
-                  opacity: 0.4,
-                  transform: 'scale(1)',
-                },
-                '50%': {
-                  opacity: 0.8,
-                  transform: 'scale(1.2)',
-                },
-              },
-            }}
-          />
-
-          {/* Arrow icon - pointing up at timeline - reduced by 30% (now 63% of original) */}
-          <ArrowUpwardIcon
-            sx={{
-              fontSize: '35.28px', // 50.4px * 0.7 = 35.28px (63% of original 56px)
-              color: theme.palette.error.main,
-              filter: `drop-shadow(0 0 7.56px ${theme.palette.error.main}80)`, // match opposing color (red)
               position: 'relative',
-              zIndex: 1,
-              // Make arrow more rounded/modern (only tip stays sharp)
-              '& path': {
-                strokeLinejoin: 'round',
-                strokeLinecap: 'round',
-              },
-              // Subtle continuous pulse - arrow moves up to barely touch timeline
-              animation: 'arrowPulseUp 2s ease-in-out infinite',
-              '@keyframes arrowPulseUp': {
-                '0%, 100%': {
-                  transform: 'translateY(0) scale(1)',
-                },
-                '50%': {
-                  transform: 'translateY(-3px) scale(1.02)', // reduced peak to avoid intersecting baseline
-                },
-              },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-          />
+          >
+            <ArrowUpwardIcon sx={{ fontSize: 28, color: theme.palette.error.main }} />
+          </Box>
         </Box>
+        {/* Keep label outside animated wrapper so it doesn't bob */}
         {label && (
           <Typography 
             variant="caption"
             sx={{
-              mt: 1,
+              mt: '12px',
               opacity: 0.95,
               fontFamily: 'Lobster Two',
-              fontSize: '1rem',
+              fontSize: '0.9rem',
               color: theme.palette.error.main,
-              padding: '6px 16px',
+              padding: '5px 14px',
               borderRadius: '16px',
               backgroundColor: theme.palette.mode === 'dark' 
                 ? 'rgba(244, 67, 54, 0.15)'
@@ -152,12 +141,13 @@ const PointBIndicator = ({
               backdropFilter: 'blur(8px)',
               border: '1px solid',
               borderColor: theme.palette.mode === 'dark'
-                ? 'rgba(244, 67, 54, 0.3)'
-                : 'rgba(244, 67, 54, 0.2)',
-              whiteSpace: 'nowrap',
+                ? 'rgba(244, 67, 54, 0.25)'
+                : 'rgba(244, 67, 54, 0.18)',
               boxShadow: theme.palette.mode === 'dark'
-                ? '0 4px 12px rgba(244, 67, 54, 0.1)'
-                : '0 4px 12px rgba(244, 67, 54, 0.05)'
+                ? '0 4px 12px rgba(244, 67, 54, 0.10)'
+                : '0 4px 12px rgba(244, 67, 54, 0.06)',
+              whiteSpace: 'nowrap',
+              letterSpacing: '0.02em',
             }}
           >
             {label}
