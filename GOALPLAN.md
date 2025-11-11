@@ -7,15 +7,15 @@
 
 ### Sub GOALS (In Order)
 1. ✅ Community Timeline Implementation (COMPLETE - Oct 14, 2025)
-2. 🎯 Timeline Reference Point B System (CURRENT - MAJOR)
+2. 🎯 Personal Timeline Implementation (CURRENT - MAJOR)
 3. ⏳ Promote/Demote Voting System
 4. ⏳ Better Auth Migration (FINAL PRE-PRODUCTION)
 
 ### Current Sub GOAL
-- Timeline Reference Point B System
+- Personal Timeline Implementation
 
 ### Current Goal within Sub GOAL
-- Understand and document current timeline coordinate system
+- Define and scaffold Personal Timeline features, data flow, and UI without changing approved UX unless requested
 
 ### COMPLETED TODO (2025-10-14)
 - ✅ **Community Timeline Implementation** - COMPLETE:
@@ -29,68 +29,21 @@
   - ✅ BlockedFromCommunity redirect page
 
 ### CURRENT TODO
-- [ ] **Timeline V4 - Point B System Integration** ⭐ CRITICAL ARCHITECTURE CHANGE
-  - [x] Core Point B architecture implemented (Phase 1)
-  - [x] Decoupled arrow/reference system (Phase 2)
-  - [x] Smooth navigation (buttons, wheel, drag) (Phase 3A)
-  - [x] Performance fixes (settle detection, drag optimization) (Phase 3A)
-  - [ ] **CURRENT: Point B System Consolidation (Phase 3B)**
-    - [x] 🎯 EventCounter/Carousel integration (dot centers + select; arrows select) ✅ Oct 16
-    - [x] 🎯 Helper `calculateEventMarkerPosition()` (exact, minute-precise) ✅ Oct 16
-    - [x] 🎯 View switching uses TIMESTAMP as source of truth ✅ Oct 17
-    - [x] 🎯 B timestamp immutability (no re-calc on scroll/settle) ✅ Oct 17
-    - [ ] 🧩 TimeMarkers labels and click timestamps use Point A only → switch to Point B reference when active
-    - [ ] 🧩 Propagate a single `currentReferenceDate` (Point B when active, else now) to all subcomponents that compute time-based UI
-    - [ ] 🧩 Remove/deprecate band-aids (`pointA_compensation`, scattered `new Date()` calls) once reference is centralized
-    - [ ] 🧩 Ensure event filtering, visible ranges, and hover markers derive from the same reference
-    - [ ] 🧪 Comprehensive V4 testing across views (see checklist below)
+- [ ] Personal Timeline Implementation — Planning and Scaffolding
+  - [ ] Define scope and success criteria
+  - [ ] Identify required components, routes, and API usage (no schema changes without approval)
+  - [ ] UI scaffolding plan (keep approved styles; add only what is requested)
+  - [ ] Risk and performance considerations
 
 ### Point B Quarantine — Pointer Arrow + Label Only (2025-11)
 
-- **Purpose (temporary)**: Keep a precise, performant focus indicator (pointer arrow + timestamp label) while disabling all other Point B behaviors that impact viewport math and could cause lag.
-- **Scope**:
-  - Included: `focusActive`, `focusTimestamp`, pointer arrow, and its label.
-  - Excluded: timeline centering/scrolling to B, margin/reference-index logic, view-switch carryover of B, and any timeline math driven by B.
-- **Rules**:
-  - On day/week/month/year switch, forcibly call `deactivatePointB()` before switching view.
-  - Do not auto-center on dot clicks or marker clicks (no implicit centering in quarantine mode).
-  - Timeline math/filters/visible ranges continue to use Point A (now).
-- **Performance Targets**:
-  - 60fps pointer motion.
-  - ≤4ms JS per animation frame (Chrome Performance).
-  - 0 React renders per animation frame during pointer motion (use rAF + CSS transforms where applicable).
-- **Acceptance Criteria**:
-  - Arrow and label reflect `focusTimestamp` precisely (fractional timing where applicable).
-  - B never triggers recentering; view switches always deactivate B first.
-  - No perceived lag on arrow/label movement compared to pre-quarantine baseline.
+Moved to README: "Point B Quarantine — Pointer Arrow + Label Only (Nov 2025)".
 
 #### Acceptance Criteria — Point B “Done”
-- [ ] Reference unification: No direct `new Date()` usages in timeline components that affect coordinates, filtering, or labels — all go through a single reference function/prop.
-- [ ] Label correctness: TimeMarkers show labels consistent with Point B reference when active (e.g., Sunday/12AM alignment holds when B is far from A).
-- [ ] No drift: Point B timestamp remains unchanged until explicit user action (click marker/event) or view switch.
-- [ ] Filter stability: Changing filters neither teleports nor silently deactivates Point B; selection remains valid or is explicitly cleared with UX notice.
-- [ ] Performance: Drag, wheel, and button navigation remain smooth with no blank renders; no excessive re-renders from timers.
+Refer to README.
 
-#### Decision Gate — Salvage vs Pivot (Time-box: 2 focused sessions)
-- **Salvage Plan (preferred, minimal churn):**
-  1) Create `getCurrentTimeReference()` at TimelineV3 root (already present) and pass `currentReferenceDate` to subcomponents (TimeMarkers, EventList, EventMarker, HoverMarker).
-  2) Refactor those components to use the prop for all time math and label formatting.
-  3) Replace remaining `new Date()` calls in timeline-v3 subtree with the reference, delete `pointA_compensation` hacks.
-  4) Add console safeguards: warn on direct `new Date()` in timeline-v3 (dev only).
-
-- **Pivot Plan (if salvage fails):**
-  - Collapse to a single canonical `focusTimestamp` model:
-    - State: `focusActive`, `focusTimestamp`, `viewMode`.
-    - All coordinates/filters derive from `focusTimestamp` when active, else from `now()`.
-    - Arrow is purely visual; reference markers are derived, not stateful.
-  - Pros: simpler invariants, less state churn. Cons: moderate refactor of current B reference math.
-
-#### Test Checklist (must pass before removing “experimental” tag)
-- [ ] Re-run the “Point A independence” experiment — B must stay fixed while A moves.
-- [ ] Switch views repeatedly with B active; arrow/reference recompute from timestamp only.
-- [ ] Navigate via carousel dots/arrows and event markers; selection never jumps unexpectedly.
-- [ ] Toggle filters and sorting; either keep valid selection or clearly clear it; no hidden deactivation.
-- [ ] Year/month/week/day label sanity: labels reflect B’s context when active; Sundays/12AM boundaries align.
+#### Decision Gate — Salvage vs Pivot (archived)
+See README for archived Point B notes. GOALPLAN now focuses on Personal Timeline Implementation.
 
 ### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
 - ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'
@@ -102,70 +55,71 @@
 - ✅ Restore left border colors on Manage Posts report cards (status phase indicator)
 - ✅ Update README with October 2025 improvements and current focus
 
-### Timeline Reference Point B System - DETAILED PLAN
+### Personal Timeline Implementation — Planning
 
-**Problem Statement**:
-Current system only tracks distance from point [0], causing issues:
-- Filter view switches lose user context (e.g., 8 hours in day view = 8 years in year view)
-- Clunky event marker movement
-- Poor scroll position memory across view changes
-- User loses their place when switching between day/week/month/year views
+#### Purpose
+- Implement personal timelines for users without changing approved UX unless requested.
 
-**Solution**: Dual reference point system:
-- **Point A**: Today's current date/time (absolute reference)
-  - Always represents "now"
-  - Updates in real-time
-  - Serves as the anchor for all calculations
-- **Point B**: User's focus position relative to Point A
-  - Tracks distance from today, not from [0]
-  - Maintains context across view changes
-  - Preserves user's scroll position
-  - Example: "3 days ago" stays "3 days ago" regardless of view mode
+#### Scope
+- Display and manage a user's own timeline view and posts.
+- Respect existing community/hashtag systems; no schema changes without explicit approval.
 
-**Impact**:
-- ✅ Fixes navigation across filter views
-- ✅ Maintains user context when switching views
-- ✅ Smoother scrolling and marker movement
-- ✅ Better UX for timeline exploration
+#### Components (tentative)
+- `PersonalTimelinePage`
+- Reuse `TimelineV3` with personal data source
+- `PersonalTimelineHeader` (optional)
 
-**Complexity**: HIGH - Core timeline coordinate system refactor
-**Priority**: CURRENT FOCUS
+#### API Usage
+- Prefer existing `/api/v1` endpoints. Identify read-only paths first; propose write flows separately.
 
-### Production Roadmap
+#### Risks & Performance
+- Large personal histories; ensure virtualization remains smooth.
+- Caching strategy to avoid redundant fetches.
 
-**Phase 1: Community Timeline Implementation** ✅ COMPLETE (Oct 14, 2025)
-- ✅ Admin Panel with full member management
-- ✅ Pending requests workflow
-- ✅ Privacy and approval settings
-- ✅ Access control redirect pages
-- ✅ PostgreSQL migration
+#### Acceptance Criteria
+- Personal timeline loads and navigates smoothly across day/week/month/year.
+- Event selection, pointer arrow, and label behave identically to community timelines.
+- No regressions to community timelines.
 
-**Phase 2: Timeline Reference Point B** (Current - Est. 2-3 weeks) ⭐
-- Refactor core coordinate system
-- Implement dual reference points
-- Fix filter view context switching
-- Optimize event marker movement
-- Improve scroll position memory
+#### Tasks
+- [ ] Define data source for personal events
+- [ ] Wire read-only view (list + markers)
+- [ ] Integrate selection + Point B arrow (quarantine mode)
+- [ ] Add routing/entry point to personal timeline
+- [ ] Basic tests and profiling pass
 
-**Phase 3: Promote/Demote Voting System** (Est. 3-4 weeks)
-- Reddit-style upvote/downvote toggle
-- Vote aggregation and display
-- Visual indicators (green/red dots, financial chart style)
-- Database schema for votes
-- Vote manipulation prevention
+### Personal Timeline — Decisions & Open Questions (Prep)
 
-**Phase 4: Event Marker Scaling** (Est. 1-2 weeks)
-- Optimize for 1000s of events
-- Clustering/grouping when zoomed out
-- Virtual rendering for visible markers only
-- Performance testing
+#### Decisions Confirmed
+- **Route shape**: `/timeline-v3/:username/:slug` (approved).
+- **Sharing**: Phase 2 (public view toggle + optional QR). Not part of v1.
+- **Chip style**: Show `@username` chip for personal timelines; add compact tally badge (e.g., `+N`) when multiple personal timelines include the same post.
+- **Privacy default**: Owner-only unless sharing is enabled (Phase 2).
+- **Slug rules**: Lowercase, URL-safe, spaces → hyphens; names are unique within username namespace.
 
-**Phase 5: Better Auth Migration** (Final - Est. 2-3 weeks) 🚢
-- Migrate from Flask-JWT-Extended to Better Auth
-- Database schema migration with user preservation
-- Add 2FA, social OAuth
-- Comprehensive testing
-- **PRODUCTION LAUNCH** 🎉
+#### Add-to-Timeline Picker (v1, UI only)
+- Source dropdown with three choices: **Hashtag | Community | Personal**.
+- Hashtag: open search (any `#`).
+- Community: only communities where user is a member; respect a UI-only "discoverable in search" toggle (no schema change).
+- Personal: only the current user's personal timelines; owner-only can add/remove.
+
+#### Guardrails (no schema changes)
+- Community chips require membership.
+- Personal chips owner-only.
+- Hashtag chips open.
+
+#### Lookup & Caching
+- Resolve `:username/:slug → timeline_id` client-side; memoize/cache mapping for fast navigation.
+
+#### Open Questions (to revisit)
+- Community chip discoverability policy beyond UI toggle (needs backend later?).
+- Username color derivation for personal chips (hash → HSL) — confirm palette.
+
+#### Next Session Kickoff Checklist
+- [ ] Implement route + page shell using `TimelineV3`.
+- [ ] Slug utils and client cache; resolve → `timeline_id` then fetch via existing `/api/v1`.
+- [ ] Add Add-to-Timeline picker with 3-source dropdown and UI guard behavior.
+- [ ] Render personal username chip with tally badge and deterministic color.
 
 ### Deferred Features (Post-Production)
 - [ ] Timeline name/description editing (requires uniqueness logic)

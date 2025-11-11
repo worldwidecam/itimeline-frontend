@@ -128,12 +128,12 @@ const PointBIndicator = ({
           <Typography 
             variant="caption"
             sx={{
-              mt: '12px',
+              mt: '14px',
               opacity: 0.95,
               fontFamily: 'Lobster Two',
-              fontSize: '0.9rem',
+              fontSize: '0.8rem',
               color: theme.palette.error.main,
-              padding: '5px 14px',
+              padding: '4px 12px',
               borderRadius: '16px',
               backgroundColor: theme.palette.mode === 'dark' 
                 ? 'rgba(244, 67, 54, 0.15)'

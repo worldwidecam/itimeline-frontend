@@ -127,6 +127,22 @@ calculateEventMarkerPosition(event, viewMode)
 - Coordinate markers and labels can scroll independently above the fixed baseline.
 - Result: The baseline and timeline coordinates remain visible regardless of how far Point B is from Point A [0].
 
+#### Point B Quarantine — Pointer Arrow + Label Only (Nov 2025)
+
+- Purpose: Keep a precise, performant focus indicator while quarantining legacy Point B logic.
+- Scope:
+  - Included: Pointer arrow and timestamp label driven by `focusTimestamp`.
+  - Excluded: Auto-centering, margin/reference-index math, B-driven timeline math and view carryover.
+- Rules:
+  - View switches (day/week/month/year) call `deactivatePointB()` before switching.
+  - No auto-centering on event dot or timeline marker clicks.
+  - Clicking a non-event timeline marker clears any selected event.
+  - Reference highlight on TimeMarkers is disabled in quarantine mode.
+- Performance:
+  - Arrow uses requestAnimationFrame + CSS transforms (0 React renders per frame during motion).
+  - Label rendered separately (no bobbing); arrow has subtle float.
+- Status: Complete and confirmed. Further Point B architecture work is deferred.
+
 ### Community Timelines & Action Cards System
 
 The iTimeline application supports Community Timelines with a Bronze/Silver/Gold action card system that encourages member engagement through milestone-based rewards and achievements.
