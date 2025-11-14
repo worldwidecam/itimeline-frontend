@@ -107,7 +107,8 @@ const Homepage = () => {
     name: '',
     description: '',
     timeline_type: 'hashtag',
-    visibility: 'public'
+    visibility: 'public',
+    timeline_mode: 'standard', // 'standard' | 'community' | 'personal' (frontend-only for now)
   });
 
   // Fetch timelines when component mounts
@@ -156,21 +157,66 @@ const Homepage = () => {
       name: '',
       description: '',
       timeline_type: 'hashtag',
-      visibility: 'public'
+      visibility: 'public',
+      timeline_mode: 'standard',
     });
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    // Special handling: when changing timeline_type, keep visibility locked to 'public'
+    // and only adjust frontend-only timeline_mode when needed.
+    if (name === 'timeline_type') {
+      // Map radio choice to backend-safe type and a frontend-only mode
+      if (value === 'hashtag') {
+        setFormData(prev => ({
+          ...prev,
+          timeline_type: 'hashtag',
+          visibility: 'public',
+          timeline_mode: 'standard',
+        }));
+        return;
+      }
+
+      if (value === 'community') {
+        setFormData(prev => ({
+          ...prev,
+          timeline_type: 'community',
+          visibility: 'public',
+          timeline_mode: 'community',
+        }));
+        return;
+      }
+
+      if (value === 'personal') {
+        // For now, personal timelines are a planned feature only.
+        // Keep backend-safe type but mark mode as personal for future use.
+        setFormData(prev => ({
+          ...prev,
+          timeline_type: 'community',
+          visibility: 'public',
+          timeline_mode: 'personal',
+        }));
+        return;
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleCreateTimeline = async () => {
     if (!formData.name.trim()) {
       alert('Please enter a timeline name');
+      return;
+    }
+
+    // Block creation for personal timelines until the feature is fully implemented
+    if (formData.timeline_mode === 'personal') {
+      alert('Personal timelines are coming soon. You can currently create Hashtag or Community timelines.');
       return;
     }
 
@@ -847,7 +893,7 @@ const Homepage = () => {
               <RadioGroup
                 row
                 name="timeline_type"
-                value={formData.timeline_type}
+                value={formData.timeline_mode === 'personal' ? 'personal' : formData.timeline_type}
                 onChange={handleInputChange}
               >
                 <Tooltip title="Standard timeline with hashtag-based organization">
@@ -864,37 +910,15 @@ const Homepage = () => {
                     label="Community Timeline" 
                   />
                 </Tooltip>
+                <Tooltip title="Coming soon: personal space for your own posts" disableHoverListener={false}>
+                  <FormControlLabel 
+                    value="personal" 
+                    control={<Radio />} 
+                    label="Personal Timeline" 
+                  />
+                </Tooltip>
               </RadioGroup>
             </FormControl>
-            
-            {formData.timeline_type === 'community' && (
-              <FormControl component="fieldset" sx={{ mb: 2 }}>
-                <FormLabel component="legend" sx={{ mb: 1, color: theme.palette.text.secondary }}>
-                  Visibility
-                </FormLabel>
-                <RadioGroup
-                  row
-                  name="visibility"
-                  value={formData.visibility}
-                  onChange={handleInputChange}
-                >
-                  <Tooltip title="Anyone can view this timeline">
-                    <FormControlLabel 
-                      value="public" 
-                      control={<Radio />} 
-                      label="Public" 
-                    />
-                  </Tooltip>
-                  <Tooltip title="Only members can view this timeline">
-                    <FormControlLabel 
-                      value="private" 
-                      control={<Radio />} 
-                      label="Private" 
-                    />
-                  </Tooltip>
-                </RadioGroup>
-              </FormControl>
-            )}
           </Paper>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Your timeline will be created with a unique URL that you can share with others.
