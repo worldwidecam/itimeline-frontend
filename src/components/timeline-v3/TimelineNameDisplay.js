@@ -14,6 +14,43 @@ import LockIcon from '@mui/icons-material/Lock';
  * @param {Object} props.typographyProps - Additional props for the Typography component
  */
 const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typographyProps = {} }) => {
+  // For personal timelines, use "My-" prefix similar to community style
+  if (type === 'personal') {
+    return (
+      <Box 
+        sx={{ display: 'flex', alignItems: 'center', ...sx }}
+        aria-label={`Personal timeline: ${name}`}
+      >
+        <Tooltip title="Personal Timeline" arrow placement="top">
+          <Typography 
+            {...typographyProps}
+            component="div"
+            sx={{
+              ...typographyProps.sx,
+              display: 'flex',
+              alignItems: 'center',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            <span 
+              style={{ 
+                fontFamily: 'Lobster, cursive',
+                marginRight: '4px',
+                color: 'inherit',
+                flexShrink: 0,
+              }}
+              aria-hidden="true"
+            >
+              My-
+            </span>
+            {name}
+          </Typography>
+        </Tooltip>
+      </Box>
+    );
+  }
+
   // For hashtag timelines, show the name with # prefix
   if (type !== 'community') {
     return (

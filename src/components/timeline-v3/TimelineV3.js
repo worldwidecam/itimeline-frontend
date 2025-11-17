@@ -2869,21 +2869,15 @@ const handleRecenter = () => {
           <Stack direction="row" spacing={1} alignItems="center">
             <Box sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
               {!isLoading && (
-                timeline_type === 'community' ? (
-                  <TimelineNameDisplay 
-                    name={timelineName} 
-                    type={timeline_type} 
-                    visibility={visibility}
-                    typographyProps={{
-                      variant: "h4",
-                      component: "div"
-                    }}
-                  />
-                ) : (
-                  <Typography variant="h4" component="div">
-                    {`# ${timelineName}`}
-                  </Typography>
-                )
+                <TimelineNameDisplay 
+                  name={timelineName} 
+                  type={timeline_type} 
+                  visibility={visibility}
+                  typographyProps={{
+                    variant: "h4",
+                    component: "div"
+                  }}
+                />
               )}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
