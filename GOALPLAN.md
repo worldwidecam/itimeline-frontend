@@ -1,227 +1,93 @@
-# Main Goal - Timeline Architectural Improvements
+# Personal Timeline Implementation — GOALPLAN
 
-## Lean Plan (2025-10-14)
+## Main Goal
 
-### Main GOAL
-- Prepare application for production launch
+- Implement Personal Timelines as a first-class experience while reusing the existing `TimelineV3` engine.
+- Keep Community/Hashtag timelines stable while Personal can evolve independently over time.
 
-### Sub GOALS (In Order)
-1. ✅ Community Timeline Implementation (COMPLETE - Oct 14, 2025)
-2. 🎯 Personal Timeline Implementation (CURRENT - MAJOR)
-3. ⏳ Promote/Demote Voting System
-4. ⏳ Better Auth Migration (FINAL PRE-PRODUCTION)
+## Current Focus (Phase 1)
 
-### Current Sub GOAL
-- Personal Timeline Implementation
+**Phase 1 Objective**: Ship the basic scaffolding for Personal Timelines using current backend behavior.
 
-### Current Goal within Sub GOAL
-- Define and scaffold Personal Timeline features, data flow, and UI without changing approved UX unless requested
+- Personal timelines use the same underlying `Timeline` model and endpoints as community timelines.
+- `timeline_type` will eventually accept `'personal'`, but Phase 1 treats Personal as a **frontend-only mode** (no backend divergence yet).
+- Routing and UI entry points are prepared so we can layer in real data and behavior later phases.
 
-### COMPLETED TODO (2025-10-14)
-- ✅ **Community Timeline Implementation** - COMPLETE:
-  - ✅ Admin Panel with three tabs (Manage Members, Pending Requests, Settings)
-  - ✅ Member management (promote/demote, remove, block/unblock)
-  - ✅ Pending requests workflow with auto-expiry
-  - ✅ Settings tab with privacy toggle and approval requirements
-  - ✅ Four redirect pages for access control
-  - ✅ Smart join button with status indicators
-  - ✅ PostgreSQL migration with coding guidelines
-  - ✅ BlockedFromCommunity redirect page
+## Architecture Overview (Personal Timelines)
 
-### CURRENT TODO
-- [ ] Personal Timeline Implementation — Planning and Scaffolding
-  - [ ] Define scope and success criteria
-  - [ ] Identify required components, routes, and API usage (no schema changes without approval)
-  - [ ] UI scaffolding plan (keep approved styles; add only what is requested)
-  - [ ] Risk and performance considerations
+- **Core Engine**: `TimelineV3` (same component used for community timelines).
+- **Route Shapes**:
+  - Existing: `/timeline-v3/:id` → `TimelineV3` (hashtag/community).
+  - New (Personal): `/timeline-v3/:username/:slug` → `PersonalTimelineWrapper` (resolves to a timeline ID, then uses `TimelineV3`).
+- **Ownership Concept**:
+  - Each personal timeline is owned by a single user (derived from existing `created_by` / membership data in later phases).
+  - Phase 1 focuses on viewing; write/management flows come later.
 
-### Point B Quarantine — Pointer Arrow + Label Only (2025-11)
+## Phase 1 — Scope and Constraints
 
-Moved to README: "Point B Quarantine — Pointer Arrow + Label Only (Nov 2025)".
+### Scope
 
-#### Acceptance Criteria — Point B “Done”
-Refer to README.
+- Add UX surface for Personal Timelines without changing existing Community/Hashtag behavior.
+- Prepare routing and UI so that personal timelines can later be wired to real data and permissions.
 
-#### Decision Gate — Salvage vs Pivot (archived)
-See README for archived Point B notes. GOALPLAN now focuses on Personal Timeline Implementation.
+### Constraints
 
-### QUALITY OF LIFE IMPROVEMENTS - COMPLETED (2025-10-10)
-- ✅ Add "Under Review" visual indicator on event cards when status is 'reviewing'
-- ✅ Add event type icons to Manage Posts report cards (color-coded)
-- ✅ Update report reason chip colors (Blue/Orange/Red palette)
-- ✅ Fix EventPopup grey border visual issue (removed subtle border artifacts)
-- ✅ Redesign image media marker popover (moved title/date outside image preview)
-- ✅ Fix EventCounter/Carousel filter synchronization (respects EventList type filter + no auto-scroll)
-- ✅ Restore left border colors on Manage Posts report cards (status phase indicator)
-- ✅ Update README with October 2025 improvements and current focus
+- No schema changes in Phase 1 (no new `timeline_type` values written to the DB yet).
+- No backend endpoint changes in Phase 1.
+- No visual/UX redesign of `TimelineV3` without explicit approval; Personal will initially reuse the same look and feel.
 
-### Personal Timeline Implementation — Planning
+## Phase 1 — Completed Steps
 
-#### Purpose
-- Implement personal timelines for users without changing approved UX unless requested.
+- **Create Timeline Dialog (Home page)**
+  - ✅ Removed public/private sub-choice for community timelines; new community timelines default to `visibility: 'public'`.
+  - ✅ Added a third option in the Timeline Type radio group: **Personal Timeline**.
+  - ✅ When Personal Timeline is selected, creation is currently blocked with a clear alert:
+    - "Personal timelines are coming soon. You can currently create Hashtag or Community timelines."
+  - ✅ Internal `timeline_mode` flag added on the frontend: `'standard' | 'community' | 'personal'`.
 
-#### Scope
-- Display and manage a user's own timeline view and posts.
-- Respect existing community/hashtag systems; no schema changes without explicit approval.
+- **Routing & Placeholder**
+  - ✅ New protected route added:
+    - `/timeline-v3/:username/:slug` → `PersonalTimelineWrapper`.
+  - ✅ `PersonalTimelineWrapper` component created under `src/components/timeline-v3/`.
+  - ✅ Wrapper currently displays a centered "Personal timelines are coming soon" message and confirms the URL pattern.
 
-#### Components (tentative)
-- `PersonalTimelinePage`
-- Reuse `TimelineV3` with personal data source
-- `PersonalTimelineHeader` (optional)
+## Phase 1 — Active Tasks
 
-#### API Usage
-- Prefer existing `/api/v1` endpoints. Identify read-only paths first; propose write flows separately.
+1. **Define Personal Timeline Data Strategy (Phase 1, no schema changes)**
+   - [ ] Decide how to identify a personal timeline using existing backend data (e.g., community timeline created by user with a convention).
+   - [ ] Decide how Phase 1 will treat Personal timelines in terms of visibility (owner-only vs public-like community), while still using existing endpoints.
 
-#### Risks & Performance
-- Large personal histories; ensure virtualization remains smooth.
-- Caching strategy to avoid redundant fetches.
+2. **Design Resolver for `/timeline-v3/:username/:slug` (Phase 1)**
+   - [ ] Define slug rules (lowercase, spaces → hyphens, URL-safe characters).
+   - [ ] Phase 1 rule: only support `username === currentUser.username` for personal routes.
+   - [ ] Implement a frontend resolver that:
+     - Reads `:username` and `:slug` from the URL.
+     - Uses existing `/api/timeline-v3` data (Home timelines) to find the matching timeline for the current user.
+     - On resolution success: navigates to `/timeline-v3/:id` or renders `TimelineV3` with the resolved ID.
+     - On failure: shows a clear "Personal timeline not set up yet" state.
 
-#### Acceptance Criteria
-- Personal timeline loads and navigates smoothly across day/week/month/year.
-- Event selection, pointer arrow, and label behave identically to community timelines.
-- No regressions to community timelines.
+3. **Home Page - Timelines Tool Support**
+   - [ ] Plan Home page updates so users can find their personal timelines:
+     - [ ] Separate the search portion of the "Timelines" tool into a banner-width search strip under the main banner.
+     - [ ] Keep the existing Timelines list UI intact for now.
+     - [ ] Add a conceptual filter for "My Personal Timelines" that, in later phases, will filter timelines where the current user is the owner and `timeline_type` (or mode) is personal.
 
-#### Tasks
-- [ ] Define data source for personal events
-- [ ] Wire read-only view (list + markers)
-- [ ] Integrate selection + Point B arrow (quarantine mode)
-- [ ] Add routing/entry point to personal timeline
-- [ ] Basic tests and profiling pass
+## Phase 1 — Acceptance Criteria
 
-### Personal Timeline — Decisions & Open Questions (Prep)
+- The application clearly presents Personal Timeline as a future option:
+  - Create dialog shows Personal Timeline as a third type, but does not create real personal timelines yet.
+  - Visiting `/timeline-v3/:username/:slug` shows a stable placeholder (no errors).
+- No regressions to Community/Hashtag timelines (timeline creation, viewing, and admin features work exactly as before).
+- No backend or DB schema changes are required to complete Phase 1.
 
-#### Decisions Confirmed
-- **Route shape**: `/timeline-v3/:username/:slug` (approved).
-- **Sharing**: Phase 2 (public view toggle + optional QR). Not part of v1.
-- **Chip style**: Show `@username` chip for personal timelines; add compact tally badge (e.g., `+N`) when multiple personal timelines include the same post.
-- **Privacy default**: Owner-only unless sharing is enabled (Phase 2).
-- **Slug rules**: Lowercase, URL-safe, spaces → hyphens; names are unique within username namespace.
+## Phase 2+ (Preview, not in scope yet)
 
-#### Add-to-Timeline Picker (v1, UI only)
-- Source dropdown with three choices: **Hashtag | Community | Personal**.
-- Hashtag: open search (any `#`).
-- Community: only communities where user is a member; respect a UI-only "discoverable in search" toggle (no schema change).
-- Personal: only the current user's personal timelines; owner-only can add/remove.
+- Allow actual creation of personal timelines by writing `timeline_type: 'personal'` to the backend.
+- Introduce a real `(username, slug) → timeline_id` resolver that uses backend data.
+- Add ownership-aware permissions and a distinct visual identity for personal timelines (e.g., `@username` chips, different prefixes).
+- Update Home page Timelines tool to fully support filtering and navigating to Personal Timelines.
 
-#### Guardrails (no schema changes)
-- Community chips require membership.
-- Personal chips owner-only.
-- Hashtag chips open.
-
-#### Lookup & Caching
-- Resolve `:username/:slug → timeline_id` client-side; memoize/cache mapping for fast navigation.
-
-#### Open Questions (to revisit)
-- Community chip discoverability policy beyond UI toggle (needs backend later?).
-- Username color derivation for personal chips (hash → HSL) — confirm palette.
-
-#### Next Session Kickoff Checklist
-- [ ] Implement route + page shell using `TimelineV3`.
-- [ ] Slug utils and client cache; resolve → `timeline_id` then fetch via existing `/api/v1`.
-- [ ] Add Add-to-Timeline picker with 3-source dropdown and UI guard behavior.
-- [ ] Render personal username chip with tally badge and deterministic color.
-
-### Deferred Features (Post-Production)
-- [ ] Timeline name/description editing (requires uniqueness logic)
-- [ ] Timeline deletion functionality (requires confirmation flow)
-- [ ] Search/filter functionality for Manage Posts list
-- [ ] Pagination controls for Manage Posts
-- [ ] Loading states for report actions
-- [ ] Favicon/site icon for branding
-- [ ] Bulk member actions in Admin Panel
-- [ ] Member search and filtering in Admin Panel
-
----
-
-## Archive - Community Timeline Implementation (COMPLETE)
-
-### Final Status (2025-10-14)
-✅ **Community Timeline System - PRODUCTION READY**
-
-All core features implemented and tested:
-- Admin Panel with three tabs (Manage Members, Pending Requests, Settings)
-- Member management (promote/demote, remove, block/unblock)
-- Pending requests workflow with auto-expiry (30 days)
-- Settings tab with privacy toggle and approval requirements
-- 10-day cooldown system for privacy switching
-- Four redirect pages (PrivateTimelineLock, CommunityLockView, MembershipGuard, BlockedFromCommunity)
-- Smart join button with status indicators (Member, Pending, Blocked)
-- Report & moderation system with Manage Posts interface
-- PostgreSQL backend with proper migrations
-- Comprehensive documentation in README
-
-### Key Achievements
-- ✅ Zero mock data - all features use real backend APIs
-- ✅ Real-time updates across all actions
-- ✅ Passport sync for cross-session consistency
-- ✅ Permission guards and role enforcement
-- ✅ Immersive redirect pages following October 2025 standard
-- ✅ PostgreSQL compatibility with coding guidelines documented
-
----
-
-## Detailed History (Archive)
-
-## Sub Goal - Quote System ✅ COMPLETE
-
-### ✅ Foundation Completed:
-- [x] Review AdminPanel.js SettingsTab for quote logic
-- [x] Review QuoteDisplay.js for quote display logic
-- [x] Search for quote API functions in frontend and backend
-- [x] Cross-reference API and backend for quote endpoints
-- [x] Document and summarize current quote storage and update flow
-- [x] Identify gaps for per-timeline quote isolation and persistence
-- [x] Investigate misleading save notification for quote-only saves
-- [x] Add refresh button to quote settings area in AdminPanel
-- [x] Add `quote_text` and `quote_author` columns to Timeline model and database
-- [x] (Re)implement quote refresh button in AdminPanel to populate JFK quote
-- [x] Enumerate all frontend/backend elements that interact with quote fields and chart their current handling
-- [x] Update save notification to "Settings Saved Successfully!"
-- [x] Investigate and fix quote persistence bug (quote not saving or loading correctly)
-- [x] Plan and implement safe, stepwise backend integration for per-timeline quote persistence
-- [x] Add quote_text and quote_author columns to Timeline model and run safe migration
-- [x] Monitor for negative side effects post-migration (timeline creation, login, quote save/load)
-
-### 🎯 Foundation Status:
-- ✅ **Quote refresh button implemented** - Populates JFK quote in AdminPanel
-- ✅ **Database schema updated** - Timeline model now has quote_text and quote_author fields
-- ✅ **Backend integration complete** - Quote endpoints can now persist data per timeline
-- ✅ **Save notification fixed** - Shows "Settings Saved Successfully!"
-- ✅ **No negative side effects** - Timeline creation, login, and core functionality intact
-
-### 🎯 Quote System Status:
-- ✅ **Quote visual UI polished** - Implemented artistic quote display with glass morphism, oversized quote marks, and shimmer effects
-- ✅ **Quote display aesthetics improved** - Horizontal quote mark positioning, diamond separator, enhanced typography
-- ✅ **Visual feedback implemented** - Save states and loading indicators working
-- ✅ **Quote system complete** - All core functionality implemented and polished
-
-## Current Sub Goal - Admin Page Implementation
-
-### 🎯 Admin Page Focus:
-Significant progress has been made on the Admin Panel implementation. The member management functionality is now complete with real API integration, replacing all mock data with functional backend endpoints.
-
-### 📌 Today's Progress (2025-08-11)
-- [x] Active Members on Admin page now retrieves REAL user info from backend (no mock data in this view)
-- [x] Unified avatar fallback across app using `UserAvatar` (Navbar, Admin Panel, Members list, event cards/popups, profile pages)
-- [x] Fixed initials sizing to scale proportionally with avatar size
-- [x] Removed legacy fallback URLs and inline color overrides where found
-
-### ✅ Completed Admin Page Tasks:
-- [x] **Manage Members Section** - ✅ COMPLETE - Comprehensive member management functionality implemented
-  - [x] Member list display with roles and status
-  - [x] Member role management (promote/demote)
-  - [x] Member removal functionality
-  - [x] Member blocking/unblocking
-  - [x] Real API integration with backend endpoints
-  - [x] Loading states and error handling
-  - [x] Confirmation dialogs for sensitive actions
-  - [x] Snackbar notifications for user feedback
-  - [x] Tabs for active and blocked members
-  - [x] Fixed all syntax errors preventing frontend compilation
-
-### 📋 Remaining Admin Page Tasks:
-- [ ] **Manage Members Section** - Enhancement features
-  - [ ] Bulk member actions
+These items will be revisited with explicit discussion, especially when they require backend logic or schema changes (e.g., treating `'personal'` as a first-class `timeline_type`).
   - [ ] Member search and filtering
 - [ ] **Settings Tab Enhancement** - Complete admin settings functionality
 - [ ] **Manage Posts Tab** - Implement post moderation features

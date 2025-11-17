@@ -6,6 +6,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Close as CloseIcon } from '@mui/icons-material';
 import Navbar from './components/Navbar';
 import TimelineV3 from './components/timeline-v3/TimelineV3';
+import PersonalTimelineWrapper from './components/timeline-v3/PersonalTimelineWrapper';
 import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
@@ -564,6 +565,20 @@ function App() {
                   </Box>
                 } />
                 <Route path="/timeline-v3/:id" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <TimelineV3 />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:username/:slug" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <PersonalTimelineWrapper />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:username/:slug/:id" element={
                   <Box sx={{ pt: 8 }}>
                     <ProtectedRoute>
                       <TimelineV3 />

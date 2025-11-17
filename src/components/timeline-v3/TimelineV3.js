@@ -47,12 +47,13 @@ const CheckCircleIcon = CheckCircle;
 
 // API prefixes are handled by the api utility
 
-function TimelineV3() {
-  const { id } = useParams();
+function TimelineV3({ timelineId: timelineIdProp }) {
+  const { id: routeId } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const theme = useTheme();
-  const [timelineId, setTimelineId] = useState(id);
+  const effectiveId = timelineIdProp || routeId;
+  const [timelineId, setTimelineId] = useState(effectiveId);
   const [timelineName, setTimelineName] = useState('');
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
@@ -96,6 +97,13 @@ function TimelineV3() {
     }
   }, [hookIsMember, hookIsBlocked, hookIsPending, hookStatus]);
 
+
+  // Sync internal timelineId state when the source (prop or route param) changes
+  useEffect(() => {
+    if (effectiveId && effectiveId !== timelineId) {
+      setTimelineId(effectiveId);
+    }
+  }, [effectiveId, timelineId]);
 
   // Fetch timeline details when component mounts or timelineId changes (membership handled by useJoinStatus)
   useEffect(() => {

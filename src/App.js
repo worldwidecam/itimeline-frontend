@@ -6,6 +6,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Close as CloseIcon } from '@mui/icons-material';
 import Navbar from './components/Navbar';
 import TimelineV3 from './components/timeline-v3/TimelineV3';
+import PersonalTimelineWrapper from './components/timeline-v3/PersonalTimelineWrapper';
 import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
@@ -190,11 +191,9 @@ const Homepage = () => {
       }
 
       if (value === 'personal') {
-        // For now, personal timelines are a planned feature only.
-        // Keep backend-safe type but mark mode as personal for future use.
         setFormData(prev => ({
           ...prev,
-          timeline_type: 'community',
+          timeline_type: 'personal',
           visibility: 'public',
           timeline_mode: 'personal',
         }));
@@ -211,12 +210,6 @@ const Homepage = () => {
   const handleCreateTimeline = async () => {
     if (!formData.name.trim()) {
       alert('Please enter a timeline name');
-      return;
-    }
-
-    // Block creation for personal timelines until the feature is fully implemented
-    if (formData.timeline_mode === 'personal') {
-      alert('Personal timelines are coming soon. You can currently create Hashtag or Community timelines.');
       return;
     }
 
@@ -1028,6 +1021,22 @@ function App() {
                   </Box>
                 } />
                 <Route path="/timeline-v3/:id" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <ErrorBoundary onReset={() => window.location.reload()}>
+                        <TimelineV3 />
+                      </ErrorBoundary>
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:username/:slug" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <PersonalTimelineWrapper />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/timeline-v3/:username/:slug/:id" element={
                   <Box sx={{ pt: 8 }}>
                     <ProtectedRoute>
                       <ErrorBoundary onReset={() => window.location.reload()}>
