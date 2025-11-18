@@ -3153,162 +3153,187 @@ const handleRecenter = () => {
                 Control who can see this personal timeline.
               </Typography>
 
-                           <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Allowed viewers
-              </Typography>
-              <Stack spacing={1.5} sx={{ mb: 2 }}>
-                {/* Creator row with avatar + fun arrow label */}
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  alignItems="center"
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={3}
+                alignItems="flex-start"
+              >
+                {/* Left column: viewers list */}
+                <Box
                   sx={{
-                    p: 1,
-                    borderRadius: 2,
-                    bgcolor:
-                      theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.04)'
-                        : 'rgba(0,0,0,0.02)',
+                    flex: 1,
+                    minWidth: 0,
+                    maxHeight: 320,
+                    overflowY: 'auto',
+                    pr: { xs: 0, sm: 1 },
                   }}
                 >
-                  {/* Avatar placeholder – later we can replace with real avatar */}
-                  <UserAvatar
-                    name={user?.username || 'You'}
-                    avatarUrl={user?.avatar_url}
-                    id={user?.id}
-                    size={32}
-                    sx={{
-                      bgcolor:
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.12)'
-                          : 'rgba(0,0,0,0.06)',
-                    }}
-                  />
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      @{user?.username || 'you'}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-                    >
-                      <span style={{ transform: 'rotate(-20deg)', display: 'inline-block' }}>
-                        ↪
-                      </span>
-                      You (creator)
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                {/* Other allowed viewers */}
-                {allowedViewers.map((viewer) => (
-                  <Stack
-                    key={viewer.username}
-                    direction="row"
-                    spacing={1.5}
-                    alignItems="center"
-                    sx={{
-                      p: 1,
-                      borderRadius: 2,
-                      bgcolor:
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.02)'
-                          : 'rgba(0,0,0,0.01)',
-                    }}
-                  >
-                    <UserAvatar
-                      name={viewer.username || 'User'}
-                      avatarUrl={viewer.avatarUrl}
-                      id={viewer.id}
-                      size={28}
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Allowed viewers
+                  </Typography>
+                  <Stack spacing={1.5} sx={{ mb: 2 }}>
+                    {/* Creator row with avatar + fun arrow label */}
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="center"
                       sx={{
+                        p: 1,
+                        borderRadius: 2,
                         bgcolor:
                           theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(0,0,0,0.04)',
+                            ? 'rgba(255,255,255,0.04)'
+                            : 'rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      {/* Avatar placeholder – later we can replace with real avatar */}
+                      <UserAvatar
+                        name={user?.username || 'You'}
+                        avatarUrl={user?.avatar_url}
+                        id={user?.id}
+                        size={32}
+                        sx={{
+                          bgcolor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.12)'
+                              : 'rgba(0,0,0,0.06)',
+                        }}
+                      />
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          @{user?.username || 'you'}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                        >
+                          <span style={{ transform: 'rotate(-20deg)', display: 'inline-block' }}>
+                            ↪
+                          </span>
+                          You (creator)
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    {/* Other allowed viewers */}
+                    {allowedViewers.map((viewer) => (
+                      <Stack
+                        key={viewer.username}
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                        sx={{
+                          p: 1,
+                          borderRadius: 2,
+                          bgcolor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.02)'
+                              : 'rgba(0,0,0,0.01)',
+                        }}
+                      >
+                        <UserAvatar
+                          name={viewer.username || 'User'}
+                          avatarUrl={viewer.avatarUrl}
+                          id={viewer.id}
+                          size={28}
+                          sx={{
+                            bgcolor:
+                              theme.palette.mode === 'dark'
+                                ? 'rgba(255,255,255,0.08)'
+                                : 'rgba(0,0,0,0.04)',
+                          }}
+                        />
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="body2">@{viewer.username}</Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRemoveViewer(viewer.username)}
+                        >
+                          ×
+                        </IconButton>
+                      </Stack>
+                    ))}
+
+                    {allowedViewers.length === 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        Only you can currently see this personal timeline.
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+
+                {/* Right column: add viewer + share link */}
+                <Box
+                  sx={{
+                    flexBasis: { xs: '100%', sm: 260 },
+                    flexShrink: 0,
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Grant access by username
+                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Type a username"
+                      value={newViewerUsername}
+                      onChange={(e) => setNewViewerUsername(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddViewer();
+                        }
                       }}
                     />
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="body2">@{viewer.username}</Typography>
-                    </Box>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleRemoveViewer(viewer.username)}
+                    <Button
+                      variant="contained"
+                      onClick={handleAddViewer}
                     >
-                      ×
-                    </IconButton>
+                      Add
+                    </Button>
                   </Stack>
-                ))}
+                  {viewerError && (
+                    <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                      {viewerError}
+                    </Typography>
+                  )}
 
-                {allowedViewers.length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    Only you can currently see this personal timeline.
+                  <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                    Share personal link
                   </Typography>
-                )}
-              </Stack>
-              
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Grant access by username
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Type a username"
-                  value={newViewerUsername}
-                  onChange={(e) => setNewViewerUsername(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddViewer();
-                    }
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleAddViewer}
-                >
-                  Add
-                </Button>
-              </Stack>
-              {viewerError && (
-                <Typography variant="body2" color="error" sx={{ mb: 2 }}>
-                  {viewerError}
-                </Typography>
-              )}
-
-                            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-                Share personal link
-              </Typography>
-              <Stack spacing={1}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  value={personalShareUrl}
-                  InputProps={{
-                    readOnly: true,
-                  }}
-                />
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={async () => {
-                    try {
-                      if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(personalShareUrl);
-                      }
-                    } catch (e) {
-                      console.error('Failed to copy link:', e);
-                    }
-                  }}
-                  sx={{
-                    alignSelf: 'flex-start',
-                    borderRadius: 2,
-                  }}
-                >
-                  Copy link
-                </Button>
+                  <Stack spacing={1}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={personalShareUrl}
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          if (navigator.clipboard && navigator.clipboard.writeText) {
+                            await navigator.clipboard.writeText(personalShareUrl);
+                          }
+                        } catch (e) {
+                          console.error('Failed to copy link:', e);
+                        }
+                      }}
+                      sx={{
+                        alignSelf: 'flex-start',
+                        borderRadius: 2,
+                      }}
+                    >
+                      Copy link
+                    </Button>
+                  </Stack>
+                </Box>
               </Stack>
             </DialogContent>
             <DialogActions>

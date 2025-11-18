@@ -529,15 +529,22 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
 
 ## Personal Timeline – Access Panel (Current Step)
 
-- **Current active task**: Wire the Personal Timeline Access Panel viewers list to **real user data and avatars** while keeping changes localized to the frontend.
-- **Scope**:
-  - Use existing user/profile fetch patterns and `UserAvatar` to show accurate usernames and avatars for allowed viewers.
-  - Keep Access Panel behavior and visuals consistent with the current design (theme-aware, modern dialog, friendly share link + copy button).
-- **High-level implementation plan (frontend)**:
-  - Add a small API helper, e.g. `getUserByUsername(username)`, in `src/utils/api.js` that calls a username-lookup endpoint (to be implemented on the backend, such as `/api/users/lookup?username=`) and returns a single user object `{ id, username, avatar_url, ... }`.
-  - Update `TimelineV3` so `allowedViewers` is an array of **full viewer objects**, e.g. `{ id, username, avatarUrl }`, instead of bare usernames.
-  - Make `handleAddViewer` async: it should trim the input username, guard against duplicates, call `getUserByUsername`, and push the resolved user into `allowedViewers`; on failure, set a friendly `viewerError` message ("User not found" or server-provided text).
-  - Replace the placeholder avatar circles in the Access Panel viewer rows with the existing `UserAvatar` component, feeding it `name`, `avatarUrl`, and `id` so it uses the shared avatar/fallback color behavior across the app.
-- **Assumptions / Backend follow-up**:
-  - Backend will expose a lightweight, non-schema-changing username lookup endpoint returning `{ id, username, avatar_url, ... }`.
-  - Persistence of allowed viewers (who can view a personal timeline) will be handled in a later phase via a dedicated backend model/endpoint; for now the focus is on **frontend wiring and correct UI behavior**.
+- **Frontend status**: Personal Timeline Access Panel is now wired end-to-end on the frontend:
+  - Access Panel dialog is theme-aware, with creator row, viewer rows, and a responsive two-column layout (left = viewers list, right = add/share controls) so controls stay visible even with many viewers.
+  - Viewers list uses real user data: `allowedViewers` holds objects `{ id, username, avatarUrl }`.
+  - Avatars are rendered via the shared `UserAvatar` component for both creator and viewers.
+  - `getUserByUsername(username)` helper in `src/utils/api.js` calls `/api/users/lookup?username=` and handles 404 as a normal "User not found" case for the Access Panel.
+- **Current active task**: Backend support for the Access Panel, focused on **username lookup** and designing **viewer persistence**.
+- **Backend work done**:
+  - Implemented `GET /api/users/lookup` in `app.py` with `@jwt_required()`:
+    - Reads `username` from query params (required, trimmed).
+    - Case-insensitive lookup via `User.username.ilike(username)`.
+    - Returns 404 `{ error: 'User not found' }` when absent.
+    - On success returns `{ id, username, avatar_url, bio }`.
+- **Backend work planned (next)**:
+  - Design a persistence model for **allowed viewers of personal timelines**, likely a `timeline_viewers` or `personal_timeline_viewer` table keyed by `(timeline_id, user_id)`.
+  - Define minimal REST endpoints for managing viewers, e.g. under `/api/v1/timelines/<timeline_id>/viewers`:
+    - `GET` list of allowed viewers for a personal timeline.
+    - `POST` to add a viewer (by `user_id`), respecting owner/site-owner permissions.
+    - `DELETE` to remove a viewer.
+  - Keep this phase schema-light and aligned with the existing `Timeline`/`TimelineMember` model semantics, deferring any heavier permissions system changes until Personal Timelines are first-class (`timeline_type = 'personal'`).

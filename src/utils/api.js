@@ -602,12 +602,17 @@ export const getUserByUsername = async (username) => {
 
     return data;
   } catch (error) {
+    if (error?.response?.status === 404) {
+      console.warn('[API] Username not found:', trimmed, error?.response?.data);
+      throw new Error('User not found');
+    }
+
     console.error('[API] Error looking up user by username:', error);
     const message =
       error?.response?.data?.error ||
       error?.response?.data?.message ||
       error.message ||
-      'User not found';
+      'Failed to look up user';
     throw new Error(message);
   }
 };
