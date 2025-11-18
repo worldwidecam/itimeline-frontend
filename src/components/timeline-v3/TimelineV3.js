@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername } from '../../utils/api';
+import UserAvatar from '../common/UserAvatar';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
@@ -33,6 +34,8 @@ import CheckCircle from '@mui/icons-material/CheckCircle';
 import Block from '@mui/icons-material/Block';
 import Check from '@mui/icons-material/Check';
 import Settings from '@mui/icons-material/Settings';
+import Visibility from '@mui/icons-material/Visibility';
+import Security from '@mui/icons-material/Security';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -44,6 +47,8 @@ const SettingsIcon = Settings;
 const PersonAddIcon = PersonAdd;
 const CheckIcon = Check;
 const CheckCircleIcon = CheckCircle;
+const VisibilityIcon = Visibility;
+const SecurityIcon = Security;
 
 // API prefixes are handled by the api utility
 
@@ -57,6 +62,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [timelineName, setTimelineName] = useState('');
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
+  const [createdBy, setCreatedBy] = useState(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [joinRequestSent, setJoinRequestSent] = useState(false);
@@ -129,6 +135,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           setTimelineName(timelineData.name);
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
+          if (typeof timelineData.created_by !== 'undefined' && timelineData.created_by !== null) {
+            setCreatedBy(timelineData.created_by);
+          }
           setRequiresApproval(timelineData.requires_approval || false);
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
@@ -576,6 +585,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
+  const [accessPanelOpen, setAccessPanelOpen] = useState(false);
+  const [allowedViewers, setAllowedViewers] = useState([]);
+  const [newViewerUsername, setNewViewerUsername] = useState('');
+  const [viewerError, setViewerError] = useState('');
   
   const handleAddEventClick = (event) => {
     setAddEventAnchorEl(event.currentTarget);
@@ -583,6 +596,60 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   const handleAddEventMenuClose = () => {
     setAddEventAnchorEl(null);
+  };
+
+  const handleOpenAccessPanel = () => {
+    setViewerError('');
+    setAccessPanelOpen(true);
+  };
+
+  const handleCloseAccessPanel = () => {
+    setAccessPanelOpen(false);
+  };
+
+  const handleAddViewer = async () => {
+    const username = newViewerUsername.trim();
+    if (!username) {
+      setViewerError('Please enter a username.');
+      return;
+    }
+
+    // Prevent duplicates (case-insensitive)
+    if (
+      allowedViewers.some(
+        (v) => v.username && v.username.toLowerCase() === username.toLowerCase()
+      )
+    ) {
+      setViewerError('This user is already in the access list.');
+      return;
+    }
+
+    try {
+      setViewerError('');
+
+      const userData = await getUserByUsername(username);
+
+      if (!userData || !userData.id || !userData.username) {
+        setViewerError('User lookup returned invalid data.');
+        return;
+      }
+
+      const viewer = {
+        id: userData.id,
+        username: userData.username,
+        avatarUrl: userData.avatar_url || null,
+      };
+
+      setAllowedViewers((prev) => [...prev, viewer]);
+      setNewViewerUsername('');
+    } catch (e) {
+      console.error('[AccessPanel] Failed to add viewer:', e);
+      setViewerError(e.message || 'User not found.');
+    }
+  };
+
+  const handleRemoveViewer = (usernameToRemove) => {
+    setAllowedViewers((prev) => prev.filter((v) => v.username !== usernameToRemove));
   };
 
   // Get sort order from localStorage
@@ -707,6 +774,29 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   // Add state to track filtered events count
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
+
+  const isPersonalTimeline = timeline_type === 'personal';
+  const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
+  const isSiteOwner = user && Number(user.id) === 1;
+  const viewerCount = 1 + allowedViewers.length;
+  const viewerLabel = `${viewerCount} viewer${viewerCount !== 1 ? 's' : ''}`;
+  const createSlugFromName = (name) => {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const personalShareUrl =
+    typeof window !== 'undefined' && isPersonalTimeline && user
+      ? `${window.location.origin}/timeline-v3/${user.username}/${createSlugFromName(
+          timelineName
+        )}/${timelineId}`
+      : typeof window !== 'undefined'
+      ? window.location.href
+      : '';
 
   const handleEventSelect = (event) => {
     setSelectedEventId(event.id);
@@ -2903,8 +2993,68 @@ const handleRecenter = () => {
                     refreshMembership();
                   }}
                 />
+              ) : isPersonalTimeline ? (
+                isCreator ? (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Button
+                      onClick={handleOpenAccessPanel}
+                      variant="contained"
+                      sx={{
+                        bgcolor: theme.palette.info.main,
+                        color: 'white',
+                        boxShadow: 2,
+                        '&:hover': {
+                          bgcolor: theme.palette.info.dark,
+                        },
+                      }}
+                    >
+                      Access Panel
+                    </Button>
+                    <Button
+                      disabled
+                      startIcon={<VisibilityIcon sx={{ fontSize: '1.4rem' }} />}
+                      sx={{
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(25, 118, 210, 0.08)',
+                        color: theme.palette.mode === 'dark'
+                          ? theme.palette.primary.light
+                          : theme.palette.primary.main,
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        px: 2,
+                        py: 0.75,
+                        borderRadius: 2,
+                        border: `2px solid ${theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.12)'
+                          : theme.palette.primary.main}`,
+                        '&.Mui-disabled': {
+                          color: theme.palette.mode === 'dark'
+                            ? theme.palette.primary.light
+                            : theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      {viewerLabel}
+                    </Button>
+                  </Stack>
+                ) : isSiteOwner ? (
+                  <Button
+                    disabled
+                    startIcon={<SecurityIcon />}
+                    sx={{
+                      bgcolor: theme.palette.error.main,
+                      color: theme.palette.error.contrastText,
+                      fontWeight: 700,
+                      px: 2,
+                      py: 0.75,
+                      borderRadius: 2,
+                    }}
+                  >
+                    System Access
+                  </Button>
+                ) : null
               ) : (
-                // Non-community timeline button (delay until details loaded to avoid flicker)
                 isLoading ? (
                   <Button
                     disabled
@@ -2943,35 +3093,34 @@ const handleRecenter = () => {
                   onClose={handleAddEventMenuClose}
                   sx={{ mt: 1 }}
                 >
-
-                <MenuItem onClick={() => {
-                  handleAddEventMenuClose();
-                  setRemarkDialogOpen(true);
-                }}>
-                  <ListItemIcon>
-                    <CommentIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2' }} />
-                  </ListItemIcon>
-                  <ListItemText>Add Remark</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => {
-                  handleAddEventMenuClose();
-                  setNewsDialogOpen(true);
-                }}>
-                  <ListItemIcon>
-                    <NewspaperIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
-                  </ListItemIcon>
-                  <ListItemText>Add News</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => {
-                  handleAddEventMenuClose();
-                  setMediaDialogOpen(true);
-                }}>
-                  <ListItemIcon>
-                    <PermMediaIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0' }} />
-                  </ListItemIcon>
-                  <ListItemText>Add Media</ListItemText>
-                </MenuItem>
-              </Menu>
+                  <MenuItem onClick={() => {
+                    handleAddEventMenuClose();
+                    setRemarkDialogOpen(true);
+                  }}>
+                    <ListItemIcon>
+                      <CommentIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2' }} />
+                    </ListItemIcon>
+                    <ListItemText>Add Remark</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={() => {
+                    handleAddEventMenuClose();
+                    setNewsDialogOpen(true);
+                  }}>
+                    <ListItemIcon>
+                      <NewspaperIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
+                    </ListItemIcon>
+                    <ListItemText>Add News</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={() => {
+                    handleAddEventMenuClose();
+                    setMediaDialogOpen(true);
+                  }}>
+                    <ListItemIcon>
+                      <PermMediaIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0' }} />
+                    </ListItemIcon>
+                    <ListItemText>Add Media</ListItemText>
+                  </MenuItem>
+                </Menu>
               )}
             </Box>
             <Fade in={timelineOffset !== 0}>
@@ -2991,7 +3140,181 @@ const handleRecenter = () => {
               </Button>
             </Fade>
           </Stack>
+          {/* Personal Access Panel dialog (creator-only, controlled by accessPanelOpen) */}
+          <Dialog
+            open={accessPanelOpen}
+            onClose={handleCloseAccessPanel}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Access Panel</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Control who can see this personal timeline.
+              </Typography>
 
+                           <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Allowed viewers
+              </Typography>
+              <Stack spacing={1.5} sx={{ mb: 2 }}>
+                {/* Creator row with avatar + fun arrow label */}
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  alignItems="center"
+                  sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    bgcolor:
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.04)'
+                        : 'rgba(0,0,0,0.02)',
+                  }}
+                >
+                  {/* Avatar placeholder – later we can replace with real avatar */}
+                  <UserAvatar
+                    name={user?.username || 'You'}
+                    avatarUrl={user?.avatar_url}
+                    id={user?.id}
+                    size={32}
+                    sx={{
+                      bgcolor:
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.12)'
+                          : 'rgba(0,0,0,0.06)',
+                    }}
+                  />
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      @{user?.username || 'you'}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                    >
+                      <span style={{ transform: 'rotate(-20deg)', display: 'inline-block' }}>
+                        ↪
+                      </span>
+                      You (creator)
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                {/* Other allowed viewers */}
+                {allowedViewers.map((viewer) => (
+                  <Stack
+                    key={viewer.username}
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="center"
+                    sx={{
+                      p: 1,
+                      borderRadius: 2,
+                      bgcolor:
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.02)'
+                          : 'rgba(0,0,0,0.01)',
+                    }}
+                  >
+                    <UserAvatar
+                      name={viewer.username || 'User'}
+                      avatarUrl={viewer.avatarUrl}
+                      id={viewer.id}
+                      size={28}
+                      sx={{
+                        bgcolor:
+                          theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.08)'
+                            : 'rgba(0,0,0,0.04)',
+                      }}
+                    />
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="body2">@{viewer.username}</Typography>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveViewer(viewer.username)}
+                    >
+                      ×
+                    </IconButton>
+                  </Stack>
+                ))}
+
+                {allowedViewers.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    Only you can currently see this personal timeline.
+                  </Typography>
+                )}
+              </Stack>
+              
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Grant access by username
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Type a username"
+                  value={newViewerUsername}
+                  onChange={(e) => setNewViewerUsername(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddViewer();
+                    }
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAddViewer}
+                >
+                  Add
+                </Button>
+              </Stack>
+              {viewerError && (
+                <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                  {viewerError}
+                </Typography>
+              )}
+
+                            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                Share personal link
+              </Typography>
+              <Stack spacing={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={personalShareUrl}
+                  InputProps={{
+                    readOnly: true,
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(personalShareUrl);
+                      }
+                    } catch (e) {
+                      console.error('Failed to copy link:', e);
+                    }
+                  }}
+                  sx={{
+                    alignSelf: 'flex-start',
+                    borderRadius: 2,
+                  }}
+                >
+                  Copy link
+                </Button>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseAccessPanel}>Close</Button>
+            </DialogActions>
+          </Dialog>
           <Stack direction="row" spacing={2} alignItems="center">
             {/* Event Counter - Now shows filtered events count */}
             {(() => {

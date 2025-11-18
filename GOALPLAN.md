@@ -524,3 +524,20 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
 - Ensure complete Point B takeover
 
 **Current Status**: Point B architecture partially implemented. Only center positioning respects Point B authority. All other systems still defer to Point A, causing incomplete Point B functionality and rendering issues when Point B is far from Point A.
+
+# Most current response for Context
+
+## Personal Timeline – Access Panel (Current Step)
+
+- **Current active task**: Wire the Personal Timeline Access Panel viewers list to **real user data and avatars** while keeping changes localized to the frontend.
+- **Scope**:
+  - Use existing user/profile fetch patterns and `UserAvatar` to show accurate usernames and avatars for allowed viewers.
+  - Keep Access Panel behavior and visuals consistent with the current design (theme-aware, modern dialog, friendly share link + copy button).
+- **High-level implementation plan (frontend)**:
+  - Add a small API helper, e.g. `getUserByUsername(username)`, in `src/utils/api.js` that calls a username-lookup endpoint (to be implemented on the backend, such as `/api/users/lookup?username=`) and returns a single user object `{ id, username, avatar_url, ... }`.
+  - Update `TimelineV3` so `allowedViewers` is an array of **full viewer objects**, e.g. `{ id, username, avatarUrl }`, instead of bare usernames.
+  - Make `handleAddViewer` async: it should trim the input username, guard against duplicates, call `getUserByUsername`, and push the resolved user into `allowedViewers`; on failure, set a friendly `viewerError` message ("User not found" or server-provided text).
+  - Replace the placeholder avatar circles in the Access Panel viewer rows with the existing `UserAvatar` component, feeding it `name`, `avatarUrl`, and `id` so it uses the shared avatar/fallback color behavior across the app.
+- **Assumptions / Backend follow-up**:
+  - Backend will expose a lightweight, non-schema-changing username lookup endpoint returning `{ id, username, avatar_url, ... }`.
+  - Persistence of allowed viewers (who can view a personal timeline) will be handled in a later phase via a dedicated backend model/endpoint; for now the focus is on **frontend wiring and correct UI behavior**.

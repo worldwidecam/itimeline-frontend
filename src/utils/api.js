@@ -575,6 +575,44 @@ export const getTimelineDetails = async (timelineId) => {
 };
 
 /**
+ * Look up a user by username.
+ * Backend is expected to expose a small lookup endpoint that returns
+ * a single user object with at least: { id, username, avatar_url }.
+ *
+ * NOTE: The exact path `/api/users/lookup` can be adjusted later to
+ * match backend implementation without changing callers.
+ */
+export const getUserByUsername = async (username) => {
+  const trimmed = (username || '').trim();
+  if (!trimmed) {
+    throw new Error('Username is required');
+  }
+
+  try {
+    console.log(`[API] Looking up user by username: ${trimmed}`);
+    const response = await api.get('/api/users/lookup', {
+      params: { username: trimmed }
+    });
+
+    const data = response?.data;
+    if (!data || !data.id || !data.username) {
+      console.warn('[API] Username lookup returned unexpected payload:', data);
+      throw new Error('User lookup returned invalid data');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('[API] Error looking up user by username:', error);
+    const message =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      error.message ||
+      'User not found';
+    throw new Error(message);
+  }
+};
+
+/**
  * Update timeline visibility (public/private)
  * @param {number} timelineId - The ID of the timeline
  * @param {string} visibility - New visibility setting ('public' or 'private')
