@@ -617,6 +617,65 @@ export const getUserByUsername = async (username) => {
   }
 };
 
+export const resolvePersonalTimeline = async (username, slug) => {
+  const trimmedUsername = (username || '').trim();
+  const trimmedSlug = (slug || '').trim();
+
+  if (!trimmedUsername || !trimmedSlug) {
+    throw new Error('Username and slug are required');
+  }
+
+  try {
+    const response = await api.get('/api/v1/personal-timelines/resolve', {
+      params: { username: trimmedUsername, slug: trimmedSlug }
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getPersonalTimelineViewers = async (timelineId) => {
+  if (!timelineId) {
+    throw new Error('timelineId is required');
+  }
+
+  try {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/viewers`);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const addPersonalTimelineViewer = async (timelineId, userId) => {
+  if (!timelineId || !userId) {
+    throw new Error('timelineId and userId are required');
+  }
+
+  try {
+    const response = await api.post(`/api/v1/timelines/${timelineId}/viewers`, {
+      user_id: userId
+    });
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const removePersonalTimelineViewer = async (timelineId, userId) => {
+  if (!timelineId || !userId) {
+    throw new Error('timelineId and userId are required');
+  }
+
+  try {
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/viewers/${userId}`);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    throw error;
+  }
+};
+
 /**
  * Update timeline visibility (public/private)
  * @param {number} timelineId - The ID of the timeline

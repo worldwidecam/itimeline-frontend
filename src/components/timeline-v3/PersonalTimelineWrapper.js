@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Button } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../utils/api';
+import { resolvePersonalTimeline } from '../../utils/api';
 
 // Simple, local slug helper for Phase 1 (no backend coupling yet)
 const slugify = (name) => {
@@ -41,58 +41,28 @@ function PersonalTimelineWrapper() {
       return;
     }
 
-    if (username !== expectedUsername) {
-      // Phase 1: only own personal timelines are supported
-      setStatus('unsupported');
-      setErrorMessage('Viewing other users\' personal timelines is not available yet.');
-      return;
-    }
-
     const resolveTimeline = async () => {
       try {
         setStatus('loading');
+        const result = await resolvePersonalTimeline(username, slug);
 
-        // Reuse the same endpoint the Home page uses
-        const response = await api.get('/api/timeline-v3');
-        const timelines = Array.isArray(response.data) ? response.data : [];
+        setStatus('resolved');
+        navigate(`/timeline-v3/${username}/${slug}/${result.id}`, { replace: true });
+      } catch (err) {
+        console.error('[PersonalTimelineWrapper] Failed to resolve personal timeline:', err);
+        const statusCode = err?.response?.status;
 
-        console.log('[PersonalTimelineWrapper] Resolving personal timeline', {
-          username,
-          expectedUsername,
-          slug,
-          totalTimelines: timelines.length,
-          userId: user.id,
-        });
-
-        // Phase 2: only treat timelines explicitly marked as personal and owned by this user
-        const candidates = timelines.filter((t) => {
-          const createdBy = Number(t.created_by);
-          const currentUserId = Number(user.id);
-          const type = (t.timeline_type || '').toLowerCase();
-          return createdBy === currentUserId && type === 'personal';
-        });
-
-        console.log('[PersonalTimelineWrapper] Personal candidates for user', {
-          candidates: candidates.map((t) => ({
-            id: t.id,
-            name: t.name,
-            type: t.timeline_type,
-            slug: slugify(t.name),
-          })),
-        });
-
-        const matching = candidates.find((t) => slugify(t.name) === slug.toLowerCase());
-
-        if (!matching) {
+        if (statusCode === 404) {
           setStatus('not_found');
           return;
         }
 
-        // On success, redirect to the richer route that includes username, slug, and id
-        setStatus('resolved');
-        navigate(`/timeline-v3/${username}/${slug}/${matching.id}`, { replace: true });
-      } catch (err) {
-        console.error('[PersonalTimelineWrapper] Failed to resolve personal timeline:', err);
+        if (statusCode === 403) {
+          setStatus('forbidden');
+          setErrorMessage('You do not have access to this personal timeline.');
+          return;
+        }
+
         setErrorMessage('Could not load personal timeline information.');
         setStatus('error');
       }
@@ -126,6 +96,8 @@ function PersonalTimelineWrapper() {
       ? 'Personal timeline not set up yet'
       : status === 'unsupported'
       ? 'Personal timeline not available'
+      : status === 'forbidden'
+      ? 'Access to this personal timeline is restricted'
       : 'Personal timelines are coming soon';
 
   return (
@@ -152,8 +124,9 @@ function PersonalTimelineWrapper() {
           </>
         )}
         {status === 'unsupported' && <>{errorMessage}</>}
+        {status === 'forbidden' && <>{errorMessage || 'You do not have permission to view this personal timeline.'}</>}
         {status === 'error' && <>{errorMessage || 'Something went wrong while loading this personal timeline.'}</>}
-        {status !== 'not_found' && status !== 'unsupported' && status !== 'error' && (
+        {status !== 'not_found' && status !== 'unsupported' && status !== 'forbidden' && status !== 'error' && (
           <>
             We\'re preparing a dedicated Personal Timeline experience for <strong>{username}</strong>.
             <br />

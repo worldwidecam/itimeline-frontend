@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
@@ -634,13 +634,16 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         return;
       }
 
-      const viewer = {
-        id: userData.id,
-        username: userData.username,
-        avatarUrl: userData.avatar_url || null,
-      };
+      const backendViewers = await addPersonalTimelineViewer(timelineId, userData.id);
+      const mapped = Array.isArray(backendViewers)
+        ? backendViewers.map((v) => ({
+            id: v.id,
+            username: v.username,
+            avatarUrl: v.avatar_url || null,
+          }))
+        : [];
 
-      setAllowedViewers((prev) => [...prev, viewer]);
+      setAllowedViewers(mapped);
       setNewViewerUsername('');
     } catch (e) {
       console.error('[AccessPanel] Failed to add viewer:', e);
@@ -648,8 +651,22 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
   };
 
-  const handleRemoveViewer = (usernameToRemove) => {
-    setAllowedViewers((prev) => prev.filter((v) => v.username !== usernameToRemove));
+  const handleRemoveViewer = async (viewerId) => {
+    try {
+      const backendViewers = await removePersonalTimelineViewer(timelineId, viewerId);
+      const mapped = Array.isArray(backendViewers)
+        ? backendViewers.map((v) => ({
+            id: v.id,
+            username: v.username,
+            avatarUrl: v.avatar_url || null,
+          }))
+        : [];
+
+      setAllowedViewers(mapped);
+    } catch (e) {
+      console.error('[AccessPanel] Failed to remove viewer:', e);
+      setViewerError(e.message || 'Failed to remove viewer.');
+    }
   };
 
   // Get sort order from localStorage
@@ -797,6 +814,31 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       : typeof window !== 'undefined'
       ? window.location.href
       : '';
+
+  useEffect(() => {
+    const loadViewers = async () => {
+      if (!timelineId || timelineId === 'new') return;
+      if (!isPersonalTimeline) return;
+      if (!user) return;
+      if (!isCreator && !isSiteOwner) return;
+
+      try {
+        const viewers = await getPersonalTimelineViewers(timelineId);
+        const mapped = Array.isArray(viewers)
+          ? viewers.map((v) => ({
+              id: v.id,
+              username: v.username,
+              avatarUrl: v.avatar_url || null,
+            }))
+          : [];
+        setAllowedViewers(mapped);
+      } catch (e) {
+        console.error('[AccessPanel] Failed to load viewers:', e);
+      }
+    };
+
+    loadViewers();
+  }, [timelineId, isPersonalTimeline, isCreator, isSiteOwner, user, getPersonalTimelineViewers]);
 
   const handleEventSelect = (event) => {
     setSelectedEventId(event.id);
@@ -3219,7 +3261,7 @@ const handleRecenter = () => {
                     {/* Other allowed viewers */}
                     {allowedViewers.map((viewer) => (
                       <Stack
-                        key={viewer.username}
+                        key={viewer.id || viewer.username}
                         direction="row"
                         spacing={1.5}
                         alignItems="center"
@@ -3249,7 +3291,7 @@ const handleRecenter = () => {
                         </Box>
                         <IconButton
                           size="small"
-                          onClick={() => handleRemoveViewer(viewer.username)}
+                          onClick={() => handleRemoveViewer(viewer.id)}
                         >
                           ×
                         </IconButton>
