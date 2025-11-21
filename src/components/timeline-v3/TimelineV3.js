@@ -1459,6 +1459,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   useEffect(() => {
     if (!timelineId || timelineId === 'new') return;
     if (accessDenied) return; // Do not try to load events when access is denied
+    if (hookStatus === 'locked') return; // Respect locked timelines from membership hook
 
     const fetchEvents = async () => {
       try {
@@ -1567,7 +1568,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     };
 
     fetchEvents();
-  }, [timelineId, userInteracted, accessDenied]);
+  }, [timelineId, userInteracted, accessDenied, hookStatus]);
 
   // Fetch reviewing reports to show "In Review" icon on event popups
   useEffect(() => {
@@ -2458,6 +2459,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // If we're in a loading state, immediately load all content
     if (progressiveLoadingState !== 'complete') {
       const loadContent = async () => {
+        // Do not attempt to load events for locked timelines
+        if (accessDenied || hookStatus === 'locked') {
+          return;
+        }
+
         // If events aren't loaded yet, load them
         if (progressiveLoadingState === 'timeline') {
           console.log('User interacted with filter views, loading events immediately');

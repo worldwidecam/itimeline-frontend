@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Tooltip } from '@mui/material';
+import { Box, Typography, Tooltip, useTheme } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 
 /**
@@ -14,6 +14,7 @@ import LockIcon from '@mui/icons-material/Lock';
  * @param {Object} props.typographyProps - Additional props for the Typography component
  */
 const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typographyProps = {} }) => {
+  const theme = useTheme();
   // For personal timelines, use "My-" prefix similar to community style
   if (type === 'personal') {
     return (
@@ -37,7 +38,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
               style={{ 
                 fontFamily: 'Lobster, cursive',
                 marginRight: '4px',
-                color: 'inherit',
+                color: theme.palette.primary.main,
                 flexShrink: 0,
               }}
               aria-hidden="true"
@@ -73,7 +74,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             <span 
               style={{ 
                 marginRight: '4px',
-                color: 'inherit', // Use the same color as the parent Typography
+                color: theme.palette.primary.main,
                 flexShrink: 0,
               }}
               aria-hidden="true"
@@ -114,7 +115,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             style={{ 
               fontFamily: 'Lobster, cursive',
               marginRight: '4px',
-              color: 'inherit', // Use the same color as the parent Typography
+              color: theme.palette.primary.main,
               flexShrink: 0,
             }}
             aria-hidden="true"
