@@ -92,6 +92,20 @@ export default function useJoinStatus(timelineId, { user } = {}) {
         // Fetch timeline details for visibility/creator
         const t = await getTimelineDetails(timelineId);
         if (!mounted) return;
+        // If this timeline is locked for the current user, treat 403 as an expected state
+        if (t && t.error && t.statusCode === 403) {
+          setVisibility(t?.visibility || 'public');
+          setTimelineType(t?.timeline_type || null);
+          setCreatorId(t?.created_by ?? null);
+          setIsMember(false);
+          setIsBlocked(false);
+          setIsPending(false);
+          setRole(null);
+          setStatus('locked');
+          setLoading(false);
+          return;
+        }
+
         setVisibility(t?.visibility || 'public');
         setTimelineType(t?.timeline_type || null);
         setCreatorId(t?.created_by ?? null);

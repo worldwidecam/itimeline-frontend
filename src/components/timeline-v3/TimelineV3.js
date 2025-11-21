@@ -13,6 +13,7 @@ import HoverMarker from './HoverMarker';
 import PointBIndicator from './PointBIndicator';
 import EventMarker from './events/EventMarker';
 import TimelineNameDisplay from './TimelineNameDisplay';
+import PersonalTimelineLock from './PersonalTimelineLock';
 import EventCounter from './events/EventCounter';
 import EventList from './events/EventList';
 import EventDialog from './events/EventDialog';
@@ -53,7 +54,7 @@ const SecurityIcon = Security;
 // API prefixes are handled by the api utility
 
 function TimelineV3({ timelineId: timelineIdProp }) {
-  const { id: routeId } = useParams();
+  const { id: routeId, username: routeUsername, slug: routeSlug } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const theme = useTheme();
@@ -64,6 +65,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [visibility, setVisibility] = useState('public');
   const [createdBy, setCreatedBy] = useState(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
@@ -127,6 +129,13 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         // Import the getTimelineDetails function from api.js
         const { getTimelineDetails } = await import('../../utils/api');
         const timelineData = await getTimelineDetails(timelineId);
+
+        if (timelineData && timelineData.error && timelineData.statusCode === 403) {
+          // Mark this timeline as locked for the current user and clear any stale name
+          setAccessDenied(true);
+          setTimelineName('');
+          return;
+        }
         
         console.log('Timeline API response:', timelineData);
         
@@ -143,10 +152,16 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           console.error('Timeline data is missing or incomplete:', response.data);
         }
       } catch (error) {
-        console.error('Error fetching timeline details:', error);
-        console.error('Error response:', error.response);
-        console.error('Error request:', error.request);
-        console.error('Error config:', error.config);
+        if (error?.response?.status === 403) {
+          // Locked timeline from backend; treat as expected state and clear name without noisy logs
+          setAccessDenied(true);
+          setTimelineName('');
+        } else {
+          console.error('Error fetching timeline details:', error);
+          console.error('Error response:', error.response);
+          console.error('Error request:', error.request);
+          console.error('Error config:', error.config);
+        }
       } finally {
         setIsLoading(false);
         window.scrollTo(0, 0);  // Scroll to the top of the page
@@ -1422,9 +1437,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   // Fetch events when timeline ID changes with progressive loading
   useEffect(() => {
+    if (!timelineId || timelineId === 'new') return;
+    if (accessDenied) return; // Do not try to load events when access is denied
+
     const fetchEvents = async () => {
-      if (!timelineId || timelineId === 'new') return;
-      
       try {
         setIsLoadingEvents(true);
         console.log('Fetching events for timeline:', timelineId);
@@ -1463,9 +1479,18 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             }, 150);
             
             // Actually fetch the events - use api utility which handles prefixes correctly
-            const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-            console.log('Events response:', response.data);
-            setEvents(response.data);
+            try {
+              const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
+              console.log('Events response:', response.data);
+              setEvents(response.data);
+            } catch (error) {
+              if (error?.response?.status === 403) {
+                // Respect personal timeline ACL in this delayed path as well
+                setAccessDenied(true);
+                return;
+              }
+              throw error;
+            }
             
             // Update the loading state to events loaded
             setProgressiveLoadingState('events');
@@ -1509,15 +1534,20 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           clearInterval(structureLoadingInterval);
         };
       } catch (error) {
-        console.error('Error fetching events:', error);
-        setProgressiveLoadingState('error');
+        if (error?.response?.status === 403) {
+          // Respect personal timeline ACL: mark access denied and stop treating as an error
+          setAccessDenied(true);
+        } else {
+          console.error('Error fetching events:', error);
+          setProgressiveLoadingState('error');
+        }
       } finally {
         setIsLoadingEvents(false);
       }
     };
 
     fetchEvents();
-  }, [timelineId, userInteracted]);
+  }, [timelineId, userInteracted, accessDenied]);
 
   // Fetch reviewing reports to show "In Review" icon on event popups
   useEffect(() => {
@@ -2441,7 +2471,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             window.timelineEventPositions = [];
             window.timelineEventPositionsMap = null;
           } catch (error) {
-            console.error('Error fetching events after user interaction:', error);
+            if (error?.response?.status === 403) {
+              // Respect personal timeline ACL in interactive load path as well
+              setAccessDenied(true);
+            } else {
+              console.error('Error fetching events after user interaction:', error);
+            }
           }
         }
         
@@ -2964,6 +2999,22 @@ const handleRecenter = () => {
     setFilteredEventsCount(count);
   };
 
+  const isPersonalRoute = !!(routeUsername && routeSlug);
+
+  // For personal timeline URLs, don't render the main UI while membership/lock is still loading.
+  // This prevents a brief flash of the timeline header/Add Event button before we know if the
+  // user is allowed or locked.
+  if (isPersonalRoute && joinLoading) {
+    return <Box sx={{ minHeight: '100vh' }} />;
+  }
+
+  // Personal timeline lock behavior should mirror the community lock pattern.
+  // useJoinStatus marks locked timelines with status === 'locked' when getTimelineDetails
+  // returns a 403 for the current user. Treat that as the single source of truth.
+  if (!joinLoading && hookStatus === 'locked') {
+    return <PersonalTimelineLock username={routeUsername} slug={routeSlug} />;
+  }
+
   // Check if this is a private community timeline and user is not a member
   if (timeline_type === 'community' && visibility === 'private' && isMember === false && !isLoading) {
     const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
@@ -3097,18 +3148,9 @@ const handleRecenter = () => {
                   </Button>
                 ) : null
               ) : (
-                isLoading ? (
-                  <Button
-                    disabled
-                    sx={{
-                      bgcolor: 'rgba(0, 0, 0, 0.12)',
-                      color: theme.palette.text.secondary,
-                      '&.Mui-disabled': { color: theme.palette.text.secondary }
-                    }}
-                  >
-                    Loading...
-                  </Button>
-                ) : (
+                // Only show Add Event for non-personal, non-community timelines
+                // and only after we've finished loading the basic timeline metadata.
+                (!isLoading && !isPersonalTimeline && timeline_type !== 'community') ? (
                   <Button
                     onClick={handleAddEventClick}
                     variant="contained"
@@ -3124,6 +3166,17 @@ const handleRecenter = () => {
                     }}
                   >
                     Add Event
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    sx={{
+                      bgcolor: 'rgba(0, 0, 0, 0.12)',
+                      color: theme.palette.text.secondary,
+                      '&.Mui-disabled': { color: theme.palette.text.secondary }
+                    }}
+                  >
+                    Loading...
                   </Button>
                 )
               )}

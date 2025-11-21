@@ -132,6 +132,11 @@ function Navbar() {
             setLastVisitedTimeline(timelineData);
           }
         } catch (error) {
+          // For locked personal timelines, a 403 here is expected; avoid noisy logging
+          if (error?.response?.status === 403) {
+            setCurrentTimelineName('');
+            return;
+          }
           console.error('Error fetching timeline name:', error);
         }
       } else {

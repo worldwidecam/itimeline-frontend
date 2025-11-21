@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Button } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolvePersonalTimeline } from '../../utils/api';
+import PersonalTimelineLock from './PersonalTimelineLock';
 
 // Simple, local slug helper for Phase 1 (no backend coupling yet)
 const slugify = (name) => {
@@ -91,13 +92,15 @@ function PersonalTimelineWrapper() {
     return null;
   }
 
+  if (status === 'forbidden') {
+    return <PersonalTimelineLock username={username} slug={slug} />;
+  }
+
   const title =
     status === 'not_found'
       ? 'Personal timeline not set up yet'
       : status === 'unsupported'
       ? 'Personal timeline not available'
-      : status === 'forbidden'
-      ? 'Access to this personal timeline is restricted'
       : 'Personal timelines are coming soon';
 
   return (
@@ -124,9 +127,8 @@ function PersonalTimelineWrapper() {
           </>
         )}
         {status === 'unsupported' && <>{errorMessage}</>}
-        {status === 'forbidden' && <>{errorMessage || 'You do not have permission to view this personal timeline.'}</>}
         {status === 'error' && <>{errorMessage || 'Something went wrong while loading this personal timeline.'}</>}
-        {status !== 'not_found' && status !== 'unsupported' && status !== 'forbidden' && status !== 'error' && (
+        {status !== 'not_found' && status !== 'unsupported' && status !== 'error' && (
           <>
             We\'re preparing a dedicated Personal Timeline experience for <strong>{username}</strong>.
             <br />

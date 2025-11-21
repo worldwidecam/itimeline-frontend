@@ -556,9 +556,12 @@ export const getTimelineDetails = async (timelineId) => {
     console.log(`[getTimelineDetails] Success! Timeline data:`, response.data);
     return response.data;
   } catch (error) {
-    console.error(`[getTimelineDetails] Error fetching timeline ${timelineId}:`, error);
-    console.error(`[getTimelineDetails] Error response:`, error.response);
-    console.error(`[getTimelineDetails] Error request:`, error.request);
+    // For locked timelines, a 403 is expected; avoid noisy logging
+    if (error?.response?.status !== 403) {
+      console.error(`[getTimelineDetails] Error fetching timeline ${timelineId}:`, error);
+      console.error(`[getTimelineDetails] Error response:`, error.response);
+      console.error(`[getTimelineDetails] Error request:`, error.request);
+    }
     
     // Return a safe default object instead of throwing
     // This prevents the UI from crashing completely
@@ -569,7 +572,8 @@ export const getTimelineDetails = async (timelineId) => {
       timeline_type: 'hashtag',
       visibility: 'public',
       error: true,
-      errorMessage: error.message
+      errorMessage: error.message,
+      statusCode: error?.response?.status || null
     };
   }
 };
