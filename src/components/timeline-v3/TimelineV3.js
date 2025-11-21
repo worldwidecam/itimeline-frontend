@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -810,6 +810,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const isPersonalTimeline = timeline_type === 'personal';
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = user && Number(user.id) === 1;
+  const [creatorProfile, setCreatorProfile] = useState(null);
   const viewerCount = 1 + allowedViewers.length;
   const viewerLabel = `${viewerCount} viewer${viewerCount !== 1 ? 's' : ''}`;
   const createSlugFromName = (name) => {
@@ -829,6 +830,25 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       : typeof window !== 'undefined'
       ? window.location.href
       : '';
+
+  useEffect(() => {
+    const loadCreatorProfile = async () => {
+      if (!isPersonalTimeline) return;
+      if (!createdBy) return;
+      if (!user) return;
+      if (isCreator || isSiteOwner) return;
+
+      try {
+        const { getUserProfile } = await import('../../utils/api');
+        const profile = await getUserProfile(createdBy);
+        setCreatorProfile(profile);
+      } catch (e) {
+        console.error('[TimelineV3] Failed to load creator profile for viewer chip:', e);
+      }
+    };
+
+    loadCreatorProfile();
+  }, [isPersonalTimeline, createdBy, user, isCreator, isSiteOwner]);
 
   useEffect(() => {
     const loadViewers = async () => {
@@ -3146,7 +3166,52 @@ const handleRecenter = () => {
                   >
                     System Access
                   </Button>
-                ) : null
+                ) : (
+                  creatorProfile && (
+                    <Chip
+                      clickable
+                      onClick={() => navigate(`/profile/${creatorProfile.id}`)}
+                      avatar={
+                        <Avatar
+                          src={creatorProfile.avatar_url || undefined}
+                          alt={creatorProfile.username}
+                        />
+                      }
+                      label={`@${creatorProfile.username}`}
+                      sx={{
+                        ml: 1.5,
+                        px: 1.5,
+                        py: 0.25,
+                        borderRadius: 999,
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        background:
+                          theme.palette.mode === 'dark'
+                            ? 'linear-gradient(135deg, rgba(144, 202, 249, 0.16), rgba(206, 147, 216, 0.18))'
+                            : 'linear-gradient(135deg, rgba(129, 212, 250, 0.18), rgba(244, 143, 177, 0.22))',
+                        color: theme.palette.mode === 'dark'
+                          ? theme.palette.primary.light
+                          : theme.palette.primary.main,
+                        boxShadow:
+                          theme.palette.mode === 'dark'
+                            ? '0 4px 12px rgba(0, 0, 0, 0.45)'
+                            : '0 4px 12px rgba(0, 0, 0, 0.18)',
+                        '& .MuiChip-avatar': {
+                          width: 28,
+                          height: 28,
+                        },
+                        '&:hover': {
+                          boxShadow:
+                            theme.palette.mode === 'dark'
+                              ? '0 6px 18px rgba(0, 0, 0, 0.55)'
+                              : '0 6px 18px rgba(0, 0, 0, 0.24)',
+                          transform: 'translateY(-1px)',
+                        },
+                        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                      }}
+                    />
+                  )
+                )
               ) : (
                 // Only show Add Event for non-personal, non-community timelines
                 // and only after we've finished loading the basic timeline metadata.

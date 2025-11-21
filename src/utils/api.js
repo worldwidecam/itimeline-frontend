@@ -319,6 +319,20 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
   }
 };
 
+export const getUserProfile = async (userId) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  try {
+    const response = await api.get(`/api/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching user profile:', error);
+    throw error;
+  }
+};
+
 /**
  * Update a member's role in a community timeline
  * @param {number} timelineId - The ID of the timeline
