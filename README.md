@@ -1609,6 +1609,8 @@ This section contains low-priority improvements, polish items, and feature ideas
 #### Your Physical Notes
 *(Add your bullet point notes here)*
 - [ ] is email blur preference saved to passport?
+- [ ] i need to make a little ballot box form icon on the website
+- [ ] 
 - [ ] Submission idea box for users with ideas
 - [ ] i'm worried about event markers. lets brainstorm a better wat to visualize and optimize the event markers to plan for 1000s of events
 - [ ] the website needs a little icon image. like the one that comes with the URL  

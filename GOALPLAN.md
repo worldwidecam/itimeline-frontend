@@ -1,104 +1,124 @@
-# Personal Timeline Implementation — GOALPLAN
+# Hashtag / Timeline Creation System — V2 GOALPLAN
 
 ## Main Goal
 
-- Implement Personal Timelines as a first-class experience while reusing the existing `TimelineV3` engine.
-- Keep Community/Hashtag timelines stable while Personal can evolve independently over time.
+- Redesign the hashtag/timeline creation and chip display system (**V2**) so that:
+  - Hashtag (`#`), Community (`i-`), and Personal (`My-`) timelines have clear, consistent **naming/creation rules**.
+  - Event cards show **three distinct chip areas**: `#` tags vs `i-` community listings vs `My-` personal listings.
+  - The system can safely support overlapping names across types without confusion.
 
-## Current Focus (Phase 1)
+This replaces the older personal-timeline-only GOALPLAN; V2 is the new primary roadmap.
 
-**Phase 1 Objective**: Ship the basic scaffolding for Personal Timelines using current backend behavior.
+---
 
-- Personal timelines use the same underlying `Timeline` model and endpoints as community timelines.
-- `timeline_type` will eventually accept `'personal'`, but Phase 1 treats Personal as a **frontend-only mode** (no backend divergence yet).
-- Routing and UI entry points are prepared so we can layer in real data and behavior later phases.
+## V2 Naming / Creation Constraints (Agreed)
 
-## Architecture Overview (Personal Timelines)
+### 1. Hashtag Timelines (`#`)
 
-- **Core Engine**: `TimelineV3` (same component used for community timelines).
-- **Route Shapes**:
-  - Existing: `/timeline-v3/:id` → `TimelineV3` (hashtag/community).
-  - New (Personal): `/timeline-v3/:username/:slug` → `PersonalTimelineWrapper` (resolves to a timeline ID, then uses `TimelineV3`).
-- **Ownership Concept**:
-  - Each personal timeline is owned by a single user (derived from existing `created_by` / membership data in later phases).
-  - Phase 1 focuses on viewing; write/management flows come later.
+- **Within hashtag type**
+  - No duplicates: only one `#Fitness` hashtag timeline globally.
+- **Cross-type collisions**
+  - `#Fitness` **can** coexist with `i-Fitness`.
+  - `#Fitness` **can** coexist with any user’s `My-Fitness`.
 
-## Phase 1 — Scope and Constraints
+### 2. Community Timelines (`i-`)
 
-### Scope
+- **Within community type**
+  - No duplicates: only one `i-Fitness` community timeline globally.
+- **Cross-type collisions**
+  - `i-Fitness` **can** coexist with `#Fitness`.
+  - `i-Fitness` **can** coexist with any `My-Fitness`.
 
-- Add UX surface for Personal Timelines without changing existing Community/Hashtag behavior.
-- Prepare routing and UI so that personal timelines can later be wired to real data and permissions.
+### 3. Personal Timelines (`My-`)
 
-### Constraints
+- **Within personal type**
+  - Global duplicates are allowed.
+  - Per-user duplicates **not** allowed:
+    - User A can only have one personal `Fitness` timeline.
+    - User B can also have their own personal `Fitness` timeline.
+- **Cross-type collisions**
+  - `My-Fitness` can coexist with `#Fitness`.
+  - `My-Fitness` can coexist with `i-Fitness`.
+- **Concept**
+  - Personal timelines are meant to be **uniquely `[username]`’s _X_`**, not globally unique topics.
 
-- No schema changes in Phase 1 (no new `timeline_type` values written to the DB yet).
-- No backend endpoint changes in Phase 1.
-- No visual/UX redesign of `TimelineV3` without explicit approval; Personal will initially reuse the same look and feel.
+- **V2 posting & sharing rules (baseline)**
+  - **Exception to auto-`#` rule**: if an event is **created while on a `My-` timeline**, it does **not** auto-create or attach any `#` tag.
+  - The event is, by default, associated **only** with that specific `My-` timeline (no implicit `#`/`i-` or other `My-` listings).
+  - Posts created on a `My-` timeline are treated as **non-shareable** in V2 baseline: they do not leave that personal space unless a future Phase 2 rule explicitly allows it.
+  - From outside contexts (e.g. viewing a post on `#fitness` or `i-fitness`), the user **may still add** that external post to one of their `My-` timelines via `Add to Timeline`; the concern is leakage **out of** My-, not into it.
 
-## Phase 1 — Completed Steps
+> Backend note: current DB enforces a single global `Timeline.name` unique constraint. V2 will require relaxing that to per-type (and per-user for personal) uniqueness rules.
 
-- **Create Timeline Dialog (Home page)**
-  - ✅ Removed public/private sub-choice for community timelines; new community timelines default to `visibility: 'public'`.
-  - ✅ Added a third option in the Timeline Type radio group: **Personal Timeline**.
-  - ✅ When Personal Timeline is selected, creation is currently blocked with a clear alert:
-    - "Personal timelines are coming soon. You can currently create Hashtag or Community timelines."
-  - ✅ Internal `timeline_mode` flag added on the frontend: `'standard' | 'community' | 'personal'`.
+---
 
-- **Routing & Placeholder**
-  - ✅ New protected route added:
-    - `/timeline-v3/:username/:slug` → `PersonalTimelineWrapper`.
-  - ✅ `PersonalTimelineWrapper` component created under `src/components/timeline-v3/`.
-  - ✅ Wrapper currently displays a centered "Personal timelines are coming soon" message and confirms the URL pattern.
+## V2 Chip Layout & Semantics (Agreed So Far)
 
-## Phase 1 — Active Tasks
+### 1. Three Conceptual Chip Areas on Event Cards
 
-1. **Define Personal Timeline Data Strategy (Phase 1, no schema changes)**
-   - [ ] Decide how to identify a personal timeline using existing backend data (e.g., community timeline created by user with a convention).
-   - [ ] Decide how Phase 1 will treat Personal timelines in terms of visibility (owner-only vs public-like community), while still using existing endpoints.
+- **Main area (left)** — `#` area
+  - Holds **hashtag chips**: topic/content tags.
+  - Represents the **keyword dimension** of the event.
 
-2. **Design Resolver for `/timeline-v3/:username/:slug` (Phase 1)**
-   - [ ] Define slug rules (lowercase, spaces → hyphens, URL-safe characters).
-   - [ ] Phase 1 rule: only support `username === currentUser.username` for personal routes.
-   - [ ] Implement a frontend resolver that:
-     - Reads `:username` and `:slug` from the URL.
-     - Uses existing `/api/timeline-v3` data (Home timelines) to find the matching timeline for the current user.
-     - On resolution success: navigates to `/timeline-v3/:id` or renders `TimelineV3` with the resolved ID.
-     - On failure: shows a clear "Personal timeline not set up yet" state.
+- **Side-right area — Community lane**
+  - Holds **`i-` chips**: community timelines that **list/host** this event.
+  - One chip per associated community timeline.
 
-3. **Home Page - Timelines Tool Support**
-   - [ ] Plan Home page updates so users can find their personal timelines:
-     - [ ] Separate the search portion of the "Timelines" tool into a banner-width search strip under the main banner.
-     - [ ] Keep the existing Timelines list UI intact for now.
-     - [ ] Add a conceptual filter for "My Personal Timelines" that, in later phases, will filter timelines where the current user is the owner and `timeline_type` (or mode) is personal.
+- **Side-right area — Personal lane**
+  - Holds **`My-` chips**: personal timelines that **list/host** this event.
+  - Potentially multiple users’ `My-Fitness`, each with its own chip.
 
-## Phase 1 — Acceptance Criteria
+**Rule:** When `#Fitness`, `i-Fitness`, and one or more `My-Fitness` exist and are relevant to an event, each appears in its **respective area**:
 
-- The application clearly presents Personal Timeline as a future option:
-  - Create dialog shows Personal Timeline as a third type, but does not create real personal timelines yet.
-  - Visiting `/timeline-v3/:username/:slug` shows a stable placeholder (no errors).
-- No regressions to Community/Hashtag timelines (timeline creation, viewing, and admin features work exactly as before).
-- No backend or DB schema changes are required to complete Phase 1.
+- `#Fitness` → `#` area.
+- `i-Fitness` → Community lane.
+- `My-Fitness` (per user) → Personal lane.
 
-## Phase 2+ (Preview, not in scope yet)
+#### Personal lane behavior (V2 baseline)
 
-- Allow actual creation of personal timelines by writing `timeline_type: 'personal'` to the backend.
-- Introduce a real `(username, slug) → timeline_id` resolver that uses backend data.
-- Add ownership-aware permissions and a distinct visual identity for personal timelines (e.g., `@username` chips, different prefixes).
-- Update Home page Timelines tool to fully support filtering and navigating to Personal Timelines.
+- Posts **created on a `My-` timeline**:
+  - Render with a `My-` chip only in the personal lane.
+  - Have **no** corresponding `#` chip by default (they are exempt from the global auto-`#` rule).
+  - Are not eligible for `Add to Timeline` from within the personal context (see UI rules below).
+- Posts that originate on `#`/`i-`/elsewhere and are later **added to a `My-` timeline**:
+  - Continue to show their original `#`/`i-` chips as usual.
+  - Also gain a `My-` chip in the personal lane when viewed in contexts that show that association.
 
-These items will be revisited with explicit discussion, especially when they require backend logic or schema changes (e.g., treating `'personal'` as a first-class `timeline_type`).
-  - [ ] Member search and filtering
-- [ ] **Settings Tab Enhancement** - Complete admin settings functionality
-- [ ] **Manage Posts Tab** - Implement post moderation features
-- [ ] **Admin Dashboard** - Overview and analytics
-- [ ] **Search for and remove mock data from AdminPanel fallback/frontend code**
-  - Note: Active Members now uses real data; verify no mock fallbacks remain in other Admin tabs/paths
-- [ ] Clean up any unused `Avatar` imports and archive unused legacy components (`old_components/`)
-- [ ] Profile Settings: add user avatar fallback color picker (store preference locally; unify with `UserAvatar`)
+#### Event card presentation (V2 visual sketch)
 
-### 🔍 **AdminPanel Status Update:**
+- On **event cards** within `EventList`, the bottom chip row is structured left-to-right as:
+  - Up to **5 individual `#` chips**.
+    - If there are more than 5 hashtag tags, show only the first 5 plus an **ellipsis indicator** (e.g. `…`) to convey there are additional `#` tags.
+  - A single **"Community Timelines" basic chip**:
+    - Uses the existing community chip style (People icon, compact pill, same visual language as `i-` chips).
+    - Includes a **small tally badge** (top-right of the chip) showing how many community timelines list/host this event.
+  - A single **"Personal Timelines" basic chip**:
+    - Reuses that same general pill style, with personal-specific icon/prefix.
+    - Includes its own **tally badge** indicating how many personal timelines list/host this event.
+    - Does **not** expose individual personal timeline names here; it is an aggregate.
 
+- Clicking the **Community Timelines** or **Personal Timelines** basic chip on a card opens a small **inner popup / mini popover** that shows the underlying list for that lane (respecting privacy rules for personal timelines). This same "basic chip → mini popover" pattern should also work inside EventPopups.
+
+### 2. Tag Creation and Auto-Tagging (Initial Rule)
+
+- When a user creates a new tag while posting:
+  - Default rule: we **always** create/attach a `#name` tag (or associate to existing `#name` hashtag timeline).
+  - **Explicit exception**: when the post is being created on a **personal** timeline (`My-`), we **do not** create or attach a `#` tag; the post remains scoped to that personal timeline.
+
+- When the post is being created **on a community timeline** `i-Name`:
+  - V2 rule: **auto-associate** the event with both:
+    - `#Name` (hashtag dimension), and
+    - `i-Name` (community dimension).
+  - In practice this means:
+    - The event’s tags include `#name`.
+    - The event is in the `i-Name` timeline (as today).
+    - On cards, we show `#name` in the main area **and** an `i-Name` chip in the community lane.
+
+> This replaces the old behavior where a post made on an `i-` timeline could treat its tag itself as `i-` only. V2 standardizes on **always having a `#` tag**, then adding `i-`/`My-` as listings.
+
+> Personal exception: posts originating on `My-` timelines are intentionally excluded from this "always have a `#`" standard to protect personal-space privacy.
+
+---
 - **Active Members view**: now shows REAL data via `getTimelineMembers(id)` with proper avatars and roles
 - **Members list (community page)**: continues to show REAL data and now shares the same avatar fallback
 - **Remaining concern**: verify other Admin tabs/edge paths have no mock fallbacks

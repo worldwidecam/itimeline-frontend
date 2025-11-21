@@ -18,6 +18,7 @@ import {
   Divider,
   Menu,
   MenuItem,
+  useTheme,
 } from '@mui/material';
 import UserAvatar from './common/UserAvatar';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,6 +35,7 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
+  const theme = useTheme();
   const { user, logout } = useAuth();
   const { getBlurredEmail } = useEmailBlur();
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -261,8 +263,31 @@ function Navbar() {
                 }}>
                   i
                 </span>
+              ) : lastVisitedTimeline?.timeline_type === 'personal' ? (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontFamily: 'Lobster, cursive',
+                    marginLeft: '8px',
+                    fontSize: '1.1em',
+                    color: theme.palette.primary.main,
+                    flexShrink: 0,
+                  }}
+                >
+                  My-
+                </span>
               ) : (
-                <TagIcon sx={{ color: 'primary.main' }} />
+                <span
+                  aria-hidden="true"
+                  style={{
+                    marginLeft: '10px',
+                    fontSize: '1.1em',
+                    color: theme.palette.primary.main,
+                    flexShrink: 0,
+                  }}
+                >
+                  #
+                </span>
               )}
             </ListItemIcon>
             {/* For the hamburger menu, we're showing the icon separately, so we always pass 'hashtag' as type to avoid showing the prefix */}
@@ -380,8 +405,31 @@ function Navbar() {
                   }}>
                     i
                   </span>
+                ) : lastVisitedTimeline.timeline_type === 'personal' ? (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      fontFamily: 'Lobster, cursive',
+                      marginLeft: '8px',
+                      fontSize: '1.1em',
+                      color: theme.palette.primary.main,
+                      flexShrink: 0,
+                    }}
+                  >
+                    My-
+                  </span>
                 ) : (
-                  <TagIcon sx={{ color: 'primary.main' }} />
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      marginLeft: '10px',
+                      fontSize: '1.1em',
+                      color: theme.palette.primary.main,
+                      flexShrink: 0,
+                    }}
+                  >
+                    #
+                  </span>
                 )}
               </ListItemIcon>
               {/* For the last visited timeline, we're showing the icon separately, so we show just the name */}
@@ -484,6 +532,21 @@ function Navbar() {
                   transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                   anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                 >
+                  <MenuItem
+                    onClick={() => {
+                      navigate('/profile');
+                      handleClose();
+                    }}
+                    sx={{
+                      minWidth: '150px',
+                      py: 1.5,
+                    }}
+                  >
+                    <ListItemIcon>
+                      <PersonIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Profile" />
+                  </MenuItem>
                   <MenuItem onClick={handleLogout} sx={{ 
                     minWidth: '150px',
                     py: 1.5,
