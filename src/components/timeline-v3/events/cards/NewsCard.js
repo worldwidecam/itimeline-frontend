@@ -35,6 +35,7 @@ import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import TagList from './TagList';
+import EventCardChipsRow from './EventCardChipsRow';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import { alpha } from '@mui/material/styles';
@@ -553,7 +554,7 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOp
             </Link>
           )}
           <Box sx={{ mt: 'auto' }}>
-            <TagList 
+            <EventCardChipsRow 
               tags={event.tags} 
               associatedTimelines={event.associated_timelines || []}
               removedTimelineIds={event.removed_timeline_ids || []}

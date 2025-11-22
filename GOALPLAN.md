@@ -88,16 +88,18 @@ This replaces the older personal-timeline-only GOALPLAN; V2 is the new primary r
 
 - On **event cards** within `EventList`, the bottom chip row is structured left-to-right as:
   - Up to **5 individual `#` chips**.
-    - If there are more than 5 hashtag tags, show only the first 5 plus an **ellipsis indicator** (e.g. `…`) to convey there are additional `#` tags.
-  - A single **"Community Timelines" basic chip**:
-    - Uses the existing community chip style (People icon, compact pill, same visual language as `i-` chips).
+    - If there are more than 5 hashtag tags, show only the first 5 plus a compact **`+N` summary chip** (e.g. `+3`) to convey there are additional `#` tags.
+  - A single **`Communities` basic chip**:
+    - Uses the existing community chip style (two-people icon, compact pill, same visual language as `i-` chips).
+    - Text label uses the Lobster font for a clean, branded look; the tally number inside its badge can remain in a standard UI font for legibility.
     - Includes a **small tally badge** (top-right of the chip) showing how many community timelines list/host this event.
-  - A single **"Personal Timelines" basic chip**:
-    - Reuses that same general pill style, with personal-specific icon/prefix.
+  - A single **`Personals` basic chip**:
+    - Reuses that same general pill style, with a personal-specific icon/prefix (exact icon TBD).
+    - Text label is `Personals` in Lobster font.
     - Includes its own **tally badge** indicating how many personal timelines list/host this event.
-    - Does **not** expose individual personal timeline names here; it is an aggregate.
+    - Does **not** expose individual personal timeline names on the card; it is an aggregate.
 
-- Clicking the **Community Timelines** or **Personal Timelines** basic chip on a card opens a small **inner popup / mini popover** that shows the underlying list for that lane (respecting privacy rules for personal timelines). This same "basic chip → mini popover" pattern should also work inside EventPopups.
+- On **cards**, both `Communities` and `Personals` chips are **visual-only** (no mini popover on click); the richer detail lives in the EventPopup.
 
 ### 2. Tag Creation and Auto-Tagging (Initial Rule)
 
@@ -117,6 +119,37 @@ This replaces the older personal-timeline-only GOALPLAN; V2 is the new primary r
 > This replaces the old behavior where a post made on an `i-` timeline could treat its tag itself as `i-` only. V2 standardizes on **always having a `#` tag**, then adding `i-`/`My-` as listings.
 
 > Personal exception: posts originating on `My-` timelines are intentionally excluded from this "always have a `#`" standard to protect personal-space privacy.
+
+---
+
+### EventPopup lanes visual spec (V2 sketch)
+
+- In EventPopups, the **community** and **personal** lanes share a common structure:
+  - A **top selected chip** representing the currently focused community/personal timeline.
+  - A **vertical scroll list** of options below. Scrolling is **bouncy** and snaps so that the view always lands cleanly on row boundaries (no half-visible options).
+
+- **Community lane (`Communities`)**
+  - Top chip:
+    - Full community chip styling (two-people icon, `i-` visual language, tally if needed).
+    - Label shows the selected community timeline name.
+  - List below:
+    - Rows show community timeline names as basic text (no heavy chip styling).
+    - Clicking a row selects that community, promoting it to the top chip.
+  - Clicking the fully rendered top chip opens that community timeline in a new tab (same behavior as existing TagList chips), assuming the viewer has permission.
+
+- **Personal lane (`Personals`)**
+  - Top chip:
+    - Uses the `Personals` pill styling (heart+lock icon, Lobster label, tally badge).
+    - When the selected entry is one of the **current user’s** personal timelines, the label may show the specific name (e.g. `My-Fitness`).
+    - When the selected entry corresponds to **another user’s** personal timeline, the top chip instead uses a **user cover** representation (avatar + username) rather than exposing that personal timeline’s title.
+  - List below:
+    - For the **current user**:
+      - Rows list their own personal timelines by name; clicking a row selects it and promotes it to the top chip (name-based).
+    - For **other users**:
+      - Rows do **not** expose personal timeline names; they appear as simple **user cover** rows (avatar + username, non-flashy).
+      - Selecting a row promotes that user cover into the top chip, still without revealing the underlying personal title.
+    - **SiteOwner** may see all covers (all users who have this event in their personals), consistent with their higher-level permissions.
+  - Clicking the fully rendered top chip may open the underlying personal timeline in a new tab **only** when the viewer has permission (e.g. the owner or SiteOwner); otherwise it can remain a non-navigating indicator.
 
 ---
 - **Active Members view**: now shows REAL data via `getTimelineMembers(id)` with proper avatars and roles

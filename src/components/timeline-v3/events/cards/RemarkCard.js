@@ -24,7 +24,7 @@ import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
-import TagList from './TagList';
+import EventCardChipsRow from './EventCardChipsRow';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import UserAvatar from '../../../common/UserAvatar';
@@ -233,7 +233,7 @@ const RemarkCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopup
           </Box>
 
           <Box sx={{ mt: 'auto' }}>
-            <TagList 
+            <EventCardChipsRow 
               tags={event.tags} 
               associatedTimelines={event.associated_timelines || []} 
               removedTimelineIds={event.removed_timeline_ids || []}

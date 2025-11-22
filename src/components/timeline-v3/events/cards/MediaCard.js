@@ -29,7 +29,7 @@ import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
-import TagList from './TagList';
+import EventCardChipsRow from './EventCardChipsRow';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import VideoDetailsButton from './VideoDetailsButton';
@@ -1000,16 +1000,14 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
               </Typography>
             )}
             
-            {/* Tags */}
-            {event.tags && event.tags.length > 0 && (
-              <Box sx={{ mb: 1.5 }}>
-                <TagList 
-                  tags={event.tags} 
-                  associatedTimelines={event.associated_timelines || []}
-                  removedTimelineIds={event.removed_timeline_ids || []}
-                />
-              </Box>
-            )}
+            {/* Tags row (EventCard V2) */}
+            <Box sx={{ mb: 1.5 }}>
+              <EventCardChipsRow 
+                tags={event.tags} 
+                associatedTimelines={event.associated_timelines || []}
+                removedTimelineIds={event.removed_timeline_ids || []}
+              />
+            </Box>
             
             {/* Event metadata */}
             <Box sx={{ 
