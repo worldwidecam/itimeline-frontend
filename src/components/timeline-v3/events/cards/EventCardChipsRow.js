@@ -50,7 +50,9 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
     return [];
   }, [tags]);
 
-  // Derive hashtag tags (exclude anything that is already classified as a community timeline)
+  // Derive hashtag tags. Under V2 semantics, hashtag chips should be shown even when
+  // a community timeline shares the same base name, so we no longer filter them out
+  // based on communityNamesSet.
   const hashtagTags = useMemo(() => {
     const results = [];
     tagsArray.forEach((tag) => {
@@ -58,13 +60,10 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
         ? tag
         : (tag?.name || tag?.tag_name || '');
       if (!tagName) return;
-      const lower = tagName.toLowerCase();
-      // If this name matches a known community timeline, skip it here
-      if (communityNamesSet.has(lower)) return;
       results.push(tagName);
     });
     return results;
-  }, [tagsArray, communityNamesSet]);
+  }, [tagsArray]);
 
   if (hashtagTags.length === 0 && communitiesCount === 0 && personalsCount === 0) {
     return null;
