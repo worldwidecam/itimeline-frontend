@@ -82,17 +82,20 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
   const handleTagClick = async (e, tagName) => {
     e.stopPropagation();
     try {
-      const timelineName = tagName.toUpperCase();
+      // Strip any leading # so we resolve to the canonical hashtag timeline name
+      const baseName = (tagName || '').replace(/^#+/, '');
+      const timelineName = baseName.toUpperCase();
       const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
       if (response.data && response.data.id) {
         window.open(`/timeline-v3/${response.data.id}`, '_blank');
       } else {
-        const fallbackName = tagName.toUpperCase();
+        const fallbackName = timelineName;
         window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);
-      const fallbackName = tagName.toUpperCase();
+      const baseName = (tagName || '').replace(/^#+/, '');
+      const fallbackName = baseName.toUpperCase();
       window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
     }
   };

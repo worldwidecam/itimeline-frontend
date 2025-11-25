@@ -31,7 +31,7 @@ import {
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 
-const EventDialog = ({ open, onClose, onSave, initialEvent = null }) => {
+const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName, timelineType }) => {
   const theme = useTheme();
   const [eventType, setEventType] = useState(EVENT_TYPES.REMARK);
   const [title, setTitle] = useState('');
@@ -107,6 +107,39 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null }) => {
       setEventType(newType);
     }
   };
+
+  // Auto-add a default hashtag tag based on the current timeline for new events
+  useEffect(() => {
+    if (!open) return;
+    if (initialEvent) return;
+    if (!timelineName || typeof timelineName !== 'string') return;
+    if (tags.length > 0) return;
+
+    let baseName = timelineName.trim();
+    if (!baseName) return;
+
+    const type = (timelineType || 'hashtag').toLowerCase();
+
+    // Do not auto-add any tag for personal timelines
+    if (type === 'personal') {
+      return;
+    }
+
+    // For community timelines, strip leading i- when deriving the base hashtag name
+    if (type === 'community') {
+      const lower = baseName.toLowerCase();
+      if (lower.startsWith('i-')) {
+        baseName = baseName.slice(2);
+      }
+    }
+
+    // Store the bare name (no leading #) in the tags array so it behaves like
+    // user-entered tags (e.g. "test"), and let downstream rendering normalize
+    // how hashtag chips are displayed.
+    baseName = baseName.replace(/^#+/, '');
+
+    setTags([baseName]);
+  }, [open, initialEvent, timelineName, timelineType, tags.length]);
 
   const handleMediaChange = (event) => {
     const file = event.target.files[0];

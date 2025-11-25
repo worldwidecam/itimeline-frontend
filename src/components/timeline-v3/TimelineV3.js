@@ -1639,6 +1639,69 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     try {
       console.log('Sending event creation request to:', `/api/timeline-v3/${timelineId}/events`);
       
+      // =============================
+      // V2 Auto-tagging based on timeline type
+      // =============================
+      // We normalize and augment tags according to the hosting timeline:
+      // - Hashtag timelines: always ensure a #NAME tag matching the timeline
+      // - Community timelines (i-Name): ensure a #NAME tag (base name), while the i- chip
+      //   continues to come from the timeline association itself
+      // - Personal timelines (My-Name): do NOT auto-add any # tag; only the personal
+      //   association should be reflected via My- chips
+      let normalizedTags = [];
+
+      const ensureTagPresent = (rawTag) => {
+        if (!rawTag || typeof rawTag !== 'string') return;
+        let normalized = rawTag.trim();
+        if (!normalized) return;
+
+        // Prevent i- / my- style names from being treated as hashtags
+        const lower = normalized.toLowerCase();
+        if (lower.startsWith('i-') || lower.startsWith('my-')) {
+          return;
+        }
+
+        // Normalize to canonical tag/timeline name:
+        // - Strip any leading # (visual prefix is handled in the chip UI)
+        // - Collapse spaces to dashes
+        normalized = normalized.replace(/^#+/, '');
+        normalized = normalized.replace(/\s+/g, '-');
+
+        if (!normalizedTags.includes(normalized)) {
+          normalizedTags.push(normalized);
+        }
+      };
+
+      // First, normalize any tags coming from the EventDialog (including visual # prefixes)
+      if (Array.isArray(eventData.tags)) {
+        eventData.tags.forEach((rawTag) => {
+          ensureTagPresent(rawTag);
+        });
+      }
+
+      if (timelineName && typeof timelineName === 'string') {
+        const nameTrimmed = timelineName.trim();
+
+        if (timeline_type === 'hashtag') {
+          // Example: timelineName = "#FITNESS" or "FITNESS" -> ensure FITNESS tag
+          ensureTagPresent(nameTrimmed);
+        } else if (timeline_type === 'community') {
+          // Example: timelineName = "i-FITNESS" -> ensure #FITNESS
+          let baseName = nameTrimmed;
+          const lower = baseName.toLowerCase();
+          if (lower.startsWith('i-')) {
+            baseName = baseName.slice(2);
+          }
+          ensureTagPresent(baseName);
+        } else if (timeline_type === 'personal') {
+          // Explicit V2 rule: personal timelines should not auto-create/attach # tags
+          // Leave normalizedTags as-is; rely solely on the personal association.
+        }
+      }
+
+      // Replace eventData.tags with the normalized/augmented list
+      eventData.tags = normalizedTags;
+
       // Create a new date object from the event_date
       const originalDate = new Date(eventData.event_date);
       console.log('Original date before adjustment:', originalDate);
@@ -4180,6 +4243,8 @@ const handleRecenter = () => {
         }}
         onSave={handleEventSubmit}
         initialEvent={editingEvent}
+        timelineName={timelineName}
+        timelineType={timeline_type}
       />
       
       {/* Media Event Creator */}
@@ -4232,7 +4297,8 @@ const handleRecenter = () => {
             <Tooltip title="Create Media Event" placement="left">
               <Fab
                 onClick={() => {
-                  setMediaDialogOpen(true);
+                  setEditingEvent(null);
+                  setDialogOpen(true);
                   setFloatingButtonsExpanded(false);
                 }}
                 size="medium"
@@ -4268,7 +4334,8 @@ const handleRecenter = () => {
             <Tooltip title="Create News Event" placement="left">
               <Fab
                 onClick={() => {
-                  setNewsDialogOpen(true);
+                  setEditingEvent(null);
+                  setDialogOpen(true);
                   setFloatingButtonsExpanded(false);
                 }}
                 size="medium"
@@ -4304,7 +4371,8 @@ const handleRecenter = () => {
             <Tooltip title="Create Remark Event" placement="left">
               <Fab
                 onClick={() => {
-                  setRemarkDialogOpen(true);
+                  setEditingEvent(null);
+                  setDialogOpen(true);
                   setFloatingButtonsExpanded(false);
                 }}
                 size="medium"

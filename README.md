@@ -1608,6 +1608,7 @@ This section contains low-priority improvements, polish items, and feature ideas
 
 #### Your Physical Notes
 *(Add your bullet point notes here)*
+- [ ] when on a community timeline, eventform needs to understand if the community is private in anyway so that if it is, it actually does NOT auto add its #hashtag counterpart chip as well. i-chip will suffice 
 - [ ] need to redesign Remark Cards visually
 - [ ] in event creation form, the hashtag input field should ONLY add hashtags, not communities or personals
 - [ ] is email blur preference saved to passport?
