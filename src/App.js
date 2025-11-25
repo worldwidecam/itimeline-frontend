@@ -208,40 +208,61 @@ const Homepage = () => {
   };
 
   const handleCreateTimeline = async () => {
-    if (!formData.name.trim()) {
+    const rawName = formData.name.trim();
+    if (!rawName) {
       alert('Please enter a timeline name');
       return;
     }
 
     try {
       setLoading(true);
-      
-      // Check if a timeline with this name already exists to prevent UNIQUE constraint errors
-      const existingTimeline = timelines.find(
-        t => t.name.toLowerCase() === formData.name.trim().toLowerCase()
-      );
-      
-      if (existingTimeline) {
-        throw new Error('A timeline with this name already exists. Please choose a different name.');
+
+      // Normalize to upper-case to match backend V2 uniqueness rules
+      const normalizedName = rawName.toUpperCase();
+      const type = formData.timeline_type;
+
+      let existingTimeline = null;
+
+      if (type === 'personal') {
+        // Personal: unique per owner by (UPPER(name), type, created_by)
+        existingTimeline = timelines.find(t =>
+          (t.timeline_type || 'hashtag') === 'personal' &&
+          t.created_by === (user ? user.id : undefined) &&
+          (t.name || '').toUpperCase() === normalizedName
+        );
+      } else {
+        // Hashtag & community: globally unique per type by (UPPER(name), type)
+        existingTimeline = timelines.find(t =>
+          (t.timeline_type || 'hashtag') === type &&
+          (t.name || '').toUpperCase() === normalizedName
+        );
       }
-      
-      // Convert timeline name to uppercase for consistency with other parts of the app
+
+      if (existingTimeline) {
+        if (type === 'personal') {
+          throw new Error('You already have a personal timeline with this name.');
+        } else {
+          throw new Error('A timeline with this name already exists for this type.');
+        }
+      }
+
+      // Convert timeline name to uppercase for consistency with backend normalization
       const response = await api.post('/api/timeline-v3', {
-        name: formData.name.trim().toUpperCase(),
+        name: normalizedName,
         description: formData.description.trim(),
-        timeline_type: formData.timeline_type,
+        timeline_type: type,
         visibility: formData.visibility
       });
-      
+
       // Add the new timeline to the list and update filtered timelines
       const newTimeline = response.data;
       const updatedTimelines = [newTimeline, ...timelines].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
-      
+
       setTimelines(updatedTimelines);
       setFilteredTimelines(updatedTimelines);
-      
+
       handleDialogClose();
       // Navigate to the new timeline
       navigate(`/timeline-v3/${newTimeline.id}`);

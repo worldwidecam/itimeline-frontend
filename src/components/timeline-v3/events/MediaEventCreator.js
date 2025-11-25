@@ -48,23 +48,19 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
   const [currentTag, setCurrentTag] = useState('');
   const [error, setError] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
+  const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
 
   // Reference to the MediaUploader component
   const mediaUploaderRef = useRef(null);
 
-  // Reset form when dialog closes or add default timeline hashtag when opened
+  // Reset form when dialog closes or update personal timeline flag when opened
   useEffect(() => {
     if (!open) {
       resetForm();
     } else if (open && timelineName) {
-      // Add the current timeline as a hashtag if it's not already in the list
-      const timelineTag = timelineName.toLowerCase();
-      setTags(prevTags => {
-        if (!prevTags.includes(timelineTag)) {
-          return [...prevTags, timelineTag];
-        }
-        return prevTags;
-      });
+      // Treat timelines whose formatted name starts with "My-" as personal
+      const isPersonal = typeof timelineName === 'string' && timelineName.startsWith('My-');
+      setIsPersonalTimeline(isPersonal);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, timelineName]); // Removed tags from dependencies and used functional update
@@ -84,10 +80,33 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
   };
 
   const handleTagInputKeyDown = (e) => {
+    // Disable hashtag entry entirely on personal (My-) timelines
+    if (isPersonalTimeline) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+      return;
+    }
+
     if (e.key === 'Enter' && currentTag.trim()) {
       e.preventDefault();
-      if (!tags.includes(currentTag.trim())) {
-        setTags([...tags, currentTag.trim()]);
+      let raw = currentTag.trim();
+
+      // Prevent i- / My- style inputs from being treated as hashtags
+      const lower = raw.toLowerCase();
+      if (lower.startsWith('i-') || lower.startsWith('my-')) {
+        setCurrentTag('');
+        return;
+      }
+
+      // Normalize to hashtag form: ensure leading # and collapse spaces to dashes
+      if (!raw.startsWith('#')) {
+        raw = `#${raw.replace(/^#+/, '')}`;
+      }
+      const normalized = raw.replace(/\s+/g, '-');
+
+      if (!tags.includes(normalized)) {
+        setTags([...tags, normalized]);
       }
       setCurrentTag('');
     }
@@ -444,13 +463,14 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
               Tags
             </Typography>
             <TextField
-              label="Add tags (press Enter after each tag)"
+              label="Add hashtag (press Enter after each tag)"
               fullWidth
               value={currentTag}
               onChange={handleTagInputChange}
               onKeyDown={handleTagInputKeyDown}
               variant="outlined"
               size="small"
+              disabled={isPersonalTimeline}
               sx={{
                 mb: 2,
                 '& .MuiOutlinedInput-root': {

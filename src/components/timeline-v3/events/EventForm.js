@@ -90,6 +90,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
 
   const [availableTimelines, setAvailableTimelines] = useState([]);
   const [loadingTimelines, setLoadingTimelines] = useState(false);
+  const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
+  const [tagInput, setTagInput] = useState('');
 
   // Common sites with known logos
   const domainLogos = {
@@ -155,8 +157,28 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         urlDebounceTimer.current = null;
       }
       
-      // Fetch available timelines
+      // Fetch available timelines (currently only needed elsewhere, not for tag suggestions)
       fetchAvailableTimelines();
+
+      // Detect if the current timeline is personal (My-), to disable hashtag input
+      const checkTimelineType = async () => {
+        if (!timelineId) {
+          setIsPersonalTimeline(false);
+          return;
+        }
+        try {
+          const { getTimelineDetails } = await import('../../../utils/api');
+          const timelineData = await getTimelineDetails(timelineId);
+          const isPersonal = timelineData?.timeline_type === 'personal' ||
+            (typeof timelineData?.name === 'string' && timelineData.name.startsWith('My-'));
+          setIsPersonalTimeline(!!isPersonal);
+        } catch (error) {
+          console.error('Error detecting timeline type in EventForm:', error);
+          setIsPersonalTimeline(false);
+        }
+      };
+
+      checkTimelineType();
     }
   }, [open]);
 
@@ -246,23 +268,58 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
     }, 300); // 300ms debounce
   };
 
-  const handleTagChange = (event) => {
+  const handleAddTagFromInput = () => {
+    // On personal (My-) timelines, hashtag input is disabled by design to avoid
+    // auto-exposing personal-origin events as public hashtag chips.
+    if (isPersonalTimeline) {
+      setTagInput('');
+      return;
+    }
+
+    const raw = tagInput.trim();
+    if (!raw) return;
+
+    let normalized = raw;
+
+    // Prevent i- / My- style inputs from being treated as hashtags
+    const lower = normalized.toLowerCase();
+    if (lower.startsWith('i-') || lower.startsWith('my-')) {
+      setTagInput('');
+      return;
+    }
+
+    // Normalize to a hashtag form: ensure leading #, collapse spaces to dashes
+    if (!normalized.startsWith('#')) {
+      normalized = `#${normalized.replace(/^#+/, '')}`;
+    }
+    normalized = normalized.replace(/\s+/g, '-');
+
+    setFormData(prev => {
+      if (prev.tags.includes(normalized)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        tags: [...prev.tags, normalized]
+      };
+    });
+
+    setTagInput('');
+  };
+
+  const handleTagInputKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault();
+      handleAddTagFromInput();
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
     setFormData(prev => ({
       ...prev,
-      tags: event.target.value
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
-  
-  // Group timelines by type for the tag selector
-  const groupedTimelines = useMemo(() => {
-    const hashtags = availableTimelines.filter(timeline => timeline.timeline_type === 'hashtag');
-    const communities = availableTimelines.filter(timeline => timeline.timeline_type === 'community');
-    
-    return {
-      hashtags,
-      communities
-    };
-  }, [availableTimelines]);
 
   const validateForm = () => {
     if (!formData.title.trim()) {
@@ -1209,118 +1266,56 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         )}
 
         {activeTab === 2 && (
-          <FormControl fullWidth>
-            <InputLabel>Tags</InputLabel>
-            <Select
-              multiple
-              value={formData.tags}
-              onChange={handleTagChange}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((value) => {
-                    // Find if this tag corresponds to a timeline
-                    const timeline = availableTimelines.find(t => t.name.toUpperCase() === value.toUpperCase());
-                    
-                    if (timeline && timeline.timeline_type === 'community') {
-                      // Use TimelineNameDisplay for community timelines
-                      return (
-                        <Box 
-                          key={value} 
-                          sx={{ 
-                            display: 'inline-flex', 
-                            bgcolor: 'background.paper',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: '16px',
-                            px: 1,
-                            py: 0.5,
-                            alignItems: 'center'
-                          }}
-                        >
-                          <TimelineNameDisplay 
-                            name={value} 
-                            type="community" 
-                            visibility={timeline.visibility || 'public'}
-                            typographyProps={{ 
-                              variant: 'body2',
-                              sx: { fontSize: '0.75rem' }
-                            }}
-                          />
-                        </Box>
-                      );
-                    } else {
-                      // Regular chip for hashtag timelines or custom tags
-                      return <Chip key={value} label={value} />;
-                    }
-                  })}
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+              Hashtags
+            </Typography>
+
+            <Box
+              sx={{
+                position: 'relative',
+                filter: isPersonalTimeline ? 'blur(2px)' : 'none',
+                opacity: isPersonalTimeline ? 0.6 : 1,
+              }}
+            >
+              <TextField
+                label="Add hashtag"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagInputKeyDown}
+                fullWidth
+                placeholder="#MyTopic (press Enter to add)"
+                autoComplete="off"
+                disabled={isPersonalTimeline}
+              />
+
+              {formData.tags.length > 0 && (
+                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {formData.tags.map((tag) => (
+                    <Chip
+                      key={tag}
+                      label={tag}
+                      onDelete={() => handleRemoveTag(tag)}
+                      size="small"
+                    />
+                  ))}
                 </Box>
               )}
-            >
-              {/* Community Timelines Section */}
-              <ListSubheader sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>
-                Community Timelines
-              </ListSubheader>
-              {loadingTimelines ? (
-                <MenuItem disabled>
-                  <CircularProgress size={20} sx={{ mr: 1 }} />
-                  Loading timelines...
-                </MenuItem>
-              ) : groupedTimelines.communities.length > 0 ? (
-                groupedTimelines.communities.map((timeline) => (
-                  <MenuItem key={`community-${timeline.id}`} value={timeline.name}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                      <TimelineNameDisplay 
-                        name={timeline.name} 
-                        type="community" 
-                        visibility={timeline.visibility || 'public'}
-                      />
-                    </Box>
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled>No community timelines available</MenuItem>
-              )}
-              
-              {/* Hashtag Timelines Section */}
-              <Divider sx={{ my: 1 }} />
-              <ListSubheader sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>
-                Hashtag Timelines
-              </ListSubheader>
-              {loadingTimelines ? (
-                <MenuItem disabled>
-                  <CircularProgress size={20} sx={{ mr: 1 }} />
-                  Loading timelines...
-                </MenuItem>
-              ) : groupedTimelines.hashtags.length > 0 ? (
-                groupedTimelines.hashtags.map((timeline) => (
-                  <MenuItem key={`hashtag-${timeline.id}`} value={timeline.name}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                      <TimelineNameDisplay 
-                        name={timeline.name} 
-                        type="hashtag"
-                      />
-                    </Box>
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled>No hashtag timelines available</MenuItem>
-              )}
-              
-              {/* Common Tags Section */}
-              <Divider sx={{ my: 1 }} />
-              <ListSubheader sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>
-                Common Tags
-              </ListSubheader>
-              <MenuItem value="important">Important</MenuItem>
-              <MenuItem value="personal">Personal</MenuItem>
-              <MenuItem value="work">Work</MenuItem>
-              <MenuItem value="news">News</MenuItem>
-              <MenuItem value="media">Media</MenuItem>
-            </Select>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-              Select existing timelines or add custom tags to categorize this event
-            </Typography>
-          </FormControl>
+            </Box>
+
+            {isPersonalTimeline ? (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Hashtags are disabled when creating events on personal (My-) timelines to avoid
+                auto-exposing personal posts as public hashtag chips.
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                This field is hashtag-only. Type a topic like <code>#MyStory</code> and press Enter
+                to add it. Community (<code>i-</code>) and personal (<code>My-</code>) listings are
+                managed separately via timeline context and the Add-to-Timeline controls.
+              </Typography>
+            )}
+          </Box>
         )}
       </DialogContent>
 

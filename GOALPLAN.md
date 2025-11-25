@@ -580,24 +580,29 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
 
 # Most current response for Context
 
-## Personal Timeline – Access Panel (Current Step)
+## Timeline Chips implementation – Current Step
 
-- **Frontend status**: Personal Timeline Access Panel is now wired end-to-end on the frontend:
-  - Access Panel dialog is theme-aware, with creator row, viewer rows, and a responsive two-column layout (left = viewers list, right = add/share controls) so controls stay visible even with many viewers.
-  - Viewers list uses real user data: `allowedViewers` holds objects `{ id, username, avatarUrl }`.
-  - Avatars are rendered via the shared `UserAvatar` component for both creator and viewers.
-  - `getUserByUsername(username)` helper in `src/utils/api.js` calls `/api/users/lookup?username=` and handles 404 as a normal "User not found" case for the Access Panel.
-- **Current active task**: Backend support for the Access Panel, focused on **username lookup** and designing **viewer persistence**.
-- **Backend work done**:
-  - Implemented `GET /api/users/lookup` in `app.py` with `@jwt_required()`:
-    - Reads `username` from query params (required, trimmed).
-    - Case-insensitive lookup via `User.username.ilike(username)`.
-    - Returns 404 `{ error: 'User not found' }` when absent.
-    - On success returns `{ id, username, avatar_url, bio }`.
-- **Backend work planned (next)**:
-  - Design a persistence model for **allowed viewers of personal timelines**, likely a `timeline_viewers` or `personal_timeline_viewer` table keyed by `(timeline_id, user_id)`.
-  - Define minimal REST endpoints for managing viewers, e.g. under `/api/v1/timelines/<timeline_id>/viewers`:
-    - `GET` list of allowed viewers for a personal timeline.
-    - `POST` to add a viewer (by `user_id`), respecting owner/site-owner permissions.
-    - `DELETE` to remove a viewer.
-  - Keep this phase schema-light and aligned with the existing `Timeline`/`TimelineMember` model semantics, deferring any heavier permissions system changes until Personal Timelines are first-class (`timeline_type = 'personal'`).
+- **Phase name:** "Timeline Chips implementation" (V2 of hashtag chips + timeline creation semantics).
+
+- **What’s implemented now (cards):**
+  - New `EventCardChipsRow` is wired into `MediaCard`, `RemarkCard`, and `NewsCard`.
+  - Event cards now show:
+    - Up to 5 individual `#` chips, with a `+N` chip at the end of the hashtag group when more tags exist.
+    - A `Communities` pill with tally badge when there are associated community timelines.
+    - A `Personals` pill (heart+lock icon) with tally badge when the event is listed in personal timelines.
+  - On cards, `Communities` and `Personals` pills are **visual-only** (no popover yet); detailed per-timeline exploration remains in EventPopup for a later phase.
+  - A small font-size bump for `Communities` / `Personals` pill labels on cards is planned so they read more strongly than the smaller `#` chips.
+
+- **Current behavioral issue discovered:**
+  - EventForm’s tag input allows arbitrary strings, so typing a personal timeline name both:
+    - Counts toward personal listings (via `associated_timelines`), and
+    - Appears as a `#` chip, which breaks the separation between hashtags vs listings.
+
+- **Next active task:**
+  - Redesign **EventForm** tag input so it is **strictly hashtag-only**:
+    - The tag selector/input only ever adds `#` tags (topic hashtags).
+    - `i-` (community) and `My-` (personal) listings are **not** created from this field.
+    - Instead, listings come from:
+      - The **timeline context** of creation (auto-association when posting on `#` / `i-` / `My-` pages).
+      - Post-creation management in **EventPopup** (Add-to-Timeline with the 3-mode selector for `#` / `i-` / `My-`).
+    - On `My-` timelines, the tag field may be disabled/blurred to honor the rule that personal-origin posts do not auto-expose `#` tags.
