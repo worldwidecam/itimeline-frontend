@@ -42,6 +42,9 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState('');
+  const [mediaUploadResult, setMediaUploadResult] = useState(null);
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaUploadError, setMediaUploadError] = useState(null);
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
 
@@ -141,15 +144,63 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
     setTags([baseName]);
   }, [open, initialEvent, timelineName, timelineType, tags.length]);
 
-  const handleMediaChange = (event) => {
+  const handleMediaChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
       setMediaFile(file);
+      setMediaUploadError(null);
+      
+      // Create preview for UI
       const reader = new FileReader();
       reader.onloadend = () => {
         setMediaPreview(reader.result);
       };
       reader.readAsDataURL(file);
+
+      // Upload to backend immediately
+      await uploadMediaFile(file);
+    }
+  };
+
+  const uploadMediaFile = async (file) => {
+    setMediaUploading(true);
+    setMediaUploadError(null);
+
+    try {
+      // Determine media subtype from file MIME
+      let mediaSubtype = 'other';
+      if (file.type.startsWith('image/')) {
+        mediaSubtype = 'image';
+      } else if (file.type.startsWith('video/')) {
+        mediaSubtype = 'video';
+      } else if (file.type.startsWith('audio/')) {
+        mediaSubtype = 'audio';
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('media_type', mediaSubtype);
+      formData.append('media_subtype', mediaSubtype);
+
+      const response = await api.post('/api/upload-media', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000
+      });
+
+      console.log('EventDialog: Media upload successful:', response.data);
+
+      // Store upload result with all metadata
+      setMediaUploadResult({
+        url: response.data.url,
+        cloudinary_id: response.data.cloudinary_id || response.data.public_id,
+        media_type: file.type,
+        media_subtype: mediaSubtype
+      });
+    } catch (error) {
+      console.error('EventDialog: Media upload failed:', error);
+      setMediaUploadError(error.response?.data?.error || 'Upload failed');
+    } finally {
+      setMediaUploading(false);
     }
   };
 
@@ -208,9 +259,15 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       eventData.url_image = urlPreview.image || '';
     }
 
-    if (eventType === EVENT_TYPES.MEDIA && mediaFile) {
-      eventData.media_url = mediaPreview;
-      eventData.media_type = mediaFile.type;
+    if (eventType === EVENT_TYPES.MEDIA && mediaUploadResult) {
+      eventData.media_url = mediaUploadResult.url;
+      eventData.media_type = mediaUploadResult.media_type;
+      eventData.media_subtype = mediaUploadResult.media_subtype;
+      eventData.cloudinary_id = mediaUploadResult.cloudinary_id;
+    } else if (eventType === EVENT_TYPES.MEDIA && !mediaUploadResult) {
+      // Prevent submission if media type selected but no upload completed
+      console.error('EventDialog: Media event requires uploaded media');
+      return;
     }
 
     if (tags.length > 0) {

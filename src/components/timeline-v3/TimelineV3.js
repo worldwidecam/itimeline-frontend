@@ -1635,7 +1635,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   }, [timelineId]);
 
   const handleEventSubmit = async (eventData) => {
-    let mediaUrl = null; // Define mediaUrl here
     try {
       console.log('Sending event creation request to:', `/api/timeline-v3/${timelineId}/events`);
       
@@ -1702,6 +1701,26 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       // Replace eventData.tags with the normalized/augmented list
       eventData.tags = normalizedTags;
 
+      // Normalize media fields from various legacy/new shapes
+      // Prefer explicit fields from the creator (new EventForm path),
+      // but still support legacy MediaEventCreator "media" object.
+      let mediaUrl = eventData.media_url ||
+        (eventData.media && (eventData.media.url || eventData.media.media_url)) ||
+        eventData.url ||
+        null;
+
+      let mediaType = eventData.media_type ||
+        (eventData.media && eventData.media.type) ||
+        '';
+
+      let mediaSubtype = eventData.media_subtype ||
+        (eventData.media && eventData.media.media_subtype) ||
+        '';
+
+      const cloudinaryId = eventData.cloudinary_id ||
+        (eventData.media && (eventData.media.cloudinary_id || eventData.media.public_id)) ||
+        null;
+
       // Create a new date object from the event_date
       const originalDate = new Date(eventData.event_date);
       console.log('Original date before adjustment:', originalDate);
@@ -1742,8 +1761,13 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         url_description: eventData.url_description || '',
         url_image: eventData.url_image || '',
         url_source: eventData.url_source || '',
+        // Media fields – only meaningful when type === 'media'.
+        // We forward what we have without forcing empty strings so the backend
+        // can enforce invariants and derive subtypes.
         media_url: mediaUrl || '',
-        media_type: eventData.media ? eventData.media.type.split('/')[0] : '',
+        media_type: mediaType || '',
+        media_subtype: mediaSubtype || '',
+        cloudinary_id: cloudinaryId || undefined,
         tags: eventData.tags || []
       });
       console.log('Event creation response:', response.data);

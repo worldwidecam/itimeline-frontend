@@ -584,25 +584,23 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
 
 - **Phase name:** "Timeline Chips implementation" (V2 of hashtag chips + timeline creation semantics).
 
-- **What’s implemented now (cards):**
-  - New `EventCardChipsRow` is wired into `MediaCard`, `RemarkCard`, and `NewsCard`.
-  - Event cards now show:
-    - Up to 5 individual `#` chips, with a `+N` chip at the end of the hashtag group when more tags exist.
-    - A `Communities` pill with tally badge when there are associated community timelines.
-    - A `Personals` pill (heart+lock icon) with tally badge when the event is listed in personal timelines.
-  - On cards, `Communities` and `Personals` pills are **visual-only** (no popover yet); detailed per-timeline exploration remains in EventPopup for a later phase.
-  - A small font-size bump for `Communities` / `Personals` pill labels on cards is planned so they read more strongly than the smaller `#` chips.
+**What’s implemented now (cards + EventDialog):**
 
-- **Current behavioral issue discovered:**
-  - EventForm’s tag input allows arbitrary strings, so typing a personal timeline name both:
-    - Counts toward personal listings (via `associated_timelines`), and
-    - Appears as a `#` chip, which breaks the separation between hashtags vs listings.
+- New `EventCardChipsRow` is wired into `MediaCard`, `RemarkCard`, and `NewsCard`.
+- Event cards now show:
+  - Up to 5 individual `#` chips, with a `+N` chip at the end of the hashtag group when more tags exist.
+  - A `Communities` pill with tally badge when there are associated community timelines.
+  - A `Personals` pill (heart+lock icon) with tally badge when the event is listed in personal timelines.
+- On cards, `Communities` and `Personals` pills are **visual-only** (no popover yet); detailed per-timeline exploration remains in EventPopup for a later phase.
+- Hashtag navigation from `#` chips has been normalized so that when `#Name` and `i-Name` both exist, hashtag chips always open the **hashtag** timeline.
+- Unified `EventDialog` (EventForm replacement) now enforces V2 rules:
+  - On hashtag timelines: auto-adds the base hashtag tag, stores canonical tag names without leading `#`, and ensures the event associates with the matching hashtag timeline.
+  - On community timelines: auto-adds the base hashtag tag and ensures the event is associated with both the community and the corresponding hashtag timeline; chips show in their correct lanes.
+  - On personal timelines: does **not** auto-add any `#` tag; `EventDialog` tag input is disabled/blurred with helper copy so personal-origin posts stay scoped to that personal timeline.
 
-- **Next active task:**
-  - Redesign **EventForm** tag input so it is **strictly hashtag-only**:
-    - The tag selector/input only ever adds `#` tags (topic hashtags).
-    - `i-` (community) and `My-` (personal) listings are **not** created from this field.
-    - Instead, listings come from:
-      - The **timeline context** of creation (auto-association when posting on `#` / `i-` / `My-` pages).
-      - Post-creation management in **EventPopup** (Add-to-Timeline with the 3-mode selector for `#` / `i-` / `My-`).
-    - On `My-` timelines, the tag field may be disabled/blurred to honor the rule that personal-origin posts do not auto-expose `#` tags.
+**Next active task:**
+
+- Bring **EventPopup** in line with V2 chip semantics:
+  - Ensure the “Tag a Timeline” / Add-to-Timeline flow respects the separation between `#` tags vs `i-` / `My-` listings.
+  - When adding an event to another timeline via EventPopup, derive associations according to V2 rules (e.g., adding to a community should create/attach the corresponding `#` hashtag, adding to a personal timeline should **not** leak new `#` tags from that context).
+  - Keep cards as the lightweight overview; use EventPopup as the detailed place to inspect and manage which `#` / `i-` / `My-` timelines an event belongs to.

@@ -375,20 +375,54 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
       // Add the event to the timeline
       await api.post(`/api/timeline-v3/${selectedTimeline.id}/add-event/${event.id}`);
       
-      // Create the new tag name based on the timeline name
-      const newTagName = selectedTimeline.name.toLowerCase();
-      
-      // Update the local event data with the new tag
-      const updatedEvent = { ...event };
-      if (!updatedEvent.tags) {
-        updatedEvent.tags = [];
+      // Update the local event data to reflect new associations under V2 rules
+      const updatedEvent = { ...(localEventData || event) };
+
+      const timelineType = (selectedTimeline.timeline_type || selectedTimeline.type || 'hashtag').toLowerCase();
+
+      // Ensure associated_timelines reflects the new listing
+      const assoc = (updatedEvent.associated_timelines || event.associated_timelines || []).slice();
+      const alreadyAssoc = assoc.some(tl => tl && Number(tl.id) === Number(selectedTimeline.id));
+      if (!alreadyAssoc) {
+        assoc.push({
+          id: selectedTimeline.id,
+          name: selectedTimeline.name,
+          type: timelineType,
+        });
       }
-      
-      // Only add the tag if it doesn't already exist
-      if (!updatedEvent.tags.includes(newTagName)) {
-        updatedEvent.tags.push(newTagName);
-        setLocalEventData(updatedEvent);
+      updatedEvent.associated_timelines = assoc;
+
+      // Manage tags locally only for hashtag/community additions; personal listings do not change tags
+      let tags = (updatedEvent.tags || event.tags || []).slice();
+
+      if (timelineType === 'hashtag') {
+        const baseName = (selectedTimeline.name || '').toLowerCase();
+        if (baseName && !tags.some(t => (t.name || t) === baseName)) {
+          // Preserve existing tag object shape when possible
+          if (tags.length && typeof tags[0] === 'object') {
+            tags.push({ id: null, name: baseName });
+          } else {
+            tags.push(baseName);
+          }
+        }
+      } else if (timelineType === 'community') {
+        let baseName = selectedTimeline.name || '';
+        const lower = baseName.toLowerCase();
+        if (lower.startsWith('i-')) {
+          baseName = baseName.slice(2);
+        }
+        const tagName = baseName.toLowerCase();
+        if (tagName && !tags.some(t => (t.name || t) === tagName)) {
+          if (tags.length && typeof tags[0] === 'object') {
+            tags.push({ id: null, name: tagName });
+          } else {
+            tags.push(tagName);
+          }
+        }
       }
+
+      updatedEvent.tags = tags;
+      setLocalEventData(updatedEvent);
       
       // Show success message
       setSuccess(`Event added to "${selectedTimeline.name}" timeline successfully!`);
@@ -407,57 +441,59 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
   // Determine if this is an image media event
   const isImageMedia = () => {
     if (safeEventType !== EVENT_TYPES.MEDIA) return false;
-    
-    const mediaSource = event.media_url || event.mediaUrl || event.url;
-    if (!mediaSource) return false;
-    
-    const mimeType = event.media_type || '';
-    
-    // Check if we have the media_subtype field
-    if (event.media_subtype) {
-      return event.media_subtype === 'image';
+
+    const subtype = (event.media_subtype || '').toLowerCase();
+    if (subtype === 'image') {
+      // Honor explicit subtype even if media_url is missing; the popup can
+      // render its own "no media available" state.
+      return true;
     }
-    
+
+    const mediaSource = event.media_url || event.mediaUrl || event.url;
+    const mimeType = event.media_type || '';
+
+    if (!mediaSource && !mimeType) return false;
+
     // Fallback to extension or MIME type check
-    return (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(mediaSource) || 
+    return (/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(mediaSource || '') ||
             (mimeType && mimeType.startsWith('image/')));
   };
   
   // Determine if this is a video media event
   const isVideoMedia = () => {
     if (safeEventType !== EVENT_TYPES.MEDIA) return false;
-    
-    const mediaSource = event.media_url || event.mediaUrl || event.url;
-    if (!mediaSource) return false;
-    
-    const mimeType = event.media_type || '';
-    
-    // Check if we have the media_subtype field
-    if (event.media_subtype) {
-      return event.media_subtype === 'video';
+
+    const subtype = (event.media_subtype || '').toLowerCase();
+    if (subtype === 'video') {
+      return true;
     }
     
+    const mediaSource = event.media_url || event.mediaUrl || event.url;
+    const mimeType = event.media_type || '';
+
+    if (!mediaSource && !mimeType) return false;
+    
     // Fallback to extension or MIME type check
-    return (/\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(mediaSource) || 
+    return (/\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(mediaSource || '') || 
             (mimeType && mimeType.startsWith('video/')));
   };
   
   // Determine if this is an audio media event
   const isAudioMedia = () => {
     if (safeEventType !== EVENT_TYPES.MEDIA) return false;
-    
-    const mediaSource = event.media_url || event.mediaUrl || event.url;
-    if (!mediaSource) return false;
-    
-    const mimeType = event.media_type || '';
-    
-    // Check if we have the media_subtype field
-    if (event.media_subtype) {
-      return event.media_subtype === 'audio';
+
+    const subtype = (event.media_subtype || '').toLowerCase();
+    if (subtype === 'audio') {
+      return true;
     }
     
+    const mediaSource = event.media_url || event.mediaUrl || event.url;
+    const mimeType = event.media_type || '';
+
+    if (!mediaSource && !mimeType) return false;
+    
     // Fallback to extension or MIME type check
-    return (/\.(mp3|wav|ogg|aac|flac|m4a|wma)$/i.test(mediaSource) || 
+    return (/\.(mp3|wav|ogg|aac|flac|m4a|wma)$/i.test(mediaSource || '') || 
             (mimeType && mimeType.startsWith('audio/')));
   };
   
@@ -549,8 +585,11 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
     </>);
   }
   
-  // For image media, use the specialized ImageEventPopup component
-  if (useImagePopup) {
+  // For image media, use the specialized ImageEventPopup component.
+  // As a final safeguard, any media event that isn't clearly video/audio
+  // will still use the image media popup so media events never fall back
+  // to the generic remark layout.
+  if (useImagePopup || (safeEventType === EVENT_TYPES.MEDIA && !useVideoPopup && !useAudioPopup)) {
     return (
       <ImageEventPopup
         event={event}

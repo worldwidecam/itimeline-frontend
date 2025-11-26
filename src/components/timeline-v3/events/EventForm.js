@@ -76,6 +76,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       url_image: '',
       media_url: '',
       media_type: '',
+      media_subtype: '',
+      cloudinary_id: '',
       tags: []
     };
   });
@@ -141,6 +143,8 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         url_image: '',
         media_url: '',
         media_type: '',
+        media_subtype: '',
+        cloudinary_id: '',
         tags: []
       });
       
@@ -480,6 +484,30 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
           }
           
           console.log('Determined media_type:', eventData.media_type);
+        }
+
+        // Ensure we have a coarse media_subtype for popup classification
+        if (!eventData.media_subtype) {
+          const mt = eventData.media_type || '';
+          const lowerMt = mt.toLowerCase();
+          if (lowerMt.startsWith('image/')) {
+            eventData.media_subtype = 'image';
+          } else if (lowerMt.startsWith('video/')) {
+            eventData.media_subtype = 'video';
+          } else if (lowerMt.startsWith('audio/')) {
+            eventData.media_subtype = 'audio';
+          } else if (eventData.media_url) {
+            const fileExt = eventData.media_url.split('.').pop()?.toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(fileExt)) {
+              eventData.media_subtype = 'image';
+            } else if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(fileExt)) {
+              eventData.media_subtype = 'video';
+            } else if (['mp3', 'wav', 'ogg', 'aac', 'flac'].includes(fileExt)) {
+              eventData.media_subtype = 'audio';
+            }
+          }
+
+          console.log('Determined media_subtype:', eventData.media_subtype);
         }
       }
       
@@ -1243,8 +1271,9 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                           ...prev,
                           media_url: uploadResult.url,
                           media_type: uploadResult.type,
+                          media_subtype: uploadResult.media_subtype || prev.media_subtype || '',
                           url: uploadResult.url, // Also set URL for backward compatibility
-                          cloudinary_id: uploadResult.cloudinary_id
+                          cloudinary_id: uploadResult.cloudinary_id || prev.cloudinary_id || ''
                         }));
                         // Clear any previous errors
                         setError('');
@@ -1254,6 +1283,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                           ...prev,
                           media_url: '',
                           media_type: '',
+                          media_subtype: '',
                           cloudinary_id: ''
                         }));
                       }

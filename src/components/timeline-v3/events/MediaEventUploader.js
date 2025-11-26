@@ -128,6 +128,19 @@ const MediaEventUploader = ({ onUploadSuccess }) => {
         
         // Store the Cloudinary ID if available
         const cloudinaryId = response.data.cloudinary_id || response.data.public_id || '';
+
+        // Derive a coarse media_subtype compatible with legacy media popups
+        let mediaSubtype = '';
+        const fileMime = fileToUpload.type || '';
+        if (mediaType === 'image' || fileMime.startsWith('image/')) {
+          mediaSubtype = 'image';
+        } else if (mediaType === 'video' || fileMime.startsWith('video/')) {
+          mediaSubtype = 'video';
+        } else if (mediaType === 'audio' || fileMime.startsWith('audio/')) {
+          mediaSubtype = 'audio';
+        } else {
+          mediaSubtype = 'other';
+        }
         
         // Create the result object
         const uploadResult = {
@@ -135,7 +148,8 @@ const MediaEventUploader = ({ onUploadSuccess }) => {
           type: fileToUpload.type,
           name: fileToUpload.name,
           size: fileToUpload.size,
-          cloudinary_id: cloudinaryId
+          cloudinary_id: cloudinaryId,
+          media_subtype: mediaSubtype,
         };
         
         addLog(`Upload complete: ${uploadResult.url}`);
