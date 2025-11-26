@@ -292,11 +292,10 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       return;
     }
 
-    // Normalize to a hashtag form: ensure leading #, collapse spaces to dashes
-    if (!normalized.startsWith('#')) {
-      normalized = `#${normalized.replace(/^#+/, '')}`;
-    }
-    normalized = normalized.replace(/\s+/g, '-');
+    // Strip leading # if present, but preserve spaces (matching EventDialog behavior)
+    // This ensures "cameron arias" and "#cameron arias" both become "cameron arias"
+    // and match the existing hashtag timeline correctly
+    normalized = normalized.replace(/^#+/, '');
 
     setFormData(prev => {
       if (prev.tags.includes(normalized)) {

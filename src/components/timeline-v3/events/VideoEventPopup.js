@@ -418,7 +418,9 @@ const VideoEventPopup = ({
                 const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
                 const cloudinaryPublicId = (event && event.cloudinary_id) || derivedPublicId;
                 const shouldUsePlayer = (useCloudinaryPlayer || !!cloudinaryPublicId) && !!cloudinaryPublicId;
+                
                 if (shouldUsePlayer) {
+                  // Render Cloudinary player
                   return (
                     <Box sx={{ width: '100%', height: '100%' }}>
                       <iframe
@@ -436,50 +438,50 @@ const VideoEventPopup = ({
                     </Box>
                   );
                 }
-                return null;
+                
+                // Render native video player as fallback
+                const videoSources = prepareVideoSources(mediaSource);
+                return (
+                  <video
+                    ref={el => setVideoElement(el)}
+                    controls
+                    autoPlay={true}
+                    style={{ 
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      backgroundColor: 'black',
+                      borderRadius: 8,
+                      display: 'block',
+                    }}
+                    onError={(e) => {
+                      console.error('Error loading video:', e);
+                      const currentSrc = e.target.src;
+                      const currentIndex = videoSources.indexOf(currentSrc);
+                      
+                      if (currentIndex >= 0 && currentIndex < videoSources.length - 1) {
+                        console.log(`Trying next video source: ${videoSources[currentIndex + 1]}`);
+                        e.target.src = videoSources[currentIndex + 1];
+                      } else {
+                        console.error('All video sources failed to load. Falling back to Cloudinary Player.');
+                        setUseCloudinaryPlayer(true);
+                      }
+                    }}
+                  >
+                    {videoSources.map((src, index) => (
+                      <source 
+                        key={index} 
+                        src={src} 
+                        type={event.media_type || 'video/mp4'} 
+                      />
+                    ))}
+                    Your browser does not support the video tag.
+                  </video>
+                );
               })()}
-              {!useCloudinaryPlayer && (
-              <video
-                ref={el => setVideoElement(el)}
-                controls
-                autoPlay={true}
-                style={{ 
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  backgroundColor: 'black',
-                  borderRadius: 8,
-                  display: 'block',
-                }}
-                onError={(e) => {
-                  console.error('Error loading video:', e);
-                  const currentSrc = e.target.src;
-                  const videoSources = prepareVideoSources(mediaSource);
-                  const currentIndex = videoSources.indexOf(currentSrc);
-                  
-                  if (currentIndex >= 0 && currentIndex < videoSources.length - 1) {
-                    // Try the next source
-                    console.log(`Trying next video source: ${videoSources[currentIndex + 1]}`);
-                    e.target.src = videoSources[currentIndex + 1];
-                  } else {
-                    console.error('All video sources failed to load. Falling back to Cloudinary Player.');
-                    setUseCloudinaryPlayer(true);
-                  }
-                }}
-              >
-                {prepareVideoSources(mediaSource).map((src, index) => (
-                  <source 
-                    key={index} 
-                    src={src} 
-                    type={event.media_type || 'video/mp4'} 
-                  />
-                ))}
-                Your browser does not support the video tag.
-              </video>
-              )}
               
               {/* Fullscreen button overlay (only for native video; Cloudinary Player has its own fullscreen) */}
-              {!useCloudinaryPlayer && (
+              {!useCloudinaryPlayer && !event?.cloudinary_id && (
               <Box
                 sx={{
                   position: 'absolute',
