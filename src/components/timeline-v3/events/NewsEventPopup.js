@@ -549,8 +549,19 @@ const NewsEventPopup = ({
                 }
               }}
             >
-              {/* Event Metadata */}
-              <Box sx={{ mb: 3 }}>
+              {/* Event Metadata - Background colored section */}
+              <Paper
+                elevation={0}
+                sx={{
+                  mb: 3,
+                  p: 2.5,
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.03)'
+                    : 'rgba(0,0,0,0.02)',
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                }}
+              >
                 {/* Creator Chip */}
                 <CreatorChip user={userData} color={newsColor} />
                 
@@ -692,7 +703,7 @@ const NewsEventPopup = ({
                     </Box>
                   </Box>
                 )}
-              </Box>
+              </Paper>
               
               <Divider sx={{ my: 2 }} />
               
@@ -712,19 +723,36 @@ const NewsEventPopup = ({
                 </Box>
               )}
               
-              {/* Tags */}
-              {(event.tags && event.tags.length > 0) && (
-                <Box sx={{ mb: 3 }}>
-                  <TagList 
-                    tags={localEventData?.tags || event.tags}
-                    associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
-                    removedTimelineIds={(event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []}
-                  />
-                </Box>
-              )}
+              <Divider sx={{ my: 2 }} />
               
-              {/* Timeline Tagging System */}
-              <Box sx={{ mt: 'auto', pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+              {/* Tags & Timelines Section */}
+              <Box sx={{ mb: 3 }}>
+                {/* Tags Subtitle */}
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    mb: 1.5,
+                    fontWeight: 600,
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.9)'
+                      : 'rgba(0,0,0,0.9)',
+                  }}
+                >
+                  Tags
+                </Typography>
+                
+                {/* Tags List */}
+                {(event.tags && event.tags.length > 0) && (
+                  <Box sx={{ mb: 3 }}>
+                    <TagList 
+                      tags={localEventData?.tags || event.tags}
+                      associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
+                      removedTimelineIds={(event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []}
+                    />
+                  </Box>
+                )}
+                
+                {/* Tag a Timeline Collapsible */}
                 <Box 
                   onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
                   sx={{ 
@@ -738,7 +766,7 @@ const NewsEventPopup = ({
                     },
                   }}
                 >
-                  <Typography variant="subtitle2">Add to Timeline</Typography>
+                  <Typography variant="subtitle2">Tag a Timeline</Typography>
                   <ExpandMoreIcon 
                     sx={{ 
                       transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -803,8 +831,8 @@ const NewsEventPopup = ({
             </Box>
           </DialogContent>
           
-          {/* Report action */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, mt: 1, pr: 2, pb: 2, position: 'relative' }}>
+          {/* Report Button & Status Indicators - Bottom Right */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
             {isInReview && (
               <Box
                 sx={{

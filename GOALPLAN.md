@@ -598,9 +598,29 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
   - On community timelines: auto-adds the base hashtag tag and ensures the event is associated with both the community and the corresponding hashtag timeline; chips show in their correct lanes.
   - On personal timelines: does **not** auto-add any `#` tag; `EventDialog` tag input is disabled/blurred with helper copy so personal-origin posts stay scoped to that personal timeline.
 
-**Next active task:**
+**Current active task (2025-11-26):**
+
+- **Critical Bug: EventDialog Tag Loss**
+  - **Issue**: When creating events via EventDialog (FAB quick-create) on hashtag timelines, the auto-seeded timeline tag (e.g., `CAMERON ARIAS`) is being lost before submission.
+  - **Symptom**: Events created on `#CAMERON ARIAS` with manually added tags `test` and `cameron-arias` only show 2 tags in the database (`cameron-arias`, `test`), missing the 3rd tag `cameron arias`.
+  - **Root Cause Investigation**:
+    - EventDialog's `useEffect` (line 145) auto-seeds the timeline tag correctly on open.
+    - Console logging added to track tag state through: auto-seed → manual additions → submission.
+    - Backend lowercases all tags (line 2678 in `app.py`), so `CAMERON ARIAS` becomes `cameron arias` in storage.
+    - The `associated_timelines` array correctly shows all 3 timelines, but the `tags` array is missing the host timeline tag.
+  - **Status**: Debugging in progress. Need to verify console logs show what tags EventDialog is actually sending to backend.
+  - **Next Steps**:
+    1. Check browser console for `[EventDialog]` log messages during event creation.
+    2. Confirm if the tag is being lost in frontend state management or during backend processing.
+    3. Fix the tag persistence issue to ensure all 3 tags are stored and displayed.
+
+**Completed today:**
+- ✅ Fixed duplicate video player rendering in `VideoEventPopup.js` - consolidated IIFE to return only one player (Cloudinary or native).
+- ✅ Fixed EventDialog `useEffect` dependency array - removed `tags.length` to prevent re-running and overwriting user-added tags.
+
+**Next active task (after tag bug fix):**
 
 - Bring **EventPopup** in line with V2 chip semantics:
-  - Ensure the “Tag a Timeline” / Add-to-Timeline flow respects the separation between `#` tags vs `i-` / `My-` listings.
+  - Ensure the "Tag a Timeline" / Add-to-Timeline flow respects the separation between `#` tags vs `i-` / `My-` listings.
   - When adding an event to another timeline via EventPopup, derive associations according to V2 rules (e.g., adding to a community should create/attach the corresponding `#` hashtag, adding to a personal timeline should **not** leak new `#` tags from that context).
   - Keep cards as the lightweight overview; use EventPopup as the detailed place to inspect and manage which `#` / `i-` / `My-` timelines an event belongs to.

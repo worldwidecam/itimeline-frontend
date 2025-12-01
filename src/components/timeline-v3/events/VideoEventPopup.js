@@ -480,36 +480,7 @@ const VideoEventPopup = ({
                 );
               })()}
               
-              {/* Fullscreen button overlay (only for native video; Cloudinary Player has its own fullscreen) */}
-              {!useCloudinaryPlayer && !event?.cloudinary_id && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: 16,
-                  right: 16,
-                  bgcolor: 'rgba(0,0,0,0.5)',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: 40,
-                  height: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  opacity: 0.7,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    opacity: 1,
-                    transform: 'scale(1.1)'
-                  },
-                  zIndex: 5,
-                }}
-                onClick={toggleFullscreen}
-                title="Toggle fullscreen"
-              >
-                <FullscreenIcon />
-              </Box>
-              )}
+              {/* Fullscreen button removed - Cloudinary Player provides its own fullscreen control */}
             </Box>
           </Box>
           
@@ -523,15 +494,6 @@ const VideoEventPopup = ({
               position: 'relative',
             }}
           >
-            {/* Header with colored accent bar and gradient */}
-            <Box
-              sx={{
-                position: 'relative',
-                height: 8,
-                background: `linear-gradient(90deg, ${videoColor} 0%, ${videoColor}99 50%, ${videoColor}44 100%)`,
-              }}
-            />
-            
             {/* Title area */}
             <DialogTitle 
               sx={{ 
@@ -593,243 +555,40 @@ const VideoEventPopup = ({
             <DialogContent
               sx={{
                 height: '100%',
-                p: 3,
-                pt: 3,
-                pb: 3,
+                p: 4,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 3,
                 overflow: 'auto',
+                position: 'relative',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 4,
+                  background: `linear-gradient(90deg, ${videoColor} 0%, ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(74, 20, 140, 0.2)'} 100%)`,
+                }
               }}
             >
-              {/* Description section */}
-              {event.description && (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(0,0,0,0.2)'
-                      : 'rgba(0,0,0,0.02)',
-                    border: '1px solid',
-                    borderColor: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.7,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.85)'
-                        : 'rgba(0,0,0,0.75)',
-                    }}
-                  >
-                    {event.description}
-                  </Typography>
-                </Paper>
-              )}
-              
-              {/* Tags with Tag a Timeline button */}
-              <Box sx={{ mb: 3, position: 'relative' }}>
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    mb: 1.5,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.7)'
-                      : 'rgba(0,0,0,0.6)',
-                    fontWeight: 500,
-                  }}
-                >
-                  Tags
-                </Typography>
-                
-                {(localEventData?.tags || event.tags) && (localEventData?.tags || event.tags).length > 0 && (
-                  <TagList 
-                    tags={localEventData?.tags || event.tags}
-                    associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
-                    removedTimelineIds={(event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []}
-                  />
-                )}
-                
-                {/* Tag a Timeline button - smaller and positioned at bottom left */}
-                <Box 
-                  onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    fontSize: '0.75rem',
-                    mt: event.tags && event.tags.length > 0 ? 1 : 0,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.6)'
-                      : 'rgba(0,0,0,0.5)',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      color: theme.palette.primary.main,
-                    },
-                    transition: 'color 0.2s ease',
-                  }}
-                >
-                  <span style={{ 
-                    color: theme.palette.primary.main,
-                    fontSize: '0.9rem',
-                    marginRight: '4px',
-                  }}>#</span>
-                  Tag a Timeline
-                  <ExpandMoreIcon 
-                    fontSize="small" 
-                    sx={{ 
-                      fontSize: '0.9rem',
-                      ml: 0.5,
-                      transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s ease',
-                    }} 
-                  />
-                </Box>
-                
-                {tagSectionExpanded && (
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: theme.palette.mode === 'dark'
-                        ? 'rgba(0,0,0,0.2)'
-                        : 'rgba(0,0,0,0.02)',
-                      border: '1px solid',
-                      borderColor: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.05)',
-                    }}
-                  >
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Add this event to an existing timeline:
-                  </Typography>
-                  
-                  <Autocomplete
-                    id="timeline-select"
-                    options={existingTimelines}
-                    loading={loadingTimelines}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    value={selectedTimeline}
-                    onChange={(event, newValue) => {
-                      setSelectedTimeline(newValue);
-                      setError('');
-                    }}
-                    // Only show options that start with the input text
-                    filterOptions={(options, state) => {
-                      // Don't show any options if the input is empty
-                      if (!state.inputValue) return [];
-                      
-                      // Filter options that start with the input text (case insensitive)
-                      return options.filter(option => 
-                        option.name.toLowerCase().startsWith(state.inputValue.toLowerCase())
-                      );
-                    }}
-                    renderInput={(params) => (
-                      <TextField 
-                        {...params} 
-                        label="Search Timeline" 
-                        variant="outlined"
-                        helperText="Type to search for a timeline"
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <React.Fragment>
-                              {loadingTimelines ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </React.Fragment>
-                          ),
-                        }}
-                      />
-                    )}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span style={{ 
-                            color: theme.palette.primary.main,
-                            fontSize: '1rem',
-                            marginRight: '4px'
-                          }}>#</span>
-                          {option.name}
-                        </Box>
-                      </li>
-                    )}
-                    noOptionsText="Type to search for timelines"
-                  />
-                  
-                  {error && (
-                    <Alert severity="error" sx={{ mt: 2 }}>
-                      {error}
-                    </Alert>
-                  )}
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<AddIcon />}
-                      disabled={!selectedTimeline || addingToTimeline}
-                      onClick={handleAddToTimeline}
-                      sx={{ 
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        px: 2,
-                      }}
-                    >
-                      {addingToTimeline ? (
-                        <CircularProgress size={24} color="inherit" />
-                      ) : (
-                        'Tag Timeline'
-                      )}
-                    </Button>
-                  </Box>
-                  </Paper>
-                )}
-              </Box>
-              
-              {/* Event details card */}
+              {/* Event Metadata - Background colored section */}
               <Paper
                 elevation={0}
                 sx={{
-                  p: 3,
-                  borderRadius: 2,
+                  mb: 3,
+                  p: 2.5,
                   bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(0,0,0,0.2)'
+                    ? 'rgba(255,255,255,0.03)'
                     : 'rgba(0,0,0,0.02)',
-                  border: '1px solid',
-                  borderColor: theme.palette.mode === 'dark'
-                    ? 'rgba(255,255,255,0.05)'
-                    : 'rgba(0,0,0,0.05)',
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
                 }}
               >
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    mb: 2,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.7)'
-                      : 'rgba(0,0,0,0.6)',
-                    fontWeight: 500,
-                  }}
-                >
-                  Event Details
-                </Typography>
-                
-                {/* Creator Chip */}
-                <CreatorChip user={userData} color={videoColor} />
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {/* Timeline date */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Creator Chip */}
+                  <CreatorChip user={getUserData()} color={videoColor} />
+                  
+                  {/* Timeline Date with icon */}
                   {event.event_date && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box
@@ -855,7 +614,7 @@ const VideoEventPopup = ({
                             display: 'block',
                             color: theme.palette.mode === 'dark'
                               ? 'rgba(255,255,255,0.5)'
-                              : 'rgba(0,0,0,0.4)',
+                              : 'rgba(0,0,0,0.5)',
                           }}
                         >
                           Timeline Date
@@ -865,7 +624,7 @@ const VideoEventPopup = ({
                           sx={{ 
                             color: theme.palette.mode === 'dark'
                               ? 'rgba(255,255,255,0.9)'
-                              : 'rgba(0,0,0,0.8)',
+                              : 'rgba(0,0,0,0.9)',
                           }}
                         >
                           {formatEventDate(event.event_date)}
@@ -874,158 +633,290 @@ const VideoEventPopup = ({
                     </Box>
                   )}
                   
-                  {/* Created date */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.05)'
-                          : 'rgba(0,0,0,0.03)',
-                        color: videoColor,
-                      }}
-                    >
-                      <AccessTimeIcon fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          display: 'block',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.5)'
-                            : 'rgba(0,0,0,0.4)',
-                        }}
-                      >
-                        Published
-                      </Typography>
-                      <Typography 
-                        variant="body2"
-                        sx={{ 
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.9)'
-                            : 'rgba(0,0,0,0.8)',
-                        }}
-                      >
-                        {formatDate(event.created_at || event.createdAt).replace('Published on ', '')}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  {/* The outdated creator info section has been removed as we now use the CreatorChip component above */}
-                  {/* Report action - Level 1 */}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, mt: 1, position: 'relative' }}>
-                    {isInReview && (
+                  {/* Published Date with icon */}
+                  {event.created_at && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box
                         sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 0.5,
-                          px: 1.5,
-                          py: 0.25,
-                          borderRadius: '12px',
-                          backgroundColor: theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 152, 0, 0.2)' 
-                            : 'rgba(255, 152, 0, 0.15)',
-                          transform: 'rotate(-2deg)',
-                          boxShadow: theme.palette.mode === 'dark'
-                            ? '0 2px 4px rgba(0,0,0,0.3)'
-                            : '0 2px 4px rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        <RateReviewIcon 
-                          sx={{ 
-                            fontSize: 14,
-                            color: theme.palette.mode === 'dark' 
-                              ? 'rgba(255, 152, 0, 1)' 
-                              : 'rgba(255, 152, 0, 1)',
-                          }} 
-                        />
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            color: theme.palette.mode === 'dark' 
-                              ? 'rgba(255, 152, 0, 1)' 
-                              : 'rgba(255, 152, 0, 1)',
-                          }}
-                        >
-                          In Review
-                        </Typography>
-                      </Box>
-                    )}
-                    {isSafeguarded ? (
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          px: 1.5,
-                          py: 0.25,
-                          borderRadius: '12px',
-                          backgroundColor: theme.palette.mode === 'dark' 
-                            ? 'rgba(76, 175, 80, 0.2)' 
-                            : 'rgba(76, 175, 80, 0.15)',
-                          transform: 'rotate(-2deg)',
-                          boxShadow: theme.palette.mode === 'dark'
-                            ? '0 2px 4px rgba(0,0,0,0.3)'
-                            : '0 2px 4px rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        <CheckCircleIcon 
-                          sx={{ 
-                            fontSize: 14,
-                            color: theme.palette.mode === 'dark' 
-                              ? 'rgba(76, 175, 80, 1)' 
-                              : 'rgba(56, 142, 60, 1)',
-                          }} 
-                        />
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            color: theme.palette.mode === 'dark' 
-                              ? 'rgba(76, 175, 80, 1)' 
-                              : 'rgba(56, 142, 60, 1)',
-                          }}
-                        >
-                          Safeguarded
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleOpenReport}
-                        disabled={reportedOnce}
-                        sx={{ 
-                          textTransform: 'none',
+                          justifyContent: 'center',
+                          bgcolor: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'rgba(0,0,0,0.03)',
                           color: videoColor,
-                          borderColor: videoColor,
-                          '&:hover': {
-                            borderColor: videoColor,
-                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(74,20,140,0.12)' : 'rgba(74,20,140,0.08)'
-                          }
                         }}
                       >
-                        {reportedOnce ? 'Reported' : 'Report'}
-                      </Button>
-                    )}
-                  </Box>
+                        <AccessTimeIcon fontSize="small" />
+                      </Box>
+                      <Box>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            display: 'block',
+                            color: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.5)' 
+                              : 'rgba(0,0,0,0.5)',
+                          }}
+                        >
+                          Published
+                        </Typography>
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            color: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.9)'
+                              : 'rgba(0,0,0,0.9)',
+                          }}
+                        >
+                          {formatDate(event.created_at || event.createdAt).replace('Published on ', '')}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
               </Paper>
+              
+              <Divider sx={{ my: 2 }} />
+              
+              {/* Event Description */}
+              {event.description && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.7,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.85)'
+                        : 'rgba(0,0,0,0.75)',
+                    }}
+                  >
+                    {event.description}
+                  </Typography>
+                </Box>
+              )}
+              
+              <Divider sx={{ my: 2 }} />
+              
+              {/* Tags & Timelines Section */}
+              <Box sx={{ mb: 3 }}>
+                {/* Tags Subtitle */}
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    mb: 1.5,
+                    fontWeight: 600,
+                    color: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.9)'
+                      : 'rgba(0,0,0,0.9)',
+                  }}
+                >
+                  Tags
+                </Typography>
+                
+                {/* Tags List */}
+                {(localEventData?.tags || event.tags) && (localEventData?.tags || event.tags).length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <TagList 
+                      tags={localEventData?.tags || event.tags}
+                      associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
+                      removedTimelineIds={(event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []}
+                    />
+                  </Box>
+                )}
+                
+                {/* Tag a Timeline Collapsible */}
+                <Box 
+                  onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: theme.palette.text.secondary,
+                    cursor: 'pointer',
+                    mb: tagSectionExpanded ? 2 : 0,
+                    '&:hover': {
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                >
+                  <Typography variant="subtitle2">Tag a Timeline</Typography>
+                  <ExpandMoreIcon 
+                    sx={{ 
+                      transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                      ml: 0.5,
+                    }} 
+                  />
+                </Box>
+                
+                {tagSectionExpanded && (
+                  <Box>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                      <Autocomplete
+                        size="small"
+                        options={existingTimelines}
+                        getOptionLabel={(option) => option.name}
+                        value={selectedTimeline}
+                        onChange={(event, newValue) => {
+                          setSelectedTimeline(newValue);
+                          setError('');
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Select Timeline"
+                            variant="outlined"
+                            size="small"
+                            fullWidth
+                          />
+                        )}
+                        loading={loadingTimelines}
+                        sx={{ flex: 1 }}
+                      />
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleAddToTimeline}
+                        disabled={!selectedTimeline || addingToTimeline}
+                        startIcon={addingToTimeline ? <CircularProgress size={16} /> : <AddIcon />}
+                        sx={{
+                          backgroundColor: videoColor,
+                          '&:hover': {
+                            backgroundColor: `${videoColor}E6`,
+                          },
+                        }}
+                      >
+                        {addingToTimeline ? 'Adding...' : 'Add'}
+                      </Button>
+                    </Box>
+                    
+                    {error && (
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        {error}
+                      </Alert>
+                    )}
+                    
+                    {success && (
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        {success}
+                      </Alert>
+                    )}
+                  </Box>
+                )}
+              </Box>
             </DialogContent>
+            
+            {/* Report Button & Status Indicators - Bottom Right */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
+              {isInReview && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.25,
+                    borderRadius: '12px',
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 152, 0, 0.2)' 
+                      : 'rgba(255, 152, 0, 0.15)',
+                    transform: 'rotate(-2deg)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 2px 4px rgba(0,0,0,0.3)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <RateReviewIcon 
+                    sx={{ 
+                      fontSize: 14,
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 152, 0, 1)' 
+                        : 'rgba(255, 152, 0, 1)',
+                    }} 
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 152, 0, 1)' 
+                        : 'rgba(255, 152, 0, 1)',
+                    }}
+                  >
+                    In Review
+                  </Typography>
+                </Box>
+              )}
+              {isSafeguarded ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.25,
+                    borderRadius: '12px',
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(76, 175, 80, 0.2)' 
+                      : 'rgba(76, 175, 80, 0.15)',
+                    transform: 'rotate(-2deg)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 2px 4px rgba(0,0,0,0.3)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <CheckCircleIcon 
+                    sx={{ 
+                      fontSize: 14,
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(76, 175, 80, 1)' 
+                        : 'rgba(56, 142, 60, 1)',
+                    }} 
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(76, 175, 80, 1)' 
+                        : 'rgba(56, 142, 60, 1)',
+                    }}
+                  >
+                    Safeguarded
+                  </Typography>
+                </Box>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleOpenReport}
+                  disabled={reportedOnce}
+                  sx={{ 
+                    textTransform: 'none',
+                    backgroundColor: videoColor,
+                    color: '#fff',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(74, 20, 140, 0.9)' 
+                        : 'rgba(74, 20, 140, 0.85)',
+                    },
+                    px: 2.25,
+                  }}
+                >
+                  {reportedOnce ? 'Reported' : 'Report'}
+                </Button>
+              )}
+            </Box>
           </Box>
           
           {/* Success/Error Snackbar - Positioned inside the Dialog */}

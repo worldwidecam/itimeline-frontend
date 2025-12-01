@@ -141,8 +141,9 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
     // how hashtag chips are displayed.
     baseName = baseName.replace(/^#+/, '');
 
+    console.log('[EventDialog] Auto-seeding tag:', baseName);
     setTags([baseName]);
-  }, [open, initialEvent, timelineName, timelineType, tags.length]);
+  }, [open, initialEvent, timelineName, timelineType]);
 
   const handleMediaChange = async (event) => {
     const file = event.target.files[0];
@@ -206,6 +207,7 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
 
   const handleAddTag = () => {
     if (currentTag && !tags.includes(currentTag)) {
+      console.log('[EventDialog] Adding tag:', currentTag, 'Current tags:', tags);
       setTags([...tags, currentTag]);
       setCurrentTag('');
     }
@@ -270,6 +272,7 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       return;
     }
 
+    console.log('[EventDialog] Saving event with tags:', tags);
     if (tags.length > 0) {
       eventData.tags = tags;
     }
