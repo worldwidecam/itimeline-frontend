@@ -697,6 +697,100 @@ A series of UI/UX enhancements were implemented to improve the overall user expe
   - Changed from `border: '1px solid rgba(0,0,0,0.05)'` to `border: 'none'`
   - Cleaner visual appearance without compromising definition (boxShadow still provides depth)
 
+### EventPopup Unified Layout Standards (November 2025)
+
+All EventPopup components now follow a consistent, unified layout structure for improved UX consistency and visual polish.
+
+#### Standard Layout Structure
+
+**All EventPopups follow this vertical section order:**
+1. **Title & Close Button** - Header area with event title and close icon
+2. **Divider** - Subtle separator (opacity: 0.5)
+3. **Color Accent Bar** - 4px thin gradient line below title (via `::before` pseudo-element)
+4. **Event Metadata Section** - Background-colored Paper component
+   - Creator chip with user info
+   - Timeline Date (with icon)
+   - Published Date (with icon)
+5. **Divider** - Section separator
+6. **Event Description** - Clean text display with proper line height
+7. **Divider** - Section separator
+8. **Tags & Timelines Section**
+   - "Tags" subtitle (subtitle2, fontWeight: 600)
+   - TagList component
+   - "Tag a Timeline" collapsible with simplified UI
+9. **Report Button & Status Indicators** - Outside main content, bottom-right
+
+**Exception - Remark EventPopup**: Uses Description → Metadata → Tags order (description is primary focus)
+
+#### Color Accent Bar Implementation
+
+**Standard Pattern** (4px thin line below title):
+```javascript
+'&::before': {
+  content: '""',
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: 4,
+  background: `linear-gradient(90deg, ${eventColor} 0%, ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(R, G, B, 0.2)'} 100%)`,
+}
+```
+
+**Event Type Colors:**
+- **News**: Red (`#d32f2f` / `rgba(211, 47, 47, 0.2)`)
+- **Remark**: Blue (`#2196f3` / `rgba(33, 150, 243, 0.2)`)
+- **Image**: Teal (`#009688` / `rgba(0, 150, 136, 0.2)`)
+- **Video**: Deep Purple (`#4a148c` / `rgba(74, 20, 140, 0.2)`)
+- **Audio**: Orange (`#e65100` / `rgba(230, 81, 0, 0.2)`)
+
+#### Metadata Section Styling
+
+**Background Paper Component:**
+```javascript
+<Paper
+  elevation={0}
+  sx={{
+    mb: 3,
+    p: 2.5,
+    bgcolor: theme.palette.mode === 'dark'
+      ? 'rgba(255,255,255,0.03)'
+      : 'rgba(0,0,0,0.02)',
+    borderRadius: 2,
+    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+  }}
+>
+```
+
+**Metadata Items** (Timeline Date, Published Date):
+- 32px circular icon container with subtle background
+- Caption label above value
+- Consistent gap spacing (1.5)
+- Color-coded icons matching event type
+
+#### Tag a Timeline UI
+
+**Simplified Horizontal Layout:**
+- Small Autocomplete field (flex: 1)
+- Compact "Add" button with event-type color
+- Error/Success alerts below
+- Consistent with event type color scheme
+
+#### Report Button Placement
+
+**Position:** Outside main DialogContent, bottom-right
+**Style:** Contained button with event-type background color
+**Status Badges:**
+- "In Review": Orange badge with rotate(-2deg) tilt
+- "Safeguarded": Green badge with rotate(-2deg) tilt
+
+#### Implementation Files
+- `src/components/timeline-v3/events/NewsEventPopup.js` (Red accent)
+- `src/components/timeline-v3/events/EventPopup.js` (Blue accent, Description-first order)
+- `src/components/timeline-v3/events/ImageEventPopup.js` (Teal accent)
+- `src/components/timeline-v3/events/VideoEventPopup.js` (Deep purple accent)
+- `src/components/timeline-v3/events/AudioMediaPopup.js` (Orange accent)
+
 #### Event Marker Redesign
 - **Image Media Marker Popover**: Redesigned preview cards for image events
   - Removed grey overlay box that obscured image preview

@@ -28,7 +28,7 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  PermMedia as MediaIcon,
+  MusicNote as MusicNoteIcon,
   Person as PersonIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
@@ -272,35 +272,26 @@ const AudioMediaPopup = ({
           bgcolor: theme.palette.background.paper,
           position: 'relative'
         }}>
-          {/* Header with colored accent bar and gradient */}
-          <Box
-            sx={{
-              height: 8,
-              background: `linear-gradient(90deg, ${audioColor} 0%, ${audioColor}99 50%, ${audioColor}44 100%)`,
-            }}
-          />
-          
-          <Box sx={{ p: 3 }}>
           {/* Event Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: theme.palette.mode === 'dark'
-                  ? 'rgba(255,255,255,0.05)'
-                  : 'rgba(0,0,0,0.03)',
-                color: audioColor,
-                mr: 2
-              }}
-            >
-              <TypeIcon fontSize="medium" />
-            </Box>
-            <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3, pb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.03)',
+                  color: audioColor,
+                  mr: 2
+                }}
+              >
+                <MusicNoteIcon fontSize="medium" />
+              </Box>
               <Typography 
                 variant="h6" 
                 component="div"
@@ -314,68 +305,195 @@ const AudioMediaPopup = ({
                 {eventData.title || "Untitled Event"}
               </Typography>
             </Box>
+            <IconButton
+              onClick={onClose}
+              sx={{
+                color: theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.7)'
+                  : 'rgba(0,0,0,0.54)',
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
           </Box>
-
-          {/* Creator Chip - Moved outside description box */}
-          <CreatorChip user={userData} color={audioColor} sx={{ mb: 3 }} />
           
-          {/* Event Content */}
-          {eventData.description && (
+          <Divider sx={{ opacity: 0.5 }} />
+          
+          {/* Scrollable content area */}
+          <Box sx={{ 
+            p: 4, 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'auto',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: `linear-gradient(90deg, ${audioColor} 0%, ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(230, 81, 0, 0.2)'} 100%)`,
+            }
+          }}>
+            {/* Event Metadata - Background colored section */}
             <Paper
               elevation={0}
               sx={{
-                p: 3,
                 mb: 3,
-                borderRadius: 2,
+                p: 2.5,
                 bgcolor: theme.palette.mode === 'dark'
-                  ? 'rgba(0,0,0,0.2)'
+                  ? 'rgba(255,255,255,0.03)'
                   : 'rgba(0,0,0,0.02)',
-                border: '1px solid',
-                borderColor: theme.palette.mode === 'dark'
-                  ? 'rgba(255,255,255,0.05)'
-                  : 'rgba(0,0,0,0.05)',
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
               }}
             >
-              <Typography 
-                variant="body1" 
-                sx={{ 
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.7,
-                  color: theme.palette.mode === 'dark'
-                    ? 'rgba(255,255,255,0.85)'
-                    : 'rgba(0,0,0,0.75)',
-                }}
-              >
-                {eventData.description}
-              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Creator Chip */}
+                <CreatorChip user={userData} color={audioColor} />
+                
+                {/* Timeline Date with icon */}
+                {eventData.event_date && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.03)',
+                        color: audioColor,
+                      }}
+                    >
+                      <EventIcon fontSize="small" />
+                    </Box>
+                    <Box>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(0,0,0,0.5)',
+                        }}
+                      >
+                        Timeline Date
+                      </Typography>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(0,0,0,0.9)',
+                        }}
+                      >
+                        {formatEventDate(eventData.event_date)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                
+                {/* Published Date with icon */}
+                {eventData.created_at && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.03)',
+                        color: audioColor,
+                      }}
+                    >
+                      <AccessTimeIcon fontSize="small" />
+                    </Box>
+                    <Box>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.5)' 
+                            : 'rgba(0,0,0,0.5)',
+                        }}
+                      >
+                        Published
+                      </Typography>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          color: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(0,0,0,0.9)',
+                        }}
+                      >
+                        {formatDate(eventData.created_at || eventData.createdAt).replace('Published on ', '')}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
             </Paper>
-          )}
-          
-          {/* Tags section */}
-          <Box sx={{ mb: 3 }}>
-            {(eventData.tags && eventData.tags.length > 0) && (
-              <Box sx={{ mb: 2 }}>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            {/* Event Description */}
+            {eventData.description && (
+              <Box sx={{ mb: 3 }}>
                 <Typography 
-                  variant="subtitle2" 
+                  variant="body1" 
                   sx={{ 
-                    mb: 1.5,
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.7,
                     color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.7)'
-                      : 'rgba(0,0,0,0.6)',
-                    fontWeight: 500,
+                      ? 'rgba(255,255,255,0.85)'
+                      : 'rgba(0,0,0,0.75)',
                   }}
                 >
-                  Tags
+                  {eventData.description}
                 </Typography>
-                <TagList 
-                  tags={localEventData?.tags || eventData.tags}
-                  associatedTimelines={(localEventData?.associated_timelines || eventData.associated_timelines) || []}
-                />
               </Box>
             )}
             
-            {/* Timeline tagging system */}
+            <Divider sx={{ my: 2 }} />
+            
+            {/* Tags & Timelines Section */}
             <Box sx={{ mb: 3 }}>
+              {/* Tags Subtitle */}
+              <Typography 
+                variant="subtitle2" 
+                sx={{ 
+                  mb: 1.5,
+                  fontWeight: 600,
+                  color: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.9)'
+                    : 'rgba(0,0,0,0.9)',
+                }}
+              >
+                Tags
+              </Typography>
+              
+              {/* Tags List */}
+              {(eventData.tags && eventData.tags.length > 0) && (
+                <Box sx={{ mb: 3 }}>
+                  <TagList 
+                    tags={localEventData?.tags || eventData.tags}
+                    associatedTimelines={(localEventData?.associated_timelines || eventData.associated_timelines) || []}
+                  />
+                </Box>
+              )}
+              
+              {/* Tag a Timeline Collapsible */}
               <Box 
                 onClick={() => {
                   setTagSectionExpanded(!tagSectionExpanded);
@@ -386,324 +504,189 @@ const AudioMediaPopup = ({
                 sx={{ 
                   display: 'flex',
                   alignItems: 'center',
-                  fontSize: '0.9rem',
-                  mb: tagSectionExpanded ? 2 : 0,
-                  color: theme.palette.mode === 'dark'
-                    ? 'rgba(255,255,255,0.7)'
-                    : 'rgba(0,0,0,0.6)',
+                  color: theme.palette.text.secondary,
                   cursor: 'pointer',
+                  mb: tagSectionExpanded ? 2 : 0,
                   '&:hover': {
                     color: theme.palette.primary.main,
                   },
-                  transition: 'color 0.2s ease',
                 }}
               >
-                <span style={{ 
-                  color: theme.palette.primary.main,
-                  fontSize: '0.9rem',
-                  marginRight: '4px',
-                }}>#</span>
-                Tag a Timeline
+                <Typography variant="subtitle2">Tag a Timeline</Typography>
                 <ExpandMoreIcon 
-                  fontSize="small" 
                   sx={{ 
-                    fontSize: '0.9rem',
-                    ml: 0.5,
                     transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s ease',
+                    transition: 'transform 0.2s',
+                    ml: 0.5,
                   }} 
                 />
               </Box>
               
               {tagSectionExpanded && (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(0,0,0,0.2)'
-                      : 'rgba(0,0,0,0.02)',
-                    border: '1px solid',
-                    borderColor: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Add this event to an existing timeline:
-                  </Typography>
+                <Box>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <Autocomplete
+                      size="small"
+                      options={existingTimelines}
+                      getOptionLabel={(option) => option.name}
+                      value={selectedTimeline}
+                      onChange={(event, newValue) => {
+                        setSelectedTimeline(newValue);
+                        setError('');
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Select Timeline"
+                          variant="outlined"
+                          size="small"
+                          fullWidth
+                        />
+                      )}
+                      loading={loadingTimelines}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={handleAddToTimeline}
+                      disabled={!selectedTimeline || addingToTimeline}
+                      startIcon={addingToTimeline ? <CircularProgress size={16} /> : <AddIcon />}
+                      sx={{
+                        backgroundColor: audioColor,
+                        '&:hover': {
+                          backgroundColor: `${audioColor}E6`,
+                        },
+                      }}
+                    >
+                      {addingToTimeline ? 'Adding...' : 'Add'}
+                    </Button>
+                  </Box>
                   
-                  <Autocomplete
-                    id="timeline-select"
-                    options={existingTimelines}
-                    loading={loadingTimelines}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    value={selectedTimeline}
-                    onChange={(event, newValue) => {
-                      setSelectedTimeline(newValue);
-                      setError('');
-                    }}
-                    filterOptions={(options, state) => {
-                      if (!state.inputValue) return [];
-                      return options.filter(option => 
-                        option.name.toLowerCase().startsWith(state.inputValue.toLowerCase())
-                      );
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Search timelines"
-                        variant="outlined"
-                        size="small"
-                        fullWidth
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {loadingTimelines ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                    sx={{ mb: 2 }}
-                  />
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {error}
+                    </Alert>
+                  )}
                   
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<AddIcon />}
-                    onClick={handleAddToTimeline}
-                    disabled={!selectedTimeline || addingToTimeline}
-                    fullWidth
-                    size="small"
-                  >
-                    {addingToTimeline ? (
-                      <>
-                        <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
-                        Adding...
-                      </>
-                    ) : (
-                      'Add to Timeline'
-                    )}
-                  </Button>
-                </Paper>
+                  {success && (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      {success}
+                    </Alert>
+                  )}
+                </Box>
               )}
             </Box>
           </Box>
           
-          {/* Event Metadata */}
-          <Box sx={{ mt: 'auto' }}>
-            <Divider sx={{ mb: 2 }} />
-            
-            {/* Creator Info - Removed as we're using CreatorChip */}
-            
-            {/* Event Date - Moved to first position */}
-            {eventData.event_date && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.03)',
-                    color: audioColor,
-                    mr: 1.5
-                  }}
-                >
-                  <EventIcon fontSize="small" />
-                </Box>
-                <Box>
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      display: 'block',
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.5)'
-                        : 'rgba(0,0,0,0.4)',
-                    }}
-                  >
-                    Timeline Date
-                  </Typography>
-                  <Typography 
-                    variant="body2"
-                    sx={{ 
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.9)'
-                        : 'rgba(0,0,0,0.8)',
-                    }}
-                  >
-                    {formatEventDate(eventData.event_date)}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-            
-            {/* Published Date - Moved to second position */}
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+          {/* Report Button & Status Indicators - Bottom Right */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
+            {isInReview && (
               <Box
                 sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(255,255,255,0.05)'
-                    : 'rgba(0,0,0,0.03)',
-                  color: audioColor,
-                  mr: 1.5
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.25,
+                  borderRadius: '12px',
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 152, 0, 0.2)' 
+                    : 'rgba(255, 152, 0, 0.15)',
+                  transform: 'rotate(-2deg)',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 2px 4px rgba(0,0,0,0.3)'
+                    : '0 2px 4px rgba(0,0,0,0.1)',
                 }}
               >
-                <AccessTimeIcon fontSize="small" />
-              </Box>
-              <Box>
-                <Typography 
-                  variant="caption" 
+                <RateReviewIcon 
                   sx={{ 
-                    display: 'block',
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.5)'
-                      : 'rgba(0,0,0,0.4)',
+                    fontSize: 14,
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 152, 0, 1)' 
+                      : 'rgba(255, 152, 0, 1)',
+                  }} 
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 152, 0, 1)' 
+                      : 'rgba(255, 152, 0, 1)',
                   }}
                 >
-                  Published
-                </Typography>
-                <Typography 
-                  variant="body2"
-                  sx={{ 
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.9)'
-                      : 'rgba(0,0,0,0.8)',
-                  }}
-                >
-                  {formatDate((localEventData || event)?.created_at || (localEventData || event)?.createdAt).replace('Published on ', '')}
+                  In Review
                 </Typography>
               </Box>
-            </Box>
-            {/* Report action - Level 1 */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, mt: 1, pr: 2, pb: 2, position: 'relative' }}>
-              {isInReview && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 0.2)' 
-                      : 'rgba(255, 152, 0, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <RateReviewIcon 
-                    sx={{ 
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 152, 0, 1)' 
-                        : 'rgba(255, 152, 0, 1)',
-                    }} 
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 152, 0, 1)' 
-                        : 'rgba(255, 152, 0, 1)',
-                    }}
-                  >
-                    In Review
-                  </Typography>
-                </Box>
-              )}
-              {isSafeguarded ? (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 0.2)' 
-                      : 'rgba(76, 175, 80, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <CheckCircleIcon 
-                    sx={{ 
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(76, 175, 80, 1)' 
-                        : 'rgba(56, 142, 60, 1)',
-                    }} 
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(76, 175, 80, 1)' 
-                        : 'rgba(56, 142, 60, 1)',
-                    }}
-                  >
-                    Safeguarded
-                  </Typography>
-                </Box>
-              ) : (
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleOpenReport}
-                  disabled={reportedOnce}
+            )}
+            {isSafeguarded ? (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.25,
+                  borderRadius: '12px',
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(76, 175, 80, 0.2)' 
+                    : 'rgba(76, 175, 80, 0.15)',
+                  transform: 'rotate(-2deg)',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 2px 4px rgba(0,0,0,0.3)'
+                    : '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+              >
+                <CheckCircleIcon 
                   sx={{ 
-                    textTransform: 'none',
-                    backgroundColor: audioColor,
-                    color: '#fff',
-                    '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? 'rgba(230, 81, 0, 0.9)' 
-                        : 'rgba(230, 81, 0, 0.85)',
-                    },
-                    px: 2.25,
+                    fontSize: 14,
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(76, 175, 80, 1)' 
+                      : 'rgba(56, 142, 60, 1)',
+                  }} 
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(76, 175, 80, 1)' 
+                      : 'rgba(56, 142, 60, 1)',
                   }}
                 >
-                  {reportedOnce ? 'Reported' : 'Report'}
-                </Button>
-              )}
-            </Box>
+                  Safeguarded
+                </Typography>
+              </Box>
+            ) : (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleOpenReport}
+                disabled={reportedOnce}
+                sx={{ 
+                  textTransform: 'none',
+                  backgroundColor: audioColor,
+                  color: '#fff',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(230, 81, 0, 0.9)' 
+                      : 'rgba(230, 81, 0, 0.85)',
+                  },
+                  px: 2.25,
+                }}
+              >
+                {reportedOnce ? 'Reported' : 'Report'}
+              </Button>
+            )}
           </Box>
         </Box>
-      </Box>
       </Box>
       
       {/* Snackbar for notifications */}

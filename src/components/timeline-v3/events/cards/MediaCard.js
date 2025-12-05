@@ -66,8 +66,52 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
-  const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
-  const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+  
+  // Determine media subtype and apply specific colors
+  const getMediaTypeAndColor = () => {
+    // Check for media subtype first
+    if (event && event.media_subtype) {
+      switch(event.media_subtype) {
+        case 'image':
+          return { type: 'image', color: '#009688', icon: MediaIcon }; // Teal
+        case 'video':
+          return { type: 'video', color: '#4a148c', icon: MovieIcon }; // Deep Purple
+        case 'audio':
+          return { type: 'audio', color: '#e65100', icon: MusicNoteIcon }; // Orange
+        default:
+          break;
+      }
+    }
+    
+    // Fall back to detection logic
+    const mediaSource = event.media_url || event.url;
+    if (mediaSource) {
+      const fileExt = mediaSource.split('.').pop()?.toLowerCase();
+      const isImage = 
+        (fileExt && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt)) ||
+        (event.media_type && event.media_type.includes('image'));
+      const isVideo = 
+        (fileExt && ['mp4', 'webm', 'ogg', 'mov'].includes(fileExt)) ||
+        (event.media_type && event.media_type.includes('video'));
+      const isAudio = 
+        (fileExt && ['mp3', 'wav', 'ogg', 'aac'].includes(fileExt)) ||
+        (event.media_type && event.media_type.includes('audio'));
+      
+      if (isImage) return { type: 'image', color: '#009688', icon: MediaIcon };
+      if (isVideo) return { type: 'video', color: '#4a148c', icon: MovieIcon };
+      if (isAudio) return { type: 'audio', color: '#e65100', icon: MusicNoteIcon };
+    }
+    
+    // Default fallback to purple media color
+    const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
+    return { 
+      type: 'unknown', 
+      color: theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light,
+      icon: MediaIcon 
+    };
+  };
+  
+  const { type: mediaType, color, icon: TypeIcon } = getMediaTypeAndColor();
   
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -425,7 +469,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
         <PageCornerButton 
           position="top-right" 
           onClick={handleDetailsClick}
-          icon={<MediaIcon />}
+          icon={<TypeIcon />}
           color={color}
         />
       </Box>
@@ -525,7 +569,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
               position="top-right" 
               onClick={handleDetailsClick}
               tooltip="View Details"
-              icon={<MediaIcon />}
+              icon={<TypeIcon />}
               color={color}
             />
           </Box>
@@ -638,7 +682,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
                   position="top-right" 
                   onClick={handleDetailsClick}
                   tooltip="View Details"
-                  icon={<MediaIcon />}
+                  icon={<TypeIcon />}
                   color={color}
                 />
               </>
@@ -758,7 +802,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
           <PageCornerButton 
             position="top-right" 
             onClick={handleAudioDetailsClick}
-            icon={<MusicIcon />}
+            icon={<TypeIcon />}
             color={color}
           />
         </Box>
@@ -815,7 +859,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
         <PageCornerButton 
           position="top-right" 
           onClick={handleDetailsClick}
-          icon={<MediaIcon />}
+          icon={<TypeIcon />}
           color={color}
         />
       </Box>
@@ -969,7 +1013,7 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
             }}
           >
             <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <MediaIcon sx={{ color, mt: 0.5 }} />
+              <TypeIcon sx={{ color, mt: 0.5 }} />
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 1 }}>
                   {event.title}

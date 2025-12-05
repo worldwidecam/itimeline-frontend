@@ -244,8 +244,33 @@ const EventList = ({
     // Get the appropriate color based on event type
     const getEventColor = () => {
       if (!event || !event.type) return theme.palette.primary.main;
+
+      // Special handling for media subtypes (image/video/audio)
+      if (event.type.toLowerCase() === EVENT_TYPES.MEDIA) {
+        const subtype = (event.media_subtype || '').toLowerCase();
+        const mediaTypeHint = (event.media_type || '').toLowerCase();
+        const mediaUrl = (event.media_url || event.url || '').toLowerCase();
+        const ext = mediaUrl.split('.').pop();
+
+        const isVideo =
+          subtype === 'video' ||
+          mediaTypeHint.includes('video') ||
+          (ext && ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'wmv', 'flv'].includes(ext));
+        const isAudio =
+          subtype === 'audio' ||
+          mediaTypeHint.includes('audio') ||
+          (ext && ['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(ext));
+        const isImage =
+          subtype === 'image' ||
+          mediaTypeHint.includes('image') ||
+          (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext));
+
+        if (isImage) return '#009688'; // Teal (matches image media cards)
+        if (isAudio) return '#e65100'; // Orange (matches audio media cards)
+        if (isVideo) return '#4a148c'; // Deep purple (video media cards)
+      }
+
       const colors = EVENT_TYPE_COLORS[event.type];
-      // Handle case where the event type doesn't have corresponding colors
       if (!colors) return theme.palette.primary.main;
       return theme.palette.mode === 'dark' ? colors.dark : colors.light;
     };
