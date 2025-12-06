@@ -44,7 +44,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
-import TagList from './cards/TagList';
+import PopupTimelineLanes from './PopupTimelineLanes';
 import { submitReport } from '../../../utils/api';
 
 /**
@@ -79,7 +79,8 @@ const VideoEventPopup = ({
   handleAddToTimeline,
   fetchExistingTimelines,
   isInReview = false,
-  isSafeguarded = false
+  isSafeguarded = false,
+  laneProps
 }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -702,9 +703,8 @@ const VideoEventPopup = ({
               
               <Divider sx={{ my: 2 }} />
               
-              {/* Tags & Timelines Section */}
+              {/* Timelines Lanes Section */}
               <Box sx={{ mb: 3 }}>
-                {/* Tags Subtitle */}
                 <Typography 
                   variant="subtitle2" 
                   sx={{ 
@@ -715,98 +715,9 @@ const VideoEventPopup = ({
                       : 'rgba(0,0,0,0.9)',
                   }}
                 >
-                  Tags
+                  Timeline Tags
                 </Typography>
-                
-                {/* Tags List */}
-                {(localEventData?.tags || event.tags) && (localEventData?.tags || event.tags).length > 0 && (
-                  <Box sx={{ mb: 3 }}>
-                    <TagList 
-                      tags={localEventData?.tags || event.tags}
-                      associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
-                      removedTimelineIds={(event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []}
-                    />
-                  </Box>
-                )}
-                
-                {/* Tag a Timeline Collapsible */}
-                <Box 
-                  onClick={() => setTagSectionExpanded(!tagSectionExpanded)}
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: theme.palette.text.secondary,
-                    cursor: 'pointer',
-                    mb: tagSectionExpanded ? 2 : 0,
-                    '&:hover': {
-                      color: theme.palette.primary.main,
-                    },
-                  }}
-                >
-                  <Typography variant="subtitle2">Tag a Timeline</Typography>
-                  <ExpandMoreIcon 
-                    sx={{ 
-                      transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s',
-                      ml: 0.5,
-                    }} 
-                  />
-                </Box>
-                
-                {tagSectionExpanded && (
-                  <Box>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                      <Autocomplete
-                        size="small"
-                        options={existingTimelines}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedTimeline}
-                        onChange={(event, newValue) => {
-                          setSelectedTimeline(newValue);
-                          setError('');
-                        }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Select Timeline"
-                            variant="outlined"
-                            size="small"
-                            fullWidth
-                          />
-                        )}
-                        loading={loadingTimelines}
-                        sx={{ flex: 1 }}
-                      />
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleAddToTimeline}
-                        disabled={!selectedTimeline || addingToTimeline}
-                        startIcon={addingToTimeline ? <CircularProgress size={16} /> : <AddIcon />}
-                        sx={{
-                          backgroundColor: videoColor,
-                          '&:hover': {
-                            backgroundColor: `${videoColor}E6`,
-                          },
-                        }}
-                      >
-                        {addingToTimeline ? 'Adding...' : 'Add'}
-                      </Button>
-                    </Box>
-                    
-                    {error && (
-                      <Alert severity="error" sx={{ mb: 2 }}>
-                        {error}
-                      </Alert>
-                    )}
-                    
-                    {success && (
-                      <Alert severity="success" sx={{ mb: 2 }}>
-                        {success}
-                      </Alert>
-                    )}
-                  </Box>
-                )}
+                <PopupTimelineLanes {...laneProps} />
               </Box>
             </DialogContent>
             

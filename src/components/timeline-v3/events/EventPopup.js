@@ -46,8 +46,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
-import TagList from './cards/TagList';
 import api from '../../../utils/api';
+import PopupTimelineLanes from './PopupTimelineLanes';
 import { submitReport } from '../../../utils/api';
 import config from '../../../config';
 
@@ -61,6 +61,29 @@ import config from '../../../config';
  * When open, it signals to TimelineV3 to pause its refresh interval to prevent
  * disruptions to media playback.
  */
+
+// Helper to normalize associated timelines by type
+const normalizeAssociatedTimelines = (associatedTimelines = [], removedIds = []) => {
+  const removedSet = new Set(removedIds || []);
+  const communities = [];
+  const personals = [];
+
+  associatedTimelines.forEach((tl) => {
+    if (!tl || !tl.id) return;
+    if (removedSet.has(tl.id)) return;
+    const type = (tl.type || tl.timeline_type || 'hashtag').toLowerCase();
+    const name = tl.name || '';
+    if (!name) return;
+    if (type === 'community') {
+      communities.push(tl);
+    } else if (type === 'personal') {
+      personals.push(tl);
+    }
+  });
+
+  return { communities, personals };
+};
+
 const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = new Set() }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -153,6 +176,12 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
   const [success, setSuccess] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
+  // Independent selections per lane
+  const [selectedHashtag, setSelectedHashtag] = useState(null);
+  const [selectedCommunity, setSelectedCommunity] = useState(null);
+  const [selectedPersonal, setSelectedPersonal] = useState(null);
+  // Passport memberships for filtering lane options
+  const [passportMemberships, setPassportMemberships] = useState([]);
   // Store the updated event data after adding a tag
   const [localEventData, setLocalEventData] = useState(null);
   // Level 1 report overlay state
@@ -351,8 +380,23 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
     }
   }, [tagSectionExpanded]);
 
-  // Function to add the event to the selected timeline
-  const handleAddToTimeline = async () => {
+  // Load passport memberships when needed (lazy to avoid extra calls)
+  useEffect(() => {
+    const loadPassport = async () => {
+      try {
+        const memberships = await fetchUserPassport();
+        setPassportMemberships(Array.isArray(memberships) ? memberships : []);
+      } catch (e) {
+        console.warn('Failed to load passport memberships for popup lanes', e);
+      }
+    };
+    if (tagSectionExpanded && passportMemberships.length === 0) {
+      loadPassport();
+    }
+  }, [tagSectionExpanded, passportMemberships.length]);
+
+  // Function to add the event to the selected timeline (per-lane)
+  const handleAddToTimeline = async (selectedTimeline) => {
     if (!selectedTimeline || !event) return;
     
     try {
@@ -405,20 +449,6 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
             tags.push(baseName);
           }
         }
-      } else if (timelineType === 'community') {
-        let baseName = selectedTimeline.name || '';
-        const lower = baseName.toLowerCase();
-        if (lower.startsWith('i-')) {
-          baseName = baseName.slice(2);
-        }
-        const tagName = baseName.toLowerCase();
-        if (tagName && !tags.some(t => (t.name || t) === tagName)) {
-          if (tags.length && typeof tags[0] === 'object') {
-            tags.push({ id: null, name: tagName });
-          } else {
-            tags.push(tagName);
-          }
-        }
       }
 
       updatedEvent.tags = tags;
@@ -437,6 +467,63 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
       setAddingToTimeline(false);
     }
   };
+
+  // Derive lane data for display
+  const removedIds = (localEventData?.removed_timeline_ids || event?.removed_timeline_ids) ||
+    ((event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []);
+  const associatedTimelines = (localEventData?.associated_timelines || event.associated_timelines) || [];
+  const { communities, personals } = normalizeAssociatedTimelines(associatedTimelines, removedIds);
+  const hashtagTags = ((localEventData?.tags || event.tags) || []).map((t) => {
+    if (typeof t === 'string') return t;
+    return t?.name || t?.tag_name || '';
+  }).filter(Boolean);
+
+  // Current user (from localStorage) for personal ownership checks
+  let currentUserId = null;
+  try {
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUserId = userData?.id || null;
+  } catch (_) {}
+
+  // Option sources per lane
+  const hashtagOptions = existingTimelines.filter((tl) => (tl.timeline_type || tl.type) === 'hashtag');
+
+  // Communities: from passport memberships where active + community
+  const communityOptions = passportMemberships
+    .filter((m) => String(m.timeline_type || m.type || '').toLowerCase() === 'community' && m.is_active_member)
+    .map((m) => ({
+      id: m.timeline_id,
+      name: m.timeline_name || m.name,
+      type: 'community',
+    }))
+    // fallback to any loaded community timelines not yet included
+    .concat(
+      existingTimelines
+        .filter((tl) => (tl.timeline_type || tl.type) === 'community')
+        .map((tl) => ({ id: tl.id, name: tl.name, type: 'community' }))
+    )
+    // dedupe by id
+    .reduce((acc, item) => {
+      if (!item || !item.id) return acc;
+      if (acc.find((x) => Number(x.id) === Number(item.id))) return acc;
+      acc.push(item);
+      return acc;
+    }, []);
+
+  // Personals: from passport where personal and owned by current user (creator/site-owner)
+  const personalOptions = passportMemberships
+    .filter((m) => String(m.timeline_type || m.type || '').toLowerCase() === 'personal' && m.is_active_member && (m.is_creator || m.is_site_owner || (!m.owner_id || Number(m.owner_id) === Number(currentUserId))))
+    .map((m) => ({
+      id: m.timeline_id,
+      name: m.timeline_name || m.name,
+      type: 'personal',
+    }))
+    .reduce((acc, item) => {
+      if (!item || !item.id) return acc;
+      if (acc.find((x) => Number(x.id) === Number(item.id))) return acc;
+      acc.push(item);
+      return acc;
+    }, []);
 
   // Determine if this is an image media event
   const isImageMedia = () => {
@@ -557,6 +644,26 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
   if (!event) return null;
   
   // For news events, use the specialized NewsEventPopup component
+  const laneProps = {
+    hashtagTags,
+    communities,
+    personals,
+    hashtagOptions,
+    communityOptions,
+    personalOptions,
+    selectedHashtag,
+    setSelectedHashtag,
+    selectedCommunity,
+    setSelectedCommunity,
+    selectedPersonal,
+    setSelectedPersonal,
+    onAddToTimeline: handleAddToTimeline,
+    addingToTimeline,
+    loadingTimelines,
+    error,
+    success,
+  };
+
   if (isNews) {
     return (<>
       <NewsEventPopup
@@ -581,6 +688,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
+        laneProps={laneProps}
       />
     </>);
   }
@@ -614,6 +722,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
+        laneProps={laneProps}
       />
     );
   }
@@ -644,6 +753,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
+        laneProps={laneProps}
       />
     );
   }
@@ -674,6 +784,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
         fetchExistingTimelines={fetchExistingTimelines}
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
+        laneProps={laneProps}
       />
     );
   }
@@ -902,9 +1013,8 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
             
             <Divider sx={{ my: 2 }} />
             
-            {/* Tags & Timelines Section */}
+            {/* Timelines Lanes Section */}
             <Box sx={{ mb: 3 }}>
-              {/* Tags Subtitle */}
               <Typography 
                 variant="subtitle2" 
                 sx={{ 
@@ -915,100 +1025,11 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
                     : 'rgba(0,0,0,0.9)',
                 }}
               >
-                Tags
+                Timeline Tags
               </Typography>
-              
-              {/* Tags List */}
-              {(event.tags && event.tags.length > 0) && (
-                <Box sx={{ mb: 3 }}>
-                  <TagList 
-                    tags={localEventData?.tags || event.tags}
-                    associatedTimelines={(localEventData?.associated_timelines || event.associated_timelines) || []}
-                    removedTimelineIds={(localEventData?.removed_timeline_ids || event.removed_timeline_ids) || ((event && event.removed_from_this_timeline) ? [deriveTimelineId()] : [])}
-                  />
-                </Box>
-              )}
-              
-              {/* Tag a Timeline Collapsible */}
-              <Box 
-                onClick={() => {
-                  setTagSectionExpanded(!tagSectionExpanded);
-                }}
-                sx={{ 
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: theme.palette.text.secondary,
-                  cursor: 'pointer',
-                  mb: tagSectionExpanded ? 2 : 0,
-                  '&:hover': {
-                    color: theme.palette.primary.main,
-                  },
-                }}
-              >
-                <Typography variant="subtitle2">Tag a Timeline</Typography>
-                <ExpandMoreIcon 
-                  sx={{ 
-                    transform: tagSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s',
-                    ml: 0.5,
-                  }} 
-                />
-              </Box>
-                
-              {tagSectionExpanded && (
-                <Box>
-                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                    <Autocomplete
-                      size="small"
-                      options={existingTimelines}
-                      getOptionLabel={(option) => option.name}
-                      value={selectedTimeline}
-                      onChange={(event, newValue) => {
-                        setSelectedTimeline(newValue);
-                        setError('');
-                      }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Select Timeline"
-                          variant="outlined"
-                          size="small"
-                          fullWidth
-                        />
-                      )}
-                      loading={loadingTimelines}
-                      sx={{ flex: 1 }}
-                    />
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={handleAddToTimeline}
-                      disabled={!selectedTimeline || addingToTimeline}
-                      startIcon={addingToTimeline ? <CircularProgress size={16} /> : <AddIcon />}
-                      sx={{
-                        backgroundColor: remarkColor,
-                        '&:hover': {
-                          backgroundColor: `${remarkColor}E6`,
-                        },
-                      }}
-                    >
-                      {addingToTimeline ? 'Adding...' : 'Add'}
-                    </Button>
-                  </Box>
-                  
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                      {error}
-                    </Alert>
-                  )}
-                  
-                  {success && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
-                      {success}
-                    </Alert>
-                  )}
-                </Box>
-              )}
+              <PopupTimelineLanes
+                {...laneProps}
+              />
             </Box>
           </DialogContent>
           

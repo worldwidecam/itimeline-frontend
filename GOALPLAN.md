@@ -598,29 +598,40 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
   - On community timelines: auto-adds the base hashtag tag and ensures the event is associated with both the community and the corresponding hashtag timeline; chips show in their correct lanes.
   - On personal timelines: does **not** auto-add any `#` tag; `EventDialog` tag input is disabled/blurred with helper copy so personal-origin posts stay scoped to that personal timeline.
 
-**Current active task (2025-11-26):**
+**Current active task (2025-12-06):**
 
-- **Critical Bug: EventDialog Tag Loss**
-  - **Issue**: When creating events via EventDialog (FAB quick-create) on hashtag timelines, the auto-seeded timeline tag (e.g., `CAMERON ARIAS`) is being lost before submission.
-  - **Symptom**: Events created on `#CAMERON ARIAS` with manually added tags `test` and `cameron-arias` only show 2 tags in the database (`cameron-arias`, `test`), missing the 3rd tag `cameron arias`.
-  - **Root Cause Investigation**:
-    - EventDialog's `useEffect` (line 145) auto-seeds the timeline tag correctly on open.
-    - Console logging added to track tag state through: auto-seed → manual additions → submission.
-    - Backend lowercases all tags (line 2678 in `app.py`), so `CAMERON ARIAS` becomes `cameron arias` in storage.
-    - The `associated_timelines` array correctly shows all 3 timelines, but the `tags` array is missing the host timeline tag.
-  - **Status**: Debugging in progress. Need to verify console logs show what tags EventDialog is actually sending to backend.
-  - **Next Steps**:
-    1. Check browser console for `[EventDialog]` log messages during event creation.
-    2. Confirm if the tag is being lost in frontend state management or during backend processing.
-    3. Fix the tag persistence issue to ensure all 3 tags are stored and displayed.
+- **EventPopup V2 Lanes Implementation - COMPLETED**
+  - ✅ Created `PopupTimelineLanes.js` component with three distinct lanes:
+    - Hashtag lane: displays up to 5 hashtag chips + `+N` overflow; add row searches only hashtag timelines.
+    - Community lane: aggregate pill with count badge; add row lists only communities where user is active member (from passport).
+    - Personal lane: aggregate pill with count badge; add row lists only current user's own personal timelines (from passport).
+  - ✅ Updated `EventPopup.js`:
+    - Added passport membership loading and lane data derivation.
+    - Removed community auto-`#` tagging logic; only hashtag additions add tags now.
+    - Replaced legacy TagList block with `PopupTimelineLanes`.
+    - Passes `laneProps` to all specialized popup variants.
+  - ✅ Wired `PopupTimelineLanes` into all specialized popups:
+    - `ImageEventPopup.js`: replaced TagList section with lanes.
+    - `VideoEventPopup.js`: replaced TagList section with lanes.
+    - `NewsEventPopup.js`: replaced TagList section with lanes.
+    - `AudioMediaPopup.js`: replaced TagList section with lanes.
+  - **V2 Rules Enforced**:
+    - Adding community in popup does **not** auto-add `#` tag (only association).
+    - Adding personal in popup does **not** add `#` tag (only association).
+    - Adding hashtag in popup adds both tag and association.
+    - Hashtag search restricted to hashtag timelines only.
+    - Community options filtered by active membership from passport.
+    - Personal options filtered to current user's own timelines from passport.
 
-**Completed today:**
+**Completed (2025-11-26):**
 - ✅ Fixed duplicate video player rendering in `VideoEventPopup.js` - consolidated IIFE to return only one player (Cloudinary or native).
 - ✅ Fixed EventDialog `useEffect` dependency array - removed `tags.length` to prevent re-running and overwriting user-added tags.
 
-**Next active task (after tag bug fix):**
+**Next steps:**
 
-- Bring **EventPopup** in line with V2 chip semantics:
-  - Ensure the "Tag a Timeline" / Add-to-Timeline flow respects the separation between `#` tags vs `i-` / `My-` listings.
-  - When adding an event to another timeline via EventPopup, derive associations according to V2 rules (e.g., adding to a community should create/attach the corresponding `#` hashtag, adding to a personal timeline should **not** leak new `#` tags from that context).
-  - Keep cards as the lightweight overview; use EventPopup as the detailed place to inspect and manage which `#` / `i-` / `My-` timelines an event belongs to.
+- Test EventPopup lanes in browser to verify:
+  - Hashtag lane shows existing hashtag tags and allows adding only hashtag timelines.
+  - Community lane shows aggregate count and allows adding only user's active communities.
+  - Personal lane shows aggregate count and allows adding only user's own personals.
+  - Adding community/personal does not auto-add `#` tags.
+  - UI matches V2 design spec (pills, counts, three-lane grid layout).
