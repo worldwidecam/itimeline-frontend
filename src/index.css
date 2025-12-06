@@ -46,43 +46,39 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Hide scrollbar in dark mode while maintaining functionality */
-html.dark-mode,
-body.dark-mode {
+/* Hide scrollbar globally while maintaining functionality */
+html,
+body {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
   overflow-y: scroll !important; /* Maintain scrolling functionality */
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera in dark mode */
-html.dark-mode::-webkit-scrollbar,
-body.dark-mode::-webkit-scrollbar {
+/* Hide scrollbar for Chrome, Safari and Opera */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
   width: 0 !important;
   display: none !important;
 }
 
 /* Target the highest level containers */
-html.dark-mode #root,
-body.dark-mode #root {
+#root {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
 
-html.dark-mode #root::-webkit-scrollbar,
-body.dark-mode #root::-webkit-scrollbar {
+#root::-webkit-scrollbar {
   width: 0 !important;
   display: none !important;
 }
 
-/* Also hide scrollbars for all elements in dark mode */
-html.dark-mode *,
-body.dark-mode * {
+/* Also hide scrollbars for all elements */
+* {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
 
-html.dark-mode *::-webkit-scrollbar,
-body.dark-mode *::-webkit-scrollbar {
+*::-webkit-scrollbar {
   width: 0 !important;
   display: none !important;
 }

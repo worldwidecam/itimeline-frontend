@@ -2510,6 +2510,33 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Add state to track if any popup is currently open
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
+  // Safety net: ensure body scroll is never locked when component unmounts or all dialogs close
+  useEffect(() => {
+    // Cleanup function to force-remove any scroll locks when component unmounts
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, []);
+
+  // Additional safety: check and fix scroll lock when no dialogs should be open
+  useEffect(() => {
+    const allDialogsClosed = !isPopupOpen && !dialogOpen && !mediaDialogOpen && !remarkDialogOpen && !newsDialogOpen && !accessPanelOpen;
+    
+    if (allDialogsClosed) {
+      // Small delay to let MUI's cleanup run first
+      const timeoutId = setTimeout(() => {
+        if (document.body.style.overflow === 'hidden') {
+          console.warn('[TimelineV3] Detected stuck scroll lock, fixing...');
+          document.body.style.overflow = '';
+          document.body.style.paddingRight = '';
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isPopupOpen, dialogOpen, mediaDialogOpen, remarkDialogOpen, newsDialogOpen, accessPanelOpen]);
+
   // Update hover position every minute, but pause when popup is open
   useEffect(() => {
     if (viewMode === 'day') {
