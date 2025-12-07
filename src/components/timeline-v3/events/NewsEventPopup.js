@@ -728,18 +728,6 @@ const NewsEventPopup = ({
               
               {/* Timelines Lanes Section */}
               <Box sx={{ mb: 3 }}>
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    mb: 1.5,
-                    fontWeight: 600,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.9)'
-                      : 'rgba(0,0,0,0.9)',
-                  }}
-                >
-                  Timeline Tags
-                </Typography>
                 <PopupTimelineLanes {...laneProps} />
               </Box>
             </Box>
