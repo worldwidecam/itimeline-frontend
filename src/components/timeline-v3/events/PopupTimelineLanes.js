@@ -12,7 +12,8 @@ import {
   Alert,
   IconButton,
   Collapse,
-  Paper
+  Paper,
+  Avatar
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -22,7 +23,8 @@ import {
   Lock as LockIcon,
   Add as AddIcon,
   ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon
+  ExpandLess as ExpandLessIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 
 const stringToColor = (str) => {
@@ -101,6 +103,27 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
   const theme = useTheme();
   if (!tags.length) return null;
 
+  // Handle hashtag click - open timeline in new tab
+  const handleHashtagClick = async (e, tagName) => {
+    e.stopPropagation();
+    try {
+      // Strip any leading # and convert to uppercase for hashtag timeline name
+      const baseName = (tagName || '').replace(/^#+/, '');
+      const timelineName = baseName.toUpperCase();
+      const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
+      if (response.data && response.data.id) {
+        window.open(`/timeline-v3/${response.data.id}`, '_blank');
+      } else {
+        window.open(`/timeline-v3/new?name=${encodeURIComponent(timelineName)}`, '_blank');
+      }
+    } catch (error) {
+      console.error('Error fetching timeline for tag:', tagName, error);
+      const baseName = (tagName || '').replace(/^#+/, '');
+      const fallbackName = baseName.toUpperCase();
+      window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
+    }
+  };
+
   // In full mode (popups), show all tags with scrolling
   // In compact mode (cards), show only 5 tags with overflow count
   const visible = fullMode ? tags : tags.slice(0, 5);
@@ -135,7 +158,14 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
             )}
             label={tagName}
             size="small"
+            onClick={(e) => handleHashtagClick(e, tagName)}
             sx={{
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark'
+                  ? alpha(tagColor, 0.3)
+                  : alpha(tagColor, 0.2),
+              },
               height: 24,
               backgroundColor: theme.palette.mode === 'dark'
                 ? alpha(tagColor, 0.2)
@@ -200,11 +230,27 @@ const PopupTimelineLanes = ({
   loadingTimelines,
   error,
   success,
+  currentUserId,
 }) => {
   const theme = useTheme();
   const [hashtagDropdownOpen, setHashtagDropdownOpen] = React.useState(false);
   const [communityListOpen, setCommunityListOpen] = React.useState(false);
   const [personalListOpen, setPersonalListOpen] = React.useState(false);
+
+  // Toggle handlers that close the other list when opening one
+  const handleCommunityToggle = () => {
+    if (!communityListOpen) {
+      setPersonalListOpen(false); // Close personals when opening communities
+    }
+    setCommunityListOpen(!communityListOpen);
+  };
+
+  const handlePersonalToggle = () => {
+    if (!personalListOpen) {
+      setCommunityListOpen(false); // Close communities when opening personals
+    }
+    setPersonalListOpen(!personalListOpen);
+  };
 
   return (
     <Box>
@@ -228,9 +274,9 @@ const PopupTimelineLanes = ({
           <Chip
             icon={<CommunityIcon sx={{ fontSize: 16 }} />}
             label={`Communities ${communities.length > 0 ? `(${communities.length})` : ''}`}
-            onClick={() => setCommunityListOpen(!communityListOpen)}
+            onClick={handleCommunityToggle}
             deleteIcon={communityListOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            onDelete={() => setCommunityListOpen(!communityListOpen)}
+            onDelete={handleCommunityToggle}
             sx={{
               height: 28,
               backgroundColor: alpha(theme.palette.secondary.main, 0.1),
@@ -253,9 +299,9 @@ const PopupTimelineLanes = ({
           <Chip
             icon={<PersonalIcon />}
             label={`Personals ${personals.length > 0 ? `(${personals.length})` : ''}`}
-            onClick={() => setPersonalListOpen(!personalListOpen)}
+            onClick={handlePersonalToggle}
             deleteIcon={personalListOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            onDelete={() => setPersonalListOpen(!personalListOpen)}
+            onDelete={handlePersonalToggle}
             sx={{
               height: 28,
               backgroundColor: alpha(theme.palette.primary.main, 0.1),
@@ -307,11 +353,30 @@ const PopupTimelineLanes = ({
               getOptionLabel={(opt) => opt.name || ''}
               value={selectedHashtag}
               loading={loadingTimelines}
-              onChange={(e, newVal) => setSelectedHashtag(newVal)}
+              onChange={(e, newVal) => {
+                if (typeof newVal === 'string') {
+                  setSelectedHashtag({ id: null, name: newVal, type: 'hashtag' });
+                } else {
+                  setSelectedHashtag(newVal);
+                }
+              }}
+              freeSolo
+              isOptionEqualToValue={(option, value) => option?.id === value?.id || option?.name === value?.name}
+              filterOptions={(options, state) => {
+                // If no input, show only first 10 options
+                if (!state.inputValue || state.inputValue.trim() === '') {
+                  return options.slice(0, 10);
+                }
+                // Otherwise use default filtering
+                const filtered = options.filter(option =>
+                  option.name.toLowerCase().includes(state.inputValue.toLowerCase())
+                );
+                return filtered;
+              }}
               renderInput={(params) => (
                 <TextField {...params} placeholder="Search hashtags..." variant="outlined" size="small" />
               )}
-              sx={{ flex: 1 }}
+              sx={{ flex: 1, maxWidth: '300px' }}
             />
             <Button
               variant="contained"
@@ -362,6 +427,17 @@ const PopupTimelineLanes = ({
               value={selectedCommunity}
               loading={loadingTimelines}
               onChange={(e, newVal) => setSelectedCommunity(newVal)}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              filterOptions={(options, state) => {
+                // If no input, show only first 10 options
+                if (!state.inputValue || state.inputValue.trim() === '') {
+                  return options.slice(0, 10);
+                }
+                // Otherwise use default filtering
+                return options.filter(option =>
+                  option.name.toLowerCase().includes(state.inputValue.toLowerCase())
+                );
+              }}
               renderInput={(params) => (
                 <TextField {...params} placeholder="Search communities..." variant="outlined" size="small" />
               )}
@@ -395,11 +471,21 @@ const PopupTimelineLanes = ({
                   icon={<CommunityIcon sx={{ fontSize: 14 }} />}
                   label={community.name || 'Community'}
                   size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (community.id) {
+                      window.open(`/timeline-v3/${community.id}`, '_blank');
+                    }
+                  }}
                   sx={{
                     mb: 0.5,
                     mr: 0.5,
                     backgroundColor: alpha(theme.palette.secondary.main, 0.1),
                     color: theme.palette.secondary.main,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.2),
+                    },
                   }}
                 />
               ))}
@@ -437,6 +523,17 @@ const PopupTimelineLanes = ({
               value={selectedPersonal}
               loading={loadingTimelines}
               onChange={(e, newVal) => setSelectedPersonal(newVal)}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              filterOptions={(options, state) => {
+                // If no input, show only first 10 options
+                if (!state.inputValue || state.inputValue.trim() === '') {
+                  return options.slice(0, 10);
+                }
+                // Otherwise use default filtering
+                return options.filter(option =>
+                  option.name.toLowerCase().includes(state.inputValue.toLowerCase())
+                );
+              }}
               renderInput={(params) => (
                 <TextField {...params} placeholder="Search personals..." variant="outlined" size="small" />
               )}
@@ -464,20 +561,50 @@ const PopupTimelineLanes = ({
           {/* Personals List */}
           {personals.length > 0 ? (
             <Box sx={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {personals.map((personal, idx) => (
-                <Chip
-                  key={idx}
-                  icon={<PersonalIcon />}
-                  label={personal.name || 'Personal'}
-                  size="small"
-                  sx={{
-                    mb: 0.5,
-                    mr: 0.5,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    color: theme.palette.primary.main,
-                  }}
-                />
-              ))}
+              {personals.map((personal, idx) => {
+                const isOwner = personal.created_by && currentUserId && Number(personal.created_by) === Number(currentUserId);
+                const displayName = isOwner ? (personal.name || 'Personal') : (personal.owner_username || 'User');
+                
+                return (
+                  <Chip
+                    key={idx}
+                    avatar={!isOwner ? (
+                      personal.owner_avatar ? (
+                        <Avatar src={personal.owner_avatar} />
+                      ) : (
+                        <PersonIcon sx={{ fontSize: 16 }} />
+                      )
+                    ) : (
+                      <PersonalIcon />
+                    )}
+                    label={displayName}
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isOwner && personal.id) {
+                        window.open(`/timeline-v3/${personal.id}`, '_blank');
+                      } else if (!isOwner && personal.created_by) {
+                        window.open(`/profile/${personal.created_by}`, '_blank');
+                      }
+                    }}
+                    sx={{
+                      mb: 0.5,
+                      mr: 0.5,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      color: theme.palette.primary.main,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                      },
+                      '& .MuiChip-avatar': {
+                        width: 18,
+                        height: 18,
+                        fontSize: '0.65rem'
+                      }
+                    }}
+                  />
+                );
+              })}
             </Box>
           ) : (
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>

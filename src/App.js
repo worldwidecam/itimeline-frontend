@@ -97,6 +97,7 @@ const Homepage = () => {
   const theme = useTheme();
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const timelineListRef = React.useRef(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [timelineToDelete, setTimelineToDelete] = React.useState(null);
   const [timelines, setTimelines] = React.useState([]);
@@ -356,6 +357,11 @@ const Homepage = () => {
     // Limit results to top 10 (or whatever number is appropriate)
     const limitedResults = sortedResults.slice(0, 10);
     setFilteredTimelines(limitedResults);
+    
+    // Reset scroll position to top when search results update
+    if (timelineListRef.current) {
+      timelineListRef.current.scrollTop = 0;
+    }
   };
 
   const formatDate = (dateString) => {
@@ -598,6 +604,7 @@ const Homepage = () => {
               </Box>
             ) : filteredTimelines.length > 0 ? (
               <Box 
+                ref={timelineListRef}
                 sx={{ 
                   overflowY: 'auto', 
                   maxHeight: '500px',
