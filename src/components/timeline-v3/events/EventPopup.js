@@ -689,6 +689,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
     loadingTimelines,
     error,
     success,
+    currentUserId,
   };
 
   if (isNews) {
