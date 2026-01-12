@@ -192,26 +192,15 @@ This replaces the older personal-timeline-only GOALPLAN; V2 is the new primary r
 - [x] Update README with lock view behavior and admin access guard
 - [ ] Revisit copy/UX polish after broader testing (defer)
 
-## Phase 2: Personal Timeline Privacy & Profile Navigation (2026-01-09)
+### 🎯 **Next Session Action Plan:**
 
-### Status: COMPLETED ✅
-- **Masking Logic**: Personal timeline names are now masked for non-owners in the `EventPopup` lanes.
-- **Visual Style**: Masked chips show the owner's `username` instead of the timeline name, with brackets removed (e.g., `User1` instead of `[User1]`).
-- **Profile Integration**:
-  - Non-owner chips display the owner's **avatar** (or a `Person` icon fallback).
-  - Clicking a masked chip opens the owner's **profile page** in a new tab.
-- **Backend Support**: `app.py` now includes `owner_username`, `owner_avatar`, and `created_by` in the `associated_timelines` payload for all event endpoints.
-
-## Phase 3: Community Privacy & Form Refinements (Upcoming)
-
-### 📋 To-Do List:
-- [ ] **Community Privacy Check**: Update `EventDialog` (EventForm) to check if a community is private; if so, do **NOT** auto-add the `#hashtag` counterpart.
-- [ ] **Form Input Gating**: Restrict the hashtag input field in the event creation form to **ONLY** allow hashtag timelines (exclude communities/personals).
-- [ ] **Timeline Creation Bans**: Prevent the use of `-` and `#` characters in new timeline names or tags to maintain naming consistency.
-- [ ] **Visual Redesigns**:
-  - Redesign `RemarkCard` visuals for better distinction.
-  - Create a "ballot box" form icon for the site.
-- [ ] **Marker Optimization**: Brainstorm and implement a scalable visualization for 1000s of event markers.
+1. Complete thorough end-to-end testing of member removal persistence
+   - Test with multiple browsers/sessions
+   - Verify proper behavior after page refresh
+   - Monitor logs for any unexpected member reappearance
+2. Verify and remove any lingering mock fallbacks in AdminPanel outside Active Members
+3. Implement search/filtering for members list in AdminPanel
+4. Clean up unused `Avatar` imports and optionally archive `old_components/`
 
 ### 📋 Future Quote System Enhancements (Optional):
 - [ ] Add quote history/versioning for timeline admins

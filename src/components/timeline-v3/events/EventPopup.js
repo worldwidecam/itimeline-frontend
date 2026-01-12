@@ -74,22 +74,10 @@ const normalizeAssociatedTimelines = (associatedTimelines = [], removedIds = [])
     const type = (tl.type || tl.timeline_type || 'hashtag').toLowerCase();
     const name = tl.name || '';
     if (!name) return;
-    
-    // Preserve ownership info for masking
-    const normalizedTl = {
-      ...tl,
-      id: tl.id,
-      name: tl.name,
-      type: type,
-      created_by: tl.created_by,
-      owner_username: tl.owner_username,
-      owner_avatar: tl.owner_avatar
-    };
-
     if (type === 'community') {
-      communities.push(normalizedTl);
+      communities.push(tl);
     } else if (type === 'personal') {
-      personals.push(normalizedTl);
+      personals.push(tl);
     }
   });
 
@@ -409,63 +397,54 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
   useEffect(() => {
     const loadPassport = async () => {
       try {
-        console.log('[EventPopup] Forcing passport sync on open to ensure latest memberships');
-        // First sync to ensure latest data (including the new owner_id field)
-        await syncUserPassport();
-        // then fetch the updated state
         await fetchPassportMemberships();
       } catch (e) {
         console.warn('Failed to load passport memberships for popup lanes', e);
       }
     };
-    if (open) {
+    if (open && passportMemberships.length === 0) {
       loadPassport();
     }
-  }, [open]);
+  }, [open, passportMemberships.length]);
 
   // Function to add the event to the selected timeline (per-lane)
-  const handleAddToTimeline = async (targetTimeline) => {
-    if (!targetTimeline || !event) return;
-
-    console.log('[EventPopup] handleAddToTimeline called with:', targetTimeline);
+  const handleAddToTimeline = async (selectedTimeline) => {
+    if (!selectedTimeline || !event) return;
 
     try {
       setAddingToTimeline(true);
       setError('');
       
       // Check if the event is already in the timeline
-      const checkResponse = await api.get(`/api/timeline-v3/${targetTimeline.id}/events`);
+      const checkResponse = await api.get(`/api/timeline-v3/${selectedTimeline.id}/events`);
       const timelineEvents = checkResponse.data || [];
       
       // Check if this event already exists in the selected timeline
       const eventExists = timelineEvents.some(timelineEvent => timelineEvent.id === event.id);
       
       if (eventExists) {
-        setError(`This event is already in the "${targetTimeline.name}" timeline.`);
+        setError(`This event is already in the "${selectedTimeline.name}" timeline.`);
         setAddingToTimeline(false);
         return;
       }
       
       // Add the event to the timeline
-      const addResponse = await api.post(`/api/timeline-v3/${targetTimeline.id}/add-event/${event.id}`);
+      const addResponse = await api.post(`/api/timeline-v3/${selectedTimeline.id}/add-event/${event.id}`);
       console.log('[EventPopup] Add event response:', addResponse.data);
       
       // Update the local event data to reflect new associations under V2 rules
       const updatedEvent = { ...(localEventData || event) };
 
-      const timelineType = (targetTimeline.timeline_type || targetTimeline.type || 'hashtag').toLowerCase();
+      const timelineType = (selectedTimeline.timeline_type || selectedTimeline.type || 'hashtag').toLowerCase();
 
       // Ensure associated_timelines reflects the new listing
       const assoc = (updatedEvent.associated_timelines || event.associated_timelines || []).slice();
-      const alreadyAssoc = assoc.some(tl => tl && Number(tl.id) === Number(targetTimeline.id));
+      const alreadyAssoc = assoc.some(tl => tl && Number(tl.id) === Number(selectedTimeline.id));
       if (!alreadyAssoc) {
         assoc.push({
-          id: targetTimeline.id,
-          name: targetTimeline.name,
+          id: selectedTimeline.id,
+          name: selectedTimeline.name,
           type: timelineType,
-          created_by: targetTimeline.created_by,
-          owner_username: targetTimeline.owner_username,
-          owner_avatar: targetTimeline.owner_avatar
         });
       }
       updatedEvent.associated_timelines = assoc;
@@ -474,7 +453,7 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
       let tags = (updatedEvent.tags || event.tags || []).slice();
 
       if (timelineType === 'hashtag') {
-        const baseName = (targetTimeline.name || '').toLowerCase();
+        const baseName = (selectedTimeline.name || '').toLowerCase();
         if (baseName && !tags.some(t => (t.name || t) === baseName)) {
           // Preserve existing tag object shape when possible
           if (tags.length && typeof tags[0] === 'object') {
@@ -489,13 +468,10 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
       setLocalEventData(updatedEvent);
       
       // Show success message
-      setSuccess(`Event added to "${targetTimeline.name}" successfully!`);
+      setSuccess(`Event added to "${selectedTimeline.name}" timeline successfully!`);
       setSnackbarOpen(true);
       
-      // Reset lane-specific selections to clear the inputs
-      setSelectedHashtag(null);
-      setSelectedCommunity(null);
-      setSelectedPersonal(null);
+      // Reset selection
       setSelectedTimeline(null);
     } catch (error) {
       console.error('Error adding event to timeline:', error);
@@ -517,10 +493,9 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
 
   // Current user (from localStorage) for personal ownership checks
   let currentUserId = null;
-  let loggedInUser = null;
   try {
-    loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
-    currentUserId = loggedInUser?.id || null;
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUserId = userData?.id || null;
   } catch (_) {}
 
   // Option sources per lane
@@ -553,62 +528,27 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
     .filter((m) => {
       const isPersonal = String(m.timeline_type || m.type || '').toLowerCase() === 'personal';
       const isActive = m.is_active_member;
-      // Use owner_id from backend if available, or fallback to creator/site-owner flags
-      const isOwner = m.is_creator || m.is_site_owner || (m.owner_id && Number(m.owner_id) === Number(currentUserId));
-      
-      const match = isPersonal && isActive && isOwner;
-      if (isPersonal) {
-        console.log('[EventPopup] Personal passport filter:', { 
-          name: m.timeline_name || m.name,
-          id: m.timeline_id,
-          isPersonal, 
-          isActive, 
-          isOwner,
-          owner_id: m.owner_id,
-          currentUserId,
-          match
-        });
-      }
-      return match;
+      const isOwner = m.is_creator || m.is_site_owner || (!m.owner_id || Number(m.owner_id) === Number(currentUserId));
+      console.log('[EventPopup] Personal filter:', { 
+        membership: m, 
+        isPersonal, 
+        isActive, 
+        isOwner,
+        currentUserId 
+      });
+      return isPersonal && isActive && isOwner;
     })
     .map((m) => ({
       id: m.timeline_id,
       name: m.timeline_name || m.name,
       type: 'personal',
-      created_by: currentUserId,
-      owner_username: loggedInUser?.username || 'You',
-      owner_avatar: loggedInUser?.avatar_url || loggedInUser?.avatar || null
     }))
-    // Fallback to any loaded timelines that are personal and owned by the user
-    .concat(
-      existingTimelines
-        .filter((tl) => {
-          const isPersonal = (tl.timeline_type || tl.type) === 'personal';
-          const isOwner = Number(tl.created_by) === Number(currentUserId);
-          return isPersonal && isOwner;
-        })
-        .map((tl) => ({ 
-          id: tl.id, 
-          name: tl.name, 
-          type: 'personal',
-          created_by: currentUserId,
-          owner_username: loggedInUser?.username || 'You',
-          owner_avatar: loggedInUser?.avatar_url || loggedInUser?.avatar || null
-        }))
-    )
-    // dedupe by id
     .reduce((acc, item) => {
       if (!item || !item.id) return acc;
       if (acc.find((x) => Number(x.id) === Number(item.id))) return acc;
       acc.push(item);
       return acc;
     }, []);
-
-  console.log('[EventPopup] Final lane options counts:', {
-    hashtags: hashtagOptions.length,
-    communities: communityOptions.length,
-    personals: personalOptions.length
-  });
   
   console.log('[EventPopup] Personal options computed:', personalOptions);
 
@@ -749,7 +689,6 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
     loadingTimelines,
     error,
     success,
-    currentUserId,
   };
 
   if (isNews) {

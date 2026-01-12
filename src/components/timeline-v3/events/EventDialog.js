@@ -28,12 +28,13 @@ import {
   Add as AddIcon,
   CloudUpload as UploadIcon,
 } from '@mui/icons-material';
+import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 
-const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName, timelineType }) => {
+const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName, timelineType, timelineVisibility, mode = 'create', initialType = EVENT_TYPES.REMARK }) => {
   const theme = useTheme();
-  const [eventType, setEventType] = useState(EVENT_TYPES.REMARK);
+  const [eventType, setEventType] = useState(initialType);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState(new Date());
@@ -61,8 +62,11 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       }
     } else {
       resetForm();
+      if (initialType) {
+        setEventType(initialType);
+      }
     }
-  }, [initialEvent]);
+  }, [initialEvent, initialType]);
 
   useEffect(() => {
     const fetchUrlPreview = async () => {
@@ -122,9 +126,16 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
     if (!baseName) return;
 
     const type = (timelineType || 'hashtag').toLowerCase();
+    const visibility = (timelineVisibility || 'public').toLowerCase();
 
     // Do not auto-add any tag for personal timelines
     if (type === 'personal') {
+      return;
+    }
+
+    // V3 Enhancement: If community is private, do NOT auto-add the hashtag counterpart
+    if (type === 'community' && visibility === 'private') {
+      console.log('[EventDialog] Private community detected, skipping auto-# tag seeding');
       return;
     }
 
@@ -206,6 +217,19 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
   };
 
   const handleAddTag = () => {
+    // V3 Enhancement: Ban '-' and '#' from tag names
+    if (currentTag.includes('-') || currentTag.includes('#')) {
+      alert('Tags cannot contain "-" or "#" characters.');
+      return;
+    }
+
+    // Ban 'i-' and 'My-' style inputs from being treated as hashtags
+    const lowerTag = currentTag.toLowerCase();
+    if (lowerTag.startsWith('i-') || lowerTag.startsWith('my-')) {
+      alert('Tags cannot start with "i-" or "My-".');
+      return;
+    }
+
     if (currentTag && !tags.includes(currentTag)) {
       console.log('[EventDialog] Adding tag:', currentTag, 'Current tags:', tags);
       setTags([...tags, currentTag]);
