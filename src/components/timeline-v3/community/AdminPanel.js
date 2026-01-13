@@ -56,6 +56,7 @@ import AudiotrackIcon from '@mui/icons-material/Audiotrack';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import LockIcon from '@mui/icons-material/Lock';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import InfoIcon from '@mui/icons-material/Info';
 import { useParams } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -66,6 +67,7 @@ import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
 import ErrorBoundary from '../../ErrorBoundary';
+import InfoCardsTab from './InfoCardsTab';
 
 // ----- Shared helpers (module scope) -----
 // Normalize role string
@@ -1600,6 +1602,18 @@ const AdminPanel = () => {
               }}
             />
             <Tab 
+              label="Info Cards" 
+              icon={<InfoIcon />} 
+              iconPosition="start"
+              sx={{ 
+                transition: 'all 0.3s ease',
+                minHeight: 48,
+                '&.Mui-selected': {
+                  fontWeight: 'bold'
+                }
+              }}
+            />
+            <Tab 
               label="Settings" 
               icon={<SettingsIcon />} 
               iconPosition="start"
@@ -1625,7 +1639,8 @@ const AdminPanel = () => {
                 />
               )}
               {tabValue === 1 && <ManagePostsTab key="posts" timelineId={id} />}
-              {tabValue === 2 && <SettingsTab key="settings" id={id} />}
+              {tabValue === 2 && <InfoCardsTab key="infocards" timelineId={id} />}
+              {tabValue === 3 && <SettingsTab key="settings" id={id} />}
             </AnimatePresence>
           </Box>
         </Paper>

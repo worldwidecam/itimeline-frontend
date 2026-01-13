@@ -36,6 +36,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import QuoteDisplay from './QuoteDisplay';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
+import CommunityInfoCardsDisplay from './CommunityInfoCardsDisplay';
 
 // Helper function to safely format dates
 const formatActionDate = (dateValue) => {
@@ -931,55 +932,58 @@ const MemberListTab = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <Paper 
-          elevation={2} 
-          sx={{ 
-            p: 3, 
-            mt: 2, 
-            borderRadius: 2,
-            bgcolor: 'background.paper',
-            overflow: 'hidden'
-          }}
-        >
-          <motion.div
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 2fr' }, gap: 3, mt: 2 }}>
+          {/* Left Column: Members List (1/3 width on large screens) */}
+          <Paper 
+            elevation={2} 
+            sx={{ 
+              p: 3, 
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Typography variant="h5" component="h1">
-                Community Members
-              </Typography>
-              <Box 
-                component="span"
-                sx={{ 
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  ml: 2,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 10,
-                  fontSize: '0.875rem',
-                  fontWeight: 'medium',
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-                  color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)'
-                }}
-              >
-                {isLoading ? (
-                  <Skeleton width={30} height={24} sx={{ borderRadius: 1 }} />
-                ) : (
-                  `${members.length} ${members.length === 1 ? 'member' : 'members'}`
-                )}
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" component="h2">
+                  Members
+                </Typography>
+                <Box 
+                  component="span"
+                  sx={{ 
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    ml: 1.5,
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 10,
+                    fontSize: '0.75rem',
+                    fontWeight: 'medium',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)'
+                  }}
+                >
+                  {isLoading ? (
+                    <Skeleton width={25} height={20} sx={{ borderRadius: 1 }} />
+                  ) : (
+                    `${members.length}`
+                  )}
+                </Box>
               </Box>
-            </Box>
+              
+              <Typography variant="caption" color="text.secondary" gutterBottom>
+                Community members
+              </Typography>
+            </motion.div>
             
-            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              Members of this community timeline
-            </Typography>
-          </motion.div>
-          
-          <Divider sx={{ my: 2 }} />
+            <Divider sx={{ my: 1.5 }} />
           
           {/* Search, Filter, and Sort Controls */}
           <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { xs: 'stretch', sm: 'center' } }}>
@@ -1191,7 +1195,33 @@ const MemberListTab = () => {
               </Typography>
             </Box>
           )}
-        </Paper>
+          </Paper>
+
+          {/* Right Column: Info Cards (2/3 width on large screens) */}
+          <motion.div
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+          >
+            <Paper 
+              elevation={2} 
+              sx={{ 
+                p: 3, 
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+                overflow: 'hidden'
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" component="h2">
+                  Community Info
+                </Typography>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
+              <CommunityInfoCardsDisplay timelineId={id} />
+            </Paper>
+          </motion.div>
+        </Box>
       </motion.div>
     </Box>
   );

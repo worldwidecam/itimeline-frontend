@@ -2934,6 +2934,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleBackgroundClick = () => {
     setCurrentEventIndex(-1);
     setSelectedEventId(null);
+    // Deactivate Point B when clicking off an event marker
+    if (pointB_active) {
+      deactivatePointB();
+    }
   };
 
   // Calculate the temporal distance between an event and the current reference point

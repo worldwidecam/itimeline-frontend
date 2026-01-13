@@ -787,6 +787,141 @@ All EventPopup components now follow a consistent, unified layout structure for 
 #### Implementation Files
 - `src/components/timeline-v3/events/NewsEventPopup.js` (Red accent)
 - `src/components/timeline-v3/events/EventPopup.js` (Blue accent, Description-first order)
+
+---
+
+## V2 Hashtag / Timeline Chip System (November 2025)
+
+### Overview
+
+The V2 system redesigns hashtag/timeline creation and chip display so that hashtag (`#`), community (`i-`), and personal (`My-`) timelines have clear, consistent naming/creation rules and distinct chip areas on event cards and popups.
+
+### V2 Naming / Creation Constraints
+
+#### Hashtag Timelines (`#`)
+- **Within hashtag type**: No duplicates globally (only one `#Fitness` hashtag timeline)
+- **Cross-type collisions**: `#Fitness` can coexist with `i-Fitness` and any user's `My-Fitness`
+
+#### Community Timelines (`i-`)
+- **Within community type**: No duplicates globally (only one `i-Fitness` community timeline)
+- **Cross-type collisions**: `i-Fitness` can coexist with `#Fitness` and any `My-Fitness`
+
+#### Personal Timelines (`My-`)
+- **Within personal type**: Global duplicates allowed; per-user duplicates NOT allowed
+  - User A can only have one personal `Fitness` timeline
+  - User B can also have their own personal `Fitness` timeline
+- **Cross-type collisions**: `My-Fitness` can coexist with `#Fitness` and `i-Fitness`
+- **Concept**: Personal timelines are uniquely `[username]'s _X_`, not globally unique topics
+
+### V2 Posting & Sharing Rules (Baseline)
+
+**Exception to auto-`#` rule**: If an event is created while on a `My-` timeline, it does NOT auto-create or attach any `#` tag. The event is associated only with that specific `My-` timeline (no implicit `#`/`i-` or other `My-` listings).
+
+**Posts created on a `My-` timeline are treated as non-shareable in V2 baseline**: They do not leave that personal space unless a future Phase 2 rule explicitly allows it.
+
+**From outside contexts** (e.g., viewing a post on `#fitness` or `i-fitness`), users may still add that external post to one of their `My-` timelines via `Add to Timeline`; the concern is leakage **out of** My-, not into it.
+
+### V2 Chip Layout & Semantics
+
+#### Three Conceptual Chip Areas on Event Cards
+
+- **Main area (left)** — `#` area: Holds hashtag chips (topic/content tags)
+- **Side-right area — Community lane**: Holds `i-` chips (community timelines that list/host this event)
+- **Side-right area — Personal lane**: Holds `My-` chips (personal timelines that list/host this event)
+
+**Rule**: When `#Fitness`, `i-Fitness`, and one or more `My-Fitness` exist and are relevant to an event, each appears in its respective area.
+
+#### Event Card Presentation (V2 Visual)
+
+- Up to **5 individual `#` chips**
+  - If more than 5 hashtag tags, show only first 5 plus a compact **`+N` summary chip** (e.g., `+3`)
+- A single **`Communities` basic chip**:
+  - Uses community chip style (two-people icon, compact pill)
+  - Includes a **small tally badge** (top-right) showing how many community timelines list/host this event
+  - Visual-only on cards (no mini popover on click); richer detail lives in EventPopup
+- A single **`Personals` basic chip**:
+  - Reuses general pill style with personal-specific icon (heart+lock)
+  - Includes its own **tally badge** indicating how many personal timelines list/host this event
+  - Does NOT expose individual personal timeline names on the card; it is an aggregate
+  - Visual-only on cards
+
+#### EventPopup Lanes Visual Spec (V2)
+
+**Community lane (`Communities`)**:
+- Top chip: Full community chip styling with label showing selected community timeline name
+- List below: Community timeline names as basic text
+- Clicking a row selects that community, promoting it to the top chip
+- Clicking the fully rendered top chip opens that community timeline in a new tab
+
+**Personal lane (`Personals`)**:
+- Top chip: Uses `Personals` pill styling (heart+lock icon, Lobster label, tally badge)
+  - When selected entry is **current user's** personal timeline: label shows specific name (e.g., `My-Fitness`)
+  - When selected entry is **another user's** personal timeline: top chip uses **user cover** representation (avatar + username) instead of exposing personal timeline title
+- List below:
+  - For **current user**: Rows list their own personal timelines by name; clicking a row selects it and promotes it to the top chip
+  - For **other users**: Rows do NOT expose personal timeline names; they appear as simple **user cover** rows (avatar + username)
+  - **SiteOwner** may see all covers (all users who have this event in their personals)
+- Clicking the fully rendered top chip may open the underlying personal timeline in a new tab **only** when the viewer has permission (e.g., the owner or SiteOwner)
+
+### Tag Creation and Auto-Tagging (Initial Rule)
+
+- When a user creates a new tag while posting:
+  - **Default rule**: Always create/attach a `#name` tag (or associate to existing `#name` hashtag timeline)
+  - **Explicit exception**: When the post is being created on a **personal** timeline (`My-`), do NOT create or attach a `#` tag; the post remains scoped to that personal timeline
+
+- When the post is being created **on a community timeline** `i-Name`:
+  - V2 rule: **Auto-associate** the event with both `#Name` (hashtag dimension) and `i-Name` (community dimension)
+  - The event's tags include `#name` and the event is in the `i-Name` timeline
+  - On cards, we show `#name` in the main area **and** an `i-Name` chip in the community lane
+
+**Personal exception**: Posts originating on `My-` timelines are intentionally excluded from the "always have a `#`" standard to protect personal-space privacy.
+
+### PopupTimelineLanes Component
+
+**Location**: `src/components/timeline-v3/events/PopupTimelineLanes.js`
+
+**Features**:
+- Three distinct lanes: Hashtag, Community, Personal
+- Hashtag lane: Displays up to 5 hashtag chips + `+N` overflow; add row searches only hashtag timelines
+- Community lane: Aggregate pill with count badge; add row lists only communities where user is active member (from passport)
+- Personal lane: Aggregate pill with count badge; add row lists only current user's own personal timelines (from passport)
+
+**V2 Rules Enforced**:
+- Adding community in popup does **not** auto-add `#` tag (only association)
+- Adding personal in popup does **not** add `#` tag (only association)
+- Adding hashtag in popup adds both tag and association
+- Hashtag search restricted to hashtag timelines only
+- Community options filtered by active membership from passport
+- Personal options filtered to current user's own timelines from passport
+
+**Integration**: Wired into all specialized popups:
+- `ImageEventPopup.js`: Replaced TagList section with lanes
+- `VideoEventPopup.js`: Replaced TagList section with lanes
+- `NewsEventPopup.js`: Replaced TagList section with lanes
+- `AudioMediaPopup.js`: Replaced TagList section with lanes
+
+### EventDialog V2 Rules
+
+**Unified `EventDialog` (EventForm replacement) now enforces V2 rules:**
+- On hashtag timelines: Auto-adds the base hashtag tag, stores canonical tag names without leading `#`, ensures event associates with matching hashtag timeline
+- On community timelines: Auto-adds the base hashtag tag, ensures event is associated with both community and corresponding hashtag timeline; chips show in correct lanes
+- On personal timelines: Does **not** auto-add any `#` tag; tag input is disabled/blurred with helper copy so personal-origin posts stay scoped to that personal timeline
+
+### Completed V2 Implementation (November 26, 2025)
+
+- ✅ EventCardChipsRow component wired into MediaCard, RemarkCard, NewsCard
+- ✅ Event cards show up to 5 `#` chips with `+N` overflow chip
+- ✅ Communities and Personals pills with tally badges (visual-only on cards)
+- ✅ Hashtag navigation normalized (hashtag chips always open hashtag timeline)
+- ✅ EventDialog enforces V2 rules per timeline type
+- ✅ PopupTimelineLanes component with three distinct lanes
+- ✅ EventPopup wired with passport membership loading and lane data derivation
+- ✅ Removed community auto-`#` tagging logic; only hashtag additions add tags
+- ✅ Replaced legacy TagList block with PopupTimelineLanes
+- ✅ Fixed duplicate video player rendering in VideoEventPopup
+- ✅ Fixed EventDialog useEffect dependency array to prevent tag overwriting
+
+---
 - `src/components/timeline-v3/events/ImageEventPopup.js` (Teal accent)
 - `src/components/timeline-v3/events/VideoEventPopup.js` (Deep purple accent)
 - `src/components/timeline-v3/events/AudioMediaPopup.js` (Orange accent)

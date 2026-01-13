@@ -1,70 +1,77 @@
-# Hashtag / Timeline Creation System — V2 GOALPLAN
+# GOALPLAN - Community Info Cards (2026-01-12)
 
 ## Main Goal
 
-- Redesign the hashtag/timeline creation and chip display system (**V2**) so that:
-  - Hashtag (`#`), Community (`i-`), and Personal (`My-`) timelines have clear, consistent **naming/creation rules**.
-  - Event cards show **three distinct chip areas**: `#` tags vs `i-` community listings vs `My-` personal listings.
-  - The system can safely support overlapping names across types without confusion.
-
-This replaces the older personal-timeline-only GOALPLAN; V2 is the new primary roadmap.
+Implement Community Info Cards feature allowing moderators+ to create, edit, and delete informational cards displayed on community members pages.
 
 ---
 
-## V2 Naming / Creation Constraints (Agreed)
+## Current Status
 
-### 1. Hashtag Timelines (`#`)
-
-- **Within hashtag type**
-  - No duplicates: only one `#Fitness` hashtag timeline globally.
-- **Cross-type collisions**
-  - `#Fitness` **can** coexist with `i-Fitness`.
-  - `#Fitness` **can** coexist with any user’s `My-Fitness`.
-
-### 2. Community Timelines (`i-`)
-
-- **Within community type**
-  - No duplicates: only one `i-Fitness` community timeline globally.
-- **Cross-type collisions**
-  - `i-Fitness` **can** coexist with `#Fitness`.
-  - `i-Fitness` **can** coexist with any `My-Fitness`.
-
-### 3. Personal Timelines (`My-`)
-
-- **Within personal type**
-  - Global duplicates are allowed.
-  - Per-user duplicates **not** allowed:
-    - User A can only have one personal `Fitness` timeline.
-    - User B can also have their own personal `Fitness` timeline.
-- **Cross-type collisions**
-  - `My-Fitness` can coexist with `#Fitness`.
-  - `My-Fitness` can coexist with `i-Fitness`.
-- **Concept**
-  - Personal timelines are meant to be **uniquely `[username]`’s _X_`**, not globally unique topics.
-
-- **V2 posting & sharing rules (baseline)**
-  - **Exception to auto-`#` rule**: if an event is **created while on a `My-` timeline**, it does **not** auto-create or attach any `#` tag.
-  - The event is, by default, associated **only** with that specific `My-` timeline (no implicit `#`/`i-` or other `My-` listings).
-  - Posts created on a `My-` timeline are treated as **non-shareable** in V2 baseline: they do not leave that personal space unless a future Phase 2 rule explicitly allows it.
-  - From outside contexts (e.g. viewing a post on `#fitness` or `i-fitness`), the user **may still add** that external post to one of their `My-` timelines via `Add to Timeline`; the concern is leakage **out of** My-, not into it.
-
-> Backend note: current DB enforces a single global `Timeline.name` unique constraint. V2 will require relaxing that to per-type (and per-user for personal) uniqueness rules.
+**Phase**: Ideation & Specification Complete
+- Feature design finalized
+- Access control defined (moderator+ only)
+- Display location confirmed (community members page, 1/3 width layout)
+- Card structure specified (title + rich text description)
+- Ready to begin backend schema design
 
 ---
 
-## V2 Chip Layout & Semantics (Agreed So Far)
+## Tasks & Checklist
 
-### 1. Three Conceptual Chip Areas on Event Cards
+### Backend Tasks
+- [ ] Design `CommunityInfoCard` database model
+- [ ] Create migration for info cards table
+- [ ] Implement GET endpoint for listing cards
+- [ ] Implement POST endpoint for creating cards
+- [ ] Implement PUT endpoint for updating cards
+- [ ] Implement DELETE endpoint for deleting cards
+- [ ] Implement PATCH endpoint for reordering cards
+- [ ] Add permission checks (moderator+ for write ops)
 
-- **Main area (left)** — `#` area
-  - Holds **hashtag chips**: topic/content tags.
-  - Represents the **keyword dimension** of the event.
+### Frontend Tasks
+- [ ] Create Info Cards tab in Admin Panel
+- [ ] Implement card management UI (CRUD forms)
+- [ ] Refactor community members page layout (1/3 + 2/3 split)
+- [ ] Create CommunityInfoCardsDisplay component
+- [ ] Style cards with artistic modern design
+- [ ] Implement card reordering UI
 
-- **Side-right area — Community lane**
-  - Holds **`i-` chips**: community timelines that **list/host** this event.
-  - One chip per associated community timeline.
+### Testing Tasks
+- [ ] Test moderator+ CRUD permissions
+- [ ] Test non-moderator access restrictions
+- [ ] Test card display on members page
+- [ ] Test layout responsiveness
+- [ ] Test rich text rendering (links, formatting)
 
-- **Side-right area — Personal lane**
+---
+
+## Notes & Context
+
+### Feature Specifications
+- **Access**: Moderators and Admins can create/edit/delete; all users can view
+- **Location**: Community members page (right or left side)
+- **Layout**: Members listing 1/3 width, info cards 2/3 width
+- **Content**: Title + rich text description (no image uploads)
+- **Styling**: Artistic, modern design matching project guidelines
+- **Ordering**: Support card reordering (drag-drop or priority field)
+
+### Design Decisions
+- Text-only cards (no media uploads) for simplicity
+- Moderator+ access for Admin Panel tab (unlike Settings which is admin-only)
+- Public visibility by default (all users see cards)
+- Rich text support for flexible content (bullet points, links, formatting)
+
+---
+
+## Completed Items
+
+- ✅ Feature ideation and requirements gathering
+- ✅ Design specifications finalized
+- ✅ Access control model defined
+- ✅ Layout and display location confirmed
+- ✅ Database schema structure planned
+- ✅ API endpoint structure planned
   - Holds **`My-` chips**: personal timelines that **list/host** this event.
   - Potentially multiple users’ `My-Fitness`, each with its own chip.
 
