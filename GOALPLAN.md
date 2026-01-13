@@ -605,6 +605,29 @@ Point B (Dad) needs to take over **ALL coordinate system responsibilities**:
   - On community timelines: auto-adds the base hashtag tag and ensures the event is associated with both the community and the corresponding hashtag timeline; chips show in their correct lanes.
   - On personal timelines: does **not** auto-add any `#` tag; `EventDialog` tag input is disabled/blurred with helper copy so personal-origin posts stay scoped to that personal timeline.
 
+## Rich Info Card Mentions System (2026-01-13)
+
+### Current Status: Phase 4 - Polish & Bug Fixes
+
+**Completed:**
+- ✅ Phase 1: Backend model with auto-parsing of mentions (@, #, i-, www.)
+- ✅ Phase 2: Frontend RichEditor with visual indicator (non-clickable)
+- ✅ Phase 3: Frontend RichContentRenderer with clickable chips
+- ✅ Navigation for all chip types (user, hashtag, community, links)
+- ✅ Community timeline chip styling and functionality
+- ✅ Custom hashtag icon (#) created and integrated
+
+**In Progress / Pending:**
+- 🔧 Fix user avatar image loading (showing fallback, not actual profile images)
+- 🔧 Fix drag-and-drop sorting for info cards in admin panel
+- 📝 Sub-tasks for future phases:
+  - [ ] Implement drag-and-drop using react-beautiful-dnd or native HTML5 drag API
+  - [ ] Add backend endpoint for reordering cards (PATCH /info-cards/reorder)
+  - [ ] Test drag-and-drop across different browsers
+  - [ ] Prepare ~ mention symbol for future event/post linking feature
+
+---
+
 **Current active task (2025-12-06):**
 
 - **EventPopup V2 Lanes Implementation - COMPLETED**
