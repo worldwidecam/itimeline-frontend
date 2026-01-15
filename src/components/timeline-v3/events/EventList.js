@@ -227,7 +227,9 @@ const EventList = ({
         ...cardProps,
         ref: cardRef,
         setIsPopupOpen, // Pass the setIsPopupOpen function to card components
-        reviewingEventIds // Pass the set of reviewing event IDs
+        reviewingEventIds, // Pass the set of reviewing event IDs
+        showInlineVoteControls: false,
+        showVoteOverlay: true,
       };
       
       // Return the appropriate card component with key as a direct prop

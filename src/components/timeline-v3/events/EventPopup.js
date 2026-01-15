@@ -4,6 +4,7 @@ import ImageEventPopup from './ImageEventPopup';
 import VideoEventPopup from './VideoEventPopup';
 import NewsEventPopup from './NewsEventPopup';
 import CreatorChip from './CreatorChip';
+import VoteControls from './VoteControls';
 import AudioMediaPopup from './AudioMediaPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import {
@@ -84,7 +85,16 @@ const normalizeAssociatedTimelines = (associatedTimelines = [], removedIds = [])
   return { communities, personals };
 };
 
-const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = new Set() }) => {
+const EventPopup = ({
+  event,
+  open,
+  onClose,
+  setIsPopupOpen,
+  reviewingEventIds = new Set(),
+  voteValue = null,
+  onVoteChange,
+  positiveRatio = 0.6,
+}) => {
   const theme = useTheme();
   const location = useLocation();
   const [isInReview, setIsInReview] = useState(false);
@@ -871,19 +881,21 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
                   {event.title || "Untitled Event"}
                 </Typography>
               </Box>
-              <IconButton 
-                edge="end" 
-                color="inherit" 
-                onClick={handleClose} 
-                aria-label="close"
-                sx={{ 
-                  color: theme.palette.mode === 'dark' 
-                    ? 'rgba(255,255,255,0.7)' 
-                    : 'rgba(0,0,0,0.5)',
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton 
+                  edge="end" 
+                  color="inherit" 
+                  onClick={handleClose} 
+                  aria-label="close"
+                  sx={{ 
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(255,255,255,0.7)' 
+                      : 'rgba(0,0,0,0.5)',
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
             </Box>
           </DialogTitle>
           
@@ -1036,8 +1048,15 @@ const EventPopup = ({ event, open, onClose, setIsPopupOpen, reviewingEventIds = 
             </Box>
           </DialogContent>
           
-          {/* Report Button & Status Indicators - Bottom Right */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
+          {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <VoteControls
+                value={voteValue}
+                onChange={onVoteChange}
+                positiveRatio={positiveRatio}
+              />
+            </Box>
             {isInReview && (
               <Box
                 sx={{

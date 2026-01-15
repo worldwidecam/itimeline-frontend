@@ -38,13 +38,26 @@ import TagList from './TagList';
 import EventCardChipsRow from './EventCardChipsRow';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
+import VoteControls from '../VoteControls';
+import VoteOverlay from '../VoteOverlay';
 import { alpha } from '@mui/material/styles';
 import UserAvatar from '../../../common/UserAvatar';
 
-const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen, reviewingEventIds = new Set() }, ref) => {
+const NewsCard = forwardRef(({
+  event,
+  onEdit,
+  onDelete,
+  isSelected,
+  setIsPopupOpen,
+  reviewingEventIds = new Set(),
+  showInlineVoteControls = true,
+  showVoteOverlay = false,
+}, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [voteValue, setVoteValue] = useState(null);
+  const [voteRatio] = useState(0.6);
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.NEWS];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
 
@@ -365,6 +378,11 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOp
             shadow-lg
           `}
         >
+          {/* Vote overlay for EventList cards */}
+          {showVoteOverlay && (
+            <VoteOverlay value={voteValue} positiveRatio={voteRatio} />
+          )}
+          
           {/* Page corner button for details */}
           <PageCornerButton 
             onClick={handleDetailsClick} 
@@ -372,24 +390,35 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOp
             color={color}
           />
           
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 2, pr: 8 }}>
-            <NewsIcon sx={{ color, mt: 0.5 }} />
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {event.title}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-                {event.event_date && (
-                  <Chip
-                    icon={<EventIcon />}
-                    label={formatEventDate(event.event_date)}
-                    size="small"
-                    color="primary"
-                    sx={{ mr: 1 }}
-                  />
-                )}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 2, pr: 8 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
+              <NewsIcon sx={{ color, mt: 0.5 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  {event.title}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                  {event.event_date && (
+                    <Chip
+                      icon={<EventIcon />}
+                      label={formatEventDate(event.event_date)}
+                      size="small"
+                      color="primary"
+                      sx={{ mr: 1 }}
+                    />
+                  )}
+                </Box>
               </Box>
             </Box>
+            {showInlineVoteControls && (
+              <Box sx={{ mt: 0.25, flexShrink: 0 }}>
+                <VoteControls
+                  value={voteValue}
+                  onChange={setVoteValue}
+                  positiveRatio={voteRatio}
+                />
+              </Box>
+            )}
           </Box>
 
           {/* URL Preview Card */}
@@ -615,6 +644,9 @@ const NewsCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOp
         }}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
+        voteValue={voteValue}
+        onVoteChange={setVoteValue}
+        positiveRatio={voteRatio}
       />
     </>
   );

@@ -32,12 +32,23 @@ import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import EventCardChipsRow from './EventCardChipsRow';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
+import VoteControls from '../VoteControls';
+import VoteOverlay from '../VoteOverlay';
 import VideoDetailsButton from './VideoDetailsButton';
 import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
 
-const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupOpen, reviewingEventIds = new Set() }, ref) => {
+const MediaCard = forwardRef(({
+  event,
+  onEdit,
+  onDelete,
+  isSelected,
+  setIsPopupOpen,
+  reviewingEventIds = new Set(),
+  showInlineVoteControls = true,
+  showVoteOverlay = false,
+}, ref) => {
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
   
@@ -64,6 +75,8 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [voteValue, setVoteValue] = useState(null);
+  const [voteRatio] = useState(0.6);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
   
@@ -993,6 +1006,11 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
             minHeight: '300px',
           }}
         >
+          {/* Vote overlay for EventList cards */}
+          {showVoteOverlay && (
+            <VoteOverlay value={voteValue} positiveRatio={voteRatio} />
+          )}
+          
           {/* Media Content - Full card background */}
           {renderMedia()}
           
@@ -1012,24 +1030,35 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
               borderRadius: '0 0 8px 8px',
             }}
           >
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <TypeIcon sx={{ color, mt: 0.5 }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  {event.title}
-                </Typography>
-                
-                {/* Event date chip */}
-                {event.event_date && (
-                  <Chip
-                    icon={<EventIcon />}
-                    label={formatEventDate(event.event_date)}
-                    size="small"
-                    color="primary"
-                    sx={{ mb: 1 }}
-                  />
-                )}
+            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
+                <TypeIcon sx={{ color, mt: 0.5 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    {event.title}
+                  </Typography>
+                  
+                  {/* Event date chip */}
+                  {event.event_date && (
+                    <Chip
+                      icon={<EventIcon />}
+                      label={formatEventDate(event.event_date)}
+                      size="small"
+                      color="primary"
+                      sx={{ mb: 1 }}
+                    />
+                  )}
+                </Box>
               </Box>
+              {showInlineVoteControls && (
+                <Box sx={{ mt: 0.25, flexShrink: 0 }}>
+                  <VoteControls
+                    value={voteValue}
+                    onChange={setVoteValue}
+                    positiveRatio={voteRatio}
+                  />
+                </Box>
+              )}
               
               {/* QUARANTINED: Vertical ellipsis menu removed
                   The edit and delete functionality was incomplete and caused issues
@@ -1123,6 +1152,9 @@ const MediaCard = forwardRef(({ event, onEdit, onDelete, isSelected, setIsPopupO
         event={event}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
+        voteValue={voteValue}
+        onVoteChange={setVoteValue}
+        positiveRatio={voteRatio}
       />
     </>
   );

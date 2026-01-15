@@ -2,7 +2,58 @@
 
 Frontend application for the iTimeline platform, a modern web application for creating and sharing timelines with interactive event cards.
 
-## Current Focus (October 2025)
+## Current Focus (January 2026)
+
+### ✅ Rich Info Card Mentions System - COMPLETE!
+
+The iTimeline application now features **Community Info Cards with Rich Mentions**, allowing moderators to create informational cards with interactive mention chips for users, hashtags, communities, and links.
+
+#### Major Features (January 2026)
+- ✅ **Rich Content Editor**: Visual indicator showing detected mention types (@, #, i-, www.)
+- ✅ **Auto-Parsing Backend**: Automatically detects and structures mentions in descriptions
+- ✅ **Clickable Mention Chips**: Interactive chips for user profiles, hashtag timelines, community timelines, and external links
+- ✅ **User Avatars**: Profile pictures display in user mention chips
+- ✅ **Custom Hashtag Icon**: Tic-tac-toe grid icon with grey color matching community chip styling
+- ✅ **Drag-and-Drop Sorting**: Reorder info cards with visual feedback
+- ✅ **Backward Compatible**: Falls back to plain text display if no rich content exists
+
+#### Implementation Details
+
+**Backend (`app.py`)**:
+- Added `content` JSON column to `CommunityInfoCard` model
+- `_parse_description_to_content()` function auto-detects mentions:
+  - `@username` → user mentions
+  - `#name` → hashtag timeline mentions
+  - `i-name` → community timeline mentions
+  - `www.url` or `https://url` → external links
+- Endpoints:
+  - `POST /api/v1/timelines/{id}/info-cards` - Create card with auto-parsing
+  - `PUT /api/v1/timelines/{id}/info-cards/{card_id}` - Update card with auto-parsing
+  - `PATCH /api/v1/timelines/{id}/info-cards/reorder` - Reorder cards by card_order
+
+**Frontend Components**:
+- `RichEditor` - Text editor with visual mention detection indicator
+- `RichContentRenderer` - Renders clickable mention chips with proper navigation
+- `HashtagIcon` - Custom SVG grid icon for hashtag chips
+- `UserAvatar` - Displays user profile pictures in mention chips
+- Drag-and-drop sorting with visual feedback (opacity, highlight on drop target)
+
+**Mention Chip Styling**:
+- **User Chips**: Blue background, user avatar + username (no @ symbol)
+- **Hashtag Chips**: Green background, grey grid icon + name (no # symbol)
+- **Community Chips**: Purple background, people icon + name (no i- prefix)
+- **Link Chips**: Orange background, link icon, opens in new tab
+
+#### Usage
+1. **Create Info Card**: Admin Panel → Info Cards Tab → New Card
+2. **Add Mentions**: Type `@username`, `#hashtag`, `i-community`, or `www.url`
+3. **Visual Feedback**: Non-clickable indicator shows detected mention type
+4. **Display**: Cards render with clickable chips that navigate to appropriate destinations
+5. **Reorder**: Drag cards by the drag handle icon to change display order
+
+---
+
+## Previous Focus (October 2025)
 
 ### ✅ Community Timeline Implementation - COMPLETE!
 
