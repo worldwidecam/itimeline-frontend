@@ -42,6 +42,7 @@ import VoteControls from '../VoteControls';
 import VoteOverlay from '../VoteOverlay';
 import { alpha } from '@mui/material/styles';
 import UserAvatar from '../../../common/UserAvatar';
+import { castVote, getVoteStats } from '../../../../api/voteApi';
 
 const NewsCard = forwardRef(({
   event,
@@ -58,8 +59,44 @@ const NewsCard = forwardRef(({
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [voteValue, setVoteValue] = useState(null);
   const [voteRatio] = useState(0.6);
+  const [voteStats, setVoteStats] = useState({ promote_count: 0, demote_count: 0, user_vote: null });
   const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.NEWS];
   const color = theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+
+  // Load vote stats on mount
+  useEffect(() => {
+    const loadVoteStats = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const stats = await getVoteStats(event.id, token);
+        setVoteStats(stats);
+        setVoteValue(stats.user_vote);
+      } catch (error) {
+        console.error('Error loading vote stats:', error);
+      }
+    };
+    
+    if (event.id) {
+      loadVoteStats();
+    }
+  }, [event.id]);
+
+  // Handle vote changes
+  const handleVoteChange = async (newVoteType) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const stats = await castVote(event.id, newVoteType, token);
+      setVoteStats(stats);
+      setVoteValue(stats.user_vote);
+    } catch (error) {
+      console.error('Error casting vote:', error);
+    }
+  };
 
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -414,7 +451,7 @@ const NewsCard = forwardRef(({
               <Box sx={{ mt: 0.25, flexShrink: 0 }}>
                 <VoteControls
                   value={voteValue}
-                  onChange={setVoteValue}
+                  onChange={handleVoteChange}
                   positiveRatio={voteRatio}
                 />
               </Box>

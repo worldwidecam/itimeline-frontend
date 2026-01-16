@@ -42,7 +42,9 @@ import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import PopupTimelineLanes from './PopupTimelineLanes';
 import UserAvatar from '../../common/UserAvatar';
+import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
+import { castVote, getVoteStats } from '../../../api/voteApi';
 
 /**
  * NewsEventPopup - A specialized popup for news events
@@ -89,6 +91,44 @@ const NewsEventPopup = ({
   const [localEventData, setLocalEventData] = React.useState(event);
   // Local snackbar for report submission feedback
   const [reportSnackOpen, setReportSnackOpen] = React.useState(false);
+  // Vote pill state
+  const [voteValue, setVoteValue] = React.useState(null);
+  const [voteRatio] = React.useState(0.6);
+  const [voteStats, setVoteStats] = React.useState({ promote_count: 0, demote_count: 0, user_vote: null });
+
+  // Load vote stats when popup opens
+  React.useEffect(() => {
+    const loadVoteStats = async () => {
+      if (!open || !event?.id) return;
+      try {
+        const token = localStorage.getItem('access_token');
+        const stats = await getVoteStats(event.id, token);
+        setVoteStats(stats);
+        setVoteValue(stats.user_vote);
+      } catch (error) {
+        console.error('Error loading vote stats:', error);
+      }
+    };
+    
+    loadVoteStats();
+  }, [open, event?.id]);
+
+  // Handle vote changes
+  const handleVoteChange = async (newVoteType) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const stats = await castVote(event.id, newVoteType, token);
+      setVoteStats(stats);
+      setVoteValue(stats.user_vote);
+    } catch (error) {
+      console.error('Error casting vote:', error);
+    }
+  };
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   React.useEffect(() => {
@@ -733,8 +773,16 @@ const NewsEventPopup = ({
             </Box>
           </DialogContent>
           
-          {/* Report Button & Status Indicators - Bottom Right */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
+          {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <VoteControls
+                value={voteValue}
+                onChange={handleVoteChange}
+                positiveRatio={voteRatio}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             {isInReview && (
               <Box
                 sx={{
@@ -839,6 +887,7 @@ const NewsEventPopup = ({
                 {reportedOnce ? 'Reported' : 'Report'}
               </Button>
             )}
+            </Box>
           </Box>
           
           {/* Snackbar for notifications */}

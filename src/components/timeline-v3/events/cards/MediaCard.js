@@ -38,6 +38,7 @@ import VideoDetailsButton from './VideoDetailsButton';
 import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
+import { castVote, getVoteStats } from '../../../../api/voteApi';
 
 const MediaCard = forwardRef(({
   event,
@@ -77,8 +78,44 @@ const MediaCard = forwardRef(({
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [voteValue, setVoteValue] = useState(null);
   const [voteRatio] = useState(0.6);
+  const [voteStats, setVoteStats] = useState({ promote_count: 0, demote_count: 0, user_vote: null });
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
+
+  // Load vote stats on mount
+  useEffect(() => {
+    const loadVoteStats = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const stats = await getVoteStats(event.id, token);
+        setVoteStats(stats);
+        setVoteValue(stats.user_vote);
+      } catch (error) {
+        console.error('Error loading vote stats:', error);
+      }
+    };
+    
+    if (event.id) {
+      loadVoteStats();
+    }
+  }, [event.id]);
+
+  // Handle vote changes
+  const handleVoteChange = async (newVoteType) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const stats = await castVote(event.id, newVoteType, token);
+      setVoteStats(stats);
+      setVoteValue(stats.user_vote);
+    } catch (error) {
+      console.error('Error casting vote:', error);
+    }
+  };
   
   // Determine media subtype and apply specific colors
   const getMediaTypeAndColor = () => {
@@ -1054,7 +1091,7 @@ const MediaCard = forwardRef(({
                 <Box sx={{ mt: 0.25, flexShrink: 0 }}>
                   <VoteControls
                     value={voteValue}
-                    onChange={setVoteValue}
+                    onChange={handleVoteChange}
                     positiveRatio={voteRatio}
                   />
                 </Box>
