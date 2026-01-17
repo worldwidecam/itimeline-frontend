@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 const ChevronArrow = ({ direction = 'up' }) => (
@@ -41,6 +41,9 @@ const VoteControls = ({
   value = undefined,
   onChange = undefined,
   positiveRatio = 0.6,
+  isLoading = false,
+  hasError = false,
+  hoverDirection = null,
 }) => {
   const theme = useTheme();
   const [internalVote, setInternalVote] = useState(null); // 'up' | 'down' | null
@@ -55,12 +58,20 @@ const VoteControls = ({
   const isPositive = vote === 'up';
   const isNegative = vote === 'down';
   const isActive = isPositive || isNegative;
+  const isHoveringUp = hoverDirection === 'up';
+  const isHoveringDown = hoverDirection === 'down';
 
   const clampedPositiveRatio = Math.max(0, Math.min(positiveRatio, 1));
   const dividerPosition = clampedPositiveRatio * 100;
+  const isNegativeMajority = clampedPositiveRatio < 0.5;
+  const displayPercentage = Math.round(isNegativeMajority ? 100 - dividerPosition : dividerPosition);
+  const displayPercentageColor = hasError
+    ? theme.palette.error.main
+    : (isNegativeMajority ? negativeColor : positiveColor);
 
   const handleVote = (direction) => (event) => {
     event.stopPropagation();
+    if (isLoading) return; // Prevent voting while loading
     const nextVote = vote === direction ? null : direction;
     if (onChange) {
       onChange(nextVote);
@@ -71,6 +82,7 @@ const VoteControls = ({
 
   const handlePillClick = (event) => {
     event.stopPropagation();
+    if (isLoading) return; // Prevent voting while loading
     if (onChange) {
       onChange(null);
     } else {
@@ -92,24 +104,24 @@ const VoteControls = ({
         justifyContent: 'center',
       }}
     >
-      {!isActive ? (
-        <Box
-          sx={{
-            position: 'absolute',
-            width: width,
-            height: height,
-            borderRadius: height / 2,
-            border: `2px solid ${neutralColor}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingX: 1.5,
-            transition: `all 0.3s ${easing}`,
-            opacity: 1,
-            transform: 'scale(1)',
-            background: showVoteText ? 'transparent' : 'transparent',
-          }}
-        >
+      <Box
+        sx={{
+          position: 'absolute',
+          width: width,
+          height: height,
+          borderRadius: height / 2,
+          border: `2px solid ${neutralColor}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingX: 1.5,
+          transition: `all 0.3s ${easing}`,
+          opacity: isActive ? 0 : 1,
+          transform: isActive ? 'scale(0.94)' : 'scale(1)',
+          pointerEvents: isActive ? 'none' : 'auto',
+          background: 'transparent',
+        }}
+      >
           {showVoteText ? (
             <Box
               sx={{
@@ -133,11 +145,15 @@ const VoteControls = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: isPositive ? positiveColor : neutralColor,
-                  transition: `color 0.2s ease`,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  color: hasError
+                    ? theme.palette.error.main
+                    : (isPositive || isHoveringUp ? positiveColor : neutralColor),
+                  transition: `color 0.2s ease, transform 0.25s ${easing}`,
+                  transform: isActive ? 'translateX(-10px)' : 'translateX(0px)',
+                  opacity: isLoading ? 0.5 : 1,
                   '&:hover': {
-                    color: positiveColor,
+                    color: isLoading ? (hasError ? theme.palette.error.main : neutralColor) : positiveColor,
                   },
                 }}
               >
@@ -149,7 +165,8 @@ const VoteControls = ({
                   width: 0.5,
                   height: height * 0.6,
                   background: `linear-gradient(90deg, ${positiveColor}, ${negativeColor})`,
-                  opacity: 1,
+                  opacity: isActive ? 0 : 1,
+                  transition: `opacity 0.2s ease`,
                 }}
               />
 
@@ -159,11 +176,15 @@ const VoteControls = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: isNegative ? negativeColor : neutralColor,
-                  transition: `color 0.2s ease`,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  color: hasError
+                    ? theme.palette.error.main
+                    : (isNegative || isHoveringDown ? negativeColor : neutralColor),
+                  transition: `color 0.2s ease, transform 0.25s ${easing}`,
+                  transform: isActive ? 'translateX(10px)' : 'translateX(0px)',
+                  opacity: isLoading ? 0.5 : 1,
                   '&:hover': {
-                    color: negativeColor,
+                    color: isLoading ? (hasError ? theme.palette.error.main : neutralColor) : negativeColor,
                   },
                 }}
               >
@@ -172,26 +193,34 @@ const VoteControls = ({
             </>
           )}
         </Box>
-      ) : null}
 
-      {isActive && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          <Box
-            sx={{
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: positiveColor,
-              letterSpacing: '0.3px',
-            }}
-          >
-            {Math.round(dividerPosition)}%
-          </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          opacity: isActive ? 1 : 0,
+          transform: isActive ? 'scale(1)' : 'scale(0.96)',
+          transition: `opacity 0.25s ease, transform 0.25s ${easing}`,
+          pointerEvents: isActive ? 'auto' : 'none',
+        }}
+      >
+          {!isNegativeMajority && (
+            isLoading ? (
+              <CircularProgress size={20} sx={{ color: positiveColor }} />
+            ) : (
+              <Box
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: displayPercentageColor,
+                  letterSpacing: '0.3px',
+                }}
+              >
+                {displayPercentage}%
+              </Box>
+            )
+          )}
 
           <Box
             onClick={handlePillClick}
@@ -200,14 +229,20 @@ const VoteControls = ({
               width: width,
               height: height,
               borderRadius: height / 2,
-              border: `2px solid ${alpha(theme.palette.text.primary, 0.2)}`,
-              cursor: 'pointer',
+              border: `2px solid ${hasError ? theme.palette.error.main : alpha(theme.palette.text.primary, 0.2)}`,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
               transition: `all 0.3s ${easing}`,
-              opacity: 1,
+              opacity: isLoading ? 0.6 : 1,
               transform: 'scale(1)',
               overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
+              '@keyframes voteErrorPulse': {
+                '0%': { boxShadow: '0 0 0 rgba(244,67,54,0)' },
+                '70%': { boxShadow: '0 0 0 6px rgba(244,67,54,0.25)' },
+                '100%': { boxShadow: '0 0 0 rgba(244,67,54,0)' },
+              },
+              animation: hasError ? 'voteErrorPulse 0.45s ease' : 'none',
             }}
           >
             <Box
@@ -248,8 +283,24 @@ const VoteControls = ({
               }}
             />
           </Box>
+
+          {isNegativeMajority && (
+            isLoading ? (
+              <CircularProgress size={20} sx={{ color: negativeColor }} />
+            ) : (
+              <Box
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: displayPercentageColor,
+                  letterSpacing: '0.3px',
+                }}
+              >
+                {displayPercentage}%
+              </Box>
+            )
+          )}
         </Box>
-      )}
     </Box>
   );
 };

@@ -45,6 +45,7 @@ import UserAvatar from '../../common/UserAvatar';
 import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
 import { castVote, getVoteStats } from '../../../api/voteApi';
+import { uiToBackend, backendToUi } from '../../../api/voteTypeConverter';
 
 /**
  * NewsEventPopup - A specialized popup for news events
@@ -95,6 +96,8 @@ const NewsEventPopup = ({
   const [voteValue, setVoteValue] = React.useState(null);
   const [voteRatio] = React.useState(0.6);
   const [voteStats, setVoteStats] = React.useState({ promote_count: 0, demote_count: 0, user_vote: null });
+  const [voteLoading, setVoteLoading] = React.useState(false);
+  const [voteError, setVoteError] = React.useState(null);
 
   // Load vote stats when popup opens
   React.useEffect(() => {
@@ -104,9 +107,11 @@ const NewsEventPopup = ({
         const token = localStorage.getItem('access_token');
         const stats = await getVoteStats(event.id, token);
         setVoteStats(stats);
-        setVoteValue(stats.user_vote);
+        setVoteValue(backendToUi(stats.user_vote));
+        setVoteError(null);
       } catch (error) {
         console.error('Error loading vote stats:', error);
+        setVoteError('Failed to load votes');
       }
     };
     
@@ -114,19 +119,30 @@ const NewsEventPopup = ({
   }, [open, event?.id]);
 
   // Handle vote changes
-  const handleVoteChange = async (newVoteType) => {
+  const handleVoteChange = async (uiVoteType) => {
+    const previousVote = voteValue;
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
         console.error('No authentication token found');
+        setVoteError('Not authenticated');
         return;
       }
 
-      const stats = await castVote(event.id, newVoteType, token);
+      setVoteLoading(true);
+      setVoteError(null);
+      setVoteValue(uiVoteType);
+      
+      const backendVoteType = uiToBackend(uiVoteType);
+      const stats = await castVote(event.id, backendVoteType, token);
       setVoteStats(stats);
-      setVoteValue(stats.user_vote);
+      setVoteValue(backendToUi(stats.user_vote));
     } catch (error) {
       console.error('Error casting vote:', error);
+      setVoteError(error.message || 'Failed to cast vote');
+      setVoteValue(previousVote);
+    } finally {
+      setVoteLoading(false);
     }
   };
   
@@ -780,6 +796,8 @@ const NewsEventPopup = ({
                 value={voteValue}
                 onChange={handleVoteChange}
                 positiveRatio={voteRatio}
+                isLoading={voteLoading}
+                hasError={!!voteError}
               />
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
