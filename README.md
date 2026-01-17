@@ -2,6 +2,138 @@
 
 Frontend application for the iTimeline platform, a modern web application for creating and sharing timelines with interactive event cards.
 
+## Project Architecture & Structure
+
+### Three-Repository Architecture
+
+The iTimeline project consists of three interconnected repositories:
+
+1. **itimeline-frontend** (React + Vite)
+   - Port: 3000
+   - Proxies API requests to `http://localhost:5000/api`
+   - All new endpoints use `/api/v1` prefix
+
+2. **itimeline-backend** (Flask)
+   - Port: 5000
+   - Serves API endpoints under `/api/v1`
+   - JWT authentication for protected routes
+   - PostgreSQL database integration
+
+3. **iTimeline-DB** (Shared Models Package)
+   - Contains SQLAlchemy models and database migrations
+   - Provides `models/` directory with all ORM definitions
+   - Provides `migrations/` directory with custom migration scripts
+   - Used by backend via `from models import *`
+
+### Database & Migrations
+
+**Local PostgreSQL Connection:**
+```
+postgresql://postgres:death2therich@localhost:5432/itimeline_test
+```
+
+**Migration Pattern (iTimeline-DB):**
+- Custom migration scripts in `migrations/` directory (NOT Alembic)
+- Each migration is a standalone Python script following this pattern:
+  ```python
+  #!/usr/bin/env python3
+  """Migration script description"""
+  import os, psycopg2
+  
+  DATABASE_URL = os.environ.get("DATABASE_URL") or "postgresql://postgres:death2therich@localhost:5432/itimeline_test"
+  
+  def main():
+      with closing(psycopg2.connect(DATABASE_URL)) as conn:
+          with closing(conn.cursor()) as cur:
+              cur.execute(DDL_CREATE)  # Your SQL here
+              conn.commit()
+  
+  if __name__ == '__main__':
+      main()
+  ```
+- Run migrations: `python migrations/script_name.py`
+- Safe to delete after use (one-time scripts)
+
+**Why Custom Migrations (Not Alembic):**
+- iTimeline-DB is a package, not a Flask app
+- Alembic requires `alembic.ini` and Flask app context
+- Custom scripts are simpler, more portable, and work standalone
+
+### Frontend API Integration
+
+**API Utility Pattern:**
+```javascript
+// src/api/voteApi.js (example)
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+
+const getAuthHeaders = (token) => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${token}`,
+});
+
+export const castVote = async (eventId, voteType, token) => {
+  const response = await fetch(`${BASE_URL}/events/${eventId}/vote`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ vote_type: voteType }),
+  });
+  if (!response.ok) throw new Error(await response.json());
+  return response.json();
+};
+```
+
+**Component Integration Pattern:**
+```javascript
+// In component (e.g., RemarkCard.js)
+import { castVote, getVoteStats } from '../../../api/voteApi';
+
+const [voteStats, setVoteStats] = useState({ promote_count: 0, demote_count: 0, user_vote: null });
+
+useEffect(() => {
+  const loadVoteStats = async () => {
+    const token = localStorage.getItem('access_token');
+    const stats = await getVoteStats(event.id, token);
+    setVoteStats(stats);
+  };
+  if (event.id) loadVoteStats();
+}, [event.id]);
+
+const handleVoteChange = async (newVoteType) => {
+  const token = localStorage.getItem('access_token');
+  const stats = await castVote(event.id, newVoteType, token);
+  setVoteStats(stats);
+};
+```
+
+### Backend Endpoint Pattern
+
+**Vote Endpoints (Example):**
+```python
+@app.route('/api/v1/events/<int:event_id>/vote', methods=['POST'])
+@jwt_required()
+def cast_vote(event_id):
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json()
+    
+    # Validate, check event exists, handle vote logic
+    existing_vote = Vote.query.filter_by(event_id=event_id, user_id=current_user_id).first()
+    if existing_vote:
+        existing_vote.vote_type = data['vote_type']
+    else:
+        db.session.add(Vote(event_id=event_id, user_id=current_user_id, vote_type=data['vote_type']))
+    
+    db.session.commit()
+    return jsonify(vote_stats), 200
+```
+
+### Key Concepts
+
+- **JWT Authentication**: Token stored in `localStorage` under `access_token`
+- **API Versioning**: All endpoints use `/api/v1` prefix
+- **Database Models**: Defined in iTimeline-DB, imported in backend
+- **Unique Constraints**: Enforce data integrity (e.g., one vote per user per event)
+- **Foreign Keys**: Cascade deletes for referential integrity
+
 ## Current Focus (January 2026)
 
 ### ✅ Rich Info Card Mentions System - COMPLETE!

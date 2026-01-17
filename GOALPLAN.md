@@ -1,4 +1,4 @@
-# GOALPLAN - Voting System (2026-01-13)
+# GOALPLAN - Voting System (2026-01-15)
 
 ## Main Goal
 Design and integrate a Promote/Demote voting system for posts with influence dots that reflect total engagement and sentiment.
@@ -7,36 +7,54 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 
 ## Current Subgoal
 
-**Phase**: Planning & Specification
-- [ ] implement vote pill in all event popups. currently it is only available in remark eventpopup
+**Phase**: Backend/Frontend Connection Testing
+- [ ] Test vote persistence after page refresh (all card types)
+- [ ] Test vote loading in popups on open
+- [ ] Test vote state synchronization between cards and popups
+- [ ] Verify error handling for network failures
+- [ ] Test vote animations and UI feedback
 
 ---
 
-## Tasks & Checklist
+## Completed Phases
 
-### Phase 1: Product & Visual Spec
-- [ ] Finalize voting rules (who can vote, per-post scope, vote states)
-- [ ] Finalize influence dot behavior (visibility, color, height math)
-- [ ] Finalize vote control UI placement (right-aligned in title row)
-- [ ] Decide vote feedback between arrows (pie chart vs count)
-- [ ] Define phased loading plan (timeline → markers → voting dots)
+### ✅ Phase 1: Product & Visual Spec (COMPLETE)
+- [x] Finalize voting rules (who can vote, per-post scope, vote states)
+- [x] Finalize influence dot behavior (visibility, color, height math)
+- [x] Finalize vote control UI placement (right-aligned in title row)
+- [x] Decide vote feedback between arrows (pie chart vs count)
+- [x] Define phased loading plan (timeline → markers → voting dots)
 
-### Phase 2: Data & Architecture Plan
-- [ ] Define storage approach (prototype vs. persisted; no schema change without approval)
-- [ ] Define API shape for votes + summary (if backend work is approved)
-- [ ] Decide frontend data flow + caching strategy for vote summaries
+### ✅ Phase 2: Data & Architecture Plan (COMPLETE)
+- [x] Define storage approach (backend-persisted with PostgreSQL)
+- [x] Define API shape for votes + summary
+- [x] Decide frontend data flow + caching strategy for vote summaries
 
-### Phase 3: UI Integration Plan
-- [ ] Place Promote/Demote controls on post cards (Reddit-style)
-- [ ] Place influence dots above markers (no connecting line)
-- [ ] Keep vote-dot rendering independent of initial timeline render
-- [ ] Ensure EventList card vote pill and EventPopup vote pill reflect the same vote data
-- [ ] Add vote pill to all other EventPopup types (News, Media, Image, Video, Audio)
+### ✅ Phase 3: Backend Implementation (COMPLETE - Jan 15, 2026)
+- [x] Create Vote SQLAlchemy model with event_id, user_id, vote_type, timestamps
+- [x] Implement backend Flask endpoints (`/api/v1/events/{id}/vote` POST/GET/DELETE)
+- [x] Add JWT authentication to vote endpoints
+- [x] Create PostgreSQL migration script for vote table
+- [x] Run migration and verify table creation
 
-### Testing & Verification
+### ✅ Phase 4: Frontend API Integration (COMPLETE - Jan 15, 2026)
+- [x] Create voteApi.js utility functions (castVote, getVoteStats, removeVote)
+- [x] Wire RemarkCard to backend vote API
+- [x] Wire NewsCard to backend vote API
+- [x] Wire MediaCard to backend vote API
+- [x] Wire NewsEventPopup to backend vote API
+- [x] Wire ImageEventPopup to backend vote API
+- [x] Wire VideoEventPopup to backend vote API
+- [x] Wire AudioMediaPopup to backend vote API
+- [x] Fix AudioWaveformVisualizer import error
+
+### Phase 5: Testing & Verification (IN PROGRESS)
+- [ ] Verify vote persistence after page refresh (all card types)
+- [ ] Verify vote loading in popups on open
+- [ ] Verify vote state sync between cards and popups
+- [ ] Verify error handling for network failures
 - [ ] Verify vote controls are disabled for guest/lurker accounts
 - [ ] Verify dot visibility + color rules (no dot on neutral)
-- [ ] Verify phased loading does not impact timeline performance
 
 ---
 
