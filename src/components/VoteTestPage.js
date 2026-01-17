@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import VoteControls from './timeline-v3/events/VoteControls';
 import api from '../utils/api';
-import { castVote, getVoteStats } from '../api/voteApi';
+import { castVote, getVoteStats, removeVote } from '../api/voteApi';
 import { uiToBackend, backendToUi } from '../api/voteTypeConverter';
 import { getCookie } from '../utils/cookies';
 
@@ -191,7 +191,9 @@ const VoteTestPage = () => {
           throw new Error('Not authenticated');
         }
         const backendVoteType = uiToBackend(uiVoteType);
-        const stats = await castVote(eventId, backendVoteType, token);
+        const stats = backendVoteType === null
+          ? await removeVote(eventId, token)
+          : await castVote(eventId, backendVoteType, token);
         setVoteStateById((prev) => ({
           ...prev,
           [eventId]: {
@@ -365,6 +367,7 @@ const VoteTestPage = () => {
             value={museumUserVote === 'neutral' ? null : museumUserVote}
             onChange={() => {}}
             positiveRatio={museumTotals.ratio}
+            totalVotes={museumTotals.total}
             isLoading={museumLoading}
             hasError={museumError}
           />
@@ -531,6 +534,7 @@ const VoteTestPage = () => {
                 value={voteState.value ?? null}
                 onChange={handleVoteChange(event.id)}
                 positiveRatio={positiveRatio}
+                totalVotes={(stats.promote_count || 0) + (stats.demote_count || 0)}
                 isLoading={voteState.loading}
                 hasError={!!voteState.error}
               />

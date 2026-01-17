@@ -41,6 +41,7 @@ const VoteControls = ({
   value = undefined,
   onChange = undefined,
   positiveRatio = 0.6,
+  totalVotes = null,
   isLoading = false,
   hasError = false,
   hoverDirection = null,
@@ -60,14 +61,49 @@ const VoteControls = ({
   const isActive = isPositive || isNegative;
   const isHoveringUp = hoverDirection === 'up';
   const isHoveringDown = hoverDirection === 'down';
+  const labelSlotWidth = 44;
+  const activeRowWidth = width + (labelSlotWidth * 2) + 12;
+  const pillOffset = labelSlotWidth;
 
   const clampedPositiveRatio = Math.max(0, Math.min(positiveRatio, 1));
   const dividerPosition = clampedPositiveRatio * 100;
+  const isEvenSplit = Math.abs(clampedPositiveRatio - 0.5) < 0.0001;
   const isNegativeMajority = clampedPositiveRatio < 0.5;
-  const displayPercentage = Math.round(isNegativeMajority ? 100 - dividerPosition : dividerPosition);
-  const displayPercentageColor = hasError
-    ? theme.palette.error.main
-    : (isNegativeMajority ? negativeColor : positiveColor);
+  const showDivider = dividerPosition > 0 && dividerPosition < 100;
+  const showLeftLabel = isEvenSplit || !isNegativeMajority;
+  const showRightLabel = isEvenSplit || isNegativeMajority;
+  const leftPercentage = Math.round(dividerPosition);
+  const rightPercentage = Math.round(100 - dividerPosition);
+  const leftLabelColor = hasError ? theme.palette.error.main : positiveColor;
+  const rightLabelColor = hasError ? theme.palette.error.main : negativeColor;
+  const resolvedTotalVotes = Number.isFinite(totalVotes) ? totalVotes : Number(totalVotes || 0);
+  const totalVotesLabel = Number.isFinite(resolvedTotalVotes)
+    ? String(Math.max(0, resolvedTotalVotes)).padStart(3, '0')
+    : '000';
+  const badgeLabel = isActive ? `${totalVotesLabel} Votes!` : 'VOTE!';
+  const renderLabel = (side) => {
+    const isLeft = side === 'left';
+    const labelColor = isLeft ? leftLabelColor : rightLabelColor;
+    const percentage = isLeft ? leftPercentage : rightPercentage;
+    const spinnerColor = isLeft ? positiveColor : negativeColor;
+
+    if (isLoading) {
+      return <CircularProgress size={20} sx={{ color: spinnerColor }} />;
+    }
+
+    return (
+      <Box
+        sx={{
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          color: labelColor,
+          letterSpacing: '0.3px',
+        }}
+      >
+        {percentage}%
+      </Box>
+    );
+  };
 
   const handleVote = (direction) => (event) => {
     event.stopPropagation();
@@ -97,16 +133,44 @@ const VoteControls = ({
       onClick={(e) => e.stopPropagation()}
       sx={{
         position: 'relative',
-        width: width,
-        height: height,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 1,
       }}
     >
       <Box
         sx={{
+          height: height,
+          borderRadius: height / 2,
+          border: `2px solid ${neutralColor}`,
+          display: 'flex',
+          alignItems: 'center',
+          paddingX: 1.5,
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          letterSpacing: '0.5px',
+          color: hasError ? theme.palette.error.main : theme.palette.text.primary,
+          background: alpha(theme.palette.text.primary, 0.04),
+          minWidth: 80,
+          justifyContent: 'center',
+        }}
+      >
+        {badgeLabel}
+      </Box>
+
+      <Box
+        sx={{
+          position: 'relative',
+          width: activeRowWidth,
+          height: height,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+      <Box
+        sx={{
           position: 'absolute',
+          left: pillOffset,
           width: width,
           height: height,
           borderRadius: height / 2,
@@ -203,24 +267,18 @@ const VoteControls = ({
           transform: isActive ? 'scale(1)' : 'scale(0.96)',
           transition: `opacity 0.25s ease, transform 0.25s ${easing}`,
           pointerEvents: isActive ? 'auto' : 'none',
+          width: activeRowWidth,
         }}
       >
-          {!isNegativeMajority && (
-            isLoading ? (
-              <CircularProgress size={20} sx={{ color: positiveColor }} />
-            ) : (
-              <Box
-                sx={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: displayPercentageColor,
-                  letterSpacing: '0.3px',
-                }}
-              >
-                {displayPercentage}%
-              </Box>
-            )
-          )}
+          <Box
+            sx={{
+              minWidth: labelSlotWidth,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}
+          >
+            {showLeftLabel ? renderLabel('left') : null}
+          </Box>
 
           <Box
             onClick={handlePillClick}
@@ -280,27 +338,22 @@ const VoteControls = ({
                 width: 1.5,
                 background: 'rgba(255,255,255,0.9)',
                 transition: `left 0.3s ${easing}`,
+                opacity: showDivider ? 1 : 0,
               }}
             />
           </Box>
 
-          {isNegativeMajority && (
-            isLoading ? (
-              <CircularProgress size={20} sx={{ color: negativeColor }} />
-            ) : (
-              <Box
-                sx={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: displayPercentageColor,
-                  letterSpacing: '0.3px',
-                }}
-              >
-                {displayPercentage}%
-              </Box>
-            )
-          )}
+          <Box
+            sx={{
+              minWidth: labelSlotWidth,
+              display: 'flex',
+              justifyContent: 'flex-start',
+            }}
+          >
+            {showRightLabel ? renderLabel('right') : null}
+          </Box>
         </Box>
+      </Box>
     </Box>
   );
 };
