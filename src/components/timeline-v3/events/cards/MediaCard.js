@@ -38,8 +38,9 @@ import VideoDetailsButton from './VideoDetailsButton';
 import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
-import { castVote, getVoteStats } from '../../../../api/voteApi';
+import { castVote, getVoteStats, removeVote } from '../../../../api/voteApi';
 import { uiToBackend, backendToUi } from '../../../../api/voteTypeConverter';
+import { getCookie } from '../../../../utils/cookies';
 
 const MediaCard = forwardRef(({
   event,
@@ -78,8 +79,11 @@ const MediaCard = forwardRef(({
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [voteValue, setVoteValue] = useState(null);
-  const [voteRatio] = useState(0.6);
   const [voteStats, setVoteStats] = useState({ promote_count: 0, demote_count: 0, user_vote: null });
+  const totalVotes = (voteStats.promote_count || 0) + (voteStats.demote_count || 0);
+  const positiveRatio = totalVotes > 0
+    ? (voteStats.promote_count || 0) / totalVotes
+    : 0.5;
   const [voteLoading, setVoteLoading] = useState(false);
   const [voteError, setVoteError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -89,7 +93,11 @@ const MediaCard = forwardRef(({
   useEffect(() => {
     const loadVoteStats = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getCookie('access_token') || localStorage.getItem('access_token');
+        if (!token) {
+          setVoteError('Not authenticated');
+          return;
+        }
         const stats = await getVoteStats(event.id, token);
         setVoteStats(stats);
         setVoteValue(backendToUi(stats.user_vote));
@@ -108,7 +116,7 @@ const MediaCard = forwardRef(({
   // Handle vote changes
   const handleVoteChange = async (uiVoteType) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getCookie('access_token') || localStorage.getItem('access_token');
       if (!token) {
         console.error('No authentication token found');
         setVoteError('Not authenticated');
@@ -119,7 +127,9 @@ const MediaCard = forwardRef(({
       setVoteError(null);
       
       const backendVoteType = uiToBackend(uiVoteType);
-      const stats = await castVote(event.id, backendVoteType, token);
+      const stats = backendVoteType === null
+        ? await removeVote(event.id, token)
+        : await castVote(event.id, backendVoteType, token);
       setVoteStats(stats);
       setVoteValue(backendToUi(stats.user_vote));
     } catch (error) {
@@ -1059,7 +1069,7 @@ const MediaCard = forwardRef(({
         >
           {/* Vote overlay for EventList cards */}
           {showVoteOverlay && (
-            <VoteOverlay value={voteValue} positiveRatio={voteRatio} />
+            <VoteOverlay value={voteValue} positiveRatio={positiveRatio} />
           )}
           
           {/* Media Content - Full card background */}
@@ -1106,7 +1116,10 @@ const MediaCard = forwardRef(({
                   <VoteControls
                     value={voteValue}
                     onChange={handleVoteChange}
-                    positiveRatio={voteRatio}
+                    positiveRatio={positiveRatio}
+                    totalVotes={totalVotes}
+                    isLoading={voteLoading}
+                    hasError={!!voteError}
                   />
                 </Box>
               )}
@@ -1205,7 +1218,7 @@ const MediaCard = forwardRef(({
         reviewingEventIds={reviewingEventIds}
         voteValue={voteValue}
         onVoteChange={setVoteValue}
-        positiveRatio={voteRatio}
+        positiveRatio={positiveRatio}
       />
     </>
   );

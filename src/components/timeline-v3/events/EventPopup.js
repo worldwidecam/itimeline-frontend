@@ -1057,6 +1057,24 @@ const EventPopup = ({
                 positiveRatio={positiveRatio}
               />
             </Box>
+            <Box
+              sx={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 6,
+                textAlign: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: '0.7rem', opacity: 0.7 }}
+              >
+                ID: {event?.id ?? '--'}
+              </Typography>
+            </Box>
             {isInReview && (
               <Box
                 sx={{

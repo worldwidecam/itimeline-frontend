@@ -44,8 +44,9 @@ import PopupTimelineLanes from './PopupTimelineLanes';
 import UserAvatar from '../../common/UserAvatar';
 import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
-import { castVote, getVoteStats } from '../../../api/voteApi';
+import { castVote, getVoteStats, removeVote } from '../../../api/voteApi';
 import { uiToBackend, backendToUi } from '../../../api/voteTypeConverter';
+import { getCookie } from '../../../utils/cookies';
 
 /**
  * NewsEventPopup - A specialized popup for news events
@@ -94,8 +95,11 @@ const NewsEventPopup = ({
   const [reportSnackOpen, setReportSnackOpen] = React.useState(false);
   // Vote pill state
   const [voteValue, setVoteValue] = React.useState(null);
-  const [voteRatio] = React.useState(0.6);
   const [voteStats, setVoteStats] = React.useState({ promote_count: 0, demote_count: 0, user_vote: null });
+  const totalVotes = (voteStats.promote_count || 0) + (voteStats.demote_count || 0);
+  const positiveRatio = totalVotes > 0
+    ? (voteStats.promote_count || 0) / totalVotes
+    : 0.5;
   const [voteLoading, setVoteLoading] = React.useState(false);
   const [voteError, setVoteError] = React.useState(null);
 
@@ -104,7 +108,11 @@ const NewsEventPopup = ({
     const loadVoteStats = async () => {
       if (!open || !event?.id) return;
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getCookie('access_token') || localStorage.getItem('access_token');
+        if (!token) {
+          setVoteError('Not authenticated');
+          return;
+        }
         const stats = await getVoteStats(event.id, token);
         setVoteStats(stats);
         setVoteValue(backendToUi(stats.user_vote));
@@ -122,7 +130,7 @@ const NewsEventPopup = ({
   const handleVoteChange = async (uiVoteType) => {
     const previousVote = voteValue;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getCookie('access_token') || localStorage.getItem('access_token');
       if (!token) {
         console.error('No authentication token found');
         setVoteError('Not authenticated');
@@ -134,7 +142,9 @@ const NewsEventPopup = ({
       setVoteValue(uiVoteType);
       
       const backendVoteType = uiToBackend(uiVoteType);
-      const stats = await castVote(event.id, backendVoteType, token);
+      const stats = backendVoteType === null
+        ? await removeVote(event.id, token)
+        : await castVote(event.id, backendVoteType, token);
       setVoteStats(stats);
       setVoteValue(backendToUi(stats.user_vote));
     } catch (error) {
@@ -795,10 +805,29 @@ const NewsEventPopup = ({
               <VoteControls
                 value={voteValue}
                 onChange={handleVoteChange}
-                positiveRatio={voteRatio}
+                positiveRatio={positiveRatio}
+                totalVotes={totalVotes}
                 isLoading={voteLoading}
                 hasError={!!voteError}
               />
+            </Box>
+            <Box
+              sx={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 6,
+                textAlign: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: '0.7rem', opacity: 0.7 }}
+              >
+                ID: {event?.id ?? '--'}
+              </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             {isInReview && (

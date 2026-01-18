@@ -46,8 +46,9 @@ import PopupTimelineLanes from './PopupTimelineLanes';
 import UserAvatar from '../../common/UserAvatar';
 import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
-import { castVote, getVoteStats } from '../../../api/voteApi';
+import { castVote, getVoteStats, removeVote } from '../../../api/voteApi';
 import { uiToBackend, backendToUi } from '../../../api/voteTypeConverter';
+import { getCookie } from '../../../utils/cookies';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 
 /**
@@ -99,8 +100,11 @@ const AudioMediaPopup = ({
   const [reportSnackOpen, setReportSnackOpen] = useState(false);
   // Vote pill state
   const [voteValue, setVoteValue] = useState(null);
-  const [voteRatio] = useState(0.6);
   const [voteStats, setVoteStats] = useState({ promote_count: 0, demote_count: 0, user_vote: null });
+  const totalVotes = (voteStats.promote_count || 0) + (voteStats.demote_count || 0);
+  const positiveRatio = totalVotes > 0
+    ? (voteStats.promote_count || 0) / totalVotes
+    : 0.5;
   const [voteLoading, setVoteLoading] = useState(false);
   const [voteError, setVoteError] = useState(null);
 
@@ -109,7 +113,11 @@ const AudioMediaPopup = ({
     const loadVoteStats = async () => {
       if (!open || !event?.id) return;
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getCookie('access_token') || localStorage.getItem('access_token');
+        if (!token) {
+          setVoteError('Not authenticated');
+          return;
+        }
         const stats = await getVoteStats(event.id, token);
         setVoteStats(stats);
         setVoteValue(backendToUi(stats.user_vote));
@@ -127,7 +135,7 @@ const AudioMediaPopup = ({
   const handleVoteChange = async (uiVoteType) => {
     const previousVote = voteValue;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getCookie('access_token') || localStorage.getItem('access_token');
       if (!token) {
         console.error('No authentication token found');
         setVoteError('Not authenticated');
@@ -139,7 +147,9 @@ const AudioMediaPopup = ({
       setVoteValue(uiVoteType);
       
       const backendVoteType = uiToBackend(uiVoteType);
-      const stats = await castVote(event.id, backendVoteType, token);
+      const stats = backendVoteType === null
+        ? await removeVote(event.id, token)
+        : await castVote(event.id, backendVoteType, token);
       setVoteStats(stats);
       setVoteValue(backendToUi(stats.user_vote));
     } catch (error) {
@@ -530,123 +540,142 @@ const AudioMediaPopup = ({
               <PopupTimelineLanes {...laneProps} />
             </Box>
           </Box>
-          
+
           {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <VoteControls
                 value={voteValue}
                 onChange={handleVoteChange}
-                positiveRatio={voteRatio}
+                positiveRatio={positiveRatio}
+                totalVotes={totalVotes}
                 isLoading={voteLoading}
                 hasError={!!voteError}
               />
             </Box>
+            <Box
+              sx={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 6,
+                textAlign: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: '0.7rem', opacity: 0.7 }}
+              >
+                ID: {event?.id ?? '--'}
+              </Typography>
+            </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {isInReview && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: '12px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 152, 0, 0.2)' 
-                    : 'rgba(255, 152, 0, 0.15)',
-                  transform: 'rotate(-2deg)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 4px rgba(0,0,0,0.3)'
-                    : '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <RateReviewIcon 
-                  sx={{ 
-                    fontSize: 14,
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 1)' 
-                      : 'rgba(255, 152, 0, 1)',
-                  }} 
-                />
-                <Typography
-                  variant="caption"
+              {isInReview && (
+                <Box
                   sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 1)' 
-                      : 'rgba(255, 152, 0, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.25,
+                    borderRadius: '12px',
+                    backgroundColor: theme.palette.mode === 'dark'
+                      ? 'rgba(255, 152, 0, 0.2)'
+                      : 'rgba(255, 152, 0, 0.15)',
+                    transform: 'rotate(-2deg)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 2px 4px rgba(0,0,0,0.3)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
                   }}
                 >
-                  In Review
-                </Typography>
-              </Box>
-            )}
-            {isSafeguarded ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: '12px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(76, 175, 80, 0.2)' 
-                    : 'rgba(76, 175, 80, 0.15)',
-                  transform: 'rotate(-2deg)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 4px rgba(0,0,0,0.3)'
-                    : '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <CheckCircleIcon 
-                  sx={{ 
-                    fontSize: 14,
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 1)' 
-                      : 'rgba(56, 142, 60, 1)',
-                  }} 
-                />
-                <Typography
-                  variant="caption"
+                  <RateReviewIcon
+                    sx={{
+                      fontSize: 14,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255, 152, 0, 1)'
+                        : 'rgba(255, 152, 0, 1)',
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255, 152, 0, 1)'
+                        : 'rgba(255, 152, 0, 1)',
+                    }}
+                  >
+                    In Review
+                  </Typography>
+                </Box>
+              )}
+              {isSafeguarded ? (
+                <Box
                   sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 1)' 
-                      : 'rgba(56, 142, 60, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.25,
+                    borderRadius: '12px',
+                    backgroundColor: theme.palette.mode === 'dark'
+                      ? 'rgba(76, 175, 80, 0.2)'
+                      : 'rgba(76, 175, 80, 0.15)',
+                    transform: 'rotate(-2deg)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 2px 4px rgba(0,0,0,0.3)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
                   }}
                 >
-                  Safeguarded
-                </Typography>
-              </Box>
-            ) : (
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleOpenReport}
-                disabled={reportedOnce}
-                sx={{ 
-                  textTransform: 'none',
-                  backgroundColor: audioColor,
-                  color: '#fff',
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(230, 81, 0, 0.9)' 
-                      : 'rgba(230, 81, 0, 0.85)',
-                  },
-                  px: 2.25,
-                }}
-              >
-                {reportedOnce ? 'Reported' : 'Report'}
-              </Button>
-            )}
+                  <CheckCircleIcon
+                    sx={{
+                      fontSize: 14,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(76, 175, 80, 1)'
+                        : 'rgba(56, 142, 60, 1)',
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(76, 175, 80, 1)'
+                        : 'rgba(56, 142, 60, 1)',
+                    }}
+                  >
+                    Safeguarded
+                  </Typography>
+                </Box>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleOpenReport}
+                  disabled={reportedOnce}
+                  sx={{
+                    textTransform: 'none',
+                    backgroundColor: audioColor,
+                    color: '#fff',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark'
+                        ? 'rgba(230, 81, 0, 0.9)'
+                        : 'rgba(230, 81, 0, 0.85)',
+                    },
+                    px: 2.25,
+                  }}
+                >
+                  {reportedOnce ? 'Reported' : 'Report'}
+                </Button>
+              )}
             </Box>
           </Box>
         </Box>
