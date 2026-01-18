@@ -8,11 +8,12 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 ## Current Subgoal
 
 **Phase**: Backend/Frontend Connection Testing
-- [ ] Test vote persistence after page refresh (all card types)
-- [ ] Test vote loading in popups on open
-- [ ] Test vote state synchronization between cards and popups
+- [x] Test vote persistence after page refresh (all card types)
+- [x] Test vote loading in popups on open
+- [x] Test vote state synchronization between cards and popups
 - [ ] Verify error handling for network failures
 - [ ] Test vote animations and UI feedback
+- [ ] Visually set correct vote control positioning per Popup type
 
 ---
 
@@ -49,12 +50,13 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 - [x] Fix AudioWaveformVisualizer import error
 
 ### Phase 5: Testing & Verification (IN PROGRESS)
-- [ ] Verify vote persistence after page refresh (all card types)
-- [ ] Verify vote loading in popups on open
-- [ ] Verify vote state sync between cards and popups
+- [x] Verify vote persistence after page refresh (all card types)
+- [x] Verify vote loading in popups on open
+- [x] Verify vote state sync between cards and popups
 - [ ] Verify error handling for network failures
 - [ ] Verify vote controls are disabled for guest/lurker accounts
 - [ ] Verify dot visibility + color rules (no dot on neutral)
+- [ ] Visually set correct vote control positioning per Popup type
 
 ---
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import VoteControls from './VoteControls';
 
-const VoteOverlay = ({ value, positiveRatio }) => {
+const VoteOverlay = ({ value, positiveRatio, totalVotes, isLoading = false, hasError = false }) => {
   return (
     <Box
       sx={{
@@ -14,7 +14,13 @@ const VoteOverlay = ({ value, positiveRatio }) => {
         pointerEvents: 'none',
       }}
     >
-      <VoteControls value={value} positiveRatio={positiveRatio} />
+      <VoteControls
+        value={value}
+        positiveRatio={positiveRatio}
+        totalVotes={totalVotes}
+        isLoading={isLoading}
+        hasError={hasError}
+      />
     </Box>
   );
 };

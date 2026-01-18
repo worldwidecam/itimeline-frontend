@@ -44,9 +44,7 @@ import PopupTimelineLanes from './PopupTimelineLanes';
 import UserAvatar from '../../common/UserAvatar';
 import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
-import { castVote, getVoteStats, removeVote } from '../../../api/voteApi';
-import { uiToBackend, backendToUi } from '../../../api/voteTypeConverter';
-import { getCookie } from '../../../utils/cookies';
+import { useEventVote } from '../../../hooks/useEventVote';
 
 /**
  * NewsEventPopup - A specialized popup for news events
@@ -93,68 +91,14 @@ const NewsEventPopup = ({
   const [localEventData, setLocalEventData] = React.useState(event);
   // Local snackbar for report submission feedback
   const [reportSnackOpen, setReportSnackOpen] = React.useState(false);
-  // Vote pill state
-  const [voteValue, setVoteValue] = React.useState(null);
-  const [voteStats, setVoteStats] = React.useState({ promote_count: 0, demote_count: 0, user_vote: null });
-  const totalVotes = (voteStats.promote_count || 0) + (voteStats.demote_count || 0);
-  const positiveRatio = totalVotes > 0
-    ? (voteStats.promote_count || 0) / totalVotes
-    : 0.5;
-  const [voteLoading, setVoteLoading] = React.useState(false);
-  const [voteError, setVoteError] = React.useState(null);
-
-  // Load vote stats when popup opens
-  React.useEffect(() => {
-    const loadVoteStats = async () => {
-      if (!open || !event?.id) return;
-      try {
-        const token = getCookie('access_token') || localStorage.getItem('access_token');
-        if (!token) {
-          setVoteError('Not authenticated');
-          return;
-        }
-        const stats = await getVoteStats(event.id, token);
-        setVoteStats(stats);
-        setVoteValue(backendToUi(stats.user_vote));
-        setVoteError(null);
-      } catch (error) {
-        console.error('Error loading vote stats:', error);
-        setVoteError('Failed to load votes');
-      }
-    };
-    
-    loadVoteStats();
-  }, [open, event?.id]);
-
-  // Handle vote changes
-  const handleVoteChange = async (uiVoteType) => {
-    const previousVote = voteValue;
-    try {
-      const token = getCookie('access_token') || localStorage.getItem('access_token');
-      if (!token) {
-        console.error('No authentication token found');
-        setVoteError('Not authenticated');
-        return;
-      }
-
-      setVoteLoading(true);
-      setVoteError(null);
-      setVoteValue(uiVoteType);
-      
-      const backendVoteType = uiToBackend(uiVoteType);
-      const stats = backendVoteType === null
-        ? await removeVote(event.id, token)
-        : await castVote(event.id, backendVoteType, token);
-      setVoteStats(stats);
-      setVoteValue(backendToUi(stats.user_vote));
-    } catch (error) {
-      console.error('Error casting vote:', error);
-      setVoteError(error.message || 'Failed to cast vote');
-      setVoteValue(previousVote);
-    } finally {
-      setVoteLoading(false);
-    }
-  };
+  const {
+    value: voteValue,
+    totalVotes,
+    positiveRatio,
+    isLoading: voteLoading,
+    error: voteError,
+    handleVoteChange,
+  } = useEventVote(event?.id, { enabled: open });
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   React.useEffect(() => {

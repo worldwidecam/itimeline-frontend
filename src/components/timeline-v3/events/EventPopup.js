@@ -51,6 +51,7 @@ import api from '../../../utils/api';
 import PopupTimelineLanes from './PopupTimelineLanes';
 import { submitReport } from '../../../utils/api';
 import config from '../../../config';
+import { useEventVote } from '../../../hooks/useEventVote';
 
 /**
  * EventPopup - A component that displays event details in a popup dialog
@@ -91,14 +92,19 @@ const EventPopup = ({
   onClose,
   setIsPopupOpen,
   reviewingEventIds = new Set(),
-  voteValue = null,
-  onVoteChange,
-  positiveRatio = 0.6,
 }) => {
   const theme = useTheme();
   const location = useLocation();
   const [isInReview, setIsInReview] = useState(false);
   const [isSafeguarded, setIsSafeguarded] = useState(false);
+  const {
+    value: voteValue,
+    totalVotes,
+    positiveRatio,
+    isLoading: voteLoading,
+    error: voteError,
+    handleVoteChange,
+  } = useEventVote(event?.id, { enabled: open });
   
   // Fetch reviewing and safeguarded status when popup opens
   useEffect(() => {
@@ -1053,8 +1059,11 @@ const EventPopup = ({
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <VoteControls
                 value={voteValue}
-                onChange={onVoteChange}
+                onChange={handleVoteChange}
                 positiveRatio={positiveRatio}
+                totalVotes={totalVotes}
+                isLoading={voteLoading}
+                hasError={!!voteError}
               />
             </Box>
             <Box

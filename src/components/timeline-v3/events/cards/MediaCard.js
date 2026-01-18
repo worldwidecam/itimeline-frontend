@@ -38,9 +38,7 @@ import VideoDetailsButton from './VideoDetailsButton';
 import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisualizer';
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
-import { castVote, getVoteStats, removeVote } from '../../../../api/voteApi';
-import { uiToBackend, backendToUi } from '../../../../api/voteTypeConverter';
-import { getCookie } from '../../../../utils/cookies';
+import { useEventVote } from '../../../../hooks/useEventVote';
 
 const MediaCard = forwardRef(({
   event,
@@ -78,68 +76,16 @@ const MediaCard = forwardRef(({
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const [voteValue, setVoteValue] = useState(null);
-  const [voteStats, setVoteStats] = useState({ promote_count: 0, demote_count: 0, user_vote: null });
-  const totalVotes = (voteStats.promote_count || 0) + (voteStats.demote_count || 0);
-  const positiveRatio = totalVotes > 0
-    ? (voteStats.promote_count || 0) / totalVotes
-    : 0.5;
-  const [voteLoading, setVoteLoading] = useState(false);
-  const [voteError, setVoteError] = useState(null);
+  const {
+    value: voteValue,
+    totalVotes,
+    positiveRatio,
+    isLoading: voteLoading,
+    error: voteError,
+    handleVoteChange,
+  } = useEventVote(event?.id);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
-
-  // Load vote stats on mount
-  useEffect(() => {
-    const loadVoteStats = async () => {
-      try {
-        const token = getCookie('access_token') || localStorage.getItem('access_token');
-        if (!token) {
-          setVoteError('Not authenticated');
-          return;
-        }
-        const stats = await getVoteStats(event.id, token);
-        setVoteStats(stats);
-        setVoteValue(backendToUi(stats.user_vote));
-        setVoteError(null);
-      } catch (error) {
-        console.error('Error loading vote stats:', error);
-        setVoteError('Failed to load votes');
-      }
-    };
-    
-    if (event.id) {
-      loadVoteStats();
-    }
-  }, [event.id]);
-
-  // Handle vote changes
-  const handleVoteChange = async (uiVoteType) => {
-    try {
-      const token = getCookie('access_token') || localStorage.getItem('access_token');
-      if (!token) {
-        console.error('No authentication token found');
-        setVoteError('Not authenticated');
-        return;
-      }
-
-      setVoteLoading(true);
-      setVoteError(null);
-      
-      const backendVoteType = uiToBackend(uiVoteType);
-      const stats = backendVoteType === null
-        ? await removeVote(event.id, token)
-        : await castVote(event.id, backendVoteType, token);
-      setVoteStats(stats);
-      setVoteValue(backendToUi(stats.user_vote));
-    } catch (error) {
-      console.error('Error casting vote:', error);
-      setVoteError(error.message || 'Failed to cast vote');
-      setVoteValue(null);
-    } finally {
-      setVoteLoading(false);
-    }
-  };
   
   // Determine media subtype and apply specific colors
   const getMediaTypeAndColor = () => {
@@ -1069,7 +1015,13 @@ const MediaCard = forwardRef(({
         >
           {/* Vote overlay for EventList cards */}
           {showVoteOverlay && (
-            <VoteOverlay value={voteValue} positiveRatio={positiveRatio} />
+            <VoteOverlay
+              value={voteValue}
+              positiveRatio={positiveRatio}
+              totalVotes={totalVotes}
+              isLoading={voteLoading}
+              hasError={!!voteError}
+            />
           )}
           
           {/* Media Content - Full card background */}
@@ -1216,9 +1168,6 @@ const MediaCard = forwardRef(({
         event={event}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
-        voteValue={voteValue}
-        onVoteChange={setVoteValue}
-        positiveRatio={positiveRatio}
       />
     </>
   );
