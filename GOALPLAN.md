@@ -13,7 +13,7 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 - [x] Test vote state synchronization between cards and popups
 - [ ] Verify error handling for network failures
 - [ ] Test vote animations and UI feedback
-- [ ] Visually set correct vote control positioning per Popup type
+- [x] Visually set correct vote control positioning per Popup type
 
 ---
 

@@ -47,7 +47,10 @@ const EventMarker = ({
   onClick,
   selectedType,
   isSelected = false, // Prop to determine if this marker is selected
-  isMoving = false // New prop to track timeline movement
+  isMoving = false, // New prop to track timeline movement
+  voteDot = null,
+  showVoteDot = true,
+  voteDotsLoading = false,
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -480,6 +483,16 @@ const EventMarker = ({
   
   // Add a debug class to help identify markers in different states
   const markerClass = isSelected ? 'selected-marker' : 'normal-marker';
+
+  const canShowVoteDot = !!voteDot && voteDot.isVisible && showVoteDot && !voteDotsLoading;
+  const voteDotSize = voteDot?.height ?? 6;
+  const markerWidthSelected = 4 + (overlappingFactor - 1) * 0.5;
+  const markerWidthNormal = viewMode === 'week' ? 4 : 3 + (overlappingFactor - 1) * 0.5;
+  const voteDotSizeSelected = Math.min(voteDotSize, markerWidthSelected);
+  const voteDotSizeNormal = Math.min(voteDotSize, markerWidthNormal);
+  const voteDotColor = voteDot?.netVotes > 0
+    ? theme.palette.success.main
+    : theme.palette.error.main;
   
   // Calculate transition properties based on isMoving state
   const getTransitionStyle = () => {
@@ -518,6 +531,23 @@ const EventMarker = ({
             ...getTransitionStyle() // Apply transition style based on isMoving
           }}
         >
+          {canShowVoteDot && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 'calc(100% + 6px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: `${voteDotSizeSelected}px`,
+                height: `${voteDotSizeSelected}px`,
+                borderRadius: '999px',
+                backgroundColor: voteDotColor,
+                opacity: 0.55,
+                boxShadow: `0 0 6px ${voteDotColor}40`,
+                transition: 'opacity 0.3s ease'
+              }}
+            />
+          )}
           <Box
             ref={markerRef}
             className="active-marker"
@@ -670,85 +700,108 @@ const EventMarker = ({
         </Box>
       ) : (
         <Box
-          ref={markerRef}
-          className={markerClass}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
           sx={{
             position: 'absolute',
-            left: `${position.x + horizontalOffset}px`, // Add horizontal offset
+            left: `${position.x + horizontalOffset}px`,
             bottom: `${position.y}px`,
-            width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-            // Calculate base height based on view mode
-            height: `${(() => {
-              // Set minimum heights based on view mode
-              let baseHeight = 24; // Default base height
-              let minHeight = 40; // Default minimum height
-              
-              if (viewMode === 'day') {
-                minHeight = 50; // Larger minimum for day view
-                baseHeight = 30;
-              } else if (viewMode === 'week') {
-                minHeight = 45; // Medium minimum for week view
-                baseHeight = 28;
-              } else if (viewMode === 'month') {
-                minHeight = 40; // Standard minimum for month view
-                baseHeight = 26;
-              } else if (viewMode === 'year') {
-                minHeight = 35; // Smaller minimum for year view to avoid overcrowding
-                baseHeight = 24;
-              }
-              
-              // Calculate base height based on view mode and overlapping factor
-              const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
-              // Apply workspace constraints
-              return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
-            })()}px`, // Height constrained by workspace
-            borderRadius: '2px',
-            background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
-            transform: isMoving 
-              ? `translateX(-50%) translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
-              : 'translateX(-50%)',
-            transformOrigin: 'bottom center', // Shrink from bottom to top
-            opacity: isMoving ? 0 : getMarkerOpacity(),
-            cursor: 'pointer',
-            transition: isMoving
-              ? 'all 0.25s ease-out' // Faster transition for movement
-              : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy effect when appearing
-            // Enhanced visual appearance for all filter views (day, week, month, year)
-            ...(viewMode !== 'position' && {
-              boxShadow: isMoving ? 'none' : `0 0 6px ${getColor()}40`,
-              // Special styling for week view
-              ...(viewMode === 'week' && {
-                width: '4px',
-                boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`
-              })
-            }),
-            // Add a larger invisible click area using ::before pseudo-element
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              inset: '-15px', // Creates a 15px invisible padding around the marker
-              zIndex: 1, // Ensures it's clickable
-            },
-            '&:hover': {
-              background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
-              transform: isMoving 
-                ? `translateX(-50%) translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
-                : 'translateX(-50%) scaleY(1.2) scaleX(1.3)',
-              boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
-              ...(viewMode !== 'position' && {
-                boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
-                // Enhanced hover effect for week view
-                ...(viewMode === 'week' && {
-                  boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
-                })
-              })
-            },
-            zIndex: 800, // Reduced from 1000 to 800 (below hover marker at 900)
+            transform: 'translateX(-50%)',
+            zIndex: 800,
           }}
-          onClick={handleMarkerClick}
-        />
+        >
+          {canShowVoteDot && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 'calc(100% + 6px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: `${voteDotSizeNormal}px`,
+                height: `${voteDotSizeNormal}px`,
+                borderRadius: '999px',
+                backgroundColor: voteDotColor,
+                opacity: 0.55,
+                boxShadow: `0 0 6px ${voteDotColor}40`,
+                transition: 'opacity 0.3s ease'
+              }}
+            />
+          )}
+          <Box
+            ref={markerRef}
+            className={markerClass}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            sx={{
+              width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
+              // Calculate base height based on view mode
+              height: `${(() => {
+                // Set minimum heights based on view mode
+                let baseHeight = 24; // Default base height
+                let minHeight = 40; // Default minimum height
+                
+                if (viewMode === 'day') {
+                  minHeight = 50; // Larger minimum for day view
+                  baseHeight = 30;
+                } else if (viewMode === 'week') {
+                  minHeight = 45; // Medium minimum for week view
+                  baseHeight = 28;
+                } else if (viewMode === 'month') {
+                  minHeight = 40; // Standard minimum for month view
+                  baseHeight = 26;
+                } else if (viewMode === 'year') {
+                  minHeight = 35; // Smaller minimum for year view to avoid overcrowding
+                  baseHeight = 24;
+                }
+                
+                // Calculate base height based on view mode and overlapping factor
+                const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
+                // Apply workspace constraints
+                return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
+              })()}px`, // Height constrained by workspace
+              borderRadius: '2px',
+              background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
+              transform: isMoving 
+                ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+                : 'translateX(0)',
+              transformOrigin: 'bottom center', // Shrink from bottom to top
+              opacity: isMoving ? 0 : getMarkerOpacity(),
+              cursor: 'pointer',
+              transition: isMoving
+                ? 'all 0.25s ease-out' // Faster transition for movement
+                : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy effect when appearing
+              // Enhanced visual appearance for all filter views (day, week, month, year)
+              ...(viewMode !== 'position' && {
+                boxShadow: isMoving ? 'none' : `0 0 6px ${getColor()}40`,
+                // Special styling for week view
+                ...(viewMode === 'week' && {
+                  width: '4px',
+                  boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`
+                })
+              }),
+              // Add a larger invisible click area using ::before pseudo-element
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                inset: '-15px', // Creates a 15px invisible padding around the marker
+                zIndex: 1, // Ensures it's clickable
+              },
+              '&:hover': {
+                background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
+                transform: isMoving 
+                  ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+                  : 'scaleY(1.2) scaleX(1.3)',
+                boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
+                ...(viewMode !== 'position' && {
+                  boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
+                  // Enhanced hover effect for week view
+                  ...(viewMode === 'week' && {
+                    boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
+                  })
+                })
+              },
+            }}
+            onClick={handleMarkerClick}
+          />
+        </Box>
       )}
     </>
   );

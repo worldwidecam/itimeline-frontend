@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +23,8 @@ import NewsEventCreator from './events/NewsEventCreator';
 import CommunityDotTabs from './community/CommunityDotTabs';
 import CommunityMembershipControl from './community/CommunityMembershipControl.js';
 import useJoinStatus from '../../hooks/useJoinStatus';
+import { getVoteStats } from '../../api/voteApi';
+import { getCookie } from '../../utils/cookies';
 
 // Material UI Icons - importing each icon separately to ensure they're properly loaded
 import Add from '@mui/icons-material/Add';
@@ -592,6 +594,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [voteStatsById, setVoteStatsById] = useState({});
+  const [voteDotsLoading, setVoteDotsLoading] = useState(true);
   const [editingEvent, setEditingEvent] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
@@ -803,6 +807,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   // Auto-reselect after view switch: moved below progressiveLoadingState declaration
   const lastAutoReselectRef = useRef(0);
+  const phaseTimeoutsRef = useRef([]);
+  const filterSortPhaseRef = useRef(true);
+  const voteDotTimeoutRef = useRef(null);
+  const voteStatsLoadingRef = useRef(new Set());
 
   // Add state to track filtered events count
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
@@ -1165,6 +1173,262 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isViewTransitioning, setIsViewTransitioning] = useState(false);
   const [pendingViewMode, setPendingViewMode] = useState(null);
   const [viewTransitionPhase, setViewTransitionPhase] = useState('idle'); // 'idle', 'fadeOut', 'structureTransition', 'dataProcessing', 'fadeIn'
+
+  const normalizeVoteStats = useCallback((stats = {}) => {
+    const resolved = {
+      promote_count: stats.promote_count ?? stats.promoteCount ?? stats.promote ?? 0,
+      demote_count: stats.demote_count ?? stats.demoteCount ?? stats.demote ?? 0,
+      user_vote: stats.user_vote ?? stats.userVote ?? stats.vote ?? null,
+    };
+    return {
+      ...stats,
+      promote_count: Number(resolved.promote_count || 0),
+      demote_count: Number(resolved.demote_count || 0),
+      user_vote: resolved.user_vote ?? null,
+    };
+  }, []);
+
+  const loadVoteStatsForEvent = useCallback(
+    async (eventId, tokenOverride = null) => {
+      if (!eventId) return;
+      if (voteStatsLoadingRef.current.has(eventId)) return;
+      if (voteStatsById[eventId]?.loaded) return;
+
+      const token =
+        tokenOverride || getCookie('access_token') || localStorage.getItem('access_token');
+      if (!token) return;
+
+      voteStatsLoadingRef.current.add(eventId);
+      try {
+        const stats = normalizeVoteStats(await getVoteStats(eventId, token));
+        setVoteStatsById((prev) => ({
+          ...prev,
+          [eventId]: {
+            stats,
+            loaded: true,
+            error: null,
+          },
+        }));
+      } catch (error) {
+        setVoteStatsById((prev) => ({
+          ...prev,
+          [eventId]: {
+            stats: prev[eventId]?.stats || null,
+            loaded: true,
+            error: error.message || 'Failed to load votes',
+          },
+        }));
+      } finally {
+        voteStatsLoadingRef.current.delete(eventId);
+      }
+    },
+    [normalizeVoteStats, voteStatsById]
+  );
+
+  const clearPhaseTimeouts = () => {
+    phaseTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+    phaseTimeoutsRef.current = [];
+    if (voteDotTimeoutRef.current) {
+      clearTimeout(voteDotTimeoutRef.current);
+      voteDotTimeoutRef.current = null;
+    }
+  };
+
+  const beginPhaseTransition = () => {
+    if (progressiveLoadingState !== 'complete') return;
+    clearPhaseTimeouts();
+    setVoteDotsLoading(true);
+    setTimelineMarkersLoading(true);
+    setMarkersLoading(true);
+    setIsMoving(true);
+  };
+
+  const finishPhaseTransition = () => {
+    if (progressiveLoadingState !== 'complete') return;
+    clearPhaseTimeouts();
+    setTimelineElementsLoading(false);
+    phaseTimeoutsRef.current.push(setTimeout(() => setTimelineMarkersLoading(false), 600));
+    phaseTimeoutsRef.current.push(setTimeout(() => setMarkersLoading(false), 1200));
+    phaseTimeoutsRef.current.push(setTimeout(() => setIsMoving(false), 1400));
+    voteDotTimeoutRef.current = setTimeout(() => setVoteDotsLoading(false), 1700);
+  };
+
+  useEffect(() => {
+    if (filterSortPhaseRef.current) {
+      filterSortPhaseRef.current = false;
+      return;
+    }
+    if (isViewTransitioning) return;
+    beginPhaseTransition();
+    finishPhaseTransition();
+  }, [selectedType, sortOrder, isViewTransitioning]);
+
+  useEffect(() => () => clearPhaseTimeouts(), []);
+
+  useEffect(() => {
+    if (progressiveLoadingState !== 'complete') {
+      setVoteDotsLoading(true);
+      return undefined;
+    }
+    if (voteDotTimeoutRef.current) {
+      clearTimeout(voteDotTimeoutRef.current);
+    }
+    setVoteDotsLoading(true);
+    voteDotTimeoutRef.current = setTimeout(() => setVoteDotsLoading(false), 700);
+    return () => {
+      if (voteDotTimeoutRef.current) {
+        clearTimeout(voteDotTimeoutRef.current);
+        voteDotTimeoutRef.current = null;
+      }
+    };
+  }, [progressiveLoadingState]);
+
+  const visibleEvents = useMemo(() => {
+    if (viewMode === 'position') return [];
+    if (progressiveLoadingState !== 'complete') return [];
+    if (!events || events.length === 0) return [];
+
+    let rangeMin;
+    let rangeMax;
+    if (visibleMarkers && visibleMarkers.length > 0) {
+      rangeMin = Math.min(...visibleMarkers);
+      rangeMax = Math.max(...visibleMarkers);
+    } else {
+      const screenWidth = window.innerWidth;
+      const markerWidth = 100;
+      const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
+      const centerMarkerPosition = -timelineOffset / markerWidth;
+      const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
+      rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
+      rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
+    }
+
+    const currentDate = getCurrentTimeReference();
+    let startDate;
+    let endDate;
+
+    switch (viewMode) {
+      case 'day': {
+        startDate = new Date(currentDate);
+        startDate.setHours(startDate.getHours() + rangeMin);
+
+        endDate = new Date(currentDate);
+        endDate.setHours(endDate.getHours() + rangeMax);
+        break;
+      }
+      case 'week': {
+        startDate = subDays(currentDate, Math.abs(rangeMin));
+        endDate = addDays(currentDate, rangeMax);
+        break;
+      }
+      case 'month': {
+        startDate = subMonths(currentDate, Math.abs(rangeMin));
+        endDate = addMonths(currentDate, rangeMax);
+        break;
+      }
+      case 'year': {
+        startDate = subYears(currentDate, Math.abs(rangeMin));
+        endDate = addYears(currentDate, rangeMax);
+        break;
+      }
+      default:
+        return [];
+    }
+
+    const startTime = startDate.getTime();
+    const endTime = endDate.getTime();
+    const isLargeEventSet = events.length > 50;
+    const maxMarkersToRender =
+      isLargeEventSet && (viewMode === 'month' || viewMode === 'year') ? 40 : events.length;
+
+    return events
+      .filter((event) => {
+        if (!event.event_date) return false;
+        const eventTime = new Date(event.event_date).getTime();
+        const passesDateFilter = eventTime >= startTime && eventTime <= endTime;
+        if (!passesDateFilter) return false;
+
+        if (selectedType) {
+          const eventType = (event.type || '').toLowerCase();
+          return eventType === selectedType.toLowerCase();
+        }
+
+        return true;
+      })
+      .slice(0, maxMarkersToRender);
+  }, [
+    events,
+    progressiveLoadingState,
+    selectedType,
+    timelineOffset,
+    viewMode,
+    visibleMarkers,
+    pointB_active,
+    pointB_reference_timestamp,
+  ]);
+
+  useEffect(() => {
+    if (progressiveLoadingState !== 'complete') return;
+    if (viewMode === 'position') return;
+    if (!visibleEvents.length) return;
+
+    const token =
+      getCookie('access_token') || localStorage.getItem('access_token');
+    if (!token) return;
+
+    visibleEvents.forEach((event) => {
+      if (event?.id) {
+        loadVoteStatsForEvent(event.id, token);
+      }
+    });
+  }, [loadVoteStatsForEvent, progressiveLoadingState, visibleEvents, viewMode]);
+
+  const voteDotsById = useMemo(() => {
+    if (!visibleEvents.length) return {};
+
+    const minHeight = 6;
+    const maxHeight = 28;
+    const neighborRange = 2;
+
+    const totals = visibleEvents.map((event) => {
+      const stats = voteStatsById[event.id]?.stats || null;
+      const promote = stats?.promote_count || 0;
+      const demote = stats?.demote_count || 0;
+      const totalVotes = promote + demote;
+      const netVotes = promote - demote;
+      return {
+        event,
+        totalVotes,
+        netVotes,
+      };
+    });
+
+    const globalMax = Math.max(1, ...totals.map((item) => item.totalVotes));
+    const dotMap = {};
+
+    totals.forEach((item, index) => {
+      const localStart = Math.max(0, index - neighborRange);
+      const localEnd = Math.min(totals.length - 1, index + neighborRange);
+      const localTotals = totals.slice(localStart, localEnd + 1);
+      const localMax = Math.max(1, ...localTotals.map((neighbor) => neighbor.totalVotes));
+
+      const baseHeight =
+        minHeight + (item.totalVotes / globalMax) * (maxHeight - minHeight);
+      const localHeight =
+        minHeight + (item.totalVotes / localMax) * (maxHeight - minHeight);
+      const blendedHeight = (0.7 * baseHeight) + (0.3 * localHeight);
+      const height = Math.min(maxHeight, Math.max(minHeight, blendedHeight));
+
+      dotMap[item.event.id] = {
+        height,
+        totalVotes: item.totalVotes,
+        netVotes: item.netVotes,
+        isVisible: item.netVotes !== 0,
+      };
+    });
+
+    return dotMap;
+  }, [visibleEvents, voteStatsById]);
   
   // Function to navigate to the next event in the carousel and update the selected marker
   const navigateToNextEvent = () => {
@@ -1339,6 +1603,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     setIsViewTransitioning(true);
     setPendingViewMode(newViewMode);
     setViewTransitionPhase('fadeOut');
+    beginPhaseTransition();
     
     // Phase 1: Immediate visual feedback - fade out events and markers (200ms)
     setIsFullyFaded(true); // This will fade out the current events and markers
@@ -1382,6 +1647,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         setTimeout(() => {
           setViewTransitionPhase('fadeIn');
           setIsFullyFaded(false); // Start fading in the content
+          finishPhaseTransition();
           
           // Restore the selected event if it exists in the new view
           if (currentlySelectedEventId) {
@@ -4071,6 +4337,8 @@ const handleRecenter = () => {
                               markerSpacing={100}
                               isSelected={event.id === selectedEventId}
                               onClick={handleMarkerClick}
+                              voteDot={voteDotsById[event.id]}
+                              voteDotsLoading={voteDotsLoading}
                             />
                           </div>
                         </Fade>

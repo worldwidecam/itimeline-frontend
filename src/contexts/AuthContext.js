@@ -1,12 +1,14 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import api, { fetchUserMemberships, fetchUserPassport, syncUserPassport } from '../utils/api';
 import { setCookie, getCookie, deleteCookie } from '../utils/cookies';
+import { clearVoteStateCache } from '../hooks/useEventVote';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const previousUserIdRef = useRef(null);
 
   // Function to refresh the access token
   const refreshAccessToken = async () => {
@@ -107,6 +109,7 @@ export const AuthProvider = ({ children }) => {
       
       // Update user state
       setUser(userData);
+      clearVoteStateCache();
       console.log('Login successful');
       
       // Fetch and store user passport
@@ -167,6 +170,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    clearVoteStateCache();
     // Clear cookies
     deleteCookie('access_token');
     deleteCookie('refresh_token');
@@ -213,6 +217,14 @@ export const AuthProvider = ({ children }) => {
     // Clear user data from state
     setUser(null);
   };
+
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+    if (previousUserIdRef.current && previousUserIdRef.current !== currentUserId) {
+      clearVoteStateCache();
+    }
+    previousUserIdRef.current = currentUserId;
+  }, [user]);
 
   const fetchCurrentUser = async () => {
     try {

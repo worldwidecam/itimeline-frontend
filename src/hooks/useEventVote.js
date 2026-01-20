@@ -29,6 +29,11 @@ const normalizeStats = (stats = {}) => {
 const voteStateById = new Map();
 const listenersById = new Map();
 
+export const clearVoteStateCache = () => {
+  voteStateById.clear();
+  listenersById.clear();
+};
+
 const getState = (eventId) => {
   if (!eventId) return baseState();
   return voteStateById.get(eventId) || baseState();
