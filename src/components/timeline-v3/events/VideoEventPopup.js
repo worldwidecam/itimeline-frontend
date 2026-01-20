@@ -730,6 +730,10 @@ const VideoEventPopup = ({
                   totalVotes={totalVotes}
                   isLoading={voteLoading}
                   hasError={!!voteError}
+                  layout="stacked"
+                  sizeScale={0.8}
+                  pillScale={1.05}
+                  badgeScale={0.75}
                 />
               </Box>
               <Box
