@@ -51,6 +51,7 @@ const EventMarker = ({
   voteDot = null,
   showVoteDot = true,
   voteDotsLoading = false,
+  scanBounds = null,
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -485,7 +486,8 @@ const EventMarker = ({
   const markerClass = isSelected ? 'selected-marker' : 'normal-marker';
 
   const canShowVoteDot = !!voteDot && voteDot.isVisible && showVoteDot && !voteDotsLoading;
-  const voteDotSize = voteDot?.height ?? 6;
+  const voteDotSize = voteDot?.size ?? 6;
+  const voteDotOffset = voteDot?.offset ?? 0;
   const markerWidthSelected = 4 + (overlappingFactor - 1) * 0.5;
   const markerWidthNormal = viewMode === 'week' ? 4 : 3 + (overlappingFactor - 1) * 0.5;
   const voteDotSizeSelected = Math.min(voteDotSize, markerWidthSelected);
@@ -493,6 +495,20 @@ const EventMarker = ({
   const voteDotColor = voteDot?.netVotes > 0
     ? theme.palette.success.main
     : theme.palette.error.main;
+  const isNeutralDot = !!voteDot?.isNeutral;
+  const idleDotColor = isNeutralDot ? 'rgba(170, 170, 170, 0.85)' : voteDotColor;
+  const brightDotColor = isNeutralDot ? '#ffffff' : voteDotColor;
+  
+  const scanLeft = scanBounds?.left ?? 0;
+  const scanWidth = scanBounds?.width ?? window.innerWidth;
+  const phaseScanDuration = 10;
+  const phaseScanProgress = position ? (position.x - scanLeft) / scanWidth : 0;
+  const clampedScanProgress = Math.min(1, Math.max(0, phaseScanProgress));
+  const phaseScanDelay = -(clampedScanProgress * phaseScanDuration);
+  const idleGlow = isNeutralDot ? '0 0 4px rgba(255,255,255,0.2)' : `0 0 5px ${voteDotColor}33`;
+  const brightGlow = isNeutralDot
+    ? '0 0 12px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.6)'
+    : `0 0 18px ${voteDotColor}EE, 0 0 34px ${voteDotColor}AA`;
   
   // Calculate transition properties based on isMoving state
   const getTransitionStyle = () => {
@@ -535,16 +551,48 @@ const EventMarker = ({
             <Box
               sx={{
                 position: 'absolute',
-                bottom: 'calc(100% + 6px)',
+                bottom: `calc(100% + 6px + ${voteDotOffset}px)`,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: `${voteDotSizeSelected}px`,
                 height: `${voteDotSizeSelected}px`,
                 borderRadius: '999px',
-                backgroundColor: voteDotColor,
-                opacity: 0.55,
-                boxShadow: `0 0 6px ${voteDotColor}40`,
-                transition: 'opacity 0.3s ease'
+                '--voteDotIdleColor': idleDotColor,
+                '--voteDotBrightColor': brightDotColor,
+                '--voteDotIdleGlow': idleGlow,
+                '--voteDotBrightGlow': brightGlow,
+                backgroundColor: 'var(--voteDotIdleColor)',
+                opacity: 0.5,
+                boxShadow: 'var(--voteDotIdleGlow)',
+                animation: `voteDotGlow ${phaseScanDuration}s linear infinite`,
+                animationDelay: `${phaseScanDelay}s`,
+                '@keyframes voteDotGlow': {
+                  '0%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                  '40%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                  '50%': {
+                    opacity: 1,
+                    boxShadow: 'var(--voteDotBrightGlow)',
+                    backgroundColor: 'var(--voteDotBrightColor)',
+                  },
+                  '60%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                  '100%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                },
               }}
             />
           )}
@@ -712,16 +760,48 @@ const EventMarker = ({
             <Box
               sx={{
                 position: 'absolute',
-                bottom: 'calc(100% + 6px)',
+                bottom: `calc(100% + 6px + ${voteDotOffset}px)`,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: `${voteDotSizeNormal}px`,
                 height: `${voteDotSizeNormal}px`,
                 borderRadius: '999px',
-                backgroundColor: voteDotColor,
-                opacity: 0.55,
-                boxShadow: `0 0 6px ${voteDotColor}40`,
-                transition: 'opacity 0.3s ease'
+                '--voteDotIdleColor': idleDotColor,
+                '--voteDotBrightColor': brightDotColor,
+                '--voteDotIdleGlow': idleGlow,
+                '--voteDotBrightGlow': brightGlow,
+                backgroundColor: 'var(--voteDotIdleColor)',
+                opacity: 0.5,
+                boxShadow: 'var(--voteDotIdleGlow)',
+                animation: `voteDotGlow ${phaseScanDuration}s linear infinite`,
+                animationDelay: `${phaseScanDelay}s`,
+                '@keyframes voteDotGlow': {
+                  '0%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                  '40%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                  '50%': {
+                    opacity: 1,
+                    boxShadow: 'var(--voteDotBrightGlow)',
+                    backgroundColor: 'var(--voteDotBrightColor)',
+                  },
+                  '60%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                  '100%': {
+                    opacity: 0.5,
+                    boxShadow: 'var(--voteDotIdleGlow)',
+                    backgroundColor: 'var(--voteDotIdleColor)',
+                  },
+                },
               }}
             />
           )}

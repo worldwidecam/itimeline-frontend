@@ -76,6 +76,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
   const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
   const [reviewingEventIds, setReviewingEventIds] = useState(new Set()); // Track event IDs that are "in review" on this timeline
+  const timelineWorkspaceRef = useRef(null);
+  const [timelineWorkspaceBounds, setTimelineWorkspaceBounds] = useState({ left: 0, width: window.innerWidth });
 
   // Centralized, headless membership logic (no UI changes)
   const {
@@ -601,6 +603,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [remarkDialogOpen, setRemarkDialogOpen] = useState(false);
   const [newsDialogOpen, setNewsDialogOpen] = useState(false);
+  const scanCycleRef = useRef(0);
+  const scanProgressRef = useRef(0);
+  const scanCheckedRef = useRef(new Map());
+  const scanRefreshQueueRef = useRef(new Set());
+  const scanRefreshTimerRef = useRef(null);
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
@@ -810,7 +817,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const phaseTimeoutsRef = useRef([]);
   const filterSortPhaseRef = useRef(true);
   const voteDotTimeoutRef = useRef(null);
-  const voteStatsLoadingRef = useRef(new Set());
 
   // Add state to track filtered events count
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
@@ -1174,56 +1180,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [pendingViewMode, setPendingViewMode] = useState(null);
   const [viewTransitionPhase, setViewTransitionPhase] = useState('idle'); // 'idle', 'fadeOut', 'structureTransition', 'dataProcessing', 'fadeIn'
 
-  const normalizeVoteStats = useCallback((stats = {}) => {
-    const resolved = {
-      promote_count: stats.promote_count ?? stats.promoteCount ?? stats.promote ?? 0,
-      demote_count: stats.demote_count ?? stats.demoteCount ?? stats.demote ?? 0,
-      user_vote: stats.user_vote ?? stats.userVote ?? stats.vote ?? null,
-    };
-    return {
-      ...stats,
-      promote_count: Number(resolved.promote_count || 0),
-      demote_count: Number(resolved.demote_count || 0),
-      user_vote: resolved.user_vote ?? null,
-    };
-  }, []);
-
-  const loadVoteStatsForEvent = useCallback(
-    async (eventId, tokenOverride = null) => {
-      if (!eventId) return;
-      if (voteStatsLoadingRef.current.has(eventId)) return;
-      if (voteStatsById[eventId]?.loaded) return;
-
-      const token =
-        tokenOverride || getCookie('access_token') || localStorage.getItem('access_token');
-      if (!token) return;
-
-      voteStatsLoadingRef.current.add(eventId);
-      try {
-        const stats = normalizeVoteStats(await getVoteStats(eventId, token));
-        setVoteStatsById((prev) => ({
-          ...prev,
-          [eventId]: {
-            stats,
-            loaded: true,
-            error: null,
-          },
-        }));
-      } catch (error) {
-        setVoteStatsById((prev) => ({
-          ...prev,
-          [eventId]: {
-            stats: prev[eventId]?.stats || null,
-            loaded: true,
-            error: error.message || 'Failed to load votes',
-          },
-        }));
-      } finally {
-        voteStatsLoadingRef.current.delete(eventId);
-      }
-    },
-    [normalizeVoteStats, voteStatsById]
-  );
 
   const clearPhaseTimeouts = () => {
     phaseTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
@@ -1288,110 +1244,142 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (progressiveLoadingState !== 'complete') return [];
     if (!events || events.length === 0) return [];
 
-    let rangeMin;
-    let rangeMax;
-    if (visibleMarkers && visibleMarkers.length > 0) {
-      rangeMin = Math.min(...visibleMarkers);
-      rangeMax = Math.max(...visibleMarkers);
-    } else {
-      const screenWidth = window.innerWidth;
-      const markerWidth = 100;
-      const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
-      const centerMarkerPosition = -timelineOffset / markerWidth;
-      const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
-      rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
-      rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
-    }
+    const screenWidth = window.innerWidth;
+    const markerWidth = 100;
+    const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
+    const centerMarkerPosition = -timelineOffset / markerWidth;
+    const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
+    const rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
+    const rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
 
-    const currentDate = getCurrentTimeReference();
-    let startDate;
-    let endDate;
-
-    switch (viewMode) {
-      case 'day': {
-        startDate = new Date(currentDate);
-        startDate.setHours(startDate.getHours() + rangeMin);
-
-        endDate = new Date(currentDate);
-        endDate.setHours(endDate.getHours() + rangeMax);
-        break;
-      }
-      case 'week': {
-        startDate = subDays(currentDate, Math.abs(rangeMin));
-        endDate = addDays(currentDate, rangeMax);
-        break;
-      }
-      case 'month': {
-        startDate = subMonths(currentDate, Math.abs(rangeMin));
-        endDate = addMonths(currentDate, rangeMax);
-        break;
-      }
-      case 'year': {
-        startDate = subYears(currentDate, Math.abs(rangeMin));
-        endDate = addYears(currentDate, rangeMax);
-        break;
-      }
-      default:
-        return [];
-    }
-
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
     const isLargeEventSet = events.length > 50;
     const maxMarkersToRender =
       isLargeEventSet && (viewMode === 'month' || viewMode === 'year') ? 40 : events.length;
 
-    return events
-      .filter((event) => {
-        if (!event.event_date) return false;
-        const eventTime = new Date(event.event_date).getTime();
-        const passesDateFilter = eventTime >= startTime && eventTime <= endTime;
-        if (!passesDateFilter) return false;
-
+    const filtered = events
+      .map((event) => {
+        if (!event?.event_date) return null;
+        const markerValue = calculateEventMarkerPosition(event, viewMode);
+        return { event, markerValue };
+      })
+      .filter(Boolean)
+      .filter(({ event, markerValue }) => {
+        if (markerValue < rangeMin || markerValue > rangeMax) return false;
         if (selectedType) {
           const eventType = (event.type || '').toLowerCase();
           return eventType === selectedType.toLowerCase();
         }
-
         return true;
       })
-      .slice(0, maxMarkersToRender);
+      .sort((a, b) => a.markerValue - b.markerValue)
+      .slice(0, maxMarkersToRender)
+      .map(({ event }) => event);
+
+    return filtered;
   }, [
     events,
     progressiveLoadingState,
     selectedType,
     timelineOffset,
     viewMode,
-    visibleMarkers,
-    pointB_active,
-    pointB_reference_timestamp,
   ]);
+
+  useEffect(() => {
+    console.log('[VoteDots] View mode changed:', {
+      viewMode,
+      visibleEventsCount: visibleEvents.length,
+      visibleEventIds: visibleEvents.map((event) => event?.id).filter(Boolean),
+    });
+  }, [viewMode, visibleEvents]);
+
+  useEffect(() => {
+    console.log('[VoteDots] voteDotsLoading state:', {
+      viewMode,
+      voteDotsLoading,
+    });
+  }, [viewMode, voteDotsLoading]);
+
+  const visibleEventIds = useMemo(
+    () => visibleEvents.map((event) => event?.id).filter(Boolean),
+    [visibleEvents]
+  );
+  const visibleEventIdsKey = useMemo(() => visibleEventIds.join('|'), [visibleEventIds]);
 
   useEffect(() => {
     if (progressiveLoadingState !== 'complete') return;
     if (viewMode === 'position') return;
-    if (!visibleEvents.length) return;
+    if (!visibleEventIds.length) return;
 
     const token =
       getCookie('access_token') || localStorage.getItem('access_token');
-    if (!token) return;
+    if (!token) {
+      console.warn('[VoteDots] Missing auth token; skipping vote stats fetch.');
+      return;
+    }
 
-    visibleEvents.forEach((event) => {
-      if (event?.id) {
-        loadVoteStatsForEvent(event.id, token);
-      }
-    });
-  }, [loadVoteStatsForEvent, progressiveLoadingState, visibleEvents, viewMode]);
+    let isCancelled = false;
+
+    const fetchVoteStats = async () => {
+      console.log('[VoteDots] Fetching vote stats for visible events:', {
+        viewMode,
+        count: visibleEventIds.length,
+        ids: visibleEventIds,
+      });
+      const statsPromises = visibleEventIds.map(async (eventId) => {
+        if (!eventId) return null;
+        try {
+          const stats = await getVoteStats(eventId, token);
+          console.log('[VoteDots] Fetched vote stats:', {
+            eventId,
+            promote_count: stats.promote_count || 0,
+            demote_count: stats.demote_count || 0,
+            user_vote: stats.user_vote || null,
+          });
+          return {
+            eventId,
+            stats: {
+              promote_count: stats.promote_count || 0,
+              demote_count: stats.demote_count || 0,
+              user_vote: stats.user_vote || null,
+            },
+          };
+        } catch (error) {
+          console.error(`Failed to fetch vote stats for event ${eventId}:`, error);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(statsPromises);
+      if (isCancelled) return;
+
+      setVoteStatsById((prev) => {
+        const next = { ...prev };
+        results.forEach((result) => {
+          if (result) {
+            next[result.eventId] = result.stats;
+          }
+        });
+        return next;
+      });
+    };
+
+    fetchVoteStats();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [progressiveLoadingState, viewMode, visibleEventIdsKey]);
 
   const voteDotsById = useMemo(() => {
     if (!visibleEvents.length) return {};
 
-    const minHeight = 6;
-    const maxHeight = 28;
+    const dotSize = 6;
+    const minOffset = 1;
+    const maxOffset = 12;
     const neighborRange = 2;
 
     const totals = visibleEvents.map((event) => {
-      const stats = voteStatsById[event.id]?.stats || null;
+      const stats = voteStatsById[event.id] || null;
       const promote = stats?.promote_count || 0;
       const demote = stats?.demote_count || 0;
       const totalVotes = promote + demote;
@@ -1403,6 +1391,22 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       };
     });
 
+    const withVotes = totals.filter((item) => item.totalVotes > 0);
+    const summary = {
+      viewMode,
+      visibleEvents: totals.length,
+      withVotes: withVotes.length,
+      positive: withVotes.filter((item) => item.netVotes > 0).length,
+      negative: withVotes.filter((item) => item.netVotes < 0).length,
+      neutral: withVotes.filter((item) => item.netVotes === 0).length,
+      sample: withVotes.slice(0, 10).map((item) => ({
+        eventId: item.event.id,
+        totalVotes: item.totalVotes,
+        netVotes: item.netVotes,
+      })),
+    };
+    console.log('[VoteDots] Dot summary:', summary);
+
     const globalMax = Math.max(1, ...totals.map((item) => item.totalVotes));
     const dotMap = {};
 
@@ -1412,23 +1416,186 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       const localTotals = totals.slice(localStart, localEnd + 1);
       const localMax = Math.max(1, ...localTotals.map((neighbor) => neighbor.totalVotes));
 
-      const baseHeight =
-        minHeight + (item.totalVotes / globalMax) * (maxHeight - minHeight);
-      const localHeight =
-        minHeight + (item.totalVotes / localMax) * (maxHeight - minHeight);
-      const blendedHeight = (0.7 * baseHeight) + (0.3 * localHeight);
-      const height = Math.min(maxHeight, Math.max(minHeight, blendedHeight));
+      const baseOffset =
+        minOffset + (item.totalVotes / globalMax) * (maxOffset - minOffset);
+      const localOffset =
+        minOffset + (item.totalVotes / localMax) * (maxOffset - minOffset);
+      const blendedOffset = (0.7 * baseOffset) + (0.3 * localOffset);
+      const offset = Math.round(Math.min(maxOffset, Math.max(minOffset, blendedOffset)));
 
       dotMap[item.event.id] = {
-        height,
+        size: dotSize,
+        offset,
         totalVotes: item.totalVotes,
         netVotes: item.netVotes,
-        isVisible: item.netVotes !== 0,
+        isNeutral: item.netVotes === 0,
+        isVisible: item.totalVotes > 0,
       };
     });
 
     return dotMap;
   }, [visibleEvents, voteStatsById]);
+
+  const updateTimelineWorkspaceBounds = useCallback(() => {
+    if (!timelineWorkspaceRef.current) return;
+    const rect = timelineWorkspaceRef.current.getBoundingClientRect();
+    setTimelineWorkspaceBounds({ left: rect.left, width: rect.width });
+  }, []);
+
+  useEffect(() => {
+    updateTimelineWorkspaceBounds();
+    window.addEventListener('resize', updateTimelineWorkspaceBounds);
+    return () => window.removeEventListener('resize', updateTimelineWorkspaceBounds);
+  }, [updateTimelineWorkspaceBounds]);
+
+  const queueVoteStatsRefresh = useCallback((eventIds) => {
+    if (!eventIds || eventIds.length === 0) return;
+
+    eventIds.forEach((id) => {
+      if (id) {
+        scanRefreshQueueRef.current.add(id);
+      }
+    });
+
+    if (scanRefreshTimerRef.current) return;
+
+    scanRefreshTimerRef.current = window.setTimeout(async () => {
+      const token =
+        getCookie('access_token') || localStorage.getItem('access_token');
+      const idsToRefresh = Array.from(scanRefreshQueueRef.current);
+      scanRefreshQueueRef.current.clear();
+      scanRefreshTimerRef.current = null;
+
+      if (!token) {
+        console.warn('[VoteDots][Scan] Missing auth token; skipping refresh.');
+        return;
+      }
+      if (idsToRefresh.length === 0) return;
+
+      console.log('[VoteDots][Scan] Refreshing vote stats:', {
+        viewMode,
+        count: idsToRefresh.length,
+        ids: idsToRefresh,
+      });
+
+      try {
+        const refreshed = await Promise.all(
+          idsToRefresh.map(async (eventId) => {
+            try {
+              const stats = await getVoteStats(eventId, token);
+              console.log('[VoteDots][Scan] Refreshed vote stats:', {
+                eventId,
+                promote_count: stats.promote_count || 0,
+                demote_count: stats.demote_count || 0,
+                user_vote: stats.user_vote || null,
+              });
+              return {
+                eventId,
+                stats: {
+                  promote_count: stats.promote_count || 0,
+                  demote_count: stats.demote_count || 0,
+                  user_vote: stats.user_vote || null,
+                },
+              };
+            } catch (error) {
+              console.error(`Failed to refresh vote stats for event ${eventId}:`, error);
+              return null;
+            }
+          })
+        );
+
+        setVoteStatsById((prev) => {
+          const next = { ...prev };
+          refreshed.forEach((result) => {
+            if (result) {
+              next[result.eventId] = result.stats;
+            }
+          });
+          return next;
+        });
+
+        if (viewMode === 'month' || viewMode === 'year') {
+          setVoteDotsLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to refresh vote stats from scan pass:', error);
+      }
+    }, 150);
+  }, [viewMode]);
+
+  useEffect(() => {
+    return () => {
+      if (scanRefreshTimerRef.current) {
+        window.clearTimeout(scanRefreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    scanCheckedRef.current = new Map();
+    scanCycleRef.current = 0;
+    scanProgressRef.current = 0;
+  }, [visibleEventIdsKey, viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'position') return;
+    if (progressiveLoadingState !== 'complete') return;
+    if (!visibleEvents || visibleEvents.length === 0) return;
+
+    const phaseScanDurationMs = 10000;
+    let rafId = null;
+    let lastProgress = scanProgressRef.current;
+
+    const step = () => {
+      const now = performance.now();
+      const progress = (now % phaseScanDurationMs) / phaseScanDurationMs;
+      const wrapped = progress < lastProgress;
+
+      if (wrapped) {
+        scanCycleRef.current += 1;
+      }
+
+      const scanLeft = timelineWorkspaceBounds?.left ?? 0;
+      const scanWidth = timelineWorkspaceBounds?.width ?? window.innerWidth;
+      const scanX = scanLeft + scanWidth * progress;
+      const prevX = scanLeft + scanWidth * lastProgress;
+      const minX = Math.min(scanX, prevX);
+      const maxX = Math.max(scanX, prevX);
+      const cycleId = scanCycleRef.current;
+
+      const crossedIds = [];
+      visibleEvents.forEach((event) => {
+        if (!event?.event_date) return;
+        const markerValue = calculateEventMarkerPosition(event, viewMode);
+        const markerX =
+          (window.innerWidth / 2) + (markerValue * 100) + timelineOffset;
+
+        if (markerX >= minX && markerX <= maxX) {
+          const lastCycle = scanCheckedRef.current.get(event.id);
+          if (lastCycle !== cycleId) {
+            scanCheckedRef.current.set(event.id, cycleId);
+            crossedIds.push(event.id);
+          }
+        }
+      });
+
+      if (crossedIds.length) {
+        queueVoteStatsRefresh(crossedIds);
+      }
+
+      lastProgress = progress;
+      scanProgressRef.current = progress;
+      rafId = window.requestAnimationFrame(step);
+    };
+
+    rafId = window.requestAnimationFrame(step);
+
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [progressiveLoadingState, queueVoteStatsRefresh, timelineOffset, timelineWorkspaceBounds, viewMode, visibleEvents]);
   
   // Function to navigate to the next event in the carousel and update the selected marker
   const navigateToNextEvent = () => {
@@ -1580,6 +1747,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleViewModeTransition = (newViewMode) => {
     // Don't do anything if we're already transitioning or if it's the same mode
     if (isViewTransitioning || newViewMode === viewMode) return;
+
+    console.log('[ViewMode] Transition requested:', {
+      from: viewMode,
+      to: newViewMode,
+    });
     
     // Store the currently selected event ID and index to restore after transition
     const currentlySelectedEventId = selectedEventId;
@@ -1611,6 +1783,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // Phase 2: Timeline structure transition (300ms after fadeOut starts)
     setTimeout(() => {
       // Actually change the view mode to update the timeline structure
+      console.log('[ViewMode] Applied view mode:', {
+        from: viewMode,
+        to: newViewMode,
+      });
       setViewMode(newViewMode);
       setViewTransitionPhase('structureTransition');
       
@@ -4045,6 +4221,7 @@ const handleRecenter = () => {
         </Stack>
         
         <Box 
+          ref={timelineWorkspaceRef}
           sx={{
             width: '100%',
             height: '300px',
@@ -4092,6 +4269,24 @@ const handleRecenter = () => {
               </Box>
             </Box>
           )}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: '-8px',
+              width: 4,
+              zIndex: 850,
+              pointerEvents: 'none',
+              backgroundColor: 'rgba(0, 200, 160, 0.35)',
+              animation: 'phaseScanSweep 10s linear infinite',
+              willChange: 'left',
+              '@keyframes phaseScanSweep': {
+                '0%': { left: '-8px' },
+                '100%': { left: 'calc(100% + 8px)' }
+              }
+            }}
+          />
           {/* View Transition Indicator */}
           {isViewTransitioning && (
             <Box
@@ -4176,95 +4371,16 @@ const handleRecenter = () => {
               
               {/* Render event markers with performance optimizations */}
               {(() => {
-                // Avoid half-finished look: wait until visibleMarkers is ready
-                if (!visibleMarkers || visibleMarkers.length === 0) {
+                if (!visibleEvents || visibleEvents.length === 0) {
                   return null;
                 }
-                // Calculate date boundaries using Point B when active, otherwise current time
-                const currentDate = getCurrentTimeReference();
-                let startDate, endDate;
 
-                // Fallback if visibleMarkers hasn't populated yet during a fast view switch
-                let rangeMin, rangeMax;
-                if (visibleMarkers && visibleMarkers.length > 0) {
-                  rangeMin = Math.min(...visibleMarkers);
-                  rangeMax = Math.max(...visibleMarkers);
-                } else {
-                  // Recompute a safe window based on current timelineOffset and viewport
-                  const screenWidth = window.innerWidth;
-                  const markerWidth = 100;
-                  const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
-                  const centerMarkerPosition = -timelineOffset / markerWidth;
-                  const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
-                  rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
-                  rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
-                  console.log('[Fallback] visibleMarkers empty; using recomputed range', { rangeMin, rangeMax });
-                }
-                
-                switch (viewMode) {
-                  case 'day': {
-                    startDate = new Date(currentDate);
-                    startDate.setHours(startDate.getHours() + rangeMin);
-                    
-                    endDate = new Date(currentDate);
-                    endDate.setHours(endDate.getHours() + rangeMax);
-                    break;
-                  }
-                  case 'week': {
-                    startDate = subDays(currentDate, Math.abs(rangeMin));
-                    endDate = addDays(currentDate, rangeMax);
-                    break;
-                  }
-                  case 'month': {
-                    startDate = subMonths(currentDate, Math.abs(rangeMin));
-                    endDate = addMonths(currentDate, rangeMax);
-                    break;
-                  }
-                  case 'year': {
-                    startDate = subYears(currentDate, Math.abs(rangeMin));
-                    endDate = addYears(currentDate, rangeMax);
-                    break;
-                  }
-                  default:
-                    return null;
-                }
-                
-                // Convert dates to timestamps for faster comparison
-                const startTime = startDate.getTime();
-                const endTime = endDate.getTime();
-                
-                // Performance optimization: Limit the number of markers in month and year views
-                // This prevents rendering too many markers which can cause performance issues
-                const isLargeEventSet = events.length > 50;
-                const maxMarkersToRender = isLargeEventSet && (viewMode === 'month' || viewMode === 'year') ? 40 : events.length;
-                
-                // Filter events to only include those in the visible date range,
-                // apply type filtering, and limit the number of markers rendered
-                const visibleEvents = events
-                  .filter(event => {
-                    // Date range filter
-                    if (!event.event_date) return false;
-                    const eventTime = new Date(event.event_date).getTime();
-                    const passesDateFilter = eventTime >= startTime && eventTime <= endTime;
-                    if (!passesDateFilter) return false;
-                    
-                    // Type filter - only apply if a type is selected
-                    if (selectedType) {
-                      const eventType = (event.type || '').toLowerCase();
-                      return eventType === selectedType.toLowerCase();
-                    }
-                    
-                    // If no type filter is applied, include all events
-                    return true;
-                  })
-                  .slice(0, maxMarkersToRender);
-                
                 console.log(`Rendering ${visibleEvents.length} markers out of ${events.length} total events`);
                 
                 // Add error boundary for the entire event rendering process
                 try {
                   // Make sure visibleEvents is valid before mapping
-                  if (!visibleEvents || !Array.isArray(visibleEvents)) {
+                  if (!Array.isArray(visibleEvents)) {
                     console.error('visibleEvents is not a valid array:', visibleEvents);
                     return null;
                   }
@@ -4339,6 +4455,7 @@ const handleRecenter = () => {
                               onClick={handleMarkerClick}
                               voteDot={voteDotsById[event.id]}
                               voteDotsLoading={voteDotsLoading}
+                              scanBounds={timelineWorkspaceBounds}
                             />
                           </div>
                         </Fade>

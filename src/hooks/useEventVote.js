@@ -26,6 +26,39 @@ const normalizeStats = (stats = {}) => {
   };
 };
 
+export const getVoteState = (eventId) => getState(eventId);
+
+export const subscribeVoteState = (eventId, listener) => subscribe(eventId, listener);
+
+export const loadVoteStatsForEvent = async (eventId, tokenOverride = null) => {
+  if (!eventId) return;
+  const current = getState(eventId);
+  if (current.loading || current.loaded) return;
+
+  setState(eventId, { loading: true, error: null });
+
+  try {
+    const token = tokenOverride || getCookie('access_token') || localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+    const stats = normalizeStats(await getVoteStats(eventId, token));
+    setState(eventId, {
+      stats,
+      value: backendToUi(stats.user_vote),
+      loading: false,
+      error: null,
+      loaded: true,
+    });
+  } catch (error) {
+    setState(eventId, {
+      loading: false,
+      error: error.message || 'Failed to load votes',
+      loaded: true,
+    });
+  }
+};
+
 const voteStateById = new Map();
 const listenersById = new Map();
 
