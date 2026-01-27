@@ -323,8 +323,13 @@ const MediaCard = forwardRef(({
       fullUrl = `${config.API_URL}${mediaSource}`;
     }
     
-    // If Cloudinary ID exists, prefer Cloudinary video URL candidates FIRST
-    if (event.cloudinary_id) {
+    // If media_url is already a complete Cloudinary URL, use it directly
+    if (isCloudinaryUrl && fullUrl) {
+      mediaSources.push(fullUrl);
+    }
+    
+    // Only try to construct URLs from cloudinary_id if we don't already have a valid Cloudinary URL
+    if (event.cloudinary_id && !isCloudinaryUrl) {
       const cloudName = 'dnjwvuxn7';
       const isVideo = (event.media_subtype === 'video') || (event.media_type && event.media_type.includes('video'));
       const isAudio = (event.media_subtype === 'audio') || (event.media_type && event.media_type.includes('audio'));
@@ -344,24 +349,17 @@ const MediaCard = forwardRef(({
       }
     }
 
-    // Add all possible URLs to try (uploaded URL or path)
-    mediaSources.push(fullUrl);
-    
-    if (mediaSource.startsWith('/uploads/')) {
-      mediaSources.push(`${config.API_URL}${mediaSource}`);
+    // Add fallback URL if not already added
+    if (!isCloudinaryUrl && fullUrl) {
+      mediaSources.push(fullUrl);
     }
     
-    // If the provided URL looks like a Cloudinary thumbnail (.jpg under video/upload),
-    // and we have a cloudinary_id, replace it with a likely playable video URL
-    if (fullUrl && fullUrl.includes('/video/upload/') && fullUrl.endsWith('.jpg') && event.cloudinary_id) {
-      const cloudName = 'dnjwvuxn7';
-      const replacement = `https://res.cloudinary.com/${cloudName}/video/upload/${event.cloudinary_id}.mp4`;
-      mediaSources.unshift(replacement);
+    if (mediaSource && mediaSource.startsWith('/uploads/')) {
+      mediaSources.push(`${config.API_URL}${mediaSource}`);
     }
     
     // De-duplicate while preserving order
     const deduped = Array.from(new Set(mediaSources));
-    console.log('MediaCard.prepareMediaSources sources:', deduped);
     return { mediaSources: deduped, fullUrl };
   };
 
