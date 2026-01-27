@@ -77,7 +77,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
   const [reviewingEventIds, setReviewingEventIds] = useState(new Set()); // Track event IDs that are "in review" on this timeline
   const timelineWorkspaceRef = useRef(null);
-  const [timelineWorkspaceBounds, setTimelineWorkspaceBounds] = useState({ left: 0, width: window.innerWidth });
+  const [timelineWorkspaceBounds, setTimelineWorkspaceBounds] = useState({
+    left: 0,
+    width: window.innerWidth,
+    height: 300,
+  });
 
   // Centralized, headless membership logic (no UI changes)
   const {
@@ -1271,11 +1275,22 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         }
         return true;
       })
-      .sort((a, b) => a.markerValue - b.markerValue)
-      .slice(0, maxMarkersToRender)
-      .map(({ event }) => event);
+      .sort((a, b) => a.markerValue - b.markerValue);
 
-    return filtered;
+    let windowed = filtered;
+    if (filtered.length > maxMarkersToRender) {
+      windowed = filtered
+        .slice()
+        .sort(
+          (a, b) =>
+            Math.abs(a.markerValue - centerMarkerPosition) -
+            Math.abs(b.markerValue - centerMarkerPosition)
+        )
+        .slice(0, maxMarkersToRender)
+        .sort((a, b) => a.markerValue - b.markerValue);
+    }
+
+    return windowed.map(({ event }) => event);
   }, [
     events,
     progressiveLoadingState,
@@ -1361,6 +1376,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         });
         return next;
       });
+
+      if (viewMode === 'month' || viewMode === 'year') {
+        setVoteDotsLoading(false);
+      }
     };
 
     fetchVoteStats();
@@ -1439,7 +1458,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const updateTimelineWorkspaceBounds = useCallback(() => {
     if (!timelineWorkspaceRef.current) return;
     const rect = timelineWorkspaceRef.current.getBoundingClientRect();
-    setTimelineWorkspaceBounds({ left: rect.left, width: rect.width });
+    setTimelineWorkspaceBounds({ left: rect.left, width: rect.width, height: rect.height });
   }, []);
 
   useEffect(() => {
@@ -1447,6 +1466,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     window.addEventListener('resize', updateTimelineWorkspaceBounds);
     return () => window.removeEventListener('resize', updateTimelineWorkspaceBounds);
   }, [updateTimelineWorkspaceBounds]);
+
+  useEffect(() => {
+    if (viewMode === 'position') return;
+    if (!visibleEvents.length) return;
+    const rafId = window.requestAnimationFrame(() => {
+      updateTimelineWorkspaceBounds();
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [viewMode, visibleEvents.length, updateTimelineWorkspaceBounds]);
 
   const queueVoteStatsRefresh = useCallback((eventIds) => {
     if (!eventIds || eventIds.length === 0) return;

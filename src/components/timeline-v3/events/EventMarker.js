@@ -7,7 +7,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Paper, Typography, IconButton } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
@@ -505,10 +505,56 @@ const EventMarker = ({
   const phaseScanProgress = position ? (position.x - scanLeft) / scanWidth : 0;
   const clampedScanProgress = Math.min(1, Math.max(0, phaseScanProgress));
   const phaseScanDelay = -(clampedScanProgress * phaseScanDuration);
-  const idleGlow = isNeutralDot ? '0 0 4px rgba(255,255,255,0.2)' : `0 0 5px ${voteDotColor}33`;
+  const idleGlow = isNeutralDot
+    ? '0 0 4px rgba(255,255,255,0.2)'
+    : `0 0 5px ${alpha(voteDotColor, 0.2)}`;
   const brightGlow = isNeutralDot
     ? '0 0 12px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.6)'
-    : `0 0 18px ${voteDotColor}EE, 0 0 34px ${voteDotColor}AA`;
+    : `0 0 18px ${alpha(voteDotColor, 0.93)}, 0 0 34px ${alpha(voteDotColor, 0.7)}`;
+
+  const workspaceHeight = scanBounds?.height ?? 300;
+  const markerBottom = position?.y ?? 0;
+  const dotPadding = 6;
+
+  const markerHeightSelected = Math.min(
+    getMaxAllowedHeight(true, false),
+    Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier()
+  );
+
+  const markerHeightNormal = (() => {
+    let baseHeight = 24;
+    let minHeight = 40;
+
+    if (viewMode === 'day') {
+      minHeight = 50;
+      baseHeight = 30;
+    } else if (viewMode === 'week') {
+      minHeight = 45;
+      baseHeight = 28;
+    } else if (viewMode === 'month') {
+      minHeight = 40;
+      baseHeight = 26;
+    } else if (viewMode === 'year') {
+      minHeight = 35;
+      baseHeight = 24;
+    }
+
+    const baseCalculatedHeight =
+      Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
+    return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
+  })();
+
+  const maxDotOffsetSelected = Math.max(
+    0,
+    workspaceHeight - markerBottom - markerHeightSelected - dotPadding - voteDotSizeSelected
+  );
+  const maxDotOffsetNormal = Math.max(
+    0,
+    workspaceHeight - markerBottom - markerHeightNormal - dotPadding - voteDotSizeNormal
+  );
+
+  const clampedVoteDotOffsetSelected = Math.min(voteDotOffset, maxDotOffsetSelected);
+  const clampedVoteDotOffsetNormal = Math.min(voteDotOffset, maxDotOffsetNormal);
   
   // Calculate transition properties based on isMoving state
   const getTransitionStyle = () => {
@@ -551,7 +597,7 @@ const EventMarker = ({
             <Box
               sx={{
                 position: 'absolute',
-                bottom: `calc(100% + 6px + ${voteDotOffset}px)`,
+                bottom: `calc(100% + 6px + ${clampedVoteDotOffsetSelected}px)`,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: `${voteDotSizeSelected}px`,
@@ -760,7 +806,7 @@ const EventMarker = ({
             <Box
               sx={{
                 position: 'absolute',
-                bottom: `calc(100% + 6px + ${voteDotOffset}px)`,
+                bottom: `calc(100% + 6px + ${clampedVoteDotOffsetNormal}px)`,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: `${voteDotSizeNormal}px`,
