@@ -558,27 +558,26 @@ Frontend:
 4. **Member View**: Action cards automatically appear in the Members Tab based on thresholds
 5. **Real-time Updates**: Changes sync immediately across all views
 
-### Recent Bugfixes and Lessons Learned
+### Engineering Guidelines
 
-#### Timeline Page Crash (July 2025)
+#### Timeline View Harmonization (Jan 2026)
 
-**Issue**: The timeline page was crashing with `ReferenceError: handleEventDelete is not defined` error, causing a blank screen.
+When implementing or modifying timeline views (day/week/month/year), keep behavior consistent across views even if each view needs performance or UX-specific logic.
 
-**Root Cause**: The `handleEventDelete` function was referenced in the TimelineV3.js component but was never defined. This caused React to crash when rendering the component.
+**Core principles**
+- **Single source of truth for data**: Use the same event data fields (`media_url`, `media_type`, etc.) across all views. Avoid re-deriving URLs or data differently per view unless strictly necessary.
+- **Shared rendering rules**: Media rendering should prefer the stored `media_url` when it is already a complete Cloudinary URL. Derive fallbacks only when required.
+- **Consistent filtering logic**: Date-range filtering should be view-specific, but results should be passed through the same card/marker rendering paths.
+- **Performance scaling, not behavior drift**: Larger scopes (month/year) should scale by **limiting rendering volume** (pagination/windowing) or **deferring heavy media**, not by changing how media URLs are built.
+- **View-specific optimizations must be explicit**: If month/year need special handling (e.g., smaller display limits), document it and keep the output data shape identical.
 
-**Solution**: 
-1. Added proper error logging to identify the exact error
-2. Implemented the missing `handleEventDelete` function in TimelineV3.js
-3. Added comprehensive error handling to prevent UI crashes
+**Checklist for cross-view changes**
+1. Verify the same event object shape reaches cards and markers in all views.
+2. Confirm media URLs are identical across views for the same event.
+3. If performance constraints require view-specific handling, keep fallbacks deterministic and shared.
+4. Compare day/week vs month/year network requests before shipping.
 
-**Prevention Steps**:
-1. Always ensure all referenced functions are properly defined before deployment
-2. Use React Error Boundaries to catch and gracefully handle rendering errors
-3. Implement thorough error handling for API calls to prevent cascading failures
-4. Add detailed logging for easier debugging
-5. When making code changes, verify that all necessary functions are implemented
-
-### Frontend Coding Guidelines (Admin Panel & Member Removal)
+#### Frontend Coding Guidelines (Admin Panel & Member Removal)
 
 These practices prevent blank screens and ensure permission logic is consistent with the backend.
 
@@ -611,6 +610,34 @@ These practices prevent blank screens and ensure permission logic is consistent 
 
 File references:
 - `src/components/timeline-v3/community/AdminPanel.js` (helpers and member actions)
+
+### Recent Bugfixes and Lessons Learned
+
+#### Media URL Construction Regression (Jan 2026)
+
+**Issue**: Month/year views showed Cloudinary 404s while day/week appeared fine. EventList cards attempted to construct Cloudinary URLs from a missing `cloudinary_id` field instead of using `media_url`.
+
+**Root cause**: `MediaCard.prepareMediaSources()` rebuilt Cloudinary URLs even when `media_url` already contained a complete, valid Cloudinary URL. This diverged from marker hover cards, which used `media_url` directly.
+
+**Fix**: Prefer `media_url` when it is already a Cloudinary URL; only attempt `cloudinary_id` fallbacks when no valid Cloudinary URL is present.
+
+#### Timeline Page Crash (July 2025)
+
+**Issue**: The timeline page was crashing with `ReferenceError: handleEventDelete is not defined` error, causing a blank screen.
+
+**Root Cause**: The `handleEventDelete` function was referenced in the TimelineV3.js component but was never defined. This caused React to crash when rendering the component.
+
+**Solution**: 
+1. Added proper error logging to identify the exact error
+2. Implemented the missing `handleEventDelete` function in TimelineV3.js
+3. Added comprehensive error handling to prevent UI crashes
+
+**Prevention Steps**:
+1. Always ensure all referenced functions are properly defined before deployment
+2. Use React Error Boundaries to catch and gracefully handle rendering errors
+3. Implement thorough error handling for API calls to prevent cascading failures
+4. Add detailed logging for easier debugging
+5. When making code changes, verify that all necessary functions are implemented
 
 ## Community Timeline Management Systems
 

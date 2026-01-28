@@ -504,7 +504,7 @@ const EventMarker = ({
   const phaseScanDuration = 10;
   const phaseScanProgress = position ? (position.x - scanLeft) / scanWidth : 0;
   const clampedScanProgress = Math.min(1, Math.max(0, phaseScanProgress));
-  const phaseScanDelay = -(clampedScanProgress * phaseScanDuration);
+  const phaseScanDelay = -((1 - clampedScanProgress) * phaseScanDuration);
   const idleGlow = isNeutralDot
     ? '0 0 4px rgba(255,255,255,0.2)'
     : `0 0 5px ${alpha(voteDotColor, 0.2)}`;
