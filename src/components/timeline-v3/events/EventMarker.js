@@ -83,7 +83,8 @@ const EventMarker = ({
       if (isLargeEventSet && isMonthOrYearView) {
         // Apply a fixed offset pattern based on event ID to distribute events
         // This avoids expensive collision detection while still providing visual separation
-        const eventIdNumber = parseInt(event.id.replace(/\D/g, '')) || event.id.charCodeAt(0);
+        const eventIdString = String(event.id ?? '');
+        const eventIdNumber = parseInt(eventIdString.replace(/\D/g, '')) || eventIdString.charCodeAt(0);
         const offsetPattern = eventIdNumber % 4; // Create 4 different offset patterns
         
         setOverlappingFactor(1); // No stacking in simplified mode

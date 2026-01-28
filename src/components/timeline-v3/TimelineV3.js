@@ -128,12 +128,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       try {
         setIsLoading(true);
-        console.log(`Attempting to fetch timeline details for ID: ${timelineId}`);
-        console.log(`API base URL from config: ${config.API_URL}`);
-        
         // Use the getTimelineDetails utility function instead of direct API call
-        console.log(`Making API request for timeline: ${timelineId}`);
-        
         // Import the getTimelineDetails function from api.js
         const { getTimelineDetails } = await import('../../utils/api');
         const timelineData = await getTimelineDetails(timelineId);
@@ -145,10 +140,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           return;
         }
         
-        console.log('Timeline API response:', timelineData);
-        
         if (timelineData && timelineData.name) {
-          console.log(`Successfully fetched timeline: ${timelineData.name}`);
           setTimelineName(timelineData.name);
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
@@ -215,10 +207,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
    */
   const getCurrentTimeReference = () => {
     if (pointB_active && pointB_reference_timestamp) {
-      console.log('[Point B] Dad is in charge - using Point B timestamp:', new Date(pointB_reference_timestamp).toLocaleString());
       return new Date(pointB_reference_timestamp);
     }
-    console.log('[Point A] Mom is in charge - using current time');
     return new Date(); // Point A (current time)
   };
 
@@ -440,19 +430,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     
     // STRICT year margin: remain within the selected year's single marker band
     if (currentViewMode === 'year') {
-      console.log('[Point B Margin] Year view strict margin: 0.49 markers');
       return 0.49; // Less than one marker so crossing into next year updates reference
     }
     // Tight month margin: ~3 months span
     if (currentViewMode === 'month') {
-      console.log('[Point B Margin] Month view tightened margin: 3 markers');
       return 3;
     }
 
     const multiplier = bufferMultipliers[currentViewMode] || 1.5;
     const margin = Math.ceil(baseMargin * multiplier);
-    
-    console.log('[Point B Margin] View:', currentViewMode, 'Viewport markers:', visibleMarkers, 'Margin:', margin);
     return margin;
   };
 
@@ -528,8 +514,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (event.currentTarget) {
       event.currentTarget.style.cursor = 'grabbing';
     }
-    
-    console.log('[Drag] Started at:', touch.clientX);
   };
   
   const handleTouchMove = (event) => {
@@ -554,8 +538,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (Math.abs(deltaX) > 100) {
       ensureMarkers(deltaX > 0 ? 'left' : 'right');
     }
-    
-    console.log('[Drag] Moving, deltaX:', deltaX, 'newOffset:', newOffset);
   };
   
   const handleTouchEnd = (event) => {
@@ -570,13 +552,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       event.currentTarget.style.cursor = 'grab';
     }
     
-    console.log('[Drag] Ended');
-    
     // Detect when timeline has settled after drag
     clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       setIsSettled(true); // Triggers event marker fade in
-      console.log('[Drag] Timeline settled');
     }, 200); // Shorter delay for drag since there's no CSS transition
     
     // Optional: Snap to nearest marker for cleaner positioning
@@ -716,7 +695,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     };
     
     const handleSortChange = (event) => {
-      console.log('Sort change event received:', event.detail);
       setSortOrder(event.detail.sortOrder);
     };
     
@@ -737,20 +715,16 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         const { selectedType: newType } = e.detail;
         if (newType !== selectedType) {
           setSelectedType(newType);
-          console.log(`TimelineV3: Updated selectedType from event to ${newType}`);
         }
       } else {
-        console.log('Filter change event received, using localStorage');
         const storedType = localStorage.getItem('timeline_filter_type') || null;
         if (storedType !== selectedType) {
           setSelectedType(storedType);
-          console.log(`TimelineV3: Updated selectedType from localStorage to ${storedType}`);
         }
       }
 
       // Reset Point B system on filter change to avoid selection jumps
       if (pointB_active) {
-        console.log('[Filter] Deactivating Point B due to filter change');
         deactivatePointB();
       }
       // Clear selection (do not auto-select another)
@@ -764,7 +738,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const initialType = localStorage.getItem('timeline_filter_type') || null;
     if (initialType !== selectedType) {
       setSelectedType(initialType);
-      console.log(`TimelineV3: Initial selectedType set to ${initialType}`);
     }
 
     window.addEventListener('timeline_filter_change', handleFilterChange);
@@ -796,22 +769,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount - buffer);
     const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount + buffer);
     
-    console.log('Visible markers calculation:', {
-      screenWidth,
-      markerWidth,
-      visibleMarkerCount,
-      centerMarkerPosition,
-      halfVisibleCount,
-      minVisibleMarker,
-      maxVisibleMarker
-    });
-    
     // Filter markers to only include those in the visible range
     const currentVisibleMarkers = markers.filter(
       marker => marker >= minVisibleMarker && marker <= maxVisibleMarker
     );
-    
-    console.log('Current visible markers:', currentVisibleMarkers);
     
     setVisibleMarkers(currentVisibleMarkers);
   }, [timelineOffset, markers, viewMode]);
@@ -989,8 +950,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   };
 
   const handleDotClick = (event) => {
-    console.log('[EventCounter] Dot clicked for event:', event);
-    
     // ============================================================================
     // TIMELINE V4: Activate Point B when clicking event in EventCounter
     // ============================================================================
@@ -999,7 +958,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       // Calculate exact marker position using helper function
       const markerValue = calculateEventMarkerPosition(event, viewMode);
-      console.log('[Point B] EventCounter dot clicked - Activating Point B at exact position:', markerValue);
       // Treat dot click as an explicit user selection; lock to prevent overrides
       lockUserSelection(1500);
       
@@ -1015,8 +973,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       // Only center if event is not already centered (more than 5px off)
       if (Math.abs(targetOffset - currentOffset) > 5) {
-        console.log('[EventCarousel] Centering event - markerValue:', markerValue, 'currentOffset:', currentOffset, 'targetOffset:', targetOffset);
-        
         // Set offset directly - CSS transition will handle smooth animation
         setTimelineOffset(targetOffset);
         
@@ -1027,7 +983,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         clearTimeout(settleTimer.current);
         settleTimer.current = setTimeout(() => {
           setIsSettled(true);
-          console.log('[EventCarousel] Centering animation complete');
         }, 400); // Match CSS transition duration
       }
       
@@ -1057,7 +1012,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     
     // If we have a reference to the card, directly call its setPopupOpen method
     if (cardRef && cardRef.setPopupOpen) {
-      console.log('Directly opening popup for event:', event.id);
       cardRef.setPopupOpen(true);
     } else {
       // QUARANTINED: No fallback to event edit as it's problematic
@@ -1068,8 +1022,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   };
 
   const handleMarkerClick = (event, index, clickEvent, exactMarkerValue) => {
-    console.log('[TimelineV3] Marker clicked for event:', event.id, 'exactMarkerValue:', exactMarkerValue, 'type:', typeof exactMarkerValue);
-    
     // Always activate Point B at this event's position when clicking event marker
     // Use the exact marker value from EventMarker's calculation (includes fractional positions)
     // Note: exactMarkerValue can be 0 (valid), so check for undefined/null specifically
@@ -1077,10 +1029,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       const eventDate = new Date(event.event_date);
       
       // Activate Point B at this event's EXACT position (not rounded)
-      console.log('[Point B] Event marker clicked - Activating Point B at exact position:', exactMarkerValue);
       activatePointB(exactMarkerValue, eventDate, viewMode, event.id, false); // shouldCenter = false
     } else {
-      console.log('[Point B] Skipped activation - exactMarkerValue:', exactMarkerValue, 'event_date:', event.event_date, 'viewMode:', viewMode);
+      console.warn('[Point B] Skipped activation - exactMarkerValue:', exactMarkerValue, 'event_date:', event.event_date, 'viewMode:', viewMode);
     }
     
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
@@ -1138,11 +1089,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     
     // Update the current event index to keep the carousel in sync
     if (filteredIndex !== -1) {
-      console.log('Setting currentEventIndex to filtered index:', filteredIndex);
       setCurrentEventIndex(filteredIndex);
     } else {
       // If the event isn't in the filtered array, keep the original index
-      console.log('Event not found in filtered events, using original index');
       setCurrentEventIndex(index);
     }
   };
@@ -1256,10 +1205,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
     const rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
 
-    const isLargeEventSet = events.length > 50;
-    const maxMarkersToRender =
-      isLargeEventSet && (viewMode === 'month' || viewMode === 'year') ? 40 : events.length;
-
     const filtered = events
       .map((event) => {
         if (!event?.event_date) return null;
@@ -1277,20 +1222,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       })
       .sort((a, b) => a.markerValue - b.markerValue);
 
-    let windowed = filtered;
-    if (filtered.length > maxMarkersToRender) {
-      windowed = filtered
-        .slice()
-        .sort(
-          (a, b) =>
-            Math.abs(a.markerValue - centerMarkerPosition) -
-            Math.abs(b.markerValue - centerMarkerPosition)
-        )
-        .slice(0, maxMarkersToRender)
-        .sort((a, b) => a.markerValue - b.markerValue);
-    }
-
-    return windowed.map(({ event }) => event);
+    return filtered.map(({ event }) => event);
   }, [
     events,
     progressiveLoadingState,
@@ -1298,21 +1230,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     timelineOffset,
     viewMode,
   ]);
-
-  useEffect(() => {
-    console.log('[VoteDots] View mode changed:', {
-      viewMode,
-      visibleEventsCount: visibleEvents.length,
-      visibleEventIds: visibleEvents.map((event) => event?.id).filter(Boolean),
-    });
-  }, [viewMode, visibleEvents]);
-
-  useEffect(() => {
-    console.log('[VoteDots] voteDotsLoading state:', {
-      viewMode,
-      voteDotsLoading,
-    });
-  }, [viewMode, voteDotsLoading]);
 
   const visibleEventIds = useMemo(
     () => visibleEvents.map((event) => event?.id).filter(Boolean),
@@ -1335,21 +1252,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     let isCancelled = false;
 
     const fetchVoteStats = async () => {
-      console.log('[VoteDots] Fetching vote stats for visible events:', {
-        viewMode,
-        count: visibleEventIds.length,
-        ids: visibleEventIds,
-      });
       const statsPromises = visibleEventIds.map(async (eventId) => {
         if (!eventId) return null;
         try {
           const stats = await getVoteStats(eventId, token);
-          console.log('[VoteDots] Fetched vote stats:', {
-            eventId,
-            promote_count: stats.promote_count || 0,
-            demote_count: stats.demote_count || 0,
-            user_vote: stats.user_vote || null,
-          });
           return {
             eventId,
             stats: {
@@ -1424,7 +1330,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         netVotes: item.netVotes,
       })),
     };
-    console.log('[VoteDots] Dot summary:', summary);
 
     const globalMax = Math.max(1, ...totals.map((item) => item.totalVotes));
     const dotMap = {};
@@ -1500,23 +1405,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       }
       if (idsToRefresh.length === 0) return;
 
-      console.log('[VoteDots][Scan] Refreshing vote stats:', {
-        viewMode,
-        count: idsToRefresh.length,
-        ids: idsToRefresh,
-      });
-
       try {
         const refreshed = await Promise.all(
           idsToRefresh.map(async (eventId) => {
             try {
               const stats = await getVoteStats(eventId, token);
-              console.log('[VoteDots][Scan] Refreshed vote stats:', {
-                eventId,
-                promote_count: stats.promote_count || 0,
-                demote_count: stats.demote_count || 0,
-                user_vote: stats.user_vote || null,
-              });
               return {
                 eventId,
                 stats: {
@@ -1775,11 +1668,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleViewModeTransition = (newViewMode) => {
     // Don't do anything if we're already transitioning or if it's the same mode
     if (isViewTransitioning || newViewMode === viewMode) return;
-
-    console.log('[ViewMode] Transition requested:', {
-      from: viewMode,
-      to: newViewMode,
-    });
     
     // Store the currently selected event ID and index to restore after transition
     const currentlySelectedEventId = selectedEventId;
@@ -1792,7 +1680,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
     // Quarantine: forcibly deactivate Point B before switching views
     if (pointB_active) {
-      console.log('[Point B] Quarantine: deactivating before view switch');
       deactivatePointB();
     }
     
@@ -1811,16 +1698,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // Phase 2: Timeline structure transition (300ms after fadeOut starts)
     setTimeout(() => {
       // Actually change the view mode to update the timeline structure
-      console.log('[ViewMode] Applied view mode:', {
-        from: viewMode,
-        to: newViewMode,
-      });
       setViewMode(newViewMode);
       setViewTransitionPhase('structureTransition');
       
       // Quarantine: skip all Point B conversions/recentering during view switch
       if (!B_POINTER_MINIMAL && pointBWasActive && pointBTimestamp) {
-        console.log('[Point B] View switch detected - Recalculating Point B from timestamp');
         const converted = convertPointBToViewMode(newViewMode);
         if (converted) {
           const { arrowPosition, referencePosition } = converted;
@@ -1934,8 +1816,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const fetchEvents = async () => {
       try {
         setIsLoadingEvents(true);
-        console.log('Fetching events for timeline:', timelineId);
-        
         // First set the loading state to timeline structure only
         setProgressiveLoadingState('timeline');
         setLoadingProgress(0);
@@ -1954,7 +1834,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         // Set a longer timer to load events if the user hasn't interacted with filter views
         const loadEventsTimer = setTimeout(async () => {
           if (!userInteracted) {
-            console.log('Loading events after delay');
             clearInterval(structureLoadingInterval);
             setLoadingProgress(40); // Jump to 40% when starting event loading
             
@@ -1972,7 +1851,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             // Actually fetch the events - use api utility which handles prefixes correctly
             try {
               const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-              console.log('Events response:', response.data);
               setEvents(response.data);
             } catch (error) {
               if (error?.response?.status === 403) {
@@ -1991,7 +1869,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             // Set another timer to load markers if the user still hasn't interacted
             const loadMarkersTimer = setTimeout(() => {
               if (!userInteracted) {
-                console.log('Loading markers after delay');
                 
                 // Simulate marker loading progress
                 const markerLoadingInterval = setInterval(() => {
@@ -2046,26 +1923,17 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       if (!timelineId || timelineId === 'new' || !isAuthenticated) return;
       
       try {
-        console.log('[TimelineV3] Fetching reviewing reports for timeline:', timelineId);
         const response = await listReports(timelineId, { status: 'reviewing' });
-        
-        console.log('[TimelineV3] Full response from listReports:', response);
-        
         // Extract event IDs from the reports
         const eventIds = new Set(
           (response.items || []).map(report => {
-            console.log('[TimelineV3] Processing report:', report);
             return report.event_id;
           }).filter(Boolean)
         );
-        
-        console.log('[TimelineV3] Reviewing event IDs (Set):', Array.from(eventIds));
-        console.log('[TimelineV3] Total reviewing reports:', response.items?.length || 0);
         setReviewingEventIds(eventIds);
       } catch (error) {
         // Silently fail - user might not have permission to view reports (non-moderator)
         console.error('[TimelineV3] Could not fetch reviewing reports:', error);
-        console.log('[TimelineV3] Error details:', error.response?.data || error.message);
         setReviewingEventIds(new Set());
       }
     };
@@ -2093,7 +1961,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           timeline_type: 'hashtag' // Default to hashtag type
         });
         setTimelineId(response.data.id);
-        console.log('Timeline created:', response.data);
       } catch (error) {
         console.error('Error creating timeline:', error);
       }
@@ -2106,8 +1973,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   const handleEventSubmit = async (eventData) => {
     try {
-      console.log('Sending event creation request to:', `/api/timeline-v3/${timelineId}/events`);
-      
       // =============================
       // V2 Auto-tagging based on timeline type
       // =============================
@@ -2193,7 +2058,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
       // Create a new date object from the event_date
       const originalDate = new Date(eventData.event_date);
-      console.log('Original date before adjustment:', originalDate);
       
       // Extract date components for raw date string
       const year = originalDate.getFullYear();
@@ -2211,11 +2075,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
       const rawDateString = `${month}.${day}.${year}.${displayHoursFormatted}.${minutes}.${ampm}`;
-      
-      console.log('===== EVENT SUBMISSION DEBUG =====');
-      console.log('Original date object:', originalDate);
-      console.log('Created raw date string:', rawDateString);
-      console.log('=================================');
       
       // Use the original date in the request along with the raw date string
       // Use api utility which handles prefixes correctly
@@ -2240,7 +2099,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         cloudinary_id: cloudinaryId || undefined,
         tags: eventData.tags || []
       });
-      console.log('Event creation response:', response.data);
 
       // Add the new event to state and close form
       const newEvent = response.data;
@@ -2305,8 +2163,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Add the missing handleEventDelete function
   const handleEventDelete = async (eventId) => {
     try {
-      console.log(`Deleting event with ID: ${eventId}`);
-      
       // Use api utility which handles prefixes correctly
       await api.delete(`/api/timeline-v3/${timelineId}/events/${eventId}`);
       
@@ -2341,37 +2197,27 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       // Clear localStorage cache for this timeline
       try {
         localStorage.removeItem(`timeline_member_${timelineId}`);
-        console.log(`DEBUG: Cleared cached membership data for timeline ${timelineId}`);
       } catch (e) {
         console.warn('Failed to clear localStorage cache:', e);
       }
       
       // Force refresh user memberships from server
-      console.log('DEBUG: Fetching fresh user memberships data');
       await fetchUserMemberships();
       
       // Check membership from refreshed user data
-      console.log(`DEBUG: Checking membership status from refreshed user data for timeline ${timelineId}`);
       const membershipStatus = await checkMembershipFromUserData(timelineId);
-      console.log('DEBUG: Membership status from user data:', membershipStatus);
       
       // Also do a direct API check as a backup
-      console.log(`DEBUG: Also checking membership status directly from API`);
       const apiMembershipStatus = await checkMembershipStatus(timelineId, 0, true);
-      console.log('DEBUG: Membership status from direct API call:', apiMembershipStatus);
       
       // Use the API response if it's valid and differs from user data
       if (apiMembershipStatus && typeof apiMembershipStatus.is_member !== 'undefined' && 
           apiMembershipStatus.is_member !== membershipStatus.is_member) {
-        console.log('DEBUG: API membership status differs from user data, using API response');
         Object.assign(membershipStatus, apiMembershipStatus);
       }
       
       // Update state based on membership status
       if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
-        console.log(`DEBUG: Updating isMember to ${membershipStatus.is_member}`);
-        console.log(`DEBUG: Member role: ${membershipStatus.role}`);
-        
         // Check if user has a pending request
         const hasPendingRequest = membershipStatus.role === 'pending';
         setIsPendingApproval(hasPendingRequest);
@@ -2414,12 +2260,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       // Then get all members for debugging
       const { debugTimelineMembers } = await import('../../utils/api');
-      console.log(`Debugging members for timeline ${timelineId}`);
       const members = await debugTimelineMembers(timelineId);
-      
-      // Log the results
-      console.log(`Found ${members.length} members for timeline ${timelineId}:`, members);
-      
+
       // Show results in a snackbar
       setSnackbarMessage(`Found ${members.length} members. Membership refreshed: ${refreshedStatus?.is_member ? 'You are a member' : 'You are not a member'}. Check console for details.`);
       setSnackbarSeverity('info');
@@ -2427,23 +2269,14 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       // Check if current user is a member
       const currentUserMember = members.find(m => m.user_id === user?.id);
-      if (currentUserMember) {
-        console.log(`Current user IS a member with role: ${currentUserMember.role}`);
-        console.log(`But isMember state is: ${isMember}`);
-      } else {
-        console.log('Current user is NOT a member in the database');
-        console.log(`But isMember state is: ${isMember}`);
-      }
+      void currentUserMember;
       
       // Check localStorage
       try {
         const membershipKey = `timeline_membership_${timelineId}`;
         const storedData = localStorage.getItem(membershipKey);
         if (storedData) {
-          const localData = JSON.parse(storedData);
-          console.log(`Found cached membership data in localStorage:`, localData);
-        } else {
-          console.log('No membership data found in localStorage');
+          JSON.parse(storedData);
         }
       } catch (e) {
         console.error('Error reading from localStorage:', e);
@@ -2474,7 +2307,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       if (existingData) {
         const parsedData = JSON.parse(existingData);
         if (parsedData.is_active_member === false) {
-          console.log(`DEBUG: User was previously removed from timeline ${timelineId}, this is a rejoin scenario`);
           isRejoin = true;
         }
       }
@@ -2483,13 +2315,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
     
     // Show loading state while request is being processed
-    console.log(`DEBUG: Sending join request${isRejoin ? ' (rejoin scenario)' : ''}`);
     setJoinRequestSent(true);
     
     try {
       // Call API to request access to the timeline using our updated function
       const response = await requestTimelineAccess(timelineId);
-      console.log('Join request response:', response);
       
       // Check if we got an error response (our API utility now returns objects with error:true instead of throwing)
       if (response.error) {
@@ -2511,17 +2341,14 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       // Get the role from the response or default to 'member'
       const memberRole = response.role || 'member';
       const isPending = memberRole === 'pending';
-      console.log(`DEBUG: Join response role: ${memberRole}, visibility: ${visibility}, isPending: ${isPending}`);
       
       // Update pending state
       if (isPending) {
         setIsPendingApproval(true);
         setIsMember(false); // Not a full member yet
-        console.log('DEBUG: User has pending membership request');
       } else {
         setIsPendingApproval(false);
         setIsMember(true); // Full member
-        console.log('DEBUG: User is now an active member');
       }
       
       // IMPORTANT: Store in the direct timeline membership key format
@@ -2529,30 +2356,25 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       try {
         const directMembershipKey = `timeline_membership_${timelineId}`;
         const membershipData = {
-          is_member: !isPending, // Only true if not pending
-          is_active_member: !isPending, // Pending members are not active
+          is_member: isPending ? false : true,
+          is_pending: isPending,
           role: memberRole,
-          joined_at: new Date().toISOString(),
-          timeline_visibility: visibility,
-          timestamp: new Date().toISOString()
+          timeline_visibility: visibility
         };
         
         localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
-        console.log(`Stored direct membership data for timeline ${timelineId} after join${isRejoin ? ' (rejoin)' : ''}, pending: ${isPending}`);
       } catch (e) {
         console.warn('Error storing direct membership data after join:', e);
       }
       
       // Note: Passport sync endpoint not implemented yet
       // The membership data is already stored in localStorage above
-      console.log('DEBUG: Membership data stored successfully');
       
       // Force refresh membership status from server after a short delay
       // This ensures backend and frontend are in sync
       setTimeout(() => {
         checkMembershipStatus(timelineId, 0, true)
           .then(status => {
-            console.log('Refreshed membership status after join:', status);
           })
           .catch(err => {
             console.error('Failed to refresh membership status:', err);
@@ -2560,15 +2382,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       }, 1000);
       
       // Force log the current state for debugging
-      console.log('DEBUG: Current state after join:', {
-        isMember: true, // We've forced this to true
-        joinRequestSent: true,
-        isRejoin,
-        timelineId,
-        timelineType: timeline_type,
-        visibility
-      });
-
     } catch (error) {
       // This catch block should rarely be hit now that our API utility handles errors
       console.error('Unexpected error joining community:', error);
@@ -2605,7 +2418,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           }
         }
         if (newMarkers.length > 0) {
-          console.log('[SmoothScroll] Pre-loading', newMarkers.length, 'markers to the left');
           setMarkers(prevMarkers => {
             const combined = [...newMarkers, ...prevMarkers];
             // Remove duplicates and sort
@@ -2624,7 +2436,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           }
         }
         if (newMarkers.length > 0) {
-          console.log('[SmoothScroll] Pre-loading', newMarkers.length, 'markers to the right');
           setMarkers(prevMarkers => {
             const combined = [...prevMarkers, ...newMarkers];
             // Remove duplicates and sort
@@ -2644,8 +2455,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
    * @param {number} amount - Scroll amount in pixels (default: 100 = 1 marker)
    */
   const smoothScroll = (direction, amount = 100) => {
-    console.log('[SmoothScroll] Scrolling', direction, 'by', amount, 'px');
-    
     // 1. Mark timeline as moving (triggers event marker fade out)
     setIsSettled(false);
     
@@ -2657,8 +2466,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       const newOffset = direction === 'left' 
         ? prevOffset + amount 
         : prevOffset - amount;
-      
-      console.log('[SmoothScroll] Offset:', prevOffset, '→', newOffset);
       return newOffset;
     });
     
@@ -2674,16 +2481,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       // Check if arrow moved outside margin zone
       if (Math.abs(arrowMarkerFromCenter - pointB_reference_markerValue) > margin) {
-        const newReference = Math.floor(arrowMarkerFromCenter);
-        setPointB_reference_markerValue(newReference);
-        
-        // TIMELINE V4: DO NOT recalculate timestamp when reference moves during scroll
-        // The timestamp is the SOURCE OF TRUTH and should never change
-        // Only the reference marker position updates to track which marker is closest
-        // The timestamp stays locked to the original click position
-        
-        console.log('[SmoothScroll] Point B reference updated to:', newReference);
-        console.log('[SmoothScroll] Timestamp unchanged (source of truth):', pointB_reference_timestamp);
+        const newReference = Math.round(markerValue);
+        if (newReference !== pointB_reference_markerValue) {
+          setPointB_reference_markerValue(newReference);
+        }
       }
     }
     
@@ -2691,7 +2492,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       setIsSettled(true); // Triggers event marker fade in
-      console.log('[SmoothScroll] Timeline settled');
     }, 400); // Wait 400ms after last scroll for CSS transition to complete
   };
   
@@ -2715,16 +2515,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
    * @param {boolean} shouldCenter - Whether to center Point B on screen
    */
   const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false) => {
-    console.log('[Point B] Activating at marker:', markerValue, 'timestamp:', timestamp, 'viewMode:', currentViewMode);
-    
     if (B_POINTER_MINIMAL) {
       // Minimal mode: only track active state, arrow position, timestamp, event, view
       setPointB_active(true);
-      setPointB_viewMode(currentViewMode);
       setPointB_eventId(eventId);
       setPointB_arrow_markerValue(markerValue);
       setPointB_reference_timestamp(timestamp);
-      console.log('[Point B] Minimal mode activation - arrow+label only');
       return;
     }
     
@@ -2749,8 +2545,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
    * Deactivate Point B and return to Point A (current time) reference
    */
   const deactivatePointB = () => {
-    console.log('[Point B] Deactivating');
-    
     setPointB_active(false);
     setPointB_arrow_markerValue(0);
     setPointB_reference_markerValue(0);
@@ -2866,7 +2660,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
    */
   const convertPointBToViewMode = (newViewMode) => {
     if (!pointB_active) {
-      console.log('[Point B] Cannot convert - Point B not active');
       return null;
     }
     
@@ -2877,7 +2670,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       if (evt && evt.event_date) {
         effectiveTimestamp = evt.event_date;
         setPointB_reference_timestamp(effectiveTimestamp);
-        console.log('[Point B] Using selected event timestamp for conversion:', new Date(effectiveTimestamp).toLocaleString());
       }
     }
     // Otherwise, use stored reference timestamp
@@ -2885,16 +2677,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       effectiveTimestamp = pointB_reference_timestamp;
     }
     if (!effectiveTimestamp) {
-      console.log('[Point B] Cannot convert - missing timestamp');
       return null;
     }
     
     const currentDate = new Date(); // Point A [0] in new view
     const pointBDate = new Date(effectiveTimestamp);
-    
-    console.log('[Point B] Converting from', pointB_viewMode, 'to', newViewMode);
-    console.log('[Point B] Timestamp (source of truth):', pointBDate.toLocaleString());
-    console.log('[Point B] Current Point A [0]:', currentDate.toLocaleString());
     
     // Calculate exact fractional position (for arrow)
     const arrowPosition = calculateMarkerPositionFromTimestamp(pointBDate, currentDate, newViewMode);
@@ -2902,10 +2689,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // B Reference is always integer (closest timeline marker TO THE LEFT of arrow)
     // Use Math.floor() not Math.round() - arrow can be at integer position too
     const referencePosition = Math.floor(arrowPosition);
-    
-    console.log('[Point B] New arrow position (fractional):', arrowPosition);
-    console.log('[Point B] New reference position (integer):', referencePosition);
-    console.log('[Point B] Distance from Point A [0]:', referencePosition, 'markers');
     
     return {
       arrowPosition,
@@ -2927,42 +2710,30 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           activeElement.tagName === 'TEXTAREA' ||
           activeElement.isContentEditable
         );
-        
         if (isInputField) return; // Don't trigger if typing in an input
-        
-        if (pointB_active) {
-          // Deactivate Point B if already active
-          console.log('[Point B] Keyboard shortcut: Deactivating Point B');
-          deactivatePointB();
-        } else {
-          // Activate Point B at current center position (marker 0 relative to current offset)
-          console.log('[Point B] Keyboard shortcut: Activating Point B at center');
-          
-          // Calculate the marker value at screen center
-          const centerMarkerValue = Math.round(-timelineOffset / 100);
-          
-          // Calculate the timestamp for this marker
-          // TIMELINE V4: Use Point B reference when active (Dad is in charge!)
-          const currentDate = getCurrentTimeReference();
-          let timestamp = new Date(currentDate);
-          
-          switch (viewMode) {
-            case 'day':
-              timestamp.setHours(currentDate.getHours() + centerMarkerValue);
-              break;
-            case 'week':
-              timestamp.setDate(currentDate.getDate() + centerMarkerValue);
-              break;
-            case 'month':
-              timestamp.setMonth(currentDate.getMonth() + centerMarkerValue);
-              break;
-            case 'year':
-              timestamp.setFullYear(currentDate.getFullYear() + centerMarkerValue);
-              break;
-          }
-          
-          activatePointB(centerMarkerValue, timestamp, viewMode, null, true); // shouldCenter = true for 'B' key
+
+        const currentDate = new Date();
+        const centerMarkerValue = 0 - (timelineOffset / 100);
+        const timestamp = new Date(currentDate);
+
+        switch (viewMode) {
+          case 'day':
+            timestamp.setHours(currentDate.getHours() + centerMarkerValue);
+            break;
+          case 'week':
+            timestamp.setDate(currentDate.getDate() + centerMarkerValue);
+            break;
+          case 'month':
+            timestamp.setMonth(currentDate.getMonth() + centerMarkerValue);
+            break;
+          case 'year':
+            timestamp.setFullYear(currentDate.getFullYear() + centerMarkerValue);
+            break;
+          default:
+            break;
         }
+
+        activatePointB(centerMarkerValue, timestamp, viewMode, null, true); // shouldCenter = true for 'B' key
       }
     };
     
@@ -3050,7 +2821,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
         // If events aren't loaded yet, load them
         if (progressiveLoadingState === 'timeline') {
-          console.log('User interacted with filter views, loading events immediately');
           try {
             const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
             
@@ -3127,8 +2897,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [timelineMarkersLoading, setTimelineMarkersLoading] = useState(false);
   
   const handleLeft = () => {
-    console.log('Executing LEFT button press');
-    
     // Close event popup if open (for cleaner UX)
     if (selectedEventId) {
       setSelectedEventId(null);
@@ -3139,8 +2907,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   };
   
   const handleRight = () => {
-    console.log('Executing RIGHT button press');
-    
     // Close event popup if open (for cleaner UX)
     if (selectedEventId) {
       setSelectedEventId(null);
@@ -3193,20 +2959,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       // Don't navigate if the event is already centered or very close
       if (Math.abs(stepsNeeded) === 0) return;
       
-      console.log(`Navigating to event: ${event.title}`);
-      console.log(`Event date: ${new Date(event.event_date).toLocaleString()}`);
-      console.log(`Current date: ${new Date().toLocaleString()}`);
-      console.log(`Calculated distance: ${distance}`);
-      console.log(`Steps needed: ${stepsNeeded}`);
-      
       // Determine which button to press (left or right)
       // IMPORTANT: Past events (negative distance) need LEFT button
       // Future events (positive distance) need RIGHT button
       const direction = stepsNeeded > 0 ? 'right' : 'left';
       const numberOfPresses = Math.abs(stepsNeeded);
-      
-      console.log(`Direction: ${direction}`);
-      console.log(`Number of presses: ${numberOfPresses}`);
       
       // Start the navigation process
       setIsNavigating(true);
@@ -3221,15 +2978,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   // Preload markers in the direction we're going to navigate
   const preloadMarkersForNavigation = (direction, numberOfPresses) => {
-    console.log(`Preloading ${numberOfPresses} markers in ${direction} direction`);
-    
     return new Promise((resolve) => {
       // Calculate buffer based on screen width (more buffer for wider screens)
       const screenWidth = window.innerWidth;
       const bufferMultiplier = 1.5; // Add 50% more markers than needed
       const bufferSize = Math.ceil(numberOfPresses * bufferMultiplier);
-      
-      console.log(`Buffer size: ${bufferSize} markers`);
       
       // Create new markers to preload
       if (direction === 'left') {
@@ -3238,7 +2991,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           { length: bufferSize },
           (_, i) => minMarker - (i + 1)
         );
-        console.log(`Preloading left markers: ${minMarker} to ${minMarker - bufferSize}`);
         setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
       } else {
         const maxMarker = Math.max(...markers);
@@ -3246,7 +2998,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           { length: bufferSize },
           (_, i) => maxMarker + (i + 1)
         );
-        console.log(`Preloading right markers: ${maxMarker} to ${maxMarker + bufferSize}`);
         setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
       }
       
@@ -3270,11 +3021,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   // Function to execute button presses with delay
   const executeButtonPresses = (direction, totalPresses, pressCount = 0) => {
-    // Add debug log to track progress
-    console.log(`Press ${pressCount + 1}/${totalPresses}, Remaining: ${totalPresses - pressCount}`);
-    
     if (pressCount >= totalPresses) {
-      console.log('Navigation complete');
       setIsNavigating(false);
       return;
     }
@@ -3298,8 +3045,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   // Smooth scrolling animation for the timeline
   const smoothScrollTimeline = (direction, distance) => {
-    console.log(`Starting smooth scroll: ${direction}, distance: ${distance}`);
-    
     // We're already in isMoving state at this point, markers are hidden
     
     // Calculate the target offset
@@ -3314,7 +3059,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         { length: distance + 2 }, // Add a couple extra for buffer
         (_, i) => minMarker - (i + 1)
       );
-      console.log(`Preloading left markers: ${minMarker} to ${minMarker - distance - 2}`);
       setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
     } else {
       const maxMarker = Math.max(...markers);
@@ -3322,7 +3066,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         { length: distance + 2 }, // Add a couple extra for buffer
         (_, i) => maxMarker + (i + 1)
       );
-      console.log(`Preloading right markers: ${maxMarker} to ${maxMarker + distance + 2}`);
       setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
     }
     
@@ -3360,7 +3103,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       } else {
         // Ensure we end exactly at the target offset
         setTimelineOffset(targetOffset);
-        console.log('Smooth scroll complete');
         setIsNavigating(false);
         
         // Reset moving state to restore markers
@@ -3412,24 +3154,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   // Calculate the temporal distance between an event and the current reference point
   const calculateTemporalDistance = (eventDate) => {
-    if (!eventDate) return 0;
+    if (!eventDate || viewMode === 'position') return 0;
     
-    // Use current time for temporal distance calculations (not Point B timestamp)
-    const currentDate = new Date();
+    const currentDate = getCurrentTimeReference();
     const eventDateObj = new Date(eventDate);
-    
-    // Add debug logs to see the dates we're comparing
-    console.log('Calculating temporal distance:');
-    console.log(`Event date: ${eventDateObj.toLocaleString()}`);
-    console.log(`Current date: ${currentDate.toLocaleString()}`);
-    console.log(`Current timeline offset: ${timelineOffset}`);
-    console.log(`Current view mode: ${viewMode}`);
     
     // Calculate the current position on the timeline based on the offset
     // A negative offset means we've moved right (into the future)
     // A positive offset means we've moved left (into the past)
     const currentPosition = -timelineOffset / 100; // Each marker is 100px
-    console.log(`Current position (in markers): ${currentPosition}`);
     
     let distance = 0;
     
@@ -3451,13 +3184,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
-        
-        console.log(`Day diff: ${dayDiff}`);
-        console.log(`Current hour: ${currentHour}`);
-        console.log(`Event hour: ${eventHour}`);
-        console.log(`Event minute: ${eventMinute}`);
-        console.log(`Absolute distance: ${absoluteDistance}`);
-        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -3487,9 +3213,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
-        
-        console.log(`Absolute distance: ${absoluteDistance}`);
-        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -3510,9 +3233,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
-        
-        console.log(`Absolute distance: ${absoluteDistance}`);
-        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
@@ -3527,28 +3247,20 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
-        
-        console.log(`Absolute distance: ${absoluteDistance}`);
-        console.log(`Adjusted distance: ${distance}`);
         break;
       }
       
       default:
         distance = 0;
     }
-    
-    console.log(`Final calculated distance: ${distance}`);
     return distance;
 };
 
 // State declarations for timeline elements were moved to the top of the component
 
 const handleRecenter = () => {
-  console.log('Executing Return to Present');
-  
   // TIMELINE V4: Deactivate Point B when returning to present
   if (pointB_active) {
-    console.log('[Point B] Deactivating Point B - Returning to Point A');
     deactivatePointB();
   }
   
@@ -3690,12 +3402,10 @@ const handleRecenter = () => {
                   visibility={visibility}
                   requiresApproval={requiresApproval}
                   onJoinSuccess={(data) => {
-                    console.log('[TimelineV3] Join success:', data);
                     // Refresh membership status
                     refreshMembership();
                   }}
                   onLeaveSuccess={() => {
-                    console.log('[TimelineV3] Leave success');
                     // Refresh membership status
                     refreshMembership();
                   }}
@@ -4127,7 +3837,6 @@ const handleRecenter = () => {
                   const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
                   rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
                   rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
-                  console.log('[EventCounter Fallback] visibleMarkers empty; using recomputed range', { rangeMin, rangeMax });
                 }
                 
                 // Use only the visible markers without any buffer
@@ -4181,7 +3890,6 @@ const handleRecenter = () => {
                   onChangeIndex={(index) => {
                     // If user just clicked/selected, do not override their choice
                     if (Date.now() < userSelectionLockUntilRef.current) {
-                      console.log('[Selection] Skipping auto-changeIndex due to userSelectionLock');
                       return;
                     }
                     
@@ -4403,8 +4111,6 @@ const handleRecenter = () => {
                   return null;
                 }
 
-                console.log(`Rendering ${visibleEvents.length} markers out of ${events.length} total events`);
-                
                 // Add error boundary for the entire event rendering process
                 try {
                   // Make sure visibleEvents is valid before mapping
@@ -4518,7 +4224,6 @@ const handleRecenter = () => {
                 pointB_reference_markerValue={B_POINTER_MINIMAL ? 0 : pointB_reference_markerValue}
                 pointB_reference_timestamp={pointB_reference_timestamp}
                 onMarkerClick={(markerValue, timestamp, viewMode) => {
-                  console.log('[Point B] Timeline marker clicked - Activating Point B');
                   // Deselect any previously selected event when clicking a non-event marker
                   if (selectedEventId) {
                     setSelectedEventId(null);

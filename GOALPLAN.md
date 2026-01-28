@@ -7,13 +7,10 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 
 ## Current Subgoal
 
-**Phase**: Backend/Frontend Connection Testing
-- [x] Test vote persistence after page refresh (all card types)
-- [x] Test vote loading in popups on open
-- [x] Test vote state synchronization between cards and popups
-- [ ] Verify error handling for network failures
-- [ ] Test vote animations and UI feedback
-- [x] Visually set correct vote control positioning per Popup type
+**Phase**: Timeline Cleanup & Optimization (Post Vote Dots)
+- [ ] Remove legacy debug logs from TimelineV3 and related components
+- [ ] Audit year view behavior vs other views
+- [ ] Re-verify timeline performance after cleanup
 
 ---
 
@@ -55,7 +52,7 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 - [x] Verify vote state sync between cards and popups
 - [ ] Verify error handling for network failures
 - [ ] Verify vote controls are disabled for guest/lurker accounts
-- [ ] Verify dot visibility + color rules (no dot on neutral)
+- [x] Verify dot visibility + color rules (no dot on neutral)
 - [ ] Visually set correct vote control positioning per Popup type
 
 ---
@@ -72,6 +69,7 @@ Design and integrate a Promote/Demote voting system for posts with influence dot
 - Voting dots load in a **separate phase** after timeline content
 - Vote controls sit **right-aligned** in the same title row (cards + popups)
 - Vote arrows are **unlabeled** (tutorial handles nomenclature)
+ - Vote dot scan direction confirmed left-to-right (Jan 28, 2026)
 
 ### Design Decisions
 - No connecting line between dots
