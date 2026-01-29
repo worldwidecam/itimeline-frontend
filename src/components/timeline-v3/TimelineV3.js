@@ -192,6 +192,26 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
   };
 
+  const handleCarouselPopupOpen = (event) => {
+    if (!event) return;
+
+    let cardRef;
+    if (event.type?.toLowerCase() === 'news') {
+      cardRef = eventRefs.current[`news-card-${event.id}`];
+    } else if (event.type?.toLowerCase() === 'media') {
+      cardRef = eventRefs.current[`media-card-${event.id}`];
+    } else {
+      cardRef = eventRefs.current[`remark-card-${event.id}`];
+    }
+
+    if (cardRef?.current?.setPopupOpen) {
+      cardRef.current.setPopupOpen(true);
+    } else {
+      console.warn('WARNING: Could not find card reference for event:', event.id);
+      console.warn('The event popup cannot be shown. This is a known issue.');
+    }
+  };
+
   const getCurrentDateTime = () => {
     // Return the current date and time
     return new Date();
@@ -1011,8 +1031,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
     
     // If we have a reference to the card, directly call its setPopupOpen method
-    if (cardRef && cardRef.setPopupOpen) {
-      cardRef.setPopupOpen(true);
+    if (cardRef?.current?.setPopupOpen) {
+      cardRef.current.setPopupOpen(true);
     } else {
       // QUARANTINED: No fallback to event edit as it's problematic
       console.warn('WARNING: Could not find card reference for event:', event.id);
@@ -3910,6 +3930,7 @@ const handleRecenter = () => {
                       activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false);
                     }
                   }}
+                  onDotClick={handleCarouselPopupOpen}
                   timelineOffset={timelineOffset}
                   goToPrevious={navigateToPrevEvent}
                   goToNext={navigateToNextEvent}
@@ -4402,6 +4423,7 @@ const handleRecenter = () => {
             goToNext={navigateToNextEvent}
             currentEventIndex={currentEventIndex}
             setIsPopupOpen={setIsPopupOpen}
+            eventRefs={eventRefs}
             reviewingEventIds={reviewingEventIds}
           />
         )}

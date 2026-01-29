@@ -5,7 +5,7 @@ import { AudioFile as AudioIcon } from '@mui/icons-material';
 
 export const EventHoverCard = ({ event, position }) => {
   const theme = useTheme();
-  const styles = getHoverCardStyles(event.type, theme);
+  const styles = getHoverCardStyles(event, theme);
 
   const renderContent = () => {
     switch (event.type) {

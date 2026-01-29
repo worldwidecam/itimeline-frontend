@@ -66,7 +66,8 @@ const EventList = ({
   goToPrevious, // Function to navigate to previous event
   goToNext, // Function to navigate to next event
   currentEventIndex, // Current event index for carousel navigation
-  reviewingEventIds = new Set() // Set of event IDs that are "in review" on this timeline
+  reviewingEventIds = new Set(), // Set of event IDs that are "in review" on this timeline
+  eventRefs: externalEventRefs // Optional shared refs for TimelineV3 integration
 }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,7 +79,8 @@ const EventList = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [previousSelectedId, setPreviousSelectedId] = useState(null);
-  const eventRefs = useRef({});
+  const localEventRefs = useRef({});
+  const eventRefs = externalEventRefs || localEventRefs;
 
   // Pagination state
   const [displayLimit, setDisplayLimit] = useState(20);

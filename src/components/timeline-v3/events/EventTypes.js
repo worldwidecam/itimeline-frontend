@@ -61,8 +61,36 @@ export const EVENT_TYPE_METADATA = {
   }
 };
 
+const getMediaSubtypeColor = (event, theme) => {
+  const subtype = (event?.media_subtype || '').toLowerCase();
+  const mediaTypeHint = (event?.media_type || '').toLowerCase();
+  const mediaUrl = (event?.media_url || event?.url || '').toLowerCase();
+  const ext = mediaUrl.split('.').pop();
+
+  const isVideo =
+    subtype === 'video' ||
+    mediaTypeHint.includes('video') ||
+    (ext && ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'wmv', 'flv'].includes(ext));
+  const isAudio =
+    subtype === 'audio' ||
+    mediaTypeHint.includes('audio') ||
+    (ext && ['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(ext));
+  const isImage =
+    subtype === 'image' ||
+    mediaTypeHint.includes('image') ||
+    (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext));
+
+  if (isImage) return '#009688';
+  if (isAudio) return '#e65100';
+  if (isVideo) return '#4a148c';
+
+  const fallback = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
+  return theme?.palette?.mode === 'dark' ? fallback.dark : fallback.light;
+};
+
 // Hover card styles for timeline markers
-export const getHoverCardStyles = (type, theme) => {
+export const getHoverCardStyles = (event, theme) => {
+  const type = event?.type;
   const baseStyles = {
     position: 'absolute',
     padding: theme.spacing(1.5),
@@ -119,21 +147,18 @@ export const getHoverCardStyles = (type, theme) => {
         }
       };
 
-    case EVENT_TYPES.MEDIA:
+    case EVENT_TYPES.MEDIA: {
+      const mediaColor = getMediaSubtypeColor(event, theme);
       return {
         ...baseStyles,
-        borderColor: theme.palette.mode === 'dark' 
-          ? EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA].dark 
-          : EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA].light,
+        borderColor: mediaColor,
         padding: theme.spacing(1),
         '& .media-preview': {
           width: '100%',
           height: 120,
           objectFit: 'cover',
           borderRadius: theme.spacing(0.5),
-          border: `2px solid ${theme.palette.mode === 'dark' 
-            ? EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA].dark 
-            : EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA].light}`,
+          border: `2px solid ${mediaColor}`,
         },
         '& .title': {
           marginTop: theme.spacing(1),
@@ -142,6 +167,7 @@ export const getHoverCardStyles = (type, theme) => {
           textAlign: 'center',
         }
       };
+    }
 
     default:
       return baseStyles;

@@ -577,6 +577,12 @@ When implementing or modifying timeline views (day/week/month/year), keep behavi
 3. If performance constraints require view-specific handling, keep fallbacks deterministic and shared.
 4. Compare day/week vs month/year network requests before shipping.
 
+**Media subtype color mapping (cards + selection glow)**
+- Image: `#009688` (teal)
+- Audio: `#e65100` (orange)
+- Video: `#4a148c` (deep purple)
+- Fallback media (unknown subtype): use `EVENT_TYPES.MEDIA` purple
+
 #### Frontend Coding Guidelines (Admin Panel & Member Removal)
 
 These practices prevent blank screens and ensure permission logic is consistent with the backend.

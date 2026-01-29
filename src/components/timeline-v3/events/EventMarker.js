@@ -7,7 +7,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Paper, Typography, IconButton } from '@mui/material';
-import { useTheme, alpha } from '@mui/material/styles';
+import { useTheme, alpha, darken, lighten } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
@@ -412,15 +412,61 @@ const EventMarker = ({
     }
   }, [viewMode, freshCurrentDate, index, currentIndex, timelineOffset, markerSpacing, minMarker, maxMarker]);
 
-  const getColor = () => {
-    const typeColors = EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
-    return theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light;
+  const getMediaSubtype = () => {
+    const subtype = (event.media_subtype || '').toLowerCase();
+    const mediaTypeHint = (event.media_type || '').toLowerCase();
+    const mediaUrl = (event.media_url || event.url || '').toLowerCase();
+    const ext = mediaUrl.split('.').pop();
+
+    const isVideo =
+      subtype === 'video' ||
+      mediaTypeHint.includes('video') ||
+      (ext && ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'wmv', 'flv'].includes(ext));
+    const isAudio =
+      subtype === 'audio' ||
+      mediaTypeHint.includes('audio') ||
+      (ext && ['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(ext));
+    const isImage =
+      subtype === 'image' ||
+      mediaTypeHint.includes('image') ||
+      (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext));
+
+    if (isImage) return 'image';
+    if (isAudio) return 'audio';
+    if (isVideo) return 'video';
+    return null;
   };
 
-  const getHoverColor = () => {
-    const typeColors = EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
-    return theme.palette.mode === 'dark' ? typeColors.hover.dark : typeColors.hover.light;
+  const getMediaSubtypeColors = () => {
+    const subtype = getMediaSubtype();
+    let baseColor = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA]?.light || '#8B5CF6';
+
+    if (subtype === 'image') baseColor = '#009688';
+    if (subtype === 'audio') baseColor = '#e65100';
+    if (subtype === 'video') baseColor = '#4a148c';
+
+    const hoverColor = theme.palette.mode === 'dark'
+      ? lighten(baseColor, 0.2)
+      : darken(baseColor, 0.2);
+
+    return { base: baseColor, hover: hoverColor };
   };
+
+  const getMarkerColors = () => {
+    if (event.type === EVENT_TYPES.MEDIA) {
+      return getMediaSubtypeColors();
+    }
+
+    const typeColors = EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
+    return {
+      base: theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light,
+      hover: theme.palette.mode === 'dark' ? typeColors.hover.dark : typeColors.hover.light,
+    };
+  };
+
+  const getColor = () => getMarkerColors().base;
+
+  const getHoverColor = () => getMarkerColors().hover;
 
   const handleMarkerClick = (clickEvent) => {
     console.log('[EventMarker] Click handler called for event:', event.id, 'markerPosition:', markerPosition);
@@ -485,6 +531,13 @@ const EventMarker = ({
   
   // Add a debug class to help identify markers in different states
   const markerClass = isSelected ? 'selected-marker' : 'normal-marker';
+  const mediaAccent = event.type === EVENT_TYPES.MEDIA ? getMediaSubtypeColors().base : null;
+  const mediaBorder = mediaAccent
+    ? alpha(mediaAccent, theme.palette.mode === 'dark' ? 0.35 : 0.25)
+    : null;
+  const mediaShadow = mediaAccent
+    ? alpha(mediaAccent, theme.palette.mode === 'dark' ? 0.35 : 0.2)
+    : null;
 
   const canShowVoteDot = !!voteDot && voteDot.isVisible && showVoteDot && !voteDotsLoading;
   const voteDotSize = voteDot?.size ?? 6;
@@ -719,18 +772,17 @@ const EventMarker = ({
               // Type-specific border colors
               border: `1px solid ${(() => {
                 if (event.type === EVENT_TYPES.MEDIA) {
-                  return theme.palette.mode === 'dark' 
-                    ? 'rgba(180,160,220,0.2)' // Purple border for dark mode
-                    : 'rgba(140,100,220,0.15)'; // Purple border for light mode
+                  return mediaBorder || (theme.palette.mode === 'dark' 
+                    ? 'rgba(180,160,220,0.2)'
+                    : 'rgba(140,100,220,0.15)');
                 } else if (event.type === EVENT_TYPES.NEWS) {
                   return theme.palette.mode === 'dark' 
-                    ? 'rgba(220,160,160,0.2)' // Red border for dark mode
-                    : 'rgba(220,100,100,0.15)'; // Red border for light mode
+                    ? 'rgba(220,160,160,0.2)'
+                    : 'rgba(220,100,100,0.15)';
                 } else {
-                  // Default/Remark
                   return theme.palette.mode === 'dark' 
-                    ? 'rgba(160,180,220,0.2)' // Blue border for dark mode
-                    : 'rgba(100,140,220,0.15)'; // Blue border for light mode
+                    ? 'rgba(160,180,220,0.2)'
+                    : 'rgba(100,140,220,0.15)';
                 }
               })()}`,
               overflow: 'hidden', // For rounded corners on media content
@@ -738,14 +790,13 @@ const EventMarker = ({
               boxShadow: (() => {
                 if (event.type === EVENT_TYPES.MEDIA) {
                   return theme.palette.mode === 'dark' 
-                    ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(100,50,150,0.3)' 
-                    : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(100,50,150,0.15)';
+                    ? `0 8px 20px rgba(0,0,0,0.6), 0 2px 8px ${mediaShadow || 'rgba(100,50,150,0.3)'}`
+                    : `0 8px 20px rgba(0,0,0,0.15), 0 2px 8px ${mediaShadow || 'rgba(100,50,150,0.15)'}`;
                 } else if (event.type === EVENT_TYPES.NEWS) {
                   return theme.palette.mode === 'dark' 
                     ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(150,50,50,0.3)' 
                     : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(150,50,50,0.15)';
                 } else {
-                  // Default/Remark
                   return theme.palette.mode === 'dark' 
                     ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(50,100,150,0.3)' 
                     : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(50,100,150,0.15)';
