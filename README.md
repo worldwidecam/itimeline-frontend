@@ -764,6 +764,17 @@ The frontend proxies API requests to the backend at `http://localhost:5000/api` 
 
 The iTimeline application implements a consistent styling approach across all event popup components, ensuring a cohesive user experience. The following standards have been established:
 
+#### Opening Event Popups (Quick Reference)
+- **EventList cards** (right panel):
+  - **First click** selects/highlights the card.
+  - **Second click** opens the EventPopup for that event.
+- **Timeline markers** (on the timeline):
+  - Clicking the **hover card above a marker** opens the EventPopup directly.
+  - This uses the marker components’ internal popup state (not EventList refs).
+- **EventCarousel dot** (in EventCounter):
+  - Clicking the dot opens the **current event’s EventPopup** directly.
+  - It does **not** change selection or re-center the timeline.
+
 #### CreatorChip Component
 - **Purpose**: Displays creator information with avatar, username, and profile link
 - **Implementation**: Reusable component with color-aware styling

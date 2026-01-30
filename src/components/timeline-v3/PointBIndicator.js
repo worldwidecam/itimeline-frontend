@@ -22,6 +22,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 const PointBIndicator = ({ 
   active = false,
   markerValue = 0,
+  pixelOffset = 0,
   timelineOffset = 0,
   markerSpacing = 100,
   label
@@ -42,8 +43,8 @@ const PointBIndicator = ({
 
   // Calculate the arrow's position on screen (memoized)
   const arrowPosition = useMemo(() => {
-    return windowWidth / 2 + (markerValue * markerSpacing) + timelineOffset;
-  }, [windowWidth, markerValue, markerSpacing, timelineOffset]);
+    return windowWidth / 2 + (markerValue * markerSpacing) + timelineOffset + pixelOffset;
+  }, [windowWidth, markerValue, markerSpacing, timelineOffset, pixelOffset]);
 
   // Apply transform updates via rAF and useLayoutEffect to avoid initial flash
   useLayoutEffect(() => {

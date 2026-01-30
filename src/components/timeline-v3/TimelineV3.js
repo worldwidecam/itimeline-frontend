@@ -407,6 +407,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   // Arrow position (visual, fractional) - shows exact click location
   const [pointB_arrow_markerValue, setPointB_arrow_markerValue] = useState(0);
+  const [pointB_arrow_pixelOffset, setPointB_arrow_pixelOffset] = useState(0);
   
   // Reference position (calculation, integer) - what EventMarkers calculate from
   const [pointB_reference_markerValue, setPointB_reference_markerValue] = useState(0);
@@ -981,33 +982,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       // Treat dot click as an explicit user selection; lock to prevent overrides
       lockUserSelection(1500);
       
-      // TIMELINE V4: EventCarousel dot click should CENTER the event
-      // To center an event, we need to calculate the offset that puts it at screen center
-      // Event position on screen = (window.innerWidth / 2) + (markerValue * markerSpacing) + timelineOffset
-      // For centering: Event position should equal window.innerWidth / 2
-      // Therefore: (window.innerWidth / 2) + (markerValue * 100) + newOffset = window.innerWidth / 2
-      // Solving for newOffset: newOffset = -(markerValue * 100)
-      
-      const targetOffset = -(markerValue * 100);
-      const currentOffset = timelineOffset;
-      
-      // Only center if event is not already centered (more than 5px off)
-      if (Math.abs(targetOffset - currentOffset) > 5) {
-        // Set offset directly - CSS transition will handle smooth animation
-        setTimelineOffset(targetOffset);
-        
-        // Mark as not settled during animation
-        setIsSettled(false);
-        
-        // Detect when animation completes
-        clearTimeout(settleTimer.current);
-        settleTimer.current = setTimeout(() => {
-          setIsSettled(true);
-        }, 400); // Match CSS transition duration
-      }
-      
       // Activate Point B at this position
-      activatePointB(markerValue, eventDate, viewMode, event.id, false); // shouldCenter = false (we handle it manually)
+      activatePointB(markerValue, eventDate, viewMode, event.id, false, 0);
     }
     
     // Find the index of the clicked event in the events array
@@ -1041,7 +1017,83 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
   };
 
-  const handleMarkerClick = (event, index, clickEvent, exactMarkerValue) => {
+  const getFilteredEventsForCounter = () => {
+    return events.filter(event => {
+      // Apply the same filtering logic as in EventList
+      if (viewMode === 'position') {
+        // In position mode, still apply type filter if selected
+        if (selectedType) {
+          const eventType = (event.type || '').toLowerCase();
+          return eventType === selectedType.toLowerCase();
+        }
+        return true;
+      }
+      
+      if (!event.event_date) return false;
+      
+      const currentDate = getCurrentTimeReference();
+      let startDate, endDate;
+      
+      // Determine visible marker range with a safe fallback when visibleMarkers isn't ready
+      let rangeMin, rangeMax;
+      if (visibleMarkers && visibleMarkers.length > 0) {
+        rangeMin = Math.min(...visibleMarkers);
+        rangeMax = Math.max(...visibleMarkers);
+      } else {
+        const screenWidth = window.innerWidth;
+        const markerWidth = 100;
+        const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
+        const centerMarkerPosition = -timelineOffset / markerWidth;
+        const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
+        rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
+        rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
+      }
+      
+      // Use only the visible markers without any buffer
+      // This ensures we only show events that are actually visible on screen
+      
+      switch (viewMode) {
+        case 'day': {
+          startDate = new Date(currentDate);
+          startDate.setHours(startDate.getHours() + rangeMin);
+          
+          endDate = new Date(currentDate);
+          endDate.setHours(endDate.getHours() + rangeMax);
+          break;
+        }
+        case 'week': {
+          startDate = subDays(currentDate, Math.abs(rangeMin));
+          endDate = addDays(currentDate, rangeMax);
+          break;
+        }
+        case 'month': {
+          startDate = subMonths(currentDate, Math.abs(rangeMin));
+          endDate = addMonths(currentDate, rangeMax);
+          break;
+        }
+        case 'year': {
+          startDate = subYears(currentDate, Math.abs(rangeMin));
+          endDate = addYears(currentDate, rangeMax);
+          break;
+        }
+        default:
+          return true;
+      }
+      
+      const eventDate = new Date(event.event_date);
+      const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
+      
+      // Apply type filter if selected
+      if (selectedType) {
+        const eventType = (event.type || '').toLowerCase();
+        return passesDateFilter && eventType === selectedType.toLowerCase();
+      }
+      
+      return passesDateFilter;
+    });
+  };
+
+  const handleMarkerClick = (event, index, clickEvent, exactMarkerValue, markerPixelOffset = 0) => {
     // Always activate Point B at this event's position when clicking event marker
     // Use the exact marker value from EventMarker's calculation (includes fractional positions)
     // Note: exactMarkerValue can be 0 (valid), so check for undefined/null specifically
@@ -1049,60 +1101,21 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       const eventDate = new Date(event.event_date);
       
       // Activate Point B at this event's EXACT position (not rounded)
-      activatePointB(exactMarkerValue, eventDate, viewMode, event.id, false); // shouldCenter = false
+      activatePointB(exactMarkerValue, eventDate, viewMode, event.id, false, markerPixelOffset);
     } else {
       console.warn('[Point B] Skipped activation - exactMarkerValue:', exactMarkerValue, 'event_date:', event.event_date, 'viewMode:', viewMode);
     }
     
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
     setShouldScrollToEvent(false);
+    // Prevent immediate auto-selection overrides (EventCounter sync)
+    lockUserSelection(1500);
     
     // Set the selected event ID to highlight it in the list (shows hover card)
     setSelectedEventId(event.id);
     
     // Get the filtered events array that's used by the EventCounter
-    const filteredEvents = events.filter(e => {
-      // Apply the same filtering logic as in EventCounter
-      if (viewMode === 'position') return true;
-      
-      if (!e.event_date) return false;
-      
-      // TIMELINE V4: Event filtering uses Point B timestamp when active, otherwise current time
-      // This ensures events render around Point B's position when Dad is in charge
-      const currentDate = getCurrentTimeReference();
-      let startDate, endDate;
-      
-      switch (viewMode) {
-        case 'day': {
-          startDate = new Date(currentDate);
-          startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
-          
-          endDate = new Date(currentDate);
-          endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
-          break;
-        }
-        case 'week': {
-          startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
-          endDate = addDays(currentDate, Math.max(...visibleMarkers));
-          break;
-        }
-        case 'month': {
-          startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
-          endDate = addMonths(currentDate, Math.max(...visibleMarkers));
-          break;
-        }
-        case 'year': {
-          startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
-          endDate = addYears(currentDate, Math.max(...visibleMarkers));
-          break;
-        }
-        default:
-          return true;
-      }
-      
-      const eventDate = new Date(e.event_date);
-      return eventDate >= startDate && eventDate <= endDate;
-    });
+    const filteredEvents = getFilteredEventsForCounter();
     
     // Find the index of the clicked event in the filtered events array
     const filteredIndex = filteredEvents.findIndex(e => e.id === event.id);
@@ -2534,12 +2547,13 @@ function TimelineV3({ timelineId: timelineIdProp }) {
    * @param {string} eventId - Optional: ID of event that Point B is focused on
    * @param {boolean} shouldCenter - Whether to center Point B on screen
    */
-  const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false) => {
+  const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false, arrowPixelOffset = 0) => {
     if (B_POINTER_MINIMAL) {
       // Minimal mode: only track active state, arrow position, timestamp, event, view
       setPointB_active(true);
       setPointB_eventId(eventId);
       setPointB_arrow_markerValue(markerValue);
+      setPointB_arrow_pixelOffset(arrowPixelOffset);
       setPointB_reference_timestamp(timestamp);
       return;
     }
@@ -2548,6 +2562,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     setPointB_viewMode(currentViewMode);
     setPointB_eventId(eventId);
     setPointB_arrow_markerValue(markerValue);
+    setPointB_arrow_pixelOffset(arrowPixelOffset);
     const margin = calculatePointBMargin(currentViewMode);
     const isFirstActivation = !pointB_active;
     const isOutsideMargin = Math.abs(markerValue - pointB_reference_markerValue) > margin;
@@ -2567,6 +2582,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const deactivatePointB = () => {
     setPointB_active(false);
     setPointB_arrow_markerValue(0);
+    setPointB_arrow_pixelOffset(0);
     setPointB_reference_markerValue(0);
     setPointB_reference_timestamp(null);
     setPointB_viewMode(null);
@@ -2753,7 +2769,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             break;
         }
 
-        activatePointB(centerMarkerValue, timestamp, viewMode, null, true); // shouldCenter = true for 'B' key
+        activatePointB(centerMarkerValue, timestamp, viewMode, null, true, 0); // shouldCenter = true for 'B' key
       }
     };
     
@@ -3927,7 +3943,7 @@ const handleRecenter = () => {
                     // Activate Point B if in a time-based view
                     if (event.event_date && viewMode !== 'position') {
                       const markerValue = calculateEventMarkerPosition(event, viewMode);
-                      activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false);
+                      activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false, 0);
                     }
                   }}
                   onDotClick={handleCarouselPopupOpen}
@@ -4250,7 +4266,7 @@ const handleRecenter = () => {
                     setSelectedEventId(null);
                     setCurrentEventIndex(-1);
                   }
-                  activatePointB(markerValue, timestamp, viewMode, null, false);
+                  activatePointB(markerValue, timestamp, viewMode, null, false, 0);
                 }}
               />
             </div>
@@ -4279,6 +4295,7 @@ const handleRecenter = () => {
           <PointBIndicator
             active={pointB_active}
             markerValue={pointB_arrow_markerValue}
+            pixelOffset={pointB_arrow_pixelOffset}
             timelineOffset={timelineOffset}
             label={pointB_active && pointB_reference_timestamp ? new Date(pointB_reference_timestamp).toLocaleString() : undefined}
           />

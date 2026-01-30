@@ -472,7 +472,7 @@ const EventMarker = ({
     console.log('[EventMarker] Click handler called for event:', event.id, 'markerPosition:', markerPosition);
     // Call the onClick handler if provided, passing the exact marker position for Point B
     if (onClick) {
-      onClick(event, index, clickEvent, markerPosition); // Pass the exact marker value
+      onClick(event, index, clickEvent, markerPosition, horizontalOffset); // Pass the exact marker value + pixel offset
     } else {
       // Fallback to the old behavior if onClick is not provided
       if (index !== currentIndex) {
