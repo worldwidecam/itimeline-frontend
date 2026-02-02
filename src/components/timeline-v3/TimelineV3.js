@@ -733,27 +733,28 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Sync filter type, and reset Point B/selection on filter changes
   useEffect(() => {
     const handleFilterChange = (e) => {
-      if (e && e.detail && typeof e.detail.selectedType !== 'undefined') {
-        const { selectedType: newType } = e.detail;
-        if (newType !== selectedType) {
-          setSelectedType(newType);
-        }
-      } else {
-        const storedType = localStorage.getItem('timeline_filter_type') || null;
-        if (storedType !== selectedType) {
-          setSelectedType(storedType);
-        }
-      }
+      const FADE_OUT_DELAY_MS = 650;
+      const nextType = (e && e.detail && typeof e.detail.selectedType !== 'undefined')
+        ? e.detail.selectedType
+        : (localStorage.getItem('timeline_filter_type') || null);
 
-      // Reset Point B system on filter change to avoid selection jumps
-      if (pointB_active) {
-        deactivatePointB();
-      }
-      // Clear selection (do not auto-select another)
-      if (selectedEventId) {
-        setSelectedEventId(null);
-        setCurrentEventIndex(-1);
-      }
+      if (nextType === selectedType) return;
+
+      setIsFullyFaded(true);
+      setTimeout(() => {
+        setSelectedType(nextType);
+        setIsFullyFaded(false);
+
+        // Reset Point B system on filter change to avoid selection jumps
+        if (pointB_active) {
+          deactivatePointB();
+        }
+        // Clear selection (do not auto-select another)
+        if (selectedEventId) {
+          setSelectedEventId(null);
+          setCurrentEventIndex(-1);
+        }
+      }, FADE_OUT_DELAY_MS);
     };
 
     // Initial load from localStorage
@@ -1706,39 +1707,42 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       setCurrentEventIndex(fullEventsIndex);
     }
   };
-  
-  // Handle view mode transitions with a multi-phase approach
-  const handleViewModeTransition = (newViewMode) => {
-    // Don't do anything if we're already transitioning or if it's the same mode
-    if (isViewTransitioning || newViewMode === viewMode) return;
-    
-    // Store the currently selected event ID and index to restore after transition
-    const currentlySelectedEventId = selectedEventId;
-    const currentlySelectedEventIndex = currentEventIndex;
-    
-    // TIMELINE V4: Store Point B state before transition
-    const pointBWasActive = pointB_active;
-    const pointBTimestamp = pointB_reference_timestamp;
-    const pointBEventId = pointB_eventId;
 
-    // Quarantine: forcibly deactivate Point B before switching views
-    if (pointB_active) {
-      deactivatePointB();
-    }
+// Handle view mode transitions with a multi-phase approach
+const handleViewModeTransition = (newViewMode) => {
+  // Don't do anything if we're already transitioning or if it's the same mode
+  if (isViewTransitioning || newViewMode === viewMode) return;
+
+  const FADE_OUT_DELAY_MS = 650;
+  
+  // Store the currently selected event ID and index to restore after transition
+  const currentlySelectedEventId = selectedEventId;
+  const currentlySelectedEventIndex = currentEventIndex;
     
-    // Mark that user has interacted to bypass progressive loading delays
-    setUserInteracted(true);
-    
+  // TIMELINE V4: Store Point B state before transition
+  const pointBWasActive = pointB_active;
+  const pointBTimestamp = pointB_reference_timestamp;
+  const pointBEventId = pointB_eventId;
+
+  // Quarantine: forcibly deactivate Point B before switching views
+  if (pointB_active) {
+    deactivatePointB();
+  }
+  
+  // Mark that user has interacted to bypass progressive loading delays
+  setUserInteracted(true);
+  
+  // Phase 1: Fade out rungs before starting the transition
+  setIsFullyFaded(true);
+
+  setTimeout(() => {
     // Start the transition process
     setIsViewTransitioning(true);
     setPendingViewMode(newViewMode);
     setViewTransitionPhase('fadeOut');
     beginPhaseTransition();
     
-    // Phase 1: Immediate visual feedback - fade out events and markers (200ms)
-    setIsFullyFaded(true); // This will fade out the current events and markers
-    
-    // Phase 2: Timeline structure transition (300ms after fadeOut starts)
+    // Phase 2: Timeline structure transition (200ms after transition starts)
     setTimeout(() => {
       // Actually change the view mode to update the timeline structure
       setViewMode(newViewMode);
@@ -1848,12 +1852,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       }, 200); // Structure transition duration
       
     }, 200); // Fade-out duration
-  };
-  
-  // Fetch events when timeline ID changes with progressive loading
+  }, FADE_OUT_DELAY_MS);
+};
+
   useEffect(() => {
-    if (!timelineId || timelineId === 'new') return;
-    if (accessDenied) return; // Do not try to load events when access is denied
     if (hookStatus === 'locked') return; // Respect locked timelines from membership hook
 
     const fetchEvents = async () => {
@@ -3310,27 +3312,28 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 // State declarations for timeline elements were moved to the top of the component
 
 const handleRecenter = () => {
+  const FADE_OUT_DELAY_MS = 650;
+
   // TIMELINE V4: Deactivate Point B when returning to present
   if (pointB_active) {
     deactivatePointB();
   }
   
-  // First, hide all elements with a fade
-  setIsRecentering(true);
-  setIsMoving(true); // Hide event markers
-  setMarkersLoading(true); // Prevent markers from showing during transition
-  setTimelineElementsLoading(true); // Hide timeline elements (bars, labels, etc.)
-  
-  // If an event is selected, close its popup during recentering
-  if (selectedEventId) {
-    setSelectedEventId(null);
-  }
+  // First, fade out rungs before starting recenter work
+  setIsFullyFaded(true);
 
-  // Wait for fade out to complete
   setTimeout(() => {
-    // Apply full fade effect
-    setIsFullyFaded(true);
+    // First, hide all elements with a fade
+    setIsRecentering(true);
+    setIsMoving(true); // Hide event markers
+    setMarkersLoading(true); // Prevent markers from showing during transition
+    setTimelineElementsLoading(true); // Hide timeline elements (bars, labels, etc.)
     
+    // If an event is selected, close its popup during recentering
+    if (selectedEventId) {
+      setSelectedEventId(null);
+    }
+
     // Reset timeline offset and markers
     setTimelineOffset(0);
     setMarkers(getInitialMarkers());
@@ -3369,7 +3372,7 @@ const handleRecenter = () => {
         }, 150);
       });
     }, 300);
-  }, 400); // Match the transition duration
+  }, FADE_OUT_DELAY_MS);
 };
 
   const handleFilteredEventsCount = (count) => {
@@ -4167,6 +4170,10 @@ const handleRecenter = () => {
                 onMarkerClick={handleMarkerClick}
                 onBackgroundClick={handleBackgroundClick}
                 calculateEventMarkerPosition={calculateEventMarkerPosition}
+                isFullyFaded={isFullyFaded}
+                markersLoading={markersLoading}
+                timelineMarkersLoading={timelineMarkersLoading}
+                progressiveLoadingState={progressiveLoadingState}
               />
               {selectedVisibleEvent && (
                 <Fade

@@ -69,10 +69,15 @@ const EventMarkerCanvasV2 = ({
   selectedEventId,
   onMarkerClick,
   onBackgroundClick,
+  isFullyFaded = false,
+  markersLoading = false,
+  timelineMarkersLoading = false,
+  progressiveLoadingState = 'complete',
 }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const hoverRef = useRef({ id: null, intensity: 0, target: 0 });
+  const [opacity, setOpacity] = useState(0);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0, dpr: 1, left: 0 });
 
   const measureCanvas = useCallback(() => {
@@ -96,6 +101,15 @@ const EventMarkerCanvasV2 = ({
     return () => window.removeEventListener('resize', measureCanvas);
   }, [measureCanvas]);
 
+  const shouldFadeIn = !isFullyFaded
+    && !markersLoading
+    && !timelineMarkersLoading
+    && progressiveLoadingState === 'complete';
+
+  useEffect(() => {
+    setOpacity(shouldFadeIn ? 1 : 0);
+  }, [shouldFadeIn]);
+
   useEffect(() => {
     measureCanvas();
   }, [measureCanvas, viewMode, timelineOffset, events.length]);
@@ -107,12 +121,12 @@ const EventMarkerCanvasV2 = ({
       .map((event, index) => {
         if (!event?.event_date || viewMode === 'position') return null;
         const markerValue = calculateMarkerValue(event.event_date, viewMode, new Date());
-        const x = centerX + (markerValue * markerSpacing) + timelineOffset;
+        const x = centerX + (markerValue * markerSpacing);
         return { event, index, markerValue, x };
       })
       .filter(Boolean)
       .sort((a, b) => a.x - b.x);
-  }, [events, viewMode, markerSpacing, timelineOffset, canvasSize.width]);
+  }, [events, viewMode, markerSpacing, canvasSize.width]);
 
   const draw = useCallback((time = 0) => {
     const canvas = canvasRef.current;
@@ -125,6 +139,7 @@ const EventMarkerCanvasV2 = ({
     ctx.save();
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
+    ctx.translate(timelineOffset, 0);
     ctx.lineCap = 'round';
 
     const baselineY = height - 70;
@@ -167,7 +182,7 @@ const EventMarkerCanvasV2 = ({
     });
 
     ctx.restore();
-  }, [canvasSize, positions, selectedEventId]);
+  }, [canvasSize, positions, selectedEventId, timelineOffset]);
 
   const animate = useCallback((time) => {
     const hoverState = hoverRef.current;
@@ -195,6 +210,12 @@ const EventMarkerCanvasV2 = ({
     }
   }, [draw, animate, selectedEventId, positions]);
 
+  useEffect(() => {
+    if (timelineOffset !== undefined) {
+      draw(performance.now());
+    }
+  }, [timelineOffset, draw]);
+
   useEffect(() => () => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -205,7 +226,7 @@ const EventMarkerCanvasV2 = ({
   const handleClick = (event) => {
     if (!positions.length || !onMarkerClick) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
+    const x = event.clientX - rect.left - timelineOffset;
     let closest = null;
     let minDist = Infinity;
     positions.forEach((pos) => {
@@ -227,7 +248,7 @@ const EventMarkerCanvasV2 = ({
   const handleMouseMove = (event) => {
     if (!positions.length) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
+    const x = event.clientX - rect.left - timelineOffset;
     let closest = null;
     let minDist = Infinity;
     positions.forEach((pos) => {
@@ -271,6 +292,8 @@ const EventMarkerCanvasV2 = ({
         width: '100%',
         height: '100%',
         pointerEvents: 'auto',
+        opacity,
+        transition: 'opacity 650ms ease',
       }}
     />
   );
