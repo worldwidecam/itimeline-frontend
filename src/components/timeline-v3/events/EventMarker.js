@@ -19,7 +19,7 @@ import RemarkEventMarker from './markers/RemarkEventMarker';
 // Import other components and constants
 import TimelineEvent from './TimelineEvent';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
-import { 
+import {
   differenceInHours, 
   differenceInDays, 
   differenceInMinutes, 
@@ -32,6 +32,7 @@ import {
   endOfWeek,
   isWithinInterval
 } from 'date-fns';
+import calculateMarkerValue from './markerPosition';
 
 const EventMarker = ({ 
   event, 
@@ -52,6 +53,8 @@ const EventMarker = ({
   showVoteDot = true,
   voteDotsLoading = false,
   scanBounds = null,
+  disableHover = false,
+  disableSelectedPulse = false,
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -74,6 +77,10 @@ const EventMarker = ({
   // Performance optimized version for large numbers of events
   useEffect(() => {
     if (viewMode !== 'position' && position) {
+      // Incremental swap step: disable proximity-based height/offset adjustments.
+      setOverlappingFactor(1);
+      setHorizontalOffset(0);
+      return;
       // Performance optimization: Skip overlap calculation for large event sets in month/year view
       // This significantly improves performance when there are many events
       const isLargeEventSet = window.timelineEventPositions && window.timelineEventPositions.length > 50;
@@ -248,135 +255,31 @@ const EventMarker = ({
       // CRITICAL: Do NOT use freshCurrentDate here - it changes with Point B
       const referenceDate = new Date(); // Always Point A [0]
       
-      switch (viewMode) {
-        case 'day':
-          // First determine if the event is on the same day as the reference point [0]
-          const isSameDayAsRef = eventDate ? isSameDay(eventDate, referenceDate) : false;
-          
-          // For day view, we need to align with how TimeMarkers.js represents hours
-          // In TimeMarkers.js, each marker represents an hour, with special markers at 12AM for each day
-          
-          // Calculate day difference
-          const dayDiffMs = eventDate ? differenceInMilliseconds(
-            new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate()),
-            new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())
-          ) : 0;
-          
-          const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
-          
-          // Calculate hours from midnight of the reference day
-          const currentHour = referenceDate.getHours();
-          const eventHour = eventDate ? eventDate.getHours() : 0;
-          const eventMinute = eventDate ? eventDate.getMinutes() : 0;
-          
-          // Position calculation:
-          // 1. Start with the day difference in hours (dayDiff * 24)
-          // 2. Add the event's hour position relative to midnight (eventHour)
-          // 3. Subtract the current hour to align with reference point [0]
-          // 4. Add minute fraction for precise positioning
-          
-          // This formula ensures the event is positioned at the correct hour marker
-          // based on its actual hour value (0-23) and day offset
-          markerPosition = (dayDiff * 24) + eventHour - currentHour + (eventMinute / 60);
-          
-          positionValue = markerPosition * markerSpacing;
-          break;
-          
-        case 'week':
-          const dayDiffMsWeek = eventDate ? differenceInMilliseconds(
-            new Date(
-              eventDate.getFullYear(),
-              eventDate.getMonth(),
-              eventDate.getDate()
-            ),
-            new Date(
-              referenceDate.getFullYear(),
-              referenceDate.getMonth(),
-              referenceDate.getDate()
-            )
-          ) : 0;
-          
-          const dayDiffWeek = dayDiffMsWeek / (1000 * 60 * 60 * 24);
-          
-          if (dayDiffWeek === 0) {
-            const totalMinutesInDay = 24 * 60;
-            const eventMinutesIntoDay = eventDate ? eventDate.getHours() * 60 + eventDate.getMinutes() : 0;
-            const eventFractionOfDay = eventMinutesIntoDay / totalMinutesInDay;
-            
-            markerPosition = eventFractionOfDay;
-          } else {
-            const eventHourWeek = eventDate ? eventDate.getHours() : 0;
-            const eventMinuteWeek = eventDate ? eventDate.getMinutes() : 0;
-            
-            const totalMinutesInDay = 24 * 60;
-            const eventMinutesIntoDay = eventHourWeek * 60 + eventMinuteWeek;
-            const eventFractionOfDay = eventMinutesIntoDay / totalMinutesInDay;
-            
-            markerPosition = Math.floor(dayDiffWeek) + eventFractionOfDay;
-          }
-          
-          positionValue = markerPosition * markerSpacing;
-          
-          // Check if the marker is within the visible range on the timeline
-          // This is determined by the minMarker and maxMarker props
-          const isWithinVisibleRange = minMarker <= markerPosition && markerPosition <= maxMarker;
-          
-          // We'll keep the week interval check, but only use it for debugging purposes
-          const weekStart = startOfWeek(referenceDate, { weekStartsOn: 0 });
-          const weekEnd = endOfWeek(referenceDate, { weekStartsOn: 0 });
-          const isWithinWeek = eventDate ? isWithinInterval(eventDate, { start: weekStart, end: weekEnd }) : false;
-          
-          // For week view, we'll show all events within the visible timeline range
-          // regardless of whether they're in the current week
-          if (!isWithinVisibleRange && index !== currentIndex) {
-            return null;
-          }
-          break;
-          
-        case 'month':
-          const monthEventYear = eventDate ? eventDate.getFullYear() : 0;
-          const monthCurrentYear = referenceDate.getFullYear();
-          const monthEventMonth = eventDate ? eventDate.getMonth() : 0;
-          const currentMonth = referenceDate.getMonth();
-          const monthEventDay = eventDate ? eventDate.getDate() : 0;
-          const monthDaysInMonth = eventDate ? new Date(monthEventYear, monthEventMonth + 1, 0).getDate() : 0;
-          
-          const monthYearDiff = monthEventYear - monthCurrentYear;
-          const monthDiff = monthEventMonth - currentMonth + (monthYearDiff * 12);
-          
-          const monthDayFraction = (monthEventDay - 1) / monthDaysInMonth;
-          
-          markerPosition = monthDiff + monthDayFraction;
-          
-          positionValue = markerPosition * markerSpacing;
-          break;
-          
-        case 'year':
-          // Calculate the exact year difference including fractional parts
-          const yearEventYear = eventDate ? eventDate.getFullYear() : referenceDate.getFullYear();
-          const yearCurrentYear = referenceDate.getFullYear();
-          const yearDiff = yearEventYear - yearCurrentYear;
-          
-          // Calculate month as a fraction of a year (0-11 months = 0-0.92 of a year)
-          const yearEventMonth = eventDate ? eventDate.getMonth() : 0;
-          const yearMonthFraction = yearEventMonth / 12;
-          
-          // Calculate day as a fraction of a month
-          const yearEventDay = eventDate ? eventDate.getDate() : 1;
-          const yearDaysInMonth = eventDate ? new Date(yearEventYear, yearEventMonth + 1, 0).getDate() : 30;
-          const yearDayFraction = (yearEventDay - 1) / yearDaysInMonth / 12; // Divide by 12 to scale to year
-          
-          // Combine all components for precise positioning
-          markerPosition = yearDiff + yearMonthFraction + yearDayFraction;
-          
-          positionValue = markerPosition * markerSpacing;
-          break;
-          
-        default:
-          return {
-            x: 0,
-            y: 70,
-          };
+      markerPosition = calculateMarkerValue(eventDate, viewMode, referenceDate);
+      positionValue = markerPosition * markerSpacing;
+
+      if (viewMode === 'week') {
+        const dayDiffMsWeek = eventDate ? differenceInMilliseconds(
+          new Date(
+            eventDate.getFullYear(),
+            eventDate.getMonth(),
+            eventDate.getDate()
+          ),
+          new Date(
+            referenceDate.getFullYear(),
+            referenceDate.getMonth(),
+            referenceDate.getDate()
+          )
+        ) : 0;
+        const dayDiffWeek = dayDiffMsWeek / (1000 * 60 * 60 * 24);
+        const isWithinVisibleRange = minMarker <= markerPosition && markerPosition <= maxMarker;
+        const weekStart = startOfWeek(referenceDate, { weekStartsOn: 0 });
+        const weekEnd = endOfWeek(referenceDate, { weekStartsOn: 0 });
+        const isWithinWeek = eventDate ? isWithinInterval(eventDate, { start: weekStart, end: weekEnd }) : false;
+
+        if (!isWithinVisibleRange && index !== currentIndex) {
+          return null;
+        }
       }
 
       const isVisible = minMarker <= markerPosition && markerPosition <= maxMarker;
@@ -700,22 +603,30 @@ const EventMarker = ({
             ref={markerRef}
             className="active-marker"
             onClick={handleMarkerClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseEnter={() => {
+              if (!disableHover) setIsHovered(true);
+            }}
+            onMouseLeave={() => {
+              if (!disableHover) setIsHovered(false);
+            }}
             sx={{
               width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
               height: `${Math.min(getMaxAllowedHeight(true, false), Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier())}px`, // Height constrained by workspace
               cursor: 'pointer',
               position: 'relative',
               // Increased click area with pseudo-element
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                inset: '-15px', // Increased from -8px to -15px for larger click area
-                background: `radial-gradient(ellipse at center, ${getColor()}30 0%, transparent 70%)`,
-                borderRadius: '4px',
-                animation: 'pulse 2s infinite',
-              },
+              ...(disableSelectedPulse
+                ? {}
+                : {
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: '-15px', // Increased from -8px to -15px for larger click area
+                    background: `radial-gradient(ellipse at center, ${getColor()}30 0%, transparent 70%)`,
+                    borderRadius: '4px',
+                    animation: 'pulse 2s infinite',
+                  },
+                }),
               '&::after': {
                 content: '""',
                 position: 'absolute',
@@ -962,20 +873,22 @@ const EventMarker = ({
                 inset: '-15px', // Creates a 15px invisible padding around the marker
                 zIndex: 1, // Ensures it's clickable
               },
-              '&:hover': {
-                background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
-                transform: isMoving 
-                  ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
-                  : 'scaleY(1.2) scaleX(1.3)',
-                boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
-                ...(viewMode !== 'position' && {
-                  boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
-                  // Enhanced hover effect for week view
-                  ...(viewMode === 'week' && {
-                    boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
+              '&:hover': disableHover
+                ? {}
+                : {
+                  background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
+                  transform: isMoving 
+                    ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+                    : 'scaleY(1.2) scaleX(1.3)',
+                  boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
+                  ...(viewMode !== 'position' && {
+                    boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
+                    // Enhanced hover effect for week view
+                    ...(viewMode === 'week' && {
+                      boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
+                    })
                   })
-                })
-              },
+                },
             }}
             onClick={handleMarkerClick}
           />

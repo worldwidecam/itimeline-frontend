@@ -12,6 +12,7 @@ import TimeMarkers from './TimeMarkers';
 import HoverMarker from './HoverMarker';
 import PointBIndicator from './PointBIndicator';
 import EventMarker from './events/EventMarker';
+import EventMarkerCanvasV2 from './events/EventMarkerCanvasV2';
 import TimelineNameDisplay from './TimelineNameDisplay';
 import PersonalTimelineLock from './PersonalTimelineLock';
 import EventCounter from './events/EventCounter';
@@ -1263,6 +1264,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     timelineOffset,
     viewMode,
   ]);
+
+  const selectedVisibleIndex = useMemo(
+    () => visibleEvents.findIndex((event) => event?.id === selectedEventId),
+    [visibleEvents, selectedEventId]
+  );
+  const selectedVisibleEvent = useMemo(
+    () => (selectedVisibleIndex >= 0 ? visibleEvents[selectedVisibleIndex] : null),
+    [selectedVisibleIndex, visibleEvents]
+  );
 
   const visibleEventIds = useMemo(
     () => visibleEvents.map((event) => event?.id).filter(Boolean),
@@ -2748,6 +2758,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         );
         if (isInputField) return; // Don't trigger if typing in an input
 
+        if (pointB_active) {
+          deactivatePointB();
+          return;
+        }
+
         const currentDate = new Date();
         const centerMarkerValue = 0 - (timelineOffset / 100);
         const timestamp = new Date(currentDate);
@@ -4142,105 +4157,47 @@ const handleRecenter = () => {
                 return null;
               })()}
               
-              {/* Render event markers with performance optimizations */}
-              {(() => {
-                if (!visibleEvents || visibleEvents.length === 0) {
-                  return null;
-                }
-
-                // Add error boundary for the entire event rendering process
-                try {
-                  // Make sure visibleEvents is valid before mapping
-                  if (!Array.isArray(visibleEvents)) {
-                    console.error('visibleEvents is not a valid array:', visibleEvents);
-                    return null;
-                  }
-                  
-                  // Render only the visible events with additional error handling
-                  return visibleEvents.map((event, index) => {
-                    // Skip rendering if event is invalid
-                    if (!event || typeof event !== 'object' || !event.id) {
-                      console.error('Invalid event object:', event);
-                      return null;
-                    }
-                    
-                    try {
-                      const originalIndex = events.findIndex(e => e && e.id === event.id);
-                      
-                      // Calculate distance from center for staggered animation
-                      const eventDate = new Date(event.event_date);
-                      const currentDate = new Date();
-                      let distanceFromCenter;
-                      
-                      // Calculate distance based on view mode
-                      switch(viewMode) {
-                        case 'day':
-                          // Distance in hours
-                          distanceFromCenter = Math.abs(eventDate.getHours() - currentDate.getHours());
-                          break;
-                        case 'week':
-                          // Distance in days
-                          distanceFromCenter = Math.abs(Math.floor((eventDate - currentDate) / (1000 * 60 * 60 * 24)));
-                          break;
-                        case 'month':
-                          // Distance in days within month
-                          distanceFromCenter = Math.abs(eventDate.getDate() - currentDate.getDate());
-                          break;
-                        case 'year':
-                          // Distance in months
-                          distanceFromCenter = Math.abs(
-                            (eventDate.getMonth() - currentDate.getMonth()) + 
-                            (eventDate.getFullYear() - currentDate.getFullYear()) * 12
-                          );
-                          break;
-                        default:
-                          // Default to index-based delay for position view
-                          distanceFromCenter = index;
-                      }
-                      
-                      // Cap the maximum delay to prevent extremely long waits
-                      const maxDelay = 1000; // 1 second max delay
-                      const baseDelay = 30; // Base delay in ms
-                      const delayMultiplier = 15; // ms per unit of distance
-                      
-                      // Calculate delay with distance-based staggering
-                      // Events closer to center appear first
-                      const delay = Math.min(baseDelay + distanceFromCenter * delayMultiplier, maxDelay);
-                      
-                      return (
-                        <Fade
-                          key={`marker-${event.id}`}
-                          in={isSettled && !markersLoading}
-                          timeout={{ enter: 600, exit: 200 }}
-                          style={{
-                            transitionDelay: isSettled ? `${delay}ms` : '0ms',
-                          }}
-                        >
-                          <div>
-                            <EventMarker
-                              event={event}
-                              viewMode={viewMode}
-                              timelineOffset={timelineOffset}
-                              markerSpacing={100}
-                              isSelected={event.id === selectedEventId}
-                              onClick={handleMarkerClick}
-                              voteDot={voteDotsById[event.id]}
-                              voteDotsLoading={voteDotsLoading}
-                              scanBounds={timelineWorkspaceBounds}
-                            />
-                          </div>
-                        </Fade>
-                      );
-                    } catch (error) {
-                      console.error(`Error rendering event marker for event ${event.id}:`, error);
-                      return null; // Return null for this event if there's an error
-                    }
-                  });
-                } catch (error) {
-                  console.error('Error rendering event markers:', error);
-                  return null; // Return null if the entire rendering process fails
-                }
-              })()}
+              <EventMarkerCanvasV2
+                key={`canvas-rungs-${viewMode}`}
+                events={visibleEvents}
+                viewMode={viewMode}
+                timelineOffset={timelineOffset}
+                markerSpacing={100}
+                selectedEventId={selectedEventId}
+                onMarkerClick={handleMarkerClick}
+                onBackgroundClick={handleBackgroundClick}
+                calculateEventMarkerPosition={calculateEventMarkerPosition}
+              />
+              {selectedVisibleEvent && (
+                <Fade
+                  key={`marker-selected-${selectedVisibleEvent.id}`}
+                  in={!isMoving}
+                  timeout={{ enter: 500, exit: 200 }}
+                >
+                  <div>
+                    <EventMarker
+                      event={selectedVisibleEvent}
+                      viewMode={viewMode}
+                      timelineOffset={timelineOffset}
+                      markerSpacing={100}
+                      index={selectedVisibleIndex}
+                      totalEvents={visibleEvents.length}
+                      currentIndex={currentEventIndex ?? -1}
+                      minMarker={Math.min(...markers)}
+                      maxMarker={Math.max(...markers)}
+                      onClick={handleMarkerClick}
+                      selectedType={selectedType}
+                      isSelected
+                      isMoving={isMoving}
+                      disableHover
+                      disableSelectedPulse
+                      voteDot={voteDotsById[selectedVisibleEvent.id] || null}
+                      showVoteDot
+                      voteDotsLoading={voteDotsLoading}
+                    />
+                  </div>
+                </Fade>
+              )}
             </>
           )}
           {/* Wrap TimeMarkers in Fade component for smoother transitions */}

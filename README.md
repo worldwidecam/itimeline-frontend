@@ -183,6 +183,46 @@ The iTimeline application now features **Community Info Cards with Rich Mentions
 4. **Display**: Cards render with clickable chips that navigate to appropriate destinations
 5. **Reorder**: Drag cards by the drag handle icon to change display order
 
+### ✅ Voting System (Promote/Demote + Influence Dots) - COMPLETE
+
+The platform includes a **per-post voting system** that surfaces engagement sentiment and drives the influence dots shown on the timeline.
+
+**What it does**
+- Users can promote or demote individual posts (global per-post voting, not per-timeline).
+- The influence dot visualizes engagement volume and sentiment.
+
+**Core rules**
+- Only authenticated users can vote (guest/lurker cannot).
+- Vote score = promote + demote (total engagement).
+- Dot color: green for net positive, red for net negative, **invisible for net zero**.
+- Neutral (equal promote/demote) still influences neighbor scaling even if the dot is hidden.
+
+**UI behavior**
+- Vote arrows live in the title row and are right-aligned across cards and popups.
+- Vote arrows are unlabeled (tutorial handles nomenclature).
+- Feedback between arrows: mini pie chart split green/red, shown only after a user votes.
+- After voting, arrows slide apart and the pie chart animates into the gap.
+
+**Influence dot sizing**
+- Height blends global engagement and local neighborhood strength:
+  - `totalVotes = promote + demote`
+  - `netVotes = promote - demote`
+  - `baseHeight = minHeight + (totalVotes / globalMaxVotes) * (maxHeight - minHeight)`
+  - `localMax = max(totalVotes in N-left + N-right + self)`
+  - `localHeight = minHeight + (totalVotes / localMax) * (maxHeight - minHeight)`
+  - `height = (0.7 * baseHeight) + (0.3 * localHeight)`
+  - If `localMax` exceeds max height range, clamp with scale.
+
+**Loading phases (preferred)**
+1. Timeline + Event List load (markers may be deferred)
+2. Event markers render/grow in
+3. Vote dots render independently
+
+**API endpoints (backend)**
+- `POST /api/v1/events/{id}/vote`
+- `GET /api/v1/events/{id}/vote`
+- `DELETE /api/v1/events/{id}/vote`
+
 ---
 
 ## Previous Focus (October 2025)

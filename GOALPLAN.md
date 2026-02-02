@@ -1,111 +1,65 @@
-# GOALPLAN - Voting System (2026-01-15)
+# GOALPLAN — EventMarkers Version 2 (2026-01-29)
 
 ## Main Goal
-Design and integrate a Promote/Demote voting system for posts with influence dots that reflect total engagement and sentiment.
+" I'm creating this major Todo for Event markers because the current system is fine but it has 2 major issues. the first issue is that now we have many more systems in play and the timeline was the first thing i made on this website so it is outdated now. the second issue is that it is just too slow! we need to ideate and come up with a new version way to visualize the event markers that is extremely easy to render so no matter if the user is on day view or all the way to year view, they all run and move smoothly. "
 
----
+## Major TODO (Current Focus)
 
-## Current Subgoal
+- EventMarkers Version 2 (Canvas, V1-like rungs)
 
-**Phase**: Timeline Cleanup & Optimization (Post Vote Dots)
-- [ ] Remove legacy debug logs from TimelineV3 and related components
-- [ ] Audit year view behavior vs other views
-- [ ] Re-verify timeline performance after cleanup
+## Scope / Success Criteria
 
----
+- EventMarkers V2 must perform consistently across day/week/month/year/position views (no view-by-view divergence).
+- Initial implementation starts in month view (dense + sparse test case) but is designed to be view-agnostic.
 
-## Completed Phases
+## Current Phase
 
-### ✅ Phase 1: Product & Visual Spec (COMPLETE)
-- [x] Finalize voting rules (who can vote, per-post scope, vote states)
-- [x] Finalize influence dot behavior (visibility, color, height math)
-- [x] Finalize vote control UI placement (right-aligned in title row)
-- [x] Decide vote feedback between arrows (pie chart vs count)
-- [x] Define phased loading plan (timeline → markers → voting dots)
+- Canvas V2 rebuild (V1-like, no wave, thin rungs)
 
-### ✅ Phase 2: Data & Architecture Plan (COMPLETE)
-- [x] Define storage approach (backend-persisted with PostgreSQL)
-- [x] Define API shape for votes + summary
-- [x] Decide frontend data flow + caching strategy for vote summaries
+## Planned Phases
 
-### ✅ Phase 3: Backend Implementation (COMPLETE - Jan 15, 2026)
-- [x] Create Vote SQLAlchemy model with event_id, user_id, vote_type, timestamps
-- [x] Implement backend Flask endpoints (`/api/v1/events/{id}/vote` POST/GET/DELETE)
-- [x] Add JWT authentication to vote endpoints
-- [x] Create PostgreSQL migration script for vote table
-- [x] Run migration and verify table creation
+- Keep V1 DOM markers running in TimelineV3 while Canvas V2 is built in isolation.
+- Canvas V2: render only thin rungs with V1 color palette; position by x-value only (no wave).
+- Canvas V2: remove proximity height/offset logic; reintroduce only if visually necessary.
+- Canvas V2: hover = brightness fade in/out (no growth).
+- Canvas V2: selected state = beacon pulse upward (no height increase).
+- Canvas V2: explore dense response as thinner + taller rungs (soundwave feel).
+- Transition plan: remove/replace V1 features one at a time (e.g., remove proximity height) while swapping in V2, until V1 is fully removed.
 
-### ✅ Phase 4: Frontend API Integration (COMPLETE - Jan 15, 2026)
-- [x] Create voteApi.js utility functions (castVote, getVoteStats, removeVote)
-- [x] Wire RemarkCard to backend vote API
-- [x] Wire NewsCard to backend vote API
-- [x] Wire MediaCard to backend vote API
-- [x] Wire NewsEventPopup to backend vote API
-- [x] Wire ImageEventPopup to backend vote API
-- [x] Wire VideoEventPopup to backend vote API
-- [x] Wire AudioMediaPopup to backend vote API
-- [x] Fix AudioWaveformVisualizer import error
+## List of TODOs
 
-### Phase 5: Testing & Verification (IN PROGRESS)
-- [x] Verify vote persistence after page refresh (all card types)
-- [x] Verify vote loading in popups on open
-- [x] Verify vote state sync between cards and popups
-- [ ] Verify error handling for network failures
-- [ ] Verify vote controls are disabled for guest/lurker accounts
-- [x] Verify dot visibility + color rules (no dot on neutral)
-- [ ] Visually set correct vote control positioning per Popup type
+- Replace V1 base rungs with Canvas V2 base rungs (keep selection behavior intact).
+- Ensure Canvas V2 recomputes marker positions when switching view modes.
+- Restore deselect behavior when clicking empty timeline space (Canvas overlay).
+- Restore B-key toggle behavior (pressing B should deactivate Point B when active).
+- Restore timeline scroll/drag movement (wheel + drag), currently only left/right buttons move.
+- Audit V1 marker position calc and align Canvas V2 x positions (simplify + replicate in Canvas 2D).
+- Wire Canvas V2 into TimelineV3 without a toggle once core visuals match V1 intent.
+- Replace V1 hover behavior with Canvas V2 brightness fade.
+- Replace V1 selected marker pulse with Canvas V2 upward beacon.
+- Introduce dense response experiment (thin + taller) as a separate step.
 
----
 
-## Notes & Context
+## Completed
 
-### Key Requirements
-- Voting is **per post (global)**, not per timeline
-- Only authenticated users can vote (guest/lurker cannot)
-- Vote score = promote + demote (total engagement)
-- Dot color = green for net positive, red for net negative, invisible for net zero
-- Dot height is based on total vote score first, then neighboring dots
-- No hover tooltip; voting controls live on each post (Reddit-style)
-- Voting dots load in a **separate phase** after timeline content
-- Vote controls sit **right-aligned** in the same title row (cards + popups)
-- Vote arrows are **unlabeled** (tutorial handles nomenclature)
- - Vote dot scan direction confirmed left-to-right (Jan 28, 2026)
+- Fully map current EventMarker system interactions (EventList, EventCounter, hover, selection, call/response).
+- Remove proximity-based height changes from V1 markers (first incremental swap step).
+## Notes / Decisions
 
-### Design Decisions
-- No connecting line between dots
-- Neutral (equal promote/demote) renders **no dot**, but still influences neighbor scaling
-- Dot height uses a capped range derived from timeline workspace (exact range TBD)
-- Influence dot is a **single particle** with subtle brightness pulsing (no glow/bloom)
-- Vote feedback between arrows (preferred): mini pie chart split green/red
-- Pie chart appears only after the current user has cast a vote
-- Interaction: arrows sit closer together when no vote; when a user votes, arrows slide apart and the equal-size pie chart animates into the gap
-- Dot height math (explicit):
-  - totalVotes = promote + demote
-  - netVotes = promote - demote
-  - Dot is visible only when netVotes != 0
-  - Use neutral dots in scaling even if invisible
-  - Global base height (total-first):
-    - baseHeight = minHeight + (totalVotes / globalMaxVotes) * (maxHeight - minHeight)
-  - Local neighbor influence (neighbor-second):
-    - localMax = max(totalVotes in N-left + N-right + self)
-    - localHeight = minHeight + (totalVotes / localMax) * (maxHeight - minHeight)
-  - Final height (blend):
-    - height = (0.7 * baseHeight) + (0.3 * localHeight)
-  - If localMax exceeds maxHeight range, clamp with scale:
-    - scale = maxHeight / localMax
-    - height = height * scale
-- Loading phases (preferred):
-  - Phase 1: Timeline + Event List load (markers may be deferred)
-  - Phase 2: Event markers render/grow in
-  - Phase 3: Vote dots render in independently
+- Restart Canvas V2 from scratch: mirror V1 marker behavior without DOM.
+- No wave: render rungs only.
+- Rungs should be thinner than V1 for a minimal look.
+- No proximity height/overlap offsets in the first Canvas pass.
+- Hover uses brightness fade (no scale or glow swell).
+- Selected state uses an upward pulse (beacon) instead of height growth.
+- Use V1 color palette (five event-type colors) and position rungs by x-value only.
+- EventCounter remains the precision navigator for exact selection.
 
----
+## System Map (Current V1 Interactions)
 
-## Completed Items
-
--  Feature ideation and requirements gathering
--  Design specifications finalized
--  Access control model defined
--  Layout and display location confirmed
--  Database schema structure planned
--  API endpoint structure planned
+- TimelineV3 renders EventMarker via visibleEvents and passes selection/handlers.
+- EventMarker click -> TimelineV3.handleMarkerClick -> activates Point B, sets selectedEventId, syncs currentEventIndex.
+- EventCounter uses currentEventIndex/onChangeIndex to drive selection; updates selectedEventId in TimelineV3.
+- EventList listens to selectedEventId to scroll/focus cards; TimelineV3 sets selectedEventId in multiple flows (clicks, nav, view changes).
+- Hover is local to EventMarker (no shared hover state).
+- Proximity height/offset logic is currently disabled (incremental swap step).
