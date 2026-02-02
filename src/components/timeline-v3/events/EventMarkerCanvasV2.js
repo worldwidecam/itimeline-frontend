@@ -6,12 +6,14 @@ const DENSITY_WINDOW = 120;
 const DENSITY_THRESHOLD = 6;
 const BASE_RUNG_HEIGHT = 36;
 const DENSE_RUNG_HEIGHT = 36;
-const BASE_RUNG_WIDTH = 5;
-const THIN_RUNG_WIDTH = 1;
-const SELECTED_RUNG_WIDTH = 2.5;
+const BASE_RUNG_WIDTH = 4;
+const THIN_RUNG_WIDTH = 1.2;
+const SELECTED_RUNG_WIDTH = 3.2;
+const BASELINE_Y_RATIO = 0.75;
 const BASE_ALPHA = 0.7;
 const HOVER_ALPHA = 1;
 const HOVER_LERP = 0.12;
+const PULSE_GAP = 4;
 const PULSE_HEIGHT = 28;
 const PULSE_DURATION = 1200;
 
@@ -142,7 +144,7 @@ const EventMarkerCanvasV2 = ({
     ctx.translate(timelineOffset, 0);
     ctx.lineCap = 'round';
 
-    const baselineY = height - 70;
+    const baselineY = height * BASELINE_Y_RATIO;
 
     positions.forEach((pos, index) => {
       const density = getLocalDensity(positions, index);
@@ -157,25 +159,38 @@ const EventMarkerCanvasV2 = ({
         ? 1
         : (BASE_ALPHA + (HOVER_ALPHA - BASE_ALPHA) * hoverBoost);
 
-      ctx.lineWidth = isSelected
+      const lineWidth = isSelected
         ? SELECTED_RUNG_WIDTH
         : (isDense ? THIN_RUNG_WIDTH : BASE_RUNG_WIDTH);
+      ctx.lineWidth = lineWidth;
       ctx.strokeStyle = hexToRgba(getEventColor(pos.event), alpha);
       ctx.beginPath();
       ctx.moveTo(pos.x, baselineY);
       ctx.lineTo(pos.x, topY);
       ctx.stroke();
 
+      if (!isSelected && !isDense) {
+        const coreWidth = Math.max(1, lineWidth - 1.4);
+        ctx.lineWidth = coreWidth;
+        ctx.strokeStyle = hexToRgba(getEventColor(pos.event), Math.min(1, alpha + 0.12));
+        ctx.beginPath();
+        ctx.moveTo(pos.x, baselineY);
+        ctx.lineTo(pos.x, topY);
+        ctx.stroke();
+      }
+
       if (isSelected) {
         const phase = (time % PULSE_DURATION) / PULSE_DURATION;
-        const pulseTop = topY - (phase * PULSE_HEIGHT);
-        const gradient = ctx.createLinearGradient(pos.x, topY, pos.x, pulseTop);
-        gradient.addColorStop(0, hexToRgba(getEventColor(pos.event), 0.8));
+        const fade = Math.sin(Math.PI * phase);
+        const pulseStart = topY - PULSE_GAP;
+        const pulseTop = pulseStart - (phase * PULSE_HEIGHT);
+        const gradient = ctx.createLinearGradient(pos.x, pulseStart, pos.x, pulseTop);
+        gradient.addColorStop(0, hexToRgba(getEventColor(pos.event), 0.7 * fade));
         gradient.addColorStop(1, hexToRgba(getEventColor(pos.event), 0));
         ctx.strokeStyle = gradient;
         ctx.lineWidth = Math.max(1, ctx.lineWidth - 0.5);
         ctx.beginPath();
-        ctx.moveTo(pos.x, topY);
+        ctx.moveTo(pos.x, pulseStart);
         ctx.lineTo(pos.x, pulseTop);
         ctx.stroke();
       }
@@ -209,6 +224,17 @@ const EventMarkerCanvasV2 = ({
       animationRef.current = requestAnimationFrame(animate);
     }
   }, [draw, animate, selectedEventId, positions]);
+
+  useEffect(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    draw(performance.now());
+    if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target) {
+      animationRef.current = requestAnimationFrame(animate);
+    }
+  }, [selectedEventId, animate, draw]);
 
   useEffect(() => {
     if (timelineOffset !== undefined) {

@@ -55,6 +55,7 @@ const EventMarker = ({
   scanBounds = null,
   disableHover = false,
   disableSelectedPulse = false,
+  showMarkerLine = true,
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -535,6 +536,11 @@ const EventMarker = ({
     };
   };
 
+  const centerX = window.innerWidth / 2;
+  const previewShift = position?.x > centerX
+    ? 'calc(-100% - 8px)'
+    : '8px';
+
   return (
     <>
       {isSelected ? (
@@ -599,54 +605,56 @@ const EventMarker = ({
               }}
             />
           )}
-          <Box
-            ref={markerRef}
-            className="active-marker"
-            onClick={handleMarkerClick}
-            onMouseEnter={() => {
-              if (!disableHover) setIsHovered(true);
-            }}
-            onMouseLeave={() => {
-              if (!disableHover) setIsHovered(false);
-            }}
-            sx={{
-              width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-              height: `${Math.min(getMaxAllowedHeight(true, false), Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier())}px`, // Height constrained by workspace
-              cursor: 'pointer',
-              position: 'relative',
-              // Increased click area with pseudo-element
-              ...(disableSelectedPulse
-                ? {}
-                : {
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    inset: '-15px', // Increased from -8px to -15px for larger click area
-                    background: `radial-gradient(ellipse at center, ${getColor()}30 0%, transparent 70%)`,
-                    borderRadius: '4px',
-                    animation: 'pulse 2s infinite',
-                  },
-                }),
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                inset: 0,
-                background: `linear-gradient(to top, ${getColor()}99, ${getColor()})`,
-                borderRadius: '4px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: `0 0 10px ${getColor()}40`,
-                opacity: getMarkerOpacity(),
-              },
-              '&:hover::after': {
-                transform: 'scaleY(1.1) scaleX(1.5)',
-                boxShadow: `
-                  0 0 0 2px ${theme.palette.background.paper},
-                  0 0 0 4px ${getColor()}40,
-                  0 0 12px ${getColor()}60
-                `,
-              }
-            }}
-          />
+          {showMarkerLine && (
+            <Box
+              ref={markerRef}
+              className="active-marker"
+              onClick={handleMarkerClick}
+              onMouseEnter={() => {
+                if (!disableHover) setIsHovered(true);
+              }}
+              onMouseLeave={() => {
+                if (!disableHover) setIsHovered(false);
+              }}
+              sx={{
+                width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
+                height: `${Math.min(getMaxAllowedHeight(true, false), Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier())}px`, // Height constrained by workspace
+                cursor: 'pointer',
+                position: 'relative',
+                // Increased click area with pseudo-element
+                ...(disableSelectedPulse
+                  ? {}
+                  : {
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      inset: '-15px', // Increased from -8px to -15px for larger click area
+                      background: `radial-gradient(ellipse at center, ${getColor()}30 0%, transparent 70%)`,
+                      borderRadius: '4px',
+                      animation: 'pulse 2s infinite',
+                    },
+                  }),
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  background: `linear-gradient(to top, ${getColor()}99, ${getColor()})`,
+                  borderRadius: '4px',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: `0 0 10px ${getColor()}40`,
+                  opacity: getMarkerOpacity(),
+                },
+                '&:hover::after': {
+                  transform: 'scaleY(1.1) scaleX(1.5)',
+                  boxShadow: `
+                    0 0 0 2px ${theme.palette.background.paper},
+                    0 0 0 4px ${getColor()}40,
+                    0 0 12px ${getColor()}60
+                  `,
+                }
+              }}
+            />
+          )}
           
           {/* Popup for selected marker - Context-aware positioning */}
           <Paper
@@ -656,7 +664,7 @@ const EventMarker = ({
               // Position above the marker
               bottom: event.type === EVENT_TYPES.NEWS ? '24px' : '36px', // Lower position for news events
               left: '50%',
-              transform: 'translateX(-50%) scale(0.8)', // Scale down by 20%
+              transform: `translateX(${previewShift}) scale(0.8)`, // Scale down + offset toward [0]
               transformOrigin: 'bottom center', // Ensure scaling happens from the bottom center
               p: 0, // Remove default padding to control it in child elements
               maxWidth: 256, // Reduced from 320 (320 * 0.8)
@@ -814,84 +822,86 @@ const EventMarker = ({
               }}
             />
           )}
-          <Box
-            ref={markerRef}
-            className={markerClass}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            sx={{
-              width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-              // Calculate base height based on view mode
-              height: `${(() => {
-                // Set minimum heights based on view mode
-                let baseHeight = 24; // Default base height
-                let minHeight = 40; // Default minimum height
-                
-                if (viewMode === 'day') {
-                  minHeight = 50; // Larger minimum for day view
-                  baseHeight = 30;
-                } else if (viewMode === 'week') {
-                  minHeight = 45; // Medium minimum for week view
-                  baseHeight = 28;
-                } else if (viewMode === 'month') {
-                  minHeight = 40; // Standard minimum for month view
-                  baseHeight = 26;
-                } else if (viewMode === 'year') {
-                  minHeight = 35; // Smaller minimum for year view to avoid overcrowding
-                  baseHeight = 24;
-                }
-                
-                // Calculate base height based on view mode and overlapping factor
-                const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
-                // Apply workspace constraints
-                return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
-              })()}px`, // Height constrained by workspace
-              borderRadius: '2px',
-              background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
-              transform: isMoving 
-                ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
-                : 'translateX(0)',
-              transformOrigin: 'bottom center', // Shrink from bottom to top
-              opacity: isMoving ? 0 : getMarkerOpacity(),
-              cursor: 'pointer',
-              transition: isMoving
-                ? 'all 0.25s ease-out' // Faster transition for movement
-                : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy effect when appearing
-              // Enhanced visual appearance for all filter views (day, week, month, year)
-              ...(viewMode !== 'position' && {
-                boxShadow: isMoving ? 'none' : `0 0 6px ${getColor()}40`,
-                // Special styling for week view
-                ...(viewMode === 'week' && {
-                  width: '4px',
-                  boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`
-                })
-              }),
-              // Add a larger invisible click area using ::before pseudo-element
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                inset: '-15px', // Creates a 15px invisible padding around the marker
-                zIndex: 1, // Ensures it's clickable
-              },
-              '&:hover': disableHover
-                ? {}
-                : {
-                  background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
-                  transform: isMoving 
-                    ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
-                    : 'scaleY(1.2) scaleX(1.3)',
-                  boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
-                  ...(viewMode !== 'position' && {
-                    boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
-                    // Enhanced hover effect for week view
-                    ...(viewMode === 'week' && {
-                      boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
-                    })
+          {showMarkerLine && (
+            <Box
+              ref={markerRef}
+              className={markerClass}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              sx={{
+                width: `${3 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
+                // Calculate base height based on view mode
+                height: `${(() => {
+                  // Set minimum heights based on view mode
+                  let baseHeight = 24; // Default base height
+                  let minHeight = 40; // Default minimum height
+                  
+                  if (viewMode === 'day') {
+                    minHeight = 50; // Larger minimum for day view
+                    baseHeight = 30;
+                  } else if (viewMode === 'week') {
+                    minHeight = 45; // Medium minimum for week view
+                    baseHeight = 28;
+                  } else if (viewMode === 'month') {
+                    minHeight = 40; // Standard minimum for month view
+                    baseHeight = 26;
+                  } else if (viewMode === 'year') {
+                    minHeight = 35; // Smaller minimum for year view to avoid overcrowding
+                    baseHeight = 24;
+                  }
+                  
+                  // Calculate base height based on view mode and overlapping factor
+                  const baseCalculatedHeight = Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
+                  // Apply workspace constraints
+                  return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
+                })()}px`, // Height constrained by workspace
+                borderRadius: '2px',
+                background: `linear-gradient(to top, ${getColor()}80, ${getColor()})`,
+                transform: isMoving 
+                  ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+                  : 'translateX(0)',
+                transformOrigin: 'bottom center', // Shrink from bottom to top
+                opacity: isMoving ? 0 : getMarkerOpacity(),
+                cursor: 'pointer',
+                transition: isMoving
+                  ? 'all 0.25s ease-out' // Faster transition for movement
+                  : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy effect when appearing
+                // Enhanced visual appearance for all filter views (day, week, month, year)
+                ...(viewMode !== 'position' && {
+                  boxShadow: isMoving ? 'none' : `0 0 6px ${getColor()}40`,
+                  // Special styling for week view
+                  ...(viewMode === 'week' && {
+                    width: '4px',
+                    boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`
                   })
+                }),
+                // Add a larger invisible click area using ::before pseudo-element
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: '-15px', // Creates a 15px invisible padding around the marker
+                  zIndex: 1, // Ensures it's clickable
                 },
-            }}
-            onClick={handleMarkerClick}
-          />
+                '&:hover': disableHover
+                  ? {}
+                  : {
+                    background: isMoving ? `linear-gradient(to top, ${getColor()}80, ${getColor()})` : `linear-gradient(to top, ${getHoverColor()}90, ${getHoverColor()})`,
+                    transform: isMoving 
+                      ? `translateX(${timelineOffset > 0 ? -10 : 10}px) scaleY(0)` 
+                      : 'scaleY(1.2) scaleX(1.3)',
+                    boxShadow: isMoving ? 'none' : `0 0 8px ${getColor()}60`,
+                    ...(viewMode !== 'position' && {
+                      boxShadow: isMoving ? 'none' : `0 0 10px ${getColor()}70`,
+                      // Enhanced hover effect for week view
+                      ...(viewMode === 'week' && {
+                        boxShadow: isMoving ? 'none' : `0 0 12px ${getColor()}80`
+                      })
+                    })
+                  },
+              }}
+              onClick={handleMarkerClick}
+            />
+          )}
         </Box>
       )}
     </>

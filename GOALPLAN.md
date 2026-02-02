@@ -11,6 +11,8 @@
 
 - EventMarkers V2 must perform consistently across day/week/month/year/position views (no view-by-view divergence).
 - Initial implementation starts in month view (dense + sparse test case) but is designed to be view-agnostic.
+- success will be a smooth and responsive timeline that can handle many events without lagging. 
+- also, this system needs to works just as well and better than the old system did! so we can reduce and remove some code from TimelineV3, so it can focus more closely on purely its own thing.
 
 ## Current Phase
 

@@ -4198,6 +4198,7 @@ const handleRecenter = () => {
                       isMoving={isMoving}
                       disableHover
                       disableSelectedPulse
+                      showMarkerLine={false}
                       voteDot={voteDotsById[selectedVisibleEvent.id] || null}
                       showVoteDot
                       voteDotsLoading={voteDotsLoading}
