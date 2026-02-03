@@ -1343,8 +1343,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (!visibleEvents.length) return {};
 
     const dotSize = 6;
-    const minOffset = 1;
-    const maxOffset = 12;
+    const minOffset = 3;
+    const maxOffset = 16;
     const neighborRange = 2;
 
     const totals = visibleEvents.map((event) => {

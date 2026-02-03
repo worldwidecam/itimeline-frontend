@@ -34,18 +34,21 @@
 - Ensure Canvas V2 recomputes marker positions when switching view modes.
 - Restore deselect behavior when clicking empty timeline space (Canvas overlay).
 - Restore B-key toggle behavior (pressing B should deactivate Point B when active).
-- Restore timeline scroll/drag movement (wheel + drag), currently only left/right buttons move.
 - Audit V1 marker position calc and align Canvas V2 x positions (simplify + replicate in Canvas 2D).
 - Wire Canvas V2 into TimelineV3 without a toggle once core visuals match V1 intent.
 - Replace V1 hover behavior with Canvas V2 brightness fade.
 - Replace V1 selected marker pulse with Canvas V2 upward beacon.
-- Introduce dense response experiment (thin + taller) as a separate step.
+- Regression check: EventCounter cycle/selection, EventCarousel colors, back-to-present, view transitions, filters.
+- Defer dense response experiment (thin + taller) until vote dot scaling is settled.
+- Move scroll/drag (wheel + drag), baseline tuning, and coordinate markers to later TimelineV3 improvements.
 
 
 ## Completed
 
 - Fully map current EventMarker system interactions (EventList, EventCounter, hover, selection, call/response).
 - Remove proximity-based height changes from V1 markers (first incremental swap step).
+- Vote dot fade-in added; staggered glow preserved.
+- Rung width mapped to markerValue spacing rules.
 ## Notes / Decisions
 
 - Restart Canvas V2 from scratch: mirror V1 marker behavior without DOM.
@@ -61,6 +64,13 @@
 - Preview card shifts toward [0] so the rung stays visible beside it.
 - Canvas rung baseline aligned to the TimelineBar (y at 75% height).
 - Selected pulse uses a small gap and sine-fade to avoid hard collisions and snapping.
+- Rung width now maps to markerValue spacing (not pixel density):
+  - 5px: at least 1.0 coordinate space around it.
+  - 4px: at least 0.5 space.
+  - 3px: at least 0.25 space.
+  - 2px: less than 0.25 space but still has 1px clearance on both sides.
+  - 1px: less than 0.25 space and overlaps (no 1px clearance on both sides).
+- Height/density response for clusters is pending (to be defined).
 
 ## System Map (Current V1 Interactions)
 

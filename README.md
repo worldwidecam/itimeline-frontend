@@ -426,7 +426,7 @@ The iTimeline application supports Community Timelines with a Bronze/Silver/Gold
 
 - **Members Tab**: 
   - "Current Action" plaque with gold-plated design to highlight community focus
-  - Member list with role-based styling and avatars
+  - Member list with role badges and avatars
   - Smooth staggered animations for better perceived performance
   - Loading skeletons for improved user experience
   - Read-only member rows (legacy inline promote/remove controls removed; management lives in Admin Panel)
@@ -663,7 +663,7 @@ File references:
 
 **Issue**: Month/year views showed Cloudinary 404s while day/week appeared fine. EventList cards attempted to construct Cloudinary URLs from a missing `cloudinary_id` field instead of using `media_url`.
 
-**Root cause**: `MediaCard.prepareMediaSources()` rebuilt Cloudinary URLs even when `media_url` already contained a complete, valid Cloudinary URL. This diverged from marker hover cards, which used `media_url` directly.
+**Root cause**: `MediaCard.prepareMediaSources()` rebuilt Cloudinary URLs even when `media_url` already contained a complete Cloudinary URL. This diverged from marker hover cards, which used `media_url` directly.
 
 **Fix**: Prefer `media_url` when it is already a Cloudinary URL; only attempt `cloudinary_id` fallbacks when no valid Cloudinary URL is present.
 
@@ -929,41 +929,6 @@ const formatCount = (count) => {
 - Status tabs are always color-tinted (Pending=warning, Reviewing=info, Resolved=success).
 - Future: display parsed category badge from reason prefix without schema change.
 
-### Quality of Life Improvements (October 2025)
-
-A series of UI/UX enhancements were implemented to improve the overall user experience and visual polish of the application:
-
-#### Event Status Indicators
-- **"Under Review" Visual Indicator**: Event cards now display an orange "Under Review" badge when their status is 'reviewing'
-  - Appears in EventList for quick visual scanning
-  - Helps moderators track which posts are actively being moderated
-  - Color-coded with warning icon for immediate recognition
-
-#### Manage Posts Enhancements
-- **Event Type Icons**: Report cards now display color-coded icons indicating the type of content reported
-  - News events: Red newspaper icon
-  - Media events: Purple media icon (image/video/audio)
-  - Remark events: Blue comment icon
-  - Provides instant visual context about the reported content
-
-- **Report Reason Chip Colors**: Violation type chips now use a cohesive color palette
-  - Website Policy: Blue (#1976d2)
-  - Government Policy: Orange (#ed6c02)
-  - Unethical Boundary: Red (#d32f2f)
-  - Solid colors with white text for better readability
-
-- **Status Phase Borders**: Report cards feature a 4px colored left border indicating their phase
-  - Pending: Orange border (#D97706)
-  - Reviewing: Blue border (#2563EB)
-  - Resolved: Green border (#059669)
-  - Enables quick visual scanning of report status in the ALL tab
-
-#### Event Popup Improvements
-- **Grey Border Removal**: Removed subtle border artifacts from all event popup dialogs
-  - Affected components: EventPopup, ImageEventPopup, VideoEventPopup, AudioMediaPopup, NewsEventPopup
-  - Changed from `border: '1px solid rgba(0,0,0,0.05)'` to `border: 'none'`
-  - Cleaner visual appearance without compromising definition (boxShadow still provides depth)
-
 ### EventPopup Unified Layout Standards (November 2025)
 
 All EventPopup components now follow a consistent, unified layout structure for improved UX consistency and visual polish.
@@ -1141,8 +1106,6 @@ The V2 system redesigns hashtag/timeline creation and chip display so that hasht
   - The event's tags include `#name` and the event is in the `i-Name` timeline
   - On cards, we show `#name` in the main area **and** an `i-Name` chip in the community lane
 
-**Personal exception**: Posts originating on `My-` timelines are intentionally excluded from the "always have a `#`" standard to protect personal-space privacy.
-
 ### PopupTimelineLanes Component
 
 **Location**: `src/components/timeline-v3/events/PopupTimelineLanes.js`
@@ -1278,8 +1241,8 @@ Event markers display interactive popovers when selected, providing a preview of
 ### EventMarker Refactoring (June 2024)
 - **Modular Marker Components**: Split into specialized components for each event type
   - `MediaEventMarker`: Handles image, video, and audio events with type-specific rendering
-  - `NewsEventMarker`: Dedicated component for news events with optimized image handling
-  - `RemarkEventMarker`: Focused component for remark/note events
+  - `RemarkEventMarker`: Dedicated component for remark/note events
+  - `NewsEventMarker`: Dedicated component for news events
 - **Performance Improvements**:
   - Reduced re-renders through better component isolation
   - Optimized media loading and error handling
@@ -1715,7 +1678,7 @@ However, for backward compatibility, our configuration maintains support for the
 - `npm run build` - Build for production
 - `npm run preview` - Preview the production build locally
 - `npm test` - Run tests
-- `npm run test:watch` - Run tests in watch mode
+- `npm test:watch` - Run tests in watch mode
 
 #### Performance Optimizations
 
@@ -2110,23 +2073,9 @@ This section contains low-priority improvements, polish items, and feature ideas
 - [ ] is email blur preference saved to passport?
 - [ ] i need to make a little ballot box form icon on the website
 - [ ] when searching a timeline on the homepage, the search results shouldn't be decided by the scrolling of before.
-- [ ] Submission idea box for users with ideas
+- [ ] submission idea box for users with ideas
 - [ ] i'm worried about event markers. lets brainstorm a better wat to visualize and optimize the event markers to plan for 1000s of events
 - [ ] the website needs a little icon image. like the one that comes with the URL  
-- [ ] we need to BAN the typing of "-" in timeline creation or inputing tags. it gets too convoluted with spaces and i'd rather have spaces.
-- [ ] we need to BAN the typing of "#" in timeline creation or inputing tags
-- [ ] we need to create on timelineV3 a second Reference point (reference point B), because currently everything moves only depending on 1 reference point A (point [0]). with a second reference point, we can better track what the user wants to see. even if they change filter views. Reference point B will be in relevance to the distance from Point A. and our new definition of Point A will be today's current date/time. the problem with our current understanding is that we are not tracking the distance from point A. we are tracking the distance from point 0. this is a MAJOR TODO. parent level.
-- [ ] we need to create a sort of influence system, where users can influence the timeline. for instance, i'm envisioning a nuetral dot hovering above all event markers. events can be given a positive or negative vote feature. our version will be called "Promote" / "Demote".promoting and demoting will affect the position/look of this dot above the event's marker. if it is overall promoted, the dot will be green. if it is overall demoted, it will be red. we should connect all the dots horizontally like a financial chart. more thoughts on this upon request.also we must actually be working on this. this is a major parent TODO. 
-- [ ] special flare to event markers with the most interaction in view. 
-- [ ] take a day to audit all files. delete old unneccessary files.
-- [ ] possibly add an additional row to "last visited" in hamburger menu.
-- [ ] still need to figure out a way to make eventPopups not dependent on timelineV3.currently you can tell on audio media eventpopups , that the audio does not play all the way through. i think this is because the timelinev3 in the back is updating the eventpopup. 
-- [ ] remember to test production server port 4173
-- [ ] revisit homepage design once ratings system is in place
-- [ ] create ratings system. as mentioned above in passing thought, promote and demote will be the ratings system. also we will add user ability to vote on one of the event's listed tags. that way we can use the tags in a more dynamic way. for instance, if someone added the tag #fakenews to an event, we can use this tag to rate the event. if this was the most voted tag on the event, we can stamp the event with a "fakenews" label. 
-- [ ] community timelines need an overall status dropdown on their timeline pages. a fast way to see where something currently is, and if its positive or negative.
-- [ ] we probably should cleanup the media event field input.
-- [ ] EventPopup overlay has this weird grey border line. i can see it sometimes. it pulls me out of focus and i don't know how to better explain it.
 - [ ] we need to talk about creating a comment section on events/posts. how easy/complex is this?
 - [ ] home page sorting options? another thing to consider once we have a ratings system.
 - [ ] profile background customization?
@@ -2140,6 +2089,7 @@ This section contains low-priority improvements, polish items, and feature ideas
 - [ ] make a subsection tab of news event type for social media. that way we can spend less space storing social media posts. 
 - [ ] make SiteAdmin role
 - [ ] make remarks more like tweet phone convo word bubbles, featuring the user's profile picture and name. 
+- [ ] EventList filter buttons update the list before fades; align order-of-operations later.
 
 
 ---

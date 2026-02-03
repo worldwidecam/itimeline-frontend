@@ -6,9 +6,10 @@ const DENSITY_WINDOW = 120;
 const DENSITY_THRESHOLD = 6;
 const BASE_RUNG_HEIGHT = 36;
 const DENSE_RUNG_HEIGHT = 36;
-const BASE_RUNG_WIDTH = 4;
-const THIN_RUNG_WIDTH = 1.2;
+const BASE_RUNG_WIDTH = 5;
+const THIN_RUNG_WIDTH = 1;
 const SELECTED_RUNG_WIDTH = 3.2;
+const OVERLAP_CLEARANCE_PX = 3;
 const BASELINE_Y_RATIO = 0.75;
 const BASE_ALPHA = 0.7;
 const HOVER_ALPHA = 1;
@@ -184,7 +185,8 @@ const EventMarkerCanvasV2 = ({
       voteFadeRef.current.start = null;
     }
 
-    positions.forEach((pos, index) => {
+    const selectedIndex = positions.findIndex((pos) => pos.event?.id === selectedEventId);
+    const drawRungAtIndex = (pos, index) => {
       const density = getLocalDensity(positions, index);
       const isDense = density >= DENSITY_THRESHOLD;
       const rungHeight = isDense ? DENSE_RUNG_HEIGHT : BASE_RUNG_HEIGHT;
@@ -197,9 +199,23 @@ const EventMarkerCanvasV2 = ({
         ? 1
         : (BASE_ALPHA + (HOVER_ALPHA - BASE_ALPHA) * hoverBoost);
 
-      const lineWidth = isSelected
-        ? SELECTED_RUNG_WIDTH
-        : (isDense ? THIN_RUNG_WIDTH : BASE_RUNG_WIDTH);
+      const leftGap = index > 0
+        ? Math.abs(pos.markerValue - positions[index - 1].markerValue)
+        : Infinity;
+      const rightGap = index < positions.length - 1
+        ? Math.abs(positions[index + 1].markerValue - pos.markerValue)
+        : Infinity;
+      const minGap = Math.min(leftGap, rightGap);
+      const minGapPx = minGap * (markerSpacing || 0);
+      const isOverlapping = minGapPx < OVERLAP_CLEARANCE_PX;
+      const spacingWidth = minGap >= 1
+        ? 5
+        : (minGap >= 0.5
+          ? 4
+          : (minGap >= 0.25
+            ? 3
+            : (isOverlapping ? 1 : 2)));
+      const lineWidth = isSelected ? SELECTED_RUNG_WIDTH : spacingWidth;
       ctx.lineWidth = lineWidth;
       ctx.strokeStyle = hexToRgba(getEventColor(pos.event), alpha);
       ctx.beginPath();
@@ -207,7 +223,7 @@ const EventMarkerCanvasV2 = ({
       ctx.lineTo(pos.x, topY);
       ctx.stroke();
 
-      if (!isSelected && !isDense) {
+      if (!isSelected && lineWidth >= 3) {
         const coreWidth = Math.max(1, lineWidth - 1.4);
         ctx.lineWidth = coreWidth;
         ctx.strokeStyle = hexToRgba(getEventColor(pos.event), Math.min(1, alpha + 0.12));
@@ -217,11 +233,52 @@ const EventMarkerCanvasV2 = ({
         ctx.stroke();
       }
 
+      const voteDot = voteDotsById?.[pos.event?.id] || null;
+      const hasVoteDot = !voteDotsLoading && voteDot?.isVisible;
+      let dotRadius = 0;
+      let dotCenterY = 0;
+      let dotColor = VOTE_NEUTRAL_COLOR;
+      let isNeutral = true;
+      let idleColor = 'rgb(170, 170, 170)';
+      let brightColor = 'rgb(255, 255, 255)';
+      let glowStrength = 0;
+      let idleGlowAlpha = 0;
+      let brightGlowAlpha = 0;
+      if (hasVoteDot) {
+        const dotSize = voteDot.size ?? 6;
+        const dotOffset = voteDot.offset ?? 0;
+        const dotSizeClamped = Math.max(3, Math.min(dotSize, lineWidth * 2));
+        dotRadius = dotSizeClamped / 2;
+        const maxOffset = Math.max(0, topY - VOTE_DOT_PADDING - (dotRadius * 2));
+        const clampedOffset = Math.min(dotOffset, maxOffset);
+        dotCenterY = Math.max(
+          dotRadius,
+          topY - VOTE_DOT_PADDING - clampedOffset - dotRadius
+        );
+        dotColor = voteDot.netVotes > 0
+          ? VOTE_POSITIVE_COLOR
+          : (voteDot.netVotes < 0 ? VOTE_NEGATIVE_COLOR : VOTE_NEUTRAL_COLOR);
+        isNeutral = voteDot.netVotes === 0 || voteDot.isNeutral;
+        idleColor = isNeutral ? 'rgb(170, 170, 170)' : dotColor;
+        brightColor = isNeutral ? 'rgb(255, 255, 255)' : dotColor;
+        const phaseOffset = (pos.x - minX) / rangeX;
+        const glowPhase = ((time / VOTE_GLOW_CYCLE) + (1 - phaseOffset)) % 1;
+        const distance = Math.abs(glowPhase - 0.5);
+        glowStrength = Math.pow(Math.max(0, 1 - (distance / VOTE_GLOW_WIDTH)), 2);
+        idleGlowAlpha = (isNeutral ? 0.15 : 0.2) * voteFadeProgress;
+        brightGlowAlpha = (isNeutral ? 0.7 : 0.9) * glowStrength * voteFadeProgress;
+      }
+
       if (isSelected) {
         const phase = (time % PULSE_DURATION) / PULSE_DURATION;
         const fade = Math.sin(Math.PI * phase);
         const pulseStart = topY - PULSE_GAP;
-        const pulseTop = pulseStart - (phase * PULSE_HEIGHT);
+        const dotBottom = dotCenterY + dotRadius;
+        const pulseTopTarget = hasVoteDot
+          ? Math.max(2, dotBottom - PULSE_GAP)
+          : (pulseStart - PULSE_HEIGHT);
+        const pulseHeight = Math.max(PULSE_HEIGHT, pulseStart - pulseTopTarget);
+        const pulseTop = pulseStart - (phase * pulseHeight);
         const gradient = ctx.createLinearGradient(pos.x, pulseStart, pos.x, pulseTop);
         gradient.addColorStop(0, hexToRgba(getEventColor(pos.event), 0.7 * fade));
         gradient.addColorStop(1, hexToRgba(getEventColor(pos.event), 0));
@@ -233,31 +290,7 @@ const EventMarkerCanvasV2 = ({
         ctx.stroke();
       }
 
-      const voteDot = voteDotsById?.[pos.event?.id] || null;
-      if (!voteDotsLoading && voteDot?.isVisible) {
-        const dotSize = voteDot.size ?? 6;
-        const dotOffset = voteDot.offset ?? 0;
-        const dotSizeClamped = Math.max(3, Math.min(dotSize, lineWidth * 2));
-        const dotRadius = dotSizeClamped / 2;
-        const maxOffset = Math.max(0, topY - VOTE_DOT_PADDING - (dotRadius * 2));
-        const clampedOffset = Math.min(dotOffset, maxOffset);
-        const dotCenterY = Math.max(
-          dotRadius,
-          topY - VOTE_DOT_PADDING - clampedOffset - dotRadius
-        );
-        const dotColor = voteDot.netVotes > 0
-          ? VOTE_POSITIVE_COLOR
-          : (voteDot.netVotes < 0 ? VOTE_NEGATIVE_COLOR : VOTE_NEUTRAL_COLOR);
-        const isNeutral = voteDot.netVotes === 0 || voteDot.isNeutral;
-        const idleColor = isNeutral ? 'rgb(170, 170, 170)' : dotColor;
-        const brightColor = isNeutral ? 'rgb(255, 255, 255)' : dotColor;
-        const phaseOffset = (pos.x - minX) / rangeX;
-        const glowPhase = ((time / VOTE_GLOW_CYCLE) + (1 - phaseOffset)) % 1;
-        const distance = Math.abs(glowPhase - 0.5);
-        const glowStrength = Math.pow(Math.max(0, 1 - (distance / VOTE_GLOW_WIDTH)), 2);
-        const idleGlowAlpha = (isNeutral ? 0.15 : 0.2) * voteFadeProgress;
-        const brightGlowAlpha = (isNeutral ? 0.7 : 0.9) * glowStrength * voteFadeProgress;
-
+      if (hasVoteDot) {
         ctx.save();
         ctx.fillStyle = idleColor;
         ctx.globalAlpha = idleGlowAlpha + brightGlowAlpha * 0.6;
@@ -272,7 +305,15 @@ const EventMarkerCanvasV2 = ({
         ctx.fill();
         ctx.restore();
       }
+    };
+
+    positions.forEach((pos, index) => {
+      if (index === selectedIndex) return;
+      drawRungAtIndex(pos, index);
     });
+    if (selectedIndex >= 0) {
+      drawRungAtIndex(positions[selectedIndex], selectedIndex);
+    }
 
     ctx.restore();
   }, [canvasSize, positions, selectedEventId, timelineOffset, voteDotsById, voteDotsLoading]);
