@@ -56,6 +56,11 @@
 - Selected state uses an upward pulse (beacon) instead of height growth.
 - Use V1 color palette (five event-type colors) and position rungs by x-value only.
 - EventCounter remains the precision navigator for exact selection.
+- Canvas rungs fade in only after loading completes; fade out before view/filter/back-to-present transitions (CSS opacity on canvas).
+- Selected DOM marker line removed; selected preview card remains as DOM overlay while Canvas owns rungs.
+- Preview card shifts toward [0] so the rung stays visible beside it.
+- Canvas rung baseline aligned to the TimelineBar (y at 75% height).
+- Selected pulse uses a small gap and sine-fade to avoid hard collisions and snapping.
 
 ## System Map (Current V1 Interactions)
 

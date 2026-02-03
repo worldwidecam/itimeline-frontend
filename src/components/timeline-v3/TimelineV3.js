@@ -4169,6 +4169,8 @@ const handleRecenter = () => {
                 selectedEventId={selectedEventId}
                 onMarkerClick={handleMarkerClick}
                 onBackgroundClick={handleBackgroundClick}
+                voteDotsById={voteDotsById}
+                voteDotsLoading={voteDotsLoading}
                 calculateEventMarkerPosition={calculateEventMarkerPosition}
                 isFullyFaded={isFullyFaded}
                 markersLoading={markersLoading}
@@ -4199,8 +4201,8 @@ const handleRecenter = () => {
                       disableHover
                       disableSelectedPulse
                       showMarkerLine={false}
+                      showVoteDot={false}
                       voteDot={voteDotsById[selectedVisibleEvent.id] || null}
-                      showVoteDot
                       voteDotsLoading={voteDotsLoading}
                     />
                   </div>

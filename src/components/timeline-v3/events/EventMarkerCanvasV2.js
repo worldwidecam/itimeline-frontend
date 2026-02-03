@@ -16,6 +16,14 @@ const HOVER_LERP = 0.12;
 const PULSE_GAP = 4;
 const PULSE_HEIGHT = 28;
 const PULSE_DURATION = 1200;
+const VOTE_DOT_PADDING = 6;
+const VOTE_DOT_GLOW_SIZE = 3;
+const VOTE_POSITIVE_COLOR = '#22c55e';
+const VOTE_NEGATIVE_COLOR = '#ef4444';
+const VOTE_NEUTRAL_COLOR = '#aaaaaa';
+const VOTE_GLOW_CYCLE = 10000;
+const VOTE_GLOW_WIDTH = 0.18;
+const VOTE_DOT_FADE_DURATION = 650;
 
 const getEventColor = (event) => {
   const type = (event?.type || '').toLowerCase();
@@ -71,6 +79,8 @@ const EventMarkerCanvasV2 = ({
   selectedEventId,
   onMarkerClick,
   onBackgroundClick,
+  voteDotsById = {},
+  voteDotsLoading = false,
   isFullyFaded = false,
   markersLoading = false,
   timelineMarkersLoading = false,
@@ -79,6 +89,7 @@ const EventMarkerCanvasV2 = ({
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const hoverRef = useRef({ id: null, intensity: 0, target: 0 });
+  const voteFadeRef = useRef({ start: null });
   const [opacity, setOpacity] = useState(0);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0, dpr: 1, left: 0 });
 
@@ -130,6 +141,19 @@ const EventMarkerCanvasV2 = ({
       .sort((a, b) => a.x - b.x);
   }, [events, viewMode, markerSpacing, canvasSize.width]);
 
+  const hasVoteDots = useMemo(
+    () => Object.values(voteDotsById || {}).some((dot) => dot?.isVisible),
+    [voteDotsById]
+  );
+
+  useEffect(() => {
+    if (voteDotsLoading) {
+      voteFadeRef.current.start = null;
+    } else if (hasVoteDots) {
+      voteFadeRef.current.start = performance.now();
+    }
+  }, [voteDotsLoading, hasVoteDots]);
+
   const draw = useCallback((time = 0) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -145,6 +169,20 @@ const EventMarkerCanvasV2 = ({
     ctx.lineCap = 'round';
 
     const baselineY = height * BASELINE_Y_RATIO;
+
+    const minX = positions[0]?.x ?? 0;
+    const maxX = positions[positions.length - 1]?.x ?? minX + 1;
+    const rangeX = Math.max(1, maxX - minX);
+
+    const voteFadeStart = voteFadeRef.current.start;
+    const voteFadeProgress = voteDotsLoading || !hasVoteDots
+      ? 0
+      : (voteFadeStart == null
+        ? 1
+        : Math.min(1, (time - voteFadeStart) / VOTE_DOT_FADE_DURATION));
+    if (voteFadeStart != null && voteFadeProgress >= 1) {
+      voteFadeRef.current.start = null;
+    }
 
     positions.forEach((pos, index) => {
       const density = getLocalDensity(positions, index);
@@ -194,10 +232,50 @@ const EventMarkerCanvasV2 = ({
         ctx.lineTo(pos.x, pulseTop);
         ctx.stroke();
       }
+
+      const voteDot = voteDotsById?.[pos.event?.id] || null;
+      if (!voteDotsLoading && voteDot?.isVisible) {
+        const dotSize = voteDot.size ?? 6;
+        const dotOffset = voteDot.offset ?? 0;
+        const dotSizeClamped = Math.max(3, Math.min(dotSize, lineWidth * 2));
+        const dotRadius = dotSizeClamped / 2;
+        const maxOffset = Math.max(0, topY - VOTE_DOT_PADDING - (dotRadius * 2));
+        const clampedOffset = Math.min(dotOffset, maxOffset);
+        const dotCenterY = Math.max(
+          dotRadius,
+          topY - VOTE_DOT_PADDING - clampedOffset - dotRadius
+        );
+        const dotColor = voteDot.netVotes > 0
+          ? VOTE_POSITIVE_COLOR
+          : (voteDot.netVotes < 0 ? VOTE_NEGATIVE_COLOR : VOTE_NEUTRAL_COLOR);
+        const isNeutral = voteDot.netVotes === 0 || voteDot.isNeutral;
+        const idleColor = isNeutral ? 'rgb(170, 170, 170)' : dotColor;
+        const brightColor = isNeutral ? 'rgb(255, 255, 255)' : dotColor;
+        const phaseOffset = (pos.x - minX) / rangeX;
+        const glowPhase = ((time / VOTE_GLOW_CYCLE) + (1 - phaseOffset)) % 1;
+        const distance = Math.abs(glowPhase - 0.5);
+        const glowStrength = Math.pow(Math.max(0, 1 - (distance / VOTE_GLOW_WIDTH)), 2);
+        const idleGlowAlpha = (isNeutral ? 0.15 : 0.2) * voteFadeProgress;
+        const brightGlowAlpha = (isNeutral ? 0.7 : 0.9) * glowStrength * voteFadeProgress;
+
+        ctx.save();
+        ctx.fillStyle = idleColor;
+        ctx.globalAlpha = idleGlowAlpha + brightGlowAlpha * 0.6;
+        ctx.beginPath();
+        ctx.arc(pos.x, dotCenterY, dotRadius + VOTE_DOT_GLOW_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = brightColor;
+        ctx.globalAlpha = (0.5 + (0.5 * glowStrength)) * voteFadeProgress;
+        ctx.beginPath();
+        ctx.arc(pos.x, dotCenterY, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     });
 
     ctx.restore();
-  }, [canvasSize, positions, selectedEventId, timelineOffset]);
+  }, [canvasSize, positions, selectedEventId, timelineOffset, voteDotsById, voteDotsLoading]);
 
   const animate = useCallback((time) => {
     const hoverState = hoverRef.current;
@@ -210,20 +288,22 @@ const EventMarkerCanvasV2 = ({
 
     const needsHover = hoverState.intensity !== hoverState.target;
     const needsPulse = Boolean(selectedEventId);
-    if (needsHover || needsPulse) {
+    const needsVoteGlow = hasVoteDots && !voteDotsLoading;
+    const needsVoteFade = voteFadeRef.current.start != null;
+    if (needsHover || needsPulse || needsVoteGlow || needsVoteFade) {
       animationRef.current = requestAnimationFrame(animate);
     } else {
       animationRef.current = null;
     }
-  }, [draw, selectedEventId]);
+  }, [draw, selectedEventId, hasVoteDots, voteDotsLoading]);
 
   useEffect(() => {
     draw(performance.now());
     if (animationRef.current) return;
-    if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target) {
+    if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target || (hasVoteDots && !voteDotsLoading)) {
       animationRef.current = requestAnimationFrame(animate);
     }
-  }, [draw, animate, selectedEventId, positions]);
+  }, [draw, animate, selectedEventId, positions, hasVoteDots, voteDotsLoading]);
 
   useEffect(() => {
     if (animationRef.current) {
@@ -231,10 +311,10 @@ const EventMarkerCanvasV2 = ({
       animationRef.current = null;
     }
     draw(performance.now());
-    if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target) {
+    if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target || (hasVoteDots && !voteDotsLoading)) {
       animationRef.current = requestAnimationFrame(animate);
     }
-  }, [selectedEventId, animate, draw]);
+  }, [selectedEventId, animate, draw, hasVoteDots, voteDotsLoading]);
 
   useEffect(() => {
     if (timelineOffset !== undefined) {
