@@ -11,7 +11,8 @@ const TimeMarkers = ({
   onMarkerClick, // New prop for handling marker clicks
   pointB_active = false, // Whether Point B is active
   pointB_reference_markerValue = 0, // Point B reference marker (integer)
-  pointB_reference_timestamp = null // Point B timestamp (for labels)
+  pointB_reference_timestamp = null, // Point B timestamp (for labels)
+  workspaceWidth = null
 }) => {
   // Always compute labels from Point A (current time)
   const getCurrentDateTime = () => {
@@ -127,6 +128,8 @@ const TimeMarkers = ({
     return targetDate.getMonth() === 0;
   };
 
+  const centerX = (workspaceWidth || window.innerWidth) / 2;
+
   return (
     <Box sx={{
       position: 'absolute',
@@ -192,7 +195,7 @@ const TimeMarkers = ({
             }}
             sx={{
               position: 'absolute',
-              left: `${window.innerWidth/2 + (value * markerSpacing)}px`,
+              left: `${centerX + (value * markerSpacing)}px`,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',

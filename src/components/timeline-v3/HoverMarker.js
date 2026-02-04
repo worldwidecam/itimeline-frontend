@@ -5,9 +5,11 @@ const HoverMarker = ({
   position,
   timelineOffset,
   markerSpacing,
-  viewMode
+  viewMode,
+  workspaceWidth = null
 }) => {
   const theme = useTheme();
+  const centerX = (workspaceWidth || window.innerWidth) / 2;
 
   const getCurrentTime = () => {
     const now = new Date();
@@ -80,7 +82,7 @@ const HoverMarker = ({
     <Box
       sx={{
         position: 'absolute',
-        left: `${window.innerWidth/2 + (position * markerSpacing)}px`,
+        left: `${centerX + (position * markerSpacing)}px`,
         bottom: '25%',
         transform: `translateX(${timelineOffset}px) translateX(-50%)`,
         display: 'flex',

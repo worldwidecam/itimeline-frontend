@@ -233,19 +233,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     return new Date(); // Point A (current time)
   };
 
-  const getInitialMarkers = () => {
-    const markerSpacing = 100; // pixels between each marker
-    const screenWidth = window.innerWidth;
-    const markersNeeded = Math.ceil(screenWidth / markerSpacing);
-    // We want equal numbers on each side of zero, so we'll make it odd
-    const totalMarkers = markersNeeded + (markersNeeded % 2 === 0 ? 1 : 0);
-    const sideCount = Math.floor(totalMarkers / 2);
-    
-    return Array.from(
-      { length: totalMarkers }, 
-      (_, i) => i - sideCount
-    );
-  };
 
   const getDayProgress = () => {
     const now = getCurrentDateTime();
@@ -381,7 +368,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   // Core state
   const [timelineOffset, setTimelineOffset] = useState(0);
-  const [markers, setMarkers] = useState(getInitialMarkers());
   const [viewMode, setViewMode] = useState(() => {
     // Get view mode from URL or default to 'day'
     const params = new URLSearchParams(window.location.search);
@@ -436,7 +422,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Golden rule: Always match viewport + reasonable buffer, scaled per view mode
   // Prevents absurd margins in year view while maintaining smooth scrolling
   const calculatePointBMargin = (currentViewMode = viewMode) => {
-    const viewportWidth = window.innerWidth;
+    const viewportWidth = timelineWorkspaceBounds?.width || window.innerWidth;
     const markerSpacing = 100;
     const visibleMarkers = Math.ceil(viewportWidth / markerSpacing);
     const baseMargin = Math.ceil(visibleMarkers / 2); // Half viewport
@@ -522,10 +508,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // Update offset in real-time (no debounce for immediate feedback)
     setTimelineOffset(newOffset);
     
-    // Ensure markers as user drags
-    if (Math.abs(deltaX) > 100) {
-      ensureMarkers(deltaX > 0 ? 'left' : 'right');
-    }
   };
   
   const handleTouchEnd = (event) => {
@@ -558,6 +540,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [shouldScrollToEvent, setShouldScrollToEvent] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isMoving, setIsMoving] = useState(false); // New state to track timeline movement
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
   
   // Refs for event cards to access their methods
   const eventRefs = useRef({});
@@ -731,35 +714,32 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isRecentering, setIsRecentering] = useState(false);
   const [isFullyFaded, setIsFullyFaded] = useState(false);
 
-  // Add new state to track visible markers
+  // Add state to track visible markers
   const [visibleMarkers, setVisibleMarkers] = useState([]);
 
-  // Update visible markers when timeline offset or markers change
+  // Add state to track marker loading status
+  const [markersLoading, setMarkersLoading] = useState(false);
+
+  // Add state to track timeline element loading stages
+  const [timelineElementsLoading, setTimelineElementsLoading] = useState(false);
+  const [timelineMarkersLoading, setTimelineMarkersLoading] = useState(false);
+
+  // Update visible markers when timeline offset changes (odd count for perfect center)
   useEffect(() => {
-    // Calculate which markers are currently visible on screen
-    const screenWidth = window.innerWidth;
+    const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
     const markerWidth = 100;
     const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
-    
-    // Always compute center from timelineOffset (single source of truth for visual centering)
+    const totalMarkers = visibleMarkerCount + 1;
+    const oddCount = totalMarkers % 2 === 0 ? totalMarkers + 1 : totalMarkers;
+    const halfVisibleCount = Math.floor(oddCount / 2);
     const centerMarkerPosition = -timelineOffset / markerWidth;
-    
-    // Calculate the range of visible markers
-    const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
-    
-    // No buffer to avoid double-counting; keep exactly visible window
-    const buffer = 0;
-    
-    const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount - buffer);
-    const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount + buffer);
-    
-    // Filter markers to only include those in the visible range
-    const currentVisibleMarkers = markers.filter(
-      marker => marker >= minVisibleMarker && marker <= maxVisibleMarker
+    const minVisibleMarker = Math.floor(centerMarkerPosition - halfVisibleCount);
+    const maxVisibleMarker = Math.ceil(centerMarkerPosition + halfVisibleCount);
+
+    setVisibleMarkers(
+      Array.from({ length: oddCount }, (_, i) => minVisibleMarker + i)
     );
-    
-    setVisibleMarkers(currentVisibleMarkers);
-  }, [timelineOffset, markers, viewMode]);
+  }, [timelineOffset, viewMode, timelineWorkspaceBounds?.width]);
 
   // Auto-reselect after view switch: moved below progressiveLoadingState declaration
   const lastAutoReselectRef = useRef(0);
@@ -1003,7 +983,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         rangeMin = Math.min(...visibleMarkers);
         rangeMax = Math.max(...visibleMarkers);
       } else {
-        const screenWidth = window.innerWidth;
+        const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
         const markerWidth = 100;
         const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
         const centerMarkerPosition = -timelineOffset / markerWidth;
@@ -1195,7 +1175,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (progressiveLoadingState !== 'complete') return [];
     if (!events || events.length === 0) return [];
 
-    const screenWidth = window.innerWidth;
+    const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
     const markerWidth = 100;
     const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
     const centerMarkerPosition = -timelineOffset / markerWidth;
@@ -1631,17 +1611,6 @@ const handleViewModeTransition = (newViewMode) => {
           setPointB_viewMode(newViewMode);
           const targetOffset = -(arrowPosition * 100);
           setTimelineOffset(targetOffset);
-          const viewportWidth = window.innerWidth;
-          const markerSpacing = 100;
-          const markersInViewport = Math.ceil(viewportWidth / markerSpacing);
-          const wiggleRoom = 10;
-          const totalMarkersNeeded = markersInViewport + (wiggleRoom * 2);
-          const halfMarkers = Math.floor(totalMarkersNeeded / 2);
-          const minMarker = Math.floor(referencePosition) - halfMarkers;
-          const maxMarker = Math.floor(referencePosition) + halfMarkers;
-          const newMarkers = [];
-          for (let i = minMarker; i <= maxMarker; i++) newMarkers.push(i);
-          setMarkers(newMarkers);
         }
       }
       
@@ -1750,70 +1719,67 @@ const handleViewModeTransition = (newViewMode) => {
         }, 100);
         
         // Set a longer timer to load events if the user hasn't interacted with filter views
+        const eventLoadDelay = userInteracted ? 0 : 2000;
+        const markerLoadDelay = userInteracted ? 0 : 1500;
         const loadEventsTimer = setTimeout(async () => {
-          if (!userInteracted) {
-            clearInterval(structureLoadingInterval);
-            setLoadingProgress(40); // Jump to 40% when starting event loading
-            
-            // Simulate event loading progress
-            const eventLoadingInterval = setInterval(() => {
-              setLoadingProgress(prev => {
-                const newProgress = prev + 3;
-                if (newProgress >= 70) {
-                  clearInterval(eventLoadingInterval);
-                }
-                return Math.min(newProgress, 70); // Cap at 70% for events loading
-              });
-            }, 150);
-            
-            // Actually fetch the events - use api utility which handles prefixes correctly
-            try {
-              const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-              setEvents(response.data);
-            } catch (error) {
-              if (error?.response?.status === 403) {
-                // Respect personal timeline ACL in this delayed path as well
-                setAccessDenied(true);
-                return;
+          clearInterval(structureLoadingInterval);
+          setLoadingProgress(40); // Jump to 40% when starting event loading
+          
+          // Simulate event loading progress
+          const eventLoadingInterval = setInterval(() => {
+            setLoadingProgress(prev => {
+              const newProgress = prev + 3;
+              if (newProgress >= 70) {
+                clearInterval(eventLoadingInterval);
               }
-              throw error;
+              return Math.min(newProgress, 70); // Cap at 70% for events loading
+            });
+          }, 150);
+          
+          // Actually fetch the events - use api utility which handles prefixes correctly
+          try {
+            const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
+            setEvents(response.data);
+          } catch (error) {
+            if (error?.response?.status === 403) {
+              // Respect personal timeline ACL in this delayed path as well
+              setAccessDenied(true);
+              return;
             }
-            
-            // Update the loading state to events loaded
-            setProgressiveLoadingState('events');
-            clearInterval(eventLoadingInterval);
-            setLoadingProgress(75); // Jump to 75% when events are loaded
-            
-            // Set another timer to load markers if the user still hasn't interacted
-            const loadMarkersTimer = setTimeout(() => {
-              if (!userInteracted) {
-                
-                // Simulate marker loading progress
-                const markerLoadingInterval = setInterval(() => {
-                  setLoadingProgress(prev => {
-                    const newProgress = prev + 5;
-                    if (newProgress >= 100) {
-                      clearInterval(markerLoadingInterval);
-                    }
-                    return Math.min(newProgress, 100);
-                  });
-                }, 100);
-                
-                // Complete the loading after a delay
-                setTimeout(() => {
-                  clearInterval(markerLoadingInterval);
-                  setLoadingProgress(100);
-                  setProgressiveLoadingState('complete');
-                }, 1000); // Longer delay for markers to be visually distinct
-              }
-            }, 1500); // Longer delay between events and markers
-            
-            return () => {
-              clearTimeout(loadMarkersTimer);
-              clearInterval(eventLoadingInterval);
-            };
+            throw error;
           }
-        }, 2000); // 2 second delay before loading events
+          
+          // Update the loading state to events loaded
+          setProgressiveLoadingState('events');
+          clearInterval(eventLoadingInterval);
+          setLoadingProgress(75); // Jump to 75% when events are loaded
+          
+          // Set another timer to load markers
+          const loadMarkersTimer = setTimeout(() => {
+            // Simulate marker loading progress
+            const markerLoadingInterval = setInterval(() => {
+              setLoadingProgress(prev => {
+                const newProgress = prev + 5;
+                if (newProgress >= 100) {
+                  clearInterval(markerLoadingInterval);
+                }
+                return Math.min(newProgress, 100);
+              });
+            }, 100);
+            
+            // Complete the loading after a delay
+            setTimeout(() => {
+              clearInterval(markerLoadingInterval);
+              setLoadingProgress(100);
+              setProgressiveLoadingState('complete');
+            }, 1000); // Longer delay for markers to be visually distinct
+          }, markerLoadDelay); // Longer delay between events and markers
+          
+          return () => {
+            clearTimeout(loadMarkersTimer);
+            clearInterval(eventLoadingInterval);
+          };
+        }, eventLoadDelay); // Delay before loading events
         
         return () => {
           clearTimeout(loadEventsTimer);
@@ -2308,736 +2274,39 @@ const handleViewModeTransition = (newViewMode) => {
     }
   };
   
-  // ============================================================================
-  // SMOOTH NAVIGATION FUNCTIONS (Phase 3A)
-  // ============================================================================
-  
-  /**
-   * Ensure markers exist in the specified direction
-   * Pre-loads markers to prevent running out during smooth scrolling
-   * 
-   * @param {string} direction - 'left' or 'right'
-   */
-  const ensureMarkers = (direction) => {
-    const currentMin = Math.min(...markers);
-    const currentMax = Math.max(...markers);
-    const buffer = 50; // Always maintain 50 markers ahead in each direction
-    
-    const newMarkers = [];
-    
-    if (direction === 'left') {
-      // Check if we need more markers to the left
-      if (currentMin > -buffer) {
-        // Add 10 markers at a time to the left
-        for (let i = currentMin - 1; i >= currentMin - 10; i--) {
-          // Only add if marker doesn't already exist
-          if (!markers.includes(i)) {
-            newMarkers.push(i);
-          }
-        }
-        if (newMarkers.length > 0) {
-          setMarkers(prevMarkers => {
-            const combined = [...newMarkers, ...prevMarkers];
-            // Remove duplicates and sort
-            return [...new Set(combined)].sort((a, b) => a - b);
-          });
-        }
-      }
-    } else if (direction === 'right') {
-      // Check if we need more markers to the right
-      if (currentMax < buffer) {
-        // Add 10 markers at a time to the right
-        for (let i = currentMax + 1; i <= currentMax + 10; i++) {
-          // Only add if marker doesn't already exist
-          if (!markers.includes(i)) {
-            newMarkers.push(i);
-          }
-        }
-        if (newMarkers.length > 0) {
-          setMarkers(prevMarkers => {
-            const combined = [...prevMarkers, ...newMarkers];
-            // Remove duplicates and sort
-            return [...new Set(combined)].sort((a, b) => a - b);
-          });
-        }
-      }
-    }
-  };
-  
-  /**
-   * Smooth scroll the timeline in the specified direction
-   * Uses CSS transitions for hardware-accelerated animation
-   * Event markers fade out during movement, fade in when settled
-   * 
-   * @param {string} direction - 'left' or 'right'
-   * @param {number} amount - Scroll amount in pixels (default: 100 = 1 marker)
-   */
   const smoothScroll = (direction, amount = 100) => {
     // 1. Mark timeline as moving (triggers event marker fade out)
     setIsSettled(false);
-    
-    // 2. Ensure markers exist in the scroll direction
-    ensureMarkers(direction);
-    
-    // 3. Update timeline offset (CSS transition handles the animation)
-    setTimelineOffset(prevOffset => {
-      const newOffset = direction === 'left' 
-        ? prevOffset + amount 
+
+    // 2. Update timeline offset (CSS transition handles the animation)
+    setTimelineOffset((prevOffset) => {
+      const newOffset = direction === 'left'
+        ? prevOffset + amount
         : prevOffset - amount;
       return newOffset;
     });
-    
-    // 4. Update Point B reference if active and arrow moves outside margin
-    if (pointB_active && !B_POINTER_MINIMAL) {
-      // Calculate where the arrow will be after scroll
-      const newArrowScreenPosition = window.innerWidth / 2 + 
-        (pointB_arrow_markerValue * 100) + 
-        (direction === 'left' ? amount : -amount);
-      
-      const arrowMarkerFromCenter = (newArrowScreenPosition - window.innerWidth / 2) / 100;
-      const margin = calculatePointBMargin(viewMode);
-      
-      // Check if arrow moved outside margin zone
-      if (Math.abs(arrowMarkerFromCenter - pointB_reference_markerValue) > margin) {
-        const newReference = Math.round(markerValue);
-        if (newReference !== pointB_reference_markerValue) {
-          setPointB_reference_markerValue(newReference);
-        }
-      }
-    }
-    
-    // 5. Detect when timeline has settled (stopped moving)
+
+    // 3. Detect when timeline has settled (stopped moving)
     clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       setIsSettled(true); // Triggers event marker fade in
     }, 400); // Wait 400ms after last scroll for CSS transition to complete
   };
-  
-  // ============================================================================
-  // POINT B ACTIVATION & DEACTIVATION FUNCTIONS
-  // ============================================================================
-  
-  /**
-   * Activate Point B at a specific marker position
-   * This "locks" the user's focus to a specific point on the timeline
-   * 
-   * DECOUPLED ARCHITECTURE:
-   * - Arrow always moves to exact click position (fractional)
-   * - Reference only updates if arrow moves outside margin zone
-   * - This prevents constant re-renders when scrolling within viewport
-   * 
-   * @param {number} markerValue - The exact marker position clicked (fractional, e.g., -4.41)
-   * @param {Date} timestamp - The actual date/time this marker represents
-   * @param {string} currentViewMode - The current view mode when Point B was set
-   * @param {string} eventId - Optional: ID of event that Point B is focused on
-   * @param {boolean} shouldCenter - Whether to center Point B on screen
-   */
-  const activatePointB = (markerValue, timestamp, currentViewMode, eventId = null, shouldCenter = false, arrowPixelOffset = 0) => {
-    if (B_POINTER_MINIMAL) {
-      // Minimal mode: only track active state, arrow position, timestamp, event, view
-      setPointB_active(true);
-      setPointB_eventId(eventId);
-      setPointB_arrow_markerValue(markerValue);
-      setPointB_arrow_pixelOffset(arrowPixelOffset);
-      setPointB_reference_timestamp(timestamp);
-      return;
-    }
-    
-    setPointB_active(true);
-    setPointB_viewMode(currentViewMode);
-    setPointB_eventId(eventId);
-    setPointB_arrow_markerValue(markerValue);
-    setPointB_arrow_pixelOffset(arrowPixelOffset);
-    const margin = calculatePointBMargin(currentViewMode);
-    const isFirstActivation = !pointB_active;
-    const isOutsideMargin = Math.abs(markerValue - pointB_reference_markerValue) > margin;
-    const isNewEventSelection = !!eventId && pointB_eventId !== eventId;
-    if (isFirstActivation || isOutsideMargin) {
-      const newReference = Math.floor(markerValue);
-      setPointB_reference_markerValue(newReference);
-      if (isFirstActivation || isNewEventSelection) {
-        setPointB_reference_timestamp(timestamp);
-      }
-    }
-  };
-  
-  /**
-   * Deactivate Point B and return to Point A (current time) reference
-   */
-  const deactivatePointB = () => {
-    setPointB_active(false);
-    setPointB_arrow_markerValue(0);
-    setPointB_arrow_pixelOffset(0);
-    setPointB_reference_markerValue(0);
-    setPointB_reference_timestamp(null);
-    setPointB_viewMode(null);
-    setPointB_eventId(null);
-    
-    // Note: We don't reset timelineOffset here to maintain visual continuity
-    // The user can use "Back to Present" button to recenter to Point A if desired
-  };
-  
-  /**
-   * TIMELINE V4: Calculate exact fractional marker position from timestamp
-   * This is the inverse of the marker-to-timestamp calculation
-   * Used to find where a timestamp lives in a specific view mode
-   * 
-   * @param {Date} timestamp - The timestamp to locate
-   * @param {Date} currentDate - Point A reference (current time)
-   * @param {string} targetViewMode - The view mode to calculate for
-   * @returns {number} Fractional marker position (can include minutes/hours/days)
-   */
-  const calculateMarkerPositionFromTimestamp = (timestamp, currentDate, targetViewMode) => {
-    const pointBDate = new Date(timestamp);
-    let markerValue = 0;
-    
-    switch (targetViewMode) {
-      case 'day': {
-        // Calculate exact position including fractional hours
-        const dayDiffMs = differenceInMilliseconds(
-          new Date(pointBDate.getFullYear(), pointBDate.getMonth(), pointBDate.getDate()),
-          new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
-        );
-        const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
-        const currentHour = currentDate.getHours();
-        const pointBHour = pointBDate.getHours();
-        const pointBMinute = pointBDate.getMinutes();
-        // Arrow position includes fractional hours (minutes)
-        markerValue = (dayDiff * 24) + pointBHour - currentHour + (pointBMinute / 60);
-        break;
-      }
-      case 'week': {
-        // Calculate exact position including fractional days (time of day)
-        const dayDiffMs = differenceInMilliseconds(
-          new Date(pointBDate.getFullYear(), pointBDate.getMonth(), pointBDate.getDate()),
-          new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
-        );
-        const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
-        
-        if (dayDiff === 0) {
-          // Same day - calculate position within the day
-          const totalMinutesInDay = 24 * 60;
-          const pointBMinutesIntoDay = pointBDate.getHours() * 60 + pointBDate.getMinutes();
-          markerValue = pointBMinutesIntoDay / totalMinutesInDay;
-        } else {
-          // Different day - include time of day as fraction
-          const pointBHour = pointBDate.getHours();
-          const pointBMinute = pointBDate.getMinutes();
-          const totalMinutesInDay = 24 * 60;
-          const pointBMinutesIntoDay = pointBHour * 60 + pointBMinute;
-          const pointBFractionOfDay = pointBMinutesIntoDay / totalMinutesInDay;
-          markerValue = Math.floor(dayDiff) + pointBFractionOfDay;
-        }
-        break;
-      }
-      case 'month': {
-        // Calculate exact position including fractional months (day of month)
-        const pointBYear = pointBDate.getFullYear();
-        const currentYear = currentDate.getFullYear();
-        const pointBMonth = pointBDate.getMonth();
-        const currentMonth = currentDate.getMonth();
-        const pointBDay = pointBDate.getDate();
-        const daysInMonth = new Date(pointBYear, pointBMonth + 1, 0).getDate();
-        const yearDiff = pointBYear - currentYear;
-        const monthDiff = pointBMonth - currentMonth + (yearDiff * 12);
-        const dayFraction = (pointBDay - 1) / daysInMonth;
-        markerValue = monthDiff + dayFraction;
-        break;
-      }
-      case 'year': {
-        // Calculate exact position including fractional years (month + day)
-        const pointBYear = pointBDate.getFullYear();
-        const currentYear = currentDate.getFullYear();
-        const yearDiff = pointBYear - currentYear;
-        const pointBMonth = pointBDate.getMonth();
-        const monthFraction = pointBMonth / 12;
-        const pointBDay = pointBDate.getDate();
-        const daysInMonth = new Date(pointBYear, pointBMonth + 1, 0).getDate();
-        const dayFraction = (pointBDay - 1) / daysInMonth / 12;
-        markerValue = yearDiff + monthFraction + dayFraction;
-        break;
-      }
-      case 'position':
-      default:
-        markerValue = 0;
-    }
-    
-    return markerValue;
-  };
-  
-  /**
-   * TIMELINE V4: Convert Point B to a new view mode (TIMESTAMP-BASED)
-   * This preserves the semantic meaning of Point B when switching views
-   * 
-   * Example: "Friday Oct 17, 2025 7:00 AM" in day view
-   *   -> Becomes "Friday Oct 17, 2025" (marker 0) in week view
-   *   -> Because week view granularity is days, not hours
-   * 
-   * B Reference = Integer coordinate (closest timeline marker)
-   * Arrow = Fractional coordinate (precise timestamp location)
-   * 
-   * @param {string} newViewMode - The view mode to convert to
-   * @returns {Object} { arrowPosition, referencePosition } or null
-   */
-  const convertPointBToViewMode = (newViewMode) => {
-    if (!pointB_active) {
-      return null;
-    }
-    
-    // Priority: if an event is selected, ALWAYS use its timestamp for conversion
-    let effectiveTimestamp = null;
-    if (pointB_eventId) {
-      const evt = Array.isArray(events) ? events.find(e => e.id === pointB_eventId) : null;
-      if (evt && evt.event_date) {
-        effectiveTimestamp = evt.event_date;
-        setPointB_reference_timestamp(effectiveTimestamp);
-      }
-    }
-    // Otherwise, use stored reference timestamp
-    if (!effectiveTimestamp) {
-      effectiveTimestamp = pointB_reference_timestamp;
-    }
-    if (!effectiveTimestamp) {
-      return null;
-    }
-    
-    const currentDate = new Date(); // Point A [0] in new view
-    const pointBDate = new Date(effectiveTimestamp);
-    
-    // Calculate exact fractional position (for arrow)
-    const arrowPosition = calculateMarkerPositionFromTimestamp(pointBDate, currentDate, newViewMode);
-    
-    // B Reference is always integer (closest timeline marker TO THE LEFT of arrow)
-    // Use Math.floor() not Math.round() - arrow can be at integer position too
-    const referencePosition = Math.floor(arrowPosition);
-    
-    return {
-      arrowPosition,
-      referencePosition
-    };
-  };
-  
-  // ============================================================================
-  
-  // Keyboard shortcut: Press 'B' to toggle Point B at current center position
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      // Only activate if 'B' key is pressed (not in an input field)
-      if (e.key === 'b' || e.key === 'B') {
-        // Check if we're in an input field
-        const activeElement = document.activeElement;
-        const isInputField = activeElement && (
-          activeElement.tagName === 'INPUT' ||
-          activeElement.tagName === 'TEXTAREA' ||
-          activeElement.isContentEditable
-        );
-        if (isInputField) return; // Don't trigger if typing in an input
 
-        if (pointB_active) {
-          deactivatePointB();
-          return;
-        }
-
-        const currentDate = new Date();
-        const centerMarkerValue = 0 - (timelineOffset / 100);
-        const timestamp = new Date(currentDate);
-
-        switch (viewMode) {
-          case 'day':
-            timestamp.setHours(currentDate.getHours() + centerMarkerValue);
-            break;
-          case 'week':
-            timestamp.setDate(currentDate.getDate() + centerMarkerValue);
-            break;
-          case 'month':
-            timestamp.setMonth(currentDate.getMonth() + centerMarkerValue);
-            break;
-          case 'year':
-            timestamp.setFullYear(currentDate.getFullYear() + centerMarkerValue);
-            break;
-          default:
-            break;
-        }
-
-        activatePointB(centerMarkerValue, timestamp, viewMode, null, true, 0); // shouldCenter = true for 'B' key
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [pointB_active, timelineOffset, viewMode]);
-  
-  // ============================================================================
-  
-  // Update hover position when view mode changes (always from Point A current time)
-  useEffect(() => {
-    setHoverPosition(getExactTimePosition());
-  }, [viewMode]);
-
-  // Add state to track if any popup is currently open
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-
-  // Safety net: ensure body scroll is never locked when component unmounts or all dialogs close
-  useEffect(() => {
-    // Cleanup function to force-remove any scroll locks when component unmounts
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
-    };
-  }, []);
-
-  // Additional safety: check and fix scroll lock when no dialogs should be open
-  useEffect(() => {
-    const allDialogsClosed = !isPopupOpen && !dialogOpen && !mediaDialogOpen && !remarkDialogOpen && !newsDialogOpen && !accessPanelOpen;
-    
-    if (allDialogsClosed) {
-      // Small delay to let MUI's cleanup run first
-      const timeoutId = setTimeout(() => {
-        if (document.body.style.overflow === 'hidden') {
-          console.warn('[TimelineV3] Detected stuck scroll lock, fixing...');
-          document.body.style.overflow = '';
-          document.body.style.paddingRight = '';
-        }
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isPopupOpen, dialogOpen, mediaDialogOpen, remarkDialogOpen, newsDialogOpen, accessPanelOpen]);
-
-  // Update hover position every minute, but pause when popup is open
-  useEffect(() => {
-    if (viewMode === 'day') {
-      const interval = setInterval(() => {
-        if (!isPopupOpen) {
-          setHoverPosition(getExactTimePosition());
-        }
-      }, 60000); // Update every minute
-      return () => clearInterval(interval);
-    }
-  }, [viewMode, isPopupOpen]);
-
-  // Update markers on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      // Only update if we're centered (timelineOffset === 0)
-      if (timelineOffset === 0) {
-        setMarkers(getInitialMarkers());
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [timelineOffset]);
-
-  // Store the previous view mode to detect first load
-  const prevViewModeRef = useRef(null);
-
-  // Reset current event index when switching views
-  useEffect(() => {
-    // Mark that the user has interacted with filter views
-    setUserInteracted(true);
-    
-    // If we're in a loading state, immediately load all content
-    if (progressiveLoadingState !== 'complete') {
-      const loadContent = async () => {
-        // Do not attempt to load events for locked timelines
-        if (accessDenied || hookStatus === 'locked') {
-          return;
-        }
-
-        // If events aren't loaded yet, load them
-        if (progressiveLoadingState === 'timeline') {
-          try {
-            const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-            
-            // Performance optimization: Pre-process events to improve rendering performance
-            const processedEvents = response.data.map(event => {
-              // Pre-calculate dates to avoid repeated Date object creation
-              const eventDate = event.event_date ? new Date(event.event_date) : null;
-              
-              return {
-                ...event,
-                // Cache date objects and other frequently accessed properties
-                _cachedDate: eventDate,
-                _cachedYear: eventDate ? eventDate.getFullYear() : null,
-                _cachedMonth: eventDate ? eventDate.getMonth() : null,
-                _cachedDay: eventDate ? eventDate.getDate() : null,
-                _cachedTime: eventDate ? eventDate.getTime() : null,
-                // Pre-calculate lowercase values for case-insensitive comparisons
-                _cachedLowerTitle: (event.title || '').toLowerCase(),
-                _cachedLowerDesc: (event.description || '').toLowerCase(),
-                _cachedLowerType: (event.type || '').toLowerCase()
-              };
-            });
-            
-            // Update the events state with pre-processed events
-            setEvents(processedEvents);
-            
-            // Performance optimization: Clear any cached positions when loading new events
-            window.timelineEventPositions = [];
-            window.timelineEventPositionsMap = null;
-          } catch (error) {
-            if (error?.response?.status === 403) {
-              // Respect personal timeline ACL in interactive load path as well
-              setAccessDenied(true);
-            } else {
-              console.error('Error fetching events after user interaction:', error);
-            }
-          }
-        }
-        
-        // Set the loading state to complete
-        setProgressiveLoadingState('complete');
-      };
-      
-      loadContent();
-    }
-    
-    if (viewMode !== 'position') {
-      // Only reset selection on first load, not when switching between views
-      if (prevViewModeRef.current === null) {
-        setCurrentEventIndex(0);
-        setSelectedEventId(null);
-      }
-      
-      // Update the ref with current view mode
-      prevViewModeRef.current = viewMode;
-      
-      // Clear event positions when view mode changes
-      window.timelineEventPositions = [];
-    }
-  }, [viewMode, progressiveLoadingState, timelineId]);
-
-  // Reset current event index if it's out of bounds after events change
-  useEffect(() => {
-    if (currentEventIndex >= events.length && currentEventIndex !== -1) {
-      setCurrentEventIndex(Math.max(0, events.length - 1));
-    }
-  }, [events.length, currentEventIndex]);
-
-  // Add a state to track marker loading status
-  const [markersLoading, setMarkersLoading] = useState(false);
-  
-  // Add state to track timeline element loading stages
-  const [timelineElementsLoading, setTimelineElementsLoading] = useState(false);
-  const [timelineMarkersLoading, setTimelineMarkersLoading] = useState(false);
-  
   const handleLeft = () => {
-    // Close event popup if open (for cleaner UX)
     if (selectedEventId) {
       setSelectedEventId(null);
+      setCurrentEventIndex(-1);
     }
-    
-    // Use smooth scroll - no fade, no delays, just smooth CSS transition
     smoothScroll('left', 100);
   };
-  
+
   const handleRight = () => {
-    // Close event popup if open (for cleaner UX)
     if (selectedEventId) {
       setSelectedEventId(null);
+      setCurrentEventIndex(-1);
     }
-    
-    // Use smooth scroll - no fade, no delays, just smooth CSS transition
     smoothScroll('right', 100);
-  };
-  
-  // Process wheel events with debouncing (using the implementation from line 221)
-
-  // Track debounce timers with refs (declared at the top level)
-  // These refs are already declared above
-  
-  // This section was removed to fix duplicate function declaration
-  
-  // Navigate to an event using sequential button presses
-  const navigateToEvent = (event) => {
-    if (!event || !event.event_date || viewMode === 'position' || isNavigating) return;
-    
-    // Set moving state to hide markers during navigation
-    setIsMoving(true);
-    
-    // Wait for markers to completely disappear before calculating and starting navigation
-    setTimeout(() => {
-      // Calculate the temporal distance between the event and current reference point
-      const distance = calculateTemporalDistance(event.event_date);
-      
-      // Calculate how many steps (button presses) we need
-      // Each button press moves by 1 marker, which is 100px
-      // For day view, each marker represents an hour
-      let stepsNeeded;
-      
-      if (viewMode === 'day') {
-        // In day view, each marker represents an hour
-        stepsNeeded = Math.round(distance);
-      } else if (viewMode === 'week') {
-        // In week view, each marker represents a day
-        stepsNeeded = Math.round(distance);
-      } else if (viewMode === 'month') {
-        // In month view, each marker represents a month
-        stepsNeeded = Math.round(distance);
-      } else if (viewMode === 'year') {
-        // In year view, each marker represents a year
-        stepsNeeded = Math.round(distance);
-      } else {
-        stepsNeeded = Math.round(distance);
-      }
-      
-      // Don't navigate if the event is already centered or very close
-      if (Math.abs(stepsNeeded) === 0) return;
-      
-      // Determine which button to press (left or right)
-      // IMPORTANT: Past events (negative distance) need LEFT button
-      // Future events (positive distance) need RIGHT button
-      const direction = stepsNeeded > 0 ? 'right' : 'left';
-      const numberOfPresses = Math.abs(stepsNeeded);
-      
-      // Start the navigation process
-      setIsNavigating(true);
-      
-      // Preload markers before starting navigation
-      preloadMarkersForNavigation(direction, numberOfPresses).then(() => {
-        // After preloading, execute the button presses
-        executeButtonPresses(direction, numberOfPresses);
-      });
-    }, 250); // Wait for fade-out animation to complete
-  };
-  
-  // Preload markers in the direction we're going to navigate
-  const preloadMarkersForNavigation = (direction, numberOfPresses) => {
-    return new Promise((resolve) => {
-      // Calculate buffer based on screen width (more buffer for wider screens)
-      const screenWidth = window.innerWidth;
-      const bufferMultiplier = 1.5; // Add 50% more markers than needed
-      const bufferSize = Math.ceil(numberOfPresses * bufferMultiplier);
-      
-      // Create new markers to preload
-      if (direction === 'left') {
-        const minMarker = Math.min(...markers);
-        const newMarkers = Array.from(
-          { length: bufferSize },
-          (_, i) => minMarker - (i + 1)
-        );
-        setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
-      } else {
-        const maxMarker = Math.max(...markers);
-        const newMarkers = Array.from(
-          { length: bufferSize },
-          (_, i) => maxMarker + (i + 1)
-        );
-        setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
-      }
-      
-      // Give a short delay for the markers to render before starting navigation
-      setTimeout(resolve, 100);
-    });
-  };
-  
-  // Create a function to handle a single button press
-  const performButtonPress = (direction) => {
-    if (direction === 'left') {
-      const minMarker = Math.min(...markers);
-      setMarkers(prevMarkers => [...prevMarkers, minMarker - 1]);
-      setTimelineOffset(prevOffset => prevOffset + 100);
-    } else {
-      const maxMarker = Math.max(...markers);
-      setMarkers(prevMarkers => [...prevMarkers, maxMarker + 1]);
-      setTimelineOffset(prevOffset => prevOffset - 100);
-    }
-  };
-  
-  // Function to execute button presses with delay
-  const executeButtonPresses = (direction, totalPresses, pressCount = 0) => {
-    if (pressCount >= totalPresses) {
-      setIsNavigating(false);
-      return;
-    }
-    
-    // For smoother animation, use smooth scrolling for longer distances
-    if (totalPresses > 3) {
-      // Use smooth animation for longer distances
-      smoothScrollTimeline(direction, totalPresses);
-      return;
-    } else {
-      // For short distances, use the original button press method
-      // Press the button using our direct function instead of the handler
-      performButtonPress(direction);
-      
-      // Schedule the next button press after delay
-      setTimeout(() => {
-        executeButtonPresses(direction, totalPresses, pressCount + 1);
-      }, 300); // 300ms delay between presses
-    }
-  };
-
-  // Smooth scrolling animation for the timeline
-  const smoothScrollTimeline = (direction, distance) => {
-    // We're already in isMoving state at this point, markers are hidden
-    
-    // Calculate the target offset
-    const targetOffset = direction === 'left' 
-      ? timelineOffset + (distance * 100) 
-      : timelineOffset - (distance * 100);
-    
-    // Preload markers in the direction we're scrolling
-    if (direction === 'left') {
-      const minMarker = Math.min(...markers);
-      const newMarkers = Array.from(
-        { length: distance + 2 }, // Add a couple extra for buffer
-        (_, i) => minMarker - (i + 1)
-      );
-      setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
-    } else {
-      const maxMarker = Math.max(...markers);
-      const newMarkers = Array.from(
-        { length: distance + 2 }, // Add a couple extra for buffer
-        (_, i) => maxMarker + (i + 1)
-      );
-      setMarkers(prevMarkers => [...prevMarkers, ...newMarkers]);
-    }
-    
-    // Set up animation variables
-    const startTime = performance.now();
-    const startOffset = timelineOffset;
-    const totalDistance = Math.abs(targetOffset - startOffset);
-    
-    // Animation duration based on distance (longer for greater distances, but with a cap)
-    const baseDuration = 500; // Base duration in ms
-    const maxDuration = 1500; // Maximum duration in ms
-    const durationPerMarker = 100; // Additional ms per marker
-    const duration = Math.min(baseDuration + (distance * durationPerMarker), maxDuration);
-    
-    // Use easeInOutCubic for a natural feel
-    const easeInOutCubic = t => t < 0.5 
-      ? 4 * t * t * t 
-      : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    
-    // Animation frame function
-    const animate = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easedProgress = easeInOutCubic(progress);
-      
-      // Calculate the new offset
-      const newOffset = startOffset + ((targetOffset - startOffset) * easedProgress);
-      
-      // Update the timeline offset
-      setTimelineOffset(newOffset);
-      
-      // Continue animation if not complete
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        // Ensure we end exactly at the target offset
-        setTimelineOffset(targetOffset);
-        setIsNavigating(false);
-        
-        // Reset moving state to restore markers
-        setTimeout(() => setIsMoving(false), 150);
-      }
-    };
-    
-    // Start the animation
-    requestAnimationFrame(animate);
   };
 
   const markerStyles = {
@@ -3207,9 +2476,8 @@ const handleRecenter = () => {
       setSelectedEventId(null);
     }
 
-    // Reset timeline offset and markers
+    // Reset timeline offset
     setTimelineOffset(0);
-    setMarkers(getInitialMarkers());
     
     // Update URL without page reload
     const searchParams = new URLSearchParams(window.location.search);
@@ -3757,7 +3025,7 @@ const handleRecenter = () => {
                   rangeMin = Math.min(...visibleMarkers);
                   rangeMax = Math.max(...visibleMarkers);
                 } else {
-                  const screenWidth = window.innerWidth;
+                  const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
                   const markerWidth = 100;
                   const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
                   const centerMarkerPosition = -timelineOffset / markerWidth;
@@ -4000,10 +3268,6 @@ const handleRecenter = () => {
             onBackgroundClick={handleBackgroundClick}
           />
           <TimelineBar
-            timelineOffset={timelineOffset}
-            markerSpacing={100}
-            minMarker={Math.min(...markers)}
-            maxMarker={Math.max(...markers)}
             theme={theme}
             style={timelineTransitionStyles}
           />
@@ -4076,9 +3340,10 @@ const handleRecenter = () => {
                 timelineOffset={timelineOffset}
                 markerSpacing={100}
                 markerStyles={markerStyles}
-                markers={markers}
+                markers={visibleMarkers}
                 viewMode={viewMode}
                 theme={theme}
+                workspaceWidth={timelineWorkspaceBounds?.width}
                 style={timelineTransitionStyles}
                 pointB_active={B_POINTER_MINIMAL ? false : pointB_active}
                 pointB_reference_markerValue={B_POINTER_MINIMAL ? 0 : pointB_reference_markerValue}
@@ -4107,7 +3372,7 @@ const handleRecenter = () => {
                 timelineOffset={timelineOffset}
                 markerSpacing={100}
                 viewMode={viewMode}
-                markers={markers}
+                workspaceWidth={timelineWorkspaceBounds?.width}
                 theme={theme}
                 style={timelineTransitionStyles}
               />
