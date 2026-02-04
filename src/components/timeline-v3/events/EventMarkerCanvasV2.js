@@ -25,6 +25,7 @@ const VOTE_NEUTRAL_COLOR = '#aaaaaa';
 const VOTE_GLOW_CYCLE = 10000;
 const VOTE_GLOW_WIDTH = 0.18;
 const VOTE_DOT_FADE_DURATION = 650;
+const VOTE_DOT_MOVE_DURATION = 420;
 
 const getEventColor = (event) => {
   const type = (event?.type || '').toLowerCase();
@@ -91,6 +92,7 @@ const EventMarkerCanvasV2 = ({
   const animationRef = useRef(null);
   const hoverRef = useRef({ id: null, intensity: 0, target: 0 });
   const voteFadeRef = useRef({ start: null });
+  const voteDotMotionRef = useRef({});
   const [opacity, setOpacity] = useState(0);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0, dpr: 1, left: 0 });
 
@@ -154,6 +156,46 @@ const EventMarkerCanvasV2 = ({
       voteFadeRef.current.start = performance.now();
     }
   }, [voteDotsLoading, hasVoteDots]);
+
+  useEffect(() => {
+    if (!hasVoteDots) {
+      voteDotMotionRef.current = {};
+      return;
+    }
+    const now = performance.now();
+    const nextMotion = { ...voteDotMotionRef.current };
+    Object.entries(voteDotsById || {}).forEach(([id, dot]) => {
+      if (!dot?.isVisible) {
+        delete nextMotion[id];
+        return;
+      }
+      const target = dot.offset ?? 0;
+      const existing = nextMotion[id];
+      if (!existing) {
+        nextMotion[id] = {
+          current: target,
+          start: target,
+          target,
+          startTime: now,
+        };
+        return;
+      }
+      if (existing.target !== target) {
+        nextMotion[id] = {
+          current: existing.current,
+          start: existing.current,
+          target,
+          startTime: now,
+        };
+      }
+    });
+    Object.keys(nextMotion).forEach((id) => {
+      if (!voteDotsById?.[id]?.isVisible) {
+        delete nextMotion[id];
+      }
+    });
+    voteDotMotionRef.current = nextMotion;
+  }, [voteDotsById, hasVoteDots]);
 
   const draw = useCallback((time = 0) => {
     const canvas = canvasRef.current;
@@ -246,7 +288,21 @@ const EventMarkerCanvasV2 = ({
       let brightGlowAlpha = 0;
       if (hasVoteDot) {
         const dotSize = voteDot.size ?? 6;
-        const dotOffset = voteDot.offset ?? 0;
+        const dotMotion = voteDotMotionRef.current[pos.event?.id];
+        let dotOffset = voteDot.offset ?? 0;
+        if (dotMotion && dotMotion.startTime != null) {
+          const elapsed = time - dotMotion.startTime;
+          if (elapsed < VOTE_DOT_MOVE_DURATION) {
+            const progress = Math.max(0, Math.min(1, elapsed / VOTE_DOT_MOVE_DURATION));
+            const eased = 0.5 - (Math.cos(Math.PI * progress) / 2);
+            dotOffset = dotMotion.start + (dotMotion.target - dotMotion.start) * eased;
+            dotMotion.current = dotOffset;
+          } else {
+            dotOffset = dotMotion.target;
+            dotMotion.current = dotMotion.target;
+            dotMotion.startTime = null;
+          }
+        }
         const dotSizeClamped = Math.max(3, Math.min(dotSize, lineWidth * 2));
         dotRadius = dotSizeClamped / 2;
         const maxOffset = Math.max(0, topY - VOTE_DOT_PADDING - (dotRadius * 2));

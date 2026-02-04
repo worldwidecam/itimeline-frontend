@@ -81,7 +81,7 @@ const HoverMarker = ({
       sx={{
         position: 'absolute',
         left: `${window.innerWidth/2 + (position * markerSpacing)}px`,
-        top: '50%',
+        bottom: '25%',
         transform: `translateX(${timelineOffset}px) translateX(-50%)`,
         display: 'flex',
         flexDirection: 'column',

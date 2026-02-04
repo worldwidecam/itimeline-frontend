@@ -1167,6 +1167,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isViewTransitioning, setIsViewTransitioning] = useState(false);
   const [pendingViewMode, setPendingViewMode] = useState(null);
   const [viewTransitionPhase, setViewTransitionPhase] = useState('idle'); // 'idle', 'fadeOut', 'structureTransition', 'dataProcessing', 'fadeIn'
+  const [debouncedVisibleEvents, setDebouncedVisibleEvents] = useState([]);
+  const voteDotUpdateTimeoutRef = useRef(null);
 
 
   const clearPhaseTimeouts = () => {
@@ -1282,6 +1284,29 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const visibleEventIdsKey = useMemo(() => visibleEventIds.join('|'), [visibleEventIds]);
 
   useEffect(() => {
+    if (progressiveLoadingState !== 'complete' || viewMode === 'position') {
+      setDebouncedVisibleEvents([]);
+      return undefined;
+    }
+    if (voteDotUpdateTimeoutRef.current) {
+      clearTimeout(voteDotUpdateTimeoutRef.current);
+    }
+    if (!visibleEvents.length) {
+      setDebouncedVisibleEvents([]);
+      return undefined;
+    }
+    voteDotUpdateTimeoutRef.current = setTimeout(() => {
+      setDebouncedVisibleEvents(visibleEvents);
+    }, 180);
+    return () => {
+      if (voteDotUpdateTimeoutRef.current) {
+        clearTimeout(voteDotUpdateTimeoutRef.current);
+        voteDotUpdateTimeoutRef.current = null;
+      }
+    };
+  }, [visibleEventIdsKey, progressiveLoadingState, viewMode, visibleEvents]);
+
+  useEffect(() => {
     if (progressiveLoadingState !== 'complete') return;
     if (viewMode === 'position') return;
     if (!visibleEventIds.length) return;
@@ -1340,14 +1365,18 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   }, [progressiveLoadingState, viewMode, visibleEventIdsKey]);
 
   const voteDotsById = useMemo(() => {
-    if (!visibleEvents.length) return {};
+    if (!debouncedVisibleEvents.length) return {};
 
     const dotSize = 6;
     const minOffset = 3;
     const maxOffset = 16;
-    const neighborRange = 2;
+    const downGamma = 1.35;
+    const upGamma = 1.85;
+    const extremeRatioThreshold = 60;
+    const extremeBoost = 2;
+    const extremeBoostCap = 3;
 
-    const totals = visibleEvents.map((event) => {
+    const totals = debouncedVisibleEvents.map((event) => {
       const stats = voteStatsById[event.id] || null;
       const promote = stats?.promote_count || 0;
       const demote = stats?.demote_count || 0;
@@ -1376,20 +1405,38 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     };
 
     const globalMax = Math.max(1, ...totals.map((item) => item.totalVotes));
+    const sortedTotals = withVotes
+      .map((item) => item.totalVotes)
+      .sort((a, b) => a - b);
+    const medianVotes = sortedTotals.length
+      ? (sortedTotals.length % 2 === 1
+        ? sortedTotals[Math.floor(sortedTotals.length / 2)]
+        : (sortedTotals[(sortedTotals.length / 2) - 1] + sortedTotals[sortedTotals.length / 2]) / 2)
+      : 1;
+    const medianAnchor = Math.max(1, medianVotes);
+    const extremeRatio = globalMax / medianAnchor;
     const dotMap = {};
 
     totals.forEach((item, index) => {
-      const localStart = Math.max(0, index - neighborRange);
-      const localEnd = Math.min(totals.length - 1, index + neighborRange);
-      const localTotals = totals.slice(localStart, localEnd + 1);
-      const localMax = Math.max(1, ...localTotals.map((neighbor) => neighbor.totalVotes));
+      let adjustedScale = 0;
+      if (item.totalVotes <= medianAnchor) {
+        const ratio = medianAnchor === 0 ? 0 : (item.totalVotes / medianAnchor);
+        adjustedScale = 0.5 * Math.pow(ratio, downGamma);
+      } else {
+        const denom = Math.max(1, globalMax - medianAnchor);
+        const ratio = (item.totalVotes - medianAnchor) / denom;
+        adjustedScale = 0.5 + 0.5 * Math.pow(Math.min(1, ratio), upGamma);
+      }
 
-      const baseOffset =
-        minOffset + (item.totalVotes / globalMax) * (maxOffset - minOffset);
-      const localOffset =
-        minOffset + (item.totalVotes / localMax) * (maxOffset - minOffset);
-      const blendedOffset = (0.7 * baseOffset) + (0.3 * localOffset);
-      const offset = Math.round(Math.min(maxOffset, Math.max(minOffset, blendedOffset)));
+      let offset = minOffset + adjustedScale * (maxOffset - minOffset);
+      if (extremeRatio > extremeRatioThreshold && item.totalVotes > medianAnchor) {
+        const boostScale = Math.min(2, extremeRatio / extremeRatioThreshold);
+        const boostAmount = Math.min(extremeBoostCap, extremeBoost * boostScale);
+        const denom = Math.max(1, globalMax - medianAnchor);
+        const intensity = Math.min(1, (item.totalVotes - medianAnchor) / denom);
+        offset += boostAmount * intensity;
+      }
+      offset = Math.round(Math.min(maxOffset + extremeBoostCap, Math.max(minOffset, offset)));
 
       dotMap[item.event.id] = {
         size: dotSize,
@@ -1402,7 +1449,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     });
 
     return dotMap;
-  }, [visibleEvents, voteStatsById]);
+  }, [debouncedVisibleEvents, voteStatsById]);
 
   const updateTimelineWorkspaceBounds = useCallback(() => {
     if (!timelineWorkspaceRef.current) return;
