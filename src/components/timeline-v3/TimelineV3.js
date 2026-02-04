@@ -482,42 +482,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const touchStartX = useRef(null);
   const touchStartOffset = useRef(null);
   const isDragging = useRef(false);
-  
-  // Settle detection for smooth fade-in
   const settleTimer = useRef(null);
   const [isSettled, setIsSettled] = useState(true); // Timeline is settled (not moving)
-  
-  // Handle wheel events with debouncing for better performance
-  const handleWheelEvent = (event) => {
-    event.preventDefault();
-    
-    // Collect wheel events for batching (performance optimization)
-    const now = Date.now();
-    wheelEvents.current.push({
-      delta: event.deltaY || event.deltaX,
-      timestamp: now
-    });
-    
-    // Close event popup if open
-    if (selectedEventId) {
-      setSelectedEventId(null);
-    }
-    
-    // Debounce: Process wheel events after a short delay of no wheel activity
-    clearTimeout(wheelDebounceTimer.current);
-    wheelDebounceTimer.current = setTimeout(() => {
-      // Calculate total scroll amount from all collected events
-      const totalDelta = wheelEvents.current.reduce((sum, evt) => sum + evt.delta, 0);
-      const scrollAmount = Math.sign(totalDelta) * Math.min(Math.abs(totalDelta) / 2, 300);
-      
-      // Use smooth scroll - same as buttons, but with variable amount
-      const direction = scrollAmount > 0 ? 'right' : 'left';
-      smoothScroll(direction, Math.abs(scrollAmount));
-      
-      // Clear collected events
-      wheelEvents.current = [];
-    }, 50); // Short debounce for responsive feel
-  };
   
   /**
    * Touch/Drag event handlers for smooth timeline scrolling
@@ -608,11 +574,6 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [remarkDialogOpen, setRemarkDialogOpen] = useState(false);
   const [newsDialogOpen, setNewsDialogOpen] = useState(false);
-  const scanCycleRef = useRef(0);
-  const scanProgressRef = useRef(0);
-  const scanCheckedRef = useRef(new Map());
-  const scanRefreshQueueRef = useRef(new Set());
-  const scanRefreshTimerRef = useRef(null);
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
@@ -1472,142 +1433,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     return () => window.cancelAnimationFrame(rafId);
   }, [viewMode, visibleEvents.length, updateTimelineWorkspaceBounds]);
 
-  const queueVoteStatsRefresh = useCallback((eventIds) => {
-    if (!eventIds || eventIds.length === 0) return;
-
-    eventIds.forEach((id) => {
-      if (id) {
-        scanRefreshQueueRef.current.add(id);
-      }
-    });
-
-    if (scanRefreshTimerRef.current) return;
-
-    scanRefreshTimerRef.current = window.setTimeout(async () => {
-      const token =
-        getCookie('access_token') || localStorage.getItem('access_token');
-      const idsToRefresh = Array.from(scanRefreshQueueRef.current);
-      scanRefreshQueueRef.current.clear();
-      scanRefreshTimerRef.current = null;
-
-      if (!token) {
-        console.warn('[VoteDots][Scan] Missing auth token; skipping refresh.');
-        return;
-      }
-      if (idsToRefresh.length === 0) return;
-
-      try {
-        const refreshed = await Promise.all(
-          idsToRefresh.map(async (eventId) => {
-            try {
-              const stats = await getVoteStats(eventId, token);
-              return {
-                eventId,
-                stats: {
-                  promote_count: stats.promote_count || 0,
-                  demote_count: stats.demote_count || 0,
-                  user_vote: stats.user_vote || null,
-                },
-              };
-            } catch (error) {
-              console.error(`Failed to refresh vote stats for event ${eventId}:`, error);
-              return null;
-            }
-          })
-        );
-
-        setVoteStatsById((prev) => {
-          const next = { ...prev };
-          refreshed.forEach((result) => {
-            if (result) {
-              next[result.eventId] = result.stats;
-            }
-          });
-          return next;
-        });
-
-        if (viewMode === 'month' || viewMode === 'year') {
-          setVoteDotsLoading(false);
-        }
-      } catch (error) {
-        console.error('Failed to refresh vote stats from scan pass:', error);
-      }
-    }, 150);
-  }, [viewMode]);
-
-  useEffect(() => {
-    return () => {
-      if (scanRefreshTimerRef.current) {
-        window.clearTimeout(scanRefreshTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    scanCheckedRef.current = new Map();
-    scanCycleRef.current = 0;
-    scanProgressRef.current = 0;
-  }, [visibleEventIdsKey, viewMode]);
-
-  useEffect(() => {
-    if (viewMode === 'position') return;
-    if (progressiveLoadingState !== 'complete') return;
-    if (!visibleEvents || visibleEvents.length === 0) return;
-
-    const phaseScanDurationMs = 10000;
-    let rafId = null;
-    let lastProgress = scanProgressRef.current;
-
-    const step = () => {
-      const now = performance.now();
-      const progress = (now % phaseScanDurationMs) / phaseScanDurationMs;
-      const wrapped = progress < lastProgress;
-
-      if (wrapped) {
-        scanCycleRef.current += 1;
-      }
-
-      const scanLeft = timelineWorkspaceBounds?.left ?? 0;
-      const scanWidth = timelineWorkspaceBounds?.width ?? window.innerWidth;
-      const scanX = scanLeft + scanWidth * progress;
-      const prevX = scanLeft + scanWidth * lastProgress;
-      const minX = Math.min(scanX, prevX);
-      const maxX = Math.max(scanX, prevX);
-      const cycleId = scanCycleRef.current;
-
-      const crossedIds = [];
-      visibleEvents.forEach((event) => {
-        if (!event?.event_date) return;
-        const markerValue = calculateEventMarkerPosition(event, viewMode);
-        const markerX =
-          (window.innerWidth / 2) + (markerValue * 100) + timelineOffset;
-
-        if (markerX >= minX && markerX <= maxX) {
-          const lastCycle = scanCheckedRef.current.get(event.id);
-          if (lastCycle !== cycleId) {
-            scanCheckedRef.current.set(event.id, cycleId);
-            crossedIds.push(event.id);
-          }
-        }
-      });
-
-      if (crossedIds.length) {
-        queueVoteStatsRefresh(crossedIds);
-      }
-
-      lastProgress = progress;
-      scanProgressRef.current = progress;
-      rafId = window.requestAnimationFrame(step);
-    };
-
-    rafId = window.requestAnimationFrame(step);
-
-    return () => {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
-  }, [progressiveLoadingState, queueVoteStatsRefresh, timelineOffset, timelineWorkspaceBounds, viewMode, visibleEvents]);
+  // Scan line system removed (vote-dot glow now handled by Canvas V2).
   
   // Function to navigate to the next event in the carousel and update the selected marker
   const navigateToNextEvent = () => {
@@ -4060,6 +3886,13 @@ const handleRecenter = () => {
         
         <Box 
           ref={timelineWorkspaceRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleTouchStart}
+          onMouseMove={handleTouchMove}
+          onMouseUp={handleTouchEnd}
+          onMouseLeave={handleTouchEnd}
           sx={{
             width: '100%',
             height: '300px',
@@ -4068,6 +3901,8 @@ const handleRecenter = () => {
             boxShadow: 1,
             position: 'relative',
             overflow: 'hidden',
+            touchAction: 'none',
+            cursor: 'grab',
             transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             opacity: isViewTransitioning ? (viewTransitionPhase === 'fadeOut' ? 0.5 : 0.8) : 1,
             transform: `
@@ -4107,24 +3942,6 @@ const handleRecenter = () => {
               </Box>
             </Box>
           )}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: '-8px',
-              width: 4,
-              zIndex: 850,
-              pointerEvents: 'none',
-              backgroundColor: 'rgba(0, 200, 160, 0.35)',
-              animation: 'phaseScanSweep 10s linear infinite',
-              willChange: 'left',
-              '@keyframes phaseScanSweep': {
-                '0%': { left: '-8px' },
-                '100%': { left: 'calc(100% + 8px)' }
-              }
-            }}
-          />
           {/* View Transition Indicator */}
           {isViewTransitioning && (
             <Box
@@ -4178,17 +3995,9 @@ const handleRecenter = () => {
               </Box>
             </Box>
           )}
-          {/* Track wheel and touch events for smooth scrolling */}
+          {/* Track background clicks only (input handled on workspace container) */}
           <TimelineBackground 
             onBackgroundClick={handleBackgroundClick}
-            onWheel={handleWheelEvent}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onMouseDown={handleTouchStart}
-            onMouseMove={handleTouchMove}
-            onMouseUp={handleTouchEnd}
-            onMouseLeave={handleTouchEnd}
           />
           <TimelineBar
             timelineOffset={timelineOffset}

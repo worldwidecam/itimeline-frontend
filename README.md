@@ -1436,6 +1436,18 @@ This section provides a detailed overview of the iTimeline frontend component st
   - Updates automatically as users navigate through different timeline views
   - Accounts for partially visible markers at screen edges
 
+#### EventMarkers V2 (Canvas)
+- Canvas-based rungs render all event markers (DOM marker line removed; selected preview card remains DOM).
+- Baseline aligned at 75% height; hover marker anchored to the same baseline.
+- Rungs fade in after loading completes and fade out before view/filter/back-to-present transitions.
+- Selected rung uses an upward pulse with a small gap and sine fade to avoid collisions.
+- Rung width is discrete, based on markerValue spacing (5/4/3/2/1px tiers).
+- Vote dots are fully Canvas-rendered with:
+  - Fade-in on load and staggered left-to-right glow wave.
+  - Height scaling anchored to the median vote count with asymmetric curves, plus extreme outlier boost.
+  - Lazy refresh on scroll/drag and eased height transitions to prevent blinking.
+- Deprecated V1-only behaviors: filter dimming, height scaling by view mode, movement sway, expanded hit zones.
+
 ### Specialized Media Handling <!-- BOOKMARK: MEDIA_HANDLING -->
 - **Modular Media Components**:
   - Specialized components for different media types (image, video, audio)

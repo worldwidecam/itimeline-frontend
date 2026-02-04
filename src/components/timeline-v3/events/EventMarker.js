@@ -52,7 +52,6 @@ const EventMarker = ({
   voteDot = null,
   showVoteDot = true,
   voteDotsLoading = false,
-  scanBounds = null,
   disableHover = false,
   disableSelectedPulse = false,
   showMarkerLine = true,
@@ -457,10 +456,9 @@ const EventMarker = ({
   const idleDotColor = isNeutralDot ? 'rgba(170, 170, 170, 0.85)' : voteDotColor;
   const brightDotColor = isNeutralDot ? '#ffffff' : voteDotColor;
   
-  const scanLeft = scanBounds?.left ?? 0;
-  const scanWidth = scanBounds?.width ?? window.innerWidth;
   const phaseScanDuration = 10;
-  const phaseScanProgress = position ? (position.x - scanLeft) / scanWidth : 0;
+  const scanWidth = window.innerWidth || 1;
+  const phaseScanProgress = position ? position.x / scanWidth : 0;
   const clampedScanProgress = Math.min(1, Math.max(0, phaseScanProgress));
   const phaseScanDelay = -((1 - clampedScanProgress) * phaseScanDuration);
   const idleGlow = isNeutralDot
@@ -470,7 +468,7 @@ const EventMarker = ({
     ? '0 0 12px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.6)'
     : `0 0 18px ${alpha(voteDotColor, 0.93)}, 0 0 34px ${alpha(voteDotColor, 0.7)}`;
 
-  const workspaceHeight = scanBounds?.height ?? 300;
+  const workspaceHeight = 300;
   const markerBottom = position?.y ?? 0;
   const dotPadding = 6;
 
