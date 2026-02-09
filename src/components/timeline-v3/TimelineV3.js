@@ -32,6 +32,7 @@ import Add from '@mui/icons-material/Add';
 import Comment from '@mui/icons-material/Comment';
 import Newspaper from '@mui/icons-material/Newspaper';
 import PermMedia from '@mui/icons-material/PermMedia';
+import Event from '@mui/icons-material/Event';
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
 import PersonAdd from '@mui/icons-material/PersonAdd';
 import CheckCircle from '@mui/icons-material/CheckCircle';
@@ -44,6 +45,7 @@ import Security from '@mui/icons-material/Security';
 // Define icon components to match the names used in the component
 const AddIcon = Add;
 const CommentIcon = Comment;
+const EventIcon = Event;
 const NewspaperIcon = Newspaper;
 const PermMediaIcon = PermMedia;
 const ArrowDropDownIcon = ArrowDropDown;
@@ -469,6 +471,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const touchStartOffset = useRef(null);
   const isDragging = useRef(false);
   const settleTimer = useRef(null);
+  const MOTION_SETTLE_DELAY = 450;
   const [isSettled, setIsSettled] = useState(true); // Timeline is settled (not moving)
   
   /**
@@ -526,7 +529,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       setIsSettled(true); // Triggers event marker fade in
-    }, 200); // Shorter delay for drag since there's no CSS transition
+    }, MOTION_SETTLE_DELAY);
     
     // Optional: Snap to nearest marker for cleaner positioning
     // Uncomment if you want snapping behavior
@@ -1109,6 +1112,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [pendingViewMode, setPendingViewMode] = useState(null);
   const [viewTransitionPhase, setViewTransitionPhase] = useState('idle'); // 'idle', 'fadeOut', 'structureTransition', 'dataProcessing', 'fadeIn'
   const [debouncedVisibleEvents, setDebouncedVisibleEvents] = useState([]);
+  const lastVisibleEventsRef = useRef([]);
+  const lastFilteredEventsCountRef = useRef(0);
   const voteDotUpdateTimeoutRef = useRef(null);
 
 
@@ -1171,6 +1176,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   }, [progressiveLoadingState]);
 
   const visibleEvents = useMemo(() => {
+    if (!isSettled) return lastVisibleEventsRef.current;
     if (viewMode === 'position') return [];
     if (progressiveLoadingState !== 'complete') return [];
     if (!events || events.length === 0) return [];
@@ -1203,11 +1209,31 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     return filtered.map(({ event }) => event);
   }, [
     events,
+    isSettled,
     progressiveLoadingState,
     selectedType,
     timelineOffset,
     viewMode,
   ]);
+
+  useEffect(() => {
+    if (isSettled) {
+      lastVisibleEventsRef.current = visibleEvents;
+    }
+  }, [isSettled, visibleEvents]);
+
+  useEffect(() => {
+    if (!isSettled) {
+      setFilteredEventsCount(0);
+      lastFilteredEventsCountRef.current = 0;
+    }
+  }, [isSettled]);
+
+  const handleFilteredEventsCount = useCallback((count) => {
+    if (!isSettled) return;
+    lastFilteredEventsCountRef.current = count;
+    setFilteredEventsCount(count);
+  }, [isSettled]);
 
   const selectedVisibleIndex = useMemo(
     () => visibleEvents.findIndex((event) => event?.id === selectedEventId),
@@ -1229,6 +1255,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       setDebouncedVisibleEvents([]);
       return undefined;
     }
+    if (!isSettled) return undefined;
     if (voteDotUpdateTimeoutRef.current) {
       clearTimeout(voteDotUpdateTimeoutRef.current);
     }
@@ -1238,14 +1265,14 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
     voteDotUpdateTimeoutRef.current = setTimeout(() => {
       setDebouncedVisibleEvents(visibleEvents);
-    }, 180);
+    }, MOTION_SETTLE_DELAY);
     return () => {
       if (voteDotUpdateTimeoutRef.current) {
         clearTimeout(voteDotUpdateTimeoutRef.current);
         voteDotUpdateTimeoutRef.current = null;
       }
     };
-  }, [visibleEventIdsKey, progressiveLoadingState, viewMode, visibleEvents]);
+  }, [visibleEventIdsKey, progressiveLoadingState, viewMode, visibleEvents, isSettled, MOTION_SETTLE_DELAY]);
 
   useEffect(() => {
     if (progressiveLoadingState !== 'complete') return;
@@ -2290,7 +2317,7 @@ const handleViewModeTransition = (newViewMode) => {
     clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       setIsSettled(true); // Triggers event marker fade in
-    }, 400); // Wait 400ms after last scroll for CSS transition to complete
+    }, MOTION_SETTLE_DELAY);
   };
 
   const handleLeft = () => {
@@ -2515,10 +2542,6 @@ const handleRecenter = () => {
     }, 300);
   }, FADE_OUT_DELAY_MS);
 };
-
-  const handleFilteredEventsCount = (count) => {
-    setFilteredEventsCount(count);
-  };
 
   const isPersonalRoute = !!(routeUsername && routeSlug);
 
@@ -3003,7 +3026,7 @@ const handleRecenter = () => {
             {/* Event Counter - Now shows filtered events count */}
             {(() => {
               // Compute filtered events for EventCounter (memoized inline)
-              const filteredEventsForCounter = events.filter(event => {
+              const filteredEventsForCounter = isSettled ? events.filter(event => {
                 // Apply the same filtering logic as in EventList
                 if (viewMode === 'position') {
                   // In position mode, still apply type filter if selected
@@ -3075,11 +3098,11 @@ const handleRecenter = () => {
                 }
                 
                 return passesDateFilter;
-              });
+              }) : [];
               
               return (
                 <EventCounter
-                  count={filteredEventsCount}
+                  count={isSettled ? filteredEventsCount : 0}
                   events={filteredEventsForCounter}
                   currentIndex={currentEventIndex}
                   onChangeIndex={(index) => {
@@ -3112,6 +3135,7 @@ const handleRecenter = () => {
                   markerSpacing={100}
                   sortOrder={sortOrder}
                   selectedType={selectedType}
+                  motionDissipate={!isSettled}
                 />
               );
             })()}
@@ -3296,11 +3320,12 @@ const handleRecenter = () => {
                 markersLoading={markersLoading}
                 timelineMarkersLoading={timelineMarkersLoading}
                 progressiveLoadingState={progressiveLoadingState}
+                motionDissipate={!isSettled}
               />
               {selectedVisibleEvent && (
                 <Fade
                   key={`marker-selected-${selectedVisibleEvent.id}`}
-                  in={!isMoving}
+                  in={!isMoving && isSettled}
                   timeout={{ enter: 500, exit: 200 }}
                 >
                   <div>
@@ -3513,7 +3538,7 @@ const handleRecenter = () => {
         {/* Event List - Only show when not in timeline loading state */}
         {progressiveLoadingState !== 'timeline' && (
           <EventList
-            events={events}
+            events={isSettled ? events : []}
             onEventEdit={handleEventEdit}
             onEventDelete={handleEventDelete}
             selectedEventId={selectedEventId}
@@ -3522,7 +3547,7 @@ const handleRecenter = () => {
             viewMode={viewMode}
             minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
             maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
-            onFilteredEventsCount={setFilteredEventsCount}
+            onFilteredEventsCount={handleFilteredEventsCount}
             isLoadingMarkers={progressiveLoadingState !== 'complete'}
             goToPrevious={navigateToPrevEvent}
             goToNext={navigateToNextEvent}
@@ -3530,6 +3555,7 @@ const handleRecenter = () => {
             setIsPopupOpen={setIsPopupOpen}
             eventRefs={eventRefs}
             reviewingEventIds={reviewingEventIds}
+            motionDissipate={!isSettled}
           />
         )}
       </Box>
@@ -3580,83 +3606,8 @@ const handleRecenter = () => {
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
       <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
-        {/* Specialized Event Buttons - These animate in and out */}
+        {/* Consolidated Event Button - Animates in and out */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
-          {/* Media Button - Animates from main button position */}
-          <Box sx={{
-            position: 'absolute',
-            bottom: floatingButtonsExpanded ? 168 : 0,
-            right: 0,
-            opacity: floatingButtonsExpanded ? 1 : 0,
-            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
-            transition: `bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                        opacity 0.3s ease-in-out`,
-            transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s',
-            zIndex: 1510
-          }}>
-            <Tooltip title="Create Media Event" placement="left">
-              <Fab
-                onClick={() => {
-                  setEditingEvent(null);
-                  setDialogOpen(true);
-                  setFloatingButtonsExpanded(false);
-                }}
-                size="medium"
-                sx={{
-                  bgcolor: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0', // Purple color for media
-                  '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark' ? '#ba68c8' : '#7b1fa2',
-                  },
-                  color: 'white',
-                  boxShadow: 3,
-                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
-                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s'
-                }}
-              >
-                <PermMediaIcon />
-              </Fab>
-            </Tooltip>
-          </Box>
-          
-          {/* News Button - Animates from main button position with delay */}
-          <Box sx={{
-            position: 'absolute',
-            bottom: floatingButtonsExpanded ? 112 : 0,
-            right: 0,
-            opacity: floatingButtonsExpanded ? 1 : 0,
-            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
-            transition: `bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                        opacity 0.3s ease-in-out`,
-            transitionDelay: floatingButtonsExpanded ? '0.1s' : '0s',
-            zIndex: 1520
-          }}>
-            <Tooltip title="Create News Event" placement="left">
-              <Fab
-                onClick={() => {
-                  setEditingEvent(null);
-                  setDialogOpen(true);
-                  setFloatingButtonsExpanded(false);
-                }}
-                size="medium"
-                sx={{
-                  bgcolor: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935', // Red color for news
-                  '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark' ? '#e57373' : '#c62828',
-                  },
-                  color: 'white',
-                  boxShadow: 3,
-                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
-                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transitionDelay: floatingButtonsExpanded ? '0.1s' : '0s'
-                }}
-              >
-                <NewspaperIcon />
-              </Fab>
-            </Tooltip>
-          </Box>
-          
-          {/* Remark Button - Animates from main button position with more delay */}
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 56 : 0,
@@ -3665,10 +3616,10 @@ const handleRecenter = () => {
             pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
             transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
                         opacity 0.3s ease-in-out`,
-            transitionDelay: floatingButtonsExpanded ? '0.15s' : '0s',
+            transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s',
             zIndex: 1530,
           }}>
-            <Tooltip title="Create Remark Event" placement="left">
+            <Tooltip title="Create Event" placement="left">
               <Fab
                 onClick={() => {
                   setEditingEvent(null);
@@ -3677,18 +3628,24 @@ const handleRecenter = () => {
                 }}
                 size="medium"
                 sx={{
-                  bgcolor: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2', // Blue color for remarks
+                  bgcolor: theme.palette.mode === 'dark' ? '#263238' : '#ffffff',
+                  border: theme.palette.mode === 'dark' ? '2px solid #69F0AE' : '2px solid #00CFA1',
                   '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark' ? '#64b5f6' : '#1565c0',
+                    bgcolor: theme.palette.mode === 'dark' ? '#1c2326' : '#f5fffb',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 0 18px rgba(105, 240, 174, 0.45)'
+                      : '0 0 18px rgba(0, 207, 161, 0.35)'
                   },
-                  color: 'white',
-                  boxShadow: 3,
+                  color: theme.palette.mode === 'dark' ? '#69F0AE' : '#00CFA1',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 0 12px rgba(105, 240, 174, 0.35)'
+                    : '0 0 12px rgba(0, 207, 161, 0.25)',
                   transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
                   transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transitionDelay: floatingButtonsExpanded ? '0.15s' : '0s'
+                  transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s'
                 }}
               >
-                <CommentIcon />
+                <EventIcon />
               </Fab>
             </Tooltip>
           </Box>

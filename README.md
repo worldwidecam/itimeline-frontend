@@ -623,6 +623,21 @@ When implementing or modifying timeline views (day/week/month/year), keep behavi
 - Video: `#4a148c` (deep purple)
 - Fallback media (unknown subtype): use `EVENT_TYPES.MEDIA` purple
 
+#### Timeline Motion Dissipate (Feb 2026)
+
+To keep timeline movement smooth, **event information must dissipate during motion** and only update after the timeline settles.
+
+**Behavior**
+- On motion start (wheel/drag/buttons): treat the timeline as if it has **zero events**.
+- During motion: Event markers, EventList, EventCounter, and vote dots **dissipate** (not a loading fade).
+- After stillness: event data recomputes and fades back in together (debounced settle delay).
+
+**Key implementation notes**
+- Use `isSettled` to gate event rendering and computations.
+- EventList + EventCounter receive `[]` and `count=0` while moving.
+- Canvas markers skip drawing while moving (true dissipate, not re-rendering).
+- The collective settle delay (`MOTION_SETTLE_DELAY`) controls when data returns after movement.
+
 #### Frontend Coding Guidelines (Admin Panel & Member Removal)
 
 These practices prevent blank screens and ensure permission logic is consistent with the backend.

@@ -87,6 +87,7 @@ const EventMarkerCanvasV2 = ({
   markersLoading = false,
   timelineMarkersLoading = false,
   progressiveLoadingState = 'complete',
+  motionDissipate = false,
 }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -121,6 +122,7 @@ const EventMarkerCanvasV2 = ({
     && !markersLoading
     && !timelineMarkersLoading
     && progressiveLoadingState === 'complete';
+  const finalOpacity = motionDissipate ? 0 : opacity;
 
   useEffect(() => {
     setOpacity(shouldFadeIn ? 1 : 0);
@@ -198,6 +200,7 @@ const EventMarkerCanvasV2 = ({
   }, [voteDotsById, hasVoteDots]);
 
   const draw = useCallback((time = 0) => {
+    if (motionDissipate) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -372,9 +375,10 @@ const EventMarkerCanvasV2 = ({
     }
 
     ctx.restore();
-  }, [canvasSize, positions, selectedEventId, timelineOffset, voteDotsById, voteDotsLoading]);
+  }, [canvasSize, motionDissipate, positions, selectedEventId, timelineOffset, voteDotsById, voteDotsLoading]);
 
   const animate = useCallback((time) => {
+    if (motionDissipate) return;
     const hoverState = hoverRef.current;
     hoverState.intensity += (hoverState.target - hoverState.intensity) * HOVER_LERP;
     if (Math.abs(hoverState.target - hoverState.intensity) < 0.01) {
@@ -392,32 +396,35 @@ const EventMarkerCanvasV2 = ({
     } else {
       animationRef.current = null;
     }
-  }, [draw, selectedEventId, hasVoteDots, voteDotsLoading]);
+  }, [draw, motionDissipate, selectedEventId, hasVoteDots, voteDotsLoading]);
 
   useEffect(() => {
+    if (motionDissipate) return;
     draw(performance.now());
     if (animationRef.current) return;
     if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target || (hasVoteDots && !voteDotsLoading)) {
       animationRef.current = requestAnimationFrame(animate);
     }
-  }, [draw, animate, selectedEventId, positions, hasVoteDots, voteDotsLoading]);
+  }, [draw, animate, motionDissipate, selectedEventId, positions, hasVoteDots, voteDotsLoading]);
 
   useEffect(() => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
+    if (motionDissipate) return;
     draw(performance.now());
     if (selectedEventId || hoverRef.current.intensity !== hoverRef.current.target || (hasVoteDots && !voteDotsLoading)) {
       animationRef.current = requestAnimationFrame(animate);
     }
-  }, [selectedEventId, animate, draw, hasVoteDots, voteDotsLoading]);
+  }, [selectedEventId, animate, draw, motionDissipate, hasVoteDots, voteDotsLoading]);
 
   useEffect(() => {
+    if (motionDissipate) return;
     if (timelineOffset !== undefined) {
       draw(performance.now());
     }
-  }, [timelineOffset, draw]);
+  }, [timelineOffset, draw, motionDissipate]);
 
   useEffect(() => () => {
     if (animationRef.current) {
@@ -494,9 +501,9 @@ const EventMarkerCanvasV2 = ({
         inset: 0,
         width: '100%',
         height: '100%',
-        pointerEvents: 'auto',
-        opacity,
-        transition: 'opacity 650ms ease',
+        pointerEvents: motionDissipate ? 'none' : 'auto',
+        opacity: finalOpacity,
+        transition: motionDissipate ? 'opacity 140ms ease' : 'opacity 650ms ease',
       }}
     />
   );
