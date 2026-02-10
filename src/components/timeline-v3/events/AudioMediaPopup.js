@@ -50,6 +50,7 @@ import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
+import RichContentRenderer from './RichContentRenderer';
 
 /**
  * AudioMediaPopup - A specialized popup for audio media events
@@ -492,20 +493,24 @@ const AudioMediaPopup = ({
             <Divider sx={{ my: 2 }} />
             
             {/* Event Description */}
-            {eventData.description && (
+            {(eventData.content || eventData.description) && (
               <Box sx={{ mb: 3 }}>
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: 1.7,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.85)'
-                      : 'rgba(0,0,0,0.75)',
-                  }}
-                >
-                  {eventData.description}
-                </Typography>
+                {eventData.content ? (
+                  <RichContentRenderer content={eventData.content} theme={theme} />
+                ) : (
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.7,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.85)'
+                        : 'rgba(0,0,0,0.75)',
+                    }}
+                  >
+                    {eventData.description}
+                  </Typography>
+                )}
               </Box>
             )}
             

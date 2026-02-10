@@ -51,6 +51,7 @@ import UserAvatar from '../../common/UserAvatar';
 import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
+import RichContentRenderer from './RichContentRenderer';
 
 /**
  * VideoEventPopup - A specialized popup for video media events
@@ -727,20 +728,24 @@ const VideoEventPopup = ({
               <Divider sx={{ my: 2 }} />
               
               {/* Event Description */}
-              {event.description && (
+              {(event.content || event.description) && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.7,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.85)'
-                        : 'rgba(0,0,0,0.75)',
-                    }}
-                  >
-                    {event.description}
-                  </Typography>
+                  {event.content ? (
+                    <RichContentRenderer content={event.content} theme={theme} />
+                  ) : (
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.7,
+                        color: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.85)'
+                          : 'rgba(0,0,0,0.75)',
+                      }}
+                    >
+                      {event.description}
+                    </Typography>
+                  )}
                 </Box>
               )}
               

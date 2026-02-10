@@ -54,6 +54,7 @@ import PopupTimelineLanes from './PopupTimelineLanes';
 import { submitReport } from '../../../utils/api';
 import config from '../../../config';
 import { useEventVote } from '../../../hooks/useEventVote';
+import RichContentRenderer from './RichContentRenderer';
 
 /**
  * EventPopup - A component that displays event details in a popup dialog
@@ -945,20 +946,24 @@ const EventPopup = ({
           
           <DialogContent sx={{ p: 4 }}>
             {/* Event Description */}
-            {event.description && (
+            {(event.content || event.description) && (
               <Box sx={{ mb: 3 }}>
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: 1.7,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.85)'
-                      : 'rgba(0,0,0,0.75)',
-                  }}
-                >
-                  {event.description}
-                </Typography>
+                {event.content ? (
+                  <RichContentRenderer content={event.content} theme={theme} />
+                ) : (
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.7,
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.85)'
+                        : 'rgba(0,0,0,0.75)',
+                    }}
+                  >
+                    {event.description}
+                  </Typography>
+                )}
               </Box>
             )}
             

@@ -1,3 +1,5 @@
+// DEPRECATED: EventForm is not wired to the Timeline FAB flow (EventDialog is).
+// Keep for legacy reference only; avoid new usage.
 import {
   Dialog,
   DialogTitle,
@@ -25,6 +27,7 @@ import {
   Divider,
   ListSubheader,
   Tooltip,
+  Popper,
 } from '@mui/material';
 import { 
   Close as CloseIcon, 
@@ -37,12 +40,165 @@ import {
   Delete as DeleteIcon,
   AudioFile as AudioFileIcon,
   VideoFile as VideoFileIcon,
+  Person as PersonIcon,
+  People as CommunityIcon,
 } from '@mui/icons-material';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_METADATA } from './EventTypes';
 import MediaEventUploader from './MediaEventUploader';
 import TimelineNameDisplay from '../TimelineNameDisplay';
+import HashtagIcon from '../../common/HashtagIcon';
+
+const RichEditor = ({ value, onChange, disabled, placeholder }) => {
+  const [cursorPos, setCursorPos] = useState(0);
+  const [indicator, setIndicator] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const textFieldRef = useRef(null);
+
+  const detectMention = (text, pos) => {
+    const beforeCursor = text.substring(0, pos);
+
+    const atMatch = beforeCursor.match(/@([a-zA-Z0-9_]*)$/);
+    if (atMatch) {
+      return { type: 'user', label: 'Tagging', partial: atMatch[1], color: 'rgba(33, 150, 243, 0.15)' };
+    }
+
+    const hashMatch = beforeCursor.match(/#([a-zA-Z0-9_]*)$/);
+    if (hashMatch) {
+      return { type: 'hashtag', label: 'Hashtag', partial: hashMatch[1], color: 'rgba(76, 175, 80, 0.15)' };
+    }
+
+    const commMatch = beforeCursor.match(/i-([a-zA-Z0-9_]*)$/);
+    if (commMatch) {
+      return { type: 'community', label: 'Community', partial: commMatch[1], color: 'rgba(156, 39, 176, 0.15)' };
+    }
+
+    const wwwMatch = beforeCursor.match(/www\.([a-zA-Z0-9._-]*)$/);
+    if (wwwMatch) {
+      return { type: 'url', label: 'URL', partial: wwwMatch[1], color: 'rgba(255, 152, 0, 0.15)' };
+    }
+
+    return null;
+  };
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    const newCursorPos = e.target.selectionStart;
+
+    onChange(newValue);
+    setCursorPos(newCursorPos);
+
+    const mention = detectMention(newValue, newCursorPos);
+    if (mention) {
+      setIndicator(mention);
+      setAnchorEl(textFieldRef.current);
+    } else {
+      setIndicator(null);
+      setAnchorEl(null);
+    }
+  };
+
+  const getIndicatorIcon = () => {
+    if (!indicator) return null;
+    switch (indicator.type) {
+      case 'user':
+        return <PersonIcon fontSize="small" />;
+      case 'hashtag':
+        return <HashtagIcon fontSize="small" />;
+      case 'community':
+        return <CommunityIcon fontSize="small" />;
+      case 'link':
+      case 'url':
+        return <LinkIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+
+  const getIndicatorText = () => {
+    if (!indicator) return '';
+    const text = indicator.partial ? ` ${indicator.partial}` : '';
+    return `${indicator.label}${text}`;
+  };
+
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <TextField
+        ref={textFieldRef}
+        name="description"
+        label="Description"
+        value={value}
+        onChange={handleChange}
+        multiline
+        rows={4}
+        fullWidth
+        variant="outlined"
+        placeholder={placeholder}
+        disabled={disabled}
+        helperText="Use @ # i- or www. to add mentions and links"
+        InputLabelProps={{
+          sx: { 
+            fontSize: '0.95rem',
+            transform: 'translate(14px, -9px) scale(0.75)',
+            '&.MuiInputLabel-shrink': {
+              transform: 'translate(14px, -9px) scale(0.75)'
+            },
+            '&.Mui-focused': {
+              color: 'primary.main'
+            }
+          }
+        }}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 1.5,
+            '& fieldset': {
+              borderColor: 'divider'
+            },
+            '&:hover fieldset': {
+              borderColor: 'primary.light'
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: 'primary.main',
+              borderWidth: 2
+            }
+          },
+          '& .MuiInputBase-input': {
+            padding: '14px 16px',
+            fontSize: '0.95rem'
+          }
+        }}
+      />
+
+      <Popper
+        open={Boolean(indicator && anchorEl)}
+        anchorEl={anchorEl}
+        placement="bottom-start"
+        style={{ zIndex: 1300 }}
+      >
+        <Paper
+          sx={{
+            mt: 1,
+            px: 2,
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            bgcolor: indicator?.color,
+            border: '1px solid',
+            borderColor: 'divider',
+            pointerEvents: 'none'
+          }}
+        >
+          {getIndicatorIcon()}
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            {getIndicatorText()}
+          </Typography>
+        </Paper>
+      </Popper>
+    </Box>
+  );
+};
 
 const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -953,46 +1109,11 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 }
               }}
             />
-            <TextField
-              name="description"
-              label="Description"
+            <RichEditor
               value={formData.description}
-              onChange={handleChange}
-              multiline
-              rows={4}
-              fullWidth
-              variant="outlined"
-              InputLabelProps={{
-                sx: { 
-                  fontSize: '0.95rem',
-                  transform: 'translate(14px, -9px) scale(0.75)',
-                  '&.MuiInputLabel-shrink': {
-                    transform: 'translate(14px, -9px) scale(0.75)'
-                  },
-                  '&.Mui-focused': {
-                    color: 'primary.main'
-                  }
-                }
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  '& fieldset': {
-                    borderColor: 'divider'
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'primary.light'
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'primary.main',
-                    borderWidth: 2
-                  }
-                },
-                '& .MuiInputBase-input': {
-                  padding: '14px 16px',
-                  fontSize: '0.95rem'
-                }
-              }}
+              onChange={(value) => setFormData((prev) => ({ ...prev, description: value }))}
+              disabled={loading}
+              placeholder="Type @ for user, # for hashtag, i- for community, or www. for URL..."
             />
             <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
               <FormControl fullWidth>
