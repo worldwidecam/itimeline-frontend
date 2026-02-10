@@ -7,7 +7,7 @@ import EventPopup from '../EventPopup';
 /**
  * Component for rendering Remark event markers in the timeline
  */
-const RemarkEventMarker = ({ event }) => {
+const RemarkEventMarker = ({ event, onDelete }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   
@@ -26,6 +26,7 @@ const RemarkEventMarker = ({ event }) => {
         open={popupOpen}
         onClose={handlePopupClose}
         event={event}
+        onDelete={onDelete}
       />
       <Paper
         elevation={3}

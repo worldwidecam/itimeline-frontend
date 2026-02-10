@@ -4,6 +4,7 @@ import {
   Dialog, 
   DialogTitle, 
   DialogContent, 
+  DialogActions,
   IconButton, 
   Typography, 
   Box, 
@@ -29,6 +30,7 @@ import {
   AccessTime as AccessTimeIcon, 
   RateReview as RateReviewIcon, 
   CheckCircle as CheckCircleIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -55,6 +57,7 @@ const ImageEventPopup = ({
   event, 
   open, 
   onClose, 
+  onDelete,
   mediaSource,
   formatDate,
   formatEventDate,
@@ -87,6 +90,7 @@ const ImageEventPopup = ({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
   const [reportCategory, setReportCategory] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Local snackbar for report submission feedback
   const [reportSnackOpen, setReportSnackOpen] = useState(false);
   const {
@@ -120,6 +124,17 @@ const ImageEventPopup = ({
   };
   
   const userData = getUserData();
+
+  // Current user (from localStorage) for delete permissions
+  let currentUserId = null;
+  try {
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUserId = userData?.id || null;
+  } catch (_) {}
+
+  const isSiteOwner = String(currentUserId) === '1';
+  const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
+  const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -174,6 +189,23 @@ const ImageEventPopup = ({
     setReportReason('');
     setReportCategory('');
     setReportOpen(true);
+  };
+
+  const handleOpenDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteDialogOpen(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!onDelete || !event) return;
+    await onDelete(event);
+    setDeleteDialogOpen(false);
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   const handleCloseReport = () => {
@@ -573,6 +605,18 @@ const ImageEventPopup = ({
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              {canDelete && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleOpenDelete}
+                  sx={{ textTransform: 'none', px: 2 }}
+                >
+                  Delete
+                </Button>
+              )}
               {isInReview && (
                 <Box
                   sx={{
@@ -696,6 +740,19 @@ const ImageEventPopup = ({
               {error || success}
             </Alert>
           </Snackbar>
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={handleCloseDelete}
+          >
+            <DialogTitle>Delete Event</DialogTitle>
+            <DialogContent>
+              Are you sure you want to delete "{event?.title || 'this event'}"?
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseDelete}>Cancel</Button>
+              <Button onClick={handleConfirmDelete} color="error">Delete</Button>
+            </DialogActions>
+          </Dialog>
           {/* Local success snackbar for report submission */}
           <Snackbar
             open={reportSnackOpen}

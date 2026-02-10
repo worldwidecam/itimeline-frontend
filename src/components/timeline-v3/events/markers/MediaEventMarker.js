@@ -91,7 +91,7 @@ const RecText = styled(Box)({
 /**
  * Component for rendering Media event markers in the timeline
  */
-const MediaEventMarker = ({ event }) => {
+const MediaEventMarker = ({ event, onDelete }) => {
   const theme = useTheme();
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
@@ -241,6 +241,7 @@ const MediaEventMarker = ({ event }) => {
           open={popupOpen}
           onClose={handlePopupClose}
           event={event}
+          onDelete={onDelete}
         />
         <Paper
           elevation={3}
@@ -314,6 +315,7 @@ const MediaEventMarker = ({ event }) => {
           open={popupOpen}
           onClose={handlePopupClose}
           event={event}
+          onDelete={onDelete}
         />
         <Paper
           elevation={3}
@@ -499,6 +501,7 @@ const MediaEventMarker = ({ event }) => {
           open={popupOpen}
           onClose={handlePopupClose}
           event={event}
+          onDelete={onDelete}
         />
         <Paper
         elevation={3}

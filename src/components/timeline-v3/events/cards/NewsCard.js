@@ -658,6 +658,7 @@ const NewsCard = forwardRef(({
             setIsPopupOpen(false);
           }
         }}
+        onDelete={onDelete}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
       />

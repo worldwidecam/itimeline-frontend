@@ -24,7 +24,6 @@ import {
   Comment as RemarkIcon,
   Newspaper as NewsIcon,
   PermMedia as MediaIcon,
-  Delete as DeleteIcon,
   Sort as SortIcon,
   ExpandMore as ExpandMoreIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon
@@ -76,8 +75,6 @@ const EventList = ({
     // Load saved preference or default to 'newest'
     return localStorage.getItem('timeline_sort_preference') || 'newest';
   });
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [eventToDelete, setEventToDelete] = useState(null);
   const [previousSelectedId, setPreviousSelectedId] = useState(null);
   const localEventRefs = useRef({});
   const eventRefs = externalEventRefs || localEventRefs;
@@ -119,24 +116,6 @@ const EventList = ({
     
     console.log('Filter type changed to:', selectedType);
   }, [selectedType]);
-
-  const handleDeleteClick = (event) => {
-    setEventToDelete(event);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (eventToDelete) {
-      onEventDelete(eventToDelete);
-    }
-    setDeleteDialogOpen(false);
-    setEventToDelete(null);
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setEventToDelete(null);
-  };
 
   const scrollToEvent = (eventId) => {
     const eventElement = eventRefs.current[eventId];
@@ -203,7 +182,7 @@ const EventList = ({
       key: event.id,
       event,
       onEdit: onEventEdit,
-      onDelete: handleDeleteClick,
+      onDelete: onEventDelete,
       isSelected: isSelected,
     };
 
@@ -728,20 +707,6 @@ const EventList = ({
 
       {/* The To Top button has been moved next to the Load More button */}
       
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-      >
-        <DialogTitle>Delete Event</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete "{eventToDelete?.title}"?
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error">Delete</Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 };

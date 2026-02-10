@@ -4,11 +4,10 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.
-- [ ] Delete feature and logic (posts/events, creator + admin access)
+- [ ] Update description boxes in posts to include new chip logic
 
 ## Scope / Success Criteria
-- [ ] Delete is allowed for the original post creator and SiteOwner (SiteOwner = user ID 1 / username + email: Brahdyssey@gmail.com).
+- [x] Delete is allowed for the original post creator and SiteOwner (SiteOwner = user ID 1 / username + email: Brahdyssey@gmail.com).
 - [ ] Prepare for a future SiteAdmin role (second only to SiteOwner) to share delete permissions when admin page is built.
 - [ ] Delete button is visible only to authorized users, and only inside EventPopups (not EventList cards).
 - [ ] Backend enforces creator/SiteOwner permissions regardless of frontend visibility.
@@ -20,7 +19,6 @@
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update button on posts (link other posts to a post)
-- [ ] Update description boxes in posts to include new chip logic
 - [ ] Site admin page
 - [ ] Update/improve remark cards look
 - [ ] NSFW filter
@@ -29,6 +27,9 @@
 - [ ] Home page implementation (exists but not functional yet)
 
 ## Completed
+- [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.
+- [x] Delete feature and logic (posts/events, creator + admin access)
+
 - [x] Timeline motion dissipate: treat motion as zero-event state, pause event rendering during movement, and resume after settle delay.
 - [x] Smoother timeline movement achieved via motion dissipate + delayed recompute.
 

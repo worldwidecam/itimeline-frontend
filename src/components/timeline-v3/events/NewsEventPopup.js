@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   IconButton,
   Typography,
   Box,
@@ -35,6 +36,7 @@ import {
   OpenInNew as OpenInNewIcon,
   RateReview as RateReviewIcon,
   CheckCircle as CheckCircleIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -59,6 +61,7 @@ const NewsEventPopup = ({
   event, 
   open, 
   onClose, 
+  onDelete,
   formatDate,
   formatEventDate,
   color,
@@ -87,6 +90,7 @@ const NewsEventPopup = ({
   const [reportSubmitting, setReportSubmitting] = React.useState(false);
   const [reportedOnce, setReportedOnce] = React.useState(false);
   const [reportCategory, setReportCategory] = React.useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [tagSectionExpanded, setTagSectionExpanded] = React.useState(false);
   const [localEventData, setLocalEventData] = React.useState(event);
   // Local snackbar for report submission feedback
@@ -129,6 +133,17 @@ const NewsEventPopup = ({
       onClose();
     }
   };
+
+  // Current user (from localStorage) for delete permissions
+  let currentUserId = null;
+  try {
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUserId = storedUser?.id || null;
+  } catch (_) {}
+
+  const isSiteOwner = String(currentUserId) === '1';
+  const isEventCreator = currentUserId && String(currentUserId) === String(event?.created_by || event?.created_by_id || '');
+  const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
   
   const handleCloseButtonClick = () => {
     if (typeof onClose === 'function') {
@@ -152,6 +167,23 @@ const NewsEventPopup = ({
     setReportReason('');
     setReportCategory('');
     setReportOpen(true);
+  };
+
+  const handleOpenDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteDialogOpen(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!onDelete || !event) return;
+    await onDelete(event);
+    setDeleteDialogOpen(false);
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
   const handleCloseReport = () => {
     if (reportSubmitting) return;
@@ -778,6 +810,18 @@ const NewsEventPopup = ({
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            {canDelete && (
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleOpenDelete}
+                sx={{ textTransform: 'none', px: 2 }}
+              >
+                Delete
+              </Button>
+            )}
             {isInReview && (
               <Box
                 sx={{
@@ -896,6 +940,19 @@ const NewsEventPopup = ({
               {error || success}
             </Alert>
           </Snackbar>
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={handleCloseDelete}
+          >
+            <DialogTitle>Delete Event</DialogTitle>
+            <DialogContent>
+              Are you sure you want to delete "{event?.title || 'this event'}"?
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseDelete}>Cancel</Button>
+              <Button onClick={handleConfirmDelete} color="error">Delete</Button>
+            </DialogActions>
+          </Dialog>
           {/* Local success snackbar for report submission */}
           <Snackbar
             open={reportSnackOpen}

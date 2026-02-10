@@ -2118,17 +2118,22 @@ const handleViewModeTransition = (newViewMode) => {
   };
   
   // Add the missing handleEventDelete function
-  const handleEventDelete = async (eventId) => {
+  const handleEventDelete = async (eventOrId) => {
     try {
+      const resolvedEventId = typeof eventOrId === 'object' ? eventOrId?.id : eventOrId;
+      if (!resolvedEventId) {
+        throw new Error('Missing event id for deletion');
+      }
+
       // Use api utility which handles prefixes correctly
-      await api.delete(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      await api.delete(`/api/v1/timeline-v3/${timelineId}/events/${resolvedEventId}`);
       
       // Remove the deleted event from state
-      const updatedEvents = events.filter(event => event.id !== eventId);
+      const updatedEvents = events.filter(event => event.id !== resolvedEventId);
       setEvents(updatedEvents);
       
       // Clear selection if the deleted event was selected
-      if (selectedEventId === eventId) {
+      if (selectedEventId === resolvedEventId) {
         setSelectedEventId(null);
         setCurrentEventIndex(null);
       }
@@ -3393,6 +3398,7 @@ const handleRecenter = () => {
                       disableSelectedPulse
                       showMarkerLine={false}
                       showVoteDot={false}
+                      onDelete={handleEventDelete}
                       voteDot={voteDotsById[selectedVisibleEvent.id] || null}
                       voteDotsLoading={voteDotsLoading}
                     />

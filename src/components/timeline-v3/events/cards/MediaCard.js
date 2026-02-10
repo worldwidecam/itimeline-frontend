@@ -1164,6 +1164,7 @@ const MediaCard = forwardRef(({
           }
         }}
         event={event}
+        onDelete={onDelete}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
       />

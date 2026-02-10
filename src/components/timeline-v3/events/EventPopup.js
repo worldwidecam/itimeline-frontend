@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   IconButton,
   Typography,
   Box,
@@ -35,12 +36,13 @@ import {
   Close as CloseIcon,
   Comment as RemarkIcon,
   Newspaper as NewsIcon,
-  PermMedia as MediaIcon,
-  ExpandMore as ExpandMoreIcon,
-  Add as AddIcon,
-  Event as EventIcon,
+  Movie as MediaIcon,
   Person as PersonIcon,
+  Event as EventIcon,
   AccessTime as AccessTimeIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  ExpandMore as ExpandMoreIcon,
   RateReview as RateReviewIcon,
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
@@ -90,6 +92,7 @@ const EventPopup = ({
   event,
   open,
   onClose,
+  onDelete,
   setIsPopupOpen,
   reviewingEventIds = new Set(),
 }) => {
@@ -206,6 +209,7 @@ const EventPopup = ({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
   const [reportCategory, setReportCategory] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Reference to the audio visualizer for controlling playback
   const audioVisualizerRef = useRef(null);
   
@@ -336,6 +340,23 @@ const EventPopup = ({
     setReportReason('');
     setReportCategory('');
     setReportOpen(true);
+  };
+
+  const handleOpenDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteDialogOpen(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!onDelete || !event) return;
+    await onDelete(event);
+    setDeleteDialogOpen(false);
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   const handleCloseReport = () => {
@@ -513,6 +534,10 @@ const EventPopup = ({
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     currentUserId = userData?.id || null;
   } catch (_) {}
+
+  const isSiteOwner = String(currentUserId) === '1';
+  const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
+  const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
 
   // Option sources per lane
   const hashtagOptions = existingTimelines.filter((tl) => (tl.timeline_type || tl.type) === 'hashtag');
@@ -714,6 +739,7 @@ const EventPopup = ({
         event={event}
         open={open}
         onClose={onClose}
+        onDelete={onDelete}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
         color={color}
@@ -747,6 +773,7 @@ const EventPopup = ({
         event={event}
         open={open}
         onClose={onClose}
+        onDelete={onDelete}
         mediaSource={mediaSource}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
@@ -778,6 +805,7 @@ const EventPopup = ({
         event={event}
         open={open}
         onClose={onClose}
+        onDelete={onDelete}
         mediaSource={mediaSource}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
@@ -809,6 +837,7 @@ const EventPopup = ({
         event={event}
         open={open}
         onClose={onClose}
+        onDelete={onDelete}
         mediaSource={mediaSource}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
@@ -1088,110 +1117,124 @@ const EventPopup = ({
                 ID: {event?.id ?? '--'}
               </Typography>
             </Box>
-            {isInReview && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: '12px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 152, 0, 0.2)' 
-                    : 'rgba(255, 152, 0, 0.15)',
-                  transform: 'rotate(-2deg)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 4px rgba(0,0,0,0.3)'
-                    : '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <RateReviewIcon 
-                  sx={{ 
-                    fontSize: 14,
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 1)' 
-                      : 'rgba(255, 152, 0, 1)',
-                  }} 
-                />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 1)' 
-                      : 'rgba(255, 152, 0, 1)',
-                  }}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {canDelete && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleOpenDelete}
+                  sx={{ textTransform: 'none', px: 2 }}
                 >
-                  In Review
-                </Typography>
-              </Box>
-            )}
-            {isSafeguarded ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: '12px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(76, 175, 80, 0.2)' 
-                    : 'rgba(76, 175, 80, 0.15)',
-                  transform: 'rotate(-2deg)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 4px rgba(0,0,0,0.3)'
-                    : '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <CheckCircleIcon 
-                  sx={{ 
-                    fontSize: 14,
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 1)' 
-                      : 'rgba(56, 142, 60, 1)',
-                  }} 
-                />
-                <Typography
-                  variant="caption"
+                  Delete
+                </Button>
+              )}
+              {isInReview && (
+                <Box
                   sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 1)' 
-                      : 'rgba(56, 142, 60, 1)',
-                  }}
-                >
-                  Safeguarded
-                </Typography>
-              </Box>
-            ) : (
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleOpenReport}
-                disabled={reportedOnce}
-                sx={{ 
-                  textTransform: 'none',
-                  backgroundColor: remarkColor,
-                  color: '#fff',
-                  '&:hover': {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.25,
+                    borderRadius: '12px',
                     backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(33, 150, 243, 0.9)' 
-                      : 'rgba(33, 150, 243, 0.85)',
-                  },
-                  px: 2.25,
-                }}
-              >
-                {reportedOnce ? 'Reported' : 'Report'}
-              </Button>
-            )}
+                      ? 'rgba(255, 152, 0, 0.2)' 
+                      : 'rgba(255, 152, 0, 0.15)',
+                    transform: 'rotate(-2deg)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 2px 4px rgba(0,0,0,0.3)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <RateReviewIcon 
+                    sx={{ 
+                      fontSize: 14,
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 152, 0, 1)' 
+                        : 'rgba(255, 152, 0, 1)',
+                    }} 
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 152, 0, 1)' 
+                        : 'rgba(255, 152, 0, 1)',
+                    }}
+                  >
+                    In Review
+                  </Typography>
+                </Box>
+              )}
+              {isSafeguarded ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.25,
+                    borderRadius: '12px',
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(76, 175, 80, 0.2)' 
+                      : 'rgba(76, 175, 80, 0.15)',
+                    transform: 'rotate(-2deg)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 2px 4px rgba(0,0,0,0.3)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <CheckCircleIcon 
+                    sx={{ 
+                      fontSize: 14,
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(76, 175, 80, 1)' 
+                        : 'rgba(56, 142, 60, 1)',
+                    }} 
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: theme.palette.mode === 'dark' 
+                        ? 'rgba(76, 175, 80, 1)' 
+                        : 'rgba(56, 142, 60, 1)',
+                    }}
+                  >
+                    Safeguarded
+                  </Typography>
+                </Box>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleOpenReport}
+                  disabled={reportedOnce}
+                  sx={{ 
+                    textTransform: 'none',
+                    backgroundColor: remarkColor,
+                    color: '#fff',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(33, 150, 243, 0.9)' 
+                        : 'rgba(33, 150, 243, 0.85)',
+                    },
+                    px: 2.25,
+                  }}
+                >
+                  {reportedOnce ? 'Reported' : 'Report'}
+                </Button>
+              )}
+            </Box>
           </Box>
           
           {/* Success/Error Snackbar */}
@@ -1261,6 +1304,19 @@ const EventPopup = ({
               </Button>
             </Box>
           </DialogContent>
+        </Dialog>
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDelete}
+        >
+          <DialogTitle>Delete Event</DialogTitle>
+          <DialogContent>
+            Are you sure you want to delete "{event?.title || 'this event'}"?
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDelete}>Cancel</Button>
+            <Button onClick={handleConfirmDelete} color="error">Delete</Button>
+          </DialogActions>
         </Dialog>
   </>);
 };
