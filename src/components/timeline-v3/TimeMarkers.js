@@ -141,7 +141,7 @@ const TimeMarkers = ({
       width: '100%',
       display: 'flex',
       alignItems: 'center',
-      pointerEvents: 'auto',
+      pointerEvents: 'none',
       zIndex: 1200 // Higher than workspace/markers for clickable rungs
     }}>
       {markers.map((value) => {
@@ -159,6 +159,8 @@ const TimeMarkers = ({
         return (
           <Box
             key={value}
+            onMouseDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
             onClick={() => {
               // TIMELINE V4: Calculate precise timestamp including current minutes
               // This makes timeline marker clicks as accurate as hover marker

@@ -25,6 +25,7 @@ const PointBIndicator = ({
   pixelOffset = 0,
   timelineOffset = 0,
   markerSpacing = 100,
+  workspaceWidth,
   label
 }) => {
   const theme = useTheme();
@@ -43,8 +44,9 @@ const PointBIndicator = ({
 
   // Calculate the arrow's position on screen (memoized)
   const arrowPosition = useMemo(() => {
-    return windowWidth / 2 + (markerValue * markerSpacing) + timelineOffset + pixelOffset;
-  }, [windowWidth, markerValue, markerSpacing, timelineOffset, pixelOffset]);
+    const baseWidth = workspaceWidth || windowWidth;
+    return baseWidth / 2 + (markerValue * markerSpacing) + timelineOffset + pixelOffset;
+  }, [workspaceWidth, windowWidth, markerValue, markerSpacing, timelineOffset, pixelOffset]);
 
   // Apply transform updates via rAF and useLayoutEffect to avoid initial flash
   useLayoutEffect(() => {

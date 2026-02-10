@@ -134,7 +134,7 @@ const EventMarkerCanvasV2 = ({
 
   const positions = useMemo(() => {
     if (!canvasSize.width) return [];
-    const centerX = window.innerWidth / 2;
+    const centerX = canvasSize.width / 2;
     return events
       .map((event, index) => {
         if (!event?.event_date || viewMode === 'position') return null;
@@ -433,7 +433,7 @@ const EventMarkerCanvasV2 = ({
     }
   }, []);
 
-  const handleClick = (event) => {
+  const findClosestMarker = (event) => {
     if (!positions.length || !onMarkerClick) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left - timelineOffset;
@@ -446,6 +446,26 @@ const EventMarkerCanvasV2 = ({
         closest = pos;
       }
     });
+    return { closest, minDist };
+  };
+
+  const handlePointerDown = (event) => {
+    const match = findClosestMarker(event);
+    if (!match) return;
+    const { closest, minDist } = match;
+    if (!closest || minDist > HIT_ZONE_WIDTH * 1.5) {
+      if (onBackgroundClick) {
+        onBackgroundClick();
+      }
+      return;
+    }
+    event.stopPropagation();
+  };
+
+  const handleClick = (event) => {
+    const match = findClosestMarker(event);
+    if (!match) return;
+    const { closest, minDist } = match;
     if (!closest || minDist > HIT_ZONE_WIDTH * 1.5) {
       if (onBackgroundClick) {
         onBackgroundClick();
@@ -471,7 +491,13 @@ const EventMarkerCanvasV2 = ({
     if (!closest || minDist > HIT_ZONE_WIDTH * 1.5) {
       hoverRef.current.id = null;
       hoverRef.current.target = 0;
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = 'grab';
+      }
       return;
+    }
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = 'pointer';
     }
     if (hoverRef.current.id !== closest.event?.id) {
       hoverRef.current.id = closest.event?.id || null;
@@ -485,6 +511,9 @@ const EventMarkerCanvasV2 = ({
   const handleMouseLeave = () => {
     hoverRef.current.id = null;
     hoverRef.current.target = 0;
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = 'grab';
+    }
     if (!animationRef.current) {
       animationRef.current = requestAnimationFrame(animate);
     }
@@ -494,6 +523,8 @@ const EventMarkerCanvasV2 = ({
     <canvas
       ref={canvasRef}
       onClick={handleClick}
+      onMouseDown={handlePointerDown}
+      onTouchStart={handlePointerDown}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{

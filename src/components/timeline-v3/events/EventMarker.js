@@ -608,6 +608,8 @@ const EventMarker = ({
               ref={markerRef}
               className="active-marker"
               onClick={handleMarkerClick}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
               onMouseEnter={() => {
                 if (!disableHover) setIsHovered(true);
               }}

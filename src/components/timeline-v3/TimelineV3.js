@@ -419,13 +419,45 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     week: null,   // e.g., 3 for Wednesday (marker value in week view)
     day: null     // e.g., 9 for 9 AM (marker value in day view)
   });
-  
+
+  const activatePointB = (
+    markerValue,
+    timestamp,
+    viewModeValue = viewMode,
+    eventId = null,
+    recenter = false,
+    pixelOffset = 0
+  ) => {
+    const referenceValue = Math.floor(markerValue);
+    setPointB_active(true);
+    setPointB_arrow_markerValue(markerValue);
+    setPointB_arrow_pixelOffset(pixelOffset || 0);
+    setPointB_reference_markerValue(referenceValue);
+    setPointB_reference_timestamp(timestamp || null);
+    setPointB_viewMode(viewModeValue);
+    setPointB_eventId(eventId);
+    setPointB_cached_interpretations((prev) => ({
+      ...prev,
+      [viewModeValue]: referenceValue,
+    }));
+
+    if (recenter) {
+      setTimelineOffset(-(markerValue * 100));
+    }
+  };
+
+  const deactivatePointB = () => {
+    setPointB_active(false);
+    setPointB_eventId(null);
+    setPointB_reference_timestamp(null);
+  };
+
   // Prevent auto-selection overrides right after a user click/select
   const userSelectionLockUntilRef = useRef(0);
   const lockUserSelection = (ms = 1200) => {
     userSelectionLockUntilRef.current = Date.now() + ms;
   };
-  
+
   // Margin configuration: Viewport + buffer (HYBRID APPROACH)
   // Golden rule: Always match viewport + reasonable buffer, scaled per view mode
   // Prevents absurd margins in year view while maintaining smooth scrolling
@@ -3424,6 +3456,7 @@ const handleRecenter = () => {
             markerValue={pointB_arrow_markerValue}
             pixelOffset={pointB_arrow_pixelOffset}
             timelineOffset={timelineOffset}
+            workspaceWidth={timelineWorkspaceBounds?.width}
             label={pointB_active && pointB_reference_timestamp ? new Date(pointB_reference_timestamp).toLocaleString() : undefined}
           />
           
