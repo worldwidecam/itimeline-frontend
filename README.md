@@ -637,6 +637,7 @@ To keep timeline movement smooth, **event information must dissipate during moti
 - EventList + EventCounter receive `[]` and `count=0` while moving.
 - Canvas markers skip drawing while moving (true dissipate, not re-rendering).
 - The collective settle delay (`MOTION_SETTLE_DELAY`) controls when data returns after movement.
+  - Increase this if the post-motion return still feels sudden.
 
 #### Frontend Coding Guidelines (Admin Panel & Member Removal)
 
@@ -2047,16 +2048,28 @@ This migration will provide a modern, faster development experience while mainta
 
 ## Future Work and To-Do
 
+### Major Goals (Next Priorities)
+- [ ] Delete button/feature on posts (events) available for the creator of the post, plus admin.
+- [ ] Update button on posts (link other posts to a post).
+- [ ] Update description boxes in posts to include new chip logic.
+- [ ] Site admin page.
+- [ ] Update/improve remark cards look.
+- [ ] NSFW filter.
+- [ ] Post-creation edit event option (ideation needed).
+- [ ] Profile page implementation (existing page needs full build-out).
+- [ ] Home page implementation (exists but not functional yet).
+
 ### Backlog: Ideas & Improvements (When Bored)
 
 This section contains low-priority improvements, polish items, and feature ideas that can be tackled when looking for something to work on. These are not blocking production but would enhance the user experience.
 
 #### UI/UX Polish
 - [ ] Add "Under Review" visual indicator on event cards when status is 'reviewing'
+- [ ] status button
 - [ ] Add search/filter functionality to Manage Posts list
 - [ ] Consider pagination controls for Manage Posts (currently loads all)
 - [ ] Add loading states for report actions (Accept/Remove/Delete/Safeguard)
-- [ ] Add subtle animations for timeline marker hover states
+- [x] Add subtle animations for timeline marker hover states
 - [ ] Improve loading skeleton designs across components
 - [ ] Add empty state illustrations for timelines with no events
 - [ ] Enhance error messages with actionable suggestions

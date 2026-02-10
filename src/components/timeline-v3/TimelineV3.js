@@ -245,15 +245,18 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const getMonthProgress = () => {
     const now = getCurrentDateTime();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return now.getDate() / daysInMonth; // Returns a value between 0 and 1
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    const dayProgress = minutes / (24 * 60);
+    return (now.getDate() - 1 + dayProgress) / daysInMonth; // Returns a value between 0 and 1
   };
 
   const getYearProgress = () => {
     const now = getCurrentDateTime();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const endOfYear = new Date(now.getFullYear() + 1, 0, 1);
     const diff = now - startOfYear;
-    const oneYear = 1000 * 60 * 60 * 24 * 365; // milliseconds in a year
-    return diff / oneYear; // Returns a value between 0 and 1
+    const yearDuration = endOfYear - startOfYear;
+    return diff / yearDuration; // Returns a value between 0 and 1
   };
 
   /**
@@ -267,14 +270,17 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   const getMonthProgressFromTimestamp = (timestamp) => {
     const daysInMonth = new Date(timestamp.getFullYear(), timestamp.getMonth() + 1, 0).getDate();
-    return timestamp.getDate() / daysInMonth; // Returns a value between 0 and 1
+    const minutes = timestamp.getHours() * 60 + timestamp.getMinutes();
+    const dayProgress = minutes / (24 * 60);
+    return (timestamp.getDate() - 1 + dayProgress) / daysInMonth; // Returns a value between 0 and 1
   };
 
   const getYearProgressFromTimestamp = (timestamp) => {
     const startOfYear = new Date(timestamp.getFullYear(), 0, 1);
+    const endOfYear = new Date(timestamp.getFullYear() + 1, 0, 1);
     const diff = timestamp - startOfYear;
-    const oneYear = 1000 * 60 * 60 * 24 * 365; // milliseconds in a year
-    return diff / oneYear; // Returns a value between 0 and 1
+    const yearDuration = endOfYear - startOfYear;
+    return diff / yearDuration; // Returns a value between 0 and 1
   };
 
   const getExactTimePosition = () => {
@@ -538,6 +544,14 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   };
   
   const [hoverPosition, setHoverPosition] = useState(getExactTimePosition());
+
+  useEffect(() => {
+    setHoverPosition(getExactTimePosition());
+    const hoverTimer = setInterval(() => {
+      setHoverPosition(getExactTimePosition());
+    }, 60 * 1000);
+    return () => clearInterval(hoverTimer);
+  }, [viewMode]);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [shouldScrollToEvent, setShouldScrollToEvent] = useState(true);
@@ -3337,8 +3351,8 @@ const handleRecenter = () => {
                       index={selectedVisibleIndex}
                       totalEvents={visibleEvents.length}
                       currentIndex={currentEventIndex ?? -1}
-                      minMarker={Math.min(...markers)}
-                      maxMarker={Math.max(...markers)}
+                      minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
+                      maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
                       onClick={handleMarkerClick}
                       selectedType={selectedType}
                       isSelected
