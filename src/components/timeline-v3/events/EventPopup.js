@@ -26,6 +26,9 @@ import {
   CircularProgress,
   Link,
   Avatar,
+  Menu,
+  ListItemIcon,
+  ListItemText,
   FormControl,
   InputLabel,
   Select,
@@ -40,9 +43,10 @@ import {
   Person as PersonIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
+  Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
-  ExpandMore as ExpandMoreIcon,
+  MoreHoriz as MoreHorizIcon,
   RateReview as RateReviewIcon,
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
@@ -94,6 +98,7 @@ const EventPopup = ({
   open,
   onClose,
   onDelete,
+  onEdit,
   setIsPopupOpen,
   reviewingEventIds = new Set(),
 }) => {
@@ -206,6 +211,7 @@ const EventPopup = ({
   const [localEventData, setLocalEventData] = useState(null);
   // Level 1 report overlay state
   const [reportOpen, setReportOpen] = useState(false);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [reportReason, setReportReason] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedOnce, setReportedOnce] = useState(false);
@@ -349,6 +355,24 @@ const EventPopup = ({
 
   const handleCloseDelete = () => {
     setDeleteDialogOpen(false);
+  };
+
+  const handleActionMenuOpen = (event) => {
+    event.stopPropagation();
+    setActionAnchorEl(event.currentTarget);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionAnchorEl(null);
+  };
+
+  const handleEdit = () => {
+    if (typeof onEdit !== 'function' || !event) return;
+    onEdit(event);
+    handleActionMenuClose();
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -539,6 +563,7 @@ const EventPopup = ({
   const isSiteOwner = String(currentUserId) === '1';
   const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
+  const canEdit = Boolean(onEdit && (isSiteOwner || isEventCreator));
 
   // Option sources per lane
   const hashtagOptions = existingTimelines.filter((tl) => (tl.timeline_type || tl.type) === 'hashtag');
@@ -741,9 +766,10 @@ const EventPopup = ({
         open={open}
         onClose={onClose}
         onDelete={onDelete}
+        onEdit={onEdit}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
-        color={color}
+        color={remarkColor}
         TypeIcon={TypeIcon}
         snackbarOpen={snackbarOpen}
         handleSnackbarClose={handleSnackbarClose}
@@ -775,6 +801,7 @@ const EventPopup = ({
         open={open}
         onClose={onClose}
         onDelete={onDelete}
+        onEdit={onEdit}
         mediaSource={mediaSource}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
@@ -807,6 +834,7 @@ const EventPopup = ({
         open={open}
         onClose={onClose}
         onDelete={onDelete}
+        onEdit={onEdit}
         mediaSource={mediaSource}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
@@ -839,6 +867,7 @@ const EventPopup = ({
         open={open}
         onClose={onClose}
         onDelete={onDelete}
+        onEdit={onEdit}
         mediaSource={mediaSource}
         formatDate={formatDate}
         formatEventDate={formatEventDate}
@@ -1123,19 +1152,7 @@ const EventPopup = ({
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {canDelete && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleOpenDelete}
-                  sx={{ textTransform: 'none', px: 2 }}
-                >
-                  Delete
-                </Button>
-              )}
-              {isInReview && (
+              {(isInReview || isSafeguarded) && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -1177,7 +1194,7 @@ const EventPopup = ({
                   </Typography>
                 </Box>
               )}
-              {isSafeguarded ? (
+              {isSafeguarded && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -1218,26 +1235,97 @@ const EventPopup = ({
                     Safeguarded
                   </Typography>
                 </Box>
-              ) : (
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleOpenReport}
-                  disabled={reportedOnce}
-                  sx={{ 
-                    textTransform: 'none',
-                    backgroundColor: remarkColor,
-                    color: '#fff',
-                    '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? 'rgba(33, 150, 243, 0.9)' 
-                        : 'rgba(33, 150, 243, 0.85)',
-                    },
-                    px: 2.25,
-                  }}
-                >
-                  {reportedOnce ? 'Reported' : 'Report'}
-                </Button>
+              )}
+              {(canEdit || canDelete || !isSafeguarded) && (
+                <>
+                  <IconButton
+                    size="small"
+                    onClick={handleActionMenuOpen}
+                    sx={{
+                      bgcolor: `${remarkColor}18`,
+                      color: remarkColor,
+                      border: `1px solid ${remarkColor}40`,
+                      borderRadius: '10px',
+                      width: 32,
+                      height: 32,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: `${remarkColor}30`,
+                        transform: 'scale(1.08)',
+                        boxShadow: `0 2px 8px ${remarkColor}30`,
+                      }
+                    }}
+                  >
+                    <MoreHorizIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                  <Menu
+                    anchorEl={actionAnchorEl}
+                    open={Boolean(actionAnchorEl)}
+                    onClose={handleActionMenuClose}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    PaperProps={{
+                      sx: {
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(20, 20, 35, 0.85)'
+                          : 'rgba(255, 255, 255, 0.85)',
+                        backdropFilter: 'blur(16px)',
+                        borderRadius: '12px',
+                        border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 8px 32px rgba(0,0,0,0.5)'
+                          : '0 8px 32px rgba(0,0,0,0.12)',
+                        mt: -1,
+                        minWidth: 160,
+                        '& .MuiMenuItem-root': {
+                          borderRadius: '8px',
+                          mx: 0.5,
+                          my: 0.25,
+                          transition: 'all 0.15s ease',
+                          '&:hover': {
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.04)',
+                          },
+                        },
+                      }
+                    }}
+                  >
+                    {canEdit && (
+                      <MenuItem onClick={handleEdit}>
+                        <ListItemIcon>
+                          <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Edit" />
+                      </MenuItem>
+                    )}
+                    {canDelete && (
+                      <MenuItem onClick={() => {
+                        handleActionMenuClose();
+                        handleOpenDelete();
+                      }}>
+                        <ListItemIcon>
+                          <DeleteIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Delete" />
+                      </MenuItem>
+                    )}
+                    {!isSafeguarded && (
+                      <MenuItem
+                        onClick={() => {
+                          handleActionMenuClose();
+                          handleOpenReport();
+                        }}
+                        disabled={reportedOnce}
+                      >
+                        <ListItemIcon>
+                          <RateReviewIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
+                      </MenuItem>
+                    )}
+                  </Menu>
+                </>
               )}
             </Box>
           </Box>

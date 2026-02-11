@@ -21,6 +21,9 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
+  Menu,
+  ListItemIcon,
+  ListItemText,
   FormControl,
   InputLabel,
   Select,
@@ -34,13 +37,14 @@ import {
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
   Add as AddIcon,
-  ExpandMore as ExpandMoreIcon,
   Fullscreen as FullscreenIcon,
   VolumeUp as VolumeUpIcon,
   Settings as SettingsIcon,
   RateReview as RateReviewIcon,
   CheckCircle as CheckCircleIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
+  MoreHoriz as MoreHorizIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -67,6 +71,7 @@ const VideoEventPopup = ({
   open, 
   onClose, 
   onDelete,
+  onEdit,
   mediaSource,
   formatDate,
   setIsPopupOpen,
@@ -104,6 +109,7 @@ const VideoEventPopup = ({
   const [reportedOnce, setReportedOnce] = useState(false);
   const [reportCategory, setReportCategory] = useState(''); // required
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   // Local snackbar for report submission feedback
   const [reportSnackOpen, setReportSnackOpen] = useState(false);
   const {
@@ -209,6 +215,7 @@ const VideoEventPopup = ({
   const isSiteOwner = String(currentUserId) === '1';
   const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
+  const canEdit = Boolean(onEdit && (isSiteOwner || isEventCreator));
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -342,6 +349,24 @@ const VideoEventPopup = ({
 
   const handleCloseDelete = () => {
     setDeleteDialogOpen(false);
+  };
+
+  const handleActionMenuOpen = (event) => {
+    event.stopPropagation();
+    setActionAnchorEl(event.currentTarget);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionAnchorEl(null);
+  };
+
+  const handleEdit = () => {
+    if (typeof onEdit !== 'function' || !event) return;
+    onEdit(event);
+    handleActionMenuClose();
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -792,18 +817,6 @@ const VideoEventPopup = ({
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              {canDelete && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleOpenDelete}
-                  sx={{ textTransform: 'none', px: 2 }}
-                >
-                  Delete
-                </Button>
-              )}
               {isInReview && (
                 <Box
                   sx={{
@@ -846,7 +859,7 @@ const VideoEventPopup = ({
                   </Typography>
                 </Box>
               )}
-              {isSafeguarded ? (
+              {isSafeguarded && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -887,26 +900,97 @@ const VideoEventPopup = ({
                     Safeguarded
                   </Typography>
                 </Box>
-              ) : (
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleOpenReport}
-                  disabled={reportedOnce}
-                  sx={{ 
-                    textTransform: 'none',
-                    backgroundColor: videoColor,
-                    color: '#fff',
-                    '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? 'rgba(74, 20, 140, 0.9)' 
-                        : 'rgba(74, 20, 140, 0.85)',
-                    },
-                    px: 2.25,
-                  }}
-                >
-                  {reportedOnce ? 'Reported' : 'Report'}
-                </Button>
+              )}
+              {(canEdit || canDelete || !isSafeguarded) && (
+                <>
+                  <IconButton
+                    size="small"
+                    onClick={handleActionMenuOpen}
+                    sx={{
+                      bgcolor: `${videoColor}18`,
+                      color: videoColor,
+                      border: `1px solid ${videoColor}40`,
+                      borderRadius: '10px',
+                      width: 32,
+                      height: 32,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: `${videoColor}30`,
+                        transform: 'scale(1.08)',
+                        boxShadow: `0 2px 8px ${videoColor}30`,
+                      }
+                    }}
+                  >
+                    <MoreHorizIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                  <Menu
+                    anchorEl={actionAnchorEl}
+                    open={Boolean(actionAnchorEl)}
+                    onClose={handleActionMenuClose}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    PaperProps={{
+                      sx: {
+                        bgcolor: theme.palette.mode === 'dark'
+                          ? 'rgba(20, 20, 35, 0.85)'
+                          : 'rgba(255, 255, 255, 0.85)',
+                        backdropFilter: 'blur(16px)',
+                        borderRadius: '12px',
+                        border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 8px 32px rgba(0,0,0,0.5)'
+                          : '0 8px 32px rgba(0,0,0,0.12)',
+                        mt: -1,
+                        minWidth: 160,
+                        '& .MuiMenuItem-root': {
+                          borderRadius: '8px',
+                          mx: 0.5,
+                          my: 0.25,
+                          transition: 'all 0.15s ease',
+                          '&:hover': {
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.04)',
+                          },
+                        },
+                      }
+                    }}
+                  >
+                    {canEdit && (
+                      <MenuItem onClick={handleEdit}>
+                        <ListItemIcon>
+                          <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Edit" />
+                      </MenuItem>
+                    )}
+                    {canDelete && (
+                      <MenuItem onClick={() => {
+                        handleActionMenuClose();
+                        handleOpenDelete();
+                      }}>
+                        <ListItemIcon>
+                          <DeleteIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Delete" />
+                      </MenuItem>
+                    )}
+                    {!isSafeguarded && (
+                      <MenuItem
+                        onClick={() => {
+                          handleActionMenuClose();
+                          handleOpenReport();
+                        }}
+                        disabled={reportedOnce}
+                      >
+                        <ListItemIcon>
+                          <RateReviewIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
+                      </MenuItem>
+                    )}
+                  </Menu>
+                </>
               )}
               </Box>
             </Box>

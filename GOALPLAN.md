@@ -28,7 +28,9 @@
 - [x] Smoother timeline movement achieved via motion dissipate + delayed recompute.
 
 ## Notes / Decisions
-- Delete feature work paused while resolving errors in smooth timeline movement; revisit after stability fixes.
+- delete feature needs to be revisited once admin page is up
+- edit feature needs to be revisted once admin page is up
+- "delete post" button in community timeline > admin page > manage posts, needs to be revamped and changed to something regarding passing it higher to admin
 
 ## System Map (List of Interactions)
 - 

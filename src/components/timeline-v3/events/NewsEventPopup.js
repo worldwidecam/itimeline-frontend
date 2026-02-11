@@ -19,6 +19,9 @@ import {
   Button,
   CircularProgress,
   Chip,
+  Menu,
+  ListItemIcon,
+  ListItemText,
   FormControl,
   InputLabel,
   Select,
@@ -32,11 +35,12 @@ import {
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
   Add as AddIcon,
-  ExpandMore as ExpandMoreIcon,
   OpenInNew as OpenInNewIcon,
   RateReview as RateReviewIcon,
   CheckCircle as CheckCircleIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
+  MoreHoriz as MoreHorizIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -63,6 +67,7 @@ const NewsEventPopup = ({
   open, 
   onClose, 
   onDelete,
+  onEdit,
   formatDate,
   formatEventDate,
   color,
@@ -92,6 +97,7 @@ const NewsEventPopup = ({
   const [reportedOnce, setReportedOnce] = React.useState(false);
   const [reportCategory, setReportCategory] = React.useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [actionAnchorEl, setActionAnchorEl] = React.useState(null);
   const [tagSectionExpanded, setTagSectionExpanded] = React.useState(false);
   const [localEventData, setLocalEventData] = React.useState(event);
   // Local snackbar for report submission feedback
@@ -135,6 +141,26 @@ const NewsEventPopup = ({
     }
   };
 
+  // Get user data with fallbacks
+  const getUserData = () => {
+    // First try to get from created_by object (nested)
+    if (event.created_by && typeof event.created_by === 'object') {
+      return {
+        id: event.created_by.id || event.created_by_id || event.created_by,
+        username: event.created_by.username || event.created_by_username || 'Unknown User',
+        avatar: event.created_by.avatar_url || event.created_by_avatar || null
+      };
+    }
+    // Then try direct properties (flattened)
+    return {
+      id: event.created_by || event.created_by_id || 'unknown',
+      username: event.created_by_username || 'Unknown User',
+      avatar: event.created_by_avatar || null
+    };
+  };
+
+  const userData = getUserData();
+
   // Current user (from localStorage) for delete permissions
   let currentUserId = null;
   try {
@@ -143,8 +169,9 @@ const NewsEventPopup = ({
   } catch (_) {}
 
   const isSiteOwner = String(currentUserId) === '1';
-  const isEventCreator = currentUserId && String(currentUserId) === String(event?.created_by || event?.created_by_id || '');
+  const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
+  const canEdit = Boolean(onEdit && (isSiteOwner || isEventCreator));
   
   const handleCloseButtonClick = () => {
     if (typeof onClose === 'function') {
@@ -176,6 +203,24 @@ const NewsEventPopup = ({
 
   const handleCloseDelete = () => {
     setDeleteDialogOpen(false);
+  };
+
+  const handleActionMenuOpen = (event) => {
+    event.stopPropagation();
+    setActionAnchorEl(event.currentTarget);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionAnchorEl(null);
+  };
+
+  const handleEdit = () => {
+    if (typeof onEdit !== 'function' || !event) return;
+    onEdit(event);
+    handleActionMenuClose();
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -298,26 +343,6 @@ const NewsEventPopup = ({
       </Box>
     );
   };
-
-  // Get user data with fallbacks
-  const getUserData = () => {
-    // First try to get from created_by object (nested)
-    if (event.created_by && typeof event.created_by === 'object') {
-      return {
-        id: event.created_by.id || event.created_by_id || event.created_by,
-        username: event.created_by.username || event.created_by_username || 'Unknown User',
-        avatar: event.created_by.avatar_url || event.created_by_avatar || null
-      };
-    }
-    // Then try direct properties (flattened)
-    return {
-      id: event.created_by || event.created_by_id || 'unknown',
-      username: event.created_by_username || 'Unknown User',
-      avatar: event.created_by_avatar || null
-    };
-  };
-  
-  const userData = getUserData();
 
   return (
     <AnimatePresence>
@@ -815,18 +840,6 @@ const NewsEventPopup = ({
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {canDelete && (
-              <Button
-                variant="outlined"
-                size="small"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleOpenDelete}
-                sx={{ textTransform: 'none', px: 2 }}
-              >
-                Delete
-              </Button>
-            )}
             {isInReview && (
               <Box
                 sx={{
@@ -869,7 +882,7 @@ const NewsEventPopup = ({
                 </Typography>
               </Box>
             )}
-            {isSafeguarded ? (
+            {isSafeguarded && (
               <Box
                 sx={{
                   display: 'flex',
@@ -910,26 +923,97 @@ const NewsEventPopup = ({
                   Safeguarded
                 </Typography>
               </Box>
-            ) : (
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleOpenReport}
-                disabled={reportedOnce}
-                sx={{ 
-                  textTransform: 'none',
-                  backgroundColor: newsColor,
-                  color: '#fff',
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(211, 47, 47, 0.9)' 
-                      : 'rgba(211, 47, 47, 0.85)',
-                  },
-                  px: 2.25,
-                }}
-              >
-                {reportedOnce ? 'Reported' : 'Report'}
-              </Button>
+            )}
+            {(canEdit || canDelete || !isSafeguarded) && (
+              <>
+                <IconButton
+                  size="small"
+                  onClick={handleActionMenuOpen}
+                  sx={{
+                    bgcolor: `${newsColor}18`,
+                    color: newsColor,
+                    border: `1px solid ${newsColor}40`,
+                    borderRadius: '10px',
+                    width: 32,
+                    height: 32,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: `${newsColor}30`,
+                      transform: 'scale(1.08)',
+                      boxShadow: `0 2px 8px ${newsColor}30`,
+                    }
+                  }}
+                >
+                  <MoreHorizIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+                <Menu
+                  anchorEl={actionAnchorEl}
+                  open={Boolean(actionAnchorEl)}
+                  onClose={handleActionMenuClose}
+                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      bgcolor: theme.palette.mode === 'dark'
+                        ? 'rgba(20, 20, 35, 0.85)'
+                        : 'rgba(255, 255, 255, 0.85)',
+                      backdropFilter: 'blur(16px)',
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                      boxShadow: theme.palette.mode === 'dark'
+                        ? '0 8px 32px rgba(0,0,0,0.5)'
+                        : '0 8px 32px rgba(0,0,0,0.12)',
+                      mt: -1,
+                      minWidth: 160,
+                      '& .MuiMenuItem-root': {
+                        borderRadius: '8px',
+                        mx: 0.5,
+                        my: 0.25,
+                        transition: 'all 0.15s ease',
+                        '&:hover': {
+                          bgcolor: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.08)'
+                            : 'rgba(0,0,0,0.04)',
+                        },
+                      },
+                    }
+                  }}
+                >
+                  {canEdit && (
+                    <MenuItem onClick={handleEdit}>
+                      <ListItemIcon>
+                        <EditIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Edit" />
+                    </MenuItem>
+                  )}
+                  {canDelete && (
+                    <MenuItem onClick={() => {
+                      handleActionMenuClose();
+                      handleOpenDelete();
+                    }}>
+                      <ListItemIcon>
+                        <DeleteIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Delete" />
+                    </MenuItem>
+                  )}
+                  {!isSafeguarded && (
+                    <MenuItem
+                      onClick={() => {
+                        handleActionMenuClose();
+                        handleOpenReport();
+                      }}
+                      disabled={reportedOnce}
+                    >
+                      <ListItemIcon>
+                        <RateReviewIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
+                    </MenuItem>
+                  )}
+                </Menu>
+              </>
             )}
             </Box>
           </Box>

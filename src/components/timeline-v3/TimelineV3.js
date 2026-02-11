@@ -75,6 +75,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [isMember, setIsMember] = useState(null); // Track if user is a member of the community timeline (null = loading)
   const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
   const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
@@ -1930,6 +1933,27 @@ const handleViewModeTransition = (newViewMode) => {
 
   const handleEventSubmit = async (eventData) => {
     try {
+      if (editingEvent?.id) {
+        const response = await api.patch(`/api/v1/timeline-v3/${timelineId}/events/${editingEvent.id}`, {
+          ...eventData,
+          tags: Array.isArray(eventData.tags) ? eventData.tags : []
+        });
+
+        const updatedEvent = response.data;
+        setEvents((prev) => {
+          const updatedEvents = prev.map((evt) => (evt.id === updatedEvent.id ? updatedEvent : evt));
+          const updatedIndex = updatedEvents.findIndex((evt) => evt.id === updatedEvent.id);
+          setCurrentEventIndex(updatedIndex >= 0 ? updatedIndex : 0);
+          return updatedEvents;
+        });
+        setSelectedEventId(updatedEvent.id);
+        setDialogOpen(false);
+        setEditingEvent(null);
+        setSnackbarMessage('Event updated successfully');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        return;
+      }
       // =============================
       // V2 Auto-tagging based on timeline type
       // =============================
@@ -2092,6 +2116,12 @@ const handleViewModeTransition = (newViewMode) => {
       console.error('Error creating event:', error);
       console.error('Error response:', error.response);
       console.error('Error request:', error.request);
+      if (editingEvent?.id) {
+        setSnackbarMessage(error.response?.data?.message || 'Failed to update event');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
       setSubmitError(error.response?.data?.error || 'Failed to create event');
       throw error;
     }
@@ -3180,6 +3210,8 @@ const handleRecenter = () => {
                     }
                   }}
                   onDotClick={handleCarouselPopupOpen}
+                  onEdit={handleEventEdit}
+                  onDelete={handleEventDelete}
                   timelineOffset={timelineOffset}
                   goToPrevious={navigateToPrevEvent}
                   goToNext={navigateToNextEvent}
@@ -3399,6 +3431,7 @@ const handleRecenter = () => {
                       showMarkerLine={false}
                       showVoteDot={false}
                       onDelete={handleEventDelete}
+                      onEdit={handleEventEdit}
                       voteDot={voteDotsById[selectedVisibleEvent.id] || null}
                       voteDotsLoading={voteDotsLoading}
                     />
@@ -3794,6 +3827,22 @@ const handleRecenter = () => {
       </Box>
       )}
       
+      {/* Snackbar for event actions */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
       {/* Snackbar for join request status */}
       <Snackbar
         open={joinSnackbarOpen}

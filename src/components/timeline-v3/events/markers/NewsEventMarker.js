@@ -7,7 +7,7 @@ import EventPopup from '../EventPopup';
 /**
  * Component for rendering News event markers in the timeline
  */
-const NewsEventMarker = ({ event, onDelete }) => {
+const NewsEventMarker = ({ event, onDelete, onEdit }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   
@@ -27,6 +27,7 @@ const NewsEventMarker = ({ event, onDelete }) => {
         onClose={handlePopupClose}
         event={event}
         onDelete={onDelete}
+        onEdit={onEdit}
       />
     <Paper
       elevation={3}

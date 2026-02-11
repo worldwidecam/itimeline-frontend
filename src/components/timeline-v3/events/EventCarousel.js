@@ -34,7 +34,9 @@ const PopulatedEventCarousel = ({
   goToPrevious,
   goToNext,
   compact = false,
-  showEventInfo = false
+  showEventInfo = false,
+  onEdit,
+  onDelete
 }) => {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -170,6 +172,8 @@ const PopulatedEventCarousel = ({
           open={popupOpen}
           onClose={handlePopupClose}
           event={popupEvent}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       )}
       <Box

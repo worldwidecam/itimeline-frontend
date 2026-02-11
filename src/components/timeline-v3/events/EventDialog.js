@@ -169,6 +169,16 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
 
+  const normalizeTags = (rawTags = []) => rawTags
+    .map((tag) => {
+      if (typeof tag === 'string') return tag;
+      if (tag && typeof tag === 'object') {
+        return tag.name || tag.label || tag.tag || '';
+      }
+      return '';
+    })
+    .filter((tag) => Boolean(tag));
+
   useEffect(() => {
     if (initialEvent) {
       setEventType(initialEvent.type || EVENT_TYPES.REMARK);
@@ -176,9 +186,20 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       setDescription(initialEvent.description || '');
       setEventDate(initialEvent.event_date ? new Date(initialEvent.event_date) : new Date());
       setUrl(initialEvent.url || '');
-      setTags(initialEvent.tags || []);
-      if (initialEvent.media_url) {
-        setMediaPreview(initialEvent.media_url);
+      setTags(normalizeTags(initialEvent.tags || []));
+      setMediaPreview('');
+      setMediaFile(null);
+      setMediaUploadResult(null);
+      setMediaUploadError(null);
+      if (initialEvent.url) {
+        setUrlPreview({
+          title: initialEvent.url_title || '',
+          description: initialEvent.url_description || '',
+          image: initialEvent.url_image || '',
+          source: initialEvent.url_source || ''
+        });
+      } else {
+        setUrlPreview(null);
       }
     } else {
       resetForm();
@@ -367,6 +388,8 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       return;
     }
 
+    const isEditing = Boolean(initialEvent);
+
     // Format the date directly from the components
     const year = eventDate.getFullYear();
     const month = eventDate.getMonth() + 1; // Month is 0-indexed in JS
@@ -398,26 +421,29 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       is_exact_user_time: true
     };
 
-    if (eventType === EVENT_TYPES.NEWS && urlPreview) {
+    if (eventType === EVENT_TYPES.NEWS && (urlPreview || url)) {
       eventData.url = url;
-      eventData.url_title = urlPreview.title || '';
-      eventData.url_description = urlPreview.description || '';
-      eventData.url_image = urlPreview.image || '';
+      eventData.url_title = urlPreview?.title || initialEvent?.url_title || '';
+      eventData.url_description = urlPreview?.description || initialEvent?.url_description || '';
+      eventData.url_image = urlPreview?.image || initialEvent?.url_image || '';
+      eventData.url_source = urlPreview?.source || initialEvent?.url_source || '';
     }
 
-    if (eventType === EVENT_TYPES.MEDIA && mediaUploadResult) {
+    if (!isEditing && eventType === EVENT_TYPES.MEDIA && mediaUploadResult) {
       eventData.media_url = mediaUploadResult.url;
       eventData.media_type = mediaUploadResult.media_type;
       eventData.media_subtype = mediaUploadResult.media_subtype;
       eventData.cloudinary_id = mediaUploadResult.cloudinary_id;
-    } else if (eventType === EVENT_TYPES.MEDIA && !mediaUploadResult) {
+    } else if (!isEditing && eventType === EVENT_TYPES.MEDIA && !mediaUploadResult) {
       // Prevent submission if media type selected but no upload completed
       console.error('EventDialog: Media event requires uploaded media');
       return;
     }
 
     console.log('[EventDialog] Saving event with tags:', tags);
-    if (tags.length > 0) {
+    if (isEditing) {
+      eventData.tags = tags;
+    } else if (tags.length > 0) {
       eventData.tags = tags;
     }
 
@@ -512,6 +538,11 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
       case EVENT_TYPES.MEDIA:
         return (
           <Box sx={{ mt: 2 }}>
+            {initialEvent ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Media cannot be edited yet. Uploads are disabled during edit to avoid orphaned media.
+              </Typography>
+            ) : (
             <input
               type="file"
               accept="image/*,video/*,audio/*"
@@ -519,11 +550,13 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
               id="media-upload"
               onChange={handleMediaChange}
             />
+            )}
             <label htmlFor="media-upload">
               <Button
                 component="span"
                 variant="outlined"
                 startIcon={<UploadIcon />}
+                disabled={Boolean(initialEvent)}
                 sx={{ 
                   width: '100%',
                   height: 100,
@@ -619,7 +652,8 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
         <ToggleButtonGroup
           value={eventType}
           exclusive
-          onChange={handleTypeChange}
+          onChange={initialEvent ? undefined : handleTypeChange}
+          disabled={Boolean(initialEvent)}
           aria-label="event type"
           sx={{ 
             width: '100%',
@@ -728,7 +762,7 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
                 {tags.map((tag) => (
                   <Chip
                     key={tag}
-                    label={tag}
+                    label={typeof tag === 'string' ? tag : String(tag)}
                     onDelete={() => handleRemoveTag(tag)}
                     sx={{
                       bgcolor: `${getTypeColor()}20`,

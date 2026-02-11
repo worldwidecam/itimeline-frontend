@@ -29,7 +29,9 @@ const EventCounter = ({
   markerSpacing = 100,
   sortOrder,
   selectedType,
-  style
+  style,
+  onEdit,
+  onDelete
 }) => {
   // State to track day view current event index
   const [dayViewIndex, setDayViewIndex] = useState(0);
@@ -351,6 +353,8 @@ const EventCounter = ({
               goToNext={goToNext}
               compact={true}
               showEventInfo={false}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           ) : (
             <Typography variant="caption" color="text.secondary">
@@ -373,6 +377,8 @@ const EventCounter = ({
               goToNext={goToNextPosition}
               compact={true}
               showEventInfo={false}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           ) : (
             <Typography variant="caption" color="text.secondary">

@@ -56,6 +56,7 @@ const EventMarker = ({
   disableSelectedPulse = false,
   showMarkerLine = true,
   onDelete,
+  onEdit,
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -756,11 +757,11 @@ const EventMarker = ({
           >
             {/* Render the appropriate marker based on event type */}
             {event.type === EVENT_TYPES.REMARK ? (
-              <RemarkEventMarker event={event} onDelete={onDelete} />
+              <RemarkEventMarker event={event} onDelete={onDelete} onEdit={onEdit} />
             ) : event.type === EVENT_TYPES.NEWS ? (
-              <NewsEventMarker event={event} onDelete={onDelete} />
+              <NewsEventMarker event={event} onDelete={onDelete} onEdit={onEdit} />
             ) : event.type === EVENT_TYPES.MEDIA ? (
-              <MediaEventMarker event={event} onDelete={onDelete} />
+              <MediaEventMarker event={event} onDelete={onDelete} onEdit={onEdit} />
             ) : null}
           </Paper>
         </Box>

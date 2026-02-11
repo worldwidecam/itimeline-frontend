@@ -339,6 +339,7 @@ const RemarkCard = forwardRef(({
           }
         }}
         onDelete={onDelete}
+        onEdit={onEdit}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
       />
