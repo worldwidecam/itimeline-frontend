@@ -2180,7 +2180,7 @@ const ManagePostsTab = ({ timelineId }) => {
                           onClick={() => handleOpenPostActionDialog(post, 'delete')}
                           sx={{ mr: 1 }}
                         >
-                          Delete Post
+                          Escalate
                         </Button>
                         <Button
                           variant="outlined"

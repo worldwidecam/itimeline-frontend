@@ -4,16 +4,20 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Post-creation edit event option (ideation needed)
+- [ ] Site admin page
 
 ## Scope / Success Criteria
+- Site Control page (global admin) distinct from Community Admin
+- Access: SiteOwner + SiteAdmin role; redirect page for unauthorized users using existing redirect style guidelines
+- Two tabs: Global Reports (single queue with type filter) + Site Settings (SiteOwner only)
+- Global Reports: posts/users/timelines in one queue; ticket styling differentiates types; update post-type styling to reflect media subtypes
+- Site Settings: manage landing page rotating texts + toolbar scrolling LED banner message (text + timing)
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] 
+- [ ] Ideation phase
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update button on posts (link other posts to a post)
-- [ ] Site admin page
 - [ ] Update/improve remark cards look
 - [ ] NSFW filter
 - [ ] Profile page implementation (existing page needs full build-out)
@@ -23,6 +27,8 @@
 ## Completed
 - [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.
 - [x] Delete feature and logic (posts/events, creator + admin access)
+
+- [x] Post-creation edit event option
 
 - [x] Timeline motion dissipate: treat motion as zero-event state, pause event rendering during movement, and resume after settle delay.
 - [x] Smoother timeline movement achieved via motion dissipate + delayed recompute.
