@@ -4,15 +4,9 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Update description boxes in posts to include new chip logic
+- [ ] Post-creation edit event option (ideation needed)
 
 ## Scope / Success Criteria
-- [x] Delete is allowed for the original post creator and SiteOwner (SiteOwner = user ID 1 / username + email: Brahdyssey@gmail.com).
-- [ ] Prepare for a future SiteAdmin role (second only to SiteOwner) to share delete permissions when admin page is built.
-- [ ] Delete button is visible only to authorized users, and only inside EventPopups (not EventList cards).
-- [ ] Backend enforces creator/SiteOwner permissions regardless of frontend visibility.
-- [ ] Deleting a media post removes the **Cloudinary asset** (not just the URL) and the event record.
-- [ ] User gets clear confirm + success/failure feedback; event disappears from timeline/UI.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [ ] 
@@ -22,9 +16,9 @@
 - [ ] Site admin page
 - [ ] Update/improve remark cards look
 - [ ] NSFW filter
-- [ ] Post-creation edit event option (ideation needed)
 - [ ] Profile page implementation (existing page needs full build-out)
 - [ ] Home page implementation (exists but not functional yet)
+- [ ] # hashtag chip voting system
 
 ## Completed
 - [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.
