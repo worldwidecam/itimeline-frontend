@@ -28,6 +28,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
 import HistoryIcon from '@mui/icons-material/History';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ToolbarSpacer from './ToolbarSpacer';
 import api from '../utils/api';
 
@@ -42,6 +43,8 @@ function Navbar() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [currentTimelineName, setCurrentTimelineName] = React.useState('');
   const [lastVisitedTimeline, setLastVisitedTimeline] = React.useState(null);
+  const [siteRole, setSiteRole] = React.useState(null);
+  const [isSiteAdmin, setIsSiteAdmin] = React.useState(false);
   const currentPath = location.pathname;
   
   // Function to handle navigation with refresh capability
@@ -112,6 +115,24 @@ function Navbar() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setSiteRole(null);
+      setIsSiteAdmin(false);
+      return;
+    }
+    try {
+      const storageKey = `user_passport_${user.id}`;
+      const passport = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      setSiteRole(passport.site_role || null);
+      setIsSiteAdmin(Boolean(passport.is_site_admin) || Number(user.id) === 1);
+    } catch (e) {
+      console.warn('[Navbar] Unable to parse passport data:', e);
+      setSiteRole(null);
+      setIsSiteAdmin(Number(user.id) === 1);
+    }
+  }, [user]);
 
   // Fetch timeline name when on a timeline page
   useEffect(() => {
@@ -370,6 +391,42 @@ function Navbar() {
             }}
           />
         </ListItem>
+        {(isSiteAdmin || siteRole === 'SiteOwner') && (
+          <ListItem
+            button
+            onClick={() => handleNavigation('/site-control')}
+            sx={{
+              position: 'relative',
+              backgroundColor: currentPath === '/site-control' ? theme =>
+                theme.palette.mode === 'dark'
+                  ? 'rgba(144, 202, 249, 0.15)'
+                  : 'rgba(255, 213, 200, 0.5)'
+                : 'transparent',
+              '&::before': currentPath === '/site-control' ? {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: '4px',
+                backgroundColor: theme => theme.palette.primary.main,
+                borderTopRightRadius: '4px',
+                borderBottomRightRadius: '4px',
+              } : {}
+            }}
+          >
+            <ListItemIcon>
+              <AdminPanelSettingsIcon sx={{ color: currentPath === '/site-control' ? 'primary.main' : 'inherit' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Site Control"
+              primaryTypographyProps={{
+                fontWeight: currentPath === '/site-control' ? 'bold' : 'normal',
+                color: currentPath === '/site-control' ? 'primary.main' : 'inherit'
+              }}
+            />
+          </ListItem>
+        )}
         <Divider sx={{ my: 2 }} />
         
         {/* Last Visited Timeline section */}

@@ -467,6 +467,27 @@ export const listReports = async (timelineId, params = {}) => {
 };
 
 /**
+ * List site-wide reports (SiteOwner/SiteAdmin only)
+ * @param {{status?: 'pending'|'reviewing'|'resolved'|'all', page?: number, page_size?: number}} params
+ */
+export const listSiteReports = async (params = {}) => {
+  try {
+    const query = {
+      ...(params.status && params.status !== 'all' ? { status: params.status } : {}),
+      ...(typeof params.page === 'number' ? { page: params.page } : {}),
+      ...(typeof params.page_size === 'number' ? { page_size: params.page_size } : {}),
+    };
+    console.log('[API] Listing site reports', query);
+    const response = await api.get('/api/v1/reports', { params: query });
+    console.log('[API] listSiteReports response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error listing site reports:', error);
+    throw error;
+  }
+};
+
+/**
  * Accept a report for review (transitions status -> reviewing and assigns current user server-side)
  * @param {number} timelineId
  * @param {number|string} reportId
@@ -479,6 +500,22 @@ export const acceptReport = async (timelineId, reportId) => {
     return response.data;
   } catch (error) {
     console.error('[API] Error accepting report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Accept a site-wide report for review
+ * @param {number|string} reportId
+ */
+export const acceptSiteReport = async (reportId) => {
+  try {
+    console.log(`[API] Accepting site report ${reportId}`);
+    const response = await api.post(`/api/v1/reports/${reportId}/accept`);
+    console.log('[API] acceptSiteReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error accepting site report:', error);
     throw error;
   }
 };
@@ -514,6 +551,32 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '') 
     return response.data;
   } catch (error) {
     console.error('[API] Error resolving report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Resolve a site-wide report by action
+ * @param {number|string} reportId
+ * @param {'delete'|'safeguard'|'remove'} action
+ * @param {string} verdict
+ */
+export const resolveSiteReport = async (reportId, action, verdict = '') => {
+  try {
+    const allowed = ['delete', 'safeguard', 'remove'];
+    if (!allowed.includes(action)) {
+      throw new Error(`Invalid resolve action: ${action}`);
+    }
+    if (!verdict || !String(verdict).trim()) {
+      throw new Error('A non-empty verdict is required');
+    }
+    const payload = { action, verdict: verdict.trim() };
+    console.log(`[API] Resolving site report ${reportId} with action '${action}'`);
+    const response = await api.post(`/api/v1/reports/${reportId}/resolve`, payload);
+    console.log('[API] resolveSiteReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error resolving site report:', error);
     throw error;
   }
 };
@@ -1073,12 +1136,16 @@ export const fetchUserPassport = async () => {
     // Store the passport in localStorage with a user-specific key
     const storageKey = `user_passport_${userId}`;
     const memberships = response.data.memberships || [];
+    const siteRole = response.data.site_role || null;
+    const isSiteAdmin = Boolean(response.data.is_site_admin);
     const preferences = response.data.preferences || {};
     
     try {
       localStorage.setItem(storageKey, JSON.stringify({
         memberships: memberships,
         preferences: preferences,
+        site_role: siteRole,
+        is_site_admin: isSiteAdmin,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
@@ -1193,10 +1260,14 @@ export const syncUserPassport = async () => {
     // Store the updated passport in localStorage
     const storageKey = `user_passport_${userId}`;
     const memberships = response.data.memberships || [];
+    const siteRole = response.data.site_role || null;
+    const isSiteAdmin = Boolean(response.data.is_site_admin);
     
     try {
       localStorage.setItem(storageKey, JSON.stringify({
         memberships: memberships,
+        site_role: siteRole,
+        is_site_admin: isSiteAdmin,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));

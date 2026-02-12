@@ -17,6 +17,7 @@ import AudioTester from './components/AudioTester';
 import VoteTestPage from './components/VoteTestPage';
 import MemberListTab from './components/timeline-v3/community/MemberListTab';
 import AdminPanel from './components/timeline-v3/community/AdminPanel';
+import SiteControlPage from './components/site-control/SiteControlPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -1107,6 +1108,13 @@ function App() {
                   <Box sx={{ pt: 8 }}>
                     <ProtectedRoute>
                       <VoteTestPage />
+                    </ProtectedRoute>
+                  </Box>
+                } />
+                <Route path="/site-control" element={
+                  <Box sx={{ pt: 8 }}>
+                    <ProtectedRoute>
+                      <SiteControlPage />
                     </ProtectedRoute>
                   </Box>
                 } />

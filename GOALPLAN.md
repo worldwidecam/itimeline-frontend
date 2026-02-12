@@ -9,9 +9,13 @@
 ## Scope / Success Criteria
 - Site Control page (global admin) distinct from Community Admin
 - Access: SiteOwner + SiteAdmin role; redirect page for unauthorized users using existing redirect style guidelines
+- Redirect copy: minimal description + single back button (no detailed access explanation)
 - Two tabs: Global Reports (single queue with type filter) + Site Settings (SiteOwner only)
 - Global Reports: posts/users/timelines in one queue; ticket styling differentiates types; update post-type styling to reflect media subtypes
+- Timeline report cards use green (not violet) for type color
+- Global Reports actions: mirror Community Admin report flow; adjust button labels as needed but keep structure similar
 - Site Settings: manage landing page rotating texts + toolbar scrolling LED banner message (text + timing)
+- Navigation: add “Site Control” entry in top toolbar hamburger menu under profile settings (authorized only)
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [ ] Ideation phase
@@ -23,6 +27,7 @@
 - [ ] Profile page implementation (existing page needs full build-out)
 - [ ] Home page implementation (exists but not functional yet)
 - [ ] # hashtag chip voting system
+- [ ] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
 
 ## Completed
 - [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.

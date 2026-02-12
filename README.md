@@ -600,6 +600,24 @@ Frontend:
 
 ### Engineering Guidelines
 
+#### Settings Page Styling Standard (Site Control Baseline) (Feb 2026)
+
+Use the Site Control page as the baseline visual language for all settings-style pages.
+
+- **Backdrop + container**: soft, atmospheric gradient background with a glassmorphism container panel.
+- **Header treatment**: bold title + short subtitle, left-aligned, with a subtle icon accent.
+- **Tabs**: pill-style tabs with a strong active indicator and generous spacing for touch targets.
+- **Section cards**: elevated panels with soft borders, mild blur, and consistent internal padding.
+- **Status cues**: use color chips and small badges (e.g., warning/locked) instead of loud alerts.
+- **Action emphasis**: primary actions live at the bottom-right of a card or on a fixed bar.
+- **Empty states**: descriptive copy + icon (no blank screens).
+- **Motion**: staggered entry of sections and subtle hover lift on cards.
+
+Apply this styling to:
+- Profile Settings
+- Members Page
+- Admin Page
+
 #### Timeline View Harmonization (Jan 2026)
 
 When implementing or modifying timeline views (day/week/month/year), keep behavior consistent across views even if each view needs performance or UX-specific logic.

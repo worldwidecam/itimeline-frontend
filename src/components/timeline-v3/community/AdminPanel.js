@@ -1936,13 +1936,13 @@ const ManagePostsTab = ({ timelineId }) => {
       case 'remark':
         return { icon: CommentIcon, color: '#2196f3', label: 'Remark' };
       case 'media':
-        return { icon: MovieIcon, color: '#9c27b0', label: 'Media' };
+        return { icon: MovieIcon, color: '#7b1fa2', label: 'Media' };
       case 'image':
-        return { icon: ImageIcon, color: '#4caf50', label: 'Image' };
+        return { icon: ImageIcon, color: '#009688', label: 'Image' };
       case 'video':
-        return { icon: VideocamIcon, color: '#f44336', label: 'Video' };
+        return { icon: VideocamIcon, color: '#4a148c', label: 'Video' };
       case 'audio':
-        return { icon: AudiotrackIcon, color: '#ff9800', label: 'Audio' };
+        return { icon: AudiotrackIcon, color: '#e65100', label: 'Audio' };
       case 'news':
         return { icon: NewspaperIcon, color: '#e53935', label: 'News' };
       default:
@@ -2236,12 +2236,12 @@ const ManagePostsTab = ({ timelineId }) => {
         aria-describedby="post-action-dialog-description"
       >
         <DialogTitle id="post-action-dialog-title">
-          {postActionType === 'delete' ? 'Delete Reported Post?' : 'Safeguard Post?'}
+          {postActionType === 'delete' ? 'Escalate Reported Post?' : 'Safeguard Post?'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="post-action-dialog-description">
             {postActionType === 'delete' ? 
-              'This action will permanently remove this post from the timeline. This action cannot be undone.' : 
+              'This action escalates the report and removes the post from the timeline. This action cannot be undone.' : 
               'This action will mark the post as reviewed and safe, dismissing the report. The post will remain visible on the timeline.'}
           </DialogContentText>
           <TextField
@@ -2267,7 +2267,7 @@ const ManagePostsTab = ({ timelineId }) => {
             startIcon={postActionType === 'delete' ? <CancelIcon /> : <CheckCircleIcon />}
             disabled={!actionVerdict.trim()}
           >
-            {postActionType === 'delete' ? 'Delete Post' : 'Safeguard Post'}
+            {postActionType === 'delete' ? 'Escalate' : 'Safeguard Post'}
           </Button>
         </DialogActions>
       </Dialog>
