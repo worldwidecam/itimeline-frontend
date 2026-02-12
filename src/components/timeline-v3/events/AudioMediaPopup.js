@@ -148,8 +148,9 @@ const AudioMediaPopup = ({
 
   const isSiteOwner = String(currentUserId) === '1';
   const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
+  const isEditLocked = Boolean(event?.edit_locked || localEventData?.edit_locked);
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
-  const canEdit = Boolean(onEdit && (isSiteOwner || isEventCreator));
+  const canEdit = Boolean(onEdit && (isSiteOwner || (isEventCreator && !isEditLocked)));
 
   // Set local event data when the event prop changes
   useEffect(() => {

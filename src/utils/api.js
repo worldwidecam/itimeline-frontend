@@ -210,16 +210,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
       
       // Extract user data from nested user object or use member directly
       const userData = member.user || {};
-      
-      // Log the member structure for debugging
-      console.log('[API] Member structure:', {
-        id: member.id,
-        user_id: member.user_id,
-        userData_id: userData.id,
-        role: member.role,
-        is_active_member: member.is_active_member
-      });
-      
+
       // Determine the best user ID to use
       const userId = member.user_id || userData.id || member.id;
       
@@ -521,6 +512,33 @@ export const acceptSiteReport = async (reportId) => {
 };
 
 /**
+ * Escalate a report to Site Control
+ * @param {number} timelineId
+ * @param {number|string} reportId
+ * @param {'edit'|'delete'} escalationType
+ * @param {string} summary
+ */
+export const escalateReport = async (timelineId, reportId, escalationType, summary = '') => {
+  try {
+    const allowed = ['edit', 'delete'];
+    if (!allowed.includes(escalationType)) {
+      throw new Error(`Invalid escalation_type: ${escalationType}`);
+    }
+    const payload = {
+      escalation_type: escalationType,
+      summary: summary ? summary.trim() : '',
+    };
+    console.log(`[API] Escalating report ${reportId} on timeline ${timelineId} (${escalationType})`);
+    const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/escalate`, payload);
+    console.log('[API] escalateReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error escalating report:', error);
+    throw error;
+  }
+};
+
+/**
  * Resolve a report by taking an action.
  * Supports:
  *  - action 'delete' | 'safeguard' (no verdict required)
@@ -561,7 +579,7 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '') 
  * @param {'delete'|'safeguard'|'remove'} action
  * @param {string} verdict
  */
-export const resolveSiteReport = async (reportId, action, verdict = '') => {
+export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit = false) => {
   try {
     const allowed = ['delete', 'safeguard', 'remove'];
     if (!allowed.includes(action)) {
@@ -570,13 +588,28 @@ export const resolveSiteReport = async (reportId, action, verdict = '') => {
     if (!verdict || !String(verdict).trim()) {
       throw new Error('A non-empty verdict is required');
     }
-    const payload = { action, verdict: verdict.trim() };
+    const payload = { action, verdict: verdict.trim(), lock_edit: Boolean(lockEdit) };
     console.log(`[API] Resolving site report ${reportId} with action '${action}'`);
     const response = await api.post(`/api/v1/reports/${reportId}/resolve`, payload);
     console.log('[API] resolveSiteReport response:', response.data);
     return response.data;
   } catch (error) {
     console.error('[API] Error resolving site report:', error);
+    throw error;
+  }
+};
+
+/**
+ * List SiteOwner/SiteAdmin users
+ */
+export const listSiteAdmins = async () => {
+  try {
+    console.log('[API] Listing site admins');
+    const response = await api.get('/api/v1/admins/site');
+    console.log('[API] listSiteAdmins response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error listing site admins:', error);
     throw error;
   }
 };

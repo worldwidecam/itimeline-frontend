@@ -14,7 +14,9 @@ import {
   DialogTitle,
   TextField,
   FormControl,
+  FormControlLabel,
   InputLabel,
+  Checkbox,
   MenuItem,
   Select,
   Stack,
@@ -39,7 +41,7 @@ import ForumIcon from '@mui/icons-material/Forum';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { listSiteReports, acceptSiteReport, resolveSiteReport } from '../../utils/api';
+import api, { listSiteAdmins, listSiteReports, acceptSiteReport, resolveSiteReport } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
 import SiteControlLockView from './SiteControlLockView';
@@ -50,6 +52,85 @@ const getReportTypeLabel = (reportType) => {
   if (type === 'user') return 'User';
   if (type === 'post') return 'Post';
   return reportType || 'Post';
+};
+
+const AdminListTab = () => {
+  const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const fetchAdmins = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await listSiteAdmins();
+        if (!active) return;
+        setAdmins(Array.isArray(data?.items) ? data.items : []);
+      } catch (e) {
+        if (!active) return;
+        setAdmins([]);
+        setError(e?.response?.data?.error || 'Failed to load site admins');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchAdmins();
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Paper sx={{ p: 3 }} elevation={2}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Site Administration</Typography>
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+        {!loading && error && (
+          <Alert severity="error">{error}</Alert>
+        )}
+        {!loading && !error && admins.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            No site admins found.
+          </Typography>
+        )}
+        {!loading && !error && admins.length > 0 && (
+          <Stack spacing={2}>
+            {admins.map((admin) => (
+              <Paper
+                key={admin.user_id}
+                variant="outlined"
+                sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <UserAvatar
+                    name={admin.username || 'Admin'}
+                    avatarUrl={admin.avatar_url}
+                    id={admin.user_id}
+                    size={36}
+                  />
+                  <Box>
+                    <Typography variant="subtitle1">{admin.username || `User ${admin.user_id}`}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      User ID: {admin.user_id}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Chip
+                  label={admin.role || 'SiteAdmin'}
+                  color={admin.role === 'SiteOwner' ? 'primary' : 'default'}
+                  sx={{ fontWeight: 600 }}
+                />
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Paper>
+    </Box>
+  );
 };
 
 const getReportTypeChipStyle = (reportType) => {
@@ -126,9 +207,11 @@ const GlobalReportsTab = () => {
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState('');
   const [actionVerdict, setActionVerdict] = useState('');
+  const [lockEditOnResolve, setLockEditOnResolve] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeVerdict, setRemoveVerdict] = useState('');
   const [removeSubmitting, setRemoveSubmitting] = useState(false);
+  const [lockEditOnRemove, setLockEditOnRemove] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
@@ -143,6 +226,7 @@ const GlobalReportsTab = () => {
     setSelectedPost(post);
     setPostActionType(action);
     setActionVerdict('');
+    setLockEditOnResolve(false);
     setConfirmPostActionDialogOpen(true);
   };
 
@@ -151,11 +235,13 @@ const GlobalReportsTab = () => {
     setSelectedPost(null);
     setPostActionType('');
     setActionVerdict('');
+    setLockEditOnResolve(false);
   };
 
   const handleOpenRemoveDialog = (post) => {
     setSelectedPost(post);
     setRemoveVerdict('');
+    setLockEditOnRemove(false);
     setRemoveDialogOpen(true);
   };
 
@@ -164,6 +250,7 @@ const GlobalReportsTab = () => {
     setSelectedPost(null);
     setRemoveVerdict('');
     setRemoveSubmitting(false);
+    setLockEditOnRemove(false);
   };
 
   const handleViewEvent = async (post) => {
@@ -210,10 +297,12 @@ const GlobalReportsTab = () => {
         }
 
         const reportType = inferReportType(it);
+        const statusRaw = (it.status || 'pending').toLowerCase();
+        const normalizedStatus = statusRaw === 'escalated' ? 'pending' : statusRaw;
         return {
           id: it.id || it.report_id || String(Math.random()),
           eventType: displayType,
-          status: it.status || 'pending',
+          status: normalizedStatus,
           reportDate: it.reported_at || it.created_at || '',
           eventId: it.event_id,
           timelineId: it.timeline_id,
@@ -226,6 +315,8 @@ const GlobalReportsTab = () => {
             avatar: it.reporter_avatar_url || null,
           },
           reason: it.reason || '',
+          escalationType: it.escalation_type || null,
+          escalationSummary: it.escalation_summary || '',
           assignedModerator: it.assigned_to ? {
             id: it.assigned_to,
             name: it.assigned_to_username || it.assigned_to_name || 'Moderator',
@@ -276,7 +367,7 @@ const GlobalReportsTab = () => {
   const handleDeletePost = async () => {
     try {
       if (!actionVerdict.trim()) return;
-      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'delete', actionVerdict.trim());
+      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'delete', actionVerdict.trim(), false);
       setConfirmPostActionDialogOpen(false);
       await fetchReports();
       setSnackbarMessage('Resolved: action=delete');
@@ -293,7 +384,7 @@ const GlobalReportsTab = () => {
   const handleSafeguardPost = async () => {
     try {
       if (!actionVerdict.trim()) return;
-      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'safeguard', actionVerdict.trim());
+      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'safeguard', actionVerdict.trim(), lockEditOnResolve);
       setConfirmPostActionDialogOpen(false);
       await fetchReports();
       setSnackbarMessage('Resolved: action=safeguard');
@@ -311,7 +402,7 @@ const GlobalReportsTab = () => {
     try {
       if (!removeVerdict || !String(removeVerdict).trim()) return;
       setRemoveSubmitting(true);
-      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'remove', removeVerdict.trim());
+      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'remove', removeVerdict.trim(), lockEditOnRemove);
       setRemoveDialogOpen(false);
       await fetchReports();
       setSnackbarMessage('Resolved: action=remove');
@@ -466,6 +557,20 @@ const GlobalReportsTab = () => {
                           {chipLabel && <Chip label={chipLabel} size="small" sx={chipStyle} />}
                           <Typography variant="body2">{cleaned}</Typography>
                         </Box>
+                        {(post.escalationType || post.escalationSummary) && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {post.escalationType && (
+                              <Typography variant="body2" color="text.secondary">
+                                Escalation: <strong>{post.escalationType === 'edit' ? 'Request Edit' : 'Request Delete'}</strong>
+                              </Typography>
+                            )}
+                            {post.escalationSummary && (
+                              <Typography variant="body2" color="text.secondary">
+                                Summary: {post.escalationSummary}
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
                         {(post.status === 'reviewing' || post.status === 'resolved') && post.assignedModerator && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2"><strong>Accepted by:</strong></Typography>
@@ -571,12 +676,12 @@ const GlobalReportsTab = () => {
         aria-describedby="post-action-dialog-description"
       >
         <DialogTitle id="post-action-dialog-title">
-          {postActionType === 'delete' ? 'Escalate Reported Post?' : 'Safeguard Post?'}
+          {postActionType === 'delete' ? 'Delete Reported Post?' : 'Safeguard Post?'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="post-action-dialog-description">
             {postActionType === 'delete'
-              ? 'This action escalates the report and removes the post from the timeline. This action cannot be undone.'
+              ? 'This action deletes the post across the site. This action cannot be undone.'
               : 'This action will mark the post as reviewed and safe, dismissing the report. The post will remain visible on the timeline.'}
           </DialogContentText>
           <TextField
@@ -590,6 +695,18 @@ const GlobalReportsTab = () => {
             onChange={(e) => setActionVerdict(e.target.value)}
             sx={{ mt: 2 }}
           />
+          {postActionType === 'safeguard' && (
+            <FormControlLabel
+              sx={{ mt: 1 }}
+              control={(
+                <Checkbox
+                  checked={lockEditOnResolve}
+                  onChange={(e) => setLockEditOnResolve(e.target.checked)}
+                />
+              )}
+              label="Lock creator editing after resolve"
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClosePostActionDialog} color="primary">
@@ -602,7 +719,7 @@ const GlobalReportsTab = () => {
             startIcon={postActionType === 'delete' ? <CancelIcon /> : <CheckCircleIcon />}
             disabled={!actionVerdict.trim()}
           >
-            {postActionType === 'delete' ? 'Escalate' : 'Safeguard Post'}
+            {postActionType === 'delete' ? 'Delete Post' : 'Safeguard Post'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -626,6 +743,16 @@ const GlobalReportsTab = () => {
             placeholder="Write your findings and rationale"
             value={removeVerdict}
             onChange={(e) => setRemoveVerdict(e.target.value)}
+          />
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={(
+              <Checkbox
+                checked={lockEditOnRemove}
+                onChange={(e) => setLockEditOnRemove(e.target.checked)}
+              />
+            )}
+            label="Lock creator editing after resolve"
           />
         </DialogContent>
         <DialogActions>
@@ -745,8 +872,9 @@ const SiteControlPage = () => {
     }
   }, [user]);
 
-  const hasAccess = Boolean(isSiteAdmin || siteRole === 'SiteOwner');
-  const canManageSettings = siteRole === 'SiteOwner';
+  const isSiteOwner = Number(user?.id) === 1 || siteRole === 'SiteOwner';
+  const hasAccess = Boolean(isSiteAdmin || isSiteOwner);
+  const canManageSettings = isSiteOwner;
 
   if (accessLoading) {
     return (
@@ -827,12 +955,14 @@ const SiteControlPage = () => {
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
             <Tab label="Global Reports" />
+            <Tab label="Admin List" />
             <Tab label="Site Settings" disabled={!canManageSettings} />
           </Tabs>
 
           <Box sx={{ mt: 3 }}>
             {tabValue === 0 && <GlobalReportsTab />}
-            {tabValue === 1 && <SiteSettingsTab canManageSettings={canManageSettings} />}
+            {tabValue === 1 && <AdminListTab />}
+            {tabValue === 2 && <SiteSettingsTab canManageSettings={canManageSettings} />}
           </Box>
         </Paper>
       </Box>

@@ -62,7 +62,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
@@ -1655,9 +1655,11 @@ const ManagePostsTab = ({ timelineId }) => {
   const [postTabValue, setPostTabValue] = useState(0); // 0 = All, 1 = Pending, 2 = Reviewing, 3 = Resolved
   const [selectedPost, setSelectedPost] = useState(null);
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
-  const [postActionType, setPostActionType] = useState(''); // 'delete' or 'safeguard'
-  // Mandatory verdict text for delete/safeguard
+  const [postActionType, setPostActionType] = useState(''); // 'escalate' or 'safeguard'
+  // Mandatory verdict text for safeguard
   const [actionVerdict, setActionVerdict] = useState('');
+  const [escalationType, setEscalationType] = useState('edit');
+  const [escalationSummary, setEscalationSummary] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [popupEvent, setPopupEvent] = useState(null);
   // Remove-from-community verdict dialog state
@@ -1701,6 +1703,8 @@ const ManagePostsTab = ({ timelineId }) => {
     setSelectedPost(post);
     setPostActionType(action);
     setActionVerdict('');
+    setEscalationType('edit');
+    setEscalationSummary('');
     setConfirmPostActionDialogOpen(true);
   };
 
@@ -1717,6 +1721,8 @@ const ManagePostsTab = ({ timelineId }) => {
     setSelectedPost(null);
     setPostActionType('');
     setActionVerdict('');
+    setEscalationType('edit');
+    setEscalationSummary('');
   };
 
   const handleCloseRemoveDialog = () => {
@@ -1850,19 +1856,19 @@ const ManagePostsTab = ({ timelineId }) => {
   };
   
   // Handle deleting a reported post
-  const handleDeletePost = async () => {
+  const handleEscalateReport = async () => {
     try {
-      if (!actionVerdict.trim()) return;
-      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'delete', actionVerdict.trim());
+      const reportId = selectedPost?.reportId || selectedPost?.id;
+      if (!reportId) return;
+      await escalateReport(timelineId, reportId, escalationType, escalationSummary.trim());
       setConfirmPostActionDialogOpen(false);
       await fetchReports();
-      setSnackbarMessage('Resolved: action=delete');
+      setSnackbarMessage('The report ticket was sent to administration');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (e) {
-      console.warn('[ManagePostsTab] resolveReport(delete) failed:', e);
-      setConfirmPostActionDialogOpen(false);
-      setSnackbarMessage(e?.response?.data?.error || 'Failed to resolve (delete)');
+      console.warn('[ManagePostsTab] escalateReport failed:', e);
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to escalate report');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
@@ -2177,7 +2183,7 @@ const ManagePostsTab = ({ timelineId }) => {
                           size="small"
                           color="error"
                           startIcon={<CancelIcon />}
-                          onClick={() => handleOpenPostActionDialog(post, 'delete')}
+                          onClick={() => handleOpenPostActionDialog(post, 'escalate')}
                           sx={{ mr: 1 }}
                         >
                           Escalate
@@ -2236,38 +2242,64 @@ const ManagePostsTab = ({ timelineId }) => {
         aria-describedby="post-action-dialog-description"
       >
         <DialogTitle id="post-action-dialog-title">
-          {postActionType === 'delete' ? 'Escalate Reported Post?' : 'Safeguard Post?'}
+          {postActionType === 'escalate' ? 'Send Report to Administration?' : 'Safeguard Post?'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="post-action-dialog-description">
-            {postActionType === 'delete' ? 
-              'This action escalates the report and removes the post from the timeline. This action cannot be undone.' : 
-              'This action will mark the post as reviewed and safe, dismissing the report. The post will remain visible on the timeline.'}
+            {postActionType === 'escalate'
+              ? 'Send this ticket to Site Control for higher-level review. Choose whether you are requesting an edit or a deletion.'
+              : 'This action will mark the post as reviewed and safe, dismissing the report. The post will remain visible on the timeline.'}
           </DialogContentText>
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={3}
-            label="Verdict (required)"
-            placeholder="Write your findings and rationale"
-            value={actionVerdict}
-            onChange={(e) => setActionVerdict(e.target.value)}
-            sx={{ mt: 2 }}
-          />
+          {postActionType === 'escalate' ? (
+            <Box sx={{ mt: 2 }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="escalation-type-label">Escalation Request</InputLabel>
+                <Select
+                  labelId="escalation-type-label"
+                  value={escalationType}
+                  label="Escalation Request"
+                  onChange={(e) => setEscalationType(e.target.value)}
+                >
+                  <MenuItem value="edit">Request Edit</MenuItem>
+                  <MenuItem value="delete">Request Delete</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                label="Summary (optional)"
+                placeholder="Add any specifics for the site admins"
+                value={escalationSummary}
+                onChange={(e) => setEscalationSummary(e.target.value)}
+              />
+            </Box>
+          ) : (
+            <TextField
+              autoFocus
+              fullWidth
+              multiline
+              minRows={3}
+              label="Verdict (required)"
+              placeholder="Write your findings and rationale"
+              value={actionVerdict}
+              onChange={(e) => setActionVerdict(e.target.value)}
+              sx={{ mt: 2 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClosePostActionDialog} color="primary">
             Cancel
           </Button>
           <Button 
-            onClick={postActionType === 'delete' ? handleDeletePost : handleSafeguardPost} 
-            color={postActionType === 'delete' ? 'error' : 'success'} 
+            onClick={postActionType === 'escalate' ? handleEscalateReport : handleSafeguardPost} 
+            color={postActionType === 'escalate' ? 'error' : 'success'} 
             variant="contained"
-            startIcon={postActionType === 'delete' ? <CancelIcon /> : <CheckCircleIcon />}
-            disabled={!actionVerdict.trim()}
+            startIcon={postActionType === 'escalate' ? <CancelIcon /> : <CheckCircleIcon />}
+            disabled={postActionType === 'escalate' ? !escalationType : !actionVerdict.trim()}
           >
-            {postActionType === 'delete' ? 'Escalate' : 'Safeguard Post'}
+            {postActionType === 'escalate' ? 'Send to Administration' : 'Safeguard Post'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -19,6 +19,7 @@
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [ ] Ideation phase
+- [ ] site control page implementation
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update button on posts (link other posts to a post)
