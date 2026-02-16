@@ -20,6 +20,9 @@
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [ ] Ideation phase
 - [ ] site control page implementation
+- [ ] Global Reports: finish post tickets (remove Escalate button, add Resolve-Edit + Resolve-Delete)
+- [ ] Global Reports: build user tickets (data shape, UI, actions)
+- [ ] Global Reports: build timeline tickets (data shape, UI, actions)
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update button on posts (link other posts to a post)
@@ -29,6 +32,9 @@
 - [ ] Home page implementation (exists but not functional yet)
 - [ ] # hashtag chip voting system
 - [ ] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
+- [ ] make a home page submission box
+- [ ] reporting action cards
+- [ ] sharing link system
 
 ## Completed
 - [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.
@@ -43,6 +49,8 @@
 - delete feature needs to be revisited once admin page is up
 - edit feature needs to be revisted once admin page is up
 - "delete post" button in community timeline > admin page > manage posts, needs to be revamped and changed to something regarding passing it higher to admin
+- Site Control = higher tier: should retain all lower-tier actions, plus resolve-by-edit + resolve-by-delete actions (no Escalate button in Site Control).
+- Escalation metadata already in reports: escalation_type, escalation_summary, escalated_by, escalated_at; timeline_id can map to community name; site admin pickup tracked via assigned_to when accepted for review.
 
 ## System Map (List of Interactions)
 - 

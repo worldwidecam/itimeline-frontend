@@ -1652,7 +1652,7 @@ const AdminPanel = () => {
 // Manage Posts Tab Component
 const ManagePostsTab = ({ timelineId }) => {
   const theme = useTheme();
-  const [postTabValue, setPostTabValue] = useState(0); // 0 = All, 1 = Pending, 2 = Reviewing, 3 = Resolved
+  const [postTabValue, setPostTabValue] = useState(0); // 0 = Pending, 1 = Reviewing, 2 = Resolved
   const [selectedPost, setSelectedPost] = useState(null);
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState(''); // 'escalate' or 'safeguard'
@@ -1755,7 +1755,7 @@ const ManagePostsTab = ({ timelineId }) => {
     if (!timelineId) return;
     try {
       setIsLoadingReports(true);
-      const status = postTabValue === 1 ? 'pending' : postTabValue === 2 ? 'reviewing' : postTabValue === 3 ? 'resolved' : 'all';
+      const status = postTabValue === 0 ? 'pending' : postTabValue === 1 ? 'reviewing' : 'resolved';
       const data = await listReports(timelineId, { status, page: 1, page_size: 20 });
       // Normalize items into the structure used below
       const items = Array.isArray(data?.items) ? data.items : [];
@@ -1923,10 +1923,9 @@ const ManagePostsTab = ({ timelineId }) => {
   
   // Filter posts based on selected tab
   const filteredPosts = reportedPosts.filter(post => {
-    if (postTabValue === 0) return true; // All posts
-    if (postTabValue === 1) return post.status === 'pending'; // Pending posts
-    if (postTabValue === 2) return post.status === 'reviewing'; // Reviewing posts
-    if (postTabValue === 3) return post.status === 'resolved'; // Resolved posts
+    if (postTabValue === 0) return post.status === 'pending'; // Pending posts
+    if (postTabValue === 1) return post.status === 'reviewing'; // Reviewing posts
+    if (postTabValue === 2) return post.status === 'resolved'; // Resolved posts
     return true;
   });
   
@@ -1934,6 +1933,7 @@ const ManagePostsTab = ({ timelineId }) => {
   const pendingCount = counts.pending;
   const reviewingCount = counts.reviewing;
   const resolvedCount = counts.resolved;
+  const selectedTabColor = postTabValue === 0 ? 'warning.main' : postTabValue === 1 ? 'info.main' : 'success.main';
   
   // Helper to get event type icon and color
   const getEventTypeDisplay = (eventType) => {
@@ -1998,28 +1998,38 @@ const ManagePostsTab = ({ timelineId }) => {
       <Tabs 
         value={postTabValue} 
         onChange={handlePostTabChange}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+        sx={{
+          mb: 3,
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& .MuiTabs-indicator': {
+            backgroundColor: selectedTabColor,
+            height: 3,
+          },
+        }}
       >
-        <Tab label={`All (${counts.all})`} />
         <Tab 
           label={`Pending (${pendingCount})`} 
           sx={{ 
             color: 'warning.main',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            '&.Mui-selected': { color: 'warning.main' },
           }} 
         />
         <Tab 
           label={`Reviewing (${reviewingCount})`} 
           sx={{ 
             color: 'info.main',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            '&.Mui-selected': { color: 'info.main' },
           }} 
         />
         <Tab 
           label={`Resolved (${resolvedCount})`} 
           sx={{ 
             color: 'success.main',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            '&.Mui-selected': { color: 'success.main' },
           }} 
         />
       </Tabs>

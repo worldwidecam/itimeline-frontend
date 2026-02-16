@@ -803,6 +803,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
 
   const isPersonalTimeline = timeline_type === 'personal';
+  const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false && !user?.must_change_username;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = user && Number(user.id) === 1;
   const [creatorProfile, setCreatorProfile] = useState(null);
@@ -1774,7 +1775,7 @@ const handleViewModeTransition = (newViewMode) => {
 };
 
   useEffect(() => {
-    if (hookStatus === 'locked') return; // Respect locked timelines from membership hook
+    if (hookStatus === 'locked' || !timelineId || timelineId === 'new') return; // Respect locked timelines and skip placeholder
 
     const fetchEvents = async () => {
       try {
@@ -2818,7 +2819,7 @@ const handleRecenter = () => {
               ) : (
                 // Only show Add Event for non-personal, non-community timelines
                 // and only after we've finished loading the basic timeline metadata.
-                (!isLoading && !isPersonalTimeline && timeline_type !== 'community') ? (
+                (!isLoading && !isPersonalTimeline && timeline_type !== 'community' && canCreateOrReport) ? (
                   <Button
                     onClick={handleAddEventClick}
                     variant="contained"
@@ -2844,7 +2845,7 @@ const handleRecenter = () => {
                       '&.Mui-disabled': { color: theme.palette.text.secondary }
                     }}
                   >
-                    Loading...
+                    {!isLoading && !canCreateOrReport ? 'Posting Restricted' : 'Loading...'}
                   </Button>
                 )
               )}
@@ -3781,7 +3782,7 @@ const handleRecenter = () => {
                   )
                 : (
                     // For community: only members get the Add button
-                    isMember === true && (
+                    isMember === true && canCreateOrReport && (
                       <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
                         <Fab
                           onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
@@ -3805,9 +3806,10 @@ const handleRecenter = () => {
             )
           : (
               // Non-community timelines always get Add button (when not blurred)
-              <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
+              <Tooltip title={canCreateOrReport ? (floatingButtonsExpanded ? "Hide Options" : "Show Event Options") : "Posting Restricted"}>
                 <Fab
                   onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
+                  disabled={!canCreateOrReport}
                   sx={{
                     bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
                     color: 'white',

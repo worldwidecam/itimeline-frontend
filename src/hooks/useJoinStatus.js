@@ -85,7 +85,16 @@ export default function useJoinStatus(timelineId, { user } = {}) {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      if (!timelineId) return;
+      if (!timelineId || timelineId === 'new') {
+        if (!mounted) return;
+        setIsMember(false);
+        setIsBlocked(false);
+        setIsPending(false);
+        setRole(null);
+        setStatus(null);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
 
       try {

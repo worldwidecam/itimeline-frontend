@@ -324,6 +324,38 @@ export const getUserProfile = async (userId) => {
   }
 };
 
+export const completeRequiredUsernameChange = async (username) => {
+  try {
+    const response = await api.post('/api/v1/auth/required-username-change', { username });
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error completing required username change:', error);
+    throw error;
+  }
+};
+
+/**
+ * Submit a report for a user profile.
+ * @param {number|string} reportedUserId
+ * @param {number|string} timelineId - non-null anchor required by current reports schema
+ * @param {string} reason
+ * @param {string} category
+ */
+export const submitUserReport = async (reportedUserId, timelineId, reason = '', category) => {
+  try {
+    console.log(`[API] Submitting user report for user ${reportedUserId} (timeline anchor: ${timelineId})`);
+    const payload = { timeline_id: timelineId, reason: reason || '' };
+    if (category) payload.category = category;
+    const response = await api.post(`/api/v1/reports/users/${reportedUserId}`, payload);
+    console.log('[API] submitUserReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error submitting user report:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 /**
  * Update a member's role in a community timeline
  * @param {number} timelineId - The ID of the timeline
@@ -465,6 +497,7 @@ export const listSiteReports = async (params = {}) => {
   try {
     const query = {
       ...(params.status && params.status !== 'all' ? { status: params.status } : {}),
+      ...(params.report_type && params.report_type !== 'all' ? { report_type: params.report_type } : {}),
       ...(typeof params.page === 'number' ? { page: params.page } : {}),
       ...(typeof params.page_size === 'number' ? { page_size: params.page_size } : {}),
     };
@@ -576,12 +609,12 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '') 
 /**
  * Resolve a site-wide report by action
  * @param {number|string} reportId
- * @param {'delete'|'safeguard'|'remove'} action
+ * @param {'delete'|'safeguard'|'remove'|'edit'} action
  * @param {string} verdict
  */
-export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit = false) => {
+export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit = false, actionPayload = {}) => {
   try {
-    const allowed = ['delete', 'safeguard', 'remove'];
+    const allowed = ['delete', 'safeguard', 'remove', 'edit', 'require_username_change', 'restrict_user', 'suspend_user'];
     if (!allowed.includes(action)) {
       throw new Error(`Invalid resolve action: ${action}`);
     }
@@ -589,6 +622,9 @@ export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit
       throw new Error('A non-empty verdict is required');
     }
     const payload = { action, verdict: verdict.trim(), lock_edit: Boolean(lockEdit) };
+    if (actionPayload && typeof actionPayload === 'object') {
+      Object.assign(payload, actionPayload);
+    }
     console.log(`[API] Resolving site report ${reportId} with action '${action}'`);
     const response = await api.post(`/api/v1/reports/${reportId}/resolve`, payload);
     console.log('[API] resolveSiteReport response:', response.data);
@@ -1171,6 +1207,14 @@ export const fetchUserPassport = async () => {
     const memberships = response.data.memberships || [];
     const siteRole = response.data.site_role || null;
     const isSiteAdmin = Boolean(response.data.is_site_admin);
+    const currentUserRaw = localStorage.getItem('user');
+    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : {};
+    const hasMustChangeUsername = Object.prototype.hasOwnProperty.call(response.data || {}, 'must_change_username');
+    const hasIsRestricted = Object.prototype.hasOwnProperty.call(response.data || {}, 'is_restricted');
+    const hasRestrictedUntil = Object.prototype.hasOwnProperty.call(response.data || {}, 'restricted_until');
+    const mustChangeUsername = hasMustChangeUsername ? Boolean(response.data.must_change_username) : Boolean(currentUser?.must_change_username);
+    const isRestricted = hasIsRestricted ? Boolean(response.data.is_restricted) : Boolean(currentUser?.is_restricted);
+    const restrictedUntil = hasRestrictedUntil ? (response.data.restricted_until || null) : (currentUser?.restricted_until || null);
     const preferences = response.data.preferences || {};
     
     try {
@@ -1179,10 +1223,25 @@ export const fetchUserPassport = async () => {
         preferences: preferences,
         site_role: siteRole,
         is_site_admin: isSiteAdmin,
+        must_change_username: mustChangeUsername,
+        is_restricted: isRestricted,
+        restricted_until: restrictedUntil,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
       console.log(`Stored passport for user ${userId} in localStorage`);
+
+      try {
+        localStorage.setItem('user', JSON.stringify({
+          ...currentUser,
+          must_change_username: mustChangeUsername,
+          is_restricted: isRestricted,
+          restricted_until: restrictedUntil,
+          can_post_or_report: !(mustChangeUsername || isRestricted),
+        }));
+      } catch (e) {
+        console.warn('[API] Failed to mirror moderation flags onto user object from passport:', e);
+      }
 
       // If server sent preferences, hydrate localStorage for clients that read directly
       try {
@@ -1295,16 +1354,39 @@ export const syncUserPassport = async () => {
     const memberships = response.data.memberships || [];
     const siteRole = response.data.site_role || null;
     const isSiteAdmin = Boolean(response.data.is_site_admin);
+    const currentUserRaw = localStorage.getItem('user');
+    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : {};
+    const hasMustChangeUsername = Object.prototype.hasOwnProperty.call(response.data || {}, 'must_change_username');
+    const hasIsRestricted = Object.prototype.hasOwnProperty.call(response.data || {}, 'is_restricted');
+    const hasRestrictedUntil = Object.prototype.hasOwnProperty.call(response.data || {}, 'restricted_until');
+    const mustChangeUsername = hasMustChangeUsername ? Boolean(response.data.must_change_username) : Boolean(currentUser?.must_change_username);
+    const isRestricted = hasIsRestricted ? Boolean(response.data.is_restricted) : Boolean(currentUser?.is_restricted);
+    const restrictedUntil = hasRestrictedUntil ? (response.data.restricted_until || null) : (currentUser?.restricted_until || null);
     
     try {
       localStorage.setItem(storageKey, JSON.stringify({
         memberships: memberships,
         site_role: siteRole,
         is_site_admin: isSiteAdmin,
+        must_change_username: mustChangeUsername,
+        is_restricted: isRestricted,
+        restricted_until: restrictedUntil,
         last_updated: response.data.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
       console.log(`Stored synced passport for user ${userId} in localStorage`);
+
+      try {
+        localStorage.setItem('user', JSON.stringify({
+          ...currentUser,
+          must_change_username: mustChangeUsername,
+          is_restricted: isRestricted,
+          restricted_until: restrictedUntil,
+          can_post_or_report: !(mustChangeUsername || isRestricted),
+        }));
+      } catch (e) {
+        console.warn('[API] Failed to mirror moderation flags onto user object from synced passport:', e);
+      }
       
       // IMPORTANT: Also update the direct timeline membership data for each timeline
       // This ensures that when a user syncs their passport, both the passport and direct timeline

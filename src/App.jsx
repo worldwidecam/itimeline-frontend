@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -9,6 +9,7 @@ import TimelineV3 from './components/timeline-v3/TimelineV3';
 import PersonalTimelineWrapper from './components/timeline-v3/PersonalTimelineWrapper';
 import Login from './components/Login';
 import Register from './components/Register';
+import RequiredUsernameChangePage from './components/RequiredUsernameChangePage';
 import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
@@ -41,9 +42,41 @@ import PageTransition from './components/PageTransition';
 import api from './utils/api';
 import setupKeepAlive from './utils/keepAlive';
 
+const REQUIRED_USERNAME_CHANGE_PATH = '/account/required-username-change';
+const REQUIRED_USERNAME_CHANGE_ALIASES = new Set([
+  REQUIRED_USERNAME_CHANGE_PATH,
+  '/account/required-user-name-change',
+]);
+
+const isRequiredUsernameChangePath = (pathname = '') => REQUIRED_USERNAME_CHANGE_ALIASES.has(pathname);
+
+const isForcedRenameRequired = (authUser) => {
+  try {
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = authUser?.id || storedUser?.id;
+
+    const userFlag = Boolean(authUser?.must_change_username) || Boolean(storedUser?.must_change_username);
+    if (userFlag) {
+      return true;
+    }
+
+    if (!userId) {
+      return false;
+    }
+
+    const passportRaw = localStorage.getItem(`user_passport_${userId}`);
+    const passport = passportRaw ? JSON.parse(passportRaw) : null;
+    return Boolean(passport?.must_change_username);
+  } catch (_e) {
+    return Boolean(authUser?.must_change_username);
+  }
+};
+
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const mustChangeUsername = isForcedRenameRequired(user);
 
   if (loading) {
     return (
@@ -57,12 +90,17 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
 
+  if (mustChangeUsername && !isRequiredUsernameChangePath(location.pathname)) {
+    return <Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />;
+  }
+
   return children;
 };
 
 // Auth Route component - Shows Homepage for authenticated users, LandingPage for non-authenticated
 const AuthRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  const mustChangeUsername = isForcedRenameRequired(user);
 
   if (loading) {
     return (
@@ -76,7 +114,21 @@ const AuthRoute = ({ children }) => {
     return children;
   }
 
+  if (mustChangeUsername) {
+    return <Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />;
+  }
+
   return <Navigate to="/home" />;
+};
+
+const NavbarGate = () => {
+  const { user } = useAuth();
+  const mustChangeUsername = isForcedRenameRequired(user);
+  if (mustChangeUsername) {
+    return null;
+  }
+
+  return <Navbar />;
 };
 
 // Homepage component
@@ -533,7 +585,7 @@ function App() {
               {/* Conditional Navbar - only show on non-landing pages */}
               <Routes>
                 <Route path="/" element={null} />
-                <Route path="*" element={<Navbar />} />
+                <Route path="*" element={<NavbarGate />} />
               </Routes>
               
               <Routes>
@@ -555,6 +607,12 @@ function App() {
                     <Register />
                   </Box>
                 } />
+                <Route path="/account/required-username-change" element={
+                  <ProtectedRoute>
+                    <RequiredUsernameChangePage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/account/required-user-name-change" element={<Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />} />
                 
                 {/* Protected routes */}
                 <Route path="/home" element={

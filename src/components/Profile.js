@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../utils/api';
+import api, { submitUserReport } from '../utils/api';
 import {
   Container,
   Paper,
@@ -11,7 +11,24 @@ import {
   Fade,
   CircularProgress,
   useTheme,
+  Fab,
+  Stack,
+  Tooltip,
+  Zoom,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Button,
+  Snackbar,
+  Alert,
 } from '@mui/material';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -27,8 +44,23 @@ const Profile = () => {
   const [showMusic, setShowMusic] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportCategory, setReportCategory] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   const isOwnProfile = !userId || (user && userId === user.id.toString());
+  const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false;
+  const canShowMainProfileActions = Boolean(profileUser?.id);
+  const canReportProfile = Boolean(profileUser?.id) && !isOwnProfile && canCreateOrReport;
+
+  const reportCategoryOptions = [
+    { value: 'website_policy', label: 'Website policy violation' },
+    { value: 'government_policy', label: 'Government policy / legal concern' },
+    { value: 'unethical_boundary', label: 'Unethical or harmful boundary' },
+  ];
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -100,6 +132,54 @@ const Profile = () => {
       setShowMusic(false);
     };
   }, [userId, user, isOwnProfile]);
+
+  useEffect(() => {
+    setFabOpen(false);
+    setReportDialogOpen(false);
+  }, [userId]);
+
+  const handleCopyProfileLink = async () => {
+    const link = `${window.location.origin}/profile/${profileUser?.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setSnackbar({ open: true, message: 'Profile link copied', severity: 'success' });
+    } catch (_) {
+      setSnackbar({ open: true, message: `Copy failed. Link: ${link}`, severity: 'info' });
+    }
+    setFabOpen(false);
+  };
+
+  const handleOpenReportDialog = () => {
+    setReportCategory('');
+    setReportReason('');
+    setReportDialogOpen(true);
+    setFabOpen(false);
+  };
+
+  const handleCloseReportDialog = () => {
+    if (reportSubmitting) return;
+    setReportDialogOpen(false);
+  };
+
+  const handleSubmitUserReport = async () => {
+    if (!profileUser?.id) return;
+    if (!reportCategory) {
+      setSnackbar({ open: true, message: 'Please choose a report category', severity: 'warning' });
+      return;
+    }
+
+    try {
+      setReportSubmitting(true);
+      await submitUserReport(profileUser.id, null, reportReason || '', reportCategory);
+      setReportDialogOpen(false);
+      setSnackbar({ open: true, message: 'User report submitted', severity: 'success' });
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.message || 'Failed to submit report';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   if (!user && !userId) {
     return (
@@ -283,6 +363,113 @@ const Profile = () => {
           </Grid>
         </Paper>
       </Container>
+
+      {canShowMainProfileActions && (
+        <Box
+          sx={{
+            position: 'fixed',
+            right: { xs: 16, sm: 24 },
+            bottom: { xs: 16, sm: 24 },
+            zIndex: 1100,
+          }}
+        >
+          <Stack direction="column" spacing={1.25} alignItems="flex-end">
+            <Zoom in={fabOpen}>
+              <Box>
+                <Tooltip title="Copy profile link" placement="left">
+                  <Fab
+                    size="small"
+                    color="default"
+                    onClick={handleCopyProfileLink}
+                    aria-label="Copy profile link"
+                  >
+                    <LinkOutlinedIcon fontSize="small" />
+                  </Fab>
+                </Tooltip>
+              </Box>
+            </Zoom>
+            {canReportProfile && (
+              <Zoom in={fabOpen}>
+                <Box>
+                  <Tooltip title="Report user" placement="left">
+                    <Fab
+                      size="small"
+                      color="error"
+                      onClick={handleOpenReportDialog}
+                      aria-label="Report user"
+                    >
+                      <ReportProblemOutlinedIcon fontSize="small" />
+                    </Fab>
+                  </Tooltip>
+                </Box>
+              </Zoom>
+            )}
+
+            <Tooltip title={fabOpen ? 'Close actions' : 'Profile actions'} placement="left">
+              <Fab
+                color="primary"
+                onClick={() => setFabOpen((prev) => !prev)}
+                aria-label="Profile actions"
+                sx={{ boxShadow: '0 10px 28px rgba(0,0,0,0.22)' }}
+              >
+                {fabOpen ? <ExpandLessIcon /> : <AddIcon />}
+              </Fab>
+            </Tooltip>
+          </Stack>
+        </Box>
+      )}
+
+      <Dialog open={reportDialogOpen} onClose={handleCloseReportDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Report {profileUser?.username || 'User'}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This report creates a moderation ticket for Site Control.
+          </Typography>
+          <TextField
+            select
+            fullWidth
+            margin="dense"
+            label="Category"
+            value={reportCategory}
+            onChange={(e) => setReportCategory(e.target.value)}
+          >
+            {reportCategoryOptions.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            fullWidth
+            margin="dense"
+            multiline
+            minRows={3}
+            label="Reason (optional details)"
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value)}
+            placeholder="Add context for moderators"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseReportDialog} disabled={reportSubmitting}>Cancel</Button>
+          <Button onClick={handleSubmitUserReport} variant="contained" color="error" disabled={reportSubmitting}>
+            {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3500}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -152,7 +152,22 @@ const RichEditor = ({ value, onChange, disabled }) => {
   );
 };
 
-const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName, timelineType, timelineVisibility, mode = 'create', initialType = EVENT_TYPES.REMARK }) => {
+const EventDialog = ({
+  open,
+  onClose,
+  onSave,
+  initialEvent = null,
+  timelineName,
+  timelineType,
+  timelineVisibility,
+  mode = 'create',
+  initialType = EVENT_TYPES.REMARK,
+  submitLabel,
+  showVerdictField = false,
+  verdict = '',
+  onVerdictChange,
+  submitDisabled = false,
+}) => {
   const theme = useTheme();
   const [eventType, setEventType] = useState(initialType);
   const [title, setTitle] = useState('');
@@ -778,6 +793,19 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
             )}
           </Box>
         </Stack>
+        {showVerdictField && (
+          <Box sx={{ mt: 3 }}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Resolution Summary (required)"
+              placeholder="Explain the edits and why the ticket is being resolved"
+              value={verdict}
+              onChange={(event) => onVerdictChange?.(event.target.value)}
+            />
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -785,7 +813,7 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
         <Button
           variant="contained"
           onClick={handleSave}
-          disabled={!title || !eventDate}
+          disabled={submitDisabled || !title || !eventDate || (showVerdictField && !(verdict || '').trim())}
           sx={{
             bgcolor: getTypeColor(),
             '&:hover': {
@@ -793,7 +821,7 @@ const EventDialog = ({ open, onClose, onSave, initialEvent = null, timelineName,
             }
           }}
         >
-          {initialEvent ? 'Save Changes' : 'Create Event'}
+          {submitLabel || (initialEvent ? 'Save Changes' : 'Create Event')}
         </Button>
       </DialogActions>
     </Dialog>

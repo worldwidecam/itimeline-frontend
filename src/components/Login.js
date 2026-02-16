@@ -28,13 +28,13 @@ const Login = () => {
     setError('');
 
     try {
-      await login(formData.email, formData.password);
+      const loggedInUser = await login(formData.email, formData.password);
       // Clear form data on successful login
       setFormData({
         email: '',
         password: '',
       });
-      navigate('/home');
+      navigate(loggedInUser?.must_change_username ? '/account/required-username-change' : '/home');
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to login');
     }

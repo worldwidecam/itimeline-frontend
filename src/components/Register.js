@@ -56,7 +56,7 @@ const Register = () => {
       navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error.toString());
+      setError(error?.message || 'Failed to register');
     }
   };
 

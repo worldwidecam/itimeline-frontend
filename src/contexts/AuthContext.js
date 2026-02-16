@@ -120,10 +120,30 @@ export const AuthProvider = ({ children }) => {
         // Force a sync with the server to ensure we have the most up-to-date membership data
         console.log('Forcing sync of user passport after login');
         await syncUserPassport();
+
+        try {
+          const mergedUserRaw = localStorage.getItem('user');
+          const mergedUser = mergedUserRaw ? JSON.parse(mergedUserRaw) : null;
+          if (mergedUser) {
+            setUser(mergedUser);
+          }
+        } catch (rehydrateError) {
+          console.warn('Failed to rehydrate user from localStorage after passport sync:', rehydrateError);
+        }
       } catch (err) {
         console.error('Error fetching/syncing user passport after login:', err);
       }
       
+      try {
+        const latestUserRaw = localStorage.getItem('user');
+        const latestUser = latestUserRaw ? JSON.parse(latestUserRaw) : null;
+        if (latestUser) {
+          return latestUser;
+        }
+      } catch (_latestErr) {
+        // fall back to login payload
+      }
+
       return userData;
     } catch (error) {
       console.error('Login error:', error);
@@ -261,6 +281,16 @@ export const AuthProvider = ({ children }) => {
         console.log('Fetching user passport after session validation');
         try {
           await fetchUserPassport();
+
+          try {
+            const mergedUserRaw = localStorage.getItem('user');
+            const mergedUser = mergedUserRaw ? JSON.parse(mergedUserRaw) : null;
+            if (mergedUser) {
+              setUser(mergedUser);
+            }
+          } catch (rehydrateError) {
+            console.warn('Failed to rehydrate user from localStorage after passport fetch:', rehydrateError);
+          }
         } catch (err) {
           console.error('Error fetching user passport after session validation:', err);
         }
@@ -377,10 +407,14 @@ export const AuthProvider = ({ children }) => {
     try {
       // Don't make a separate API call here since the profile update
       // was already done in the ProfileSettings component
-      setUser(prevUser => ({
-        ...prevUser,
-        ...updatedData
-      }));
+      setUser(prevUser => {
+        const merged = {
+          ...prevUser,
+          ...updatedData,
+        };
+        localStorage.setItem('user', JSON.stringify(merged));
+        return merged;
+      });
       return updatedData;
     } catch (error) {
       console.error('Error updating profile in context:', error);
