@@ -517,6 +517,30 @@ The iTimeline application supports Community Timelines with a Bronze/Silver/Gold
     - Modern UI with color-coded sections
     - Floating Action Button (FAB) for saving changes
 
+- **Report Ticket Styling Guidelines** (February 2026):
+  - Applies to both:
+    - **Site Control → Global Reports** (higher tier)
+    - **Community Admin → Manage Posts** (lower tier)
+  - **Header Standard**:
+    - Left-to-right: event icon → report-type badge → `Ticket` label → status badge
+    - Right-aligned metadata: `Reported <timestamp>` and (when resolved) `Resolution: <action>`
+  - **Body Layout Standard**:
+    - Use dedicated target containers (for example `POST REPORT TARGET`, `USER REPORT TARGET`)
+    - Keep a separate `Reason Reported` container
+    - For resolved tickets, use split layout on desktop:
+      - left detail column (`~1/3`)
+      - right verdict column (`~2/3`)
+    - Collapse to single column on smaller screens
+  - **Footer Metadata Standard**:
+    - Group `Reporter` and `Accepted by` in one shared bottom row
+    - `Accepted by` appears when assigned (reviewing/resolved)
+  - **Border Accent Standard**:
+    - Left border = status color
+    - Top/right/bottom borders = event-type color accent
+  - **Post Ticket CTA Standard**:
+    - Place `View Event` inside the `POST REPORT TARGET` container as a rounded outlined button
+    - Hide `View Event` for resolved post tickets with `resolution === delete`
+
 #### Current Status
 - ✅ Timeline prefix styling and display
 - ✅ Visual indicators for timeline visibility

@@ -4,7 +4,7 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Site admin page
+- [ ] Site admin page (timeline report tickets implementation)
 
 ## Scope / Success Criteria
 - Site Control page (global admin) distinct from Community Admin
@@ -18,11 +18,12 @@
 - Navigation: add “Site Control” entry in top toolbar hamburger menu under profile settings (authorized only)
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] Ideation phase
-- [ ] site control page implementation
-- [ ] Global Reports: finish post tickets (remove Escalate button, add Resolve-Edit + Resolve-Delete)
-- [ ] Global Reports: build user tickets (data shape, UI, actions)
+- [x] Ideation phase
+- [x] site control page implementation
+- [x] Global Reports: finish post tickets (remove Escalate button, add Resolve-Edit + Resolve-Delete)
+- [x] Global Reports: build user tickets (data shape, UI, actions)
 - [ ] Global Reports: build timeline tickets (data shape, UI, actions)
+- [x] Align lower-tier Community Admin report ticket styling with Site Control baseline
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update button on posts (link other posts to a post)
@@ -37,6 +38,8 @@
 - [ ] sharing link system
 
 ## Completed
+- [x] Site Control + Community Admin report card baseline styling standardized (header order, grouped footer metadata, resolved verdict panel, type-accent borders)
+- [x] Post ticket CTA refinement: View Event moved into Post Report Target container with resolved-delete exception preserved
 - [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.
 - [x] Delete feature and logic (posts/events, creator + admin access)
 

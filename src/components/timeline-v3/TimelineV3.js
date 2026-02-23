@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
@@ -41,6 +41,7 @@ import Check from '@mui/icons-material/Check';
 import Settings from '@mui/icons-material/Settings';
 import Visibility from '@mui/icons-material/Visibility';
 import Security from '@mui/icons-material/Security';
+import OutlinedFlag from '@mui/icons-material/OutlinedFlag';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -55,6 +56,7 @@ const CheckIcon = Check;
 const CheckCircleIcon = CheckCircle;
 const VisibilityIcon = Visibility;
 const SecurityIcon = Security;
+const OutlinedFlagIcon = OutlinedFlag;
 
 // API prefixes are handled by the api utility
 
@@ -609,6 +611,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [remarkDialogOpen, setRemarkDialogOpen] = useState(false);
   const [newsDialogOpen, setNewsDialogOpen] = useState(false);
+  const [timelineReportDialogOpen, setTimelineReportDialogOpen] = useState(false);
+  const [timelineReportReason, setTimelineReportReason] = useState('');
+  const [timelineReportCategory, setTimelineReportCategory] = useState('');
+  const [timelineReportSubmitting, setTimelineReportSubmitting] = useState(false);
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
@@ -623,6 +629,43 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   const handleAddEventMenuClose = () => {
     setAddEventAnchorEl(null);
+  };
+
+  const handleOpenTimelineReportDialog = () => {
+    setTimelineReportCategory('');
+    setTimelineReportReason('');
+    setTimelineReportDialogOpen(true);
+    setFloatingButtonsExpanded(false);
+  };
+
+  const handleCloseTimelineReportDialog = () => {
+    if (timelineReportSubmitting) return;
+    setTimelineReportDialogOpen(false);
+  };
+
+  const handleSubmitTimelineReport = async () => {
+    if (!timelineId || timelineId === 'new') return;
+    if (!timelineReportCategory) {
+      setSnackbarMessage('Please choose a report category');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      setTimelineReportSubmitting(true);
+      await submitTimelineReport(timelineId, timelineReportReason || '', timelineReportCategory);
+      setTimelineReportDialogOpen(false);
+      setSnackbarMessage('Timeline report submitted');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.message || 'Failed to submit timeline report';
+      setSnackbarMessage(msg);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setTimelineReportSubmitting(false);
+    }
   };
 
   const handleOpenAccessPanel = () => {
@@ -3690,11 +3733,91 @@ const handleRecenter = () => {
         timelineName={timelineName}
       />
 
+      <Dialog open={timelineReportDialogOpen} onClose={handleCloseTimelineReportDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Report Timeline</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This report creates a moderation ticket for Site Control.
+          </Typography>
+          <TextField
+            select
+            fullWidth
+            margin="dense"
+            label="Category"
+            value={timelineReportCategory}
+            onChange={(e) => setTimelineReportCategory(e.target.value)}
+          >
+            <MenuItem value="">Select a category</MenuItem>
+            <MenuItem value="website_policy">Website Policy</MenuItem>
+            <MenuItem value="government_policy">Government Policy</MenuItem>
+            <MenuItem value="unethical_boundary">Unethical Boundary</MenuItem>
+          </TextField>
+          <TextField
+            fullWidth
+            margin="dense"
+            multiline
+            minRows={3}
+            label="Reason (optional details)"
+            value={timelineReportReason}
+            onChange={(e) => setTimelineReportReason(e.target.value)}
+            placeholder="Add context for moderators"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTimelineReportDialog} disabled={timelineReportSubmitting}>Cancel</Button>
+          <Button
+            onClick={handleSubmitTimelineReport}
+            variant="contained"
+            color="error"
+            disabled={timelineReportSubmitting || !timelineReportCategory}
+          >
+            {timelineReportSubmitting ? 'Submitting...' : 'Submit Report'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
       <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
         {/* Consolidated Event Button - Animates in and out */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
+          <Box sx={{
+            position: 'absolute',
+            bottom: floatingButtonsExpanded ? 112 : 0,
+            right: 0,
+            opacity: floatingButtonsExpanded ? 1 : 0,
+            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+            transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out`,
+            transitionDelay: floatingButtonsExpanded ? '0.08s' : '0s',
+            zIndex: 1530,
+          }}>
+            <Tooltip title="Report Timeline" placement="left">
+              <Fab
+                onClick={handleOpenTimelineReportDialog}
+                size="medium"
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? '#2b1e20' : '#fff5f5',
+                  border: theme.palette.mode === 'dark' ? '2px solid #ef5350' : '2px solid #d32f2f',
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? '#3a2225' : '#ffe9e9',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 0 18px rgba(239, 83, 80, 0.45)'
+                      : '0 0 18px rgba(211, 47, 47, 0.35)',
+                  },
+                  color: theme.palette.mode === 'dark' ? '#ef5350' : '#d32f2f',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 0 12px rgba(239, 83, 80, 0.35)'
+                    : '0 0 12px rgba(211, 47, 47, 0.25)',
+                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
+                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  transitionDelay: floatingButtonsExpanded ? '0.08s' : '0s',
+                }}
+              >
+                <OutlinedFlagIcon />
+              </Fab>
+            </Tooltip>
+          </Box>
+
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 56 : 0,

@@ -460,6 +460,11 @@ const GlobalReportsTab = () => {
             name: it.reported_user_username || (it.reported_user_id ? `User ${it.reported_user_id}` : 'Unknown User'),
             avatar: it.reported_user_avatar_url || null,
           },
+          reportedTimeline: {
+            id: it.reported_timeline_id || null,
+            name: it.reported_timeline_name || null,
+            type: it.reported_timeline_type || null,
+          },
           reason: it.reason || '',
           escalationType: it.escalation_type || null,
           escalationSummary: it.escalation_summary || '',
@@ -716,6 +721,13 @@ const GlobalReportsTab = () => {
                 const reportTypeLabel = getReportTypeLabel(post.reportType);
                 const isPostTicket = (post.reportType || 'post') === 'post';
                 const isUserTicket = post.reportType === 'user';
+                const isTimelineTicket = post.reportType === 'timeline';
+                const timelineTargetId = post.reportedTimeline?.id || post.timelineId;
+                const timelineTargetName = getTimelineDisplayName(
+                  post.reportedTimeline?.name || post.timelineName,
+                  post.reportedTimeline?.type || post.timelineType,
+                );
+                const timelineTargetType = getTimelineTypeLabel(post.reportedTimeline?.type || post.timelineType);
 
                 let statusColor = {
                   text: '#6B7280',
@@ -741,7 +753,9 @@ const GlobalReportsTab = () => {
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       borderLeft: `4px solid ${statusColor.text}`,
-                      borderTop: isUserTicket ? 'none' : `4px solid ${eventTypeDisplay.color}`,
+                      borderTop: `3px solid ${eventTypeDisplay.color}`,
+                      borderRight: `2px solid ${eventTypeDisplay.color}`,
+                      borderBottom: `2px solid ${eventTypeDisplay.color}`,
                       background: isUserTicket
                         ? 'linear-gradient(180deg, rgba(21,101,192,0.09) 0%, rgba(21,101,192,0.03) 42%, rgba(255,255,255,0) 100%)'
                         : 'transparent',
@@ -890,44 +904,240 @@ const GlobalReportsTab = () => {
                           </>
                         ) : (
                           <>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="body2"><strong>Timeline:</strong></Typography>
-                              {post.timelineId ? (
-                                <Typography
-                                  component="a"
-                                  href={`/timeline-v3/${post.timelineId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  variant="body2"
+                            {isPostTicket ? (
+                              <>
+                                <Box
                                   sx={{
-                                    color: 'primary.main',
-                                    textDecoration: 'none',
-                                    fontWeight: 500,
-                                    '&:hover': { textDecoration: 'underline' },
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    border: '1px solid rgba(245,124,0,0.35)',
+                                    bgcolor: 'rgba(245,124,0,0.08)',
                                   }}
                                 >
-                                  {getTimelineDisplayName(post.timelineName, post.timelineType)}
-                                </Typography>
-                              ) : (
-                                <Typography variant="body2">{getTimelineDisplayName(post.timelineName, post.timelineType)}</Typography>
-                              )}
-                              <Chip
-                                label={getTimelineTypeLabel(post.timelineType)}
-                                size="small"
-                                sx={{
-                                  bgcolor: '#E8F1FF',
-                                  color: '#1E40AF',
-                                  fontWeight: 600,
-                                  height: 22,
-                                }}
-                              />
-                            </Box>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                                    <Typography variant="overline" sx={{ color: '#E65100', fontWeight: 700, letterSpacing: 0.8 }}>
+                                      POST REPORT TARGET
+                                    </Typography>
+                                    {post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => handleViewEvent(post)}
+                                        sx={{
+                                          borderRadius: '999px',
+                                          px: 1.5,
+                                          py: 0.25,
+                                          minHeight: 28,
+                                          textTransform: 'none',
+                                          fontWeight: 600,
+                                          borderColor: 'rgba(230,81,0,0.45)',
+                                          color: '#BF360C',
+                                          '&:hover': {
+                                            borderColor: '#E65100',
+                                            backgroundColor: 'rgba(230,81,0,0.08)',
+                                          },
+                                        }}
+                                      >
+                                        View Event
+                                      </Button>
+                                    )}
+                                  </Box>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                    <Typography variant="body2"><strong>Timeline:</strong></Typography>
+                                    {post.timelineId ? (
+                                      <Typography
+                                        component="a"
+                                        href={`/timeline-v3/${post.timelineId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        variant="body2"
+                                        sx={{
+                                          color: 'primary.main',
+                                          textDecoration: 'none',
+                                          fontWeight: 500,
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                      >
+                                        {getTimelineDisplayName(post.timelineName, post.timelineType)}
+                                      </Typography>
+                                    ) : (
+                                      <Typography variant="body2">{getTimelineDisplayName(post.timelineName, post.timelineType)}</Typography>
+                                    )}
+                                    <Chip
+                                      label={getTimelineTypeLabel(post.timelineType)}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: '#E8F1FF',
+                                        color: '#1E40AF',
+                                        fontWeight: 600,
+                                        height: 22,
+                                      }}
+                                    />
+                                    <Chip
+                                      label={eventTypeDisplay.label}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: '#FFF3E0',
+                                        color: '#E65100',
+                                        fontWeight: 600,
+                                        height: 22,
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
 
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                              <Typography variant="body2"><strong>Reason:</strong></Typography>
-                              {chipLabel && <Chip label={chipLabel} size="small" sx={chipStyle} />}
-                              <Typography variant="body2">{cleaned}</Typography>
-                            </Box>
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    bgcolor: 'transparent',
+                                    border: '1px solid rgba(230,81,0,0.3)',
+                                  }}
+                                >
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.75 }}>
+                                    <Typography variant="body2"><strong>Reason Reported</strong></Typography>
+                                    {chipLabel && <Chip label={chipLabel} size="small" sx={chipStyle} />}
+                                  </Box>
+                                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                    {cleaned || 'No reason provided.'}
+                                  </Typography>
+                                </Box>
+                              </>
+                            ) : isTimelineTicket ? (
+                              <>
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    border: '1px solid rgba(46,125,50,0.35)',
+                                    bgcolor: 'rgba(46,125,50,0.08)',
+                                  }}
+                                >
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                                    <Typography variant="overline" sx={{ color: '#1B5E20', fontWeight: 700, letterSpacing: 0.8 }}>
+                                      TIMELINE REPORT TARGET
+                                    </Typography>
+                                    {timelineTargetId && (
+                                      <Button
+                                        component="a"
+                                        href={`/timeline-v3/${timelineTargetId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{
+                                          borderRadius: '999px',
+                                          px: 1.5,
+                                          py: 0.25,
+                                          minHeight: 28,
+                                          textTransform: 'none',
+                                          fontWeight: 600,
+                                          borderColor: 'rgba(27,94,32,0.45)',
+                                          color: '#1B5E20',
+                                          '&:hover': {
+                                            borderColor: '#2E7D32',
+                                            backgroundColor: 'rgba(46,125,50,0.08)',
+                                          },
+                                        }}
+                                      >
+                                        View Timeline
+                                      </Button>
+                                    )}
+                                  </Box>
+
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                    <Typography variant="body2"><strong>Timeline:</strong></Typography>
+                                    {timelineTargetId ? (
+                                      <Typography
+                                        component="a"
+                                        href={`/timeline-v3/${timelineTargetId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        variant="body2"
+                                        sx={{
+                                          color: 'primary.main',
+                                          textDecoration: 'none',
+                                          fontWeight: 500,
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                      >
+                                        {timelineTargetName}
+                                      </Typography>
+                                    ) : (
+                                      <Typography variant="body2">{timelineTargetName}</Typography>
+                                    )}
+                                    <Chip
+                                      label={timelineTargetType}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: '#E8F5E9',
+                                        color: '#1B5E20',
+                                        fontWeight: 600,
+                                        height: 22,
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    bgcolor: 'transparent',
+                                    border: '1px solid rgba(27,94,32,0.3)',
+                                  }}
+                                >
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.75 }}>
+                                    <Typography variant="body2"><strong>Reason Reported</strong></Typography>
+                                    {chipLabel && <Chip label={chipLabel} size="small" sx={chipStyle} />}
+                                  </Box>
+                                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                    {cleaned || 'No reason provided.'}
+                                  </Typography>
+                                </Box>
+                              </>
+                            ) : (
+                              <>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="body2"><strong>Timeline:</strong></Typography>
+                                  {post.timelineId ? (
+                                    <Typography
+                                      component="a"
+                                      href={`/timeline-v3/${post.timelineId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      variant="body2"
+                                      sx={{
+                                        color: 'primary.main',
+                                        textDecoration: 'none',
+                                        fontWeight: 500,
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                    >
+                                      {getTimelineDisplayName(post.timelineName, post.timelineType)}
+                                    </Typography>
+                                  ) : (
+                                    <Typography variant="body2">{getTimelineDisplayName(post.timelineName, post.timelineType)}</Typography>
+                                  )}
+                                  <Chip
+                                    label={getTimelineTypeLabel(post.timelineType)}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: '#E8F1FF',
+                                      color: '#1E40AF',
+                                      fontWeight: 600,
+                                      height: 22,
+                                    }}
+                                  />
+                                </Box>
+
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                  <Typography variant="body2"><strong>Reason:</strong></Typography>
+                                  {chipLabel && <Chip label={chipLabel} size="small" sx={chipStyle} />}
+                                  <Typography variant="body2">{cleaned}</Typography>
+                                </Box>
+                              </>
+                            )}
                           </>
                         )}
                         {(post.escalationType || post.escalationSummary) && (
@@ -1145,7 +1355,7 @@ const GlobalReportsTab = () => {
                         </Button>
                       )}
 
-                      {post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
+                      {!isPostTicket && post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
                         <Button
                           onClick={() => handleViewEvent(post)}
                           variant="text"

@@ -691,6 +691,27 @@ export const submitReport = async (timelineId, eventId, reason = '', category) =
 };
 
 /**
+ * Submit a report for a timeline itself.
+ * @param {number|string} reportedTimelineId
+ * @param {string} reason
+ * @param {string} category
+ */
+export const submitTimelineReport = async (reportedTimelineId, reason = '', category) => {
+  try {
+    console.log(`[API] Submitting timeline report for timeline ${reportedTimelineId}`);
+    const payload = { reason: reason || '' };
+    if (category) payload.category = category;
+    const response = await api.post(`/api/v1/reports/timelines/${reportedTimelineId}`, payload);
+    console.log('[API] submitTimelineReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error submitting timeline report:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
  * Get timeline details including name, description, visibility, etc.
  * @param {number} timelineId - The ID of the timeline
  * @returns {Promise} - Promise resolving to timeline data

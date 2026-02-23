@@ -1980,6 +1980,17 @@ const ManagePostsTab = ({ timelineId }) => {
     return out;
   };
 
+  const formatResolutionLabel = (resolution) => {
+    const value = String(resolution || '').trim();
+    if (!value) return 'Unknown';
+    return value
+      .replace(/_/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -2086,69 +2097,199 @@ const ManagePostsTab = ({ timelineId }) => {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     borderLeft: `4px solid ${statusColor.text}`,
+                    borderTop: `3px solid ${eventTypeDisplay.color}`,
+                    borderRight: `2px solid ${eventTypeDisplay.color}`,
+                    borderBottom: `2px solid ${eventTypeDisplay.color}`,
                     '&:hover': {
                       transform: 'translateY(-2px)',
                       boxShadow: 3
                     }
                   }}
                 >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, gap: 2, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                       <EventTypeIcon sx={{ color: eventTypeDisplay.color, fontSize: 20 }} />
-                      <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
-                        {eventTypeDisplay.label}
+                      <Chip
+                        label="Post"
+                        size="small"
+                        sx={{ bgcolor: '#FFF3E0', color: '#BF360C', fontWeight: 700 }}
+                      />
+                      <Typography variant="subtitle1" component="div" sx={{ fontWeight: 700 }}>
+                        Ticket
                       </Typography>
                       <Chip 
                         label={post.status.charAt(0).toUpperCase() + post.status.slice(1)}
                         size="small"
                         icon={statusColor.icon}
                         sx={{ 
-                          ml: 2,
                           bgcolor: statusColor.bg,
                           color: statusColor.text,
                           fontWeight: 500
                         }}
                       />
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Reported {post.reportDate}
-                    </Typography>
+
+                    <Stack spacing={0.4} alignItems={{ xs: 'flex-start', sm: 'flex-end' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Reported {post.reportDate}
+                      </Typography>
+                      {post.status === 'resolved' && (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                          Resolution: <strong>{formatResolutionLabel(post.resolution)}</strong>
+                        </Typography>
+                      )}
+                    </Stack>
                   </Box>
                   
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Typography variant="body2">
-                        <strong>Reporter:</strong>
-                      </Typography>
+                  <Box
+                    sx={{
+                      mb: 2,
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        md: post.status === 'resolved' && post.verdict ? 'minmax(0, 1fr) minmax(0, 2fr)' : '1fr',
+                      },
+                      gap: 2,
+                      alignItems: 'start',
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack spacing={1.2}>
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            border: '1px solid rgba(245,124,0,0.35)',
+                            bgcolor: 'rgba(245,124,0,0.08)',
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                            <Typography variant="overline" sx={{ color: '#E65100', fontWeight: 700, letterSpacing: 0.8 }}>
+                              POST REPORT TARGET
+                            </Typography>
+                            {post.eventId && !(post.status === 'resolved' && post.resolution === 'delete') && (
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleViewEvent(post)}
+                                sx={{
+                                  borderRadius: '999px',
+                                  px: 1.5,
+                                  py: 0.25,
+                                  minHeight: 28,
+                                  textTransform: 'none',
+                                  fontWeight: 600,
+                                  borderColor: 'rgba(230,81,0,0.45)',
+                                  color: '#BF360C',
+                                  '&:hover': {
+                                    borderColor: '#E65100',
+                                    backgroundColor: 'rgba(230,81,0,0.08)',
+                                  },
+                                }}
+                              >
+                                View Event
+                              </Button>
+                            )}
+                          </Box>
+
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Typography variant="body2"><strong>Type:</strong></Typography>
+                            <Chip
+                              label={eventTypeDisplay.label}
+                              size="small"
+                              sx={{
+                                bgcolor: '#FFF3E0',
+                                color: '#E65100',
+                                fontWeight: 600,
+                                height: 22,
+                              }}
+                            />
+                          </Box>
+                        </Box>
+
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: 'transparent',
+                            border: '1px solid rgba(230,81,0,0.3)',
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.75 }}>
+                            <Typography variant="body2"><strong>Reason Reported</strong></Typography>
+                            {chipLabel && (
+                              <Chip
+                                label={chipLabel}
+                                size="small"
+                                sx={chipStyle}
+                              />
+                            )}
+                          </Box>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {cleaned || 'No reason provided.'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+
+                    {post.status === 'resolved' && post.verdict && (
+                      <Box
+                        sx={{
+                          p: 1.4,
+                          borderRadius: 1.5,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.02)'
+                            : 'rgba(15,23,42,0.02)',
+                          minHeight: '100%',
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.35, fontWeight: 600 }}>
+                          Verdict
+                        </Typography>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                          {post.verdict}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 24 }}>
+                      <Typography variant="body2"><strong>Reporter:</strong></Typography>
                       {post.reporter?.avatar && (
                         <UserAvatar
                           name={post.reporter?.name || 'Reporter'}
                           avatarUrl={post.reporter?.avatar}
                           id={post.reporter?.id}
-                          size={24}
-                          sx={{ ml: 1 }}
+                          size={22}
                         />
                       )}
-                      <Typography variant="body2">{post.reporter?.name || 'Reporter'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Typography variant="body2">
-                        <strong>Reason:</strong>
-                      </Typography>
-                      {chipLabel && (
-                        <Chip 
-                          label={chipLabel} 
-                          size="small" 
-                          sx={chipStyle}
-                        />
-                      )}
-                      <Typography variant="body2">{cleaned}</Typography>
-                    </Box>
-                    {(post.status === 'reviewing' || post.status === 'resolved') && post.assignedModerator && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2">
-                          <strong>Accepted by:</strong>
+                      {post.reporter?.id ? (
+                        <Typography
+                          component="a"
+                          href={`/profile/${post.reporter.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="body2"
+                          sx={{
+                            color: 'primary.main',
+                            textDecoration: 'none',
+                            fontWeight: 500,
+                            '&:hover': { textDecoration: 'underline' },
+                          }}
+                        >
+                          {post.reporter?.name || 'Reporter'}
                         </Typography>
+                      ) : (
+                        <Typography variant="body2">{post.reporter?.name || 'Reporter'}</Typography>
+                      )}
+                    </Box>
+
+                    {(post.status === 'reviewing' || post.status === 'resolved') && post.assignedModerator && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 24 }}>
+                        <Typography variant="body2"><strong>Accepted by:</strong></Typography>
                         {post.assignedModerator.avatar && (
                           <UserAvatar
                             name={post.assignedModerator.name || 'Moderator'}
@@ -2162,7 +2303,7 @@ const ManagePostsTab = ({ timelineId }) => {
                     )}
                   </Box>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, flexWrap: 'wrap' }}>
                     {post.status === 'pending' && (
                       <Button
                         variant="outlined"
@@ -2184,7 +2325,7 @@ const ManagePostsTab = ({ timelineId }) => {
                           color="warning"
                           startIcon={<PersonRemoveIcon />}
                           onClick={() => handleOpenRemoveDialog(post)}
-                          sx={{ mr: 1 }}
+                          sx={{ mr: 1, mb: 1 }}
                         >
                           Remove from Community
                         </Button>
@@ -2194,7 +2335,7 @@ const ManagePostsTab = ({ timelineId }) => {
                           color="error"
                           startIcon={<CancelIcon />}
                           onClick={() => handleOpenPostActionDialog(post, 'escalate')}
-                          sx={{ mr: 1 }}
+                          sx={{ mr: 1, mb: 1 }}
                         >
                           Escalate
                         </Button>
@@ -2204,37 +2345,11 @@ const ManagePostsTab = ({ timelineId }) => {
                           color="success"
                           startIcon={<CheckCircleIcon />}
                           onClick={() => handleOpenPostActionDialog(post, 'safeguard')}
+                          sx={{ mb: 1 }}
                         >
                           Safeguard Post
                         </Button>
                       </>
-                    )}
-
-                    {/* View Event button to jump to the event for investigation */}
-                    {post.eventId && (
-                      <Button
-                        onClick={() => handleViewEvent(post)}
-                        variant="text"
-                        size="small"
-                        sx={{ ml: 1 }}
-                      >
-                        View Event
-                      </Button>
-                    )}
-                    
-                    {post.status === 'resolved' && (
-                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-                        <Box sx={{ maxWidth: 720, width: '100%' }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Resolution: <strong>{post.resolution || 'Unknown'}</strong>
-                          </Typography>
-                          {post.verdict && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                              Verdict: {post.verdict}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
                     )}
                   </Box>
                 </Paper>
