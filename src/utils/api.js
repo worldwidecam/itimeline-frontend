@@ -794,6 +794,35 @@ export const getTimelineWarningState = async (timelineId) => {
 };
 
 /**
+ * Public status message for timeline-level good/bad news.
+ * @param {number|string} timelineId
+ */
+export const getTimelineStatusMessage = async (timelineId) => {
+  try {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/status-message`);
+    return response.data || { active: false, timeline_id: Number(timelineId) };
+  } catch (error) {
+    console.error('[API] Error fetching timeline status message:', error);
+    return { active: false, timeline_id: Number(timelineId), error: error?.message || 'status_message_fetch_failed' };
+  }
+};
+
+/**
+ * Update timeline status message (good/bad news).
+ * @param {number|string} timelineId
+ * @param {object} payload
+ */
+export const updateTimelineStatusMessage = async (timelineId, payload) => {
+  try {
+    const response = await api.put(`/api/v1/timelines/${timelineId}/status-message`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error updating timeline status message:', error);
+    throw error;
+  }
+};
+
+/**
  * Look up a user by username.
  * Backend is expected to expose a small lookup endpoint that returns
  * a single user object with at least: { id, username, avatar_url }.

@@ -28,7 +28,9 @@ import {
   MenuItem,
   InputAdornment,
   Stack,
-  Fab
+  Fab,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -57,12 +59,14 @@ import NewspaperIcon from '@mui/icons-material/Newspaper';
 import LockIcon from '@mui/icons-material/Lock';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import InfoIcon from '@mui/icons-material/Info';
+import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
+import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import { useParams } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
@@ -197,7 +201,6 @@ const AdminPanel = () => {
         });
       }
     };
-
   // Reload helpers (component scope) to avoid useEffect scoping issues
   const reloadMembers = async () => {
     try {
@@ -3260,6 +3263,9 @@ const SettingsTab = ({ id }) => {
     author: "John F. Kennedy"
   });
   const [isRefreshingQuote, setIsRefreshingQuote] = useState(false);
+  const [statusType, setStatusType] = useState('');
+  const [statusHeader, setStatusHeader] = useState('');
+  const [statusBody, setStatusBody] = useState('');
   
   // Timeline data loaded from backend
   const [timelineData, setTimelineData] = useState(null);
@@ -3379,6 +3385,22 @@ const SettingsTab = ({ id }) => {
         } catch (quoteError) {
           console.error('[AdminPanel] Error loading quote from API:', quoteError);
           // Keep localStorage fallback or default quote
+        }
+
+        // Load status message for timeline
+        try {
+          const statusResponse = await getTimelineStatusMessage(id);
+          if (statusResponse && statusResponse.active) {
+            setStatusType(statusResponse.status_type || '');
+            setStatusHeader(statusResponse.status_header || '');
+            setStatusBody(statusResponse.status_body || '');
+          } else {
+            setStatusType('');
+            setStatusHeader('');
+            setStatusBody('');
+          }
+        } catch (statusError) {
+          console.error('[AdminPanel] Error loading status message:', statusError);
         }
         
       } catch (error) {
@@ -3502,6 +3524,13 @@ const SettingsTab = ({ id }) => {
       setIsRefreshingQuote(false);
     }
   };
+
+  const handleStatusReset = () => {
+    setStatusType('');
+    setStatusHeader('');
+    setStatusBody('');
+    setHasUnsavedChanges(true);
+  };
   
   // Handle save changes
   const handleSaveChanges = async () => {
@@ -3527,6 +3556,17 @@ const SettingsTab = ({ id }) => {
       } catch (descError) {
         console.error('[SettingsTab] Error updating timeline settings:', descError);
         throw descError;
+      }
+
+      try {
+        await updateTimelineStatusMessage(id, {
+          status_type: statusType || null,
+          status_header: statusHeader,
+          status_body: statusBody
+        });
+      } catch (statusError) {
+        console.error('[SettingsTab] Error updating status message:', statusError);
+        throw statusError;
       }
       
       console.log(`[SettingsTab] Saving action cards for timeline ${id}...`);
@@ -3659,7 +3699,17 @@ const SettingsTab = ({ id }) => {
       transition={{ duration: 0.3 }}
     >
       {/* Timeline Settings */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          mb: 3,
+          pb: 2,
+          borderBottom: '2px solid',
+          borderColor: 'primary.main',
+          width: 'fit-content'
+        }}
+      >
         <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
         <Typography variant="h6" component="h2">
           Timeline Settings
@@ -3868,6 +3918,79 @@ const SettingsTab = ({ id }) => {
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
                   Configure how community members can contribute to this timeline.
                 </Typography>
+
+                {/* Status Message */}
+                <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                    <Typography variant="subtitle2">
+                      Status Message
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleStatusReset}
+                      sx={{
+                        color: 'primary.main',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                          color: 'white'
+                        }
+                      }}
+                      title="Reset Status Message"
+                    >
+                      <RefreshIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Share a short status message that appears on the timeline. Warning status still overrides this.
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={statusType}
+                    exclusive
+                    onChange={(_event, newValue) => {
+                      setStatusType(newValue || '');
+                      setHasUnsavedChanges(true);
+                    }}
+                    sx={{ mb: 2, flexWrap: 'wrap' }}
+                  >
+                    <ToggleButton value="good" sx={{ textTransform: 'none', gap: 1 }}>
+                      <VolunteerActivismRoundedIcon fontSize="small" />
+                      Good News
+                    </ToggleButton>
+                    <ToggleButton value="bad" sx={{ textTransform: 'none', gap: 1 }}>
+                      <ThumbDownAltRoundedIcon fontSize="small" />
+                      Bad News
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <TextField
+                    fullWidth
+                    label="Sub-header (max 4 words)"
+                    placeholder="E.g., Community Update"
+                    variant="outlined"
+                    value={statusHeader}
+                    onChange={(e) => {
+                      setStatusHeader(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    helperText={`${(statusHeader.trim() ? statusHeader.trim().split(/\s+/).length : 0)} / 4 words • ${statusHeader.length}/120 chars`}
+                    error={(statusHeader.trim() ? statusHeader.trim().split(/\s+/).length : 0) > 4 || statusHeader.length > 120}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    label="Status message body"
+                    placeholder="Write a short update for your community"
+                    variant="outlined"
+                    value={statusBody}
+                    onChange={(e) => {
+                      setStatusBody(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    helperText={`${statusBody.length}/320 chars`}
+                    error={statusBody.length > 320}
+                  />
+                </Box>
               
                 {/* Quote Field */}
                 <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>

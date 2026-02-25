@@ -35,8 +35,10 @@ import HistoryIcon from '@mui/icons-material/History';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
+import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
+import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import ToolbarSpacer from './ToolbarSpacer';
-import api, { getTimelineWarningState } from '../utils/api';
+import api, { getTimelineWarningState, getTimelineStatusMessage } from '../utils/api';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -53,6 +55,8 @@ function Navbar() {
   const [isSiteAdmin, setIsSiteAdmin] = React.useState(false);
   const [timelineWarningState, setTimelineWarningState] = React.useState({ active: false });
   const [warningAnchorEl, setWarningAnchorEl] = React.useState(null);
+  const [timelineStatusMessage, setTimelineStatusMessage] = React.useState({ active: false });
+  const [statusAnchorEl, setStatusAnchorEl] = React.useState(null);
   const currentPath = location.pathname;
   
   // Function to handle navigation with refresh capability
@@ -86,6 +90,7 @@ function Navbar() {
   })();
 
   const warningPanelOpen = Boolean(warningAnchorEl);
+  const statusPanelOpen = Boolean(statusAnchorEl);
   const warningScopeLabel = timelineWarningState?.warning_scope === 'action_cards'
     ? 'Action Card Warning'
     : 'General Warning';
@@ -94,6 +99,29 @@ function Navbar() {
     : (timelineWarningState?.warning_until
       ? new Date(timelineWarningState.warning_until).toLocaleDateString()
       : null);
+  const statusType = (timelineStatusMessage?.status_type || '').toLowerCase();
+  const statusIcon = statusType === 'good'
+    ? <VolunteerActivismRoundedIcon />
+    : statusType === 'bad'
+      ? <ThumbDownAltRoundedIcon />
+      : null;
+  const statusTone = statusType === 'good'
+    ? {
+        icon: '#2e7d32',
+        hover: '#1b5e20',
+        header: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)',
+        body: 'linear-gradient(180deg, #b7e3c0 0%, #edf7ef 100%)',
+        text: '#1b5e20',
+        label: 'GOOD NEWS'
+      }
+    : {
+        icon: '#c62828',
+        hover: '#8e0000',
+        header: 'linear-gradient(180deg, #c62828 0%, #ef5350 100%)',
+        body: 'linear-gradient(180deg, #f6b7b7 0%, #fdeaea 100%)',
+        text: '#8e0000',
+        label: 'BAD NEWS'
+      };
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -131,6 +159,18 @@ function Navbar() {
 
   const handleWarningClose = () => {
     setWarningAnchorEl(null);
+  };
+
+  const handleStatusToggle = (event) => {
+    if (statusPanelOpen) {
+      setStatusAnchorEl(null);
+      return;
+    }
+    setStatusAnchorEl(event.currentTarget);
+  };
+
+  const handleStatusClose = () => {
+    setStatusAnchorEl(null);
   };
   
   // Load last visited timeline from localStorage on component mount
@@ -180,7 +220,25 @@ function Navbar() {
     return () => {
       active = false;
     };
-  }, [isTimelinePage, timelineId]);
+  }, [isTimelinePage, timelineId, currentPath]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStatusMessage = async () => {
+      if (!isTimelinePage || !timelineId) {
+        if (active) setTimelineStatusMessage({ active: false });
+        return;
+      }
+      const statusMessage = await getTimelineStatusMessage(timelineId);
+      if (active) {
+        setTimelineStatusMessage(statusMessage || { active: false });
+      }
+    };
+    fetchStatusMessage();
+    return () => {
+      active = false;
+    };
+  }, [isTimelinePage, timelineId, currentPath]);
 
   // Fetch timeline name when on a timeline page
   useEffect(() => {
@@ -580,6 +638,103 @@ function Navbar() {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {user ? (
               <>
+                {isTimelinePage && !timelineWarningState?.active && timelineStatusMessage?.active && statusIcon && (
+                  <>
+                    <Tooltip title={statusTone.label === 'GOOD NEWS' ? 'View good news' : 'View bad news'}>
+                      <IconButton
+                        color="inherit"
+                        onClick={handleStatusToggle}
+                        sx={{
+                          mr: 1,
+                          color: statusTone.icon,
+                          '&:hover': { color: statusTone.hover },
+                        }}
+                        aria-label="timeline status message"
+                      >
+                        {statusIcon}
+                      </IconButton>
+                    </Tooltip>
+                    <Popper
+                      open={statusPanelOpen}
+                      anchorEl={statusAnchorEl}
+                      placement="bottom-start"
+                      transition
+                      modifiers={[{ name: 'offset', options: { offset: [0, 10] } }]}
+                      sx={{ zIndex: 1700 }}
+                    >
+                      {({ TransitionProps }) => (
+                        <Grow
+                          {...TransitionProps}
+                          timeout={260}
+                          style={{ transformOrigin: 'right top' }}
+                        >
+                          <Paper
+                            elevation={10}
+                            sx={{
+                              width: 260,
+                              minHeight: 340,
+                              borderRadius: 4,
+                              overflow: 'hidden',
+                              background: statusTone.body,
+                              color: statusTone.text,
+                            }}
+                          >
+                            <ClickAwayListener onClickAway={handleStatusClose}>
+                              <Box>
+                                <Box
+                                  sx={{
+                                    px: 2.5,
+                                    py: 2,
+                                    background: statusTone.header,
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 800, letterSpacing: 0.6 }}>
+                                      {statusTone.label}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                                      Timeline Status
+                                    </Typography>
+                                  </Box>
+                                  <IconButton
+                                    size="small"
+                                    onClick={handleStatusClose}
+                                    sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.18)' }}
+                                  >
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                                <Box sx={{ px: 2.5, pt: 2, pb: 3 }}>
+                                  {timelineStatusMessage?.status_header && (
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        fontWeight: 700,
+                                        letterSpacing: 0.3,
+                                        textTransform: 'uppercase',
+                                        display: 'block',
+                                        mt: 0.5
+                                      }}
+                                    >
+                                      {timelineStatusMessage.status_header}
+                                    </Typography>
+                                  )}
+                                  <Typography variant="body2" sx={{ opacity: 0.9, mt: 1, lineHeight: 1.6 }}>
+                                    {timelineStatusMessage?.status_body || ''}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </ClickAwayListener>
+                          </Paper>
+                        </Grow>
+                      )}
+                    </Popper>
+                  </>
+                )}
                 {isTimelinePage && timelineWarningState?.active && (
                   <>
                     <Tooltip title="View warning status">
