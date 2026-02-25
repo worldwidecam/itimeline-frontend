@@ -28,7 +28,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote } from '../../../utils/api';
+import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -113,6 +113,7 @@ const MemberListTab = () => {
   // Access control state
   const [accessLoading, setAccessLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+  const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
 
   // Search / Filter / Sort state and menu anchors
   const [searchTerm, setSearchTerm] = useState('');
@@ -345,6 +346,21 @@ const MemberListTab = () => {
       isMounted = false;
     };
   }, [id, members.length, isMember]); // Re-run when member count changes
+
+  useEffect(() => {
+    let active = true;
+    const fetchWarningState = async () => {
+      if (!id) return;
+      const warningState = await getTimelineWarningState(id);
+      if (active) {
+        setTimelineWarningState(warningState || { active: false });
+      }
+    };
+    fetchWarningState();
+    return () => {
+      active = false;
+    };
+  }, [id]);
   
   // Early guard: strictly block non-members
   if (!accessLoading && !isMember) {
@@ -399,9 +415,30 @@ const MemberListTab = () => {
     }
   };
 
+  const isActionCardWarningActive = Boolean(
+    timelineWarningState?.active
+    && timelineWarningState?.warning_scope === 'action_cards'
+    && timelineWarningState?.mask_content
+  );
+
+  const actionWarningBlurSx = isActionCardWarningActive
+    ? {
+        filter: 'blur(10px)',
+        pointerEvents: 'none',
+        userSelect: 'none',
+      }
+    : {};
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
+      {isActionCardWarningActive && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Action Card Warning is active for this timeline. Action/quote cards are temporarily blurred.
+        </Alert>
+      )}
+
       {/* Gold Action Section - Always show quote fallback if no content, show conditional lock if has content but threshold not met */}
+      <Box sx={actionWarningBlurSx}>
       {(!hasActionContent(goldAction) || showGoldAction || goldAction) ? (
         <motion.div
           initial={{ y: -20, opacity: 0 }}
@@ -624,6 +661,7 @@ const MemberListTab = () => {
           </Card>
         </motion.div>
       )}
+      </Box>
       
       {/* Bronze and Silver Actions Row */}
       <motion.div
@@ -635,7 +673,8 @@ const MemberListTab = () => {
           display: 'flex', 
           gap: 2, 
           mb: 3,
-          flexDirection: { xs: 'column', sm: 'row' }
+          flexDirection: { xs: 'column', sm: 'row' },
+          ...actionWarningBlurSx,
         }}>
           {/* Bronze Action or Quote Fallback */}
           {!isBronzeActionLoading && !hasActionContent(bronzeAction) ? (

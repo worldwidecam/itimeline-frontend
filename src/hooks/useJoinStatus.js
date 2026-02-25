@@ -103,6 +103,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
         if (!mounted) return;
         // If this timeline is locked for the current user, treat 403 as an expected state
         if (t && t.error && t.statusCode === 403) {
+          const isBannedTimeline = String(t?.errorCode || '').toLowerCase() === 'timeline_banned';
           setVisibility(t?.visibility || 'public');
           setTimelineType(t?.timeline_type || null);
           setCreatorId(t?.created_by ?? null);
@@ -110,7 +111,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
           setIsBlocked(false);
           setIsPending(false);
           setRole(null);
-          setStatus('locked');
+          setStatus(isBannedTimeline ? 'banned' : 'locked');
           setLoading(false);
           return;
         }

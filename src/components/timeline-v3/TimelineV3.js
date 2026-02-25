@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
@@ -57,6 +57,9 @@ const CheckCircleIcon = CheckCircle;
 const VisibilityIcon = Visibility;
 const SecurityIcon = Security;
 const OutlinedFlagIcon = OutlinedFlag;
+const BannedTimelineLock = React.lazy(() => import('./community/BannedTimelineLock'));
+const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
+const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCommunity'));
 
 // API prefixes are handled by the api utility
 
@@ -132,7 +135,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Fetch timeline details when component mounts or timelineId changes (membership handled by useJoinStatus)
   useEffect(() => {
     const fetchTimelineDetails = async () => {
-      if (!timelineId || timelineId === 'new') return;
+      if (hookStatus === 'locked' || hookStatus === 'banned' || !timelineId || timelineId === 'new') return;
       
       try {
         setIsLoading(true);
@@ -186,6 +189,21 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       // If no name in URL, fetch from backend
       fetchTimelineDetails();
     }
+  }, [timelineId, hookStatus]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchWarningState = async () => {
+      if (!timelineId || timelineId === 'new') return;
+      const warningState = await getTimelineWarningState(timelineId);
+      if (active) {
+        setTimelineWarningState(warningState || { active: false });
+      }
+    };
+    fetchWarningState();
+    return () => {
+      active = false;
+    };
   }, [timelineId]);
 
   // Action: Manual sync passport when blocked banner is shown
@@ -615,6 +633,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [timelineReportReason, setTimelineReportReason] = useState('');
   const [timelineReportCategory, setTimelineReportCategory] = useState('');
   const [timelineReportSubmitting, setTimelineReportSubmitting] = useState(false);
+  const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
@@ -1818,7 +1837,7 @@ const handleViewModeTransition = (newViewMode) => {
 };
 
   useEffect(() => {
-    if (hookStatus === 'locked' || !timelineId || timelineId === 'new') return; // Respect locked timelines and skip placeholder
+    if ((hookStatus === 'locked' || hookStatus === 'banned') || !timelineId || timelineId === 'new') return; // Respect locked/banned timelines and skip placeholder
 
     const fetchEvents = async () => {
       try {
@@ -2008,6 +2027,7 @@ const handleViewModeTransition = (newViewMode) => {
       // - Personal timelines (My-Name): do NOT auto-add any # tag; only the personal
       //   association should be reflected via My- chips
       let normalizedTags = [];
+      const normalizedTagKeys = new Set();
 
       const ensureTagPresent = (rawTag) => {
         if (!rawTag || typeof rawTag !== 'string') return;
@@ -2022,11 +2042,13 @@ const handleViewModeTransition = (newViewMode) => {
 
         // Normalize to canonical tag/timeline name:
         // - Strip any leading # (visual prefix is handled in the chip UI)
-        // - Collapse spaces to dashes
+        // - Preserve spaces (do NOT auto-convert spaces to dashes)
         normalized = normalized.replace(/^#+/, '');
-        normalized = normalized.replace(/\s+/g, '-');
+        normalized = normalized.replace(/\s+/g, ' ').trim();
+        const key = normalized.toLowerCase();
 
-        if (!normalizedTags.includes(normalized)) {
+        if (!normalizedTagKeys.has(key)) {
+          normalizedTagKeys.add(key);
           normalizedTags.push(normalized);
         }
       };
@@ -2677,6 +2699,14 @@ const handleRecenter = () => {
     return <Box sx={{ minHeight: '100vh' }} />;
   }
 
+  if (!joinLoading && hookStatus === 'banned') {
+    return (
+      <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
+        <BannedTimelineLock timelineName={timelineName || 'This Timeline'} />
+      </React.Suspense>
+    );
+  }
+
   // Personal timeline lock behavior should mirror the community lock pattern.
   // useJoinStatus marks locked timelines with status === 'locked' when getTimelineDetails
   // returns a 403 for the current user. Treat that as the single source of truth.
@@ -2686,7 +2716,6 @@ const handleRecenter = () => {
 
   // Check if this is a private community timeline and user is not a member
   if (timeline_type === 'community' && visibility === 'private' && isMember === false && !isLoading) {
-    const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
     return (
       <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
         <PrivateTimelineLock timelineName={timelineName} />
@@ -2696,7 +2725,6 @@ const handleRecenter = () => {
 
   // Check if user is blocked from this community timeline
   if (timeline_type === 'community' && isBlocked === true && !isLoading) {
-    const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCommunity'));
     return (
       <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
         <BlockedFromCommunity timelineName={timelineName} />
@@ -3593,6 +3621,21 @@ const handleRecenter = () => {
           timelineId={timelineId} 
           userRole={user?.role || 'user'} 
         />
+      )}
+
+      {timelineWarningState?.active && (
+        <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, mb: 2 }}>
+          <Chip
+            color="warning"
+            label={`Status: ${timelineWarningState.warning_scope === 'action_cards' ? 'Action Card Warning' : 'General Warning'}${timelineWarningState.is_indef ? ' (Indefinite)' : ''}`}
+            sx={{ fontWeight: 700, mb: 1 }}
+          />
+          {!!timelineWarningState.warning_reason_public && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {timelineWarningState.warning_reason_public}
+            </Typography>
+          )}
+        </Box>
       )}
       
       {/* Event List Workspace - Enhanced smooth fade-in transition */}

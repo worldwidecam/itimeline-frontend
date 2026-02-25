@@ -310,6 +310,38 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
   }
 };
 
+/**
+ * SiteOwner/SiteAdmin: lift timeline warning from a warning-resolved ticket.
+ * @param {number|string} reportId
+ */
+export const liftTimelineWarningFromReport = async (reportId) => {
+  try {
+    console.log(`[API] Lifting timeline warning from report ${reportId}`);
+    const response = await api.post(`/api/v1/reports/${reportId}/timeline-warning-lift`, {});
+    console.log('[API] liftTimelineWarningFromReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error lifting timeline warning from report:', error);
+    throw error;
+  }
+};
+
+/**
+ * SiteOwner-only: reverse a timeline ban from a resolved ticket.
+ * @param {number|string} reportId
+ */
+export const unbanTimelineFromReport = async (reportId) => {
+  try {
+    console.log(`[API] Unbanning timeline from report ${reportId}`);
+    const response = await api.post(`/api/v1/reports/${reportId}/timeline-unban`, {});
+    console.log('[API] unbanTimelineFromReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error unbanning timeline from report:', error);
+    throw error;
+  }
+};
+
 export const getUserProfile = async (userId) => {
   if (!userId) {
     throw new Error('userId is required');
@@ -614,7 +646,7 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '') 
  */
 export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit = false, actionPayload = {}) => {
   try {
-    const allowed = ['delete', 'safeguard', 'remove', 'edit', 'require_username_change', 'restrict_user', 'suspend_user'];
+    const allowed = ['delete', 'safeguard', 'remove', 'edit', 'require_username_change', 'restrict_user', 'suspend_user', 'issue_warning', 'ban_timeline'];
     if (!allowed.includes(action)) {
       throw new Error(`Invalid resolve action: ${action}`);
     }
@@ -732,6 +764,7 @@ export const getTimelineDetails = async (timelineId) => {
     
     // Return a safe default object instead of throwing
     // This prevents the UI from crashing completely
+    const responseData = error?.response?.data || {};
     return {
       id: timelineId,
       name: `Timeline ${timelineId}`,
@@ -739,9 +772,24 @@ export const getTimelineDetails = async (timelineId) => {
       timeline_type: 'hashtag',
       visibility: 'public',
       error: true,
-      errorMessage: error.message,
+      errorMessage: responseData?.error || error.message,
+      errorCode: responseData?.error_code || null,
       statusCode: error?.response?.status || null
     };
+  }
+};
+
+/**
+ * Public warning state for timeline-level warning enforcement UX.
+ * @param {number|string} timelineId
+ */
+export const getTimelineWarningState = async (timelineId) => {
+  try {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/warning-state`);
+    return response.data || { active: false, timeline_id: Number(timelineId) };
+  } catch (error) {
+    console.error('[API] Error fetching timeline warning state:', error);
+    return { active: false, timeline_id: Number(timelineId), error: error?.message || 'warning_state_fetch_failed' };
   }
 };
 

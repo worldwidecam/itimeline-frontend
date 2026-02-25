@@ -99,11 +99,11 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
         return;
       }
 
-      // Normalize to hashtag form: ensure leading # and collapse spaces to dashes
+      // Normalize to hashtag form: ensure leading # and preserve spaces
       if (!raw.startsWith('#')) {
         raw = `#${raw.replace(/^#+/, '')}`;
       }
-      const normalized = raw.replace(/\s+/g, '-');
+      const normalized = raw.replace(/\s+/g, ' ').trim();
 
       if (!tags.includes(normalized)) {
         setTags([...tags, normalized]);

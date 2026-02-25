@@ -40,8 +40,9 @@ import NewspaperIcon from '@mui/icons-material/Newspaper';
 import ForumIcon from '@mui/icons-material/Forum';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
+import TagIcon from '@mui/icons-material/Tag';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { listSiteAdmins, listSiteReports, acceptSiteReport, resolveSiteReport } from '../../utils/api';
+import api, { listSiteAdmins, listSiteReports, acceptSiteReport, resolveSiteReport, unbanTimelineFromReport, liftTimelineWarningFromReport } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
 import EventDialog from '../timeline-v3/events/EventDialog';
@@ -187,7 +188,7 @@ const getTimelineDisplayName = (name, timelineType) => {
   return safeName;
 };
 
-const getEventTypeDisplay = (eventType, reportType) => {
+const getEventTypeDisplay = (eventType, reportType, timelineType) => {
   const type = (eventType || reportType || '').toLowerCase();
   switch (type) {
     case 'remark':
@@ -203,7 +204,13 @@ const getEventTypeDisplay = (eventType, reportType) => {
     case 'news':
       return { icon: NewspaperIcon, color: '#e53935', label: 'News' };
     case 'timeline':
-      return { icon: ForumIcon, color: '#2e7d32', label: 'Timeline' };
+      if ((timelineType || '').toLowerCase() === 'hashtag') {
+        return { icon: TagIcon, color: '#2e7d32', label: 'Hashtag Timeline' };
+      }
+      if ((timelineType || '').toLowerCase() === 'personal') {
+        return { icon: PersonIcon, color: '#2e7d32', label: 'Personal Timeline' };
+      }
+      return { icon: ForumIcon, color: '#2e7d32', label: 'Community Timeline' };
     case 'user':
       return { icon: PersonIcon, color: '#1565c0', label: 'User' };
     case 'post':
@@ -244,6 +251,8 @@ const inferReportType = (item) => {
 
 const GlobalReportsTab = () => {
   const theme = useTheme();
+  const { user } = useAuth();
+  const isSiteOwner = Number(user?.id) === 1;
   const [postTabValue, setPostTabValue] = useState(0);
   const [typeFilter, setTypeFilter] = useState('all');
   const [reportedPosts, setReportedPosts] = useState([]);
@@ -256,6 +265,15 @@ const GlobalReportsTab = () => {
   const [postActionType, setPostActionType] = useState('');
   const [actionVerdict, setActionVerdict] = useState('');
   const [lockEditOnResolve, setLockEditOnResolve] = useState(false);
+  const [safeguardDays, setSafeguardDays] = useState('7');
+  const [safeguardUseCustomUntil, setSafeguardUseCustomUntil] = useState(false);
+  const [safeguardCustomUntil, setSafeguardCustomUntil] = useState('');
+  const [warningScope, setWarningScope] = useState('general');
+  const [warningMaskContent, setWarningMaskContent] = useState(true);
+  const [warningDays, setWarningDays] = useState('7');
+  const [warningUseCustomUntil, setWarningUseCustomUntil] = useState(false);
+  const [warningCustomUntil, setWarningCustomUntil] = useState('');
+  const [warningIndef, setWarningIndef] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeVerdict, setRemoveVerdict] = useState('');
   const [removeSubmitting, setRemoveSubmitting] = useState(false);
@@ -287,6 +305,15 @@ const GlobalReportsTab = () => {
     setPostActionType(action);
     setActionVerdict('');
     setLockEditOnResolve(false);
+    setSafeguardDays('7');
+    setSafeguardUseCustomUntil(false);
+    setSafeguardCustomUntil('');
+    setWarningScope('general');
+    setWarningMaskContent(true);
+    setWarningDays('7');
+    setWarningUseCustomUntil(false);
+    setWarningCustomUntil('');
+    setWarningIndef(false);
     setConfirmPostActionDialogOpen(true);
   };
 
@@ -296,6 +323,85 @@ const GlobalReportsTab = () => {
     setPostActionType('');
     setActionVerdict('');
     setLockEditOnResolve(false);
+    setSafeguardDays('7');
+    setSafeguardUseCustomUntil(false);
+    setSafeguardCustomUntil('');
+    setWarningScope('general');
+    setWarningMaskContent(true);
+    setWarningDays('7');
+    setWarningUseCustomUntil(false);
+    setWarningCustomUntil('');
+    setWarningIndef(false);
+  };
+
+  const handleSubmitPostAction = async () => {
+    try {
+      if (!actionVerdict.trim()) return;
+      const payload = {};
+      if (postActionType === 'safeguard') {
+        payload.safeguard_days = Number(safeguardDays || 7);
+        if (isSiteOwner && safeguardUseCustomUntil && safeguardCustomUntil) {
+          payload.safe_until = new Date(safeguardCustomUntil).toISOString();
+        }
+      }
+      if (postActionType === 'issue_warning') {
+        payload.warning_scope = warningScope;
+        payload.mask_content = Boolean(warningMaskContent);
+        payload.warning_days = Number(warningDays || 7);
+        if (warningIndef) {
+          payload.warning_indef = true;
+        } else if (warningUseCustomUntil && warningCustomUntil) {
+          payload.warning_until = new Date(warningCustomUntil).toISOString();
+        }
+      }
+
+      await resolveSiteReport(
+        selectedPost?.reportId || selectedPost?.id,
+        postActionType,
+        actionVerdict.trim(),
+        postActionType === 'safeguard' ? lockEditOnResolve : false,
+        payload,
+      );
+
+      setConfirmPostActionDialogOpen(false);
+      await fetchReports();
+      setSnackbarMessage(`Resolved: action=${postActionType}`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      setConfirmPostActionDialogOpen(false);
+      setSnackbarMessage(e?.response?.data?.error || `Failed to resolve (${postActionType})`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleUnbanTimeline = async (post) => {
+    try {
+      await unbanTimelineFromReport(post?.reportId || post?.id);
+      await fetchReports();
+      setSnackbarMessage('Timeline unbanned and ticket archived');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to unban timeline');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleLiftTimelineWarning = async (post) => {
+    try {
+      await liftTimelineWarningFromReport(post?.reportId || post?.id);
+      await fetchReports();
+      setSnackbarMessage('Timeline warning lifted');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to lift timeline warning');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
   };
 
   const handleOpenUserModerationDialog = (post, action) => {
@@ -392,6 +498,20 @@ const GlobalReportsTab = () => {
       ? 'Timeline'
       : 'Post';
   const isSelectedPostTicket = selectedReportType === 'post';
+  const actionDialogTitle = postActionType === 'delete'
+    ? 'Resolve by Deleting Post?'
+    : postActionType === 'issue_warning'
+      ? `Issue Warning for ${selectedTypeLabel}?`
+      : postActionType === 'ban_timeline'
+        ? 'Ban Timeline?'
+        : `Safeguard ${selectedTypeLabel}?`;
+  const actionDialogDescription = postActionType === 'delete'
+    ? 'This action deletes the post across the site and resolves the ticket. This action cannot be undone.'
+    : postActionType === 'issue_warning'
+      ? 'This action resolves the ticket and puts the timeline on warning status for 7 days with public reason visibility.'
+      : postActionType === 'ban_timeline'
+        ? 'This action resolves the ticket by banning the timeline (not deleting it), and shadow-hides it from normal discovery paths.'
+        : `This action will mark the ${selectedTypeLabel.toLowerCase()} ticket as reviewed and safe, dismissing the report.`;
 
   const handleViewEvent = async (post) => {
     try {
@@ -475,6 +595,10 @@ const GlobalReportsTab = () => {
           } : null,
           resolution: it.resolution || null,
           verdict: it.verdict || '',
+          safeguardSafeUntil: it.safeguard_safe_until || null,
+          warningScope: it.warning_scope || null,
+          warningUntil: it.warning_until || null,
+          warningIsActive: typeof it.warning_is_active === 'boolean' ? it.warning_is_active : null,
           reportId: it.id || it.report_id,
         };
       });
@@ -716,7 +840,7 @@ const GlobalReportsTab = () => {
               {filteredPosts.map((post) => {
                 const { chipLabel, chipStyle, cleaned } = parseReasonCategory(post.reason);
                 const { verdictText, reportedUsernameAtActionTime } = parseVerdictDetails(post.verdict);
-                const eventTypeDisplay = getEventTypeDisplay(post.eventType, post.reportType);
+                const eventTypeDisplay = getEventTypeDisplay(post.eventType, post.reportType, post.reportedTimeline?.type || post.timelineType);
                 const EventTypeIcon = eventTypeDisplay.icon;
                 const reportTypeLabel = getReportTypeLabel(post.reportType);
                 const isPostTicket = (post.reportType || 'post') === 'post';
@@ -807,6 +931,31 @@ const GlobalReportsTab = () => {
                               <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
                                 Resolution: <strong>{formatResolutionLabel(post.resolution)}</strong>
                               </Typography>
+                              {post.resolution === 'safeguard' && post.safeguardSafeUntil && (
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textAlign: { xs: 'left', sm: 'right' },
+                                    color: '#0B8A4A',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Safe Until: {new Date(post.safeguardSafeUntil).toLocaleString()}
+                                </Typography>
+                              )}
+                              {post.resolution === 'issue_warning' && post.warningUntil && (
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textAlign: { xs: 'left', sm: 'right' },
+                                    color: '#B45309',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Warning Until: {new Date(post.warningUntil).toLocaleString()}
+                                </Typography>
+                              )}
+
                               {reportedUsernameAtActionTime && post.resolution === 'require_username_change' && (
                                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
                                   Reported username: <strong>{reportedUsernameAtActionTime}</strong>
@@ -1242,6 +1391,18 @@ const GlobalReportsTab = () => {
                         </Button>
                       )}
 
+                      {post.status === 'resolved' && post.reportType === 'timeline' && post.resolution === 'issue_warning' && (post.warningIsActive !== false) && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="warning"
+                          onClick={() => handleLiftTimelineWarning(post)}
+                          sx={{ ml: 1, mb: 1 }}
+                        >
+                          Lift Warning
+                        </Button>
+                      )}
+
                       {post.status === 'reviewing' && isPostTicket && (
                         <>
                           <Button
@@ -1288,16 +1449,38 @@ const GlobalReportsTab = () => {
                       )}
 
                       {post.status === 'reviewing' && post.reportType === 'timeline' && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color="success"
-                          startIcon={<CheckCircleIcon />}
-                          onClick={() => handleOpenPostActionDialog(post, 'safeguard')}
-                          sx={{ mb: 1 }}
-                        >
-                          Safeguard Timeline
-                        </Button>
+                        <>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            startIcon={<ShieldIcon />}
+                            onClick={() => handleOpenPostActionDialog(post, 'issue_warning')}
+                            sx={{ mr: 1, mb: 1 }}
+                          >
+                            Issue Warning
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<CancelIcon />}
+                            onClick={() => handleOpenPostActionDialog(post, 'ban_timeline')}
+                            sx={{ mr: 1, mb: 1 }}
+                          >
+                            Ban Timeline
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="success"
+                            startIcon={<CheckCircleIcon />}
+                            onClick={() => handleOpenPostActionDialog(post, 'safeguard')}
+                            sx={{ mb: 1 }}
+                          >
+                            Safeguard Timeline
+                          </Button>
+                        </>
                       )}
 
                       {post.status === 'reviewing' && post.reportType === 'user' && (
@@ -1355,6 +1538,18 @@ const GlobalReportsTab = () => {
                         </Button>
                       )}
 
+                      {post.status === 'resolved' && post.reportType === 'timeline' && post.resolution === 'ban_timeline' && isSiteOwner && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="info"
+                          onClick={() => handleUnbanTimeline(post)}
+                          sx={{ ml: 1, mb: 1 }}
+                        >
+                          Unban Timeline (SiteOwner)
+                        </Button>
+                      )}
+
                       {!isPostTicket && post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
                         <Button
                           onClick={() => handleViewEvent(post)}
@@ -1382,13 +1577,11 @@ const GlobalReportsTab = () => {
         aria-describedby="post-action-dialog-description"
       >
         <DialogTitle id="post-action-dialog-title">
-          {postActionType === 'delete' ? 'Resolve by Deleting Post?' : `Safeguard ${selectedTypeLabel}?`}
+          {actionDialogTitle}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="post-action-dialog-description">
-            {postActionType === 'delete'
-              ? 'This action deletes the post across the site and resolves the ticket. This action cannot be undone.'
-              : `This action will mark the ${selectedTypeLabel.toLowerCase()} ticket as reviewed and safe, dismissing the report.`}
+            {actionDialogDescription}
           </DialogContentText>
           <TextField
             autoFocus
@@ -1401,17 +1594,139 @@ const GlobalReportsTab = () => {
             onChange={(e) => setActionVerdict(e.target.value)}
             sx={{ mt: 2 }}
           />
-          {postActionType === 'safeguard' && isSelectedPostTicket && (
-            <FormControlLabel
-              sx={{ mt: 1 }}
-              control={(
-                <Checkbox
-                  checked={lockEditOnResolve}
-                  onChange={(e) => setLockEditOnResolve(e.target.checked)}
+          {postActionType === 'safeguard' && (
+            <>
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel id="site-safeguard-days-label">Cooldown Duration</InputLabel>
+                <Select
+                  labelId="site-safeguard-days-label"
+                  label="Cooldown Duration"
+                  value={safeguardDays}
+                  onChange={(e) => setSafeguardDays(String(e.target.value))}
+                >
+                  <MenuItem value="3">3 Days</MenuItem>
+                  <MenuItem value="7">7 Days</MenuItem>
+                  <MenuItem value="10">10 Days</MenuItem>
+                </Select>
+              </FormControl>
+              {isSiteOwner && (
+                <>
+                  <FormControlLabel
+                    sx={{ mt: 1 }}
+                    control={(
+                      <Checkbox
+                        checked={safeguardUseCustomUntil}
+                        onChange={(e) => setSafeguardUseCustomUntil(e.target.checked)}
+                      />
+                    )}
+                    label="Use custom safe-until datetime (SiteOwner only)"
+                  />
+                  {safeguardUseCustomUntil && (
+                    <TextField
+                      fullWidth
+                      type="datetime-local"
+                      label="Safe Until (UTC)"
+                      value={safeguardCustomUntil}
+                      onChange={(e) => setSafeguardCustomUntil(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ mt: 1 }}
+                    />
+                  )}
+                </>
+              )}
+              {isSelectedPostTicket && (
+                <FormControlLabel
+                  sx={{ mt: 1 }}
+                  control={(
+                    <Checkbox
+                      checked={lockEditOnResolve}
+                      onChange={(e) => setLockEditOnResolve(e.target.checked)}
+                    />
+                  )}
+                  label="Lock creator editing after resolve"
                 />
               )}
-              label="Lock creator editing after resolve"
-            />
+            </>
+          )}
+
+          {postActionType === 'issue_warning' && (
+            <>
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel id="site-warning-scope-label">Warning Scope</InputLabel>
+                <Select
+                  labelId="site-warning-scope-label"
+                  label="Warning Scope"
+                  value={warningScope}
+                  onChange={(e) => setWarningScope(String(e.target.value))}
+                >
+                  <MenuItem value="general">General Warning</MenuItem>
+                  <MenuItem value="action_cards">Action Cards</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel id="site-warning-days-label">Warning Duration</InputLabel>
+                <Select
+                  labelId="site-warning-days-label"
+                  label="Warning Duration"
+                  value={warningDays}
+                  onChange={(e) => setWarningDays(String(e.target.value))}
+                >
+                  <MenuItem value="3">3 Days</MenuItem>
+                  <MenuItem value="7">7 Days</MenuItem>
+                  <MenuItem value="10">10 Days</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControlLabel
+                sx={{ mt: 1 }}
+                control={(
+                  <Checkbox
+                    checked={warningUseCustomUntil}
+                    onChange={(e) => {
+                      setWarningUseCustomUntil(e.target.checked);
+                      if (e.target.checked) setWarningIndef(false);
+                    }}
+                  />
+                )}
+                label="Use custom warning-until datetime"
+              />
+              {warningUseCustomUntil && (
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Warning Until (UTC)"
+                  value={warningCustomUntil}
+                  onChange={(e) => setWarningCustomUntil(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ mt: 1 }}
+                />
+              )}
+              <FormControlLabel
+                sx={{ mt: 1 }}
+                control={(
+                  <Checkbox
+                    checked={warningIndef}
+                    onChange={(e) => {
+                      setWarningIndef(e.target.checked);
+                      if (e.target.checked) {
+                        setWarningUseCustomUntil(false);
+                        setWarningCustomUntil('');
+                      }
+                    }}
+                  />
+                )}
+                label="INDEF (indefinite warning)"
+              />
+              <FormControlLabel
+                sx={{ mt: 1 }}
+                control={(
+                  <Checkbox
+                    checked={warningMaskContent}
+                    onChange={(e) => setWarningMaskContent(e.target.checked)}
+                  />
+                )}
+                label="Mask targeted timeline content immediately"
+              />
+            </>
           )}
         </DialogContent>
         <DialogActions>
@@ -1419,13 +1734,23 @@ const GlobalReportsTab = () => {
             Cancel
           </Button>
           <Button
-            onClick={postActionType === 'delete' ? handleDeletePost : handleSafeguardPost}
-            color={postActionType === 'delete' ? 'error' : 'success'}
+            onClick={postActionType === 'delete' ? handleDeletePost : handleSubmitPostAction}
+            color={postActionType === 'delete' || postActionType === 'ban_timeline' ? 'error' : postActionType === 'issue_warning' ? 'warning' : 'success'}
             variant="contained"
-            startIcon={postActionType === 'delete' ? <CancelIcon /> : <CheckCircleIcon />}
-            disabled={!actionVerdict.trim()}
+            startIcon={postActionType === 'delete' || postActionType === 'ban_timeline' ? <CancelIcon /> : <CheckCircleIcon />}
+            disabled={
+              !actionVerdict.trim()
+              || (postActionType === 'safeguard' && isSiteOwner && safeguardUseCustomUntil && !safeguardCustomUntil)
+              || (postActionType === 'issue_warning' && warningUseCustomUntil && !warningCustomUntil)
+            }
           >
-            {postActionType === 'delete' ? 'Delete Post' : `Safeguard ${selectedTypeLabel}`}
+            {postActionType === 'delete'
+              ? 'Delete Post'
+              : postActionType === 'issue_warning'
+                ? 'Issue Warning'
+                : postActionType === 'ban_timeline'
+                  ? 'Ban Timeline'
+                  : `Safeguard ${selectedTypeLabel}`}
           </Button>
         </DialogActions>
       </Dialog>
