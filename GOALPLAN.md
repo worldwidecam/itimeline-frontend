@@ -44,6 +44,8 @@
 - [ ] sharing link system
 - [ ] reorganizing community admin page action card settings under INFO CARDS umbrella
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
+- [ ] go back and fully implement action cards
+- [ ] update the members page and admin page buttons to FAB
 
 ## Completed
 - [x] Site Control + Community Admin report card baseline styling standardized (header order, grouped footer metadata, resolved verdict panel, type-accent borders)

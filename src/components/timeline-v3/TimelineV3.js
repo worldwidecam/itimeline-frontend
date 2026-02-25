@@ -3622,21 +3622,6 @@ const handleRecenter = () => {
           userRole={user?.role || 'user'} 
         />
       )}
-
-      {timelineWarningState?.active && (
-        <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, mb: 2 }}>
-          <Chip
-            color="warning"
-            label={`Status: ${timelineWarningState.warning_scope === 'action_cards' ? 'Action Card Warning' : 'General Warning'}${timelineWarningState.is_indef ? ' (Indefinite)' : ''}`}
-            sx={{ fontWeight: 700, mb: 1 }}
-          />
-          {!!timelineWarningState.warning_reason_public && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {timelineWarningState.warning_reason_public}
-            </Typography>
-          )}
-        </Box>
-      )}
       
       {/* Event List Workspace - Enhanced smooth fade-in transition */}
       <Box sx={{

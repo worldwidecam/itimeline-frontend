@@ -18,6 +18,10 @@ import {
   Divider,
   Menu,
   MenuItem,
+  Popper,
+  Paper,
+  ClickAwayListener,
+  Grow,
   useTheme,
 } from '@mui/material';
 import UserAvatar from './common/UserAvatar';
@@ -29,8 +33,10 @@ import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
 import HistoryIcon from '@mui/icons-material/History';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CloseIcon from '@mui/icons-material/Close';
 import ToolbarSpacer from './ToolbarSpacer';
-import api from '../utils/api';
+import api, { getTimelineWarningState } from '../utils/api';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -45,6 +51,8 @@ function Navbar() {
   const [lastVisitedTimeline, setLastVisitedTimeline] = React.useState(null);
   const [siteRole, setSiteRole] = React.useState(null);
   const [isSiteAdmin, setIsSiteAdmin] = React.useState(false);
+  const [timelineWarningState, setTimelineWarningState] = React.useState({ active: false });
+  const [warningAnchorEl, setWarningAnchorEl] = React.useState(null);
   const currentPath = location.pathname;
   
   // Function to handle navigation with refresh capability
@@ -77,6 +85,16 @@ function Navbar() {
     return match ? match[1] : null;
   })();
 
+  const warningPanelOpen = Boolean(warningAnchorEl);
+  const warningScopeLabel = timelineWarningState?.warning_scope === 'action_cards'
+    ? 'Action Card Warning'
+    : 'General Warning';
+  const warningUntilLabel = timelineWarningState?.is_indef
+    ? 'INDEF'
+    : (timelineWarningState?.warning_until
+      ? new Date(timelineWarningState.warning_until).toLocaleDateString()
+      : null);
+
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -101,6 +119,18 @@ function Navbar() {
   // Function to toggle the drawer state when hamburger icon is clicked
   const handleHamburgerClick = () => {
     setDrawerOpen(!drawerOpen);
+  };
+
+  const handleWarningToggle = (event) => {
+    if (warningPanelOpen) {
+      setWarningAnchorEl(null);
+      return;
+    }
+    setWarningAnchorEl(event.currentTarget);
+  };
+
+  const handleWarningClose = () => {
+    setWarningAnchorEl(null);
   };
   
   // Load last visited timeline from localStorage on component mount
@@ -133,6 +163,24 @@ function Navbar() {
       setIsSiteAdmin(Number(user.id) === 1);
     }
   }, [user]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchWarningState = async () => {
+      if (!isTimelinePage || !timelineId) {
+        if (active) setTimelineWarningState({ active: false });
+        return;
+      }
+      const warningState = await getTimelineWarningState(timelineId);
+      if (active) {
+        setTimelineWarningState(warningState || { active: false });
+      }
+    };
+    fetchWarningState();
+    return () => {
+      active = false;
+    };
+  }, [isTimelinePage, timelineId]);
 
   // Fetch timeline name when on a timeline page
   useEffect(() => {
@@ -532,6 +580,97 @@ function Navbar() {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {user ? (
               <>
+                {isTimelinePage && timelineWarningState?.active && (
+                  <>
+                    <Tooltip title="View warning status">
+                      <IconButton
+                        color="inherit"
+                        onClick={handleWarningToggle}
+                        sx={{
+                          mr: 1,
+                          color: 'warning.main',
+                          '&:hover': { color: 'warning.dark' },
+                        }}
+                        aria-label="warning status"
+                      >
+                        <WarningAmberIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Popper
+                      open={warningPanelOpen}
+                      anchorEl={warningAnchorEl}
+                      placement="bottom-start"
+                      transition
+                      modifiers={[{ name: 'offset', options: { offset: [0, 10] } }]}
+                      sx={{ zIndex: 1700 }}
+                    >
+                      {({ TransitionProps }) => (
+                        <Grow
+                          {...TransitionProps}
+                          timeout={280}
+                          style={{ transformOrigin: 'right top' }}
+                        >
+                          <Paper
+                            elevation={10}
+                            sx={{
+                              width: 260,
+                              minHeight: 340,
+                              borderRadius: 4,
+                              overflow: 'hidden',
+                              background: 'linear-gradient(180deg, #ffb76b 0%, #ffe6a6 100%)',
+                              color: '#4e2b00',
+                            }}
+                          >
+                            <ClickAwayListener onClickAway={handleWarningClose}>
+                              <Box>
+                                <Box
+                                  sx={{
+                                    px: 2.5,
+                                    py: 2,
+                                    background: 'linear-gradient(180deg, #f57c00 0%, #ff9800 100%)',
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 800, letterSpacing: 0.6 }}>
+                                      WARNING
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                                      {warningScopeLabel}
+                                    </Typography>
+                                  </Box>
+                                  <IconButton
+                                    size="small"
+                                    onClick={handleWarningClose}
+                                    sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.18)' }}
+                                  >
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                                <Box sx={{ px: 2.5, pt: 2, pb: 3 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.3 }}>
+                                    Status
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ opacity: 0.85, mb: 1.5 }}>
+                                    {warningUntilLabel ? `Until ${warningUntilLabel}` : 'Active warning'}
+                                  </Typography>
+                                  {timelineWarningState?.warning_reason_public && (
+                                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                      {timelineWarningState.warning_reason_public}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                            </ClickAwayListener>
+                          </Paper>
+                        </Grow>
+                      )}
+                    </Popper>
+                  </>
+                )}
                 {/* Consistent hamburger menu on all pages */}
                 <IconButton
                   color="inherit"
