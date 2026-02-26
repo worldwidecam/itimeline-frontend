@@ -66,7 +66,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
@@ -171,13 +171,16 @@ const AdminPanel = () => {
         const response = await getTimelineDetails(id);
         console.log('Timeline details response:', response);
         
+        const countResponse = await getTimelineMemberCount(id);
+        const totalCount = countResponse?.count ?? response.member_count ?? 0;
+
         // Format the timeline data
         setTimelineData({
           name: response.name,
           description: response.description || '',
           visibility: response.visibility || 'public',
           createdAt: new Date(response.created_at).toISOString().split('T')[0],
-          memberCount: response.member_count || 0,
+          memberCount: totalCount,
           createdBy: response.created_by || response.createdBy || null
         });
         
@@ -3283,6 +3286,8 @@ const SettingsTab = ({ id }) => {
         // Load timeline details first
         setIsLoadingTimeline(true);
         const timelineDetails = await getTimelineDetails(id);
+        const countResponse = await getTimelineMemberCount(id);
+        const totalCount = countResponse?.count ?? timelineDetails?.member_count ?? 0;
         console.log(`[SettingsTab] Timeline details:`, timelineDetails);
         
         if (timelineDetails) {
@@ -3290,7 +3295,7 @@ const SettingsTab = ({ id }) => {
             id: timelineDetails.id,
             name: timelineDetails.name,
             description: timelineDetails.description || '',
-            memberCount: timelineDetails.member_count || 0,
+            memberCount: totalCount,
             createdDate: timelineDetails.created_at ? new Date(timelineDetails.created_at).toLocaleDateString() : 'Unknown',
             visibility: timelineDetails.visibility || 'public',
             createdBy: timelineDetails.created_by,

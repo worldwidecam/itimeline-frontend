@@ -311,6 +311,36 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
 };
 
 /**
+ * Fetch member count for a community timeline
+ * @param {number} timelineId - The ID of the timeline
+ * @param {number} retryCount - Number of retry attempts (internal use)
+ * @returns {Promise} - Promise resolving to { count } or default values on error
+ */
+export const getTimelineMemberCount = async (timelineId, retryCount = 0) => {
+  try {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/member-count`, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+
+    if (response?.data && typeof response.data.count === 'number') {
+      return response.data;
+    }
+
+    return { count: 0 };
+  } catch (error) {
+    console.error('[API] Error fetching timeline member count:', error);
+    if (retryCount < 2 && (!error.response || error.response.status >= 500)) {
+      return await getTimelineMemberCount(timelineId, retryCount + 1);
+    }
+    return { count: 0 };
+  }
+};
+
+/**
  * SiteOwner/SiteAdmin: lift timeline warning from a warning-resolved ticket.
  * @param {number|string} reportId
  */

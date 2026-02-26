@@ -6,7 +6,7 @@ import BlockIcon from '@mui/icons-material/Block';
 import PeopleIcon from '@mui/icons-material/People';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import useJoinStatus from '../../../hooks/useJoinStatus';
-import { requestTimelineAccess, getTimelineMembers, leaveCommunity } from '../../../utils/api';
+import { requestTimelineAccess, getTimelineMemberCount, leaveCommunity } from '../../../utils/api';
 
 /**
  * Format large numbers with K/M suffixes
@@ -90,9 +90,8 @@ const CommunityMembershipControl = ({
       
       try {
         setLoadingMemberCount(true);
-        const response = await getTimelineMembers(timelineId);
-        const members = Array.isArray(response) ? response : response?.data || [];
-        setMemberCount(members.length);
+        const response = await getTimelineMemberCount(timelineId);
+        setMemberCount(response?.count ?? 0);
       } catch (error) {
         console.error('[CommunityMembershipControl] Error fetching member count:', error);
         setMemberCount(0);

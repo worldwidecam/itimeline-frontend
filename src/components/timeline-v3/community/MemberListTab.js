@@ -28,7 +28,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, requestTimelineAccess, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState } from '../../../utils/api';
+import { getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -201,6 +201,7 @@ const MemberListTab = () => {
         setError(null);
         
         const response = await getTimelineMembers(id);
+        const countResponse = await getTimelineMemberCount(id);
         console.log('[MemberListTab] API Response:', response);
         
         if (isMounted) {
@@ -215,12 +216,13 @@ const MemberListTab = () => {
           console.log(`[MemberListTab] Using ${activeMembers.length} members out of ${membersData.length} total`);
           console.log('[MemberListTab] First few members:', activeMembers.slice(0, 3));
           
+          const totalCount = countResponse?.count ?? activeMembers.length;
           setMembers(activeMembers);
-          setMemberCount(activeMembers.length);
+          setMemberCount(totalCount);
           
           // Update action thresholds based on member count
-          setShowSilverAction(activeMembers.length >= memberThresholds.silver);
-          setShowGoldAction(activeMembers.length >= memberThresholds.gold);
+          setShowSilverAction(totalCount >= memberThresholds.silver);
+          setShowGoldAction(totalCount >= memberThresholds.gold);
         }
       } catch (err) {
         console.error('Error fetching members:', err);

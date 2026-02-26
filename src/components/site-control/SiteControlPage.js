@@ -269,7 +269,6 @@ const GlobalReportsTab = () => {
   const [safeguardUseCustomUntil, setSafeguardUseCustomUntil] = useState(false);
   const [safeguardCustomUntil, setSafeguardCustomUntil] = useState('');
   const [warningScope, setWarningScope] = useState('general');
-  const [warningMaskContent, setWarningMaskContent] = useState(true);
   const [warningDays, setWarningDays] = useState('7');
   const [warningUseCustomUntil, setWarningUseCustomUntil] = useState(false);
   const [warningCustomUntil, setWarningCustomUntil] = useState('');
@@ -309,7 +308,6 @@ const GlobalReportsTab = () => {
     setSafeguardUseCustomUntil(false);
     setSafeguardCustomUntil('');
     setWarningScope('general');
-    setWarningMaskContent(true);
     setWarningDays('7');
     setWarningUseCustomUntil(false);
     setWarningCustomUntil('');
@@ -327,7 +325,6 @@ const GlobalReportsTab = () => {
     setSafeguardUseCustomUntil(false);
     setSafeguardCustomUntil('');
     setWarningScope('general');
-    setWarningMaskContent(true);
     setWarningDays('7');
     setWarningUseCustomUntil(false);
     setWarningCustomUntil('');
@@ -346,7 +343,6 @@ const GlobalReportsTab = () => {
       }
       if (postActionType === 'issue_warning') {
         payload.warning_scope = warningScope;
-        payload.mask_content = Boolean(warningMaskContent);
         payload.warning_days = Number(warningDays || 7);
         if (warningIndef) {
           payload.warning_indef = true;
@@ -953,6 +949,18 @@ const GlobalReportsTab = () => {
                                   }}
                                 >
                                   Warning Until: {new Date(post.warningUntil).toLocaleString()}
+                                </Typography>
+                              )}
+                              {post.resolution === 'issue_warning' && post.warningIsActive === false && (
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textAlign: { xs: 'left', sm: 'right' },
+                                    color: '#0B8A4A',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Warning Lifted
                                 </Typography>
                               )}
 
@@ -1715,16 +1723,6 @@ const GlobalReportsTab = () => {
                   />
                 )}
                 label="INDEF (indefinite warning)"
-              />
-              <FormControlLabel
-                sx={{ mt: 1 }}
-                control={(
-                  <Checkbox
-                    checked={warningMaskContent}
-                    onChange={(e) => setWarningMaskContent(e.target.checked)}
-                  />
-                )}
-                label="Mask targeted timeline content immediately"
               />
             </>
           )}
