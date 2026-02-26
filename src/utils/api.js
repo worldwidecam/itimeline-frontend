@@ -310,6 +310,30 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
   }
 };
 
+// =============================================================================
+// SITE SETTINGS (Landing Page Rotator)
+// =============================================================================
+
+export const getLandingRotatorSettings = async () => {
+  try {
+    const response = await api.get('/api/v1/site-settings/landing-rotator');
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching landing rotator settings:', error);
+    throw error;
+  }
+};
+
+export const updateLandingRotatorSettings = async (payload) => {
+  try {
+    const response = await api.put('/api/v1/site-settings/landing-rotator', payload);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error updating landing rotator settings:', error);
+    throw error;
+  }
+};
+
 /**
  * Fetch member count for a community timeline
  * @param {number} timelineId - The ID of the timeline
@@ -708,6 +732,38 @@ export const listSiteAdmins = async () => {
     return response.data;
   } catch (error) {
     console.error('[API] Error listing site admins:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add a SiteAdmin (SiteOwner only)
+ * @param {string|number} identifier - username, email, or user ID
+ */
+export const addSiteAdmin = async (identifier) => {
+  try {
+    console.log('[API] Adding site admin:', identifier);
+    const response = await api.post('/api/v1/admins/site', { identifier });
+    console.log('[API] addSiteAdmin response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error adding site admin:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a SiteAdmin (SiteOwner only)
+ * @param {number} userId
+ */
+export const removeSiteAdmin = async (userId) => {
+  try {
+    console.log('[API] Removing site admin:', userId);
+    const response = await api.delete(`/api/v1/admins/site/${userId}`);
+    console.log('[API] removeSiteAdmin response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error removing site admin:', error);
     throw error;
   }
 };

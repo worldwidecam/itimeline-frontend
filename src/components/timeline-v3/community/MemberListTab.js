@@ -254,24 +254,33 @@ const MemberListTab = () => {
     
     const fetchActionCards = async () => {
       try {
+        setIsGoldActionLoading(true);
+        setIsSilverActionLoading(true);
+        setIsBronzeActionLoading(true);
+        setGoldAction(null);
+        setSilverAction(null);
+        setBronzeAction(null);
         console.log(`[MemberListTab] Fetching action cards for timeline ID: ${id}`);
         
         const response = await getTimelineActions(id);
         console.log('[MemberListTab] Action cards response:', response);
         
         // Debug: Log each action's due_date value
-        if (response.actions) {
-          response.actions.forEach(action => {
+        const actions = Array.isArray(response.actions) ? response.actions : [];
+        if (actions.length) {
+          actions.forEach(action => {
             console.log(`[DEBUG] Action ${action.action_type} due_date:`, action.due_date, typeof action.due_date);
           });
         }
         
-        if (isMounted && response.success && response.actions) {
+        if (isMounted && response.success) {
           // Process action cards and update thresholds
           const newThresholds = { silver: 10, gold: 25 }; // Default values
+          const foundActions = { gold: false, silver: false, bronze: false };
           
-          response.actions.forEach(action => {
+          actions.forEach(action => {
             if (action.action_type === 'silver') {
+              foundActions.silver = true;
               newThresholds.silver = action.threshold_value || 10;
               const silverActionData = {
                 id: action.id,
@@ -286,6 +295,7 @@ const MemberListTab = () => {
               setSilverActionLocked(false);
               setIsSilverActionLoading(false);
             } else if (action.action_type === 'gold') {
+              foundActions.gold = true;
               newThresholds.gold = action.threshold_value || 25;
               const goldActionData = {
                 id: action.id,
@@ -300,6 +310,7 @@ const MemberListTab = () => {
               setGoldActionLocked(false);
               setIsGoldActionLoading(false);
             } else if (action.action_type === 'bronze') {
+              foundActions.bronze = true;
               const bronzeActionData = {
                 id: action.id,
                 title: action.title || 'Bronze Community Action',
@@ -314,6 +325,19 @@ const MemberListTab = () => {
               setIsBronzeActionLoading(false);
             }
           });
+
+          if (!foundActions.gold) {
+            setIsGoldActionLoading(false);
+            setGoldAction(null);
+          }
+          if (!foundActions.silver) {
+            setIsSilverActionLoading(false);
+            setSilverAction(null);
+          }
+          if (!foundActions.bronze) {
+            setIsBronzeActionLoading(false);
+            setBronzeAction(null);
+          }
           
           // Update thresholds
           setMemberThresholds(newThresholds);
@@ -328,6 +352,9 @@ const MemberListTab = () => {
           setIsGoldActionLoading(false);
           setIsSilverActionLoading(false);
           setIsBronzeActionLoading(false);
+          setGoldAction(null);
+          setSilverAction(null);
+          setBronzeAction(null);
         }
       } catch (err) {
         console.error('[MemberListTab] Error fetching action cards:', err);
@@ -348,6 +375,33 @@ const MemberListTab = () => {
       isMounted = false;
     };
   }, [id, members.length, isMember]); // Re-run when member count changes
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchQuote = async () => {
+      if (!id) return;
+      const response = await getTimelineQuote(id);
+      if (!active) return;
+      if (response?.quote?.text) {
+        setCustomQuote({
+          text: response.quote.text,
+          author: response.quote.author || 'Unknown'
+        });
+      } else {
+        setCustomQuote({
+          text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
+          author: "John F. Kennedy"
+        });
+      }
+    };
+
+    fetchQuote();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   useEffect(() => {
     let active = true;

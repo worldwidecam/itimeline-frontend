@@ -23,9 +23,17 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Portal,
+  Switch,
   useTheme,
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import FlagIcon from '@mui/icons-material/Flag';
 import ShieldIcon from '@mui/icons-material/Shield';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -41,8 +49,12 @@ import ForumIcon from '@mui/icons-material/Forum';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import TagIcon from '@mui/icons-material/Tag';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SaveIcon from '@mui/icons-material/Save';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { listSiteAdmins, listSiteReports, acceptSiteReport, resolveSiteReport, unbanTimelineFromReport, liftTimelineWarningFromReport } from '../../utils/api';
+import api, { addSiteAdmin, listSiteAdmins, removeSiteAdmin, listSiteReports, acceptSiteReport, resolveSiteReport, unbanTimelineFromReport, liftTimelineWarningFromReport, getLandingRotatorSettings, updateLandingRotatorSettings } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
 import EventDialog from '../timeline-v3/events/EventDialog';
@@ -84,36 +96,108 @@ const parseVerdictDetails = (verdictRaw) => {
   };
 };
 
-const AdminListTab = () => {
+const AdminListTab = ({ canManage }) => {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [removeTarget, setRemoveTarget] = useState(null);
+
+  const fetchAdmins = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await listSiteAdmins();
+      setAdmins(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      setAdmins([]);
+      setError(e?.response?.data?.error || 'Failed to load site admins');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    const fetchAdmins = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const data = await listSiteAdmins();
-        if (!active) return;
-        setAdmins(Array.isArray(data?.items) ? data.items : []);
-      } catch (e) {
-        if (!active) return;
-        setAdmins([]);
-        setError(e?.response?.data?.error || 'Failed to load site admins');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
     fetchAdmins();
-    return () => { active = false; };
-  }, []);
+  }, [fetchAdmins]);
+
+  const handleAddAdmin = async () => {
+    const trimmed = identifier.trim();
+    if (!trimmed) {
+      setSnackbarMessage('Enter a username, email, or user ID');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      await addSiteAdmin(trimmed);
+      setIdentifier('');
+      setSnackbarMessage('Site admin added');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      await fetchAdmins();
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to add site admin');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveAdmin = async () => {
+    if (!removeTarget?.user_id) return;
+    try {
+      setActionLoading(true);
+      await removeSiteAdmin(removeTarget.user_id);
+      setSnackbarMessage('Site admin removed');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setRemoveTarget(null);
+      await fetchAdmins();
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to remove site admin');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <Box sx={{ mt: 2 }}>
       <Paper sx={{ p: 3 }} elevation={2}>
         <Typography variant="h6" sx={{ mb: 2 }}>Site Administration</Typography>
+        {canManage && (
+          <Stack spacing={2} sx={{ mb: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              Add SiteAdmin by username, email, or user ID.
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+              <TextField
+                label="Add SiteAdmin"
+                placeholder="username / email / user ID"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                onClick={handleAddAdmin}
+                disabled={actionLoading}
+                sx={{ minWidth: 160 }}
+              >
+                Add Admin
+              </Button>
+            </Stack>
+          </Stack>
+        )}
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
             <CircularProgress size={24} />
@@ -147,18 +231,59 @@ const AdminListTab = () => {
                     <Typography variant="body2" color="text.secondary">
                       User ID: {admin.user_id}
                     </Typography>
+                    {admin.email && (
+                      <Typography variant="body2" color="text.secondary">
+                        {admin.email}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
-                <Chip
-                  label={admin.role || 'SiteAdmin'}
-                  color={admin.role === 'SiteOwner' ? 'primary' : 'default'}
-                  sx={{ fontWeight: 600 }}
-                />
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip
+                    label={admin.role || 'SiteAdmin'}
+                    color={admin.role === 'SiteOwner' ? 'primary' : 'default'}
+                    sx={{ fontWeight: 600 }}
+                  />
+                  {canManage && admin.role !== 'SiteOwner' && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => setRemoveTarget(admin)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Stack>
               </Paper>
             ))}
           </Stack>
         )}
       </Paper>
+      <Dialog open={Boolean(removeTarget)} onClose={() => setRemoveTarget(null)}>
+        <DialogTitle>Remove Site Admin?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Remove {removeTarget?.username || `User ${removeTarget?.user_id}`} from site admins?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRemoveTarget(null)}>Cancel</Button>
+          <Button onClick={handleRemoveAdmin} color="error" variant="contained" disabled={actionLoading}>
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={5000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
@@ -1941,6 +2066,94 @@ const GlobalReportsTab = () => {
 };
 
 const SiteSettingsTab = ({ canManageSettings }) => {
+  const theme = useTheme();
+  const [leadSentence, setLeadSentence] = useState('');
+  const [rotatorItems, setRotatorItems] = useState([]);
+  const [rotationIntervalMs, setRotationIntervalMs] = useState(3000);
+  const [randomizeEndings, setRandomizeEndings] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedState, setShowSavedState] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+
+  const loadLandingSettings = useCallback(async () => {
+    try {
+      setLoadingSettings(true);
+      const data = await getLandingRotatorSettings();
+      const settings = data?.landing_rotator || {};
+      setLeadSentence(settings.lead_sentence || '');
+      setRotatorItems(Array.isArray(settings.endings) ? settings.endings : []);
+      setRotationIntervalMs(Number(settings.rotation_interval_ms) || 3000);
+      setRandomizeEndings(Boolean(settings.randomize));
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      setSnackbarMessage(error?.response?.data?.error || 'Failed to load landing rotator settings');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (canManageSettings) {
+      loadLandingSettings();
+    }
+  }, [canManageSettings, loadLandingSettings]);
+
+  const handleRotatorItemChange = (index, value) => {
+    setRotatorItems((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleAddRotatorItem = () => {
+    setRotatorItems((prev) => [...prev, '']);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleRemoveRotatorItem = (index) => {
+    setRotatorItems((prev) => prev.filter((_item, idx) => idx !== index));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      setShowSavedState(false);
+      const payload = {
+        lead_sentence: leadSentence,
+        endings: rotatorItems,
+        rotation_interval_ms: rotationIntervalMs,
+        randomize: randomizeEndings,
+      };
+      const response = await updateLandingRotatorSettings(payload);
+      const settings = response?.landing_rotator || {};
+      setLeadSentence(settings.lead_sentence || '');
+      setRotatorItems(Array.isArray(settings.endings) ? settings.endings : []);
+      setRotationIntervalMs(Number(settings.rotation_interval_ms) || 3000);
+      setRandomizeEndings(Boolean(settings.randomize));
+      setHasUnsavedChanges(false);
+      setShowSavedState(true);
+      setSnackbarMessage('Landing rotator settings saved');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setTimeout(() => setShowSavedState(false), 2000);
+    } catch (error) {
+      setSnackbarMessage(error?.response?.data?.error || 'Failed to save landing rotator settings');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Box sx={{ mt: 2 }}>
       {!canManageSettings ? (
@@ -1954,15 +2167,121 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       ) : (
         <Stack spacing={3}>
           <Paper sx={{ p: 3 }} elevation={2}>
-            <Typography variant="h6" sx={{ mb: 1 }}>Landing Page Text Rotator</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6">Landing Page Text Rotator</Typography>
+              <IconButton
+                size="small"
+                onClick={loadLandingSettings}
+                disabled={loadingSettings}
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': { bgcolor: 'primary.main', color: 'white' }
+                }}
+              >
+                <RefreshIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Configure the rotating hero text shown on the landing page.
+              Configure the rotating hero text shown on the landing page. Leave the rotator list empty to display only the lead sentence.
             </Typography>
             <Stack spacing={2}>
-              <TextField label="Headline A" placeholder="Enter first headline" fullWidth />
-              <TextField label="Headline B" placeholder="Enter second headline" fullWidth />
-              <TextField label="Headline C" placeholder="Enter third headline" fullWidth />
-              <TextField label="Rotation Interval (seconds)" placeholder="e.g. 6" type="number" fullWidth />
+              <TextField
+                label="Lead Sentence"
+                placeholder="Create personal timelines or entire communities to keep track of..."
+                fullWidth
+                value={leadSentence}
+                onChange={(e) => {
+                  setLeadSentence(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                disabled={loadingSettings}
+              />
+              <TextField
+                label="Rotation Interval (ms)"
+                placeholder="3000"
+                type="number"
+                fullWidth
+                value={rotationIntervalMs}
+                onChange={(e) => {
+                  setRotationIntervalMs(Number(e.target.value) || 0);
+                  setHasUnsavedChanges(true);
+                }}
+                helperText="Default is 3000ms. Leave as-is if you like the current pacing."
+                disabled={loadingSettings}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={randomizeEndings}
+                    onChange={(e) => {
+                      setRandomizeEndings(e.target.checked);
+                      setHasUnsavedChanges(true);
+                    }}
+                    color="primary"
+                    disabled={loadingSettings}
+                  />
+                }
+                label="Randomize ending order"
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+                When enabled, endings appear in random order instead of sequential rotation.
+              </Typography>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="subtitle1">Rotating Endings</Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={handleAddRotatorItem}
+                    disabled={loadingSettings}
+                  >
+                    Add Row
+                  </Button>
+                </Box>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ width: '70%' }}>Text</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rotatorItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                          No rotating endings yet. Add a row to start rotating phrases.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rotatorItems.map((item, index) => (
+                        <TableRow key={`rotator-row-${index}`}>
+                          <TableCell>
+                            <TextField
+                              fullWidth
+                              placeholder="Enter rotator text"
+                              value={item}
+                              onChange={(e) => handleRotatorItemChange(index, e.target.value)}
+                              disabled={loadingSettings}
+                              variant="standard"
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveRotatorItem(index)}
+                              disabled={loadingSettings}
+                              sx={{ color: theme.palette.error.main }}
+                            >
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
             </Stack>
           </Paper>
 
@@ -1972,19 +2291,79 @@ const SiteSettingsTab = ({ canManageSettings }) => {
               Configure the LED banner message shown across the top toolbar.
             </Typography>
             <Stack spacing={2}>
-              <TextField label="Banner Message" placeholder="Enter LED banner message" fullWidth />
-              <TextField label="Scroll Speed (seconds)" placeholder="e.g. 12" type="number" fullWidth />
-              <TextField label="Display Duration (seconds)" placeholder="e.g. 20" type="number" fullWidth />
+              <TextField label="Banner Message" placeholder="Enter LED banner message" fullWidth disabled />
+              <TextField label="Scroll Speed (seconds)" placeholder="e.g. 12" type="number" fullWidth disabled />
+              <TextField label="Display Duration (seconds)" placeholder="e.g. 20" type="number" fullWidth disabled />
             </Stack>
           </Paper>
-
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="contained" color="primary" disabled>
-              Save Settings (coming soon)
-            </Button>
-          </Box>
         </Stack>
       )}
+
+      <Portal>
+        <AnimatePresence>
+          {canManageSettings && (hasUnsavedChanges || showSavedState) && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: showSavedState ? 10 : 0,
+                transition: { type: 'spring', stiffness: 300, damping: 25 }
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.8,
+                y: 40,
+                transition: { duration: 0.3 }
+              }}
+              style={{
+                position: 'fixed',
+                bottom: '2rem',
+                right: '2rem',
+                zIndex: 1400,
+              }}
+            >
+              <Button
+                variant="contained"
+                color={showSavedState ? 'success' : 'primary'}
+                onClick={handleSave}
+                disabled={isSaving || showSavedState}
+                startIcon={showSavedState ? <CheckCircleIcon /> : isSaving ? null : <SaveIcon />}
+                sx={{
+                  borderRadius: '28px',
+                  padding: '12px 24px',
+                  boxShadow: showSavedState
+                    ? '0 8px 16px rgba(76, 175, 80, 0.3)'
+                    : '0 8px 16px rgba(0,0,0,0.2)',
+                  '&:hover': {
+                    boxShadow: showSavedState
+                      ? '0 8px 16px rgba(76, 175, 80, 0.3)'
+                      : '0 12px 20px rgba(0,0,0,0.3)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'white',
+                    opacity: showSavedState ? 1 : 0.7
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {showSavedState ? 'SAVED!' : isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Portal>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
@@ -2109,7 +2488,7 @@ const SiteControlPage = () => {
 
           <Box sx={{ mt: 3 }}>
             {tabValue === 0 && <GlobalReportsTab />}
-            {tabValue === 1 && <AdminListTab />}
+            {tabValue === 1 && <AdminListTab canManage={canManageSettings} />}
             {tabValue === 2 && <SiteSettingsTab canManageSettings={canManageSettings} />}
           </Box>
         </Paper>
