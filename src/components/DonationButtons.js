@@ -234,16 +234,17 @@ const DonationButtons = () => {
         position: 'fixed', // Changed from absolute to fixed
         bottom: '120px', // Moved higher (was 80px)
         right: '20px',
-        backgroundColor: 'white',
-        color: '#333',
+        background: 'linear-gradient(140deg, #ffffff 0%, #fff2d6 100%)',
+        color: '#1f1f1f',
         padding: '12px 16px',
         borderRadius: '18px',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-        fontSize: '16px', // Increased font size
-        fontWeight: 'bold',
+        border: '3px solid #1f1f1f',
+        boxShadow: '6px 6px 0 #1f1f1f',
+        fontSize: '16px',
+        fontWeight: 700,
+        letterSpacing: '0.02em',
         whiteSpace: 'nowrap',
         zIndex: 1002,
-        border: '2px solid #333',
         opacity: opacity, // Apply manual opacity control
         ...bubbleAnimation
       }}>
@@ -257,7 +258,7 @@ const DonationButtons = () => {
           height: 0,
           borderLeft: '10px solid transparent',
           borderRight: '10px solid transparent',
-          borderTop: '20px solid white',
+          borderTop: '20px solid #fff7e6',
           zIndex: 1003
         }} />
         {/* Speech bubble tail border */}
@@ -269,7 +270,7 @@ const DonationButtons = () => {
           height: 0,
           borderLeft: '13px solid transparent',
           borderRight: '13px solid transparent',
-          borderTop: '23px solid #333',
+          borderTop: '23px solid #1f1f1f',
           zIndex: 1002
         }} />
       </animated.div>

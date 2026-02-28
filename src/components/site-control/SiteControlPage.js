@@ -2071,6 +2071,8 @@ const SiteSettingsTab = ({ canManageSettings }) => {
   const [rotatorItems, setRotatorItems] = useState([]);
   const [rotationIntervalMs, setRotationIntervalMs] = useState(3000);
   const [randomizeEndings, setRandomizeEndings] = useState(false);
+  const [badgeText, setBadgeText] = useState('');
+  const [badgeEnabled, setBadgeEnabled] = useState(true);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -2088,6 +2090,8 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setRotatorItems(Array.isArray(settings.endings) ? settings.endings : []);
       setRotationIntervalMs(Number(settings.rotation_interval_ms) || 3000);
       setRandomizeEndings(Boolean(settings.randomize));
+      setBadgeText(settings.badge_text || '');
+      setBadgeEnabled(Boolean(settings.badge_enabled));
       setHasUnsavedChanges(false);
     } catch (error) {
       setSnackbarMessage(error?.response?.data?.error || 'Failed to load landing rotator settings');
@@ -2132,6 +2136,8 @@ const SiteSettingsTab = ({ canManageSettings }) => {
         endings: rotatorItems,
         rotation_interval_ms: rotationIntervalMs,
         randomize: randomizeEndings,
+        badge_text: badgeText,
+        badge_enabled: badgeEnabled,
       };
       const response = await updateLandingRotatorSettings(payload);
       const settings = response?.landing_rotator || {};
@@ -2139,6 +2145,8 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setRotatorItems(Array.isArray(settings.endings) ? settings.endings : []);
       setRotationIntervalMs(Number(settings.rotation_interval_ms) || 3000);
       setRandomizeEndings(Boolean(settings.randomize));
+      setBadgeText(settings.badge_text || '');
+      setBadgeEnabled(Boolean(settings.badge_enabled));
       setHasUnsavedChanges(false);
       setShowSavedState(true);
       setSnackbarMessage('Landing rotator settings saved');
@@ -2166,6 +2174,52 @@ const SiteSettingsTab = ({ canManageSettings }) => {
         </Paper>
       ) : (
         <Stack spacing={3}>
+          <Paper sx={{ p: 3 }} elevation={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6">Landing Badge</Typography>
+              <IconButton
+                size="small"
+                onClick={loadLandingSettings}
+                disabled={loadingSettings}
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': { bgcolor: 'primary.main', color: 'white' }
+                }}
+              >
+                <RefreshIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Controls the comic badge message attached to the landing page title.
+            </Typography>
+            <Stack spacing={1.5}>
+              <TextField
+                label="Badge Text"
+                placeholder="Not Yet Available, Seeking Funding!"
+                fullWidth
+                value={badgeText}
+                onChange={(e) => {
+                  setBadgeText(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                disabled={loadingSettings}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={badgeEnabled}
+                    onChange={(e) => {
+                      setBadgeEnabled(e.target.checked);
+                      setHasUnsavedChanges(true);
+                    }}
+                    color="primary"
+                    disabled={loadingSettings}
+                  />
+                }
+                label="Show landing badge"
+              />
+            </Stack>
+          </Paper>
           <Paper sx={{ p: 3 }} elevation={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Landing Page Text Rotator</Typography>

@@ -642,6 +642,17 @@ Apply this styling to:
 - Members Page
 - Admin Page
 
+#### Comic Speech Bubble Styling Standard (Feb 2026)
+
+Use this for comic callouts like the landing badge and other playful badges.
+
+- **Shape**: rounded bubble with a bold outline and an offset shadow for comic depth.
+- **Background**: warm white gradient (avoid neon). Text should be dark for legibility.
+- **Tail**: triangular pointer that aims back to the anchor element (use a border + inner fill triangle).
+- **Motion**: gentle grow/shrink pulse (scale), no blinking or full disappear.
+- **Positioning**: anchor via `position: absolute` relative to the parent title/sign. Keep the tweak points explicitly commented in code.
+- **Typography**: comic-friendly font stack (e.g., Comic Sans / Comic Neue / Trebuchet MS), bold weight.
+
 #### Timeline View Harmonization (Jan 2026)
 
 When implementing or modifying timeline views (day/week/month/year), keep behavior consistent across views even if each view needs performance or UX-specific logic.

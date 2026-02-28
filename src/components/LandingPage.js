@@ -32,7 +32,7 @@ import {
 } from '@mui/icons-material';
 import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../utils/api';
+import api, { getLandingRotatorSettings } from '../utils/api';
 import LandingTimelineV3 from './LandingTimelineV3';
 import DonationButtons from './DonationButtons';
 import AnimatedTagline from './AnimatedTagline';
@@ -127,6 +127,31 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [badgeText, setBadgeText] = useState('Not Yet Available, Seeking Funding!');
+  const [badgeEnabled, setBadgeEnabled] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const loadBadgeSettings = async () => {
+      try {
+        const data = await getLandingRotatorSettings();
+        if (!active) return;
+        const settings = data?.landing_rotator || {};
+        setBadgeText(settings.badge_text || 'Not Yet Available, Seeking Funding!');
+        setBadgeEnabled(Boolean(settings.badge_enabled));
+      } catch (error) {
+        if (!active) return;
+        setBadgeText('Not Yet Available, Seeking Funding!');
+        setBadgeEnabled(true);
+      }
+    };
+
+    loadBadgeSettings();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Define neon effect styles
   const neonEffect = {
@@ -149,6 +174,18 @@ const LandingPage = () => {
     20%, 24%, 55% {
       text-shadow: none;
       box-shadow: none;
+    }
+  `;
+
+  const bubblePulse = keyframes`
+    0% {
+      transform: translate(50%, -50%) rotate(-6deg) scale(1);
+    }
+    50% {
+      transform: translate(50%, -50%) rotate(-6deg) scale(1.06);
+    }
+    100% {
+      transform: translate(50%, -50%) rotate(-6deg) scale(1);
     }
   `;
 
@@ -205,35 +242,63 @@ const LandingPage = () => {
                 pointerEvents: 'none'
               },
               '&::after': {
-                content: '"Not Yet Available, Seeking Funding!"',
-                position: 'absolute',
-                bottom: '-15px',
-                right: '-20px',
-                transform: 'rotate(-15deg)',
-                fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                fontFamily: '"Courier New", monospace',
-                fontWeight: 'bold',
-                color: '#FFD700',
-                textShadow: `
-                  2px 2px 0px #B8860B,
-                  -1px -1px 0px #B8860B,
-                  1px -1px 0px #B8860B,
-                  -1px 1px 0px #B8860B,
-                  1px 1px 0px #B8860B,
-                  0 0 10px rgba(255, 215, 0, 0.8),
-                  0 0 20px rgba(255, 215, 0, 0.6)
-                `,
-                background: 'rgba(0, 0, 0, 0.7)',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: '2px solid #FFD700',
-                whiteSpace: 'nowrap',
-                zIndex: 10,
-                animation: 'pulse 2s ease-in-out infinite alternate'
+                content: '""'
               }
             }}
           >
             iTimeline
+            {badgeEnabled && (
+              <Box
+                component="span"
+                sx={{
+                  position: 'absolute',
+                  // Badge position adjust: tweak these two values to anchor the bubble where you want it.
+                  top: '55%',
+                  right: '-82px',
+                  transform: 'translate(50%, -50%) rotate(-6deg)',
+                  transformOrigin: '0% 100%',
+                  fontSize: { xs: '0.7rem', sm: '0.85rem', md: '0.95rem' },
+                  fontFamily: '"Comic Sans MS", "Comic Neue", "Trebuchet MS", sans-serif',
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: '#1f1f1f',
+                  background: 'linear-gradient(140deg, #ffffff 0%, #fff2d6 100%)',
+                  padding: '10px 14px',
+                  borderRadius: '18px',
+                  border: '3px solid #1f1f1f',
+                  boxShadow: '6px 6px 0 #1f1f1f',
+                  whiteSpace: 'nowrap',
+                  zIndex: 10,
+                  animation: `${bubblePulse} 2.2s ease-in-out infinite`,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: '-16px',
+                    bottom: '12px',
+                    width: 0,
+                    height: 0,
+                    borderTop: '12px solid transparent',
+                    borderBottom: '12px solid transparent',
+                    borderRight: '16px solid #1f1f1f',
+                    transform: 'rotate(12deg)'
+                  },
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    left: '-13px',
+                    bottom: '14px',
+                    width: 0,
+                    height: 0,
+                    borderTop: '10px solid transparent',
+                    borderBottom: '10px solid transparent',
+                    borderRight: '14px solid #fff7e6',
+                    transform: 'rotate(12deg)'
+                  }
+                }}
+              >
+                {badgeText}
+              </Box>
+            )}
           </Typography>
           
           <AnimatedTagline />
