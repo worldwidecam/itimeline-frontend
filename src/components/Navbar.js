@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link as RouterLink, useNavigate, useLocation, useParams } from 'react-router-dom';
 import TimelineNameDisplay from './timeline-v3/TimelineNameDisplay';
 import {
@@ -38,7 +38,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
 import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import ToolbarSpacer from './ToolbarSpacer';
-import api, { getTimelineWarningState, getTimelineStatusMessage } from '../utils/api';
+import api, { getTimelineWarningState, getTimelineStatusMessage, getLandingRotatorSettings } from '../utils/api';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -53,11 +53,81 @@ function Navbar() {
   const [lastVisitedTimeline, setLastVisitedTimeline] = React.useState(null);
   const [siteRole, setSiteRole] = React.useState(null);
   const [isSiteAdmin, setIsSiteAdmin] = React.useState(false);
-  const [timelineWarningState, setTimelineWarningState] = React.useState({ active: false });
-  const [warningAnchorEl, setWarningAnchorEl] = React.useState(null);
-  const [timelineStatusMessage, setTimelineStatusMessage] = React.useState({ active: false });
-  const [statusAnchorEl, setStatusAnchorEl] = React.useState(null);
+  const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
+  const [warningAnchorEl, setWarningAnchorEl] = useState(null);
+  const [timelineStatusMessage, setTimelineStatusMessage] = useState({ active: false });
+  const [statusAnchorEl, setStatusAnchorEl] = useState(null);
+  const [toolbarLedMessage, setToolbarLedMessage] = useState('');
+  const [toolbarLedEnabled, setToolbarLedEnabled] = useState(false);
+  const [toolbarLedRandomStart, setToolbarLedRandomStart] = useState(true);
+  const [toolbarLedStartDelaySeconds, setToolbarLedStartDelaySeconds] = useState(45);
+  const [showToolbarLed, setShowToolbarLed] = useState(false);
+  const [showToolbarLedLane, setShowToolbarLedLane] = useState(false);
+  const [toolbarLedLaneExpanding, setToolbarLedLaneExpanding] = useState(false);
+  const [toolbarLedLaneWidth, setToolbarLedLaneWidth] = useState(0);
+  const [toolbarLedDurationMs, setToolbarLedDurationMs] = useState(12000);
+  const toolbarLedLaneIntroMs = 520;
+  const toolbarLedContainerRef = useRef(null);
+  const toolbarLedTextRef = useRef(null);
+  const toolbarLedMeasureRef = useRef(null);
+  const toolbarLedStartTimeoutRef = useRef(null);
+  const toolbarLedIntroTimeoutRef = useRef(null);
   const currentPath = location.pathname;
+
+  const clearToolbarLedStartTimer = useCallback(() => {
+    if (toolbarLedStartTimeoutRef.current) {
+      clearTimeout(toolbarLedStartTimeoutRef.current);
+      toolbarLedStartTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearToolbarLedIntroTimer = useCallback(() => {
+    if (toolbarLedIntroTimeoutRef.current) {
+      clearTimeout(toolbarLedIntroTimeoutRef.current);
+      toolbarLedIntroTimeoutRef.current = null;
+    }
+  }, []);
+
+  const getToolbarLedDelayMs = useCallback(() => {
+    if (toolbarLedRandomStart) {
+      const minSeconds = 5 * 60;
+      const maxSeconds = 30 * 60;
+      return (Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds) * 1000;
+    }
+
+    return Math.max(5, Number(toolbarLedStartDelaySeconds) || 45) * 1000;
+  }, [toolbarLedRandomStart, toolbarLedStartDelaySeconds]);
+
+  const runToolbarLedCycle = useCallback(() => {
+    if (!toolbarLedEnabled || !toolbarLedMessage.trim()) {
+      setShowToolbarLed(false);
+      setShowToolbarLedLane(false);
+      setToolbarLedLaneExpanding(false);
+      return;
+    }
+
+    const laneWidth = toolbarLedContainerRef.current?.offsetWidth || 0;
+    const textWidth = toolbarLedMeasureRef.current?.scrollWidth || toolbarLedTextRef.current?.scrollWidth || 0;
+    const pxPerSecond = 96;
+    const travelDistance = laneWidth + textWidth + 48;
+    const nextDurationMs = Math.max(7000, Math.round((travelDistance / pxPerSecond) * 1000));
+
+    clearToolbarLedIntroTimer();
+    setToolbarLedLaneWidth(laneWidth);
+    setToolbarLedDurationMs(nextDurationMs);
+    setShowToolbarLed(false);
+    setShowToolbarLedLane(true);
+    setToolbarLedLaneExpanding(true);
+
+    toolbarLedIntroTimeoutRef.current = setTimeout(() => {
+      setToolbarLedLaneExpanding(false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setShowToolbarLed(true);
+        });
+      });
+    }, toolbarLedLaneIntroMs);
+  }, [clearToolbarLedIntroTimer, toolbarLedEnabled, toolbarLedMessage, toolbarLedLaneIntroMs]);
   
   // Function to handle navigation with refresh capability
   const handleNavigation = (path) => {
@@ -221,6 +291,80 @@ function Navbar() {
       active = false;
     };
   }, [isTimelinePage, timelineId, currentPath]);
+
+  useEffect(() => {
+    let active = true;
+    const loadToolbarLedSettings = async () => {
+      try {
+        const data = await getLandingRotatorSettings();
+        if (!active) return;
+        const settings = data?.landing_rotator || {};
+        setToolbarLedMessage(settings.toolbar_led_message || '');
+        setToolbarLedEnabled(Boolean(settings.toolbar_led_enabled));
+        setToolbarLedRandomStart(Boolean(settings.toolbar_led_random_start));
+        setToolbarLedStartDelaySeconds(Number(settings.toolbar_led_start_delay_seconds) || 45);
+      } catch (_e) {
+        if (!active) return;
+        setToolbarLedMessage('');
+        setToolbarLedEnabled(false);
+        setToolbarLedRandomStart(true);
+        setToolbarLedStartDelaySeconds(45);
+      }
+    };
+
+    loadToolbarLedSettings();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    clearToolbarLedStartTimer();
+    clearToolbarLedIntroTimer();
+    setShowToolbarLed(false);
+    setShowToolbarLedLane(false);
+    setToolbarLedLaneExpanding(false);
+
+    if (!toolbarLedEnabled || !toolbarLedMessage.trim()) {
+      return undefined;
+    }
+
+    toolbarLedStartTimeoutRef.current = setTimeout(() => {
+      runToolbarLedCycle();
+    }, getToolbarLedDelayMs());
+
+    return () => {
+      clearToolbarLedStartTimer();
+      clearToolbarLedIntroTimer();
+    };
+  }, [
+    currentPath,
+    toolbarLedEnabled,
+    toolbarLedMessage,
+    toolbarLedRandomStart,
+    toolbarLedStartDelaySeconds,
+    clearToolbarLedStartTimer,
+    clearToolbarLedIntroTimer,
+    getToolbarLedDelayMs,
+    runToolbarLedCycle,
+  ]);
+
+  const handleToolbarLedAnimationEnd = () => {
+    setShowToolbarLed(false);
+    setShowToolbarLedLane(false);
+    setToolbarLedLaneExpanding(false);
+    clearToolbarLedStartTimer();
+    clearToolbarLedIntroTimer();
+
+    if (!toolbarLedEnabled || !toolbarLedMessage.trim()) {
+      return;
+    }
+
+    toolbarLedStartTimeoutRef.current = setTimeout(() => {
+      runToolbarLedCycle();
+    }, getToolbarLedDelayMs());
+  };
 
   useEffect(() => {
     let active = true;
@@ -630,10 +774,102 @@ function Navbar() {
             variant="h6"
             component={RouterLink}
             to="/"
-            sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
+            sx={{ textDecoration: 'none', color: 'inherit', mr: 2, flexShrink: 0 }}
           >
             Timeline Forum
           </Typography>
+
+          <Box
+            ref={toolbarLedContainerRef}
+            sx={{
+              position: 'relative',
+              flexGrow: 1,
+              height: 30,
+              mx: 1,
+              overflow: 'hidden',
+              borderRadius: 999,
+              transformOrigin: 'right center',
+              border: showToolbarLedLane
+                ? (theme.palette.mode === 'dark'
+                  ? '1px solid rgba(255, 255, 255, 0.14)'
+                  : '1px solid rgba(0, 0, 0, 0.1)')
+                : '1px solid transparent',
+              background: showToolbarLedLane
+                ? (theme.palette.mode === 'dark'
+                  ? 'linear-gradient(180deg, rgba(12, 20, 33, 0.78) 0%, rgba(8, 12, 21, 0.65) 100%)'
+                  : 'linear-gradient(180deg, rgba(245, 247, 252, 0.95) 0%, rgba(232, 237, 248, 0.95) 100%)')
+                : 'transparent',
+              boxShadow: showToolbarLedLane
+                ? (theme.palette.mode === 'dark'
+                  ? 'inset 0 0 12px rgba(50, 120, 255, 0.12)'
+                  : 'inset 0 0 10px rgba(0, 76, 153, 0.08)')
+                : 'none',
+              transition: 'background 220ms ease, border-color 220ms ease, box-shadow 220ms ease',
+              animation: toolbarLedLaneExpanding ? `toolbar-led-lane-grow ${toolbarLedLaneIntroMs}ms ease-out forwards` : 'none',
+              '@keyframes toolbar-led-lane-grow': {
+                '0%': {
+                  transform: 'scaleX(0)',
+                  opacity: 0.3
+                },
+                '100%': {
+                  transform: 'scaleX(1)',
+                  opacity: 1
+                }
+              }
+            }}
+          >
+            <Typography
+              ref={toolbarLedMeasureRef}
+              sx={{
+                position: 'absolute',
+                visibility: 'hidden',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                px: 1,
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase'
+              }}
+            >
+              {toolbarLedMessage}
+            </Typography>
+            {showToolbarLed && toolbarLedEnabled && toolbarLedMessage.trim() && (
+              <Typography
+                ref={toolbarLedTextRef}
+                onAnimationEnd={handleToolbarLedAnimationEnd}
+                sx={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  whiteSpace: 'nowrap',
+                  px: 1,
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: theme.palette.mode === 'dark' ? '#9ad8ff' : '#0f2c50',
+                  textShadow: theme.palette.mode === 'dark'
+                    ? '0 0 8px rgba(122, 205, 255, 0.5)'
+                    : '0 0 6px rgba(71, 153, 255, 0.35)',
+                  willChange: 'transform',
+                  '--toolbar-led-lane-width': `${toolbarLedLaneWidth || 0}px`,
+                  animation: `toolbar-led-marquee ${toolbarLedDurationMs}ms linear forwards`,
+                  '@keyframes toolbar-led-marquee': {
+                    '0%': {
+                      transform: 'translate(calc(var(--toolbar-led-lane-width) + 24px), -50%)'
+                    },
+                    '100%': {
+                      transform: 'translate(calc(-100% - 24px), -50%)'
+                    }
+                  }
+                }}
+              >
+                {toolbarLedMessage}
+              </Typography>
+            )}
+          </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {user ? (

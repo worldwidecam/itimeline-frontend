@@ -2073,6 +2073,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
   const [randomizeEndings, setRandomizeEndings] = useState(false);
   const [badgeText, setBadgeText] = useState('');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
+  const [toolbarLedMessage, setToolbarLedMessage] = useState('');
+  const [toolbarLedEnabled, setToolbarLedEnabled] = useState(false);
+  const [toolbarLedRandomStart, setToolbarLedRandomStart] = useState(true);
+  const [toolbarLedStartDelaySeconds, setToolbarLedStartDelaySeconds] = useState(45);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -2092,6 +2096,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setRandomizeEndings(Boolean(settings.randomize));
       setBadgeText(settings.badge_text || '');
       setBadgeEnabled(Boolean(settings.badge_enabled));
+      setToolbarLedMessage(settings.toolbar_led_message || '');
+      setToolbarLedEnabled(Boolean(settings.toolbar_led_enabled));
+      setToolbarLedRandomStart(Boolean(settings.toolbar_led_random_start));
+      setToolbarLedStartDelaySeconds(Number(settings.toolbar_led_start_delay_seconds) || 45);
       setHasUnsavedChanges(false);
     } catch (error) {
       setSnackbarMessage(error?.response?.data?.error || 'Failed to load landing rotator settings');
@@ -2138,6 +2146,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
         randomize: randomizeEndings,
         badge_text: badgeText,
         badge_enabled: badgeEnabled,
+        toolbar_led_message: toolbarLedMessage,
+        toolbar_led_enabled: toolbarLedEnabled,
+        toolbar_led_random_start: toolbarLedRandomStart,
+        toolbar_led_start_delay_seconds: toolbarLedStartDelaySeconds,
       };
       const response = await updateLandingRotatorSettings(payload);
       const settings = response?.landing_rotator || {};
@@ -2147,6 +2159,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setRandomizeEndings(Boolean(settings.randomize));
       setBadgeText(settings.badge_text || '');
       setBadgeEnabled(Boolean(settings.badge_enabled));
+      setToolbarLedMessage(settings.toolbar_led_message || '');
+      setToolbarLedEnabled(Boolean(settings.toolbar_led_enabled));
+      setToolbarLedRandomStart(Boolean(settings.toolbar_led_random_start));
+      setToolbarLedStartDelaySeconds(Number(settings.toolbar_led_start_delay_seconds) || 45);
       setHasUnsavedChanges(false);
       setShowSavedState(true);
       setSnackbarMessage('Landing rotator settings saved');
@@ -2340,14 +2356,68 @@ const SiteSettingsTab = ({ canManageSettings }) => {
           </Paper>
 
           <Paper sx={{ p: 3 }} elevation={2}>
-            <Typography variant="h6" sx={{ mb: 1 }}>Toolbar LED Banner</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6">Toolbar LED Banner</Typography>
+              <FormControlLabel
+                sx={{ mr: 0 }}
+                control={
+                  <Switch
+                    checked={toolbarLedEnabled}
+                    onChange={(e) => {
+                      setToolbarLedEnabled(e.target.checked);
+                      setHasUnsavedChanges(true);
+                    }}
+                    color="primary"
+                    disabled={loadingSettings}
+                  />
+                }
+                label="Enabled"
+              />
+            </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Configure the LED banner message shown across the top toolbar.
+              Configure the surprise LED message that scrolls right-to-left across the top toolbar.
             </Typography>
             <Stack spacing={2}>
-              <TextField label="Banner Message" placeholder="Enter LED banner message" fullWidth disabled />
-              <TextField label="Scroll Speed (seconds)" placeholder="e.g. 12" type="number" fullWidth disabled />
-              <TextField label="Display Duration (seconds)" placeholder="e.g. 20" type="number" fullWidth disabled />
+              <TextField
+                label="Banner Message"
+                placeholder="Enter LED banner message"
+                fullWidth
+                value={toolbarLedMessage}
+                onChange={(e) => {
+                  setToolbarLedMessage(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                disabled={loadingSettings}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={toolbarLedRandomStart}
+                    onChange={(e) => {
+                      setToolbarLedRandomStart(e.target.checked);
+                      setHasUnsavedChanges(true);
+                    }}
+                    color="primary"
+                    disabled={loadingSettings || !toolbarLedEnabled}
+                  />
+                }
+                label="Random start (between 5 and 30 minutes)"
+              />
+              {!toolbarLedRandomStart && (
+                <TextField
+                  label="Manual Start Delay (seconds)"
+                  placeholder="e.g. 45"
+                  type="number"
+                  fullWidth
+                  value={toolbarLedStartDelaySeconds}
+                  onChange={(e) => {
+                    setToolbarLedStartDelaySeconds(Number(e.target.value) || 0);
+                    setHasUnsavedChanges(true);
+                  }}
+                  helperText="Example: 240 = 4 minutes"
+                  disabled={loadingSettings || !toolbarLedEnabled}
+                />
+              )}
             </Stack>
           </Paper>
         </Stack>
