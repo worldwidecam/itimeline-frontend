@@ -32,7 +32,7 @@ import {
 } from '@mui/icons-material';
 import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import api, { getLandingRotatorSettings } from '../utils/api';
+import api, { getLandingRotatorSettings, getSiteUserCount } from '../utils/api';
 import LandingTimelineV3 from './LandingTimelineV3';
 import DonationButtons from './DonationButtons';
 import AnimatedTagline from './AnimatedTagline';
@@ -129,6 +129,7 @@ const LandingPage = () => {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [badgeText, setBadgeText] = useState('Not Yet Available, Seeking Funding!');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
+  const [siteUserCount, setSiteUserCount] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -148,6 +149,26 @@ const LandingPage = () => {
 
     loadBadgeSettings();
 
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadUserCount = async () => {
+      try {
+        const data = await getSiteUserCount();
+        if (!active) return;
+        if (typeof data?.count === 'number') {
+          setSiteUserCount(data.count);
+        }
+      } catch (error) {
+        if (!active) return;
+        setSiteUserCount(null);
+      }
+    };
+    loadUserCount();
     return () => {
       active = false;
     };
@@ -337,6 +358,18 @@ const LandingPage = () => {
               </>
             )}
           </Box>
+          {typeof siteUserCount === 'number' && (
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 1.5,
+                color: '#1f1f1f',
+                fontWeight: 600
+              }}
+            >
+              {siteUserCount.toLocaleString()} Users Strong!
+            </Typography>
+          )}
         </Box>
         
         {/* Interactive Timeline Demo */}

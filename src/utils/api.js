@@ -334,6 +334,16 @@ export const updateLandingRotatorSettings = async (payload) => {
   }
 };
 
+export const getSiteUserCount = async () => {
+  try {
+    const response = await api.get('/api/v1/site-stats/user-count');
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching site user count:', error);
+    throw error;
+  }
+};
+
 /**
  * Fetch member count for a community timeline
  * @param {number} timelineId - The ID of the timeline
