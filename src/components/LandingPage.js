@@ -200,13 +200,13 @@ const LandingPage = () => {
 
   const bubblePulse = keyframes`
     0% {
-      transform: translate(50%, -50%) rotate(-6deg) scale(1);
+      transform: translateY(-50%) rotate(-6deg) scale(1);
     }
     50% {
-      transform: translate(50%, -50%) rotate(-6deg) scale(1.06);
+      transform: translateY(-50%) rotate(-6deg) scale(1.06);
     }
     100% {
-      transform: translate(50%, -50%) rotate(-6deg) scale(1);
+      transform: translateY(-50%) rotate(-6deg) scale(1);
     }
   `;
 
@@ -273,10 +273,11 @@ const LandingPage = () => {
                 component="span"
                 sx={{
                   position: 'absolute',
-                  // Badge position adjust: tweak these two values to anchor the bubble where you want it.
+                  // Badge position adjust: tweak top + marginLeft while keeping left locked to logo edge.
                   top: '55%',
-                  right: '-82px',
-                  transform: 'translate(50%, -50%) rotate(-6deg)',
+                  left: '100%',
+                  marginLeft: { xs: '6px', sm: '10px', md: '12px' },
+                  transform: 'translateY(-50%) rotate(-6deg)',
                   transformOrigin: '0% 100%',
                   fontSize: { xs: '0.7rem', sm: '0.85rem', md: '0.95rem' },
                   fontFamily: '"Comic Sans MS", "Comic Neue", "Trebuchet MS", sans-serif',

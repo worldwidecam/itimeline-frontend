@@ -22,14 +22,13 @@
 - [x] site control page implementation
 - [x] Global Reports: finish post tickets (remove Escalate button, add Resolve-Edit + Resolve-Delete)
 - [x] Global Reports: build user tickets (data shape, UI, actions)
-- [ ] Global Reports: build timeline tickets (data shape, UI, actions)
+- [x] Global Reports: build timeline tickets (data shape, UI, actions)
 - [x] Align lower-tier Community Admin report ticket styling with Site Control baseline
 - [x] Timeline Ban Enforcement: banned timelines must be hidden from homepage timeline search, blocked from direct timeline access, and prevented from showing timeline chips on posts
 - [x] Timeline Ban Impact Rules: define + enforce expected behavior for existing posts that originated from a now-banned timeline (visibility + timeline association handling)
-- [ ] Issue Warning Simplification: remove custom warning date input; keep duration as 3 days / 7 days / 10 days / INDEF
-- [ ] Issue Warning Scope Simplification: remove "mask targeted timeline content immediately" toggle and make scope selection itself control enforcement
-- [ ] Warning Enforcement Split Feasibility: validate whether quote blur and action-card blur can be enforced independently; if feasible, split into separate warning scope options
-- [ ] General Warning Hardening: verify and fix general-warning journey end-to-end before expanding remaining warning options
+- [x] Issue Warning Simplification: remove custom warning date input; keep duration as 3 days / 7 days / 10 days / INDEF
+- [x] Issue Warning Scope Simplification: remove "mask targeted timeline content immediately" toggle and make scope selection itself control enforcement
+- [x] General Warning Hardening: verify and fix general-warning journey end-to-end before expanding remaining warning options
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update button on posts (link other posts to a post)

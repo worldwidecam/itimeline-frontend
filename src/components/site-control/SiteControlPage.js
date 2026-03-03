@@ -395,8 +395,6 @@ const GlobalReportsTab = () => {
   const [safeguardCustomUntil, setSafeguardCustomUntil] = useState('');
   const [warningScope, setWarningScope] = useState('general');
   const [warningDays, setWarningDays] = useState('7');
-  const [warningUseCustomUntil, setWarningUseCustomUntil] = useState(false);
-  const [warningCustomUntil, setWarningCustomUntil] = useState('');
   const [warningIndef, setWarningIndef] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeVerdict, setRemoveVerdict] = useState('');
@@ -434,8 +432,6 @@ const GlobalReportsTab = () => {
     setSafeguardCustomUntil('');
     setWarningScope('general');
     setWarningDays('7');
-    setWarningUseCustomUntil(false);
-    setWarningCustomUntil('');
     setWarningIndef(false);
     setConfirmPostActionDialogOpen(true);
   };
@@ -451,8 +447,6 @@ const GlobalReportsTab = () => {
     setSafeguardCustomUntil('');
     setWarningScope('general');
     setWarningDays('7');
-    setWarningUseCustomUntil(false);
-    setWarningCustomUntil('');
     setWarningIndef(false);
   };
 
@@ -471,8 +465,6 @@ const GlobalReportsTab = () => {
         payload.warning_days = Number(warningDays || 7);
         if (warningIndef) {
           payload.warning_indef = true;
-        } else if (warningUseCustomUntil && warningCustomUntil) {
-          payload.warning_until = new Date(warningCustomUntil).toISOString();
         }
       }
 
@@ -1813,37 +1805,9 @@ const GlobalReportsTab = () => {
                 sx={{ mt: 1 }}
                 control={(
                   <Checkbox
-                    checked={warningUseCustomUntil}
-                    onChange={(e) => {
-                      setWarningUseCustomUntil(e.target.checked);
-                      if (e.target.checked) setWarningIndef(false);
-                    }}
-                  />
-                )}
-                label="Use custom warning-until datetime"
-              />
-              {warningUseCustomUntil && (
-                <TextField
-                  fullWidth
-                  type="datetime-local"
-                  label="Warning Until (UTC)"
-                  value={warningCustomUntil}
-                  onChange={(e) => setWarningCustomUntil(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ mt: 1 }}
-                />
-              )}
-              <FormControlLabel
-                sx={{ mt: 1 }}
-                control={(
-                  <Checkbox
                     checked={warningIndef}
                     onChange={(e) => {
                       setWarningIndef(e.target.checked);
-                      if (e.target.checked) {
-                        setWarningUseCustomUntil(false);
-                        setWarningCustomUntil('');
-                      }
                     }}
                   />
                 )}
@@ -1864,7 +1828,6 @@ const GlobalReportsTab = () => {
             disabled={
               !actionVerdict.trim()
               || (postActionType === 'safeguard' && isSiteOwner && safeguardUseCustomUntil && !safeguardCustomUntil)
-              || (postActionType === 'issue_warning' && warningUseCustomUntil && !warningCustomUntil)
             }
           >
             {postActionType === 'delete'
@@ -2078,6 +2041,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
   const [toolbarLedRandomStart, setToolbarLedRandomStart] = useState(true);
   const [toolbarLedStartDelaySeconds, setToolbarLedStartDelaySeconds] = useState(45);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [loadingBadgeSettings, setLoadingBadgeSettings] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedState, setShowSavedState] = useState(false);
@@ -2115,6 +2079,29 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       loadLandingSettings();
     }
   }, [canManageSettings, loadLandingSettings]);
+
+  const refreshLandingBadgeSettings = useCallback(async () => {
+    try {
+      setLoadingBadgeSettings(true);
+      const data = await getLandingRotatorSettings();
+      const settings = data?.landing_rotator || {};
+      setBadgeText(settings.badge_text || '');
+      setBadgeEnabled(Boolean(settings.badge_enabled));
+      setSnackbarMessage('Landing badge settings refreshed');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      // Requested fallback: if badge refresh fails, reset to disabled/empty so owner can explicitly save this safe state.
+      setBadgeText('');
+      setBadgeEnabled(false);
+      setHasUnsavedChanges(true);
+      setSnackbarMessage('Landing badge refresh failed. Fallback applied: badge disabled and text cleared. Save to persist.');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+    } finally {
+      setLoadingBadgeSettings(false);
+    }
+  }, []);
 
   const handleRotatorItemChange = (index, value) => {
     setRotatorItems((prev) => {
@@ -2195,14 +2182,14 @@ const SiteSettingsTab = ({ canManageSettings }) => {
               <Typography variant="h6">Landing Badge</Typography>
               <IconButton
                 size="small"
-                onClick={loadLandingSettings}
-                disabled={loadingSettings}
+                onClick={refreshLandingBadgeSettings}
+                disabled={loadingSettings || loadingBadgeSettings}
                 sx={{
                   color: 'primary.main',
                   '&:hover': { bgcolor: 'primary.main', color: 'white' }
                 }}
               >
-                <RefreshIcon sx={{ fontSize: 18 }} />
+                {loadingBadgeSettings ? <CircularProgress size={18} color="inherit" /> : <RefreshIcon sx={{ fontSize: 18 }} />}
               </IconButton>
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -2218,7 +2205,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   setBadgeText(e.target.value);
                   setHasUnsavedChanges(true);
                 }}
-                disabled={loadingSettings}
+                disabled={loadingSettings || loadingBadgeSettings}
               />
               <FormControlLabel
                 control={
@@ -2229,7 +2216,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                       setHasUnsavedChanges(true);
                     }}
                     color="primary"
-                    disabled={loadingSettings}
+                    disabled={loadingSettings || loadingBadgeSettings}
                   />
                 }
                 label="Show landing badge"
