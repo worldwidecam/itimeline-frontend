@@ -7,6 +7,7 @@ import {
   Typography,
   Button,
   Box,
+  LinearProgress,
   Avatar,
   Tooltip,
   IconButton,
@@ -38,7 +39,66 @@ import CloseIcon from '@mui/icons-material/Close';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
 import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import ToolbarSpacer from './ToolbarSpacer';
-import api, { getTimelineWarningState, getTimelineStatusMessage, getLandingRotatorSettings } from '../utils/api';
+import api, { checkMembershipStatus, getTimelineWarningState, getTimelineStatusMessage, getTimelineActions, getLandingRotatorSettings } from '../utils/api';
+
+const STATUS_ACTION_TYPE_MAP = {
+  bronze_action: 'bronze',
+  silver_action: 'silver',
+  gold_action: 'gold',
+};
+
+const formatActionSchedule = (dateValue) => {
+  if (!dateValue) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return {
+    dateLabel: date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }),
+    timeLabel: date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    }),
+    dayLabel: date.toLocaleDateString(undefined, { weekday: 'long' }),
+  };
+};
+
+const getActionProgressMeta = (action) => {
+  const progress = action?.progress;
+  if (!progress) return { label: '', ratio: 0, isUnlocked: false };
+
+  const safeNumber = (value, fallback = 0) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  if (progress.threshold_type === 'members') {
+    const current = safeNumber(progress.current_additional_members, 0);
+    const goal = safeNumber(progress.goal_additional_members, 0);
+    const ratio = goal <= 0 ? 1 : Math.min(1, Math.max(0, current / goal));
+    return {
+      label: `${current}/${goal} additional members`,
+      ratio,
+      isUnlocked: progress.is_unlocked === true,
+    };
+  }
+
+  if (progress.threshold_type === 'votes') {
+    const current = safeNumber(progress.current_votes, 0);
+    const goal = safeNumber(progress.goal_votes, 0);
+    const ratio = goal <= 0 ? 1 : Math.min(1, Math.max(0, current / goal));
+    return {
+      label: `${current}/${goal} votes`,
+      ratio,
+      isUnlocked: progress.is_unlocked === true,
+    };
+  }
+
+  return { label: '', ratio: 0, isUnlocked: progress.is_unlocked === true };
+};
 
 function Navbar() {
   const navigate = useNavigate();
@@ -57,6 +117,9 @@ function Navbar() {
   const [warningAnchorEl, setWarningAnchorEl] = useState(null);
   const [timelineStatusMessage, setTimelineStatusMessage] = useState({ active: false });
   const [statusAnchorEl, setStatusAnchorEl] = useState(null);
+  const [showStatusAttention, setShowStatusAttention] = useState(false);
+  const [statusActionCard, setStatusActionCard] = useState(null);
+  const [isStatusViewerMember, setIsStatusViewerMember] = useState(true);
   const [toolbarLedMessage, setToolbarLedMessage] = useState('');
   const [toolbarLedEnabled, setToolbarLedEnabled] = useState(false);
   const [toolbarLedRandomStart, setToolbarLedRandomStart] = useState(true);
@@ -170,28 +233,82 @@ function Navbar() {
       ? new Date(timelineWarningState.warning_until).toLocaleDateString()
       : null);
   const statusType = (timelineStatusMessage?.status_type || '').toLowerCase();
-  const statusIcon = statusType === 'good'
-    ? <VolunteerActivismRoundedIcon />
-    : statusType === 'bad'
-      ? <ThumbDownAltRoundedIcon />
-      : null;
-  const statusTone = statusType === 'good'
-    ? {
-        icon: '#2e7d32',
-        hover: '#1b5e20',
-        header: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)',
-        body: 'linear-gradient(180deg, #b7e3c0 0%, #edf7ef 100%)',
-        text: '#1b5e20',
-        label: 'GOOD NEWS'
-      }
-    : {
-        icon: '#c62828',
-        hover: '#8e0000',
-        header: 'linear-gradient(180deg, #c62828 0%, #ef5350 100%)',
-        body: 'linear-gradient(180deg, #f6b7b7 0%, #fdeaea 100%)',
-        text: '#8e0000',
-        label: 'BAD NEWS'
-      };
+  const statusVariantMap = {
+    good: {
+      iconNode: <VolunteerActivismRoundedIcon sx={{ fontSize: '1.32rem' }} />,
+      icon: '#2e7d32',
+      hover: '#1b5e20',
+      header: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)',
+      body: 'linear-gradient(180deg, #b7e3c0 0%, #edf7ef 100%)',
+      text: '#1b5e20',
+      label: 'GOOD NEWS',
+      tooltip: 'View good news',
+      layout: 'portrait',
+    },
+    bad: {
+      iconNode: <ThumbDownAltRoundedIcon sx={{ fontSize: '1.32rem' }} />,
+      icon: '#c62828',
+      hover: '#8e0000',
+      header: 'linear-gradient(180deg, #c62828 0%, #ef5350 100%)',
+      body: 'linear-gradient(180deg, #f6b7b7 0%, #fdeaea 100%)',
+      text: '#8e0000',
+      label: 'BAD NEWS',
+      tooltip: 'View bad news',
+      layout: 'portrait',
+    },
+    bronze_action: {
+      iconNode: <Box component="span" sx={{ fontSize: '1.42rem', lineHeight: 1 }}>🥉</Box>,
+      icon: '#cd7f32',
+      hover: '#a46122',
+      header: 'linear-gradient(180deg, #8d5524 0%, #cd7f32 100%)',
+      body: 'linear-gradient(180deg, #f4d4b4 0%, #fdf3e8 100%)',
+      text: '#5f3815',
+      label: 'BRONZE ACTION',
+      tooltip: 'View bronze action status',
+      layout: 'landscape',
+    },
+    silver_action: {
+      iconNode: <Box component="span" sx={{ fontSize: '1.42rem', lineHeight: 1 }}>🥈</Box>,
+      icon: '#9e9e9e',
+      hover: '#757575',
+      header: 'linear-gradient(180deg, #8f8f95 0%, #cfcfd6 100%)',
+      body: 'linear-gradient(180deg, #ececf0 0%, #fbfbfd 100%)',
+      text: '#4a4a52',
+      label: 'SILVER ACTION',
+      tooltip: 'View silver action status',
+      layout: 'landscape',
+    },
+    gold_action: {
+      iconNode: <Box component="span" sx={{ fontSize: '1.42rem', lineHeight: 1 }}>🥇</Box>,
+      icon: '#d4af37',
+      hover: '#a67c00',
+      header: 'linear-gradient(180deg, #b8860b 0%, #f1c84c 100%)',
+      body: 'linear-gradient(180deg, #ffe59a 0%, #fff8df 100%)',
+      text: '#6f5300',
+      label: 'GOLD ACTION',
+      tooltip: 'View gold action status',
+      layout: 'landscape',
+    },
+  };
+  const statusTone = statusVariantMap[statusType] || null;
+  const statusIcon = statusTone?.iconNode || null;
+  const statusActionType = STATUS_ACTION_TYPE_MAP[statusType] || null;
+  const statusActionSchedule = formatActionSchedule(statusActionCard?.due_date);
+  const statusActionProgress = getActionProgressMeta(statusActionCard);
+  const shouldBlurStatusCard = statusTone?.layout === 'landscape' && !isStatusViewerMember;
+
+  const getStatusInspectionKey = useCallback(() => {
+    if (!timelineId || !timelineStatusMessage?.active || !statusType) return null;
+    const updatedAt = timelineStatusMessage?.updated_at || 'no-updated-at';
+    return `timeline-status-inspected:${timelineId}:${statusType}:${updatedAt}`;
+  }, [timelineId, timelineStatusMessage?.active, timelineStatusMessage?.updated_at, statusType]);
+
+  const markStatusInspected = useCallback(() => {
+    const key = getStatusInspectionKey();
+    if (!key) return;
+    localStorage.setItem(key, '1');
+    setShowStatusAttention(false);
+  }, [getStatusInspectionKey]);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -236,6 +353,7 @@ function Navbar() {
       setStatusAnchorEl(null);
       return;
     }
+    markStatusInspected();
     setStatusAnchorEl(event.currentTarget);
   };
 
@@ -291,6 +409,88 @@ function Navbar() {
       active = false;
     };
   }, [isTimelinePage, timelineId, currentPath]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStatusActionCard = async () => {
+      if (!isTimelinePage || !timelineId || !statusActionType) {
+        if (active) setStatusActionCard(null);
+        return;
+      }
+
+      const actionResponse = await getTimelineActions(timelineId);
+      const action = actionResponse?.success
+        ? (actionResponse.actions || []).find((item) => item?.action_type === statusActionType) || null
+        : null;
+
+      if (active) {
+        setStatusActionCard(action);
+      }
+    };
+
+    fetchStatusActionCard();
+    return () => {
+      active = false;
+    };
+  }, [isTimelinePage, timelineId, statusActionType, currentPath]);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchStatusViewerMembership = async () => {
+      if (!isTimelinePage || !timelineId) {
+        if (active) setIsStatusViewerMember(true);
+        return;
+      }
+
+      if (!user?.id) {
+        if (active) setIsStatusViewerMember(false);
+        return;
+      }
+
+      try {
+        const membership = await checkMembershipStatus(timelineId);
+        const isMember = Boolean(
+          membership?.is_member ||
+          membership?.is_active_member ||
+          membership?.is_creator ||
+          String(membership?.role || '').toLowerCase() === 'siteowner'
+        );
+        if (active) setIsStatusViewerMember(isMember);
+      } catch (_error) {
+        if (active) setIsStatusViewerMember(false);
+      }
+    };
+
+    fetchStatusViewerMembership();
+
+    return () => {
+      active = false;
+    };
+  }, [isTimelinePage, timelineId, user?.id, currentPath]);
+
+  useEffect(() => {
+    if (!isTimelinePage || !timelineId || !timelineStatusMessage?.active || !statusType || timelineWarningState?.active) {
+      setShowStatusAttention(false);
+      return;
+    }
+
+    const key = getStatusInspectionKey();
+    if (!key) {
+      setShowStatusAttention(false);
+      return;
+    }
+
+    setShowStatusAttention(localStorage.getItem(key) !== '1');
+  }, [
+    isTimelinePage,
+    timelineId,
+    timelineStatusMessage?.active,
+    timelineStatusMessage?.updated_at,
+    statusType,
+    timelineWarningState?.active,
+    getStatusInspectionKey,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -874,16 +1074,54 @@ function Navbar() {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {user ? (
               <>
-                {isTimelinePage && !timelineWarningState?.active && timelineStatusMessage?.active && statusIcon && (
+                {isTimelinePage && !timelineWarningState?.active && timelineStatusMessage?.active && statusTone && statusIcon && (
                   <>
-                    <Tooltip title={statusTone.label === 'GOOD NEWS' ? 'View good news' : 'View bad news'}>
+                    <Tooltip title={statusTone.tooltip}>
                       <IconButton
                         color="inherit"
                         onClick={handleStatusToggle}
                         sx={{
                           mr: 1,
                           color: statusTone.icon,
+                          position: 'relative',
+                          width: 42,
+                          height: 42,
                           '&:hover': { color: statusTone.hover },
+                          ...(showStatusAttention ? {
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              inset: -4,
+                              borderRadius: '50%',
+                              border: '1px solid rgba(244, 206, 90, 0.7)',
+                              boxShadow: '0 0 16px rgba(244, 206, 90, 0.45)',
+                              animation: 'status-icon-pulse-ring 2.1s ease-out infinite',
+                              pointerEvents: 'none',
+                            },
+                            '&::after': {
+                              content: '""',
+                              position: 'absolute',
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              top: -1,
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: 'radial-gradient(circle, rgba(255,231,155,0.95) 0%, rgba(255,231,155,0.3) 68%, rgba(255,231,155,0) 100%)',
+                              boxShadow: '0 0 9px rgba(255,215,120,0.8)',
+                              animation: 'status-icon-particle-orbit 2.6s linear infinite',
+                              pointerEvents: 'none',
+                            },
+                            '@keyframes status-icon-pulse-ring': {
+                              '0%': { transform: 'scale(0.94)', opacity: 0.8 },
+                              '70%': { transform: 'scale(1.18)', opacity: 0.25 },
+                              '100%': { transform: 'scale(1.22)', opacity: 0 },
+                            },
+                            '@keyframes status-icon-particle-orbit': {
+                              '0%': { transform: 'translate(-50%, 0) rotate(0deg) translateX(12px)' },
+                              '100%': { transform: 'translate(-50%, 0) rotate(360deg) translateX(12px)' },
+                            },
+                          } : {}),
                         }}
                         aria-label="timeline status message"
                       >
@@ -907,8 +1145,9 @@ function Navbar() {
                           <Paper
                             elevation={10}
                             sx={{
-                              width: 260,
-                              minHeight: 340,
+                              width: statusTone.layout === 'landscape' ? { xs: 320, sm: 430 } : 260,
+                              minHeight: statusTone.layout === 'landscape' ? 220 : 340,
+                              maxWidth: 'calc(100vw - 24px)',
                               borderRadius: 4,
                               overflow: 'hidden',
                               background: statusTone.body,
@@ -916,53 +1155,197 @@ function Navbar() {
                             }}
                           >
                             <ClickAwayListener onClickAway={handleStatusClose}>
-                              <Box>
-                                <Box
-                                  sx={{
-                                    px: 2.5,
-                                    py: 2,
-                                    background: statusTone.header,
-                                    color: '#fff',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                  }}
-                                >
-                                  <Box>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 800, letterSpacing: 0.6 }}>
-                                      {statusTone.label}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                                      Timeline Status
-                                    </Typography>
-                                  </Box>
-                                  <IconButton
-                                    size="small"
-                                    onClick={handleStatusClose}
-                                    sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.18)' }}
+                              <Box sx={{ position: 'relative' }}>
+                                <Box sx={shouldBlurStatusCard ? { filter: 'blur(10px)', pointerEvents: 'none', userSelect: 'none' } : undefined}>
+                                  <Box
+                                    sx={{
+                                      px: 2.5,
+                                      py: 2,
+                                      background: statusTone.header,
+                                      color: '#fff',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                    }}
                                   >
-                                    <CloseIcon fontSize="small" />
-                                  </IconButton>
+                                    <Box>
+                                      <Typography variant="subtitle1" sx={{ fontWeight: 800, letterSpacing: 0.6 }}>
+                                        {statusTone.label}
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                                        Timeline Status
+                                      </Typography>
+                                    </Box>
+                                    <IconButton
+                                      size="small"
+                                      onClick={handleStatusClose}
+                                      sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.18)' }}
+                                    >
+                                      <CloseIcon fontSize="small" />
+                                    </IconButton>
+                                  </Box>
+                                  <Box sx={{ px: 2.5, pt: 2, pb: statusTone.layout === 'landscape' ? 2 : 3 }}>
+                                    {statusTone.layout === 'landscape' ? (
+                                      <>
+                                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'stretch' }}>
+                                          {statusActionSchedule && (
+                                            <Box
+                                              sx={{
+                                                width: { xs: 112, sm: 126 },
+                                                minWidth: { xs: 112, sm: 126 },
+                                                borderRadius: 1.5,
+                                                overflow: 'hidden',
+                                                border: '1px solid rgba(255,255,255,0.4)',
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                                              }}
+                                            >
+                                              <Box
+                                                sx={{
+                                                  px: 1,
+                                                  py: 0.45,
+                                                  bgcolor: 'rgba(255,255,255,0.35)',
+                                                  borderBottom: '1px solid rgba(255,255,255,0.4)',
+                                                  textAlign: 'center',
+                                                }}
+                                              >
+                                                <Typography sx={{ fontSize: '0.63rem', letterSpacing: 0.45, fontWeight: 800, textTransform: 'uppercase' }}>
+                                                  Day of Action
+                                                </Typography>
+                                              </Box>
+                                              <Box
+                                                sx={{
+                                                  px: 1,
+                                                  py: 0.7,
+                                                  minHeight: 82,
+                                                  display: 'flex',
+                                                  flexDirection: 'column',
+                                                  justifyContent: 'center',
+                                                  alignItems: 'center',
+                                                  textAlign: 'center',
+                                                  bgcolor: 'rgba(255,255,255,0.2)',
+                                                }}
+                                              >
+                                                <Typography sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.2 }}>
+                                                  {statusActionSchedule.dateLabel}
+                                                </Typography>
+                                                <Typography sx={{ mt: 0.35, opacity: 0.88, fontSize: '0.71rem', fontWeight: 600 }}>
+                                                  {statusActionSchedule.timeLabel}
+                                                </Typography>
+                                                <Typography sx={{ mt: 0.4, opacity: 0.74, fontSize: '0.61rem' }}>
+                                                  {statusActionSchedule.dayLabel}
+                                                </Typography>
+                                              </Box>
+                                            </Box>
+                                          )}
+
+                                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            {timelineStatusMessage?.status_header && (
+                                              <Typography
+                                                variant="caption"
+                                                sx={{
+                                                  fontWeight: 700,
+                                                  letterSpacing: 0.3,
+                                                  textTransform: 'uppercase',
+                                                  display: 'block',
+                                                  mt: 0.5,
+                                                }}
+                                              >
+                                                {timelineStatusMessage.status_header}
+                                              </Typography>
+                                            )}
+                                            <Typography variant="body2" sx={{ opacity: 0.92, mt: 1, lineHeight: 1.6 }}>
+                                              {timelineStatusMessage?.status_body || ''}
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+
+                                        {statusActionCard?.progress && (
+                                          <Box
+                                            sx={{
+                                              mt: 1.7,
+                                              p: 1.2,
+                                              borderRadius: 1.5,
+                                              bgcolor: statusActionProgress.isUnlocked ? 'rgba(26, 128, 67, 0.20)' : 'rgba(0, 0, 0, 0.11)',
+                                              border: '1px solid',
+                                              borderColor: statusActionProgress.isUnlocked ? 'rgba(26, 128, 67, 0.35)' : 'rgba(255,255,255,0.32)',
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, letterSpacing: 0.25, textAlign: 'center' }}>
+                                              {statusActionProgress.isUnlocked ? 'Threshold Achieved' : 'Current Tally'}
+                                            </Typography>
+                                            <LinearProgress
+                                              variant="determinate"
+                                              value={Math.round((statusActionProgress.ratio || 0) * 100)}
+                                              sx={{
+                                                mt: 0.8,
+                                                height: 6,
+                                                borderRadius: 999,
+                                                bgcolor: 'rgba(255,255,255,0.35)',
+                                                '& .MuiLinearProgress-bar': {
+                                                  bgcolor: statusTone.icon,
+                                                },
+                                              }}
+                                            />
+                                            {statusActionProgress.label && (
+                                              <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.9, textAlign: 'center' }}>
+                                                {statusActionProgress.label}
+                                              </Typography>
+                                            )}
+                                          </Box>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {timelineStatusMessage?.status_header && (
+                                          <Typography
+                                            variant="caption"
+                                            sx={{
+                                              fontWeight: 700,
+                                              letterSpacing: 0.3,
+                                              textTransform: 'uppercase',
+                                              display: 'block',
+                                              mt: 0.5
+                                            }}
+                                          >
+                                            {timelineStatusMessage.status_header}
+                                          </Typography>
+                                        )}
+                                        <Typography variant="body2" sx={{ opacity: 0.9, mt: 1, lineHeight: 1.6 }}>
+                                          {timelineStatusMessage?.status_body || ''}
+                                        </Typography>
+                                      </>
+                                    )}
+                                  </Box>
                                 </Box>
-                                <Box sx={{ px: 2.5, pt: 2, pb: 3 }}>
-                                  {timelineStatusMessage?.status_header && (
+
+                                {shouldBlurStatusCard && (
+                                  <Box
+                                    sx={{
+                                      position: 'absolute',
+                                      inset: 0,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      textAlign: 'center',
+                                      pointerEvents: 'none',
+                                      px: 2,
+                                    }}
+                                  >
                                     <Typography
-                                      variant="caption"
+                                      variant="subtitle1"
                                       sx={{
                                         fontWeight: 700,
-                                        letterSpacing: 0.3,
-                                        textTransform: 'uppercase',
-                                        display: 'block',
-                                        mt: 0.5
+                                        letterSpacing: 0.2,
+                                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.84)',
+                                        textShadow: theme.palette.mode === 'dark'
+                                          ? '0 1px 10px rgba(0,0,0,0.8)'
+                                          : '0 1px 10px rgba(255,255,255,0.8)',
                                       }}
                                     >
-                                      {timelineStatusMessage.status_header}
+                                      Oops! you&apos;re not a member
                                     </Typography>
-                                  )}
-                                  <Typography variant="body2" sx={{ opacity: 0.9, mt: 1, lineHeight: 1.6 }}>
-                                    {timelineStatusMessage?.status_body || ''}
-                                  </Typography>
-                                </Box>
+                                  </Box>
+                                )}
                               </Box>
                             </ClickAwayListener>
                           </Paper>

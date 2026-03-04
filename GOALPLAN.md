@@ -4,15 +4,18 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [x] Site admin page (timeline report tickets implementation) — COMPLETE
-- [ ] Next focus (TBD)
+- [ ] Update/improve remark cards look
 
 ## Scope / Success Criteria
-- (TBD for next focus)
+- Refine remark card visual design while preserving current behavior.
+- Keep interactions/permissions unchanged unless explicitly requested.
+- Ship polish that is consistent across timeline and popup contexts.
+- this improvement to remark cards will most likely be PURELY UI and UX design
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] Add next focus sub-tasks here
-- [ ] add status option for action cards
+- [ ] Audit current remark card variants (timeline, popup, hover/selected states).
+- [ ] Propose and apply visual polish pass (spacing, hierarchy, chips/icons, readability).
+- [ ] Validate responsive behavior and no regressions in existing interactions.
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] Update/improve remark cards look
@@ -20,16 +23,27 @@
 - [ ] Profile page implementation (existing page needs full build-out)
 - [ ] Home page implementation (exists but not functional yet)
 - [ ] # hashtag chip voting system
-- [ ] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
 - [ ] make a home page submission box
-- [ ] reporting action cards
 - [ ] sharing link system
 - [ ] reorganizing community admin page action card settings under INFO CARDS umbrella
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
-- [ ] go back and fully implement action cards
 - [ ] update the members page and admin page buttons to FAB
 
 ## Completed
+### Archived from recent Community Action Cards work
+- [x] Phase 2 refinements for Community Action Cards (vote reset behavior, animation blink fix, Day of Action redesign)
+- [x] Phase 3 extension of existing status-message system with `bronze_action`, `silver_action`, `gold_action`
+- [x] Action status landscape popup polish (medal icon behavior + tally/progress footer order)
+- [x] Non-member action-status popup variant (blurred card with overlay: "Oops! you're not a member")
+- [x] Validate threshold-not-met action-status footer behavior (shows current tally/progress)
+
+### Archived from Pending TODOs
+- [x] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
+- [x] reporting action cards
+- [x] go back and fully implement action cards
+- [x] Site admin page (timeline report tickets implementation) — COMPLETE
+- [x] Community Action Cards refinement (Phase 2 + Phase 3 status work) — 
+
 ### Archived from previous Active sub-TODOs (Site admin page)
 - [x] Ideation phase
 - [x] site control page implementation

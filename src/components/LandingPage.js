@@ -127,7 +127,7 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [badgeText, setBadgeText] = useState('Not Yet Available, Seeking Funding!');
+  const [badgeText, setBadgeText] = useState('Coming Soon!');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
   const [siteUserCount, setSiteUserCount] = useState(null);
 
@@ -138,11 +138,11 @@ const LandingPage = () => {
         const data = await getLandingRotatorSettings();
         if (!active) return;
         const settings = data?.landing_rotator || {};
-        setBadgeText(settings.badge_text || 'Not Yet Available, Seeking Funding!');
+        setBadgeText(settings.badge_text || 'Coming Soon!');
         setBadgeEnabled(Boolean(settings.badge_enabled));
       } catch (error) {
         if (!active) return;
-        setBadgeText('Not Yet Available, Seeking Funding!');
+        setBadgeText('Coming Soon!');
         setBadgeEnabled(true);
       }
     };

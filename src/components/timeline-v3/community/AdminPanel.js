@@ -4016,6 +4016,24 @@ const SettingsTab = ({ id }) => {
                       <ThumbDownAltRoundedIcon fontSize="small" />
                       Bad News
                     </ToggleButton>
+                    <ToggleButton value="bronze_action" sx={{ textTransform: 'none', gap: 1 }}>
+                      <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                        🥉
+                      </Box>
+                      Bronze Action
+                    </ToggleButton>
+                    <ToggleButton value="silver_action" sx={{ textTransform: 'none', gap: 1 }}>
+                      <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                        🥈
+                      </Box>
+                      Silver Action
+                    </ToggleButton>
+                    <ToggleButton value="gold_action" sx={{ textTransform: 'none', gap: 1 }}>
+                      <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                        🥇
+                      </Box>
+                      Gold Action
+                    </ToggleButton>
                   </ToggleButtonGroup>
                   <TextField
                     fullWidth
