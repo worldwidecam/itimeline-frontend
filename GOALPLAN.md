@@ -4,34 +4,17 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Site admin page (timeline report tickets implementation)
+- [x] Site admin page (timeline report tickets implementation) — COMPLETE
+- [ ] Next focus (TBD)
 
 ## Scope / Success Criteria
-- Site Control page (global admin) distinct from Community Admin
-- Access: SiteOwner + SiteAdmin role; redirect page for unauthorized users using existing redirect style guidelines
-- Redirect copy: minimal description + single back button (no detailed access explanation)
-- Two tabs: Global Reports (single queue with type filter) + Site Settings (SiteOwner only)
-- Global Reports: posts/users/timelines in one queue; ticket styling differentiates types; update post-type styling to reflect media subtypes
-- Timeline report cards use green (not violet) for type color
-- Global Reports actions: mirror Community Admin report flow; adjust button labels as needed but keep structure similar
-- Site Settings: manage landing page rotating texts + toolbar scrolling LED banner message (text + timing)
-- Navigation: add “Site Control” entry in top toolbar hamburger menu under profile settings (authorized only)
+- (TBD for next focus)
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [x] Ideation phase
-- [x] site control page implementation
-- [x] Global Reports: finish post tickets (remove Escalate button, add Resolve-Edit + Resolve-Delete)
-- [x] Global Reports: build user tickets (data shape, UI, actions)
-- [x] Global Reports: build timeline tickets (data shape, UI, actions)
-- [x] Align lower-tier Community Admin report ticket styling with Site Control baseline
-- [x] Timeline Ban Enforcement: banned timelines must be hidden from homepage timeline search, blocked from direct timeline access, and prevented from showing timeline chips on posts
-- [x] Timeline Ban Impact Rules: define + enforce expected behavior for existing posts that originated from a now-banned timeline (visibility + timeline association handling)
-- [x] Issue Warning Simplification: remove custom warning date input; keep duration as 3 days / 7 days / 10 days / INDEF
-- [x] Issue Warning Scope Simplification: remove "mask targeted timeline content immediately" toggle and make scope selection itself control enforcement
-- [x] General Warning Hardening: verify and fix general-warning journey end-to-end before expanding remaining warning options
+- [ ] Add next focus sub-tasks here
+- [ ] add status option for action cards
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
-- [ ] Update button on posts (link other posts to a post)
 - [ ] Update/improve remark cards look
 - [ ] NSFW filter
 - [ ] Profile page implementation (existing page needs full build-out)
@@ -47,6 +30,19 @@
 - [ ] update the members page and admin page buttons to FAB
 
 ## Completed
+### Archived from previous Active sub-TODOs (Site admin page)
+- [x] Ideation phase
+- [x] site control page implementation
+- [x] Global Reports: finish post tickets (remove Escalate button, add Resolve-Edit + Resolve-Delete)
+- [x] Global Reports: build user tickets (data shape, UI, actions)
+- [x] Global Reports: build timeline tickets (data shape, UI, actions)
+- [x] Align lower-tier Community Admin report ticket styling with Site Control baseline
+- [x] Timeline Ban Enforcement: banned timelines must be hidden from homepage timeline search, blocked from direct timeline access, and prevented from showing timeline chips on posts
+- [x] Timeline Ban Impact Rules: define + enforce expected behavior for existing posts that originated from a now-banned timeline (visibility + timeline association handling)
+- [x] Issue Warning Simplification: remove custom warning date input; keep duration as 3 days / 7 days / 10 days / INDEF
+- [x] Issue Warning Scope Simplification: remove "mask targeted timeline content immediately" toggle and make scope selection itself control enforcement
+- [x] General Warning Hardening: verify and fix general-warning journey end-to-end before expanding remaining warning options
+
 - [x] Site Control + Community Admin report card baseline styling standardized (header order, grouped footer metadata, resolved verdict panel, type-accent borders)
 - [x] Post ticket CTA refinement: View Event moved into Post Report Target container with resolved-delete exception preserved
 - [X] for IMMEDIATE focus next time. i cannot click event markers on timelines. currently the drag mouse icon is overriding all clicking interactions.

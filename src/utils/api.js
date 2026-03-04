@@ -1886,6 +1886,37 @@ export const getTimelineActionByType = async (timelineId, actionType) => {
 };
 
 /**
+ * Cast a vote for an action card tier (one vote per user per tier)
+ * @param {string|number} timelineId - Timeline ID
+ * @param {string} actionType - Action type ('bronze', 'silver', 'gold')
+ * @returns {Promise<Object>} - Vote result including refreshed progress
+ */
+export const voteTimelineAction = async (timelineId, actionType) => {
+  try {
+    const response = await api.post(`/api/v1/timelines/${timelineId}/actions/${actionType}/vote`);
+
+    if (response.data) {
+      return {
+        success: true,
+        already_voted: !!response.data.already_voted,
+        message: response.data.message,
+        action_type: response.data.action_type,
+        timeline_id: response.data.timeline_id,
+        progress: response.data.progress || null,
+      };
+    }
+
+    return { success: false, error: 'No response data' };
+  } catch (error) {
+    console.error(`[API] Error voting for ${actionType} action on timeline ${timelineId}:`, error);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message,
+    };
+  }
+};
+
+/**
  * Create or update an action card for a timeline
  * @param {string|number} timelineId - Timeline ID
  * @param {Object} actionData - Action card data
@@ -2004,6 +2035,7 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
           due_date: actionsData[actionType].due_date || null,
           threshold_type: actionsData[actionType].threshold_type || 'members',
           threshold_value: actionsData[actionType].threshold_value || 0,
+          reset_votes: !!actionsData[actionType].reset_votes,
           is_active: actionsData[actionType].is_active !== false
         };
         

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Box, 
   Typography, 
@@ -9,8 +9,11 @@ import {
   useTheme,
   Card,
   CardContent,
+  Button,
+  LinearProgress,
   Snackbar,
   Alert,
+  Grow,
   IconButton,
   TextField,
   InputAdornment,
@@ -28,7 +31,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState } from '../../../utils/api';
+import { getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -40,19 +43,50 @@ import CommunityInfoCardsDisplay from './CommunityInfoCardsDisplay';
 
 // Helper function to safely format dates
 const formatActionDate = (dateValue) => {
-  if (!dateValue) return 'No due date';
+  if (!dateValue) return null;
   
   try {
     const date = new Date(dateValue);
     if (isNaN(date.getTime())) {
-      return 'Invalid date';
+      return null;
     }
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   } catch (error) {
     console.warn('Date parsing error:', error, 'for value:', dateValue);
-    return 'Invalid date';
+    return null;
   }
 };
+
+const getActionScheduleDetails = (dateValue) => {
+  if (!dateValue) return null;
+
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return null;
+
+    return {
+      dateLabel: date.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      }),
+      timeLabel: date.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
+    };
+  } catch (error) {
+    console.warn('Date parsing error:', error, 'for value:', dateValue);
+    return null;
+  }
+};
+
+const canVoteForAction = (action) => action?.progress?.threshold_type === 'votes';
 
 // Helper function to check if an action card has meaningful content
 const hasActionContent = (action) => {
@@ -70,6 +104,58 @@ const hasActionContent = (action) => {
     action.description !== 'Complete this action to unlock bronze benefits.';
     
   return hasCustomTitle || hasCustomDescription;
+};
+
+const toSafeNumber = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const shouldAnimateActionProgress = (action) => {
+  const progress = action?.progress;
+  if (!progress || progress.is_unlocked) return false;
+
+  if (progress.threshold_type === 'members') {
+    return toSafeNumber(progress.goal_additional_members, 0) > 0;
+  }
+
+  if (progress.threshold_type === 'votes') {
+    return toSafeNumber(progress.goal_votes, 0) > 0;
+  }
+
+  return false;
+};
+
+const isActionLockedByProgress = (action) => Boolean(action?.progress && action.progress.is_unlocked === false);
+
+const getActionProgressDetails = (action, revealFactor = 1) => {
+  const progress = action?.progress || null;
+  if (!progress) return { label: null, ratio: 0 };
+  const factor = Math.min(1, Math.max(0, toSafeNumber(revealFactor, 1)));
+
+  if (progress.threshold_type === 'members') {
+    const currentRaw = toSafeNumber(progress.current_additional_members, 0);
+    const current = Math.round(currentRaw * factor);
+    const goal = toSafeNumber(progress.goal_additional_members, toSafeNumber(action?.thresholdValue, 0));
+    const ratio = goal <= 0 ? 1 : Math.min(1, Math.max(0, current / goal));
+    return {
+      label: `${current}/${goal} additional members`,
+      ratio,
+    };
+  }
+
+  if (progress.threshold_type === 'votes') {
+    const currentRaw = toSafeNumber(progress.current_votes, 0);
+    const current = Math.round(currentRaw * factor);
+    const goal = toSafeNumber(progress.goal_votes, toSafeNumber(action?.thresholdValue, 0));
+    const ratio = goal <= 0 ? 1 : Math.min(1, Math.max(0, current / goal));
+    return {
+      label: `${current}/${goal} votes`,
+      ratio,
+    };
+  }
+
+  return { label: null, ratio: 0 };
 };
 
 const MemberListTab = () => {
@@ -114,6 +200,10 @@ const MemberListTab = () => {
   const [accessLoading, setAccessLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
   const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
+  const [voteLoadingByType, setVoteLoadingByType] = useState({ bronze: false, silver: false, gold: false });
+  const [snackbarState, setSnackbarState] = useState({ open: false, severity: 'info', message: '' });
+  const [progressRevealByType, setProgressRevealByType] = useState({ bronze: 1, silver: 1, gold: 1 });
+  const hasAnimatedInitialProgressRef = useRef(false);
 
   // Search / Filter / Sort state and menu anchors
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,6 +223,59 @@ const MemberListTab = () => {
   const handleSortClick = (e) => setSortAnchorEl(e.currentTarget);
   const handleSortClose = () => setSortAnchorEl(null);
   const handleSortSelect = (sort) => { setSortBy(sort); handleSortClose(); };
+
+  const handleSnackbarClose = () => {
+    setSnackbarState((prev) => ({ ...prev, open: false }));
+  };
+
+  const setVoteLoading = (actionType, isLoading) => {
+    setVoteLoadingByType((prev) => ({ ...prev, [actionType]: isLoading }));
+  };
+
+  const applyVoteProgressToAction = (actionType, progress) => {
+    if (!progress) return;
+
+    if (actionType === 'gold') {
+      setGoldAction((prev) => (prev ? { ...prev, progress } : prev));
+      setGoldActionLocked(progress.is_unlocked === false);
+      return;
+    }
+
+    if (actionType === 'silver') {
+      setSilverAction((prev) => (prev ? { ...prev, progress } : prev));
+      setSilverActionLocked(progress.is_unlocked === false);
+      return;
+    }
+
+    if (actionType === 'bronze') {
+      setBronzeAction((prev) => (prev ? { ...prev, progress } : prev));
+      setBronzeActionLocked(progress.is_unlocked === false);
+    }
+  };
+
+  const handleVoteAction = async (actionType) => {
+    if (!id || voteLoadingByType[actionType]) return;
+
+    setVoteLoading(actionType, true);
+    const result = await voteTimelineAction(id, actionType);
+    setVoteLoading(actionType, false);
+
+    if (!result?.success) {
+      setSnackbarState({
+        open: true,
+        severity: 'error',
+        message: result?.error || 'Failed to cast vote.',
+      });
+      return;
+    }
+
+    applyVoteProgressToAction(actionType, result.progress);
+    setSnackbarState({
+      open: true,
+      severity: 'success',
+      message: result.already_voted ? 'Your vote was already counted.' : 'Vote recorded successfully.',
+    });
+  };
 
   // Safely filter and sort members based on current UI state
   const getFilteredAndSortedMembers = () => {
@@ -248,6 +391,11 @@ const MemberListTab = () => {
     };
   }, [id]); // Remove isMember dependency to ensure members are always fetched
 
+  useEffect(() => {
+    hasAnimatedInitialProgressRef.current = false;
+    setProgressRevealByType({ bronze: 1, silver: 1, gold: 1 });
+  }, [id]);
+
   // Fetch action cards when component mounts or ID changes
   useEffect(() => {
     let isMounted = true;
@@ -288,11 +436,12 @@ const MemberListTab = () => {
                 description: action.description || 'Complete this action to unlock silver benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
                 thresholdType: action.threshold_type || 'members',
-                thresholdValue: action.threshold_value || 10
+                thresholdValue: action.threshold_value || 10,
+                progress: action.progress || null,
               };
               console.log('[DEBUG] Setting silverAction with dueDate:', silverActionData.dueDate);
               setSilverAction(silverActionData);
-              setSilverActionLocked(false);
+              setSilverActionLocked(isActionLockedByProgress(silverActionData));
               setIsSilverActionLoading(false);
             } else if (action.action_type === 'gold') {
               foundActions.gold = true;
@@ -303,11 +452,12 @@ const MemberListTab = () => {
                 description: action.description || 'Complete this action to unlock gold benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
                 thresholdType: action.threshold_type || 'members',
-                thresholdValue: action.threshold_value || 25
+                thresholdValue: action.threshold_value || 25,
+                progress: action.progress || null,
               };
               console.log('[DEBUG] Setting goldAction with dueDate:', goldActionData.dueDate);
               setGoldAction(goldActionData);
-              setGoldActionLocked(false);
+              setGoldActionLocked(isActionLockedByProgress(goldActionData));
               setIsGoldActionLoading(false);
             } else if (action.action_type === 'bronze') {
               foundActions.bronze = true;
@@ -317,11 +467,12 @@ const MemberListTab = () => {
                 description: action.description || 'Complete this action to unlock bronze benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
                 thresholdType: action.threshold_type || 'members',
-                thresholdValue: action.threshold_value || 5
+                thresholdValue: action.threshold_value || 5,
+                progress: action.progress || null,
               };
               console.log('[DEBUG] Setting bronzeAction with dueDate:', bronzeActionData.dueDate);
               setBronzeAction(bronzeActionData);
-              setBronzeActionLocked(false);
+              setBronzeActionLocked(isActionLockedByProgress(bronzeActionData));
               setIsBronzeActionLoading(false);
             }
           });
@@ -344,8 +495,8 @@ const MemberListTab = () => {
           console.log(`[MemberListTab] Updated thresholds:`, newThresholds);
           
           // Update action visibility based on current member count
-          setShowSilverAction(members.length >= newThresholds.silver);
-          setShowGoldAction(members.length >= newThresholds.gold);
+          setShowSilverAction(memberCount >= newThresholds.silver);
+          setShowGoldAction(memberCount >= newThresholds.gold);
         } else {
           console.log('[MemberListTab] No action cards found, using defaults');
           // Set loading states to false if no actions found
@@ -374,7 +525,78 @@ const MemberListTab = () => {
     return () => {
       isMounted = false;
     };
-  }, [id, members.length, isMember]); // Re-run when member count changes
+  }, [id, isMember]);
+
+  useEffect(() => {
+    setShowSilverAction(memberCount >= memberThresholds.silver);
+    setShowGoldAction(memberCount >= memberThresholds.gold);
+  }, [memberCount, memberThresholds]);
+
+  useEffect(() => {
+    if (!id || !isMember) return undefined;
+    if (isGoldActionLoading || isSilverActionLoading || isBronzeActionLoading) return undefined;
+    if (hasAnimatedInitialProgressRef.current) return undefined;
+
+    const animateByType = {
+      gold: shouldAnimateActionProgress(goldAction),
+      silver: shouldAnimateActionProgress(silverAction),
+      bronze: shouldAnimateActionProgress(bronzeAction),
+    };
+    const hasProgressToAnimate = Object.values(animateByType).some(Boolean);
+    if (!hasProgressToAnimate) {
+      setProgressRevealByType({ bronze: 1, silver: 1, gold: 1 });
+      hasAnimatedInitialProgressRef.current = true;
+      return undefined;
+    }
+
+    setProgressRevealByType({
+      bronze: animateByType.bronze ? 0 : 1,
+      silver: animateByType.silver ? 0 : 1,
+      gold: animateByType.gold ? 0 : 1,
+    });
+
+    let frameId = null;
+    const startDelayMs = 300;
+    const durationMs = 850;
+    const delayId = window.setTimeout(() => {
+      setSnackbarState({ open: true, severity: 'info', message: 'Syncing locked action progress...' });
+      const startTime = performance.now();
+      const animate = (now) => {
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / durationMs);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setProgressRevealByType({
+          bronze: animateByType.bronze ? eased : 1,
+          silver: animateByType.silver ? eased : 1,
+          gold: animateByType.gold ? eased : 1,
+        });
+
+        if (t < 1) {
+          frameId = window.requestAnimationFrame(animate);
+        } else {
+          hasAnimatedInitialProgressRef.current = true;
+        }
+      };
+
+      frameId = window.requestAnimationFrame(animate);
+    }, startDelayMs);
+
+    return () => {
+      window.clearTimeout(delayId);
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [
+    id,
+    isMember,
+    isGoldActionLoading,
+    isSilverActionLoading,
+    isBronzeActionLoading,
+    goldAction,
+    silverAction,
+    bronzeAction,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -485,6 +707,16 @@ const MemberListTab = () => {
       }
     : {};
 
+  const goldProgress = getActionProgressDetails(goldAction, progressRevealByType.gold);
+  const silverProgress = getActionProgressDetails(silverAction, progressRevealByType.silver);
+  const bronzeProgress = getActionProgressDetails(bronzeAction, progressRevealByType.bronze);
+  const goldActionDayLabel = formatActionDate(goldAction?.dueDate);
+  const silverActionDayLabel = formatActionDate(silverAction?.dueDate);
+  const bronzeActionDayLabel = formatActionDate(bronzeAction?.dueDate);
+  const goldActionSchedule = getActionScheduleDetails(goldAction?.dueDate);
+  const silverActionSchedule = getActionScheduleDetails(silverAction?.dueDate);
+  const bronzeActionSchedule = getActionScheduleDetails(bronzeAction?.dueDate);
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
       {isActionCardWarningActive && (
@@ -539,7 +771,14 @@ const MemberListTab = () => {
               }
             }}
           >
-            <CardContent sx={{ p: 3 }}>
+            <CardContent
+              sx={{
+                p: 3,
+                position: 'relative',
+                pr: goldActionSchedule ? { xs: 3, md: '200px' } : 3,
+                minHeight: goldActionSchedule ? { xs: 'auto', md: 220 } : 'auto',
+              }}
+            >
               {isGoldActionLoading ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -551,6 +790,67 @@ const MemberListTab = () => {
                 </Box>
               ) : goldAction ? (
                 <>
+                  {goldActionSchedule && (
+                    <Box
+                      sx={{
+                        position: { xs: 'relative', md: 'absolute' },
+                        top: { md: 20 },
+                        right: { md: 20 },
+                        width: { xs: '100%', md: 160 },
+                        minHeight: { xs: 112, md: 148 },
+                        mb: { xs: 1.75, md: 0 },
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.5)' : 'rgba(139,111,31,0.4)',
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 8px 16px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,215,0,0.15)'
+                          : '0 8px 16px rgba(139,111,31,0.2), 0 0 0 1px rgba(255,215,0,0.2)',
+                        zIndex: 2,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          px: 1,
+                          py: 0.5,
+                          textAlign: 'center',
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.24)' : 'rgba(255,215,0,0.32)',
+                          borderBottom: '1px solid',
+                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.45)' : 'rgba(139,111,31,0.35)',
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.68rem', letterSpacing: '0.65px', fontWeight: 800, textTransform: 'uppercase' }}>
+                          Day of Action
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          minHeight: { xs: 80, md: 112 },
+                          px: 1.25,
+                          py: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          textAlign: 'center',
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(12,10,6,0.55)' : 'rgba(255,250,235,0.82)',
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 700, fontSize: '0.92rem', lineHeight: 1.2 }}>
+                          {goldActionSchedule.dateLabel}
+                        </Typography>
+                        <Typography sx={{ mt: 0.45, opacity: 0.85, fontSize: '0.8rem', fontWeight: 600 }}>
+                          {goldActionSchedule.timeLabel}
+                        </Typography>
+                        {goldActionDayLabel && (
+                          <Typography sx={{ mt: 0.6, opacity: 0.72, fontSize: '0.68rem' }}>
+                            {goldActionDayLabel}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
                   {/* Locked overlay - only shown when goldActionLocked is true */}
                   {goldActionLocked && (
                     <Box
@@ -560,8 +860,8 @@ const MemberListTab = () => {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                        backdropFilter: 'blur(4px)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                        backdropFilter: 'blur(10px)',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
@@ -595,12 +895,45 @@ const MemberListTab = () => {
                         align="center"
                         sx={{ 
                           color: 'rgba(255,255,255,0.8)',
-                          maxWidth: '80%'
+                          maxWidth: '80%',
+                          mb: 1,
                         }}
                       >
-                        This action requires {goldAction.thresholdValue} members to unlock.
-                        Currently: 6 members
+                        {goldProgress.label || 'Help unlock this action by contributing progress.'}
                       </Typography>
+                      <Box sx={{ width: '100%', maxWidth: 280, mb: 2 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.round((goldProgress.ratio || 0) * 100)}
+                          sx={{
+                            height: 8,
+                            borderRadius: 999,
+                            bgcolor: 'rgba(255,255,255,0.2)',
+                            '& .MuiLinearProgress-bar': {
+                              bgcolor: '#ffd700',
+                            },
+                          }}
+                        />
+                      </Box>
+                      {canVoteForAction(goldAction) && (
+                        <Button
+                          size="small"
+                          variant={goldAction?.progress?.user_voted ? 'outlined' : 'contained'}
+                          onClick={() => handleVoteAction('gold')}
+                          disabled={voteLoadingByType.gold || !!goldAction?.progress?.user_voted}
+                          sx={{
+                            color: '#fff',
+                            borderColor: 'rgba(255,215,0,0.8)',
+                            bgcolor: goldAction?.progress?.user_voted ? 'transparent' : 'rgba(255,215,0,0.25)',
+                            '&:hover': {
+                              bgcolor: 'rgba(255,215,0,0.35)',
+                              borderColor: '#ffd700',
+                            },
+                          }}
+                        >
+                          {goldAction?.progress?.user_voted ? 'Vote Counted' : (voteLoadingByType.gold ? 'Voting...' : 'Count me in!')}
+                        </Button>
+                      )}
                     </Box>
                   )}
                   
@@ -651,30 +984,27 @@ const MemberListTab = () => {
                   >
                     {goldAction.description}
                   </Typography>
+
+                  {goldProgress.label && (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85 }}>
+                        Progress: {goldProgress.label}
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.round((goldProgress.ratio || 0) * 100)}
+                        sx={{
+                          height: 7,
+                          borderRadius: 999,
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
+                          '& .MuiLinearProgress-bar': {
+                            bgcolor: '#d4af37',
+                          },
+                        }}
+                      />
+                    </Box>
+                  )}
                   
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      mt: 2,
-                      pt: 1,
-                      borderTop: '1px solid',
-                      borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.2)' : 'rgba(139,111,31,0.2)'
-                    }}
-                  >
-                    <Chip 
-                      label={`Due: ${formatActionDate(goldAction.dueDate)}`}
-                      size="small"
-                      sx={{
-                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.15)' : 'rgba(255,215,0,0.2)',
-                        color: theme.palette.mode === 'dark' ? '#ffd700' : '#8B6F1F',
-                        border: '1px solid',
-                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.3)' : 'rgba(139,111,31,0.3)',
-                        '& .MuiChip-label': { px: 1 }
-                      }}
-                    />
-                  </Box>
                 </>
               ) : null}
             </CardContent>
@@ -764,7 +1094,14 @@ const MemberListTab = () => {
                 }
               }}
             >
-              <CardContent sx={{ p: 2 }}>
+              <CardContent
+                sx={{
+                  p: 2,
+                  position: 'relative',
+                  pr: bronzeActionSchedule ? { xs: 2, md: '170px' } : 2,
+                  minHeight: bronzeActionSchedule ? { xs: 'auto', md: 180 } : 'auto',
+                }}
+              >
                 {isBronzeActionLoading ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -775,6 +1112,124 @@ const MemberListTab = () => {
                   </Box>
                 ) : bronzeAction ? (
                   <>
+                    {bronzeActionSchedule && (
+                      <Box
+                        sx={{
+                          position: { xs: 'relative', md: 'absolute' },
+                          top: { md: 14 },
+                          right: { md: 14 },
+                          width: { xs: '100%', md: 136 },
+                          minHeight: { xs: 96, md: 132 },
+                          mb: { xs: 1.5, md: 0 },
+                          borderRadius: 1.75,
+                          overflow: 'hidden',
+                          border: '1px solid',
+                          borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.5)' : 'rgba(139,90,43,0.45)',
+                          boxShadow: theme.palette.mode === 'dark'
+                            ? '0 6px 14px rgba(0,0,0,0.35), 0 0 0 1px rgba(205,127,50,0.14)'
+                            : '0 6px 14px rgba(139,90,43,0.22), 0 0 0 1px rgba(205,127,50,0.2)',
+                          zIndex: 2,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            px: 1,
+                            py: 0.45,
+                            textAlign: 'center',
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.24)' : 'rgba(205,127,50,0.30)',
+                            borderBottom: '1px solid',
+                            borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.45)' : 'rgba(139,90,43,0.38)',
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '0.66rem', letterSpacing: '0.58px', fontWeight: 800, textTransform: 'uppercase' }}>
+                            Day of Action
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            minHeight: { xs: 68, md: 95 },
+                            px: 1,
+                            py: 0.8,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(16,9,4,0.55)' : 'rgba(255,247,240,0.86)',
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.84rem', lineHeight: 1.2 }}>
+                            {bronzeActionSchedule.dateLabel}
+                          </Typography>
+                          <Typography sx={{ mt: 0.35, opacity: 0.85, fontSize: '0.76rem', fontWeight: 600 }}>
+                            {bronzeActionSchedule.timeLabel}
+                          </Typography>
+                          {bronzeActionDayLabel && (
+                            <Typography sx={{ mt: 0.45, opacity: 0.72, fontSize: '0.62rem' }}>
+                              {bronzeActionDayLabel}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {bronzeActionLocked && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                          backdropFilter: 'blur(10px)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          zIndex: 10,
+                          p: 2,
+                        }}
+                      >
+                        <LockIcon sx={{ color: '#cd7f32', mb: 1 }} />
+                        <Typography variant="body2" align="center" sx={{ color: '#fff', mb: 1 }}>
+                          Bronze Action Locked
+                        </Typography>
+                        <Typography variant="caption" align="center" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1 }}>
+                          {bronzeProgress.label || 'Help unlock this action by contributing progress.'}
+                        </Typography>
+                        <Box sx={{ width: '100%', maxWidth: 220, mb: 1.5 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={Math.round((bronzeProgress.ratio || 0) * 100)}
+                            sx={{
+                              height: 7,
+                              borderRadius: 999,
+                              bgcolor: 'rgba(255,255,255,0.2)',
+                              '& .MuiLinearProgress-bar': {
+                                bgcolor: '#cd7f32',
+                              },
+                            }}
+                          />
+                        </Box>
+                        {canVoteForAction(bronzeAction) && (
+                          <Button
+                            size="small"
+                            variant={bronzeAction?.progress?.user_voted ? 'outlined' : 'contained'}
+                            onClick={() => handleVoteAction('bronze')}
+                            disabled={voteLoadingByType.bronze || !!bronzeAction?.progress?.user_voted}
+                            sx={{
+                              color: '#fff',
+                              borderColor: 'rgba(205,127,50,0.8)',
+                              bgcolor: bronzeAction?.progress?.user_voted ? 'transparent' : 'rgba(205,127,50,0.25)',
+                            }}
+                          >
+                            {bronzeAction?.progress?.user_voted ? 'Vote Counted' : (voteLoadingByType.bronze ? 'Voting...' : 'Count me in!')}
+                          </Button>
+                        )}
+                      </Box>
+                    )}
+
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <FlagIcon 
                         sx={{ 
@@ -824,30 +1279,27 @@ const MemberListTab = () => {
                     >
                       {bronzeAction.description}
                     </Typography>
+
+                    {bronzeProgress.label && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85 }}>
+                          Progress: {bronzeProgress.label}
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.round((bronzeProgress.ratio || 0) * 100)}
+                          sx={{
+                            height: 6,
+                            borderRadius: 999,
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
+                            '& .MuiLinearProgress-bar': {
+                              bgcolor: '#cd7f32',
+                            },
+                          }}
+                        />
+                      </Box>
+                    )}
                     
-                    <Box 
-                      sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        mt: 1,
-                        pt: 1,
-                        borderTop: '1px solid',
-                        borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.2)' : 'rgba(139,90,43,0.2)'
-                      }}
-                    >
-                      <Chip 
-                        label={`Due: ${formatActionDate(bronzeAction.dueDate)}`}
-                        size="small"
-                        sx={{
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.15)' : 'rgba(205,127,50,0.2)',
-                          color: theme.palette.mode === 'dark' ? '#cd7f32' : '#8B5A2B',
-                          border: '1px solid',
-                          borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.3)' : 'rgba(139,90,43,0.3)',
-                          '& .MuiChip-label': { px: 1, fontSize: '0.65rem' }
-                        }}
-                      />
-                    </Box>
                   </>
                 ) : null}
               </CardContent>
@@ -895,7 +1347,14 @@ const MemberListTab = () => {
                   }
                 }}
               >
-                <CardContent sx={{ p: 2 }}>
+                <CardContent
+                  sx={{
+                    p: 2,
+                    position: 'relative',
+                    pl: silverActionSchedule ? { xs: 2, md: '170px' } : 2,
+                    minHeight: silverActionSchedule ? { xs: 'auto', md: 180 } : 'auto',
+                  }}
+                >
                   {isSilverActionLoading ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -906,10 +1365,128 @@ const MemberListTab = () => {
                     </Box>
                   ) : silverAction ? (
                     <>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      {silverActionSchedule && (
+                        <Box
+                          sx={{
+                            position: { xs: 'relative', md: 'absolute' },
+                            top: { md: 14 },
+                            left: { md: 14 },
+                            width: { xs: '100%', md: 136 },
+                            minHeight: { xs: 96, md: 132 },
+                            mb: { xs: 1.5, md: 0 },
+                            borderRadius: 1.75,
+                            overflow: 'hidden',
+                            border: '1px solid',
+                            borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.52)' : 'rgba(112,112,112,0.42)',
+                            boxShadow: theme.palette.mode === 'dark'
+                              ? '0 6px 14px rgba(0,0,0,0.35), 0 0 0 1px rgba(192,192,192,0.12)'
+                              : '0 6px 14px rgba(112,112,112,0.18), 0 0 0 1px rgba(192,192,192,0.2)',
+                            zIndex: 2,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              px: 1,
+                              py: 0.45,
+                              textAlign: 'center',
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.22)' : 'rgba(192,192,192,0.30)',
+                              borderBottom: '1px solid',
+                              borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.44)' : 'rgba(112,112,112,0.35)',
+                            }}
+                          >
+                            <Typography sx={{ fontSize: '0.66rem', letterSpacing: '0.58px', fontWeight: 800, textTransform: 'uppercase' }}>
+                              Day of Action
+                            </Typography>
+                          </Box>
+                          <Box
+                            sx={{
+                              minHeight: { xs: 68, md: 95 },
+                              px: 1,
+                              py: 0.8,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              textAlign: 'center',
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(12,12,14,0.55)' : 'rgba(252,252,253,0.9)',
+                            }}
+                          >
+                            <Typography sx={{ fontWeight: 700, fontSize: '0.84rem', lineHeight: 1.2 }}>
+                              {silverActionSchedule.dateLabel}
+                            </Typography>
+                            <Typography sx={{ mt: 0.35, opacity: 0.85, fontSize: '0.76rem', fontWeight: 600 }}>
+                              {silverActionSchedule.timeLabel}
+                            </Typography>
+                            {silverActionDayLabel && (
+                              <Typography sx={{ mt: 0.45, opacity: 0.72, fontSize: '0.62rem' }}>
+                                {silverActionDayLabel}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      )}
+
+                      {silverActionLocked && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                            backdropFilter: 'blur(10px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: 10,
+                            p: 2,
+                          }}
+                        >
+                          <LockIcon sx={{ color: '#c0c0c0', mb: 1 }} />
+                          <Typography variant="body2" align="center" sx={{ color: '#fff', mb: 1 }}>
+                            Silver Action Locked
+                          </Typography>
+                          <Typography variant="caption" align="center" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1 }}>
+                            {silverProgress.label || 'Help unlock this action by contributing progress.'}
+                          </Typography>
+                          <Box sx={{ width: '100%', maxWidth: 220, mb: 1.5 }}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={Math.round((silverProgress.ratio || 0) * 100)}
+                              sx={{
+                                height: 7,
+                                borderRadius: 999,
+                                bgcolor: 'rgba(255,255,255,0.2)',
+                                '& .MuiLinearProgress-bar': {
+                                  bgcolor: '#c0c0c0',
+                                },
+                              }}
+                            />
+                          </Box>
+                          {canVoteForAction(silverAction) && (
+                            <Button
+                              size="small"
+                              variant={silverAction?.progress?.user_voted ? 'outlined' : 'contained'}
+                              onClick={() => handleVoteAction('silver')}
+                              disabled={voteLoadingByType.silver || !!silverAction?.progress?.user_voted}
+                              sx={{
+                                color: '#fff',
+                                borderColor: 'rgba(192,192,192,0.8)',
+                                bgcolor: silverAction?.progress?.user_voted ? 'transparent' : 'rgba(192,192,192,0.25)',
+                              }}
+                            >
+                              {silverAction?.progress?.user_voted ? 'Vote Counted' : (voteLoadingByType.silver ? 'Voting...' : 'Count me in!')}
+                            </Button>
+                          )}
+                        </Box>
+                      )}
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 1 }}>
                         <FlagIcon 
                           sx={{ 
-                            mr: 1, 
+                            mr: 1,
                             color: '#c0c0c0',
                             fontSize: '1.1rem',
                             filter: 'drop-shadow(0 0 2px rgba(192,192,192,0.5))'
@@ -957,30 +1534,27 @@ const MemberListTab = () => {
                       >
                         {silverAction.description}
                       </Typography>
+
+                      {silverProgress.label && (
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85, textAlign: 'right' }}>
+                            Progress: {silverProgress.label}
+                          </Typography>
+                          <LinearProgress
+                            variant="determinate"
+                            value={Math.round((silverProgress.ratio || 0) * 100)}
+                            sx={{
+                              height: 6,
+                              borderRadius: 999,
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
+                              '& .MuiLinearProgress-bar': {
+                                bgcolor: '#c0c0c0',
+                              },
+                            }}
+                          />
+                        </Box>
+                      )}
                       
-                      <Box 
-                        sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          mt: 1,
-                          pt: 1,
-                          borderTop: '1px solid',
-                          borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.2)' : 'rgba(112,112,112,0.2)'
-                        }}
-                      >
-                        <Chip 
-                          label={`Due: ${formatActionDate(silverAction.dueDate)}`}
-                          size="small"
-                          sx={{
-                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.15)' : 'rgba(192,192,192,0.2)',
-                            color: theme.palette.mode === 'dark' ? '#c0c0c0' : '#707070',
-                            border: '1px solid',
-                            borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.3)' : 'rgba(112,112,112,0.3)',
-                            '& .MuiChip-label': { px: 1, fontSize: '0.65rem' }
-                          }}
-                        />
-                      </Box>
                     </>
                   ) : null}
                 </CardContent>
@@ -1318,6 +1892,18 @@ const MemberListTab = () => {
           </motion.div>
         </Box>
       </motion.div>
+
+      <Snackbar
+        open={snackbarState.open}
+        autoHideDuration={3500}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        TransitionComponent={Grow}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarState.severity} sx={{ width: '100%' }}>
+          {snackbarState.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

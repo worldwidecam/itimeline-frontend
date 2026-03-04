@@ -3261,6 +3261,9 @@ const SettingsTab = ({ id }) => {
   const [silverActionDescription, setSilverActionDescription] = useState('');
   const [bronzeActionTitle, setBronzeActionTitle] = useState('');
   const [bronzeActionDescription, setBronzeActionDescription] = useState('');
+  const [pendingActionResetType, setPendingActionResetType] = useState(null);
+  const [actionResetDialogOpen, setActionResetDialogOpen] = useState(false);
+  const [resetVotesByType, setResetVotesByType] = useState({ bronze: false, silver: false, gold: false });
   const [communityQuote, setCommunityQuote] = useState({
     text: "Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.",
     author: "John F. Kennedy"
@@ -3536,6 +3539,47 @@ const SettingsTab = ({ id }) => {
     setStatusBody('');
     setHasUnsavedChanges(true);
   };
+
+  const handleOpenActionResetDialog = (actionType) => {
+    setPendingActionResetType(actionType);
+    setActionResetDialogOpen(true);
+  };
+
+  const handleCloseActionResetDialog = () => {
+    setActionResetDialogOpen(false);
+    setPendingActionResetType(null);
+  };
+
+  const handleConfirmActionReset = () => {
+    if (!pendingActionResetType) {
+      handleCloseActionResetDialog();
+      return;
+    }
+
+    if (pendingActionResetType === 'gold') {
+      setGoldActionTitle('');
+      setGoldActionDescription('');
+      setGoldActionDate(null);
+      setGoldThresholdType('members');
+      setGoldThresholdValue(25);
+    } else if (pendingActionResetType === 'silver') {
+      setSilverActionTitle('');
+      setSilverActionDescription('');
+      setSilverActionDate(null);
+      setSilverThresholdType('members');
+      setSilverThresholdValue(10);
+    } else if (pendingActionResetType === 'bronze') {
+      setBronzeActionTitle('');
+      setBronzeActionDescription('');
+      setBronzeActionDate(null);
+      setBronzeThresholdType('members');
+      setBronzeThresholdValue(5);
+    }
+
+    setResetVotesByType((prev) => ({ ...prev, [pendingActionResetType]: true }));
+    setHasUnsavedChanges(true);
+    handleCloseActionResetDialog();
+  };
   
   // Handle save changes
   const handleSaveChanges = async () => {
@@ -3586,6 +3630,7 @@ const SettingsTab = ({ id }) => {
         due_date: formatDateForAPI(goldActionDate),
         threshold_type: goldThresholdType,
         threshold_value: goldThresholdValue,
+        reset_votes: resetVotesByType.gold,
         is_active: true
       } : {
         title: '', // Empty title to indicate cleared state
@@ -3593,6 +3638,7 @@ const SettingsTab = ({ id }) => {
         due_date: null,
         threshold_type: 'members',
         threshold_value: 15,
+        reset_votes: resetVotesByType.gold,
         is_active: false
       };
       
@@ -3602,6 +3648,7 @@ const SettingsTab = ({ id }) => {
         due_date: formatDateForAPI(silverActionDate),
         threshold_type: silverThresholdType,
         threshold_value: silverThresholdValue,
+        reset_votes: resetVotesByType.silver,
         is_active: true
       } : {
         title: '', // Empty title to indicate cleared state
@@ -3609,6 +3656,7 @@ const SettingsTab = ({ id }) => {
         due_date: null,
         threshold_type: 'members',
         threshold_value: 10,
+        reset_votes: resetVotesByType.silver,
         is_active: false
       };
       
@@ -3618,6 +3666,7 @@ const SettingsTab = ({ id }) => {
         due_date: formatDateForAPI(bronzeActionDate),
         threshold_type: bronzeThresholdType,
         threshold_value: bronzeThresholdValue,
+        reset_votes: resetVotesByType.bronze,
         is_active: true
       } : {
         title: '', // Empty title to indicate cleared state
@@ -3625,6 +3674,7 @@ const SettingsTab = ({ id }) => {
         due_date: null,
         threshold_type: bronzeThresholdType || 'members',
         threshold_value: bronzeThresholdValue || 5,
+        reset_votes: resetVotesByType.bronze,
         is_active: false
       };
       
@@ -3638,6 +3688,7 @@ const SettingsTab = ({ id }) => {
         setSnackbarMessage('Settings Saved Successfully!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
+        setResetVotesByType({ bronze: false, silver: false, gold: false });
         
         // Reset unsaved changes flag and show saved state
         setHasUnsavedChanges(false);
@@ -4099,18 +4150,12 @@ const SettingsTab = ({ id }) => {
                   </Box>
                   <IconButton
                     size="small"
-                    onClick={() => {
-                      setGoldActionTitle('');
-                      setGoldActionDescription('');
-                      setGoldActionDate(null);
-                      setGoldThresholdValue(25);
-                      setHasUnsavedChanges(true);
-                    }}
+                    onClick={() => handleOpenActionResetDialog('gold')}
                     sx={{ 
                       color: '#FFD700',
                       '&:hover': { bgcolor: 'rgba(255, 215, 0, 0.1)' }
                     }}
-                    title="Clear Gold Action (will show quote instead)"
+                    title="Reset Gold Action and wipe tallies on save"
                   >
                     <RefreshIcon fontSize="small" />
                   </IconButton>
@@ -4274,18 +4319,12 @@ const SettingsTab = ({ id }) => {
                   </Box>
                   <IconButton
                     size="small"
-                    onClick={() => {
-                      setSilverActionTitle('');
-                      setSilverActionDescription('');
-                      setSilverActionDate(null);
-                      setSilverThresholdValue(10);
-                      setHasUnsavedChanges(true);
-                    }}
+                    onClick={() => handleOpenActionResetDialog('silver')}
                     sx={{ 
                       color: '#C0C0C0',
                       '&:hover': { bgcolor: 'rgba(192, 192, 192, 0.1)' }
                     }}
-                    title="Clear Silver Action (will show quote instead)"
+                    title="Reset Silver Action and wipe tallies on save"
                   >
                     <RefreshIcon fontSize="small" />
                   </IconButton>
@@ -4448,18 +4487,12 @@ const SettingsTab = ({ id }) => {
                   </Box>
                   <IconButton
                     size="small"
-                    onClick={() => {
-                      setBronzeActionTitle('');
-                      setBronzeActionDescription('');
-                      setBronzeActionDate(null);
-                      setBronzeThresholdValue(5);
-                      setHasUnsavedChanges(true);
-                    }}
+                    onClick={() => handleOpenActionResetDialog('bronze')}
                     sx={{ 
                       color: '#CD7F32',
                       '&:hover': { bgcolor: 'rgba(205, 127, 50, 0.1)' }
                     }}
-                    title="Clear Bronze Action (will show quote instead)"
+                    title="Reset Bronze Action and wipe tallies on save"
                   >
                     <RefreshIcon fontSize="small" />
                   </IconButton>
@@ -4632,6 +4665,25 @@ const SettingsTab = ({ id }) => {
             </Box>
           </motion.div>
 
+          <Dialog
+            open={actionResetDialogOpen}
+            onClose={handleCloseActionResetDialog}
+            aria-labelledby="action-reset-dialog-title"
+            aria-describedby="action-reset-dialog-description"
+          >
+            <DialogTitle id="action-reset-dialog-title">Reset this action and wipe tallies?</DialogTitle>
+            <DialogContent>
+              <DialogContentText id="action-reset-dialog-description">
+                This refresh action clears the current action content and marks all recorded votes for this tier in this community timeline for permanent deletion when you click <strong>Save Changes</strong>. This cannot be undone.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseActionResetDialog}>Cancel</Button>
+              <Button variant="contained" color="error" onClick={handleConfirmActionReset}>
+                Yes, reset action
+              </Button>
+            </DialogActions>
+          </Dialog>
           {/* Floating Action Button for Save Changes */}
           <AnimatePresence>
             {(hasUnsavedChanges || showSavedState) && (
