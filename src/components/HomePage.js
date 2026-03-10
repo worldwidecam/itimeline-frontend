@@ -37,6 +37,8 @@ const HERO_ROTATE_MS = 90000;
 const HERO_SLIDE_COUNT = 2;
 const HERO_CONTENT_FADE_MS = 180;
 const HOME_NAVBAR_OFFSET_PX = 78;
+const SEARCH_SUBMIT_DELAY_MS = 340;
+const SEARCH_RESULT_HANDOFF_MS = 140;
 
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
@@ -59,6 +61,8 @@ const HomePage = () => {
   const resultsScrollRef = React.useRef(null);
   const heroTransitionTimeoutRef = React.useRef(null);
   const hubTransitionTimeoutRef = React.useRef(null);
+  const searchSubmitTimeoutRef = React.useRef(null);
+  const searchRevealTimeoutRef = React.useRef(null);
 
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -71,6 +75,8 @@ const HomePage = () => {
   const [searchSubFilter, setSearchSubFilter] = React.useState('all');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
   const [timelineSearch, setTimelineSearch] = React.useState('');
+  const [isSearchSubmitting, setIsSearchSubmitting] = React.useState(false);
+  const [isSearchResultsVisible, setIsSearchResultsVisible] = React.useState(true);
   const [visibleTimelineCount, setVisibleTimelineCount] = React.useState(18);
   const [formData, setFormData] = React.useState({ name: '', description: '' });
 
@@ -124,6 +130,12 @@ const HomePage = () => {
       }
       if (hubTransitionTimeoutRef.current) {
         window.clearTimeout(hubTransitionTimeoutRef.current);
+      }
+      if (searchSubmitTimeoutRef.current) {
+        window.clearTimeout(searchSubmitTimeoutRef.current);
+      }
+      if (searchRevealTimeoutRef.current) {
+        window.clearTimeout(searchRevealTimeoutRef.current);
       }
     },
     [],
@@ -244,11 +256,28 @@ const HomePage = () => {
 
   const handleSearchSubmit = React.useCallback(() => {
     const nextQuery = timelineSearchInput.trim();
-    setTimelineSearch(nextQuery);
-    setVisibleTimelineCount(18);
-    if (resultsScrollRef.current) {
-      resultsScrollRef.current.scrollTop = 0;
+    setIsSearchSubmitting(true);
+    setIsSearchResultsVisible(false);
+
+    if (searchSubmitTimeoutRef.current) {
+      window.clearTimeout(searchSubmitTimeoutRef.current);
     }
+    if (searchRevealTimeoutRef.current) {
+      window.clearTimeout(searchRevealTimeoutRef.current);
+    }
+
+    searchSubmitTimeoutRef.current = window.setTimeout(() => {
+      setTimelineSearch(nextQuery);
+      setVisibleTimelineCount(18);
+      if (resultsScrollRef.current) {
+        resultsScrollRef.current.scrollTop = 0;
+      }
+      setIsSearchResultsVisible(true);
+
+      searchRevealTimeoutRef.current = window.setTimeout(() => {
+        setIsSearchSubmitting(false);
+      }, SEARCH_RESULT_HANDOFF_MS);
+    }, SEARCH_SUBMIT_DELAY_MS);
   }, [timelineSearchInput]);
 
   const handleDialogClose = () => {
@@ -520,133 +549,198 @@ const HomePage = () => {
                         ),
                       }}
                     />
-                    <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', rowGap: 1 }}>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        p: 0.75,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.04)',
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, minmax(0, 1fr))' },
+                        gap: 0.75,
+                      }}
+                    >
                       {SEARCH_SUB_FILTERS.map((filter) => {
                         const isActive = searchSubFilter === filter.key;
                         return (
                           <Button
                             key={filter.key}
                             size="small"
-                            variant={isActive ? 'contained' : 'outlined'}
                             onClick={() => handleSearchSubFilterChange(filter.key)}
-                            sx={{ justifyContent: 'flex-start', textTransform: 'none', borderRadius: 99 }}
+                            sx={{
+                              textTransform: 'none',
+                              borderRadius: 1.5,
+                              py: 0.65,
+                              fontWeight: isActive ? 700 : 600,
+                              letterSpacing: isActive ? 0.25 : 0,
+                              color: isActive ? 'common.white' : 'text.secondary',
+                              background: isActive
+                                ? 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)'
+                                : 'transparent',
+                              border: '1px solid',
+                              borderColor: isActive
+                                ? 'rgba(14,165,233,0.65)'
+                                : theme.palette.mode === 'dark'
+                                  ? 'rgba(255,255,255,0.1)'
+                                  : 'rgba(15,23,42,0.12)',
+                              boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.28)' : 'none',
+                              transition: 'all 220ms ease',
+                              '&:hover': {
+                                background: isActive
+                                  ? 'linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%)'
+                                  : theme.palette.mode === 'dark'
+                                    ? 'rgba(255,255,255,0.05)'
+                                    : 'rgba(15,23,42,0.06)',
+                              },
+                            }}
                           >
                             {filter.label}
                           </Button>
                         );
                       })}
-                    </Stack>
+                    </Box>
                   </Box>
 
                   <Box ref={resultsScrollRef} sx={{ p: 2, overflowY: 'auto', flex: 1, minHeight: 0 }} onScroll={handleHubScroll}>
-                    {!isTimelineSearchScope ? (
-                      <Box sx={{ py: 6, textAlign: 'center' }}>
-                        <Typography sx={{ fontWeight: 700, mb: 1 }}>
-                          {`${SEARCH_SUB_FILTERS.find((filter) => filter.key === searchSubFilter)?.label} search is next`}
-                        </Typography>
-                        <Typography color="text.secondary">
-                          {`"${SEARCH_SUB_FILTERS.find((filter) => filter.key === searchSubFilter)?.label}" will populate once this scope is connected to dedicated endpoints.`}
-                        </Typography>
-                      </Box>
-                    ) : timelineSearchInput.trim().length > 0 && timelineSearchInput.trim() !== timelineSearch ? (
-                      <Box sx={{ py: 6, textAlign: 'center' }}>
-                        <Typography sx={{ fontWeight: 700, mb: 1 }}>{`${matchingPreviewCount} results matching so far`}</Typography>
-                        <Typography color="text.secondary">
-                          Press Enter or click the arrow to run this search.
-                        </Typography>
-                      </Box>
-                    ) : !hasSearchQuery ? (
-                      <Box sx={{ py: 6, textAlign: 'center' }}>
-                        <Typography sx={{ fontWeight: 700, mb: 1 }}>Start searching</Typography>
-                        <Typography color="text.secondary">
-                          Enter a search term to explore timelines. This keeps SEARCH focused instead of showing a default list.
-                        </Typography>
-                      </Box>
-                    ) : loadingTimelines ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-                    ) : visibleTimelines.length > 0 ? (
-                      <Stack spacing={1.5}>
-                        {visibleTimelines.map((timeline) => {
-                          const type = String(timeline?.timeline_type || 'hashtag').toLowerCase();
-                          const isCommunity = type === 'community';
-                          const isPersonal = type === 'personal';
-                          const typeLabel = isCommunity ? 'Community' : isPersonal ? 'Personal' : 'Hashtag';
-                          const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
+                    <Box sx={{ position: 'relative', minHeight: 120 }}>
+                      <Box
+                        sx={{
+                          opacity: isSearchResultsVisible ? (isSearchSubmitting ? 0.38 : 1) : 0,
+                          transform: isSearchResultsVisible ? 'translateY(0px)' : 'translateY(7px)',
+                          filter: isSearchSubmitting ? 'blur(1px)' : 'blur(0px)',
+                          transition: 'opacity 320ms ease, transform 320ms ease, filter 220ms ease',
+                          pointerEvents: isSearchSubmitting ? 'none' : 'auto',
+                        }}
+                      >
+                        {!isTimelineSearchScope ? (
+                          <Box sx={{ py: 6, textAlign: 'center' }}>
+                            <Typography sx={{ fontWeight: 700, mb: 1 }}>
+                              {`${SEARCH_SUB_FILTERS.find((filter) => filter.key === searchSubFilter)?.label} search is next`}
+                            </Typography>
+                            <Typography color="text.secondary">
+                              {`"${SEARCH_SUB_FILTERS.find((filter) => filter.key === searchSubFilter)?.label}" will populate once this scope is connected to dedicated endpoints.`}
+                            </Typography>
+                          </Box>
+                        ) : timelineSearchInput.trim().length > 0 && timelineSearchInput.trim() !== timelineSearch ? (
+                          <Box sx={{ py: 6, textAlign: 'center' }}>
+                            <Typography sx={{ fontWeight: 700, mb: 1 }}>{`${matchingPreviewCount} results matching so far`}</Typography>
+                            <Typography color="text.secondary">
+                              Press Enter or click the arrow to run this search.
+                            </Typography>
+                          </Box>
+                        ) : !hasSearchQuery ? (
+                          <Box sx={{ py: 6, textAlign: 'center' }}>
+                            <Typography sx={{ fontWeight: 700, mb: 1 }}>Start searching</Typography>
+                            <Typography color="text.secondary">
+                              Enter a search term to explore timelines. This keeps SEARCH focused instead of showing a default list.
+                            </Typography>
+                          </Box>
+                        ) : loadingTimelines ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
+                        ) : visibleTimelines.length > 0 ? (
+                          <Stack spacing={1.5}>
+                            {visibleTimelines.map((timeline) => {
+                              const type = String(timeline?.timeline_type || 'hashtag').toLowerCase();
+                              const isCommunity = type === 'community';
+                              const isPersonal = type === 'personal';
+                              const typeLabel = isCommunity ? 'Community' : isPersonal ? 'Personal' : 'Hashtag';
+                              const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
 
-                          return (
-                            <Card
-                              key={timeline.id}
-                              sx={{
-                                display: 'flex',
-                                flexDirection: { xs: 'column', md: 'row' },
-                                borderRadius: 2.5,
-                                border: '1px solid',
-                                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(30, 41, 59, 0.18)',
-                                background: theme.palette.mode === 'dark'
-                                  ? 'linear-gradient(165deg, rgba(17,23,39,0.96) 0%, rgba(10,14,24,0.96) 100%)'
-                                  : 'linear-gradient(165deg, rgba(250,244,236,0.98) 0%, rgba(245,239,230,0.98) 100%)',
-                                boxShadow: theme.palette.mode === 'dark'
-                                  ? '0 10px 24px rgba(0,0,0,0.35)'
-                                  : '0 10px 20px rgba(120, 100, 80, 0.12)',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: { xs: '100%', md: 240 },
-                                  minWidth: { xs: '100%', md: 240 },
-                                  height: { xs: 76, md: 'auto' },
-                                  px: 1.5,
-                                  display: 'flex',
-                                  alignItems: 'flex-end',
-                                  pb: 1.25,
-                                  background: isCommunity
-                                    ? 'linear-gradient(140deg, rgba(30,136,229,0.85) 0%, rgba(13,71,161,0.85) 100%)'
-                                    : isPersonal
-                                      ? 'linear-gradient(140deg, rgba(0,150,136,0.82) 0%, rgba(0,105,92,0.85) 100%)'
-                                      : 'linear-gradient(140deg, rgba(217,119,6,0.82) 0%, rgba(180,83,9,0.86) 100%)',
-                                }}
-                              >
-                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
-                                  Timeline banner placeholder (future image slot)
-                                </Typography>
-                              </Box>
+                              return (
+                                <Card
+                                  key={timeline.id}
+                                  sx={{
+                                    display: 'flex',
+                                    flexDirection: { xs: 'column', md: 'row' },
+                                    borderRadius: 2.5,
+                                    border: '1px solid',
+                                    borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(30, 41, 59, 0.18)',
+                                    background: theme.palette.mode === 'dark'
+                                      ? 'linear-gradient(165deg, rgba(17,23,39,0.96) 0%, rgba(10,14,24,0.96) 100%)'
+                                      : 'linear-gradient(165deg, rgba(250,244,236,0.98) 0%, rgba(245,239,230,0.98) 100%)',
+                                    boxShadow: theme.palette.mode === 'dark'
+                                      ? '0 10px 24px rgba(0,0,0,0.35)'
+                                      : '0 10px 20px rgba(120, 100, 80, 0.12)',
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      width: { xs: '100%', md: 240 },
+                                      minWidth: { xs: '100%', md: 240 },
+                                      height: { xs: 76, md: 'auto' },
+                                      px: 1.5,
+                                      display: 'flex',
+                                      alignItems: 'flex-end',
+                                      pb: 1.25,
+                                      background: isCommunity
+                                        ? 'linear-gradient(140deg, rgba(30,136,229,0.85) 0%, rgba(13,71,161,0.85) 100%)'
+                                        : isPersonal
+                                          ? 'linear-gradient(140deg, rgba(0,150,136,0.82) 0%, rgba(0,105,92,0.85) 100%)'
+                                          : 'linear-gradient(140deg, rgba(217,119,6,0.82) 0%, rgba(180,83,9,0.86) 100%)',
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
+                                      Timeline banner placeholder (future image slot)
+                                    </Typography>
+                                  </Box>
 
-                              <CardContent sx={{ flexGrow: 1 }}>
-                                <Chip
-                                  size="small"
-                                  icon={<TypeIcon fontSize="small" />}
-                                  label={typeLabel}
-                                  sx={{ mb: 1, fontWeight: 600 }}
-                                />
-                                <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.2 }}>{timeline.name}</Typography>
-                                {timeline.description ? (
-                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                                    {timeline.description}
-                                  </Typography>
-                                ) : null}
-                                <Typography variant="caption" color="text.secondary">
-                                  Created: {formatDate(timeline.created_at)}
-                                </Typography>
-                              </CardContent>
-                              <Box sx={{ px: 2, pb: 2, alignSelf: { xs: 'stretch', md: 'flex-end' } }}>
-                                <Button size="small" variant="contained" onClick={() => navigate(`/timeline-v3/${timeline.id}`)}>
-                                  Open Timeline
-                                </Button>
-                              </Box>
-                            </Card>
-                          );
-                        })}
-                      </Stack>
-                    ) : (
-                      <Box sx={{ py: 6, textAlign: 'center' }}><Typography color="text.secondary">No timelines matched your search.</Typography></Box>
-                    )}
+                                  <CardContent sx={{ flexGrow: 1 }}>
+                                    <Chip
+                                      size="small"
+                                      icon={<TypeIcon fontSize="small" />}
+                                      label={typeLabel}
+                                      sx={{ mb: 1, fontWeight: 600 }}
+                                    />
+                                    <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.2 }}>{timeline.name}</Typography>
+                                    {timeline.description ? (
+                                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                                        {timeline.description}
+                                      </Typography>
+                                    ) : null}
+                                    <Typography variant="caption" color="text.secondary">
+                                      Created: {formatDate(timeline.created_at)}
+                                    </Typography>
+                                  </CardContent>
+                                  <Box sx={{ px: 2, pb: 2, alignSelf: { xs: 'stretch', md: 'flex-end' } }}>
+                                    <Button size="small" variant="contained" onClick={() => navigate(`/timeline-v3/${timeline.id}`)}>
+                                      Open Timeline
+                                    </Button>
+                                  </Box>
+                                </Card>
+                              );
+                            })}
+                          </Stack>
+                        ) : (
+                          <Box sx={{ py: 6, textAlign: 'center' }}><Typography color="text.secondary">No timelines matched your search.</Typography></Box>
+                        )}
 
-                    {!loadingTimelines && hasSearchQuery && visibleTimelineCount < filteredTimelines.length ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                        <Button variant="outlined" onClick={() => setVisibleTimelineCount((prev) => Math.min(prev + 12, filteredTimelines.length))}>Load More</Button>
+                        {!loadingTimelines && hasSearchQuery && visibleTimelineCount < filteredTimelines.length ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <Button variant="outlined" onClick={() => setVisibleTimelineCount((prev) => Math.min(prev + 12, filteredTimelines.length))}>Load More</Button>
+                          </Box>
+                        ) : null}
                       </Box>
-                    ) : null}
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 1.5,
+                          opacity: isSearchSubmitting ? 1 : 0,
+                          pointerEvents: 'none',
+                          transition: 'opacity 180ms ease',
+                        }}
+                      >
+                        <CircularProgress size={30} />
+                        <Typography color="text.secondary">Searching...</Typography>
+                      </Box>
+                    </Box>
                   </Box>
                 </>
               )}
