@@ -540,6 +540,7 @@ const EventMarker = ({
   const previewShift = position?.x > centerX
     ? 'calc(-100% - 8px)'
     : '8px';
+  const isRemarkPreview = event.type === EVENT_TYPES.REMARK;
 
   return (
     <>
@@ -669,10 +670,10 @@ const EventMarker = ({
               transform: `translateX(${previewShift}) scale(0.8)`, // Scale down + offset toward [0]
               transformOrigin: 'bottom center', // Ensure scaling happens from the bottom center
               p: 0, // Remove default padding to control it in child elements
-              maxWidth: 256, // Reduced from 320 (320 * 0.8)
+              maxWidth: isRemarkPreview ? 'none' : 256, // Reduced from 320 (320 * 0.8)
               width: 'max-content', // Allow width to adjust to content
               // Type-specific background colors
-              bgcolor: (() => {
+              bgcolor: isRemarkPreview ? 'transparent' : (() => {
                 if (event.type === EVENT_TYPES.MEDIA) {
                   return theme.palette.mode === 'dark' 
                     ? 'rgba(30,20,40,0.95)' // Darker purple for dark mode
@@ -688,10 +689,10 @@ const EventMarker = ({
                     : 'rgba(245,250,255,0.97)'; // Light blue for light mode
                 }
               })(),
-              backdropFilter: 'blur(10px)',
-              borderRadius: '12px',
+              backdropFilter: isRemarkPreview ? 'none' : 'blur(10px)',
+              borderRadius: isRemarkPreview ? 0 : '12px',
               // Type-specific border colors
-              border: `1px solid ${(() => {
+              border: isRemarkPreview ? 'none' : `1px solid ${(() => {
                 if (event.type === EVENT_TYPES.MEDIA) {
                   return mediaBorder || (theme.palette.mode === 'dark' 
                     ? 'rgba(180,160,220,0.2)'
@@ -706,9 +707,9 @@ const EventMarker = ({
                     : 'rgba(100,140,220,0.15)';
                 }
               })()}`,
-              overflow: 'hidden', // For rounded corners on media content
+              overflow: isRemarkPreview ? 'visible' : 'hidden', // For rounded corners on media content
               // Type-specific box shadows
-              boxShadow: (() => {
+              boxShadow: isRemarkPreview ? 'none' : (() => {
                 if (event.type === EVENT_TYPES.MEDIA) {
                   return theme.palette.mode === 'dark' 
                     ? `0 8px 20px rgba(0,0,0,0.6), 0 2px 8px ${mediaShadow || 'rgba(100,50,150,0.3)'}`
@@ -726,7 +727,9 @@ const EventMarker = ({
               zIndex: 9000, // Significantly higher z-index to ensure it appears above all containers
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               // Arrow pointer at the bottom of the card
-              '&::after': {
+              '&::after': isRemarkPreview ? {
+                content: 'none',
+              } : {
                 content: '""',
                 position: 'absolute',
                 bottom: '-8px', // Position at the bottom of the card
@@ -757,7 +760,12 @@ const EventMarker = ({
           >
             {/* Render the appropriate marker based on event type */}
             {event.type === EVENT_TYPES.REMARK ? (
-              <RemarkEventMarker event={event} onDelete={onDelete} onEdit={onEdit} />
+              <RemarkEventMarker
+                event={event}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                avatarSide={position?.x > centerX ? 'right' : 'left'}
+              />
             ) : event.type === EVENT_TYPES.NEWS ? (
               <NewsEventMarker event={event} onDelete={onDelete} onEdit={onEdit} />
             ) : event.type === EVENT_TYPES.MEDIA ? (

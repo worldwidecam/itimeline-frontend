@@ -5,6 +5,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Close as CloseIcon } from '@mui/icons-material';
 import Navbar from './components/Navbar';
+import HomePage from './components/HomePage.js';
 import TimelineV3 from './components/timeline-v3/TimelineV3';
 import PersonalTimelineWrapper from './components/timeline-v3/PersonalTimelineWrapper';
 import Login from './components/Login';
@@ -1103,7 +1104,7 @@ function App() {
                 <Route path="/home" element={
                   <Box sx={{ height: '100vh', overflow: 'auto' }}>
                     <ProtectedRoute>
-                      <Homepage />
+                      <HomePage />
                     </ProtectedRoute>
                   </Box>
                 } />

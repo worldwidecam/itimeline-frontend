@@ -174,14 +174,6 @@ const RemarkCard = forwardRef(({
     }
   };
 
-  // Function to limit description to 15 words
-  const limitDescription = (text) => {
-    if (!text) return '';
-    const words = text.split(/\s+/);
-    if (words.length <= 15) return text;
-    return words.slice(0, 15).join(' ') + '...';
-  };
-
   return (
     <>
       <motion.div
@@ -226,28 +218,76 @@ const RemarkCard = forwardRef(({
             color={color}
           />
           
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 2, pr: 8 }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
-              <RemarkIcon sx={{ color, mt: 0.5 }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  {event.title}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-                  {event.event_date && (
-                    <Chip
-                      icon={<EventIcon />}
-                      label={formatEventDate(event.event_date)}
-                      size="small"
-                      color="primary"
-                      sx={{ mr: 1 }}
-                    />
-                  )}
+          <Box
+            sx={{
+              mb: 2,
+              pr: 2,
+              mt: -2,
+              position: 'relative',
+              borderTop: `2px solid ${color}`,
+              borderBottom: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
+              px: 1,
+              py: 1,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
+                gap: 1,
+                pb: 1,
+                mb: 1,
+                position: 'relative',
+                pr: { xs: 10, sm: 9 },
+                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: '4px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    fontSize: '0.72rem',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(96,165,250,0.2)' : 'rgba(37,99,235,0.1)',
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(96,165,250,0.5)' : 'rgba(37,99,235,0.45)'}`,
+                    color,
+                    flexShrink: 0,
+                  }}
+                >
+                  <RemarkIcon sx={{ fontSize: '0.9rem' }} />
+                  Remark
                 </Box>
+                {event.event_date && (
+                  <Chip
+                    icon={<EventIcon />}
+                    label={formatEventDate(event.event_date)}
+                    size="small"
+                    color="primary"
+                    sx={{ maxWidth: 220, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                  />
+                )}
               </Box>
             </Box>
+
             {showInlineVoteControls && (
-              <Box sx={{ mt: 0.25, flexShrink: 0 }}>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 2,
+                  right: -10,
+                  transform: 'scale(0.9)',
+                  transformOrigin: 'right top',
+                  zIndex: 3,
+                }}
+              >
                 <VoteControls
                   value={voteValue}
                   onChange={handleVoteChange}
@@ -255,25 +295,34 @@ const RemarkCard = forwardRef(({
                   totalVotes={totalVotes}
                   isLoading={voteLoading}
                   hasError={!!voteError}
+                  layout="stacked"
+                  sizeScale={0.76}
+                  pillScale={0.92}
+                  badgeScale={0.72}
                 />
               </Box>
             )}
-          </Box>
 
-          {/* Description with larger space */}
-          <Box sx={{ mb: 2, maxHeight: '150px', overflow: 'hidden' }}>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                whiteSpace: 'pre-wrap',
+            <Typography
+              variant="h4"
+              component="div"
+              sx={{
+                textAlign: 'center',
+                fontWeight: 800,
+                fontFamily: '"Bebas Neue", "Anton", "Arial Black", sans-serif',
+                letterSpacing: '0.02em',
+                lineHeight: 1.03,
+                fontSize: 'clamp(1.5rem, 2.8vw, 2.4rem)',
+                textTransform: 'uppercase',
                 display: '-webkit-box',
-                WebkitLineClamp: 5,
+                WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                px: 0.5,
               }}
             >
-              {limitDescription(event.description)}
+              {event.title}
             </Typography>
           </Box>
 

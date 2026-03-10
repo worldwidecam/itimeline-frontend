@@ -1,15 +1,32 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, keyframes } from '@mui/material/styles';
 import { EVENT_TYPE_COLORS, EVENT_TYPES } from '../EventTypes';
 import EventPopup from '../EventPopup';
+import UserAvatar from '../../../common/UserAvatar';
 
 /**
  * Component for rendering Remark event markers in the timeline
  */
-const RemarkEventMarker = ({ event, onDelete, onEdit }) => {
+const bubblePop = keyframes`
+  0% {
+    transform: scale(0.95) translateY(2px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.03) translateY(-1px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+`;
+
+const RemarkEventMarker = ({ event, onDelete, onEdit, avatarSide = 'left' }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
+  const isAvatarRight = avatarSide === 'right';
   
   const handleMarkerClick = useCallback((e) => {
     e.stopPropagation();
@@ -33,76 +50,97 @@ const RemarkEventMarker = ({ event, onDelete, onEdit }) => {
         elevation={3}
         onClick={handleMarkerClick}
         sx={{
-          maxWidth: 250, 
+          maxWidth: 280,
           cursor: 'pointer',
-          overflow: 'hidden',
-          borderRadius: '12px',
-          // Type-specific background and border colors
-          bgcolor: theme.palette.mode === 'dark' 
-            ? 'rgba(15,15,35,0.95)' // Darker blue for dark mode
-            : 'rgba(245,250,255,0.97)', // Light blue for light mode
-          border: `1px solid ${theme.palette.mode === 'dark' 
-            ? 'rgba(160,180,220,0.2)' // Blue border for dark mode
-            : 'rgba(100,140,220,0.15)'}`, // Blue border for light mode
+          overflow: 'visible',
+          borderRadius: '16px',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(165deg, rgba(34,40,74,0.96) 0%, rgba(20,22,44,0.96) 100%)'
+            : 'linear-gradient(165deg, #ffffff 0%, #fff3dd 100%)',
+          border: `2px solid ${theme.palette.mode === 'dark'
+            ? 'rgba(150,170,220,0.45)'
+            : 'rgba(36,42,84,0.78)'}`,
           boxShadow: theme.palette.mode === 'dark' 
-            ? '0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(60,100,160,0.3)' 
-            : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(60,100,160,0.15)'
+            ? '0 12px 24px rgba(0,0,0,0.55), 5px 6px 0 rgba(10,12,30,0.8)'
+            : '0 12px 24px rgba(0,0,0,0.18), 5px 6px 0 rgba(31,31,31,0.75)',
+          animation: `${bubblePop} 220ms cubic-bezier(0.22, 1, 0.36, 1)`,
+          transformOrigin: isAvatarRight ? '100% 100%' : '0% 100%',
         }}
       >
-        <Box sx={{ p: 1.5 }}>
-          {/* Title with quote styling */}
-          <Box sx={{ 
-            position: 'relative',
-          '&::before': {
-            content: '"\u201C"', // Left double quotation mark
-            position: 'absolute',
-            left: -5,
-            top: -12,
-            fontSize: '1.8rem',
-            color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
-            opacity: 0.6
-          },
-          '&::after': {
-            content: '"\u201D"', // Right double quotation mark
-            position: 'absolute',
-            right: -5,
-            bottom: -16,
-            fontSize: '1.8rem',
-            color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
-            opacity: 0.6
-          }
-        }}>
-          <Typography variant="subtitle1" sx={{ 
-            fontWeight: 'bold', 
-            lineHeight: 1.2,
-            px: 1
-          }}>
-            {event.title}
-          </Typography>
+        <Box
+          sx={{
+            p: 1.25,
+            display: 'flex',
+            flexDirection: isAvatarRight ? 'row-reverse' : 'row',
+            alignItems: 'flex-end',
+            gap: 1,
+          }}
+        >
+          <UserAvatar
+            name={event?.created_by_username || event?.author || 'User'}
+            avatarUrl={event?.created_by_avatar}
+            id={event?.created_by}
+            size={36}
+            sx={{
+              flexShrink: 0,
+              border: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.24)' : 'rgba(31,31,31,0.25)'}`,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 2px 8px rgba(0,0,0,0.45)'
+                : '0 2px 6px rgba(0,0,0,0.2)',
+            }}
+          />
+          <Box
+            sx={{
+              position: 'relative',
+              px: 1.25,
+              py: 0.5,
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              '&::before': {
+                content: '"\u201C"',
+                position: 'absolute',
+                left: 0,
+                top: -7,
+                fontSize: '1.72rem',
+                fontFamily: '"Lobster", cursive',
+                lineHeight: 1,
+                color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                opacity: 0.7,
+              },
+              '&::after': {
+                content: '"\u201D"',
+                position: 'absolute',
+                right: 0,
+                top: -7,
+                fontSize: '1.72rem',
+                fontFamily: '"Lobster", cursive',
+                lineHeight: 1,
+                color: EVENT_TYPE_COLORS[EVENT_TYPES.REMARK][theme.palette.mode === 'dark' ? 'dark' : 'light'],
+                opacity: 0.7,
+              },
+            }}
+          >
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 700,
+                lineHeight: 1.3,
+                px: 1,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textAlign: 'center',
+                fontSize: '0.98rem',
+                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.94)' : 'rgba(20,20,20,0.93)',
+              }}
+            >
+              {event.title}
+            </Typography>
+          </Box>
         </Box>
-        
-        {/* First sentence of description */}
-        {event.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ 
-            fontStyle: 'italic',
-            display: '-webkit-box',
-            WebkitLineClamp: 1,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            lineHeight: 1.4,
-            mb: 1,
-            pl: 1
-          }}>
-            {/* Extract first sentence or first 60 characters */}
-            {event.description.split('.')[0].substring(0, 60)}{event.description.length > 60 ? '...' : ''}
-          </Typography>
-        )}
-        
-        {/* Date and time */}
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          {event && event.event_date ? new Date(event.event_date).toLocaleString() : ''}
-        </Typography>
-      </Box>
       </Paper>
     </>
   );

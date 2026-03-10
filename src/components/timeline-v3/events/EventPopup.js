@@ -978,22 +978,90 @@ const EventPopup = ({
             {/* Event Description */}
             {(event.content || event.description) && (
               <Box sx={{ mb: 3 }}>
-                {event.content ? (
-                  <RichContentRenderer content={event.content} theme={theme} />
-                ) : (
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.7,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.85)'
-                        : 'rgba(0,0,0,0.75)',
-                    }}
-                  >
-                    {event.description}
-                  </Typography>
-                )}
+                <Box
+                  sx={event.type === EVENT_TYPES.REMARK ? {
+                    position: 'relative',
+                    overflow: 'hidden',
+                    px: { xs: 2.25, sm: 2.75 },
+                    py: { xs: 2.25, sm: 2.5 },
+                    borderRadius: '4px',
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.24)' : 'rgba(63,43,24,0.24)'}`,
+                    background: theme.palette.mode === 'dark'
+                      ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)'
+                      : 'linear-gradient(180deg, rgba(255,252,245,0.98) 0%, rgba(246,238,224,0.98) 100%)',
+                    backgroundImage: theme.palette.mode === 'dark'
+                      ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%), repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 8px)'
+                      : 'linear-gradient(180deg, rgba(255,252,245,0.98) 0%, rgba(246,238,224,0.98) 100%), repeating-linear-gradient(0deg, rgba(120,78,35,0.035) 0px, rgba(120,78,35,0.035) 1px, transparent 1px, transparent 9px)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 14px 26px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 0 0 1px rgba(255,255,255,0.02)'
+                      : '0 14px 28px rgba(73,46,20,0.15), inset 0 1px 0 rgba(255,255,255,0.82), inset 0 0 0 1px rgba(113,79,46,0.08)',
+                    '&::before': {
+                      content: '"“"',
+                      position: 'absolute',
+                      top: -10,
+                      left: 10,
+                      fontFamily: '"Bodoni Moda", "Times New Roman", serif',
+                      fontSize: '4.2rem',
+                      lineHeight: 1,
+                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(107,74,39,0.2)',
+                      pointerEvents: 'none',
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: 18,
+                      height: 18,
+                      background: theme.palette.mode === 'dark'
+                        ? 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.03) 70%)'
+                        : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(0,0,0,0.05) 70%)',
+                      clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+                      borderTopRightRadius: '3px',
+                    },
+                    '& > .remark-letter-content': {
+                      position: 'relative',
+                      zIndex: 1,
+                      borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(118,80,43,0.18)'}`,
+                      paddingTop: 1.2,
+                    },
+                  } : {}}
+                >
+                  {event.content ? (
+                    <Box className="remark-letter-content" sx={{ position: 'relative', zIndex: 1 }}>
+                      <RichContentRenderer content={event.content} theme={theme} />
+                    </Box>
+                  ) : (
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        fontFamily: '"Cormorant Garamond", "Georgia", serif',
+                        fontSize: '1.13rem',
+                        letterSpacing: '0.01em',
+                        position: 'relative',
+                        zIndex: 1,
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.82,
+                        color: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.9)'
+                          : 'rgba(43,28,14,0.86)',
+                        borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(118,80,43,0.18)'}`,
+                        pt: 1.2,
+                        '&::first-letter': {
+                          fontFamily: '"Bodoni Moda", "Times New Roman", serif',
+                          fontSize: '2.2rem',
+                          lineHeight: 0.95,
+                          fontWeight: 700,
+                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.85)' : 'rgba(96,61,30,0.92)',
+                          paddingRight: '0.12em',
+                          float: 'left',
+                        },
+                      }}
+                    >
+                      {event.description}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             )}
             

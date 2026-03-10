@@ -4,24 +4,32 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Update/improve remark cards look
+- [ ] Home page implementation (exists but not functional yet)
 
 ## Scope / Success Criteria
-- Refine remark card visual design while preserving current behavior.
-- Keep interactions/permissions unchanged unless explicitly requested.
-- Ship polish that is consistent across timeline and popup contexts.
-- this improvement to remark cards will most likely be PURELY UI and UX design
+- Home page loads end-to-end with real data (no dead sections).
+- Primary actions on home page are functional (navigation, core CTA flow, and key interaction blocks).
+- Layout and behavior are stable across desktop and mobile breakpoints.
+- Existing routes/integrations are preserved without breaking timeline entry points.
+- Home route remains `/home` (target production URL: `i-timeline.com/home`).
+- Remove dev-only Home sections (e.g., Media Uploader Test).
+- Hero banner supports ellipsis catalog with auto-rotation every 2 minutes.
+- No placeholder/mock data is introduced for Home v1.
+- Left hub and right hub lock vertically under navbar; right hub scrolls internally.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] Audit current remark card variants (timeline, popup, hover/selected states).
-- [ ] Propose and apply visual polish pass (spacing, hierarchy, chips/icons, readability).
-- [ ] Validate responsive behavior and no regressions in existing interactions.
+- [ ] Audit current Home page component, route wiring, and data dependencies.
+- [ ] Define minimal shippable Home page behavior and section-level acceptance criteria.
+- [ ] Implement missing functional sections and hook up real API-backed data.
+- [ ] Validate mobile + desktop behavior and confirm no routing regressions.
+- [ ] Build hero ellipsis catalog with v1 options: current hero + Timeline Spotlight of the Day; auto-rotate every 2 minutes.
+- [ ] Build left hub as vertical reference/tabs for right hub mode selection; first mode = TIMELINE SEARCH.
+- [ ] Build right hub as primary internal-scroll container driven by selected left hub mode.
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
-- [ ] Update/improve remark cards look
+- [x] Update/improve remark cards look
 - [ ] NSFW filter
 - [ ] Profile page implementation (existing page needs full build-out)
-- [ ] Home page implementation (exists but not functional yet)
 - [ ] # hashtag chip voting system
 - [ ] make a home page submission box
 - [ ] sharing link system
@@ -38,6 +46,7 @@
 - [x] Validate threshold-not-met action-status footer behavior (shows current tally/progress)
 
 ### Archived from Pending TODOs
+- [x] Update/improve remark cards look
 - [x] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
 - [x] reporting action cards
 - [x] go back and fully implement action cards
