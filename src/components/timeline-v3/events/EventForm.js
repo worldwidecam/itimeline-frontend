@@ -1426,6 +1426,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                 position: 'relative',
                 filter: isPersonalTimeline ? 'blur(2px)' : 'none',
                 opacity: isPersonalTimeline ? 0.6 : 1,
+                pointerEvents: isPersonalTimeline ? 'none' : 'auto',
               }}
             >
               <TextField
@@ -1451,6 +1452,19 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                   ))}
                 </Box>
               )}
+
+              {isPersonalTimeline ? (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 1,
+                    border: '1px dashed',
+                    borderColor: 'warning.main',
+                    bgcolor: 'rgba(255, 193, 7, 0.12)',
+                  }}
+                />
+              ) : null}
             </Box>
 
             {isPersonalTimeline ? (

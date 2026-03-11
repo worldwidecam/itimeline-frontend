@@ -205,6 +205,7 @@ const EventPopup = ({
   const [selectedHashtag, setSelectedHashtag] = useState(null);
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [selectedPersonal, setSelectedPersonal] = useState(null);
+  const [hasAcknowledgedPrivacyWarning, setHasAcknowledgedPrivacyWarning] = useState(false);
   // Passport memberships for filtering lane options
   const [passportMemberships, setPassportMemberships] = useState([]);
   // Store the updated event data after adding a tag
@@ -548,10 +549,27 @@ const EventPopup = ({
     ((event && event.removed_from_this_timeline) ? [deriveTimelineId()] : []);
   const associatedTimelines = (localEventData?.associated_timelines || event.associated_timelines) || [];
   const { communities, personals } = normalizeAssociatedTimelines(associatedTimelines, removedIds);
+  const currentTimelineId = Number(deriveTimelineId() || 0);
+  const currentTimelineFromEvent = associatedTimelines.find((tl) => Number(tl?.id) === currentTimelineId);
+  const currentTimelineFromCatalog = existingTimelines.find((tl) => Number(tl?.id) === currentTimelineId);
+  const currentTimelineType = String(
+    currentTimelineFromEvent?.type
+    || currentTimelineFromEvent?.timeline_type
+    || currentTimelineFromCatalog?.timeline_type
+    || currentTimelineFromCatalog?.type
+    || '',
+  ).toLowerCase();
+  const isCurrentTimelinePersonal = currentTimelineType === 'personal';
   const hashtagTags = ((localEventData?.tags || event.tags) || []).map((t) => {
     if (typeof t === 'string') return t;
     return t?.name || t?.tag_name || '';
   }).filter(Boolean);
+
+  useEffect(() => {
+    if (open) {
+      setHasAcknowledgedPrivacyWarning(false);
+    }
+  }, [open, currentTimelineId]);
 
   // Current user (from localStorage) for personal ownership checks
   let currentUserId = null;
@@ -758,6 +776,8 @@ const EventPopup = ({
     error,
     success,
     currentUserId,
+    showPrivacyWarningGate: isCurrentTimelinePersonal && !hasAcknowledgedPrivacyWarning,
+    onAcknowledgePrivacyWarning: () => setHasAcknowledgedPrivacyWarning(true),
   };
 
   if (isNews) {

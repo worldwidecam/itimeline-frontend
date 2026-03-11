@@ -231,6 +231,8 @@ const PopupTimelineLanes = ({
   error,
   success,
   currentUserId,
+  showPrivacyWarningGate = false,
+  onAcknowledgePrivacyWarning,
 }) => {
   const theme = useTheme();
   const [hashtagDropdownOpen, setHashtagDropdownOpen] = React.useState(false);
@@ -253,7 +255,7 @@ const PopupTimelineLanes = ({
   };
 
   return (
-    <Box>
+    <Box sx={{ position: 'relative' }}>
       {/* Header Row: Timeline Tags Title + Communities & Personals Buttons */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography 
@@ -621,6 +623,41 @@ const PopupTimelineLanes = ({
           {success && !error && <Alert severity="success">{success}</Alert>}
         </Box>
       )}
+
+      {showPrivacyWarningGate ? (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 8,
+            borderRadius: 1.5,
+            border: '1px solid',
+            borderColor: 'warning.main',
+            bgcolor: 'rgba(255, 244, 229, 0.92)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            gap: 1.5,
+            px: 2,
+            py: 3,
+          }}
+        >
+          <Typography sx={{ fontWeight: 800, color: 'warning.dark' }}>
+            WARNING!: adding or tagging this post will no longer make this post Private!
+          </Typography>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={onAcknowledgePrivacyWarning}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            I understand
+          </Button>
+        </Box>
+      ) : null}
     </Box>
   );
 };

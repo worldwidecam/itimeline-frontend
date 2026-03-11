@@ -183,6 +183,8 @@ const EventDialog = ({
   const [mediaUploadError, setMediaUploadError] = useState(null);
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
+  const isPersonalTimeline = String(timelineType || '').toLowerCase() === 'personal'
+    || (typeof timelineName === 'string' && timelineName.startsWith('My-'));
 
   const normalizeTags = (rawTags = []) => rawTags
     .map((tag) => {
@@ -373,6 +375,11 @@ const EventDialog = ({
   };
 
   const handleAddTag = () => {
+    if (isPersonalTimeline) {
+      setCurrentTag('');
+      return;
+    }
+
     // V3 Enhancement: Ban '-' and '#' from tag names
     if (currentTag.includes('-') || currentTag.includes('#')) {
       alert('Tags cannot contain "-" or "#" characters.');
@@ -746,51 +753,82 @@ const EventDialog = ({
           />
 
           <Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TextField
-                label="Add Tags"
-                size="small"
-                value={currentTag}
-                onChange={(e) => setCurrentTag(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                sx={{ flexGrow: 1 }}
-              />
-              <Tooltip title="Add Tag">
-                <IconButton 
-                  onClick={handleAddTag}
-                  sx={{ 
-                    color: getTypeColor(),
-                    '&:hover': { bgcolor: `${getTypeColor()}20` }
+            <Box
+              sx={{
+                position: 'relative',
+                filter: isPersonalTimeline ? 'blur(2px)' : 'none',
+                opacity: isPersonalTimeline ? 0.6 : 1,
+                pointerEvents: isPersonalTimeline ? 'none' : 'auto',
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                  label="Add Tags"
+                  size="small"
+                  value={currentTag}
+                  onChange={(e) => setCurrentTag(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
                   }}
-                >
-                  <AddIcon />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-            {tags.length > 0 && (
-              <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {tags.map((tag) => (
-                  <Chip
-                    key={tag}
-                    label={typeof tag === 'string' ? tag : String(tag)}
-                    onDelete={() => handleRemoveTag(tag)}
-                    sx={{
-                      bgcolor: `${getTypeColor()}20`,
-                      color: getTypeColor(),
-                      '& .MuiChip-deleteIcon': {
+                  disabled={isPersonalTimeline}
+                  sx={{ flexGrow: 1 }}
+                />
+                <Tooltip title="Add Tag">
+                  <span>
+                    <IconButton
+                      onClick={handleAddTag}
+                      disabled={isPersonalTimeline}
+                      sx={{
                         color: getTypeColor(),
-                        '&:hover': { color: getTypeColor() }
-                      }
-                    }}
-                  />
-                ))}
-              </Box>
-            )}
+                        '&:hover': { bgcolor: `${getTypeColor()}20` }
+                      }}
+                    >
+                      <AddIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Stack>
+              {tags.length > 0 && (
+                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {tags.map((tag) => (
+                    <Chip
+                      key={tag}
+                      label={typeof tag === 'string' ? tag : String(tag)}
+                      onDelete={() => handleRemoveTag(tag)}
+                      sx={{
+                        bgcolor: `${getTypeColor()}20`,
+                        color: getTypeColor(),
+                        '& .MuiChip-deleteIcon': {
+                          color: getTypeColor(),
+                          '&:hover': { color: getTypeColor() }
+                        }
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+
+              {isPersonalTimeline ? (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 1,
+                    border: '1px dashed',
+                    borderColor: 'warning.main',
+                    bgcolor: 'rgba(255, 193, 7, 0.12)',
+                  }}
+                />
+              ) : null}
+            </Box>
+            {isPersonalTimeline ? (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Hashtags are disabled on personal timelines to prevent accidental public exposure.
+              </Typography>
+            ) : null}
           </Box>
         </Stack>
         {showVerdictField && (

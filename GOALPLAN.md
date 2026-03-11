@@ -36,6 +36,8 @@
 - [ ] reorganizing community admin page action card settings under INFO CARDS umbrella
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
 - [ ] update the members page and admin page buttons to FAB
+- [ ] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
+
 
 ## Completed
 ### Archived from recent Community Action Cards work
