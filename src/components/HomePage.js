@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import {
   CircularProgress,
   Box,
@@ -17,6 +17,7 @@ import {
   IconButton,
   Paper,
   Chip,
+  Avatar,
   InputAdornment,
 } from '@mui/material';
 import {
@@ -44,6 +45,17 @@ const HOME_NAVBAR_OFFSET_PX = 78;
 const SEARCH_SUBMIT_DELAY_MS = 340;
 const SEARCH_RESULT_HANDOFF_MS = 140;
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
+
+const normalizeUserPrimaryColor = (profileUser) => {
+  const candidate = String(
+    profileUser?.primary_color
+      || profileUser?.profile_primary_color
+      || profileUser?.accent_color
+      || '',
+  ).trim();
+
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(candidate) ? candidate : null;
+};
 
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
@@ -73,7 +85,9 @@ const HomePage = () => {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [timelines, setTimelines] = React.useState([]);
   const [searchEvents, setSearchEvents] = React.useState([]);
+  const [searchUsers, setSearchUsers] = React.useState([]);
   const [loadingSearchEvents, setLoadingSearchEvents] = React.useState(false);
+  const [loadingSearchUsers, setLoadingSearchUsers] = React.useState(false);
   const [hasLoadedSearchEvents, setHasLoadedSearchEvents] = React.useState(false);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
   const [heroIndex, setHeroIndex] = React.useState(0);
@@ -170,6 +184,7 @@ const HomePage = () => {
   const hasSearchDraft = timelineSearchInput.trim().length > 0;
   const isTimelineSearchScope = searchSubFilter === 'all' || searchSubFilter === 'timelines';
   const isPostSearchScope = searchSubFilter === 'all' || searchSubFilter === 'posts';
+  const isUserSearchScope = searchSubFilter === 'all' || searchSubFilter === 'users';
   const currentUserId = Number(user?.id || 0);
 
   const normalizedTimelines = React.useMemo(() => {
@@ -222,8 +237,16 @@ const HomePage = () => {
       }).length;
     }
 
+    if (isUserSearchScope) {
+      count += searchUsers.filter((profileUser) => {
+        const username = String(profileUser?.username || '').toLowerCase();
+        const bio = String(profileUser?.bio || '').toLowerCase();
+        return username.includes(previewQuery) || bio.includes(previewQuery);
+      }).length;
+    }
+
     return count;
-  }, [timelineSearchInput, isTimelineSearchScope, isPostSearchScope, searchableTimelines, searchEvents]);
+  }, [timelineSearchInput, isTimelineSearchScope, isPostSearchScope, isUserSearchScope, searchableTimelines, searchEvents, searchUsers]);
 
   const spotlightTimeline = React.useMemo(() => {
     if (!normalizedTimelines.length) return null;
@@ -296,6 +319,38 @@ const HomePage = () => {
       .map((entry) => entry.event);
   }, [searchEvents, timelineSearch, isPostSearchScope, hasSearchQuery]);
 
+  const filteredUsers = React.useMemo(() => {
+    if (!isUserSearchScope) return [];
+    if (!hasSearchQuery) return [];
+
+    const q = timelineSearch.trim().toLowerCase();
+    const rankUser = (profileUser) => {
+      const username = String(profileUser?.username || '').toLowerCase();
+      const bio = String(profileUser?.bio || '').toLowerCase();
+
+      if (username === q) return 0;
+      if (username.startsWith(q)) return 1;
+      if (username.includes(q)) return 2;
+      if (bio.includes(q)) return 3;
+      return 999;
+    };
+
+    return searchUsers
+      .map((profileUser) => ({
+        profileUser,
+        rank: rankUser(profileUser),
+      }))
+      .filter((entry) => entry.rank < 999)
+      .sort((a, b) => {
+        if (a.rank !== b.rank) return a.rank - b.rank;
+        const aNameLength = String(a.profileUser?.username || '').length;
+        const bNameLength = String(b.profileUser?.username || '').length;
+        if (aNameLength !== bNameLength) return aNameLength - bNameLength;
+        return Number(a.profileUser?.id || 0) - Number(b.profileUser?.id || 0);
+      })
+      .map((entry) => entry.profileUser);
+  }, [searchUsers, timelineSearch, isUserSearchScope, hasSearchQuery]);
+
   const visibleTimelines = React.useMemo(() => {
     return filteredTimelines.slice(0, visibleTimelineCount);
   }, [filteredTimelines, visibleTimelineCount]);
@@ -303,6 +358,10 @@ const HomePage = () => {
   const visiblePosts = React.useMemo(() => {
     return filteredPosts.slice(0, visibleTimelineCount);
   }, [filteredPosts, visibleTimelineCount]);
+
+  const visibleUsers = React.useMemo(() => {
+    return filteredUsers.slice(0, visibleTimelineCount);
+  }, [filteredUsers, visibleTimelineCount]);
 
   const fetchSearchEvents = React.useCallback(async () => {
     if (loadingSearchEvents || hasLoadedSearchEvents || !searchableTimelines.length) return;
@@ -356,6 +415,36 @@ const HomePage = () => {
     }
   }, [loadingSearchEvents, hasLoadedSearchEvents, searchableTimelines]);
 
+  const fetchSearchUsers = React.useCallback(async (rawQuery) => {
+    const nextQuery = String(rawQuery || '').trim().replace(/^@+/, '');
+    if (!nextQuery) {
+      setSearchUsers([]);
+      return;
+    }
+
+    try {
+      setLoadingSearchUsers(true);
+
+      const response = await api.get('/api/users/lookup', {
+        params: { username: nextQuery },
+      });
+      const payload = response?.data;
+
+      const users = Array.isArray(payload)
+        ? payload
+        : (payload && payload.id ? [payload] : []);
+
+      setSearchUsers(users);
+    } catch (error) {
+      if (error?.response?.status !== 404) {
+        console.error('Error fetching search users:', error);
+      }
+      setSearchUsers([]);
+    } finally {
+      setLoadingSearchUsers(false);
+    }
+  }, []);
+
   const renderSearchEventCard = React.useCallback((event) => {
     const eventType = String(event?.type || EVENT_TYPES.REMARK).toLowerCase();
     const sharedProps = {
@@ -391,8 +480,13 @@ const HomePage = () => {
 
   const handleHubScroll = (e) => {
     const el = e.currentTarget;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && visibleTimelineCount < filteredTimelines.length) {
-      setVisibleTimelineCount((prev) => Math.min(prev + 12, filteredTimelines.length));
+    const maxCount = Math.max(
+      isTimelineSearchScope ? filteredTimelines.length : 0,
+      isPostSearchScope ? filteredPosts.length : 0,
+      isUserSearchScope ? filteredUsers.length : 0,
+    );
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && visibleTimelineCount < maxCount) {
+      setVisibleTimelineCount((prev) => Math.min(prev + 12, maxCount));
     }
   };
 
@@ -415,6 +509,7 @@ const HomePage = () => {
   const handleSearchSubmit = React.useCallback((forcedQuery = null) => {
     const nextQuery = typeof forcedQuery === 'string' ? forcedQuery.trim() : timelineSearchInput.trim();
     const shouldLoadPostScope = nextQuery.length > 0 && isPostSearchScope;
+    const shouldLoadUserScope = nextQuery.length > 0 && isUserSearchScope;
     setIsSearchSubmitting(true);
     setIsSearchResultsVisible(false);
 
@@ -429,6 +524,11 @@ const HomePage = () => {
       if (shouldLoadPostScope) {
         await fetchSearchEvents();
       }
+      if (shouldLoadUserScope) {
+        await fetchSearchUsers(nextQuery);
+      } else {
+        setSearchUsers([]);
+      }
 
       setTimelineSearch(nextQuery);
       setVisibleTimelineCount(18);
@@ -441,7 +541,7 @@ const HomePage = () => {
         setIsSearchSubmitting(false);
       }, SEARCH_RESULT_HANDOFF_MS);
     }, SEARCH_SUBMIT_DELAY_MS);
-  }, [timelineSearchInput, isPostSearchScope, fetchSearchEvents]);
+  }, [timelineSearchInput, isPostSearchScope, isUserSearchScope, fetchSearchEvents, fetchSearchUsers]);
 
   const handleClearSearch = React.useCallback(() => {
     setTimelineSearchInput('');
@@ -700,6 +800,17 @@ const HomePage = () => {
                       value={timelineSearchInput}
                       onChange={handleSearchChange}
                       placeholder="Search timelines by name or description"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(18,24,36,0.78)' : 'rgba(255,255,255,0.9)',
+                        },
+                        '& .MuiInputBase-input:-webkit-autofill, & .MuiInputBase-input:-webkit-autofill:hover, & .MuiInputBase-input:-webkit-autofill:focus': {
+                          WebkitTextFillColor: theme.palette.text.primary,
+                          WebkitBoxShadow: `0 0 0 1000px ${theme.palette.mode === 'dark' ? 'rgba(18,24,36,0.78)' : 'rgba(255,255,255,0.9)'} inset`,
+                          transition: 'background-color 99999s ease-out 0s',
+                          caretColor: theme.palette.text.primary,
+                        },
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -818,16 +929,7 @@ const HomePage = () => {
                           pointerEvents: isSearchSubmitting ? 'none' : 'auto',
                         }}
                       >
-                        {searchSubFilter === 'users' ? (
-                          <Box sx={{ py: 6, textAlign: 'center' }}>
-                            <Typography sx={{ fontWeight: 700, mb: 1 }}>
-                              {`${SEARCH_SUB_FILTERS.find((filter) => filter.key === searchSubFilter)?.label} search is next`}
-                            </Typography>
-                            <Typography color="text.secondary">
-                              {`"${SEARCH_SUB_FILTERS.find((filter) => filter.key === searchSubFilter)?.label}" will populate once this scope is connected to dedicated endpoints.`}
-                            </Typography>
-                          </Box>
-                        ) : timelineSearchInput.trim().length > 0 && timelineSearchInput.trim() !== timelineSearch ? (
+                        {timelineSearchInput.trim().length > 0 && timelineSearchInput.trim() !== timelineSearch ? (
                           <Box sx={{ py: 6, textAlign: 'center' }}>
                             <Typography sx={{ fontWeight: 700, mb: 1 }}>{`${matchingPreviewCount} results matching so far`}</Typography>
                             <Typography color="text.secondary">
@@ -841,9 +943,9 @@ const HomePage = () => {
                               Enter a search term to explore timelines. This keeps SEARCH focused instead of showing a default list.
                             </Typography>
                           </Box>
-                        ) : loadingTimelines || loadingSearchEvents ? (
+                        ) : loadingTimelines || loadingSearchEvents || loadingSearchUsers ? (
                           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-                        ) : visibleTimelines.length > 0 || visiblePosts.length > 0 ? (
+                        ) : visibleTimelines.length > 0 || visiblePosts.length > 0 || visibleUsers.length > 0 ? (
                           <Stack spacing={2}>
                             {isTimelineSearchScope && visibleTimelines.length > 0 ? (
                               <>
@@ -944,17 +1046,204 @@ const HomePage = () => {
                                 </Stack>
                               </>
                             ) : null}
+
+                            {isUserSearchScope && visibleUsers.length > 0 ? (
+                              <>
+                                {searchSubFilter === 'all' ? (
+                                  <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                                    Users
+                                  </Typography>
+                                ) : null}
+                                <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 2.4, sm: 2.9 } }}>
+                                  {visibleUsers.map((profileUser) => {
+                                    const userPrimaryColor = normalizeUserPrimaryColor(profileUser);
+                                    const fallbackStartTone = theme.palette.mode === 'dark' ? '#1a2a3f' : '#fff4ea';
+                                    const fallbackEndTone = theme.palette.mode === 'dark' ? '#395574' : '#dcecff';
+                                    const userCardBackground = userPrimaryColor
+                                      ? `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.9)} 46%, ${alpha(userPrimaryColor, 0.9)} 100%)`
+                                      : `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.93)} 100%)`;
+
+                                    return (
+                                    <Card
+                                      key={`user-${profileUser.id}`}
+                                      onClick={() => navigate(`/profile/${profileUser.id}`)}
+                                      aria-label={`Open profile for ${profileUser.username}`}
+                                      sx={{
+                                        position: 'relative',
+                                        borderRadius: 3,
+                                        border: '2px solid',
+                                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(35, 24, 24, 0.55)',
+                                        background: userCardBackground,
+                                        boxShadow: theme.palette.mode === 'dark'
+                                          ? '0 12px 26px rgba(0,0,0,0.4)'
+                                          : '0 14px 24px rgba(80, 34, 39, 0.24)',
+                                        overflow: 'visible',
+                                        pl: { xs: 12.9, sm: 16.6 },
+                                        minHeight: { xs: 125, sm: 133 },
+                                        cursor: 'pointer',
+                                        transition: 'transform 240ms ease, box-shadow 240ms ease',
+                                        '&:hover': {
+                                          transform: 'translateY(-2px)',
+                                          boxShadow: theme.palette.mode === 'dark'
+                                            ? '0 16px 32px rgba(0,0,0,0.5)'
+                                            : '0 16px 30px rgba(80, 34, 39, 0.3)',
+                                        },
+                                        '&:focus-within': {
+                                          outline: '2px solid rgba(56,189,248,0.55)',
+                                          outlineOffset: 2,
+                                        },
+                                      }}
+                                    >
+                                      <Box
+                                        sx={{
+                                          position: 'absolute',
+                                          left: { xs: -24, sm: -32 },
+                                          top: '50%',
+                                          transform: 'translateY(-50%)',
+                                          width: { xs: 120, sm: 140 },
+                                          height: { xs: 148, sm: 172 },
+                                          borderRadius: '50px',
+                                          border: '3px solid',
+                                          borderColor: theme.palette.mode === 'dark' ? 'rgba(22,18,18,0.94)' : 'rgba(18, 14, 14, 0.92)',
+                                          background: theme.palette.mode === 'dark'
+                                            ? 'linear-gradient(145deg, rgba(32,30,30,0.96) 0%, rgba(15,12,12,0.96) 100%)'
+                                            : 'linear-gradient(145deg, rgba(38,30,30,0.94) 0%, rgba(18,12,12,0.94) 100%)',
+                                          p: 0.55,
+                                          zIndex: 3,
+                                          boxShadow: theme.palette.mode === 'dark'
+                                            ? '0 10px 22px rgba(0,0,0,0.48)'
+                                            : '0 10px 20px rgba(42,20,20,0.35)',
+                                        }}
+                                      >
+                                        <Avatar
+                                          src={profileUser.avatar_url || ''}
+                                          alt={profileUser.username || 'User'}
+                                          sx={{
+                                            width: '100%',
+                                            height: '100%',
+                                            borderRadius: '46px',
+                                            bgcolor: 'rgba(255,255,255,0.2)',
+                                            color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.95)',
+                                            fontWeight: 800,
+                                            fontSize: '1.4rem',
+                                          }}
+                                        >
+                                          {String(profileUser?.username || '?').charAt(0).toUpperCase()}
+                                        </Avatar>
+                                      </Box>
+
+                                      <CardContent
+                                        sx={{
+                                          px: { xs: 1.75, sm: 2.2 },
+                                          py: { xs: 1.4, sm: 1.55 },
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          gap: 1.5,
+                                        }}
+                                      >
+                                        <Box
+                                          sx={{
+                                            minWidth: 0,
+                                            color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.94)' : 'rgba(15,23,42,0.94)',
+                                          }}
+                                        >
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.15, mb: 0.45 }}>
+                                            <Box
+                                              sx={{
+                                                width: 16,
+                                                height: 2,
+                                                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.92)',
+                                                position: 'relative',
+                                                '&::after': {
+                                                  content: '""',
+                                                  position: 'absolute',
+                                                  right: -3,
+                                                  top: -3,
+                                                  width: 0,
+                                                  height: 0,
+                                                  borderTop: '4px solid transparent',
+                                                  borderBottom: '4px solid transparent',
+                                                  borderRight: theme.palette.mode === 'dark' ? '6px solid rgba(255,255,255,0.9)' : '6px solid rgba(15,23,42,0.92)',
+                                                },
+                                              }}
+                                            />
+                                            <Typography
+                                              sx={{
+                                                fontFamily: 'Lobster, cursive',
+                                                fontSize: { xs: '1.05rem', sm: '1.22rem' },
+                                                lineHeight: 1.1,
+                                                textDecoration: 'underline',
+                                                textUnderlineOffset: '4px',
+                                                textDecorationThickness: '2px',
+                                              }}
+                                            >
+                                              @{profileUser.username}
+                                            </Typography>
+                                          </Box>
+
+                                          <Typography
+                                            sx={{
+                                              fontFamily: 'Playfair Display, Georgia, serif',
+                                              fontStyle: 'italic',
+                                              fontWeight: 700,
+                                              fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                                              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.9)',
+                                              overflow: 'hidden',
+                                              textOverflow: 'ellipsis',
+                                              display: '-webkit-box',
+                                              WebkitLineClamp: 2,
+                                              WebkitBoxOrient: 'vertical',
+                                            }}
+                                          >
+                                            {profileUser.bio ? `"${profileUser.bio}"` : '"No bio added yet."'}
+                                          </Typography>
+                                        </Box>
+
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/profile/${profileUser.id}`);
+                                          }}
+                                          sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 700,
+                                            borderRadius: 1.75,
+                                            px: 1.4,
+                                            alignSelf: 'flex-end',
+                                            background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+                                            boxShadow: '0 8px 16px rgba(37,99,235,0.24)',
+                                          }}
+                                        >
+                                          View Profile
+                                        </Button>
+                                      </CardContent>
+                                    </Card>
+                                  );})}
+                                </Stack>
+                              </>
+                            ) : null}
                           </Stack>
                         ) : (
                           <Box sx={{ py: 6, textAlign: 'center' }}>
                             <Typography color="text.secondary">
-                              {searchSubFilter === 'posts' ? 'No posts/events matched your search.' : 'No search results matched your query.'}
+                              {searchSubFilter === 'posts'
+                                ? 'No posts/events matched your search.'
+                                : searchSubFilter === 'users'
+                                  ? 'No user profiles matched your search. Try exact username (without @) for now.'
+                                  : 'No search results matched your query.'}
                             </Typography>
                           </Box>
                         )}
 
-                        {!loadingTimelines && !loadingSearchEvents && hasSearchQuery &&
-                        visibleTimelineCount < Math.max(isTimelineSearchScope ? filteredTimelines.length : 0, isPostSearchScope ? filteredPosts.length : 0) ? (
+                        {!loadingTimelines && !loadingSearchEvents && !loadingSearchUsers && hasSearchQuery &&
+                        visibleTimelineCount < Math.max(
+                          isTimelineSearchScope ? filteredTimelines.length : 0,
+                          isPostSearchScope ? filteredPosts.length : 0,
+                          isUserSearchScope ? filteredUsers.length : 0,
+                        ) ? (
                           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                             <Button variant="outlined" onClick={() => setVisibleTimelineCount((prev) => prev + 12)}>Load More</Button>
                           </Box>
