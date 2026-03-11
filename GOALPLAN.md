@@ -4,7 +4,7 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Home page implementation (exists but not functional yet)
+- [ ] Home page implementation (core Search hub complete; next phase = additional right-hub tabs)
 
 ## Scope / Success Criteria
 - Home page loads end-to-end with real data (no dead sections).
@@ -18,13 +18,18 @@
 - Left hub and right hub lock vertically under navbar; right hub scrolls internally.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] Audit current Home page component, route wiring, and data dependencies.
+- [x] Audit current Home page component, route wiring, and data dependencies.
 - [ ] Define minimal shippable Home page behavior and section-level acceptance criteria.
 - [ ] Implement missing functional sections and hook up real API-backed data.
 - [ ] Validate mobile + desktop behavior and confirm no routing regressions.
 - [ ] Build hero ellipsis catalog with v1 options: current hero + Timeline Spotlight of the Day; auto-rotate every 2 minutes.
-- [ ] Build left hub as vertical reference/tabs for right hub mode selection; first mode = TIMELINE SEARCH.
-- [ ] Build right hub as primary internal-scroll container driven by selected left hub mode.
+- [x] Build left hub as vertical reference/tabs for right hub mode selection; first mode = TIMELINE SEARCH.
+- [x] Build right hub as primary internal-scroll container driven by selected left hub mode.
+- [x] Complete SEARCH hub tab (timeline/post/user search + users listing polish pass).
+- [ ] Build POPULAR tab (replace placeholder tab; define ranking window + cards shown in right hub).
+- [ ] Build YOUR PAGE tab (list timelines/posts from accounts the current user follows).
+- [ ] Build MY CREATIONS tab (list only current user's created timelines + posts; no search input and no ALL filter mode).
+- [ ] Build FRIENDS LIST tab (reuse SEARCH users-card styling baseline; no search field, just followed users list).
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [x] Update/improve remark cards look

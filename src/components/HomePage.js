@@ -24,12 +24,12 @@ import {
   Close as CloseIcon,
   Search as SearchIcon,
   ArrowForward as ArrowForwardIcon,
+  LocalFireDepartment as LocalFireDepartmentIcon,
   Tag as TagIcon,
   Groups as GroupsIcon,
   Person as PersonIcon,
+  AutoStories as AutoStoriesIcon,
   Article as ArticleIcon,
-  Newspaper as NewspaperIcon,
-  PermMedia as PermMediaIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
@@ -44,6 +44,8 @@ const HERO_CONTENT_FADE_MS = 180;
 const HOME_NAVBAR_OFFSET_PX = 78;
 const SEARCH_SUBMIT_DELAY_MS = 340;
 const SEARCH_RESULT_HANDOFF_MS = 140;
+const HOME_LIST_BATCH_SIZE = 100;
+const HUB_PHASE_ONE_MS = 170;
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
 
 const normalizeUserPrimaryColor = (profileUser) => {
@@ -59,9 +61,10 @@ const normalizeUserPrimaryColor = (profileUser) => {
 
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
-  { key: 'post-search', label: 'POST SEARCH', icon: ArticleIcon, soon: true },
-  { key: 'news-search', label: 'NEWS SEARCH', icon: NewspaperIcon, soon: true },
-  { key: 'media-search', label: 'MEDIA SEARCH', icon: PermMediaIcon, soon: true },
+  { key: 'popular', label: 'POPULAR', icon: LocalFireDepartmentIcon, soon: true },
+  { key: 'your-page', label: 'YOUR PAGE', icon: ArticleIcon, soon: true },
+  { key: 'my-creations', label: 'MY CREATIONS', icon: AutoStoriesIcon },
+  { key: 'friends-list', label: 'FRIENDS LIST', icon: GroupsIcon, soon: true },
 ];
 
 const SEARCH_SUB_FILTERS = [
@@ -71,13 +74,21 @@ const SEARCH_SUB_FILTERS = [
   { key: 'users', label: 'USERS', mode: 'user' },
 ];
 
+const MY_CREATIONS_FILTERS = [
+  { key: 'timelines', label: 'Timelines' },
+  { key: 'posts', label: 'Posts' },
+];
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useTheme();
   const resultsScrollRef = React.useRef(null);
+  const myCreationsScrollRef = React.useRef(null);
   const heroTransitionTimeoutRef = React.useRef(null);
   const hubTransitionTimeoutRef = React.useRef(null);
+  const myCreationsFetchTimeoutRef = React.useRef(null);
+  const myCreationsFilterTransitionTimeoutRef = React.useRef(null);
   const searchSubmitTimeoutRef = React.useRef(null);
   const searchRevealTimeoutRef = React.useRef(null);
 
@@ -86,20 +97,28 @@ const HomePage = () => {
   const [timelines, setTimelines] = React.useState([]);
   const [searchEvents, setSearchEvents] = React.useState([]);
   const [searchUsers, setSearchUsers] = React.useState([]);
+  const [myCreationEvents, setMyCreationEvents] = React.useState([]);
   const [loadingSearchEvents, setLoadingSearchEvents] = React.useState(false);
   const [loadingSearchUsers, setLoadingSearchUsers] = React.useState(false);
+  const [loadingMyCreationEvents, setLoadingMyCreationEvents] = React.useState(false);
   const [hasLoadedSearchEvents, setHasLoadedSearchEvents] = React.useState(false);
+  const [hasLoadedMyCreationEvents, setHasLoadedMyCreationEvents] = React.useState(false);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
   const [heroIndex, setHeroIndex] = React.useState(0);
   const [isHeroContentVisible, setIsHeroContentVisible] = React.useState(true);
   const [activeHubTab, setActiveHubTab] = React.useState('timeline-search');
   const [isHubContentVisible, setIsHubContentVisible] = React.useState(true);
+  const [isHubPhaseOneLoading, setIsHubPhaseOneLoading] = React.useState(false);
+  const [isMyCreationsSubTabPhaseOneLoading, setIsMyCreationsSubTabPhaseOneLoading] = React.useState(false);
   const [searchSubFilter, setSearchSubFilter] = React.useState('all');
+  const [myCreationsFilter, setMyCreationsFilter] = React.useState('timelines');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
   const [timelineSearch, setTimelineSearch] = React.useState('');
   const [isSearchSubmitting, setIsSearchSubmitting] = React.useState(false);
   const [isSearchResultsVisible, setIsSearchResultsVisible] = React.useState(true);
-  const [visibleTimelineCount, setVisibleTimelineCount] = React.useState(18);
+  const [visibleTimelineCount, setVisibleTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visibleMyCreationsTimelineCount, setVisibleMyCreationsTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visibleMyCreationsPostCount, setVisibleMyCreationsPostCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [formData, setFormData] = React.useState({ name: '', description: '' });
 
   React.useEffect(() => {
@@ -153,6 +172,12 @@ const HomePage = () => {
       if (hubTransitionTimeoutRef.current) {
         window.clearTimeout(hubTransitionTimeoutRef.current);
       }
+      if (myCreationsFetchTimeoutRef.current) {
+        window.clearTimeout(myCreationsFetchTimeoutRef.current);
+      }
+      if (myCreationsFilterTransitionTimeoutRef.current) {
+        window.clearTimeout(myCreationsFilterTransitionTimeoutRef.current);
+      }
       if (searchSubmitTimeoutRef.current) {
         window.clearTimeout(searchSubmitTimeoutRef.current);
       }
@@ -170,12 +195,17 @@ const HomePage = () => {
       if (hubTransitionTimeoutRef.current) {
         window.clearTimeout(hubTransitionTimeoutRef.current);
       }
+      if (myCreationsFetchTimeoutRef.current) {
+        window.clearTimeout(myCreationsFetchTimeoutRef.current);
+      }
 
+      setIsHubPhaseOneLoading(true);
       setIsHubContentVisible(false);
+      setActiveHubTab(nextTab);
       hubTransitionTimeoutRef.current = window.setTimeout(() => {
-        setActiveHubTab(nextTab);
         setIsHubContentVisible(true);
-      }, 170);
+        setIsHubPhaseOneLoading(false);
+      }, HUB_PHASE_ONE_MS);
     },
     [activeHubTab],
   );
@@ -209,6 +239,19 @@ const HomePage = () => {
   const searchableTimelines = React.useMemo(() => {
     return normalizedTimelines.filter(canAccessTimelineInHomeSearch);
   }, [normalizedTimelines, canAccessTimelineInHomeSearch]);
+
+  const ownedTimelines = React.useMemo(() => {
+    return normalizedTimelines.filter((timeline) => {
+      const ownerId = Number(
+        timeline?.created_by
+        || timeline?.creator_id
+        || timeline?.owner_id
+        || timeline?.user_id
+        || 0,
+      );
+      return ownerId > 0 && currentUserId > 0 && ownerId === currentUserId;
+    });
+  }, [normalizedTimelines, currentUserId]);
 
   React.useEffect(() => {
     setHasLoadedSearchEvents(false);
@@ -363,6 +406,14 @@ const HomePage = () => {
     return filteredUsers.slice(0, visibleTimelineCount);
   }, [filteredUsers, visibleTimelineCount]);
 
+  const visibleOwnedTimelines = React.useMemo(() => {
+    return ownedTimelines.slice(0, visibleMyCreationsTimelineCount);
+  }, [ownedTimelines, visibleMyCreationsTimelineCount]);
+
+  const visibleMyCreationPosts = React.useMemo(() => {
+    return myCreationEvents.slice(0, visibleMyCreationsPostCount);
+  }, [myCreationEvents, visibleMyCreationsPostCount]);
+
   const fetchSearchEvents = React.useCallback(async () => {
     if (loadingSearchEvents || hasLoadedSearchEvents || !searchableTimelines.length) return;
 
@@ -445,6 +496,163 @@ const HomePage = () => {
     }
   }, []);
 
+  const fetchMyCreationEvents = React.useCallback(async () => {
+    if (loadingMyCreationEvents || hasLoadedMyCreationEvents || !ownedTimelines.length) return;
+
+    try {
+      setLoadingMyCreationEvents(true);
+
+      const requests = ownedTimelines.map((timeline) => api.get(`/api/timeline-v3/${timeline.id}/events`));
+      const results = await Promise.allSettled(requests);
+
+      const merged = [];
+      for (let i = 0; i < results.length; i += 1) {
+        const result = results[i];
+        const timeline = ownedTimelines[i];
+        if (result.status !== 'fulfilled') continue;
+
+        const payload = result.value?.data;
+        const events = Array.isArray(payload?.events)
+          ? payload.events
+          : (Array.isArray(payload) ? payload : []);
+
+        events.forEach((event) => {
+          const authorId = Number(event?.created_by || event?.creator_id || event?.user_id || 0);
+          if (!(authorId > 0 && currentUserId > 0 && authorId === currentUserId)) return;
+
+          merged.push({
+            ...event,
+            timeline_id: event?.timeline_id || timeline?.id,
+            timeline_name: timeline?.name || event?.timeline_name || '',
+            timeline_type: timeline?.timeline_type || event?.timeline_type || 'hashtag',
+          });
+        });
+      }
+
+      const dedupedById = [];
+      const seen = new Set();
+      merged.forEach((event) => {
+        if (!event?.id || seen.has(event.id)) return;
+        seen.add(event.id);
+        dedupedById.push(event);
+      });
+
+      setMyCreationEvents(dedupedById);
+      setHasLoadedMyCreationEvents(true);
+    } catch (error) {
+      console.error('Error fetching my creation events:', error);
+      setMyCreationEvents([]);
+    } finally {
+      setLoadingMyCreationEvents(false);
+    }
+  }, [loadingMyCreationEvents, hasLoadedMyCreationEvents, ownedTimelines, currentUserId]);
+
+  React.useEffect(() => {
+    if (activeHubTab !== 'my-creations') return;
+    if (isHubPhaseOneLoading) return;
+
+    if (!ownedTimelines.length) {
+      setHasLoadedMyCreationEvents(true);
+      setMyCreationEvents([]);
+      return;
+    }
+
+    if (hasLoadedMyCreationEvents || loadingMyCreationEvents) return;
+
+    if (myCreationsFetchTimeoutRef.current) {
+      window.clearTimeout(myCreationsFetchTimeoutRef.current);
+    }
+
+    myCreationsFetchTimeoutRef.current = window.setTimeout(() => {
+      fetchMyCreationEvents();
+    }, 0);
+
+    return () => {
+      if (myCreationsFetchTimeoutRef.current) {
+        window.clearTimeout(myCreationsFetchTimeoutRef.current);
+      }
+    };
+  }, [
+    activeHubTab,
+    isHubPhaseOneLoading,
+    ownedTimelines.length,
+    hasLoadedMyCreationEvents,
+    loadingMyCreationEvents,
+    fetchMyCreationEvents,
+  ]);
+
+  const renderTimelineCard = React.useCallback((timeline) => {
+    const type = String(timeline?.timeline_type || 'hashtag').toLowerCase();
+    const isCommunity = type === 'community';
+    const isPersonal = type === 'personal';
+    const typeLabel = isCommunity ? 'Community' : isPersonal ? 'Personal' : 'Hashtag';
+    const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
+
+    return (
+      <Card
+        key={timeline.id}
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          borderRadius: 2.5,
+          border: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(30, 41, 59, 0.18)',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(165deg, rgba(17,23,39,0.96) 0%, rgba(10,14,24,0.96) 100%)'
+            : 'linear-gradient(165deg, rgba(250,244,236,0.98) 0%, rgba(245,239,230,0.98) 100%)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 10px 24px rgba(0,0,0,0.35)'
+            : '0 10px 20px rgba(120, 100, 80, 0.12)',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: '100%', md: 240 },
+            minWidth: { xs: '100%', md: 240 },
+            height: { xs: 76, md: 'auto' },
+            px: 1.5,
+            display: 'flex',
+            alignItems: 'flex-end',
+            pb: 1.25,
+            background: isCommunity
+              ? 'linear-gradient(140deg, rgba(30,136,229,0.85) 0%, rgba(13,71,161,0.85) 100%)'
+              : isPersonal
+                ? 'linear-gradient(140deg, rgba(0,150,136,0.82) 0%, rgba(0,105,92,0.85) 100%)'
+                : 'linear-gradient(140deg, rgba(217,119,6,0.82) 0%, rgba(180,83,9,0.86) 100%)',
+          }}
+        >
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
+            Timeline banner placeholder (future image slot)
+          </Typography>
+        </Box>
+
+        <CardContent sx={{ flexGrow: 1 }}>
+          <Chip
+            size="small"
+            icon={<TypeIcon fontSize="small" />}
+            label={typeLabel}
+            sx={{ mb: 1, fontWeight: 600 }}
+          />
+          <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.2 }}>{timeline.name}</Typography>
+          {timeline.description ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              {timeline.description}
+            </Typography>
+          ) : null}
+          <Typography variant="caption" color="text.secondary">
+            Created: {formatDate(timeline.created_at)}
+          </Typography>
+        </CardContent>
+        <Box sx={{ px: 2, pb: 2, alignSelf: { xs: 'stretch', md: 'flex-end' } }}>
+          <Button size="small" variant="contained" onClick={() => navigate(`/timeline-v3/${timeline.id}`)}>
+            Open Timeline
+          </Button>
+        </Box>
+      </Card>
+    );
+  }, [theme.palette.mode, navigate]);
+
   const renderSearchEventCard = React.useCallback((event) => {
     const eventType = String(event?.type || EVENT_TYPES.REMARK).toLowerCase();
     const sharedProps = {
@@ -486,13 +694,27 @@ const HomePage = () => {
       isUserSearchScope ? filteredUsers.length : 0,
     );
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && visibleTimelineCount < maxCount) {
-      setVisibleTimelineCount((prev) => Math.min(prev + 12, maxCount));
+      setVisibleTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, maxCount));
+    }
+  };
+
+  const handleMyCreationsScroll = (e) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
+
+    if (myCreationsFilter === 'timelines' && visibleOwnedTimelines.length < ownedTimelines.length) {
+      setVisibleMyCreationsTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, ownedTimelines.length));
+      return;
+    }
+
+    if (myCreationsFilter === 'posts' && visibleMyCreationPosts.length < myCreationEvents.length) {
+      setVisibleMyCreationsPostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, myCreationEvents.length));
     }
   };
 
   const handleSearchSubFilterChange = (nextFilter) => {
     setSearchSubFilter(nextFilter);
-    setVisibleTimelineCount(18);
+    setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
     }
@@ -500,10 +722,35 @@ const HomePage = () => {
 
   const handleSearchChange = (e) => {
     setTimelineSearchInput(e.target.value);
-    setVisibleTimelineCount(18);
+    setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
     }
+  };
+
+  const handleMyCreationsFilterChange = (nextFilter) => {
+    if (nextFilter === myCreationsFilter) return;
+
+    if (myCreationsFilterTransitionTimeoutRef.current) {
+      window.clearTimeout(myCreationsFilterTransitionTimeoutRef.current);
+    }
+
+    setIsMyCreationsSubTabPhaseOneLoading(true);
+    setMyCreationsFilter(nextFilter);
+
+    if (nextFilter === 'timelines') {
+      setVisibleMyCreationsTimelineCount(HOME_LIST_BATCH_SIZE);
+    } else {
+      setVisibleMyCreationsPostCount(HOME_LIST_BATCH_SIZE);
+    }
+
+    if (myCreationsScrollRef.current) {
+      myCreationsScrollRef.current.scrollTop = 0;
+    }
+
+    myCreationsFilterTransitionTimeoutRef.current = window.setTimeout(() => {
+      setIsMyCreationsSubTabPhaseOneLoading(false);
+    }, HUB_PHASE_ONE_MS);
   };
 
   const handleSearchSubmit = React.useCallback((forcedQuery = null) => {
@@ -531,7 +778,7 @@ const HomePage = () => {
       }
 
       setTimelineSearch(nextQuery);
-      setVisibleTimelineCount(18);
+      setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
       if (resultsScrollRef.current) {
         resultsScrollRef.current.scrollTop = 0;
       }
@@ -545,7 +792,7 @@ const HomePage = () => {
 
   const handleClearSearch = React.useCallback(() => {
     setTimelineSearchInput('');
-    setVisibleTimelineCount(18);
+    setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
     }
@@ -781,7 +1028,162 @@ const HomePage = () => {
                 flex: 1,
               }}
             >
-              {activeHubTab !== 'timeline-search' ? (
+              {isHubPhaseOneLoading ? (
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+                  <Stack spacing={1.25} alignItems="center">
+                    <CircularProgress size={28} />
+                    <Typography color="text.secondary">Loading section...</Typography>
+                  </Stack>
+                </Box>
+              ) : activeHubTab === 'my-creations' ? (
+                <Box
+                  ref={myCreationsScrollRef}
+                  onScroll={handleMyCreationsScroll}
+                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
+                    My Creations
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ mb: 2.25 }}>
+                    Your created timelines and your authored posts. No search and no ALL-filter mode here.
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      mb: 2,
+                      p: 0.5,
+                      borderRadius: 99,
+                      display: 'inline-flex',
+                      gap: 0.6,
+                      border: '1px solid',
+                      borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
+                      background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
+                    }}
+                  >
+                    {MY_CREATIONS_FILTERS.map((filter) => {
+                      const isActive = myCreationsFilter === filter.key;
+                      return (
+                        <Button
+                          key={filter.key}
+                          size="small"
+                          onClick={() => handleMyCreationsFilterChange(filter.key)}
+                          sx={{
+                            minWidth: 0,
+                            px: 1.25,
+                            py: 0.45,
+                            borderRadius: 99,
+                            textTransform: 'none',
+                            fontWeight: isActive ? 700 : 600,
+                            fontSize: '0.78rem',
+                            color: isActive ? 'common.white' : 'text.secondary',
+                            background: isActive
+                              ? 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)'
+                              : 'transparent',
+                            boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.24)' : 'none',
+                            transform: isActive ? 'translateY(-0.5px)' : 'translateY(0px)',
+                            transition: 'background 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, transform 220ms ease',
+                            '&:hover': {
+                              background: isActive
+                                ? 'linear-gradient(135deg, #0891b2 0%, #1d4ed8 100%)'
+                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+                              transform: isActive ? 'translateY(-0.5px)' : 'translateY(-1px)',
+                            },
+                          }}
+                        >
+                          {filter.label}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+
+                  <Box
+                    sx={{
+                      '@keyframes myCreationsFilterIn': {
+                        from: { opacity: 0, transform: 'translateY(5px)' },
+                        to: { opacity: 1, transform: 'translateY(0px)' },
+                      },
+                      animation: 'myCreationsFilterIn 200ms ease',
+                    }}
+                    key={`my-creations-content-${myCreationsFilter}`}
+                  >
+                    <Stack spacing={2.2}>
+                      {isMyCreationsSubTabPhaseOneLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                          <CircularProgress />
+                        </Box>
+                      ) : myCreationsFilter === 'timelines' ? (
+                        loadingTimelines ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                            <CircularProgress />
+                          </Box>
+                        ) : (
+                          <Box>
+                          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                            Created Timelines ({ownedTimelines.length})
+                          </Typography>
+                          {ownedTimelines.length > 0 ? (
+                            <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                              {visibleOwnedTimelines.map((timeline) => renderTimelineCard(timeline))}
+                            </Stack>
+                          ) : (
+                            <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                              No created timelines found yet.
+                            </Typography>
+                          )}
+                          </Box>
+                        )
+                      ) : (
+                        loadingMyCreationEvents ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                            <CircularProgress />
+                          </Box>
+                        ) : (
+                          <Box>
+                          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                            Created Posts ({myCreationEvents.length})
+                          </Typography>
+                          {myCreationEvents.length > 0 ? (
+                            <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                              {visibleMyCreationPosts.map((event) => (
+                                <Box key={`my-event-${event.id}`}>
+                                  {renderSearchEventCard(event)}
+                                </Box>
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                              No authored posts found in your created timelines yet.
+                            </Typography>
+                          )}
+                          </Box>
+                        )
+                      )}
+
+                      {myCreationsFilter === 'timelines' && visibleOwnedTimelines.length < ownedTimelines.length ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 0.5 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setVisibleMyCreationsTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, ownedTimelines.length))}
+                          >
+                            Load Next 100
+                          </Button>
+                        </Box>
+                      ) : null}
+
+                      {myCreationsFilter === 'posts' && visibleMyCreationPosts.length < myCreationEvents.length ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 0.5 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setVisibleMyCreationsPostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, myCreationEvents.length))}
+                          >
+                            Load Next 100
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Stack>
+                  </Box>
+                </Box>
+              ) : activeHubTab !== 'timeline-search' ? (
                 <Box sx={{ p: 3 }}>
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
                     {LEFT_HUB_TABS.find((tab) => tab.key === activeHubTab)?.label}
@@ -955,77 +1357,7 @@ const HomePage = () => {
                                   </Typography>
                                 ) : null}
                                 <Stack spacing={1.5}>
-                                  {visibleTimelines.map((timeline) => {
-                                    const type = String(timeline?.timeline_type || 'hashtag').toLowerCase();
-                                    const isCommunity = type === 'community';
-                                    const isPersonal = type === 'personal';
-                                    const typeLabel = isCommunity ? 'Community' : isPersonal ? 'Personal' : 'Hashtag';
-                                    const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
-
-                                    return (
-                                      <Card
-                                        key={timeline.id}
-                                        sx={{
-                                          display: 'flex',
-                                          flexDirection: { xs: 'column', md: 'row' },
-                                          borderRadius: 2.5,
-                                          border: '1px solid',
-                                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(30, 41, 59, 0.18)',
-                                          background: theme.palette.mode === 'dark'
-                                            ? 'linear-gradient(165deg, rgba(17,23,39,0.96) 0%, rgba(10,14,24,0.96) 100%)'
-                                            : 'linear-gradient(165deg, rgba(250,244,236,0.98) 0%, rgba(245,239,230,0.98) 100%)',
-                                          boxShadow: theme.palette.mode === 'dark'
-                                            ? '0 10px 24px rgba(0,0,0,0.35)'
-                                            : '0 10px 20px rgba(120, 100, 80, 0.12)',
-                                          overflow: 'hidden',
-                                        }}
-                                      >
-                                        <Box
-                                          sx={{
-                                            width: { xs: '100%', md: 240 },
-                                            minWidth: { xs: '100%', md: 240 },
-                                            height: { xs: 76, md: 'auto' },
-                                            px: 1.5,
-                                            display: 'flex',
-                                            alignItems: 'flex-end',
-                                            pb: 1.25,
-                                            background: isCommunity
-                                              ? 'linear-gradient(140deg, rgba(30,136,229,0.85) 0%, rgba(13,71,161,0.85) 100%)'
-                                              : isPersonal
-                                                ? 'linear-gradient(140deg, rgba(0,150,136,0.82) 0%, rgba(0,105,92,0.85) 100%)'
-                                                : 'linear-gradient(140deg, rgba(217,119,6,0.82) 0%, rgba(180,83,9,0.86) 100%)',
-                                          }}
-                                        >
-                                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
-                                            Timeline banner placeholder (future image slot)
-                                          </Typography>
-                                        </Box>
-
-                                        <CardContent sx={{ flexGrow: 1 }}>
-                                          <Chip
-                                            size="small"
-                                            icon={<TypeIcon fontSize="small" />}
-                                            label={typeLabel}
-                                            sx={{ mb: 1, fontWeight: 600 }}
-                                          />
-                                          <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.2 }}>{timeline.name}</Typography>
-                                          {timeline.description ? (
-                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                                              {timeline.description}
-                                            </Typography>
-                                          ) : null}
-                                          <Typography variant="caption" color="text.secondary">
-                                            Created: {formatDate(timeline.created_at)}
-                                          </Typography>
-                                        </CardContent>
-                                        <Box sx={{ px: 2, pb: 2, alignSelf: { xs: 'stretch', md: 'flex-end' } }}>
-                                          <Button size="small" variant="contained" onClick={() => navigate(`/timeline-v3/${timeline.id}`)}>
-                                            Open Timeline
-                                          </Button>
-                                        </Box>
-                                      </Card>
-                                    );
-                                  })}
+                                  {visibleTimelines.map((timeline) => renderTimelineCard(timeline))}
                                 </Stack>
                               </>
                             ) : null}
@@ -1245,7 +1577,19 @@ const HomePage = () => {
                           isUserSearchScope ? filteredUsers.length : 0,
                         ) ? (
                           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                            <Button variant="outlined" onClick={() => setVisibleTimelineCount((prev) => prev + 12)}>Load More</Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => setVisibleTimelineCount((prev) => Math.min(
+                                prev + HOME_LIST_BATCH_SIZE,
+                                Math.max(
+                                  isTimelineSearchScope ? filteredTimelines.length : 0,
+                                  isPostSearchScope ? filteredPosts.length : 0,
+                                  isUserSearchScope ? filteredUsers.length : 0,
+                                ),
+                              ))}
+                            >
+                              Load Next 100
+                            </Button>
                           </Box>
                         ) : null}
                       </Box>

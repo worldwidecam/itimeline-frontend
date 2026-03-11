@@ -1073,8 +1073,9 @@ const EventPopup = ({
                           lineHeight: 0.95,
                           fontWeight: 700,
                           color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.85)' : 'rgba(96,61,30,0.92)',
-                          paddingRight: '0.12em',
+                          paddingRight: '0.08em',
                           float: 'left',
+                          marginTop: '-0.11em',
                         },
                       }}
                     >

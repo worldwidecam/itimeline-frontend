@@ -92,6 +92,36 @@ const RemarkCard = forwardRef(({
     }
   };
 
+  const headline = String(event?.title || '').trim() || 'Untitled Remark';
+  const deckText = String(event?.description || '').trim();
+  const summarizedDeckText = React.useMemo(() => {
+    if (!deckText) return '';
+
+    const maxWords = 18;
+    const maxChars = 140;
+    const normalizedText = deckText.replace(/\s+/g, ' ').trim();
+    if (!normalizedText) return '';
+
+    const firstPunctuationMatch = normalizedText.match(/[.!?,]/);
+    if (firstPunctuationMatch && typeof firstPunctuationMatch.index === 'number') {
+      const sentence = normalizedText.slice(0, firstPunctuationMatch.index + 1).trim();
+      if (sentence.length <= maxChars) return sentence;
+      return `${sentence.slice(0, maxChars).trimEnd()}…`;
+    }
+
+    const words = normalizedText.split(' ');
+    if (words.length <= maxWords && normalizedText.length <= maxChars) {
+      return normalizedText;
+    }
+
+    const limitedWords = words.slice(0, maxWords).join(' ');
+    const limitedText = limitedWords.length > maxChars
+      ? limitedWords.slice(0, maxChars).trimEnd()
+      : limitedWords;
+
+    return `${limitedText}…`;
+  }, [deckText]);
+
   const handleMenuClose = (e) => {
     if (e) e.stopPropagation(); // Prevent event bubbling
     setMenuAnchorEl(null);
@@ -199,6 +229,11 @@ const RemarkCard = forwardRef(({
             ${theme.palette.mode === 'dark' ? 'border-white/5' : 'border-black/5'}
             shadow-lg
           `}
+          style={{
+            minHeight: 300,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
         >
           {/* Vote overlay for EventList cards */}
           {showVoteOverlay && (
@@ -220,21 +255,21 @@ const RemarkCard = forwardRef(({
           
           <Box
             sx={{
-              mb: 2,
+              mb: 1.5,
               pr: 2,
-              mt: -2,
+              mt: -1.2,
               position: 'relative',
               borderTop: `2px solid ${color}`,
               borderBottom: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
               px: 1,
-              py: 1,
+              py: 1.1,
             }}
           >
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-start',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 gap: 1,
                 pb: 1,
                 mb: 1,
@@ -275,6 +310,7 @@ const RemarkCard = forwardRef(({
                   />
                 )}
               </Box>
+
             </Box>
 
             {showInlineVoteControls && (
@@ -303,16 +339,43 @@ const RemarkCard = forwardRef(({
               </Box>
             )}
 
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                mb: 0.8,
+                px: 0.3,
+              }}
+            >
+              <Box sx={{ flex: 1, height: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.2)' }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontFamily: '"Playfair Display", Georgia, serif',
+                  letterSpacing: '0.06em',
+                  fontWeight: 700,
+                  color: theme.palette.text.secondary,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {event?.created_by_username
+                  ? `${event.created_by_username}'s Thoughts`
+                  : 'Author Thoughts'}
+              </Typography>
+              <Box sx={{ flex: 1, height: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.2)' }} />
+            </Box>
+
             <Typography
-              variant="h4"
+              variant="h6"
               component="div"
               sx={{
                 textAlign: 'center',
                 fontWeight: 800,
-                fontFamily: '"Bebas Neue", "Anton", "Arial Black", sans-serif',
-                letterSpacing: '0.02em',
-                lineHeight: 1.03,
-                fontSize: 'clamp(1.5rem, 2.8vw, 2.4rem)',
+                fontFamily: '"Playfair Display", Georgia, serif',
+                letterSpacing: '0.01em',
+                lineHeight: 1.14,
+                fontSize: 'clamp(1.2rem, 2.2vw, 1.7rem)',
                 textTransform: 'uppercase',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
@@ -322,8 +385,39 @@ const RemarkCard = forwardRef(({
                 px: 0.5,
               }}
             >
-              {event.title}
+              {headline}
             </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 1,
+                textAlign: 'center',
+                fontFamily: '"Playfair Display", Georgia, serif',
+                fontStyle: 'italic',
+                color: theme.palette.text.secondary,
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                px: { xs: 0.25, md: 1 },
+                minHeight: '3.9em',
+              }}
+            >
+              {summarizedDeckText || 'A developing story from the timeline desk. Open details for the full report.'}
+            </Typography>
+
+            <Box
+              sx={{
+                mt: 1,
+                mx: 'auto',
+                width: '90%',
+                height: 1,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.18)',
+              }}
+            />
           </Box>
 
           <Box sx={{ mt: 'auto' }}>

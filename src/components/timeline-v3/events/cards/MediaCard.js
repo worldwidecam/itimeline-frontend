@@ -302,6 +302,29 @@ const MediaCard = forwardRef(({
     return words.slice(0, 15).join(' ') + '...';
   };
 
+  const normalizeCloudinaryPublicId = (rawValue) => {
+    const value = String(rawValue || '').trim();
+    if (!value) return '';
+
+    let normalized = value
+      .replace(/^https?:\/\/res\.cloudinary\.com\/[^/]+\/(image|video|raw)\/upload\//i, '')
+      .replace(/^https?:\/\/[^/]*cloudinary\.com\/(image|video|raw)\/upload\//i, '')
+      .replace(/^v\d+\//, '')
+      .replace(/\?.*$/, '')
+      .replace(/^\/+|\/+$/g, '');
+
+    const segments = normalized.split('/').filter(Boolean);
+    while (segments.length > 0 && (segments[0].includes(',') || /^[a-z]{1,4}_.+/i.test(segments[0]))) {
+      segments.shift();
+    }
+    if (segments[0] && /^v\d+$/i.test(segments[0])) {
+      segments.shift();
+    }
+
+    normalized = segments.join('/').replace(/\.[^./?]+$/, '');
+    return normalized;
+  };
+
   // Helper function to prepare media sources
   const prepareMediaSources = (mediaSource) => {
     let mediaSources = [];
@@ -331,21 +354,25 @@ const MediaCard = forwardRef(({
     // Only try to construct URLs from cloudinary_id if we don't already have a valid Cloudinary URL
     if (event.cloudinary_id && !isCloudinaryUrl) {
       const cloudName = 'dnjwvuxn7';
+      const publicId = normalizeCloudinaryPublicId(event.cloudinary_id);
+      if (!publicId) {
+        return { mediaSources: Array.from(new Set(mediaSources.filter(Boolean))), fullUrl };
+      }
       const isVideo = (event.media_subtype === 'video') || (event.media_type && event.media_type.includes('video'));
       const isAudio = (event.media_subtype === 'audio') || (event.media_type && event.media_type.includes('audio'));
       const resourcePath = (isVideo || isAudio) ? 'video/upload' : 'image/upload';
-      const base = `https://res.cloudinary.com/${cloudName}/${resourcePath}/${event.cloudinary_id}`;
+      const base = `https://res.cloudinary.com/${cloudName}/${resourcePath}/${publicId}`;
       if (isVideo) {
+        mediaSources.push(`${base}`);
         mediaSources.push(`${base}.mp4`);
         mediaSources.push(`${base}.webm`);
-        mediaSources.push(`${base}`);
       } else if (isAudio) {
+        mediaSources.push(`${base}`);
         mediaSources.push(`${base}.mp3`);
         mediaSources.push(`${base}.m4a`);
-        mediaSources.push(`${base}`);
       } else {
-        mediaSources.push(`${base}.jpg`);
         mediaSources.push(`${base}`);
+        mediaSources.push(`${base}.jpg`);
       }
     }
 
@@ -368,16 +395,7 @@ const MediaCard = forwardRef(({
     try {
       if (!url || typeof url !== 'string') return '';
       if (!url.includes('res.cloudinary.com') && !url.includes('cloudinary.com')) return '';
-      // Expect pattern: .../upload/v<ver>/<public_id>.<ext>
-      const parts = url.split('/');
-      const uploadIdx = parts.findIndex(p => p === 'upload');
-      if (uploadIdx === -1 || uploadIdx >= parts.length - 1) return '';
-      const afterUpload = parts.slice(uploadIdx + 1).join('/');
-      // Remove version (e.g., v1757609015/) if present
-      const afterNoVersion = afterUpload.replace(/^v\d+\//, '');
-      // Strip extension and query params
-      const publicId = afterNoVersion.replace(/\.[^\.\/?]+(\?.*)?$/, '');
-      return publicId;
+      return normalizeCloudinaryPublicId(url);
     } catch (_) {
       return '';
     }
@@ -447,9 +465,10 @@ const MediaCard = forwardRef(({
             if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
               e.target.src = mediaSources[currentIndex + 1];
             } else {
-              if (event.cloudinary_id) {
+              const normalizedCloudinaryId = normalizeCloudinaryPublicId(event.cloudinary_id);
+              if (normalizedCloudinaryId) {
                 const cloudName = 'dnjwvuxn7';
-                const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${event.cloudinary_id}`;
+                const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${normalizedCloudinaryId}`;
                 e.target.src = cloudinaryUrl;
                 return;
               }
@@ -520,14 +539,12 @@ const MediaCard = forwardRef(({
 
       // If we have a Cloudinary public_id (direct or derived), prefer Cloudinary Player for consistent playback
       const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
-      const cloudinaryPublicId = (event && event.cloudinary_id) || derivedPublicId;
+      const cloudinaryPublicId = normalizeCloudinaryPublicId((event && event.cloudinary_id) || derivedPublicId);
       if (cloudinaryPublicId) {
         const base = `https://res.cloudinary.com/dnjwvuxn7/video/upload/${cloudinaryPublicId}`;
-        const poster = `${base}.jpg`;
-        const srcFillAuto = `https://res.cloudinary.com/dnjwvuxn7/video/upload/c_fill,g_auto,f_auto,vc_auto/${cloudinaryPublicId}`;
-        const srcAuto = `https://res.cloudinary.com/dnjwvuxn7/video/upload/f_auto,vc_auto/${cloudinaryPublicId}`;
         const srcMp4 = `${base}.mp4`;
         const srcWebm = `${base}.webm`;
+        const srcOriginal = typeof mediaSource === 'string' && mediaSource.includes('cloudinary') ? mediaSource : '';
         return (
           <Box 
             sx={{ 
@@ -551,7 +568,6 @@ const MediaCard = forwardRef(({
                 playsInline
                 preload="metadata"
                 muted={!isSelected}
-                poster={poster}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -566,7 +582,7 @@ const MediaCard = forwardRef(({
                 onError={(e) => {
                   // Try a sequence of fallbacks
                   const current = e.target.currentSrc || e.target.src;
-                  const candidates = [srcFillAuto, srcAuto, srcMp4, srcWebm, base, mediaSource].filter(Boolean);
+                  const candidates = [srcOriginal, srcMp4, srcWebm, base, mediaSource].filter(Boolean);
                   const idx = candidates.findIndex(u => current && current.startsWith(u));
                   const next = idx >= 0 && idx < candidates.length - 1 ? candidates[idx + 1] : null;
                   if (next) {
@@ -574,7 +590,7 @@ const MediaCard = forwardRef(({
                   }
                 }}
               >
-                {[srcFillAuto, srcAuto, srcMp4, srcWebm, base].filter(Boolean).map((src, i) => {
+                {[srcOriginal, srcMp4, srcWebm, base].filter(Boolean).map((src, i) => {
                   const ext = src.split('.').pop();
                   const type = ext === 'mp4' ? 'video/mp4' : ext === 'webm' ? 'video/webm' : undefined;
                   return (
