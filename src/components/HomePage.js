@@ -38,7 +38,7 @@ import {
   Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport } from '../utils/api';
+import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount } from '../utils/api';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
 import RemarkCard from './timeline-v3/events/cards/RemarkCard';
 import NewsCard from './timeline-v3/events/cards/NewsCard';
@@ -67,7 +67,7 @@ const normalizeUserPrimaryColor = (profileUser) => {
 
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
-  { key: 'popular', label: 'POPULAR', icon: LocalFireDepartmentIcon, soon: true },
+  { key: 'popular', label: 'POPULAR', icon: LocalFireDepartmentIcon },
   { key: 'your-page', label: 'YOUR PAGE', icon: ArticleIcon },
   { key: 'my-creations', label: 'MY CREATIONS', icon: AutoStoriesIcon },
   { key: 'friends-list', label: 'FRIENDS LIST', icon: GroupsIcon },
@@ -90,11 +90,17 @@ const YOUR_PAGE_FILTERS = [
   { key: 'timelines', label: 'Timelines' },
 ];
 
+const POPULAR_FILTERS = [
+  { key: 'posts', label: 'Posts' },
+  { key: 'timelines', label: 'Timelines' },
+];
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useTheme();
   const resultsScrollRef = React.useRef(null);
+  const popularScrollRef = React.useRef(null);
   const myCreationsScrollRef = React.useRef(null);
   const yourPageScrollRef = React.useRef(null);
   const friendsListScrollRef = React.useRef(null);
@@ -129,6 +135,7 @@ const HomePage = () => {
   const [showActiveHubScrollTop, setShowActiveHubScrollTop] = React.useState(false);
   const [isMyCreationsSubTabPhaseOneLoading, setIsMyCreationsSubTabPhaseOneLoading] = React.useState(false);
   const [searchSubFilter, setSearchSubFilter] = React.useState('all');
+  const [popularFilter, setPopularFilter] = React.useState('posts');
   const [myCreationsFilter, setMyCreationsFilter] = React.useState('timelines');
   const [yourPageFilter, setYourPageFilter] = React.useState('posts');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
@@ -139,10 +146,16 @@ const HomePage = () => {
   const [userFollowSnackbarMessage, setUserFollowSnackbarMessage] = React.useState('');
   const [userFollowSnackbarSeverity, setUserFollowSnackbarSeverity] = React.useState('success');
   const [visibleTimelineCount, setVisibleTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visiblePopularTimelineCount, setVisiblePopularTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visiblePopularPostCount, setVisiblePopularPostCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleMyCreationsTimelineCount, setVisibleMyCreationsTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleMyCreationsPostCount, setVisibleMyCreationsPostCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleYourPageTimelineCount, setVisibleYourPageTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleYourPagePostCount, setVisibleYourPagePostCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [popularTimelines, setPopularTimelines] = React.useState([]);
+  const [popularEvents, setPopularEvents] = React.useState([]);
+  const [loadingPopular, setLoadingPopular] = React.useState(false);
+  const [hasLoadedPopular, setHasLoadedPopular] = React.useState(false);
   const [yourPageTimelines, setYourPageTimelines] = React.useState([]);
   const [yourPageEvents, setYourPageEvents] = React.useState([]);
   const [loadingYourPage, setLoadingYourPage] = React.useState(false);
@@ -242,6 +255,7 @@ const HomePage = () => {
 
   const getActiveHubScrollElement = React.useCallback(() => {
     if (activeHubTab === 'timeline-search') return resultsScrollRef.current;
+    if (activeHubTab === 'popular') return popularScrollRef.current;
     if (activeHubTab === 'my-creations') return myCreationsScrollRef.current;
     if (activeHubTab === 'your-page') return yourPageScrollRef.current;
     if (activeHubTab === 'friends-list') return friendsListScrollRef.current;
@@ -271,8 +285,10 @@ const HomePage = () => {
     activeHubTab,
     isHubPhaseOneLoading,
     isHubContentVisible,
+    loadingPopular,
     loadingYourPage,
     loadingFollowedUsers,
+    popularFilter,
     yourPageFilter,
     myCreationsFilter,
     refreshActiveHubScrollTop,
@@ -477,6 +493,14 @@ const HomePage = () => {
     return filteredPosts.slice(0, visibleTimelineCount);
   }, [filteredPosts, visibleTimelineCount]);
 
+  const visiblePopularTimelines = React.useMemo(() => {
+    return popularTimelines.slice(0, visiblePopularTimelineCount);
+  }, [popularTimelines, visiblePopularTimelineCount]);
+
+  const visiblePopularPosts = React.useMemo(() => {
+    return popularEvents.slice(0, visiblePopularPostCount);
+  }, [popularEvents, visiblePopularPostCount]);
+
   const visibleUsers = React.useMemo(() => {
     return filteredUsers.slice(0, visibleTimelineCount);
   }, [filteredUsers, visibleTimelineCount]);
@@ -600,6 +624,172 @@ const HomePage = () => {
   React.useEffect(() => {
     fetchFollowedUsers();
   }, [fetchFollowedUsers]);
+
+  React.useEffect(() => {
+    setHasLoadedPopular(false);
+    setPopularTimelines([]);
+    setPopularEvents([]);
+  }, [user?.id, normalizedTimelines.length]);
+
+  const fetchPopularData = React.useCallback(async () => {
+    try {
+      setLoadingPopular(true);
+
+      const baseTimelineMap = new Map();
+      normalizedTimelines.forEach((timeline) => {
+        const id = Number(timeline?.id || 0);
+        if (id > 0) baseTimelineMap.set(id, timeline);
+      });
+
+      const candidateIds = normalizedTimelines
+        .filter((timeline) => String(timeline?.timeline_type || '').toLowerCase() !== 'personal')
+        .map((timeline) => Number(timeline?.id || 0))
+        .filter((id) => id > 0);
+
+      const uniqueCandidateIds = Array.from(new Set(candidateIds));
+      if (!uniqueCandidateIds.length) {
+        setPopularTimelines([]);
+        setPopularEvents([]);
+        setHasLoadedPopular(true);
+        return;
+      }
+
+      const [timelineDetailsResults, memberCountResults] = await Promise.all([
+        Promise.allSettled(uniqueCandidateIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}`))),
+        Promise.allSettled(uniqueCandidateIds.map((timelineId) => getTimelineMemberCount(timelineId))),
+      ]);
+
+      const rankedTimelines = [];
+
+      uniqueCandidateIds.forEach((timelineId, index) => {
+        const base = baseTimelineMap.get(timelineId) || null;
+        const detail = timelineDetailsResults[index]?.status === 'fulfilled'
+          ? timelineDetailsResults[index].value?.data
+          : null;
+
+        const timelineType = String(detail?.timeline_type || base?.timeline_type || '').toLowerCase();
+        const visibility = String(detail?.visibility || base?.visibility || 'public').toLowerCase();
+
+        if (timelineType === 'personal') return;
+        if (visibility === 'private') return;
+
+        const memberCount = Number(
+          memberCountResults[index]?.status === 'fulfilled'
+            ? memberCountResults[index].value?.count
+            : (detail?.member_count || 0),
+        ) || 0;
+
+        const followCount = Number(
+          detail?.follow_count
+          || detail?.followers_count
+          || base?.follow_count
+          || base?.followers_count
+          || 0,
+        ) || 0;
+
+        rankedTimelines.push({
+          ...(base || {}),
+          ...(detail || {}),
+          id: timelineId,
+          timeline_type: timelineType || 'hashtag',
+          visibility,
+          member_count: memberCount,
+          follow_count: followCount,
+          popularity_count: Math.max(memberCount, followCount),
+        });
+      });
+
+      rankedTimelines.sort((a, b) => {
+        if ((b.popularity_count || 0) !== (a.popularity_count || 0)) {
+          return (b.popularity_count || 0) - (a.popularity_count || 0);
+        }
+        return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+      });
+
+      setPopularTimelines(rankedTimelines);
+
+      const publicTimelineIds = rankedTimelines.map((timeline) => Number(timeline?.id || 0)).filter((id) => id > 0);
+      const timelineEventsResults = await Promise.allSettled(
+        publicTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`)),
+      );
+
+      const eventById = new Map();
+
+      timelineEventsResults.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return;
+
+        const timelineId = publicTimelineIds[index];
+        const timelineMeta = rankedTimelines.find((timeline) => Number(timeline?.id || 0) === timelineId) || null;
+        const payload = result.value?.data;
+        const events = Array.isArray(payload?.events)
+          ? payload.events
+          : (Array.isArray(payload) ? payload : []);
+
+        events.forEach((event) => {
+          const eventId = Number(event?.id || 0);
+          if (!(eventId > 0)) return;
+
+          const timelineType = String(event?.timeline_type || timelineMeta?.timeline_type || '').toLowerCase();
+          const timelineVisibility = String(event?.timeline_visibility || event?.visibility || timelineMeta?.visibility || 'public').toLowerCase();
+
+          if (timelineType === 'personal') return;
+          if (timelineVisibility === 'private') return;
+
+          if (!eventById.has(eventId)) {
+            eventById.set(eventId, {
+              ...event,
+              timeline_id: event?.timeline_id || timelineId,
+              timeline_name: event?.timeline_name || timelineMeta?.name || '',
+              timeline_type: timelineType || 'hashtag',
+              timeline_visibility: timelineVisibility,
+            });
+          }
+        });
+      });
+
+      const events = Array.from(eventById.values());
+      const voteResults = await Promise.allSettled(
+        events.map((event) => api.get(`/api/v1/events/${event.id}/votes`)),
+      );
+
+      const rankedEvents = events.map((event, index) => {
+        const votePayload = voteResults[index]?.status === 'fulfilled'
+          ? voteResults[index].value?.data
+          : null;
+        const promote = Number(votePayload?.promote_count || votePayload?.promoteCount || 0) || 0;
+        const demote = Number(votePayload?.demote_count || votePayload?.demoteCount || 0) || 0;
+        return {
+          ...event,
+          popularity_votes: promote + demote,
+        };
+      });
+
+      rankedEvents.sort((a, b) => {
+        if ((b.popularity_votes || 0) !== (a.popularity_votes || 0)) {
+          return (b.popularity_votes || 0) - (a.popularity_votes || 0);
+        }
+        return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+      });
+
+      setPopularEvents(rankedEvents);
+      setHasLoadedPopular(true);
+    } catch (error) {
+      console.error('Error loading Popular data:', error);
+      setPopularTimelines([]);
+      setPopularEvents([]);
+      setHasLoadedPopular(true);
+    } finally {
+      setLoadingPopular(false);
+    }
+  }, [normalizedTimelines]);
+
+  React.useEffect(() => {
+    if (activeHubTab !== 'popular') return;
+    if (isHubPhaseOneLoading) return;
+    if (hasLoadedPopular || loadingPopular) return;
+
+    fetchPopularData();
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, loadingPopular, fetchPopularData]);
 
   React.useEffect(() => {
     setHasLoadedYourPage(false);
@@ -926,6 +1116,19 @@ const HomePage = () => {
     const isPersonal = type === 'personal';
     const typeLabel = isCommunity ? 'Community' : isPersonal ? 'Personal' : 'Hashtag';
     const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
+    const memberCount = Number(timeline?.member_count ?? timeline?.memberCount ?? 0) || 0;
+    const followerCount = Number(
+      timeline?.follow_count
+      ?? timeline?.followers_count
+      ?? timeline?.follower_count
+      ?? timeline?.followersCount
+      ?? 0,
+    ) || 0;
+    const popularityCount = Number(timeline?.popularity_count ?? 0) || 0;
+    const audienceCount = isCommunity
+      ? (memberCount || followerCount || popularityCount)
+      : (followerCount || memberCount || popularityCount);
+    const audienceLabel = isCommunity ? 'Members' : 'Followers';
 
     return (
       <Card
@@ -979,6 +1182,9 @@ const HomePage = () => {
               {timeline.description}
             </Typography>
           ) : null}
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>
+            {audienceLabel}: {audienceCount.toLocaleString()}
+          </Typography>
           <Typography variant="caption" color="text.secondary">
             Created: {formatDate(timeline.created_at)}
           </Typography>
@@ -1271,6 +1477,37 @@ const HomePage = () => {
     );
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && visibleTimelineCount < maxCount) {
       setVisibleTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, maxCount));
+    }
+  };
+
+  const handlePopularFilterChange = (nextFilter) => {
+    if (nextFilter === popularFilter) return;
+    setPopularFilter(nextFilter);
+
+    if (nextFilter === 'timelines') {
+      setVisiblePopularTimelineCount(HOME_LIST_BATCH_SIZE);
+    } else {
+      setVisiblePopularPostCount(HOME_LIST_BATCH_SIZE);
+    }
+
+    if (popularScrollRef.current) {
+      popularScrollRef.current.scrollTop = 0;
+      setShowActiveHubScrollTop(false);
+    }
+  };
+
+  const handlePopularScroll = (e) => {
+    const el = e.currentTarget;
+    setShowActiveHubScrollTop(el.scrollTop > 24);
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
+
+    if (popularFilter === 'timelines' && visiblePopularTimelines.length < popularTimelines.length) {
+      setVisiblePopularTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, popularTimelines.length));
+      return;
+    }
+
+    if (popularFilter === 'posts' && visiblePopularPosts.length < popularEvents.length) {
+      setVisiblePopularPostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, popularEvents.length));
     }
   };
 
@@ -1841,6 +2078,127 @@ const HomePage = () => {
                       ) : null}
                     </Stack>
                   </Box>
+                </Box>
+              ) : activeHubTab === 'popular' ? (
+                <Box
+                  ref={popularScrollRef}
+                  onScroll={handlePopularScroll}
+                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
+                    Popular
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ mb: 2.25 }}>
+                    Discovery feed ranked by popularity. Personal timelines and private content are excluded.
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      mb: 2,
+                      p: 0.5,
+                      borderRadius: 99,
+                      display: 'inline-flex',
+                      gap: 0.6,
+                      border: '1px solid',
+                      borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
+                      background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
+                    }}
+                  >
+                    {POPULAR_FILTERS.map((filter) => {
+                      const isActive = popularFilter === filter.key;
+                      return (
+                        <Button
+                          key={filter.key}
+                          size="small"
+                          onClick={() => handlePopularFilterChange(filter.key)}
+                          sx={{
+                            minWidth: 0,
+                            px: 1.25,
+                            py: 0.45,
+                            borderRadius: 99,
+                            textTransform: 'none',
+                            fontWeight: isActive ? 700 : 600,
+                            fontSize: '0.78rem',
+                            color: isActive ? 'common.white' : 'text.secondary',
+                            background: isActive
+                              ? 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)'
+                              : 'transparent',
+                            boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.24)' : 'none',
+                            transform: isActive ? 'translateY(-0.5px)' : 'translateY(0px)',
+                            transition: 'background 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, transform 220ms ease',
+                            '&:hover': {
+                              background: isActive
+                                ? 'linear-gradient(135deg, #0891b2 0%, #1d4ed8 100%)'
+                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+                              transform: isActive ? 'translateY(-0.5px)' : 'translateY(-1px)',
+                            },
+                          }}
+                        >
+                          {filter.label}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+
+                  {loadingPopular ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : popularFilter === 'timelines' ? (
+                    <Box>
+                      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                        Popular Timelines ({popularTimelines.length})
+                      </Typography>
+                      {popularTimelines.length > 0 ? (
+                        <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                          {visiblePopularTimelines.map((timeline) => renderTimelineCard(timeline))}
+                        </Stack>
+                      ) : (
+                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                          No public timelines with popularity data available yet.
+                        </Typography>
+                      )}
+                      {visiblePopularTimelines.length < popularTimelines.length ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setVisiblePopularTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, popularTimelines.length))}
+                          >
+                            Load Next 100
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  ) : (
+                    <Box>
+                      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                        Popular Posts ({popularEvents.length})
+                      </Typography>
+                      {popularEvents.length > 0 ? (
+                        <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                          {visiblePopularPosts.map((event) => (
+                            <Box key={`popular-event-${event.id}`}>
+                              {renderSearchEventCard(event)}
+                            </Box>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                          No public posts with votes available yet.
+                        </Typography>
+                      )}
+                      {visiblePopularPosts.length < popularEvents.length ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setVisiblePopularPostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, popularEvents.length))}
+                          >
+                            Load Next 100
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  )}
                 </Box>
               ) : activeHubTab === 'your-page' ? (
                 <Box

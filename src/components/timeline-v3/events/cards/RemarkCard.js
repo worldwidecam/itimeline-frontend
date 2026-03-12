@@ -211,7 +211,7 @@ const RemarkCard = forwardRef(({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        whileHover={{ y: -4 }}
+        whileHover={{ y: -5 }}
         whileTap={{ scale: 0.98 }}
         className="relative w-full"
         style={{ perspective: '1000px' }}
@@ -221,18 +221,25 @@ const RemarkCard = forwardRef(({
           handleCardClick();
         }}
       >
-        <motion.div
+        <Box
+          component={motion.div}
           className={`
             relative overflow-hidden rounded-xl p-4
             ${theme.palette.mode === 'dark' ? 'bg-black/40' : 'bg-white/80'}
             backdrop-blur-md border
             ${theme.palette.mode === 'dark' ? 'border-white/5' : 'border-black/5'}
-            shadow-lg
           `}
-          style={{
+          sx={{
             minHeight: 300,
             display: 'flex',
             flexDirection: 'column',
+            boxShadow: isSelected
+              ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)`
+              : '0 2px 4px rgba(0,0,0,0.1)',
+            transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+            '&:hover': {
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            },
           }}
         >
           {/* Vote overlay for EventList cards */}
@@ -467,7 +474,7 @@ const RemarkCard = forwardRef(({
               */}
             </Box>
           </Box>
-        </motion.div>
+        </Box>
       </motion.div>
 
       <EventPopup 
