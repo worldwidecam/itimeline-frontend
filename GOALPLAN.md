@@ -4,7 +4,7 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Home page implementation (core Search hub complete; next phase = additional right-hub tabs)
+- [ ] Home page implementation (SEARCH + MY CREATIONS + FRIENDS LIST + HASHTAG FOLLOW complete; next: POPULAR + YOUR PAGE)
 
 ## Scope / Success Criteria
 - Home page loads end-to-end with real data (no dead sections).
@@ -26,10 +26,30 @@
 - [x] Build left hub as vertical reference/tabs for right hub mode selection; first mode = TIMELINE SEARCH.
 - [x] Build right hub as primary internal-scroll container driven by selected left hub mode.
 - [x] Complete SEARCH hub tab (timeline/post/user search + users listing polish pass).
+- [x] Complete MY CREATIONS tab (timelines/posts filter + smooth two-phase tab/sub-tab transition + loading-state handoff).
+- [x] Stabilize and redesign REMARK card + REMARK popup typography/drop-cap alignment.
+- [x] Implement HASHTAG FOLLOW system (persistence + API + UI controls) to support POPULAR and YOUR PAGE signals.
+- [x] Complete follow-table ownership migration into iTimeline-DB (user_follow now; timeline_follow scaffold for hashtag watch/follow).
 - [ ] Build POPULAR tab (replace placeholder tab; define ranking window + cards shown in right hub).
-- [ ] Build YOUR PAGE tab (list timelines/posts from accounts the current user follows).
-- [ ] Build MY CREATIONS tab (list only current user's created timelines + posts; no search input and no ALL filter mode).
-- [ ] Build FRIENDS LIST tab (reuse SEARCH users-card styling baseline; no search field, just followed users list).
+- [ ] Build YOUR PAGE tab (list timelines/posts from accounts the current user follows + followed hashtags).
+- [x] Build FRIENDS LIST tab (reuse SEARCH users-card styling baseline; no search field, followed users only).
+
+## Current Status Snapshot
+- SEARCH tab: complete and stable.
+- MY CREATIONS tab: complete and confirmed smooth by user after two-phase transition refactor.
+- REMARK card + popup: style and UX significantly improved; popup drop-cap alignment issue fixed.
+- FRIENDS LIST tab: complete (followed-users data + follow/unfollow via Actions menu confirmed by user).
+- HASHTAG FOLLOW system: complete (DB migration + backend endpoints + TimelineV3 Watch button).
+- Next feasible implementation: POPULAR tab, then YOUR PAGE feed composition.
+
+## Learned / Required Systems Before Finalizing Remaining Home Tabs
+- Add a user follow system (follow/unfollow + followed-users retrieval) to power FRIENDS LIST and later YOUR PAGE.
+- Add a hashtag-follow system to support POPULAR/YOUR PAGE personalization signals. — COMPLETE
+- Defer new hashtag timeline UI behavior until follow-table migration is complete; only catalog design decisions in GOALPLAN during this phase.
+- Treat community membership as follow-equivalent for ranking/feed logic.
+- Keep existing search visibility constraints as baseline policy:
+  - no private communities in public discovery contexts
+  - no personal timeline content in search/popular-style pools
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [x] Update/improve remark cards look
@@ -42,6 +62,7 @@
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
 - [ ] update the members page and admin page buttons to FAB
 - [ ] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
+- [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 
 
 ## Completed
@@ -54,6 +75,7 @@
 
 ### Archived from Pending TODOs
 - [x] Update/improve remark cards look
+- [x] Home tab transition refactor: render/animation first, then async data fetch behind loading state
 - [x] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
 - [x] reporting action cards
 - [x] go back and fully implement action cards
@@ -89,6 +111,15 @@
 - "delete post" button in community timeline > admin page > manage posts, needs to be revamped and changed to something regarding passing it higher to admin
 - Site Control = higher tier: should retain all lower-tier actions, plus resolve-by-edit + resolve-by-delete actions (no Escalate button in Site Control).
 - Escalation metadata already in reports: escalation_type, escalation_summary, escalated_by, escalated_at; timeline_id can map to community name; site admin pickup tracked via assigned_to when accepted for review.
+- Home tabs implementation order: FRIENDS LIST first, then POPULAR, then YOUR PAGE.
+- FRIENDS LIST definition: followed users only.
+- FRIENDS LIST implementation status: complete and behavior confirmed (Actions menu, Follow/Unfollow, remove on unfollow).
+- Community timeline membership counts as follow-equivalent.
+- Next implementation priority: hashtag timeline follow system.
+- Priority override: first migrate follow table ownership to iTimeline-DB to avoid backend schema inflation.
+- Hashtag timeline header action decision (cataloged): replace legacy hashtag-only "Add Event" action with Follow/"Watch" (eye icon) once hashtag follow feature implementation starts.
+- POPULAR signals target: timeline popularity via membership/follow + post volume; post popularity via total votes.
+- YOUR PAGE target feed: community posts from memberships + posts by followed users (excluding personal posts) + posts from followed hashtags.
 
 ## System Map (List of Interactions)
 - 

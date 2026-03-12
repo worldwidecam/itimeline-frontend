@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
@@ -865,9 +865,14 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
 
   const isPersonalTimeline = timeline_type === 'personal';
+  const isHashtagTimeline = timeline_type === 'hashtag';
   const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false && !user?.must_change_username;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = user && Number(user.id) === 1;
+  const [isFollowingHashtag, setIsFollowingHashtag] = useState(false);
+  const [hashtagFollowKind, setHashtagFollowKind] = useState('watch');
+  const [isHashtagFollowLoading, setIsHashtagFollowLoading] = useState(false);
+  const [isHashtagFollowUpdating, setIsHashtagFollowUpdating] = useState(false);
   const [creatorProfile, setCreatorProfile] = useState(null);
   const viewerCount = 1 + allowedViewers.length;
   const viewerLabel = `${viewerCount} viewer${viewerCount !== 1 ? 's' : ''}`;
@@ -907,6 +912,78 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
     loadCreatorProfile();
   }, [isPersonalTimeline, createdBy, user, isCreator, isSiteOwner]);
+
+  useEffect(() => {
+    const loadHashtagFollowStatus = async () => {
+      if (!timelineId || timelineId === 'new') return;
+      if (!isHashtagTimeline) {
+        setIsFollowingHashtag(false);
+        setHashtagFollowKind('watch');
+        return;
+      }
+      if (!user) {
+        setIsFollowingHashtag(false);
+        setHashtagFollowKind('watch');
+        return;
+      }
+
+      try {
+        setIsHashtagFollowLoading(true);
+        const status = await getTimelineFollowStatus(timelineId);
+        setIsFollowingHashtag(Boolean(status?.is_following));
+        setHashtagFollowKind(status?.follow_kind || 'watch');
+      } catch (e) {
+        console.error('[TimelineV3] Failed to load hashtag follow status:', e);
+        setIsFollowingHashtag(false);
+        setHashtagFollowKind('watch');
+      } finally {
+        setIsHashtagFollowLoading(false);
+      }
+    };
+
+    loadHashtagFollowStatus();
+  }, [timelineId, isHashtagTimeline, user]);
+
+  useEffect(() => {
+    if (isHashtagTimeline) {
+      setAddEventAnchorEl(null);
+    }
+  }, [isHashtagTimeline]);
+
+  const handleToggleHashtagFollow = useCallback(async () => {
+    if (!timelineId || timelineId === 'new') return;
+    if (!user) {
+      setSnackbarMessage('Please log in to watch this hashtag timeline.');
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
+      return;
+    }
+    if (isHashtagFollowLoading || isHashtagFollowUpdating) return;
+
+    try {
+      setIsHashtagFollowUpdating(true);
+      if (isFollowingHashtag) {
+        await unfollowTimeline(timelineId);
+        setIsFollowingHashtag(false);
+        setHashtagFollowKind('watch');
+        setSnackbarMessage('Removed from your watched hashtags.');
+      } else {
+        const response = await followTimeline(timelineId, 'watch');
+        setIsFollowingHashtag(true);
+        setHashtagFollowKind(response?.follow_kind || 'watch');
+        setSnackbarMessage('Added to your watched hashtags.');
+      }
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      const message = e?.response?.data?.error || 'Failed to update hashtag watch status.';
+      setSnackbarMessage(message);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsHashtagFollowUpdating(false);
+    }
+  }, [timelineId, user, isHashtagFollowLoading, isHashtagFollowUpdating, isFollowingHashtag]);
 
   useEffect(() => {
     const loadViewers = async () => {
@@ -2887,6 +2964,51 @@ const handleRecenter = () => {
                     />
                   )
                 )
+              ) : isHashtagTimeline ? (
+                <Button
+                  onClick={handleToggleHashtagFollow}
+                  variant={isFollowingHashtag ? 'outlined' : 'contained'}
+                  disabled={isLoading || isHashtagFollowLoading || isHashtagFollowUpdating}
+                  startIcon={
+                    isHashtagFollowLoading || isHashtagFollowUpdating ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <VisibilityIcon />
+                    )
+                  }
+                  sx={{
+                    borderRadius: 2,
+                    px: 2,
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    ...(isFollowingHashtag
+                      ? {
+                          borderColor: theme.palette.info.main,
+                          color: theme.palette.info.main,
+                          '&:hover': {
+                            borderColor: theme.palette.info.dark,
+                            backgroundColor:
+                              theme.palette.mode === 'dark'
+                                ? 'rgba(3, 169, 244, 0.12)'
+                                : 'rgba(3, 169, 244, 0.08)',
+                          },
+                        }
+                      : {
+                          bgcolor: theme.palette.info.main,
+                          color: '#fff',
+                          '&:hover': {
+                            bgcolor: theme.palette.info.dark,
+                          },
+                          boxShadow: 2,
+                        }),
+                  }}
+                >
+                  {isHashtagFollowLoading
+                    ? 'Loading...'
+                    : isFollowingHashtag
+                    ? `Watching${hashtagFollowKind && hashtagFollowKind !== 'watch' ? ` (${hashtagFollowKind})` : ''}`
+                    : 'Watch'}
+                </Button>
               ) : (
                 // Only show Add Event for non-personal, non-community timelines
                 // and only after we've finished loading the basic timeline metadata.
@@ -2920,8 +3042,8 @@ const handleRecenter = () => {
                   </Button>
                 )
               )}
-              {/* Only show the menu for non-community timelines */}
-              {timeline_type !== 'community' && (
+              {/* Only show the add-event menu for non-community, non-hashtag timelines */}
+              {!isHashtagTimeline && timeline_type !== 'community' && (
                 <Menu
                   anchorEl={addEventAnchorEl}
                   open={Boolean(addEventAnchorEl)}

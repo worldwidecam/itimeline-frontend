@@ -420,6 +420,104 @@ export const getUserProfile = async (userId) => {
   }
 };
 
+export const getFollowedUsers = async () => {
+  try {
+    const response = await api.get('/api/v1/users/following');
+    const users = Array.isArray(response?.data?.users)
+      ? response.data.users
+      : (Array.isArray(response?.data) ? response.data : []);
+    return users;
+  } catch (error) {
+    console.error('[API] Error fetching followed users:', error);
+    throw error;
+  }
+};
+
+export const followUser = async (userId) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  try {
+    const response = await api.post(`/api/v1/users/${userId}/follow`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error following user:', error);
+    throw error;
+  }
+};
+
+export const unfollowUser = async (userId) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  try {
+    const response = await api.delete(`/api/v1/users/${userId}/follow`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error unfollowing user:', error);
+    throw error;
+  }
+};
+
+export const getTimelineFollowStatus = async (timelineId) => {
+  if (!timelineId) {
+    throw new Error('timelineId is required');
+  }
+
+  try {
+    const response = await api.get(`/api/v1/timelines/${timelineId}/follow-status`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching timeline follow status:', error);
+    throw error;
+  }
+};
+
+export const getFollowedHashtagTimelines = async () => {
+  try {
+    const response = await api.get('/api/v1/timelines/following/hashtags');
+    const timelines = Array.isArray(response?.data?.timelines)
+      ? response.data.timelines
+      : (Array.isArray(response?.data) ? response.data : []);
+    return timelines;
+  } catch (error) {
+    console.error('[API] Error fetching followed hashtag timelines:', error);
+    throw error;
+  }
+};
+
+export const followTimeline = async (timelineId, followKind = 'watch') => {
+  if (!timelineId) {
+    throw new Error('timelineId is required');
+  }
+
+  try {
+    const response = await api.post(`/api/v1/timelines/${timelineId}/follow`, {
+      follow_kind: followKind,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error following timeline:', error);
+    throw error;
+  }
+};
+
+export const unfollowTimeline = async (timelineId) => {
+  if (!timelineId) {
+    throw new Error('timelineId is required');
+  }
+
+  try {
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/follow`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error unfollowing timeline:', error);
+    throw error;
+  }
+};
+
 export const completeRequiredUsernameChange = async (username) => {
   try {
     const response = await api.post('/api/v1/auth/required-username-change', { username });

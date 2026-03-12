@@ -5,6 +5,8 @@ import {
   CircularProgress,
   Box,
   Button,
+  Menu,
+  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -19,11 +21,15 @@ import {
   Chip,
   Avatar,
   InputAdornment,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Search as SearchIcon,
   ArrowForward as ArrowForwardIcon,
+  North as NorthIcon,
+  ExpandMore as ExpandMoreIcon,
   LocalFireDepartment as LocalFireDepartmentIcon,
   Tag as TagIcon,
   Groups as GroupsIcon,
@@ -32,7 +38,7 @@ import {
   Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../utils/api';
+import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport } from '../utils/api';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
 import RemarkCard from './timeline-v3/events/cards/RemarkCard';
 import NewsCard from './timeline-v3/events/cards/NewsCard';
@@ -62,9 +68,9 @@ const normalizeUserPrimaryColor = (profileUser) => {
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
   { key: 'popular', label: 'POPULAR', icon: LocalFireDepartmentIcon, soon: true },
-  { key: 'your-page', label: 'YOUR PAGE', icon: ArticleIcon, soon: true },
+  { key: 'your-page', label: 'YOUR PAGE', icon: ArticleIcon },
   { key: 'my-creations', label: 'MY CREATIONS', icon: AutoStoriesIcon },
-  { key: 'friends-list', label: 'FRIENDS LIST', icon: GroupsIcon, soon: true },
+  { key: 'friends-list', label: 'FRIENDS LIST', icon: GroupsIcon },
 ];
 
 const SEARCH_SUB_FILTERS = [
@@ -79,12 +85,19 @@ const MY_CREATIONS_FILTERS = [
   { key: 'posts', label: 'Posts' },
 ];
 
+const YOUR_PAGE_FILTERS = [
+  { key: 'posts', label: 'Posts' },
+  { key: 'timelines', label: 'Timelines' },
+];
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useTheme();
   const resultsScrollRef = React.useRef(null);
   const myCreationsScrollRef = React.useRef(null);
+  const yourPageScrollRef = React.useRef(null);
+  const friendsListScrollRef = React.useRef(null);
   const heroTransitionTimeoutRef = React.useRef(null);
   const hubTransitionTimeoutRef = React.useRef(null);
   const myCreationsFetchTimeoutRef = React.useRef(null);
@@ -97,10 +110,14 @@ const HomePage = () => {
   const [timelines, setTimelines] = React.useState([]);
   const [searchEvents, setSearchEvents] = React.useState([]);
   const [searchUsers, setSearchUsers] = React.useState([]);
+  const [followedUsers, setFollowedUsers] = React.useState([]);
   const [myCreationEvents, setMyCreationEvents] = React.useState([]);
   const [loadingSearchEvents, setLoadingSearchEvents] = React.useState(false);
   const [loadingSearchUsers, setLoadingSearchUsers] = React.useState(false);
+  const [loadingFollowedUsers, setLoadingFollowedUsers] = React.useState(false);
   const [loadingMyCreationEvents, setLoadingMyCreationEvents] = React.useState(false);
+  const [followActionByUserId, setFollowActionByUserId] = React.useState({});
+  const [userActionMenu, setUserActionMenu] = React.useState({ anchorEl: null, userId: null });
   const [hasLoadedSearchEvents, setHasLoadedSearchEvents] = React.useState(false);
   const [hasLoadedMyCreationEvents, setHasLoadedMyCreationEvents] = React.useState(false);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
@@ -109,16 +126,27 @@ const HomePage = () => {
   const [activeHubTab, setActiveHubTab] = React.useState('timeline-search');
   const [isHubContentVisible, setIsHubContentVisible] = React.useState(true);
   const [isHubPhaseOneLoading, setIsHubPhaseOneLoading] = React.useState(false);
+  const [showActiveHubScrollTop, setShowActiveHubScrollTop] = React.useState(false);
   const [isMyCreationsSubTabPhaseOneLoading, setIsMyCreationsSubTabPhaseOneLoading] = React.useState(false);
   const [searchSubFilter, setSearchSubFilter] = React.useState('all');
   const [myCreationsFilter, setMyCreationsFilter] = React.useState('timelines');
+  const [yourPageFilter, setYourPageFilter] = React.useState('posts');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
   const [timelineSearch, setTimelineSearch] = React.useState('');
   const [isSearchSubmitting, setIsSearchSubmitting] = React.useState(false);
   const [isSearchResultsVisible, setIsSearchResultsVisible] = React.useState(true);
+  const [userFollowSnackbarOpen, setUserFollowSnackbarOpen] = React.useState(false);
+  const [userFollowSnackbarMessage, setUserFollowSnackbarMessage] = React.useState('');
+  const [userFollowSnackbarSeverity, setUserFollowSnackbarSeverity] = React.useState('success');
   const [visibleTimelineCount, setVisibleTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleMyCreationsTimelineCount, setVisibleMyCreationsTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleMyCreationsPostCount, setVisibleMyCreationsPostCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visibleYourPageTimelineCount, setVisibleYourPageTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visibleYourPagePostCount, setVisibleYourPagePostCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [yourPageTimelines, setYourPageTimelines] = React.useState([]);
+  const [yourPageEvents, setYourPageEvents] = React.useState([]);
+  const [loadingYourPage, setLoadingYourPage] = React.useState(false);
+  const [hasLoadedYourPage, setHasLoadedYourPage] = React.useState(false);
   const [formData, setFormData] = React.useState({ name: '', description: '' });
 
   React.useEffect(() => {
@@ -134,6 +162,7 @@ const HomePage = () => {
         setLoadingTimelines(false);
       }
     };
+
     fetchTimelines();
   }, [user]);
 
@@ -201,6 +230,7 @@ const HomePage = () => {
 
       setIsHubPhaseOneLoading(true);
       setIsHubContentVisible(false);
+      setShowActiveHubScrollTop(false);
       setActiveHubTab(nextTab);
       hubTransitionTimeoutRef.current = window.setTimeout(() => {
         setIsHubContentVisible(true);
@@ -210,12 +240,57 @@ const HomePage = () => {
     [activeHubTab],
   );
 
+  const getActiveHubScrollElement = React.useCallback(() => {
+    if (activeHubTab === 'timeline-search') return resultsScrollRef.current;
+    if (activeHubTab === 'my-creations') return myCreationsScrollRef.current;
+    if (activeHubTab === 'your-page') return yourPageScrollRef.current;
+    if (activeHubTab === 'friends-list') return friendsListScrollRef.current;
+    return null;
+  }, [activeHubTab]);
+
+  const refreshActiveHubScrollTop = React.useCallback(() => {
+    const el = getActiveHubScrollElement();
+    if (!el) {
+      setShowActiveHubScrollTop(false);
+      return;
+    }
+
+    const canScroll = el.scrollHeight > el.clientHeight + 2;
+    setShowActiveHubScrollTop(canScroll && el.scrollTop > 24);
+  }, [getActiveHubScrollElement]);
+
+  React.useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      refreshActiveHubScrollTop();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(id);
+    };
+  }, [
+    activeHubTab,
+    isHubPhaseOneLoading,
+    isHubContentVisible,
+    loadingYourPage,
+    loadingFollowedUsers,
+    yourPageFilter,
+    myCreationsFilter,
+    refreshActiveHubScrollTop,
+  ]);
+
   const hasSearchQuery = timelineSearch.trim().length > 0;
   const hasSearchDraft = timelineSearchInput.trim().length > 0;
   const isTimelineSearchScope = searchSubFilter === 'all' || searchSubFilter === 'timelines';
   const isPostSearchScope = searchSubFilter === 'all' || searchSubFilter === 'posts';
   const isUserSearchScope = searchSubFilter === 'all' || searchSubFilter === 'users';
   const currentUserId = Number(user?.id || 0);
+  const followedUserIdSet = React.useMemo(() => {
+    return new Set(
+      followedUsers
+        .map((profileUser) => Number(profileUser?.id || 0))
+        .filter((id) => id > 0),
+    );
+  }, [followedUsers]);
 
   const normalizedTimelines = React.useMemo(() => {
     return [...timelines].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
@@ -414,6 +489,14 @@ const HomePage = () => {
     return myCreationEvents.slice(0, visibleMyCreationsPostCount);
   }, [myCreationEvents, visibleMyCreationsPostCount]);
 
+  const visibleYourPageTimelines = React.useMemo(() => {
+    return yourPageTimelines.slice(0, visibleYourPageTimelineCount);
+  }, [yourPageTimelines, visibleYourPageTimelineCount]);
+
+  const visibleYourPagePosts = React.useMemo(() => {
+    return yourPageEvents.slice(0, visibleYourPagePostCount);
+  }, [yourPageEvents, visibleYourPagePostCount]);
+
   const fetchSearchEvents = React.useCallback(async () => {
     if (loadingSearchEvents || hasLoadedSearchEvents || !searchableTimelines.length) return;
 
@@ -494,6 +577,262 @@ const HomePage = () => {
     } finally {
       setLoadingSearchUsers(false);
     }
+  }, []);
+
+  const fetchFollowedUsers = React.useCallback(async () => {
+    if (!user) {
+      setFollowedUsers([]);
+      return;
+    }
+
+    try {
+      setLoadingFollowedUsers(true);
+      const users = await getFollowedUsers();
+      setFollowedUsers(Array.isArray(users) ? users : []);
+    } catch (error) {
+      console.error('Error fetching followed users:', error);
+      setFollowedUsers([]);
+    } finally {
+      setLoadingFollowedUsers(false);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    fetchFollowedUsers();
+  }, [fetchFollowedUsers]);
+
+  React.useEffect(() => {
+    setHasLoadedYourPage(false);
+    setYourPageTimelines([]);
+    setYourPageEvents([]);
+  }, [user?.id]);
+
+  const fetchYourPageData = React.useCallback(async () => {
+    if (!user) {
+      setYourPageTimelines([]);
+      setYourPageEvents([]);
+      setHasLoadedYourPage(true);
+      return;
+    }
+
+    try {
+      setLoadingYourPage(true);
+
+      const [syncedMembershipsResult, membershipsResult, followedHashtagsResult] = await Promise.allSettled([
+        syncUserPassport(),
+        fetchUserMemberships(),
+        getFollowedHashtagTimelines(),
+      ]);
+
+      const syncedMemberships = syncedMembershipsResult.status === 'fulfilled' && Array.isArray(syncedMembershipsResult.value)
+        ? syncedMembershipsResult.value
+        : [];
+
+      const fetchedMemberships = membershipsResult.status === 'fulfilled' && Array.isArray(membershipsResult.value)
+        ? membershipsResult.value
+        : [];
+
+      const memberships = syncedMemberships.length > 0 ? syncedMemberships : fetchedMemberships;
+
+      const followedHashtags = followedHashtagsResult.status === 'fulfilled' && Array.isArray(followedHashtagsResult.value)
+        ? followedHashtagsResult.value
+        : [];
+
+      const timelineById = new Map();
+      normalizedTimelines.forEach((timeline) => {
+        const id = Number(timeline?.id || 0);
+        if (id > 0) timelineById.set(id, timeline);
+      });
+
+      const activeMemberships = memberships.filter((membership) => {
+        const timelineId = Number(membership?.timeline_id || 0);
+        return timelineId > 0 && membership?.is_active_member !== false;
+      });
+
+      const yourTimelineMap = new Map();
+
+      activeMemberships.forEach((membership) => {
+        const timelineId = Number(membership?.timeline_id || 0);
+        if (!(timelineId > 0)) return;
+
+        const type = String(membership?.timeline_type || '').toLowerCase();
+        if (type !== 'community' && type !== 'personal') return;
+
+        const known = timelineById.get(timelineId);
+        yourTimelineMap.set(timelineId, {
+          id: timelineId,
+          name: known?.name || membership?.timeline_name || `Timeline ${timelineId}`,
+          description: known?.description || '',
+          timeline_type: known?.timeline_type || type,
+          visibility: known?.visibility || membership?.visibility || 'public',
+          created_by: known?.created_by || null,
+          created_at: known?.created_at || membership?.joined_at || null,
+        });
+      });
+
+      followedHashtags.forEach((timeline) => {
+        const timelineId = Number(timeline?.id || timeline?.timeline_id || 0);
+        if (!(timelineId > 0)) return;
+
+        yourTimelineMap.set(timelineId, {
+          id: timelineId,
+          name: timeline?.name || `Timeline ${timelineId}`,
+          description: timeline?.description || '',
+          timeline_type: 'hashtag',
+          visibility: timeline?.visibility || 'public',
+          created_by: timeline?.created_by || null,
+          created_at: timeline?.created_at || timeline?.followed_at || null,
+        });
+      });
+
+      const mergedTimelines = Array.from(yourTimelineMap.values()).sort((a, b) => {
+        return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+      });
+
+      setYourPageTimelines(mergedTimelines);
+
+      const membershipTimelineIds = activeMemberships
+        .filter((membership) => {
+          const type = String(membership?.timeline_type || '').toLowerCase();
+          return type === 'community' || type === 'personal';
+        })
+        .map((membership) => Number(membership?.timeline_id || 0))
+        .filter((id) => id > 0);
+
+      const followedHashtagTimelineIds = followedHashtags
+        .map((timeline) => Number(timeline?.id || timeline?.timeline_id || 0))
+        .filter((id) => id > 0);
+
+      const targetTimelineIds = Array.from(new Set([...membershipTimelineIds, ...followedHashtagTimelineIds]));
+
+      const timelineEventResults = await Promise.allSettled(
+        targetTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`)),
+      );
+
+      const timelineEvents = [];
+      timelineEventResults.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return;
+
+        const timelineId = targetTimelineIds[index];
+        const timelineMeta = yourTimelineMap.get(timelineId) || timelineById.get(timelineId) || null;
+        const payload = result.value?.data;
+        const events = Array.isArray(payload?.events)
+          ? payload.events
+          : (Array.isArray(payload) ? payload : []);
+
+        events.forEach((event) => {
+          timelineEvents.push({
+            ...event,
+            timeline_id: event?.timeline_id || timelineId,
+            timeline_name: event?.timeline_name || timelineMeta?.name || '',
+            timeline_type: event?.timeline_type || timelineMeta?.timeline_type || 'hashtag',
+          });
+        });
+      });
+
+      const followedUserIds = followedUsers
+        .map((profileUser) => Number(profileUser?.id || 0))
+        .filter((id) => id > 0 && id !== currentUserId);
+
+      const followedUserEventResults = await Promise.allSettled(
+        followedUserIds.map((followedId) => api.get(`/api/users/${followedId}/events`)),
+      );
+
+      const followedUserEvents = [];
+      followedUserEventResults.forEach((result) => {
+        if (result.status !== 'fulfilled') return;
+
+        const payload = result.value?.data;
+        const events = Array.isArray(payload?.events)
+          ? payload.events
+          : (Array.isArray(payload) ? payload : []);
+
+        events.forEach((event) => {
+          const timelineId = Number(event?.timeline_id || 0);
+          const knownTimeline = timelineById.get(timelineId) || yourTimelineMap.get(timelineId) || null;
+          const timelineType = String(event?.timeline_type || knownTimeline?.timeline_type || '').toLowerCase();
+          if (timelineType === 'personal') return;
+
+          followedUserEvents.push({
+            ...event,
+            timeline_id: event?.timeline_id || knownTimeline?.id || null,
+            timeline_name: event?.timeline_name || knownTimeline?.name || '',
+            timeline_type: timelineType || 'hashtag',
+          });
+        });
+      });
+
+      const dedupedById = [];
+      const seen = new Set();
+      [...timelineEvents, ...followedUserEvents].forEach((event) => {
+        const eventId = Number(event?.id || 0);
+        if (!(eventId > 0) || seen.has(eventId)) return;
+        seen.add(eventId);
+        dedupedById.push(event);
+      });
+
+      dedupedById.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
+
+      setYourPageEvents(dedupedById);
+      setHasLoadedYourPage(true);
+    } catch (error) {
+      console.error('Error loading Your Page data:', error);
+      setYourPageTimelines([]);
+      setYourPageEvents([]);
+      setHasLoadedYourPage(true);
+    } finally {
+      setLoadingYourPage(false);
+    }
+  }, [user, normalizedTimelines, followedUsers, currentUserId]);
+
+  React.useEffect(() => {
+    if (activeHubTab !== 'your-page') return;
+    if (isHubPhaseOneLoading) return;
+    if (hasLoadedYourPage || loadingYourPage) return;
+
+    fetchYourPageData();
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData]);
+
+  const handleToggleUserFollow = React.useCallback(async (profileUser) => {
+    const targetId = Number(profileUser?.id || 0);
+    if (!(targetId > 0) || (currentUserId > 0 && targetId === currentUserId)) return;
+    if (followActionByUserId[targetId]) return;
+
+    const currentlyFollowing = followedUserIdSet.has(targetId);
+    const targetLabel = profileUser?.username ? `@${profileUser.username}` : 'this user';
+
+    try {
+      setFollowActionByUserId((prev) => ({ ...prev, [targetId]: true }));
+      if (currentlyFollowing) {
+        await unfollowUser(targetId);
+        setUserFollowSnackbarMessage(`Unfollowed ${targetLabel}`);
+      } else {
+        await followUser(targetId);
+        setUserFollowSnackbarMessage(`Following ${targetLabel}`);
+      }
+      await fetchFollowedUsers();
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error toggling user follow:', error);
+      const message = error?.response?.data?.error || `Could not update follow status for ${targetLabel}`;
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    } finally {
+      setFollowActionByUserId((prev) => ({ ...prev, [targetId]: false }));
+    }
+  }, [currentUserId, followActionByUserId, followedUserIdSet, fetchFollowedUsers]);
+
+  const handleOpenUserActionMenu = React.useCallback((event, profileUser) => {
+    event.stopPropagation();
+    const targetId = Number(profileUser?.id || 0);
+    if (!(targetId > 0)) return;
+    setUserActionMenu({ anchorEl: event.currentTarget, userId: targetId });
+  }, []);
+
+  const handleCloseUserActionMenu = React.useCallback(() => {
+    setUserActionMenu({ anchorEl: null, userId: null });
   }, []);
 
   const fetchMyCreationEvents = React.useCallback(async () => {
@@ -675,8 +1014,244 @@ const HomePage = () => {
     return <RemarkCard {...sharedProps} />;
   }, []);
 
+  const renderUserProfileCard = React.useCallback((profileUser) => {
+    const userPrimaryColor = normalizeUserPrimaryColor(profileUser);
+    const fallbackStartTone = theme.palette.mode === 'dark' ? '#1a2a3f' : '#fff4ea';
+    const fallbackEndTone = theme.palette.mode === 'dark' ? '#395574' : '#dcecff';
+    const userCardBackground = userPrimaryColor
+      ? `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.9)} 46%, ${alpha(userPrimaryColor, 0.9)} 100%)`
+      : `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.93)} 100%)`;
+
+    const profileUserId = Number(profileUser?.id || 0);
+    const isFollowing = followedUserIdSet.has(profileUserId);
+    const isSelf = currentUserId > 0 && profileUserId === currentUserId;
+    const followBusy = !!followActionByUserId[profileUserId];
+    const isActionMenuOpen = userActionMenu.userId === profileUserId && Boolean(userActionMenu.anchorEl);
+
+    return (
+      <Card
+        key={`user-${profileUser.id}`}
+        onClick={() => navigate(`/profile/${profileUser.id}`)}
+        aria-label={`Open profile for ${profileUser.username}`}
+        sx={{
+          position: 'relative',
+          borderRadius: 3,
+          border: '2px solid',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(35, 24, 24, 0.55)',
+          background: userCardBackground,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 12px 26px rgba(0,0,0,0.4)'
+            : '0 14px 24px rgba(80, 34, 39, 0.24)',
+          overflow: 'visible',
+          pl: { xs: 12.9, sm: 16.6 },
+          minHeight: { xs: 125, sm: 133 },
+          cursor: 'pointer',
+          transition: 'transform 240ms ease, box-shadow 240ms ease',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 16px 32px rgba(0,0,0,0.5)'
+              : '0 16px 30px rgba(80, 34, 39, 0.3)',
+          },
+          '&:focus-within': {
+            outline: '2px solid rgba(56,189,248,0.55)',
+            outlineOffset: 2,
+          },
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            left: { xs: -24, sm: -32 },
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: { xs: 120, sm: 140 },
+            height: { xs: 148, sm: 172 },
+            borderRadius: '50px',
+            border: '3px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(22,18,18,0.94)' : 'rgba(18, 14, 14, 0.92)',
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(145deg, rgba(32,30,30,0.96) 0%, rgba(15,12,12,0.96) 100%)'
+              : 'linear-gradient(145deg, rgba(38,30,30,0.94) 0%, rgba(18,12,12,0.94) 100%)',
+            p: 0.55,
+            zIndex: 3,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 10px 22px rgba(0,0,0,0.48)'
+              : '0 10px 20px rgba(42,20,20,0.35)',
+          }}
+        >
+          <Avatar
+            src={profileUser.avatar_url || ''}
+            alt={profileUser.username || 'User'}
+            sx={{
+              width: '100%',
+              height: '100%',
+              borderRadius: '46px',
+              bgcolor: 'rgba(255,255,255,0.2)',
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.95)',
+              fontWeight: 800,
+              fontSize: '1.4rem',
+            }}
+          >
+            {String(profileUser?.username || '?').charAt(0).toUpperCase()}
+          </Avatar>
+        </Box>
+
+        <CardContent
+          sx={{
+            px: { xs: 1.75, sm: 2.2 },
+            py: { xs: 1.4, sm: 1.55 },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+          }}
+        >
+          <Box
+            sx={{
+              minWidth: 0,
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.94)' : 'rgba(15,23,42,0.94)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.15, mb: 0.45 }}>
+              <Box
+                sx={{
+                  width: 16,
+                  height: 2,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.92)',
+                  position: 'relative',
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    right: -3,
+                    top: -3,
+                    width: 0,
+                    height: 0,
+                    borderTop: '4px solid transparent',
+                    borderBottom: '4px solid transparent',
+                    borderRight: theme.palette.mode === 'dark' ? '6px solid rgba(255,255,255,0.9)' : '6px solid rgba(15,23,42,0.92)',
+                  },
+                }}
+              />
+              <Typography
+                sx={{
+                  fontFamily: 'Lobster, cursive',
+                  fontSize: { xs: '1.05rem', sm: '1.22rem' },
+                  lineHeight: 1.1,
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '4px',
+                  textDecorationThickness: '2px',
+                }}
+              >
+                @{profileUser.username}
+              </Typography>
+            </Box>
+
+            <Typography
+              sx={{
+                fontFamily: 'Playfair Display, Georgia, serif',
+                fontStyle: 'italic',
+                fontWeight: 700,
+                fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.9)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              {profileUser.bio ? `"${profileUser.bio}"` : '"No bio added yet."'}
+            </Typography>
+          </Box>
+
+          <Stack spacing={0.75} sx={{ alignSelf: 'flex-end' }}>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={(e) => {
+                handleOpenUserActionMenu(e, profileUser);
+              }}
+              endIcon={<ExpandMoreIcon fontSize="small" />}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: 1.75,
+                px: 1.4,
+                background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+                boxShadow: '0 8px 16px rgba(37,99,235,0.24)',
+              }}
+            >
+              Actions
+            </Button>
+
+            <Menu
+              anchorEl={userActionMenu.anchorEl}
+              open={isActionMenuOpen}
+              onClose={handleCloseUserActionMenu}
+              onClick={(event) => event.stopPropagation()}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{
+                sx: {
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 14px 24px rgba(0,0,0,0.42)'
+                    : '0 12px 20px rgba(15,23,42,0.18)',
+                },
+              }}
+            >
+              <MenuItem
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleCloseUserActionMenu();
+                  navigate(`/profile/${profileUser.id}`);
+                }}
+              >
+                View Profile
+              </MenuItem>
+
+              {!isSelf ? (
+                <MenuItem
+                  disabled={followBusy}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleCloseUserActionMenu();
+                    handleToggleUserFollow(profileUser);
+                  }}
+                  sx={{
+                    color: isFollowing
+                      ? (theme.palette.mode === 'dark' ? 'rgb(252,165,165)' : 'rgb(185,28,28)')
+                      : (theme.palette.mode === 'dark' ? 'rgb(147,197,253)' : 'rgb(30,64,175)'),
+                    fontWeight: 700,
+                  }}
+                >
+                  {followBusy ? 'Saving...' : isFollowing ? 'Unfollow' : 'Follow'}
+                </MenuItem>
+              ) : null}
+            </Menu>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }, [
+    theme.palette.mode,
+    currentUserId,
+    followedUserIdSet,
+    followActionByUserId,
+    userActionMenu,
+    handleOpenUserActionMenu,
+    handleCloseUserActionMenu,
+    handleToggleUserFollow,
+    navigate,
+  ]);
+
   const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -688,6 +1263,7 @@ const HomePage = () => {
 
   const handleHubScroll = (e) => {
     const el = e.currentTarget;
+    setShowActiveHubScrollTop(el.scrollTop > 24);
     const maxCount = Math.max(
       isTimelineSearchScope ? filteredTimelines.length : 0,
       isPostSearchScope ? filteredPosts.length : 0,
@@ -698,8 +1274,23 @@ const HomePage = () => {
     }
   };
 
+  const handleFriendsListScroll = React.useCallback((e) => {
+    const el = e.currentTarget;
+    setShowActiveHubScrollTop(el.scrollTop > 24);
+  }, []);
+
+  const handleScrollActiveHubToTop = React.useCallback((event) => {
+    event.stopPropagation();
+    const el = getActiveHubScrollElement();
+    if (!el) return;
+
+    el.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowActiveHubScrollTop(false);
+  }, [getActiveHubScrollElement]);
+
   const handleMyCreationsScroll = (e) => {
     const el = e.currentTarget;
+    setShowActiveHubScrollTop(el.scrollTop > 24);
     if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
 
     if (myCreationsFilter === 'timelines' && visibleOwnedTimelines.length < ownedTimelines.length) {
@@ -717,6 +1308,7 @@ const HomePage = () => {
     setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
+      setShowActiveHubScrollTop(false);
     }
   };
 
@@ -725,6 +1317,7 @@ const HomePage = () => {
     setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
+      setShowActiveHubScrollTop(false);
     }
   };
 
@@ -746,11 +1339,43 @@ const HomePage = () => {
 
     if (myCreationsScrollRef.current) {
       myCreationsScrollRef.current.scrollTop = 0;
+      setShowActiveHubScrollTop(false);
     }
 
     myCreationsFilterTransitionTimeoutRef.current = window.setTimeout(() => {
       setIsMyCreationsSubTabPhaseOneLoading(false);
     }, HUB_PHASE_ONE_MS);
+  };
+
+  const handleYourPageFilterChange = (nextFilter) => {
+    if (nextFilter === yourPageFilter) return;
+    setYourPageFilter(nextFilter);
+
+    if (nextFilter === 'timelines') {
+      setVisibleYourPageTimelineCount(HOME_LIST_BATCH_SIZE);
+    } else {
+      setVisibleYourPagePostCount(HOME_LIST_BATCH_SIZE);
+    }
+
+    if (yourPageScrollRef.current) {
+      yourPageScrollRef.current.scrollTop = 0;
+      setShowActiveHubScrollTop(false);
+    }
+  };
+
+  const handleYourPageScroll = (e) => {
+    const el = e.currentTarget;
+    setShowActiveHubScrollTop(el.scrollTop > 24);
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
+
+    if (yourPageFilter === 'timelines' && visibleYourPageTimelines.length < yourPageTimelines.length) {
+      setVisibleYourPageTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageTimelines.length));
+      return;
+    }
+
+    if (yourPageFilter === 'posts' && visibleYourPagePosts.length < yourPageEvents.length) {
+      setVisibleYourPagePostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageEvents.length));
+    }
   };
 
   const handleSearchSubmit = React.useCallback((forcedQuery = null) => {
@@ -992,11 +1617,45 @@ const HomePage = () => {
                         'width 420ms cubic-bezier(0.34, 1.56, 0.64, 1), min-width 420ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), padding 240ms ease',
                     }}
                   >
-                    {isActive ? tab.label : null}
-                    {isActive && tab.soon ? (
-                      <Typography component="span" variant="caption" sx={{ ml: 0.75, opacity: 0.7 }}>
-                        soon
-                      </Typography>
+                    {isActive ? (
+                      <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Typography component="span" sx={{ fontWeight: 700, fontSize: '0.82rem' }}>
+                            {tab.label}
+                          </Typography>
+                          {tab.soon ? (
+                            <Typography component="span" variant="caption" sx={{ opacity: 0.72 }}>
+                              soon
+                            </Typography>
+                          ) : null}
+                        </Box>
+
+                        <Box
+                          onClick={handleScrollActiveHubToTop}
+                          sx={{
+                            ml: 'auto',
+                            width: 26,
+                            height: 26,
+                            borderRadius: 99,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'common.white',
+                            background: 'rgba(255,255,255,0.16)',
+                            border: '1px solid rgba(255,255,255,0.28)',
+                            boxShadow: '0 5px 11px rgba(2, 6, 23, 0.28)',
+                            opacity: showActiveHubScrollTop ? 1 : 0,
+                            transform: showActiveHubScrollTop ? 'translateY(0px) scale(1)' : 'translateY(4px) scale(0.86)',
+                            pointerEvents: showActiveHubScrollTop ? 'auto' : 'none',
+                            transition: 'opacity 220ms ease, transform 220ms ease, background 200ms ease',
+                            '&:hover': {
+                              background: 'rgba(255,255,255,0.24)',
+                            },
+                          }}
+                        >
+                          <NorthIcon sx={{ fontSize: 17, fontWeight: 900 }} />
+                        </Box>
+                      </Box>
                     ) : null}
                   </Button>
                 );
@@ -1182,6 +1841,156 @@ const HomePage = () => {
                       ) : null}
                     </Stack>
                   </Box>
+                </Box>
+              ) : activeHubTab === 'your-page' ? (
+                <Box
+                  ref={yourPageScrollRef}
+                  onScroll={handleYourPageScroll}
+                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
+                    Your Page
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ mb: 2.25 }}>
+                    Your personalized feed: community posts from memberships, followed-user posts (excluding personal timelines), and followed hashtag posts.
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      mb: 2,
+                      p: 0.5,
+                      borderRadius: 99,
+                      display: 'inline-flex',
+                      gap: 0.6,
+                      border: '1px solid',
+                      borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
+                      background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
+                    }}
+                  >
+                    {YOUR_PAGE_FILTERS.map((filter) => {
+                      const isActive = yourPageFilter === filter.key;
+                      return (
+                        <Button
+                          key={filter.key}
+                          size="small"
+                          onClick={() => handleYourPageFilterChange(filter.key)}
+                          sx={{
+                            minWidth: 0,
+                            px: 1.25,
+                            py: 0.45,
+                            borderRadius: 99,
+                            textTransform: 'none',
+                            fontWeight: isActive ? 700 : 600,
+                            fontSize: '0.78rem',
+                            color: isActive ? 'common.white' : 'text.secondary',
+                            background: isActive
+                              ? 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)'
+                              : 'transparent',
+                            boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.24)' : 'none',
+                            transform: isActive ? 'translateY(-0.5px)' : 'translateY(0px)',
+                            transition: 'background 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, transform 220ms ease',
+                            '&:hover': {
+                              background: isActive
+                                ? 'linear-gradient(135deg, #0891b2 0%, #1d4ed8 100%)'
+                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+                              transform: isActive ? 'translateY(-0.5px)' : 'translateY(-1px)',
+                            },
+                          }}
+                        >
+                          {filter.label}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+
+                  {loadingYourPage ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : yourPageFilter === 'timelines' ? (
+                    <Box>
+                      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                        Your Timelines ({yourPageTimelines.length})
+                      </Typography>
+                      {yourPageTimelines.length > 0 ? (
+                        <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                          {visibleYourPageTimelines.map((timeline) => renderTimelineCard(timeline))}
+                        </Stack>
+                      ) : (
+                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                          No timelines found yet. Watch hashtags or join communities to populate this list.
+                        </Typography>
+                      )}
+                      {visibleYourPageTimelines.length < yourPageTimelines.length ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setVisibleYourPageTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageTimelines.length))}
+                          >
+                            Load Next 100
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  ) : (
+                    <Box>
+                      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                        Your Feed Posts ({yourPageEvents.length})
+                      </Typography>
+                      {yourPageEvents.length > 0 ? (
+                        <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                          {visibleYourPagePosts.map((event) => (
+                            <Box key={`your-page-event-${event.id}`}>
+                              {renderSearchEventCard(event)}
+                            </Box>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                          No posts available yet. Follow hashtags and users or join communities to build your feed.
+                        </Typography>
+                      )}
+                      {visibleYourPagePosts.length < yourPageEvents.length ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setVisibleYourPagePostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageEvents.length))}
+                          >
+                            Load Next 100
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  )}
+                </Box>
+              ) : activeHubTab === 'friends-list' ? (
+                <Box
+                  ref={friendsListScrollRef}
+                  onScroll={handleFriendsListScroll}
+                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
+                    Friends List
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ mb: 2.25 }}>
+                    Profiles you follow. Use Follow from search users to add people here.
+                  </Typography>
+
+                  {loadingFollowedUsers ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : followedUsers.length > 0 ? (
+                    <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 1.6, sm: 2.1 } }}>
+                      {followedUsers.map((profileUser) => renderUserProfileCard(profileUser))}
+                    </Stack>
+                  ) : (
+                    <Box sx={{ py: 6, textAlign: 'center' }}>
+                      <Typography color="text.secondary">
+                        You are not following anyone yet. Use Search → Users and tap Follow.
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               ) : activeHubTab !== 'timeline-search' ? (
                 <Box sx={{ p: 3 }}>
@@ -1387,173 +2196,7 @@ const HomePage = () => {
                                   </Typography>
                                 ) : null}
                                 <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 2.4, sm: 2.9 } }}>
-                                  {visibleUsers.map((profileUser) => {
-                                    const userPrimaryColor = normalizeUserPrimaryColor(profileUser);
-                                    const fallbackStartTone = theme.palette.mode === 'dark' ? '#1a2a3f' : '#fff4ea';
-                                    const fallbackEndTone = theme.palette.mode === 'dark' ? '#395574' : '#dcecff';
-                                    const userCardBackground = userPrimaryColor
-                                      ? `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.9)} 46%, ${alpha(userPrimaryColor, 0.9)} 100%)`
-                                      : `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.93)} 100%)`;
-
-                                    return (
-                                    <Card
-                                      key={`user-${profileUser.id}`}
-                                      onClick={() => navigate(`/profile/${profileUser.id}`)}
-                                      aria-label={`Open profile for ${profileUser.username}`}
-                                      sx={{
-                                        position: 'relative',
-                                        borderRadius: 3,
-                                        border: '2px solid',
-                                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(35, 24, 24, 0.55)',
-                                        background: userCardBackground,
-                                        boxShadow: theme.palette.mode === 'dark'
-                                          ? '0 12px 26px rgba(0,0,0,0.4)'
-                                          : '0 14px 24px rgba(80, 34, 39, 0.24)',
-                                        overflow: 'visible',
-                                        pl: { xs: 12.9, sm: 16.6 },
-                                        minHeight: { xs: 125, sm: 133 },
-                                        cursor: 'pointer',
-                                        transition: 'transform 240ms ease, box-shadow 240ms ease',
-                                        '&:hover': {
-                                          transform: 'translateY(-2px)',
-                                          boxShadow: theme.palette.mode === 'dark'
-                                            ? '0 16px 32px rgba(0,0,0,0.5)'
-                                            : '0 16px 30px rgba(80, 34, 39, 0.3)',
-                                        },
-                                        '&:focus-within': {
-                                          outline: '2px solid rgba(56,189,248,0.55)',
-                                          outlineOffset: 2,
-                                        },
-                                      }}
-                                    >
-                                      <Box
-                                        sx={{
-                                          position: 'absolute',
-                                          left: { xs: -24, sm: -32 },
-                                          top: '50%',
-                                          transform: 'translateY(-50%)',
-                                          width: { xs: 120, sm: 140 },
-                                          height: { xs: 148, sm: 172 },
-                                          borderRadius: '50px',
-                                          border: '3px solid',
-                                          borderColor: theme.palette.mode === 'dark' ? 'rgba(22,18,18,0.94)' : 'rgba(18, 14, 14, 0.92)',
-                                          background: theme.palette.mode === 'dark'
-                                            ? 'linear-gradient(145deg, rgba(32,30,30,0.96) 0%, rgba(15,12,12,0.96) 100%)'
-                                            : 'linear-gradient(145deg, rgba(38,30,30,0.94) 0%, rgba(18,12,12,0.94) 100%)',
-                                          p: 0.55,
-                                          zIndex: 3,
-                                          boxShadow: theme.palette.mode === 'dark'
-                                            ? '0 10px 22px rgba(0,0,0,0.48)'
-                                            : '0 10px 20px rgba(42,20,20,0.35)',
-                                        }}
-                                      >
-                                        <Avatar
-                                          src={profileUser.avatar_url || ''}
-                                          alt={profileUser.username || 'User'}
-                                          sx={{
-                                            width: '100%',
-                                            height: '100%',
-                                            borderRadius: '46px',
-                                            bgcolor: 'rgba(255,255,255,0.2)',
-                                            color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.95)',
-                                            fontWeight: 800,
-                                            fontSize: '1.4rem',
-                                          }}
-                                        >
-                                          {String(profileUser?.username || '?').charAt(0).toUpperCase()}
-                                        </Avatar>
-                                      </Box>
-
-                                      <CardContent
-                                        sx={{
-                                          px: { xs: 1.75, sm: 2.2 },
-                                          py: { xs: 1.4, sm: 1.55 },
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'space-between',
-                                          gap: 1.5,
-                                        }}
-                                      >
-                                        <Box
-                                          sx={{
-                                            minWidth: 0,
-                                            color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.94)' : 'rgba(15,23,42,0.94)',
-                                          }}
-                                        >
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.15, mb: 0.45 }}>
-                                            <Box
-                                              sx={{
-                                                width: 16,
-                                                height: 2,
-                                                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.92)',
-                                                position: 'relative',
-                                                '&::after': {
-                                                  content: '""',
-                                                  position: 'absolute',
-                                                  right: -3,
-                                                  top: -3,
-                                                  width: 0,
-                                                  height: 0,
-                                                  borderTop: '4px solid transparent',
-                                                  borderBottom: '4px solid transparent',
-                                                  borderRight: theme.palette.mode === 'dark' ? '6px solid rgba(255,255,255,0.9)' : '6px solid rgba(15,23,42,0.92)',
-                                                },
-                                              }}
-                                            />
-                                            <Typography
-                                              sx={{
-                                                fontFamily: 'Lobster, cursive',
-                                                fontSize: { xs: '1.05rem', sm: '1.22rem' },
-                                                lineHeight: 1.1,
-                                                textDecoration: 'underline',
-                                                textUnderlineOffset: '4px',
-                                                textDecorationThickness: '2px',
-                                              }}
-                                            >
-                                              @{profileUser.username}
-                                            </Typography>
-                                          </Box>
-
-                                          <Typography
-                                            sx={{
-                                              fontFamily: 'Playfair Display, Georgia, serif',
-                                              fontStyle: 'italic',
-                                              fontWeight: 700,
-                                              fontSize: { xs: '0.95rem', sm: '1.05rem' },
-                                              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.9)',
-                                              overflow: 'hidden',
-                                              textOverflow: 'ellipsis',
-                                              display: '-webkit-box',
-                                              WebkitLineClamp: 2,
-                                              WebkitBoxOrient: 'vertical',
-                                            }}
-                                          >
-                                            {profileUser.bio ? `"${profileUser.bio}"` : '"No bio added yet."'}
-                                          </Typography>
-                                        </Box>
-
-                                        <Button
-                                          size="small"
-                                          variant="contained"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigate(`/profile/${profileUser.id}`);
-                                          }}
-                                          sx={{
-                                            textTransform: 'none',
-                                            fontWeight: 700,
-                                            borderRadius: 1.75,
-                                            px: 1.4,
-                                            alignSelf: 'flex-end',
-                                            background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
-                                            boxShadow: '0 8px 16px rgba(37,99,235,0.24)',
-                                          }}
-                                        >
-                                          View Profile
-                                        </Button>
-                                      </CardContent>
-                                    </Card>
-                                  );})}
+                                  {visibleUsers.map((profileUser) => renderUserProfileCard(profileUser))}
                                 </Stack>
                               </>
                             ) : null}
@@ -1650,6 +2293,21 @@ const HomePage = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <Snackbar
+          open={userFollowSnackbarOpen}
+          autoHideDuration={2800}
+          onClose={() => setUserFollowSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={() => setUserFollowSnackbarOpen(false)}
+            severity={userFollowSnackbarSeverity}
+            sx={{ width: '100%' }}
+          >
+            {userFollowSnackbarMessage}
+          </Alert>
+        </Snackbar>
       </Box>
     </>
   );
