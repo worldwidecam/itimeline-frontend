@@ -68,6 +68,22 @@ const getReportTypeLabel = (reportType) => {
   return reportType || 'Post';
 };
 
+const SITE_SETTINGS_SECTIONS = [
+  { key: 'home-hero', label: 'Home Hero Banner' },
+  { key: 'landing-badge', label: 'Landing Badge' },
+  { key: 'landing-rotator', label: 'Landing Rotator Text' },
+  { key: 'toolbar-led', label: 'Toolbar LED Banner' },
+];
+
+const HOME_HERO_TEMPLATE_OPTIONS = [
+  { type: 'welcome', label: 'Welcome Banner' },
+  { type: 'timeline_spotlight', label: 'Timeline Spotlight' },
+  { type: 'event_spotlight', label: 'Event Spotlight' },
+  { type: 'advertisement', label: 'Advertisement' },
+];
+
+const HOME_HERO_DEFAULT_INTERVAL_MS = 75000;
+
 const formatResolutionLabel = (resolution) => {
   const value = String(resolution || '').trim();
   if (!value) return 'Unknown';
@@ -2030,12 +2046,16 @@ const GlobalReportsTab = () => {
 
 const SiteSettingsTab = ({ canManageSettings }) => {
   const theme = useTheme();
+  const [settingsSection, setSettingsSection] = useState('home-hero');
   const [leadSentence, setLeadSentence] = useState('');
   const [rotatorItems, setRotatorItems] = useState([]);
   const [rotationIntervalMs, setRotationIntervalMs] = useState(3000);
   const [randomizeEndings, setRandomizeEndings] = useState(false);
   const [badgeText, setBadgeText] = useState('');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
+  const [homeHeroRotationIntervalMs, setHomeHeroRotationIntervalMs] = useState(HOME_HERO_DEFAULT_INTERVAL_MS);
+  const [homeHeroSlides, setHomeHeroSlides] = useState([]);
+  const [newHomeHeroSlideType, setNewHomeHeroSlideType] = useState('welcome');
   const [toolbarLedMessage, setToolbarLedMessage] = useState('');
   const [toolbarLedEnabled, setToolbarLedEnabled] = useState(false);
   const [toolbarLedRandomStart, setToolbarLedRandomStart] = useState(true);
@@ -2060,6 +2080,9 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setRandomizeEndings(Boolean(settings.randomize));
       setBadgeText(settings.badge_text || '');
       setBadgeEnabled(Boolean(settings.badge_enabled));
+      const homeHeroSettings = settings.home_hero || {};
+      setHomeHeroRotationIntervalMs(Number(homeHeroSettings.rotation_interval_ms) || HOME_HERO_DEFAULT_INTERVAL_MS);
+      setHomeHeroSlides(Array.isArray(homeHeroSettings.slides) ? homeHeroSettings.slides : []);
       setToolbarLedMessage(settings.toolbar_led_message || '');
       setToolbarLedEnabled(Boolean(settings.toolbar_led_enabled));
       setToolbarLedRandomStart(Boolean(settings.toolbar_led_random_start));
@@ -2122,6 +2145,51 @@ const SiteSettingsTab = ({ canManageSettings }) => {
     setHasUnsavedChanges(true);
   };
 
+  const hasHomeHeroTemplate = useCallback((slideType) => {
+    const normalizedType = String(slideType || '').trim().toLowerCase();
+    return homeHeroSlides.some((slide) => String(slide?.type || '').toLowerCase() === normalizedType);
+  }, [homeHeroSlides]);
+
+  const handleAddHomeHeroSlide = () => {
+    const slideType = String(newHomeHeroSlideType || '').trim().toLowerCase();
+    if (!slideType || hasHomeHeroTemplate(slideType)) return;
+
+    const baseSlide = {
+      type: slideType,
+      enabled: true,
+    };
+
+    if (slideType === 'event_spotlight') {
+      baseSlide.event_id = null;
+    }
+
+    if (slideType === 'advertisement') {
+      baseSlide.headline = '';
+      baseSlide.subtext = '';
+      baseSlide.cta_label = '';
+      baseSlide.cta_href = '';
+      baseSlide.open_in_new_tab = false;
+    }
+
+    setHomeHeroSlides((prev) => [...prev, baseSlide]);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleRemoveHomeHeroSlide = (slideType) => {
+    const normalizedType = String(slideType || '').trim().toLowerCase();
+    setHomeHeroSlides((prev) => prev.filter((slide) => String(slide?.type || '').toLowerCase() !== normalizedType));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleUpdateHomeHeroSlide = (slideType, updates) => {
+    const normalizedType = String(slideType || '').trim().toLowerCase();
+    setHomeHeroSlides((prev) => prev.map((slide) => {
+      if (String(slide?.type || '').toLowerCase() !== normalizedType) return slide;
+      return { ...slide, ...updates };
+    }));
+    setHasUnsavedChanges(true);
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -2133,6 +2201,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
         randomize: randomizeEndings,
         badge_text: badgeText,
         badge_enabled: badgeEnabled,
+        home_hero: {
+          rotation_interval_ms: homeHeroRotationIntervalMs,
+          slides: homeHeroSlides,
+        },
         toolbar_led_message: toolbarLedMessage,
         toolbar_led_enabled: toolbarLedEnabled,
         toolbar_led_random_start: toolbarLedRandomStart,
@@ -2146,6 +2218,9 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setRandomizeEndings(Boolean(settings.randomize));
       setBadgeText(settings.badge_text || '');
       setBadgeEnabled(Boolean(settings.badge_enabled));
+      const homeHeroSettings = settings.home_hero || {};
+      setHomeHeroRotationIntervalMs(Number(homeHeroSettings.rotation_interval_ms) || HOME_HERO_DEFAULT_INTERVAL_MS);
+      setHomeHeroSlides(Array.isArray(homeHeroSettings.slides) ? homeHeroSettings.slides : []);
       setToolbarLedMessage(settings.toolbar_led_message || '');
       setToolbarLedEnabled(Boolean(settings.toolbar_led_enabled));
       setToolbarLedRandomStart(Boolean(settings.toolbar_led_random_start));
@@ -2176,8 +2251,215 @@ const SiteSettingsTab = ({ canManageSettings }) => {
           </Typography>
         </Paper>
       ) : (
-        <Stack spacing={3}>
-          <Paper sx={{ p: 3 }} elevation={2}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)' },
+            gap: 2,
+          }}
+        >
+          <Paper sx={{ p: 1.25, height: 'fit-content' }} elevation={2}>
+            <Tabs
+              value={settingsSection}
+              onChange={(_event, nextValue) => setSettingsSection(nextValue)}
+              orientation="vertical"
+              variant="scrollable"
+              sx={{
+                '& .MuiTab-root': {
+                  alignItems: 'flex-start',
+                  textAlign: 'left',
+                  minHeight: 42,
+                  borderRadius: 1.5,
+                  mb: 0.5,
+                },
+              }}
+            >
+              {SITE_SETTINGS_SECTIONS.map((section) => (
+                <Tab key={section.key} label={section.label} value={section.key} />
+              ))}
+            </Tabs>
+          </Paper>
+
+          <Stack spacing={2.5}>
+            {settingsSection === 'home-hero' ? (
+              <Paper sx={{ p: 3 }} elevation={2}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6">Home Hero Banner</Typography>
+                  <IconButton
+                    size="small"
+                    onClick={loadLandingSettings}
+                    disabled={loadingSettings}
+                    sx={{
+                      color: 'primary.main',
+                      '&:hover': { bgcolor: 'primary.main', color: 'white' }
+                    }}
+                  >
+                    <RefreshIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Configure Home hero rotation templates. Duplicates are not allowed.
+                </Typography>
+
+                <Stack spacing={2}>
+                  <TextField
+                    label="Auto Alternate Interval (ms)"
+                    type="number"
+                    fullWidth
+                    value={homeHeroRotationIntervalMs}
+                    onChange={(e) => {
+                      setHomeHeroRotationIntervalMs(Number(e.target.value) || 0);
+                      setHasUnsavedChanges(true);
+                    }}
+                    helperText="Default is 75000ms (1 minute 15 seconds)."
+                    disabled={loadingSettings}
+                  />
+
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+                      <Typography variant="subtitle1">Slides in Rotation</Typography>
+                    </Box>
+
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mb: 1.5 }}>
+                      <FormControl fullWidth size="small" disabled={loadingSettings}>
+                        <InputLabel id="home-hero-template-select-label">Template</InputLabel>
+                        <Select
+                          labelId="home-hero-template-select-label"
+                          value={newHomeHeroSlideType}
+                          label="Template"
+                          onChange={(e) => setNewHomeHeroSlideType(e.target.value)}
+                        >
+                          {HOME_HERO_TEMPLATE_OPTIONS.map((option) => (
+                            <MenuItem
+                              key={option.type}
+                              value={option.type}
+                              disabled={hasHomeHeroTemplate(option.type)}
+                            >
+                              {option.label}{hasHomeHeroTemplate(option.type) ? ' (already added)' : ''}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="outlined"
+                        startIcon={<AddIcon />}
+                        onClick={handleAddHomeHeroSlide}
+                        disabled={loadingSettings || hasHomeHeroTemplate(newHomeHeroSlideType)}
+                      >
+                        Add Slide
+                      </Button>
+                    </Stack>
+
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Template</TableCell>
+                          <TableCell>Enabled</TableCell>
+                          <TableCell>Details</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {homeHeroSlides.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                              No hero slides selected yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : homeHeroSlides.map((slide) => {
+                          const slideType = String(slide?.type || '').toLowerCase();
+                          const templateLabel = HOME_HERO_TEMPLATE_OPTIONS.find((option) => option.type === slideType)?.label || slideType;
+
+                          return (
+                            <TableRow key={`home-hero-slide-${slideType}`}>
+                              <TableCell>{templateLabel}</TableCell>
+                              <TableCell>
+                                <Switch
+                                  size="small"
+                                  checked={Boolean(slide?.enabled)}
+                                  onChange={(e) => handleUpdateHomeHeroSlide(slideType, { enabled: e.target.checked })}
+                                  disabled={loadingSettings}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {slideType === 'event_spotlight' ? (
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    label="Event ID"
+                                    value={slide?.event_id ?? ''}
+                                    onChange={(e) => handleUpdateHomeHeroSlide(slideType, { event_id: Number(e.target.value) || null })}
+                                    disabled={loadingSettings}
+                                  />
+                                ) : null}
+
+                                {slideType === 'advertisement' ? (
+                                  <Stack spacing={1}>
+                                    <TextField
+                                      size="small"
+                                      label="Headline"
+                                      value={slide?.headline || ''}
+                                      onChange={(e) => handleUpdateHomeHeroSlide(slideType, { headline: e.target.value })}
+                                      disabled={loadingSettings}
+                                    />
+                                    <TextField
+                                      size="small"
+                                      label="Subtext"
+                                      value={slide?.subtext || ''}
+                                      onChange={(e) => handleUpdateHomeHeroSlide(slideType, { subtext: e.target.value })}
+                                      disabled={loadingSettings}
+                                    />
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                                      <TextField
+                                        size="small"
+                                        label="CTA Label"
+                                        value={slide?.cta_label || ''}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { cta_label: e.target.value })}
+                                        disabled={loadingSettings}
+                                      />
+                                      <TextField
+                                        size="small"
+                                        label="CTA URL/Route"
+                                        value={slide?.cta_href || ''}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { cta_href: e.target.value })}
+                                        disabled={loadingSettings}
+                                      />
+                                    </Stack>
+                                    <FormControlLabel
+                                      control={(
+                                        <Checkbox
+                                          checked={Boolean(slide?.open_in_new_tab)}
+                                          onChange={(e) => handleUpdateHomeHeroSlide(slideType, { open_in_new_tab: e.target.checked })}
+                                          disabled={loadingSettings}
+                                        />
+                                      )}
+                                      label="Open ad link in new tab"
+                                    />
+                                  </Stack>
+                                ) : null}
+                              </TableCell>
+                              <TableCell align="right">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleRemoveHomeHeroSlide(slideType)}
+                                  disabled={loadingSettings}
+                                  sx={{ color: theme.palette.error.main }}
+                                >
+                                  <DeleteOutlineIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </Stack>
+              </Paper>
+            ) : null}
+
+            {settingsSection === 'landing-badge' ? (
+              <Paper sx={{ p: 3 }} elevation={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Landing Badge</Typography>
               <IconButton
@@ -2222,8 +2504,11 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                 label="Show landing badge"
               />
             </Stack>
-          </Paper>
-          <Paper sx={{ p: 3 }} elevation={2}>
+              </Paper>
+            ) : null}
+
+            {settingsSection === 'landing-rotator' ? (
+              <Paper sx={{ p: 3 }} elevation={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Landing Page Text Rotator</Typography>
               <IconButton
@@ -2340,9 +2625,11 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                 </Table>
               </Box>
             </Stack>
-          </Paper>
+              </Paper>
+            ) : null}
 
-          <Paper sx={{ p: 3 }} elevation={2}>
+            {settingsSection === 'toolbar-led' ? (
+              <Paper sx={{ p: 3 }} elevation={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Toolbar LED Banner</Typography>
               <FormControlLabel
@@ -2406,8 +2693,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                 />
               )}
             </Stack>
-          </Paper>
-        </Stack>
+              </Paper>
+            ) : null}
+          </Stack>
+        </Box>
       )}
 
       <Portal>
