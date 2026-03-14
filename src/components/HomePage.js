@@ -36,6 +36,7 @@ import {
   Person as PersonIcon,
   AutoStories as AutoStoriesIcon,
   Article as ArticleIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount, getLandingRotatorSettings } from '../utils/api';
@@ -59,6 +60,8 @@ const POPULAR_SCROLL_TOP_SHOW_THRESHOLD_PX = 140;
 const POPULAR_SCROLL_TOP_HIDE_THRESHOLD_PX = 72;
 const POPULAR_SCROLL_IDLE_MS = 140;
 const HUB_PHASE_ONE_MS = 170;
+const POPULAR_HOME_CACHE_KEY_PREFIX = 'home_popular_cache_v2';
+const YOUR_PAGE_HOME_CACHE_KEY_PREFIX = 'home_your_page_cache_v1';
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
 
 const normalizeUserPrimaryColor = (profileUser) => {
@@ -121,6 +124,50 @@ const HomePage = () => {
   const popularArrowVisibleRef = React.useRef(false);
   const popularScrollIdleTimeoutRef = React.useRef(null);
 
+  const getPopularCacheKey = React.useCallback(
+    (userId) => `${POPULAR_HOME_CACHE_KEY_PREFIX}:${Number(userId || 0)}`,
+    [],
+  );
+
+  const clearPopularCache = React.useCallback((targetUserId) => {
+    try {
+      if (targetUserId) {
+        window.sessionStorage.removeItem(getPopularCacheKey(targetUserId));
+        return;
+      }
+
+      Object.keys(window.sessionStorage).forEach((key) => {
+        if (key.startsWith(`${POPULAR_HOME_CACHE_KEY_PREFIX}:`)) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error('Error clearing Popular cache:', error);
+    }
+  }, [getPopularCacheKey]);
+
+  const getYourPageCacheKey = React.useCallback(
+    (userId) => `${YOUR_PAGE_HOME_CACHE_KEY_PREFIX}:${Number(userId || 0)}`,
+    [],
+  );
+
+  const clearYourPageCache = React.useCallback((targetUserId) => {
+    try {
+      if (targetUserId) {
+        window.sessionStorage.removeItem(getYourPageCacheKey(targetUserId));
+        return;
+      }
+
+      Object.keys(window.sessionStorage).forEach((key) => {
+        if (key.startsWith(`${YOUR_PAGE_HOME_CACHE_KEY_PREFIX}:`)) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error('Error clearing Your Page cache:', error);
+    }
+  }, [getYourPageCacheKey]);
+
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [timelines, setTimelines] = React.useState([]);
@@ -168,11 +215,18 @@ const HomePage = () => {
   const [popularEvents, setPopularEvents] = React.useState([]);
   const [loadingPopular, setLoadingPopular] = React.useState(false);
   const [hasLoadedPopular, setHasLoadedPopular] = React.useState(false);
+  const [hasBootstrappedPopularCache, setHasBootstrappedPopularCache] = React.useState(false);
   const [yourPageTimelines, setYourPageTimelines] = React.useState([]);
   const [yourPageEvents, setYourPageEvents] = React.useState([]);
   const [loadingYourPage, setLoadingYourPage] = React.useState(false);
   const [hasLoadedYourPage, setHasLoadedYourPage] = React.useState(false);
+  const [hasBootstrappedYourPageCache, setHasBootstrappedYourPageCache] = React.useState(false);
   const [formData, setFormData] = React.useState({ name: '', description: '' });
+
+  React.useEffect(() => {
+    setHasBootstrappedPopularCache(false);
+    setHasBootstrappedYourPageCache(false);
+  }, [user?.id]);
 
   React.useEffect(() => {
     const fetchTimelines = async () => {
@@ -499,6 +553,89 @@ const HomePage = () => {
   const spotlightTimelineTypeLabel = spotlightTimelineType === 'community'
     ? 'Community Timeline'
     : (spotlightTimelineType === 'personal' ? 'Personal Timeline' : 'Hashtag Timeline');
+  const spotlightTimelineImageUrl = String(
+    spotlightTimeline?.banner_url
+    || spotlightTimeline?.cover_url
+    || spotlightTimeline?.background_image_url
+    || spotlightTimeline?.image_url
+    || spotlightTimeline?.thumbnail_url
+    || '',
+  ).trim();
+  const spotlightEventImageUrl = String(
+    spotlightEvent?.media_url
+    || spotlightEvent?.image_url
+    || spotlightEvent?.thumbnail_url
+    || spotlightEvent?.cover_url
+    || '',
+  ).trim();
+
+  const heroVisualStyles = React.useMemo(() => {
+    if (activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimelineImageUrl) {
+      return {
+        backgroundImage: `url(${spotlightTimelineImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: 'linear-gradient(135deg, rgba(7,14,32,0.58) 0%, rgba(21,34,54,0.54) 38%, rgba(53,22,72,0.48) 100%)',
+      };
+    }
+
+    if (activeHeroSlide?.type === 'timeline_spotlight') {
+      return {
+        backgroundImage: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+          : 'linear-gradient(135deg, rgba(217,236,255,0.96) 0%, rgba(210,229,255,0.94) 38%, rgba(240,224,255,0.95) 100%)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(8,14,28,0.52) 0%, rgba(16,24,43,0.48) 100%)'
+          : 'linear-gradient(135deg, rgba(249,252,255,0.7) 0%, rgba(245,249,255,0.64) 100%)',
+      };
+    }
+
+    if (activeHeroSlide?.type === 'event_spotlight' && spotlightEventImageUrl) {
+      return {
+        backgroundImage: `url(${spotlightEventImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: 'linear-gradient(140deg, rgba(12,20,38,0.62) 0%, rgba(31,36,68,0.58) 55%, rgba(78,30,94,0.52) 100%)',
+      };
+    }
+
+    if (activeHeroSlide?.type === 'event_spotlight') {
+      return {
+        backgroundImage: theme.palette.mode === 'dark'
+          ? 'linear-gradient(132deg, rgba(22,34,66,0.9) 0%, rgba(42,31,80,0.9) 45%, rgba(9,56,92,0.88) 100%)'
+          : 'linear-gradient(132deg, rgba(224,236,255,0.95) 0%, rgba(238,228,255,0.96) 45%, rgba(214,240,252,0.94) 100%)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(132deg, rgba(11,17,33,0.52) 0%, rgba(15,19,37,0.5) 100%)'
+          : 'linear-gradient(132deg, rgba(252,252,255,0.72) 0%, rgba(246,250,255,0.68) 100%)',
+      };
+    }
+
+    if (activeHeroSlide?.type === 'advertisement') {
+      return {
+        backgroundImage: theme.palette.mode === 'dark'
+          ? 'linear-gradient(120deg, rgba(62,35,8,0.84) 0%, rgba(120,52,18,0.86) 38%, rgba(153,45,88,0.82) 100%)'
+          : 'linear-gradient(120deg, rgba(255,236,208,0.95) 0%, rgba(255,222,199,0.96) 38%, rgba(255,224,238,0.94) 100%)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(120deg, rgba(23,14,8,0.44) 0%, rgba(24,10,17,0.42) 100%)'
+          : 'linear-gradient(120deg, rgba(255,252,249,0.66) 0%, rgba(255,248,251,0.64) 100%)',
+      };
+    }
+
+    return {
+      backgroundImage: theme.palette.mode === 'dark'
+        ? 'linear-gradient(135deg, rgba(25,35,70,0.7) 0%, rgba(15,20,35,0.75) 70%)'
+        : 'linear-gradient(135deg, rgba(255,255,255,0.83) 0%, rgba(255,246,238,0.92) 70%)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      fogOverlay: 'transparent',
+    };
+  }, [activeHeroSlide?.type, spotlightTimelineImageUrl, spotlightEventImageUrl, theme.palette.mode]);
 
   const filteredTimelines = React.useMemo(() => {
     if (!isTimelineSearchScope) return [];
@@ -738,14 +875,61 @@ const HomePage = () => {
   }, [fetchFollowedUsers]);
 
   React.useEffect(() => {
-    setHasLoadedPopular(false);
-    setPopularTimelines([]);
-    setPopularEvents([]);
+    if (!user?.id) {
+      clearPopularCache();
+      setHasLoadedPopular(false);
+      setPopularTimelines([]);
+      setPopularEvents([]);
+      setVisiblePopularTimelineCount(POPULAR_LIST_BATCH_SIZE);
+      setVisiblePopularPostCount(POPULAR_LIST_BATCH_SIZE);
+      setHasBootstrappedPopularCache(true);
+      return;
+    }
+
     setVisiblePopularTimelineCount(POPULAR_LIST_BATCH_SIZE);
     setVisiblePopularPostCount(POPULAR_LIST_BATCH_SIZE);
-  }, [user?.id, normalizedTimelines.length]);
+
+    try {
+      const raw = window.sessionStorage.getItem(getPopularCacheKey(user.id));
+      if (!raw) {
+        setHasLoadedPopular(false);
+        setPopularTimelines([]);
+        setPopularEvents([]);
+        setHasBootstrappedPopularCache(true);
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      const sourceTimelineCount = Number(parsed?.source_timeline_count || 0);
+      if (sourceTimelineCount <= 0) {
+        setHasLoadedPopular(false);
+        setPopularTimelines([]);
+        setPopularEvents([]);
+        setHasBootstrappedPopularCache(true);
+        return;
+      }
+      const cachedTimelines = Array.isArray(parsed?.timelines) ? parsed.timelines : [];
+      const cachedEvents = Array.isArray(parsed?.events) ? parsed.events : [];
+
+      setPopularTimelines(cachedTimelines);
+      setPopularEvents(cachedEvents);
+      setHasLoadedPopular(true);
+      setHasBootstrappedPopularCache(true);
+    } catch (error) {
+      console.error('Error reading Popular cache:', error);
+      setHasLoadedPopular(false);
+      setPopularTimelines([]);
+      setPopularEvents([]);
+      setHasBootstrappedPopularCache(true);
+    }
+  }, [user?.id, getPopularCacheKey, clearPopularCache]);
 
   const fetchPopularData = React.useCallback(async () => {
+    if (!normalizedTimelines.length) {
+      setHasLoadedPopular(false);
+      return;
+    }
+
     try {
       setLoadingPopular(true);
 
@@ -922,24 +1106,100 @@ const HomePage = () => {
   }, [normalizedTimelines]);
 
   React.useEffect(() => {
+    if (!hasBootstrappedPopularCache) return;
     if (activeHubTab !== 'popular') return;
     if (isHubPhaseOneLoading) return;
     if (hasLoadedPopular || loadingPopular) return;
 
     fetchPopularData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, loadingPopular, fetchPopularData]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, loadingPopular, fetchPopularData, hasBootstrappedPopularCache]);
 
   React.useEffect(() => {
-    setHasLoadedYourPage(false);
-    setYourPageTimelines([]);
-    setYourPageEvents([]);
-  }, [user?.id]);
+    if (!user?.id) return;
+    if (!hasLoadedPopular) return;
+    if (!normalizedTimelines.length) return;
+
+    try {
+      window.sessionStorage.setItem(getPopularCacheKey(user.id), JSON.stringify({
+        timelines: popularTimelines,
+        events: popularEvents,
+        source_timeline_count: normalizedTimelines.length,
+        cached_at: Date.now(),
+      }));
+    } catch (error) {
+      console.error('Error writing Popular cache:', error);
+    }
+  }, [user?.id, hasLoadedPopular, popularTimelines, popularEvents, normalizedTimelines.length, getPopularCacheKey]);
+
+  const handleRefreshPopular = React.useCallback(() => {
+    if (!user?.id || loadingPopular) return;
+    clearPopularCache(user.id);
+    setHasLoadedPopular(false);
+    setPopularTimelines([]);
+    setPopularEvents([]);
+    setVisiblePopularTimelineCount(POPULAR_LIST_BATCH_SIZE);
+    setVisiblePopularPostCount(POPULAR_LIST_BATCH_SIZE);
+    fetchPopularData();
+  }, [user?.id, loadingPopular, clearPopularCache, fetchPopularData]);
+
+  React.useEffect(() => {
+    if (!user?.id) {
+      clearYourPageCache();
+      setHasLoadedYourPage(false);
+      setYourPageTimelines([]);
+      setYourPageEvents([]);
+      setVisibleYourPageTimelineCount(HOME_LIST_BATCH_SIZE);
+      setVisibleYourPagePostCount(HOME_LIST_BATCH_SIZE);
+      setHasBootstrappedYourPageCache(true);
+      return;
+    }
+
+    setVisibleYourPageTimelineCount(HOME_LIST_BATCH_SIZE);
+    setVisibleYourPagePostCount(HOME_LIST_BATCH_SIZE);
+
+    try {
+      const raw = window.sessionStorage.getItem(getYourPageCacheKey(user.id));
+      if (!raw) {
+        setHasLoadedYourPage(false);
+        setYourPageTimelines([]);
+        setYourPageEvents([]);
+        setHasBootstrappedYourPageCache(true);
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      const sourceTimelineCount = Number(parsed?.source_timeline_count || 0);
+      if (sourceTimelineCount <= 0) {
+        setHasLoadedYourPage(false);
+        setYourPageTimelines([]);
+        setYourPageEvents([]);
+        setHasBootstrappedYourPageCache(true);
+        return;
+      }
+
+      setYourPageTimelines(Array.isArray(parsed?.timelines) ? parsed.timelines : []);
+      setYourPageEvents(Array.isArray(parsed?.events) ? parsed.events : []);
+      setHasLoadedYourPage(true);
+      setHasBootstrappedYourPageCache(true);
+    } catch (error) {
+      console.error('Error reading Your Page cache:', error);
+      setHasLoadedYourPage(false);
+      setYourPageTimelines([]);
+      setYourPageEvents([]);
+      setHasBootstrappedYourPageCache(true);
+    }
+  }, [user?.id, getYourPageCacheKey, clearYourPageCache]);
 
   const fetchYourPageData = React.useCallback(async () => {
     if (!user) {
       setYourPageTimelines([]);
       setYourPageEvents([]);
       setHasLoadedYourPage(true);
+      return;
+    }
+
+    if (!normalizedTimelines.length) {
+      setHasLoadedYourPage(false);
       return;
     }
 
@@ -1114,12 +1374,41 @@ const HomePage = () => {
   }, [user, normalizedTimelines, followedUsers, currentUserId]);
 
   React.useEffect(() => {
+    if (!hasBootstrappedYourPageCache) return;
     if (activeHubTab !== 'your-page') return;
     if (isHubPhaseOneLoading) return;
     if (hasLoadedYourPage || loadingYourPage) return;
 
     fetchYourPageData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData, hasBootstrappedYourPageCache]);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    if (!hasLoadedYourPage) return;
+    if (!normalizedTimelines.length) return;
+
+    try {
+      window.sessionStorage.setItem(getYourPageCacheKey(user.id), JSON.stringify({
+        timelines: yourPageTimelines,
+        events: yourPageEvents,
+        source_timeline_count: normalizedTimelines.length,
+        cached_at: Date.now(),
+      }));
+    } catch (error) {
+      console.error('Error writing Your Page cache:', error);
+    }
+  }, [user?.id, hasLoadedYourPage, yourPageTimelines, yourPageEvents, normalizedTimelines.length, getYourPageCacheKey]);
+
+  const handleRefreshYourPage = React.useCallback(() => {
+    if (!user?.id || loadingYourPage) return;
+    clearYourPageCache(user.id);
+    setHasLoadedYourPage(false);
+    setYourPageTimelines([]);
+    setYourPageEvents([]);
+    setVisibleYourPageTimelineCount(HOME_LIST_BATCH_SIZE);
+    setVisibleYourPagePostCount(HOME_LIST_BATCH_SIZE);
+    fetchYourPageData();
+  }, [user?.id, loadingYourPage, fetchYourPageData, clearYourPageCache]);
 
   const handleToggleUserFollow = React.useCallback(async (profileUser) => {
     const targetId = Number(profileUser?.id || 0);
@@ -1899,15 +2188,26 @@ const HomePage = () => {
           sx={{
             p: { xs: 2, md: 3 },
             borderRadius: 3,
+            position: 'relative',
+            overflow: 'hidden',
             border: '1px solid',
             borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-            background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(135deg, rgba(25,35,70,0.7) 0%, rgba(15,20,35,0.75) 70%)'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.83) 0%, rgba(255,246,238,0.92) 70%)',
+            backgroundImage: heroVisualStyles.backgroundImage,
+            backgroundSize: heroVisualStyles.backgroundSize,
+            backgroundPosition: heroVisualStyles.backgroundPosition,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              background: heroVisualStyles.fogOverlay,
+              pointerEvents: 'none',
+            },
           }}
         >
           <Box
             sx={{
+              position: 'relative',
+              zIndex: 1,
               opacity: isHeroContentVisible ? 1 : 0,
               transform: isHeroContentVisible ? 'translateY(0px)' : 'translateY(6px)',
               transition: 'opacity 220ms ease, transform 220ms ease',
@@ -1916,6 +2216,17 @@ const HomePage = () => {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              px: { xs: 1.1, md: 2 },
+              py: { xs: 1.1, md: 1.4 },
+              borderRadius: 2.2,
+              border: activeHeroSlide?.type === 'welcome' ? 'none' : '1px solid',
+              borderColor: activeHeroSlide?.type === 'welcome'
+                ? 'transparent'
+                : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.15)'),
+              background: activeHeroSlide?.type === 'welcome'
+                ? 'transparent'
+                : (theme.palette.mode === 'dark' ? 'rgba(10,16,28,0.28)' : 'rgba(255,255,255,0.36)'),
+              backdropFilter: activeHeroSlide?.type === 'welcome' ? 'none' : 'blur(7px)',
             }}
           >
             {activeHeroSlide?.type === 'welcome' ? (
@@ -1939,9 +2250,6 @@ const HomePage = () => {
                 </Stack>
                 <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
                   Timeline Spotlight of the Day
-                </Typography>
-                <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
-                  {spotlightTimeline?.description || 'No public timeline spotlight available yet.'}
                 </Typography>
               </>
             ) : null}
@@ -2340,9 +2648,27 @@ const HomePage = () => {
                   onScroll={handlePopularScroll}
                   sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
-                    Popular
-                  </Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.45 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      Popular
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleRefreshPopular}
+                      disabled={loadingPopular}
+                      aria-label="Refresh popular feed"
+                      sx={{
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.2)',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.04)',
+                        '&:hover': {
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.11)' : 'rgba(15,23,42,0.08)',
+                        },
+                      }}
+                    >
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
                     Discovery feed ranked by popularity. Personal timelines and private content are excluded.
                   </Typography>
@@ -2461,9 +2787,27 @@ const HomePage = () => {
                   onScroll={handleYourPageScroll}
                   sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
-                    Your Page
-                  </Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.45 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      Your Page
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleRefreshYourPage}
+                      disabled={loadingYourPage}
+                      aria-label="Refresh your page feed"
+                      sx={{
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.2)',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.04)',
+                        '&:hover': {
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.11)' : 'rgba(15,23,42,0.08)',
+                        },
+                      }}
+                    >
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
                     Your personalized feed: community posts from memberships, followed-user posts (excluding personal timelines), and followed hashtag posts.
                   </Typography>
