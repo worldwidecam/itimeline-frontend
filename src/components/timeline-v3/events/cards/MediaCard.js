@@ -49,6 +49,7 @@ const MediaCard = forwardRef(({
   reviewingEventIds = new Set(),
   showInlineVoteControls = true,
   showVoteOverlay = false,
+  onMediaLoadError,
 }, ref) => {
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
@@ -132,6 +133,17 @@ const MediaCard = forwardRef(({
   };
   
   const { type: mediaType, color, icon: TypeIcon } = getMediaTypeAndColor();
+
+  const reportMediaLoadError = ({ mediaKind, mediaUrl, stage, browserMessage }) => {
+    if (typeof onMediaLoadError !== 'function') return;
+    onMediaLoadError({
+      event,
+      mediaKind,
+      mediaUrl,
+      stage,
+      browserMessage,
+    });
+  };
   
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -472,6 +484,13 @@ const MediaCard = forwardRef(({
                 e.target.src = cloudinaryUrl;
                 return;
               }
+
+              reportMediaLoadError({
+                mediaKind: 'image',
+                mediaUrl: currentSrc,
+                stage: 'image_all_sources_failed',
+                browserMessage: 'Image failed to load from all available sources',
+              });
               
               e.target.style.display = 'none';
               e.target.parentNode.innerHTML += `
@@ -520,6 +539,12 @@ const MediaCard = forwardRef(({
     try {
       // Check for valid media source
       if (!mediaSource) {
+        reportMediaLoadError({
+          mediaKind: 'video',
+          mediaUrl: '',
+          stage: 'video_missing_source',
+          browserMessage: 'Video source missing',
+        });
         return (
           <Box sx={{ 
             display: 'flex', 
@@ -587,6 +612,13 @@ const MediaCard = forwardRef(({
                   const next = idx >= 0 && idx < candidates.length - 1 ? candidates[idx + 1] : null;
                   if (next) {
                     e.target.src = next;
+                  } else {
+                    reportMediaLoadError({
+                      mediaKind: 'video',
+                      mediaUrl: current,
+                      stage: 'video_all_sources_failed',
+                      browserMessage: 'Video failed to load from all available sources',
+                    });
                   }
                 }}
               >
@@ -620,6 +652,14 @@ const MediaCard = forwardRef(({
       const { mediaSources = [], fullUrl = '' } = preparedMedia;
       const validMediaSources = Array.isArray(mediaSources) ? mediaSources.filter(Boolean) : [];
       const hasValidSource = validMediaSources.length > 0;
+      if (!hasValidSource) {
+        reportMediaLoadError({
+          mediaKind: 'video',
+          mediaUrl: fullUrl || mediaSource || '',
+          stage: 'video_no_valid_sources',
+          browserMessage: 'No valid video sources after media preparation',
+        });
+      }
       const fileExt = (() => {
         if (typeof fullUrl === 'string') {
           const ext = fullUrl.split('.').pop()?.toLowerCase();
@@ -672,6 +712,12 @@ const MediaCard = forwardRef(({
                         // Try the next source
                         e.target.src = validMediaSources[currentIndex + 1];
                       } else {
+                        reportMediaLoadError({
+                          mediaKind: 'video',
+                          mediaUrl: currentSrc,
+                          stage: 'video_all_sources_failed',
+                          browserMessage: 'Video failed to load from all available sources',
+                        });
                         // No more sources to try, show error state
                         throw new Error('Failed to load video from all sources');
                       }
@@ -741,6 +787,12 @@ const MediaCard = forwardRef(({
       );
     } catch (error) {
       console.error('Error rendering video media:', error);
+      reportMediaLoadError({
+        mediaKind: 'video',
+        mediaUrl: mediaSource || event?.media_url || event?.url || '',
+        stage: 'video_render_exception',
+        browserMessage: error?.message || 'Error rendering video media',
+      });
       return (
         <Box sx={{ 
           display: 'flex',
@@ -831,6 +883,16 @@ const MediaCard = forwardRef(({
             title={event.title || "Audio"}
             previewMode={false} // Set to false to enable full functionality
             showTitle={false} // Hide the title in the card view to avoid duplication
+            onLoadError={(errorDetails) => {
+              if (typeof onMediaLoadError === 'function') {
+                onMediaLoadError({
+                  event,
+                  mediaKind: 'audio',
+                  mediaUrl: mediaSources[0],
+                  ...errorDetails,
+                });
+              }
+            }}
           />
           
           <PageCornerButton 

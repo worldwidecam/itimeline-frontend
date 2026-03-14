@@ -35,11 +35,12 @@ import {
   Groups as GroupsIcon,
   Person as PersonIcon,
   AutoStories as AutoStoriesIcon,
-  Article as ArticleIcon,
+  Cottage as CottageIcon,
+  StarBorder as StarBorderIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount, getLandingRotatorSettings } from '../utils/api';
+import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount, getLandingRotatorSettings, addBrokenEventQueueItem } from '../utils/api';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
 import RemarkCard from './timeline-v3/events/cards/RemarkCard';
 import NewsCard from './timeline-v3/events/cards/NewsCard';
@@ -78,7 +79,8 @@ const normalizeUserPrimaryColor = (profileUser) => {
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
   { key: 'popular', label: 'POPULAR', icon: LocalFireDepartmentIcon },
-  { key: 'your-page', label: 'YOUR PAGE', icon: ArticleIcon },
+  { key: 'your-page', label: 'YOUR PAGE', icon: CottageIcon },
+  { key: 'favorite', label: 'FAVORITE', icon: StarBorderIcon, soon: true },
   { key: 'my-creations', label: 'MY CREATIONS', icon: AutoStoriesIcon },
   { key: 'friends-list', label: 'FRIENDS LIST', icon: GroupsIcon },
 ];
@@ -123,6 +125,7 @@ const HomePage = () => {
   const popularArrowRafRef = React.useRef(null);
   const popularArrowVisibleRef = React.useRef(false);
   const popularScrollIdleTimeoutRef = React.useRef(null);
+  const brokenEventReportDedupRef = React.useRef(new Map());
 
   const getPopularCacheKey = React.useCallback(
     (userId) => `${POPULAR_HOME_CACHE_KEY_PREFIX}:${Number(userId || 0)}`,
@@ -381,6 +384,7 @@ const HomePage = () => {
     if (activeHubTab === 'popular') return popularScrollRef.current;
     if (activeHubTab === 'my-creations') return myCreationsScrollRef.current;
     if (activeHubTab === 'your-page') return yourPageScrollRef.current;
+    if (activeHubTab === 'favorite') return null;
     if (activeHubTab === 'friends-list') return friendsListScrollRef.current;
     return null;
   }, [activeHubTab]);
@@ -1626,6 +1630,51 @@ const HomePage = () => {
   }, [theme.palette.mode, navigate]);
 
   const renderSearchEventCard = React.useCallback((event) => {
+    const handleMediaLoadError = async (errorPayload) => {
+      try {
+        const sourceEvent = errorPayload?.event || event;
+        const eventId = Number(sourceEvent?.id || 0);
+        if (!(eventId > 0)) return;
+
+        const now = Date.now();
+        const dedupWindowMs = 5 * 60 * 1000;
+        const lastReportedAt = Number(brokenEventReportDedupRef.current.get(eventId) || 0);
+        if (now - lastReportedAt < dedupWindowMs) return;
+        brokenEventReportDedupRef.current.set(eventId, now);
+
+        const timelineId = Number(
+          sourceEvent?.timeline_id
+          || sourceEvent?.timelineId
+          || sourceEvent?.timeline?.id
+          || 0,
+        );
+        const mediaKind = String(errorPayload?.mediaKind || 'media').trim().toLowerCase();
+        const stage = String(errorPayload?.stage || 'load_error').trim().toLowerCase();
+        const mediaUrl = String(
+          errorPayload?.mediaUrl
+          || errorPayload?.audioUrl
+          || sourceEvent?.media_url
+          || sourceEvent?.url
+          || '',
+        ).trim();
+        const browserMessage = String(errorPayload?.browserMessage || '').trim();
+
+        const noteParts = [
+          `source=home_auto`,
+          `kind=${mediaKind}`,
+          `stage=${stage}`,
+        ];
+        if (timelineId > 0) noteParts.push(`timeline_id=${timelineId}`);
+        if (mediaUrl) noteParts.push(`media_url=${mediaUrl.slice(0, 260)}`);
+        if (browserMessage) noteParts.push(`browser=${browserMessage.slice(0, 180)}`);
+        const note = noteParts.join(' | ').slice(0, 900);
+
+        await addBrokenEventQueueItem(eventId, note);
+      } catch (reportError) {
+        console.warn('[Home] Failed to auto-queue broken event from media error:', reportError);
+      }
+    };
+
     const eventType = String(event?.type || EVENT_TYPES.REMARK).toLowerCase();
     const sharedProps = {
       event,
@@ -1636,6 +1685,7 @@ const HomePage = () => {
       reviewingEventIds: EMPTY_REVIEWING_EVENT_IDS,
       showInlineVoteControls: false,
       showVoteOverlay: true,
+      onMediaLoadError: handleMediaLoadError,
     };
 
     if (eventType === EVENT_TYPES.NEWS) {

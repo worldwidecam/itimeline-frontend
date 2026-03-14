@@ -4,43 +4,27 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Home page implementation (SEARCH + MY CREATIONS + FRIENDS LIST + HASHTAG FOLLOW complete; next: POPULAR + YOUR PAGE)
+- [ ] Timeline cover image implementation
 
 ## Scope / Success Criteria
-- Home page loads end-to-end with real data (no dead sections).
-- Primary actions on home page are functional (navigation, core CTA flow, and key interaction blocks).
-- Layout and behavior are stable across desktop and mobile breakpoints.
-- Existing routes/integrations are preserved without breaking timeline entry points.
-- Home route remains `/home` (target production URL: `i-timeline.com/home`).
-- Remove dev-only Home sections (e.g., Media Uploader Test).
-- Hero banner supports ellipsis catalog with auto-rotation every 2 minutes.
-- No placeholder/mock data is introduced for Home v1.
-- Left hub and right hub lock vertically under navbar; right hub scrolls internally.
+- Timeline cover image can be uploaded, saved, and rendered reliably on timeline surfaces.
+- Cover image behavior is stable across desktop and mobile breakpoints.
+- Existing timeline routes/integrations remain intact.
+- No placeholder/mock data is introduced.
+- Site Control/Timeline admin flow for cover image stays clear and actionable.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [x] Audit current Home page component, route wiring, and data dependencies.
-- [ ] Define minimal shippable Home page behavior and section-level acceptance criteria.
-- [ ] Implement missing functional sections and hook up real API-backed data.
-- [ ] Validate mobile + desktop behavior and confirm no routing regressions.
-- [ ] Build hero ellipsis catalog with v1 options: current hero + Timeline Spotlight of the Day; auto-rotate every 2 minutes.
-- [x] Build left hub as vertical reference/tabs for right hub mode selection; first mode = TIMELINE SEARCH.
-- [x] Build right hub as primary internal-scroll container driven by selected left hub mode.
-- [x] Complete SEARCH hub tab (timeline/post/user search + users listing polish pass).
-- [x] Complete MY CREATIONS tab (timelines/posts filter + smooth two-phase tab/sub-tab transition + loading-state handoff).
-- [x] Stabilize and redesign REMARK card + REMARK popup typography/drop-cap alignment.
-- [x] Implement HASHTAG FOLLOW system (persistence + API + UI controls) to support POPULAR and YOUR PAGE signals.
-- [x] Complete follow-table ownership migration into iTimeline-DB (user_follow now; timeline_follow scaffold for hashtag watch/follow).
-- [ ] Build POPULAR tab (replace placeholder tab; define ranking window + cards shown in right hub).
-- [ ] Build YOUR PAGE tab (list timelines/posts from accounts the current user follows + followed hashtags).
-- [x] Build FRIENDS LIST tab (reuse SEARCH users-card styling baseline; no search field, followed users only).
+- [ ] Audit existing timeline image fields + where cover image should be sourced/rendered.
+- [ ] Define accepted image constraints (formats, size guidance, crop behavior, fallback behavior).
+- [ ] Implement/update upload + persistence flow for timeline cover image.
+- [ ] Wire cover image rendering in timeline header/surfaces.
+- [ ] Validate create/edit flows and ensure no regressions to timeline loading.
+- [ ] Validate desktop + mobile rendering behavior.
 
 ## Current Status Snapshot
-- SEARCH tab: complete and stable.
-- MY CREATIONS tab: complete and confirmed smooth by user after two-phase transition refactor.
-- REMARK card + popup: style and UX significantly improved; popup drop-cap alignment issue fixed.
-- FRIENDS LIST tab: complete (followed-users data + follow/unfollow via Actions menu confirmed by user).
-- HASHTAG FOLLOW system: complete (DB migration + backend endpoints + TimelineV3 Watch button).
-- Next feasible implementation: POPULAR tab, then YOUR PAGE feed composition.
+- Home page broken-events workflow: complete for audio/image/video auto-reporting + Open Event + historical Deleted status handling.
+- Home hub baseline remains stable (Search/My Creations/Friends List/Popular/Your Page progress preserved).
+- Current implementation focus moved to timeline cover image.
 
 ## Learned / Required Systems Before Finalizing Remaining Home Tabs
 - Add a user follow system (follow/unfollow + followed-users retrieval) to power FRIENDS LIST and later YOUR PAGE.
@@ -104,6 +88,12 @@
 
 - [x] Timeline motion dissipate: treat motion as zero-event state, pause event rendering during movement, and resume after settle delay.
 - [x] Smoother timeline movement achieved via motion dissipate + delayed recompute.
+
+### Archived from Home broken-events implementation
+- [x] Logs tab with Broken Events vertical sub-tab implemented.
+- [x] Home auto-reporting for media failures now includes audio, image, and video paths.
+- [x] Open Event action in Logs > Broken Events opens EventPopup for review.
+- [x] Deleted-event handling improved: stale home auto-reports for removed events are ignored and intentional deletions can retain historical log status.
 
 ## Notes / Decisions
 - delete feature needs to be revisited once admin page is up

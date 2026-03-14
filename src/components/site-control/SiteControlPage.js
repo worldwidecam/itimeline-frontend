@@ -54,7 +54,22 @@ import SaveIcon from '@mui/icons-material/Save';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { addSiteAdmin, listSiteAdmins, removeSiteAdmin, listSiteReports, acceptSiteReport, resolveSiteReport, unbanTimelineFromReport, liftTimelineWarningFromReport, getLandingRotatorSettings, updateLandingRotatorSettings } from '../../utils/api';
+import api, {
+  addSiteAdmin,
+  listSiteAdmins,
+  removeSiteAdmin,
+  listSiteReports,
+  acceptSiteReport,
+  resolveSiteReport,
+  unbanTimelineFromReport,
+  liftTimelineWarningFromReport,
+  getLandingRotatorSettings,
+  updateLandingRotatorSettings,
+  listBrokenEventQueue,
+  addBrokenEventQueueItem,
+  removeBrokenEventQueueItem,
+  deleteBrokenEventById,
+} from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
 import EventDialog from '../timeline-v3/events/EventDialog';
@@ -300,6 +315,380 @@ const AdminListTab = ({ canManage }) => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+    </Box>
+  );
+};
+
+const LOGS_SECTIONS = [
+  { key: 'broken-events', label: 'Broken Events' },
+];
+
+const LogsTab = () => {
+  const [logsSection, setLogsSection] = useState('broken-events');
+
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '240px minmax(0, 1fr)' },
+          gap: 2,
+          alignItems: 'start',
+        }}
+      >
+        <Paper sx={{ p: 1.25, height: 'fit-content' }} elevation={2}>
+          <Tabs
+            value={logsSection}
+            onChange={(_event, nextValue) => setLogsSection(nextValue)}
+            orientation="vertical"
+            variant="scrollable"
+            sx={{
+              '& .MuiTabs-indicator': {
+                left: 0,
+                right: 'auto',
+                width: 3,
+                borderRadius: 2,
+              },
+            }}
+          >
+            {LOGS_SECTIONS.map((section) => (
+              <Tab
+                key={section.key}
+                value={section.key}
+                label={section.label}
+                sx={{
+                  alignItems: 'flex-start',
+                  textAlign: 'left',
+                  textTransform: 'none',
+                  fontWeight: logsSection === section.key ? 700 : 500,
+                  minHeight: 40,
+                  py: 0.65,
+                }}
+              />
+            ))}
+          </Tabs>
+        </Paper>
+
+        <Box>
+          {logsSection === 'broken-events' ? <BrokenEventsTab /> : null}
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+const BrokenEventsTab = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoadingByKey, setActionLoadingByKey] = useState({});
+  const [eventIdInput, setEventIdInput] = useState('');
+  const [noteInput, setNoteInput] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [eventPopupOpen, setEventPopupOpen] = useState(false);
+  const [popupEvent, setPopupEvent] = useState(null);
+
+  const showSnackbar = useCallback((severity, message) => {
+    setSnackbarSeverity(severity);
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  }, []);
+
+  const fetchQueue = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await listBrokenEventQueue();
+      setItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (error) {
+      setItems([]);
+      showSnackbar('error', error?.response?.data?.error || 'Failed to load broken event queue');
+    } finally {
+      setLoading(false);
+    }
+  }, [showSnackbar]);
+
+  useEffect(() => {
+    fetchQueue();
+  }, [fetchQueue]);
+
+  const setBusy = (key, busy) => {
+    setActionLoadingByKey((prev) => ({ ...prev, [key]: busy }));
+  };
+
+  const formatTimestamp = (value) => {
+    if (!value) return 'Unknown';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    return date.toLocaleString();
+  };
+
+  const handleAddQueueItem = async () => {
+    const parsed = Number(eventIdInput);
+    if (!(Number.isInteger(parsed) && parsed > 0)) {
+      showSnackbar('warning', 'Enter a valid positive event ID');
+      return;
+    }
+
+    try {
+      setBusy('add', true);
+      await addBrokenEventQueueItem(parsed, noteInput);
+      setEventIdInput('');
+      setNoteInput('');
+      showSnackbar('success', `Queued event #${parsed}`);
+      await fetchQueue();
+    } catch (error) {
+      showSnackbar('error', error?.response?.data?.error || 'Failed to queue event');
+    } finally {
+      setBusy('add', false);
+    }
+  };
+
+  const handleRemoveQueueItem = async (queueId) => {
+    try {
+      setBusy(`remove-${queueId}`, true);
+      await removeBrokenEventQueueItem(queueId);
+      showSnackbar('success', 'Queue item removed');
+      await fetchQueue();
+    } catch (error) {
+      showSnackbar('error', error?.response?.data?.error || 'Failed to remove queue item');
+    } finally {
+      setBusy(`remove-${queueId}`, false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    try {
+      setBusy(`delete-${eventId}`, true);
+      await deleteBrokenEventById(eventId, false);
+      showSnackbar('success', `Deleted event #${eventId} and kept a historical log entry`);
+      await fetchQueue();
+    } catch (error) {
+      showSnackbar('error', error?.response?.data?.error || 'Failed to delete event');
+    } finally {
+      setBusy(`delete-${eventId}`, false);
+    }
+  };
+
+  const handleOpenEvent = async (timelineId, eventId) => {
+    if (!(timelineId > 0) || !(eventId > 0)) {
+      showSnackbar('warning', 'Missing timeline or event identifier');
+      return;
+    }
+
+    try {
+      setBusy(`open-${eventId}`, true);
+      const response = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      const fetchedEvent = response?.data;
+      if (!fetchedEvent?.id) {
+        showSnackbar('error', 'Event payload is missing or invalid');
+        return;
+      }
+
+      setPopupEvent(fetchedEvent);
+      setEventPopupOpen(true);
+    } catch (error) {
+      showSnackbar('error', error?.response?.data?.error || 'Failed to open event');
+    } finally {
+      setBusy(`open-${eventId}`, false);
+    }
+  };
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Paper sx={{ p: 3 }} elevation={2}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
+          <Box>
+            <Typography variant="h6">Broken Events Queue</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+              Queue suspicious/broken event IDs. Open their timeline, delete if needed, or remove from queue.
+            </Typography>
+          </Box>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue} disabled={loading || !!actionLoadingByKey.add}>
+            Refresh
+          </Button>
+        </Stack>
+
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mt: 2.25 }}>
+          <TextField
+            label="Event ID"
+            value={eventIdInput}
+            onChange={(event) => setEventIdInput(event.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="e.g. 12345"
+            sx={{ maxWidth: { xs: '100%', md: 220 } }}
+          />
+          <TextField
+            label="Note (optional)"
+            value={noteInput}
+            onChange={(event) => setNoteInput(event.target.value)}
+            placeholder="Reason this event is suspected broken"
+            fullWidth
+          />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddQueueItem}
+            disabled={!!actionLoadingByKey.add}
+            sx={{ minWidth: 160 }}
+          >
+            Queue Event
+          </Button>
+        </Stack>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2.5 }}>
+            No queued broken events yet.
+          </Typography>
+        ) : (
+          <Table size="small" sx={{ mt: 2 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Event</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Event Date/Time</TableCell>
+                <TableCell>Timeline</TableCell>
+                <TableCell>Note</TableCell>
+                <TableCell>Reported</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((item) => {
+                const queueId = Number(item?.id || 0);
+                const eventId = Number(item?.event_id || 0);
+                const timelineId = Number(item?.timeline_id || 0);
+                const openingEvent = !!actionLoadingByKey[`open-${eventId}`];
+                const deleting = !!actionLoadingByKey[`delete-${eventId}`];
+                const removing = !!actionLoadingByKey[`remove-${queueId}`];
+                const eventExists = Boolean(item?.event_exists);
+                const noteText = String(item?.note || '');
+                const deletedByAdmin = /resolution=deleted_by_admin/i.test(noteText);
+                const statusLabel = deletedByAdmin ? 'Deleted' : (eventExists ? 'Found' : 'Missing');
+                const statusColor = deletedByAdmin ? 'warning' : (eventExists ? 'success' : 'error');
+                return (
+                  <TableRow key={queueId}>
+                    <TableCell>
+                      <Typography variant="subtitle2">#{eventId}</Typography>
+                      {item?.event_title ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {item.event_title}
+                        </Typography>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={statusLabel}
+                        color={statusColor}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTimestamp(item?.event_created_at)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {timelineId > 0 ? (
+                        <Typography
+                          component="a"
+                          href={`/timeline-v3/${timelineId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="body2"
+                          sx={{ textDecoration: 'none' }}
+                        >
+                          {item?.timeline_name || `Timeline ${timelineId}`}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Unknown</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {item?.note || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTimestamp(item?.created_at)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={!eventExists || !(timelineId > 0) || openingEvent}
+                          onClick={() => handleOpenEvent(timelineId, eventId)}
+                        >
+                          Open Event
+                        </Button>
+                        {timelineId > 0 ? (
+                          <Button
+                            size="small"
+                            component="a"
+                            href={`/timeline-v3/${timelineId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="outlined"
+                          >
+                            Open Timeline
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<DeleteOutlineIcon />}
+                          disabled={!eventExists || deleting}
+                          onClick={() => handleDeleteEvent(eventId)}
+                        >
+                          Delete Event
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="text"
+                          disabled={removing}
+                          onClick={() => handleRemoveQueueItem(queueId)}
+                        >
+                          Remove Queue
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4500}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
+      {eventPopupOpen && popupEvent ? (
+        <EventPopup
+          event={popupEvent}
+          open={eventPopupOpen}
+          onClose={() => {
+            setEventPopupOpen(false);
+            setPopupEvent(null);
+          }}
+          reviewingEventIds={new Set()}
+        />
+      ) : null}
     </Box>
   );
 };
@@ -2883,13 +3272,15 @@ const SiteControlPage = () => {
           >
             <Tab label="Global Reports" />
             <Tab label="Admin List" />
+            <Tab label="Logs" />
             <Tab label="Site Settings" disabled={!canManageSettings} />
           </Tabs>
 
           <Box sx={{ mt: 3 }}>
             {tabValue === 0 && <GlobalReportsTab />}
             {tabValue === 1 && <AdminListTab canManage={canManageSettings} />}
-            {tabValue === 2 && <SiteSettingsTab canManageSettings={canManageSettings} />}
+            {tabValue === 2 && <LogsTab />}
+            {tabValue === 3 && <SiteSettingsTab canManageSettings={canManageSettings} />}
           </Box>
         </Paper>
       </Box>

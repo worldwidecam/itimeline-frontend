@@ -8,7 +8,14 @@ import { useTheme } from '../contexts/ThemeContext';
  * A component that displays an audio waveform visualization
  * The waveform moves with the audio decibel levels
  */
-const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = false, showTitle = true, compactMode = false }, ref) => {
+const AudioWaveformVisualizer = forwardRef(({
+  audioUrl,
+  title,
+  previewMode = false,
+  showTitle = true,
+  compactMode = false,
+  onLoadError,
+}, ref) => {
   // Get the current theme mode
   const { isDarkMode } = useTheme();
   // Refs for DOM elements and audio processing
@@ -37,6 +44,22 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
   const [currentTime, setCurrentTime] = useState(0);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [error, setError] = useState(null);
+  const hasNotifiedLoadErrorRef = useRef(false);
+
+  useEffect(() => {
+    hasNotifiedLoadErrorRef.current = false;
+  }, [audioUrl]);
+
+  const notifyLoadError = useCallback((errorDetails = {}) => {
+    if (hasNotifiedLoadErrorRef.current) return;
+    hasNotifiedLoadErrorRef.current = true;
+    if (typeof onLoadError === 'function') {
+      onLoadError({
+        audioUrl,
+        ...errorDetails,
+      });
+    }
+  }, [onLoadError, audioUrl]);
 
   // Memoize the visualization configuration
   const config = useMemo(() => ({
@@ -1186,6 +1209,10 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
           console.error('Audio loading error:', e);
           setError(`Failed to load audio file: ${e.target.error?.message || 'Unknown error'}`);
           setAudioLoaded(false);
+          notifyLoadError({
+            stage: 'audio_element_error',
+            browserMessage: e?.target?.error?.message || 'Unknown error',
+          });
         };
         
         const handleEnded = () => {
@@ -1211,6 +1238,10 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
       } catch (err) {
         console.error('Error initializing audio element:', err);
         setError(`Failed to initialize audio: ${err.message}`);
+        notifyLoadError({
+          stage: 'audio_init_error',
+          browserMessage: err?.message || 'Audio initialization failed',
+        });
       }
     }
     
@@ -1218,7 +1249,7 @@ const AudioWaveformVisualizer = forwardRef(({ audioUrl, title, previewMode = fal
       console.log('Cleaning up audio element...');
       cleanupAudio();
     };
-  }, [audioUrl, cleanupAudio]);
+  }, [audioUrl, cleanupAudio, notifyLoadError]);
 
   // Keep animation running and react to isPlaying changes
   useEffect(() => {

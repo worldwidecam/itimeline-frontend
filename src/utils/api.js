@@ -877,6 +877,68 @@ export const removeSiteAdmin = async (userId) => {
 };
 
 /**
+ * List Site Control broken-event queue items (SiteOwner/SiteAdmin)
+ */
+export const listBrokenEventQueue = async () => {
+  try {
+    const response = await api.get('/api/v1/reports/broken-events');
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error listing broken-event queue:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add or upsert an event into the broken-event queue
+ * @param {number|string} eventId
+ * @param {string} note
+ */
+export const addBrokenEventQueueItem = async (eventId, note = '') => {
+  try {
+    const response = await api.post('/api/v1/reports/broken-events', {
+      event_id: Number(eventId),
+      note: String(note || '').trim(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error adding broken-event queue item:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a queue row by queue id
+ * @param {number|string} queueId
+ */
+export const removeBrokenEventQueueItem = async (queueId) => {
+  try {
+    const response = await api.delete(`/api/v1/reports/broken-events/${queueId}`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error removing broken-event queue item:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete an event from Site Control broken-event queue flow
+ * @param {number|string} eventId
+ * @param {boolean} removeFromQueue
+ */
+export const deleteBrokenEventById = async (eventId, removeFromQueue = true) => {
+  try {
+    const response = await api.post(`/api/v1/reports/broken-events/${eventId}/delete`, {
+      remove_from_queue: Boolean(removeFromQueue),
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error deleting broken event by id:', error);
+    throw error;
+  }
+};
+
+/**
  * Assign a report to a moderator (optional flow)
  * @param {number} timelineId
  * @param {number|string} reportId
