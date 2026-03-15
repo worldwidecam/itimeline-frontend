@@ -248,9 +248,7 @@ export const CustomThemeProvider = ({ children }) => {
         // For backward compatibility, also set global but do not rely on it for logged-in users
         localStorage.setItem('darkMode', next.toString());
         // Persist to server (fire-and-forget)
-        try {
-          updateUserPreferences({ theme: next ? 'dark' : 'light' });
-        } catch (_) {}
+        updateUserPreferences({ theme: next ? 'dark' : 'light' }).catch(() => {});
       } else {
         // Guest fallback: maintain legacy behavior
         localStorage.setItem('darkMode', next.toString());

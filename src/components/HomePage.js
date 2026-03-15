@@ -1560,6 +1560,11 @@ const HomePage = () => {
       ? (memberCount || followerCount || popularityCount)
       : (followerCount || memberCount || popularityCount);
     const audienceLabel = isCommunity ? 'Members' : 'Followers';
+    const typeChipGradient = isCommunity
+      ? 'linear-gradient(135deg, rgba(30,136,229,0.95) 0%, rgba(13,71,161,0.95) 100%)'
+      : isPersonal
+        ? 'linear-gradient(135deg, rgba(0,150,136,0.95) 0%, rgba(0,105,92,0.95) 100%)'
+        : 'linear-gradient(135deg, rgba(217,119,6,0.95) 0%, rgba(180,83,9,0.95) 100%)';
 
     return (
       <Card
@@ -1601,27 +1606,125 @@ const HomePage = () => {
         </Box>
 
         <CardContent sx={{ flexGrow: 1 }}>
-          <Chip
-            size="small"
-            icon={<TypeIcon fontSize="small" />}
-            label={typeLabel}
-            sx={{ mb: 1, fontWeight: 600 }}
-          />
-          <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.2 }}>{timeline.name}</Typography>
+          <Box
+            sx={{
+              position: 'relative',
+              minHeight: { xs: 'auto', md: 42 },
+              mb: 1.1,
+            }}
+          >
+            <Chip
+              size="medium"
+              icon={<TypeIcon fontSize="small" />}
+              label={typeLabel}
+              sx={{
+                position: { xs: 'relative', md: 'absolute' },
+                left: 0,
+                top: 0,
+                mb: { xs: 1, md: 0 },
+                px: 0.6,
+                height: 34,
+                borderRadius: 1.8,
+                color: '#fff',
+                fontWeight: 800,
+                letterSpacing: 0.45,
+                textTransform: 'uppercase',
+                background: typeChipGradient,
+                border: '1px solid rgba(255,255,255,0.24)',
+                boxShadow: '0 8px 18px rgba(0,0,0,0.22)',
+                '& .MuiChip-label': {
+                  px: 1.1,
+                },
+                '& .MuiChip-icon': {
+                  color: 'rgba(255,255,255,0.94)',
+                },
+              }}
+            />
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                gap: 0.9,
+                flexWrap: 'wrap',
+              }}
+            >
+            <Typography
+              variant="h5"
+              sx={{
+                position: 'relative',
+                display: 'inline-flex',
+                lineHeight: 1.15,
+                fontWeight: 900,
+                letterSpacing: 0.25,
+                pr: 0.5,
+                pb: 0.45,
+                mb: 0,
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: 8,
+                  borderRadius: 12,
+                  background: isCommunity
+                    ? 'linear-gradient(90deg, rgba(30,136,229,0.78), rgba(13,71,161,0.42))'
+                    : isPersonal
+                      ? 'linear-gradient(90deg, rgba(0,150,136,0.78), rgba(0,105,92,0.42))'
+                      : 'linear-gradient(90deg, rgba(217,119,6,0.8), rgba(180,83,9,0.44))',
+                },
+              }}
+            >
+              {timeline.name}
+            </Typography>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.8,
+                px: 1.15,
+                py: 0.6,
+                borderRadius: 999,
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.2)',
+                background: theme.palette.mode === 'dark'
+                  ? 'linear-gradient(120deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))'
+                  : 'linear-gradient(120deg, rgba(255,255,255,0.88), rgba(255,244,227,0.82))',
+              }}
+            >
+              <LocalFireDepartmentIcon sx={{ fontSize: 17, color: '#d97706' }} />
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 900,
+                  letterSpacing: 0.35,
+                  color: theme.palette.text.primary,
+                }}
+              >
+                {audienceCount.toLocaleString()} {audienceLabel}
+              </Typography>
+            </Box>
+            </Box>
+          </Box>
           {timeline.description ? (
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
               {timeline.description}
             </Typography>
           ) : null}
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>
-            {audienceLabel}: {audienceCount.toLocaleString()}
-          </Typography>
           <Typography variant="caption" color="text.secondary">
             Created: {formatDate(timeline.created_at)}
           </Typography>
         </CardContent>
         <Box sx={{ px: 2, pb: 2, alignSelf: { xs: 'stretch', md: 'flex-end' } }}>
-          <Button size="small" variant="contained" onClick={() => navigate(`/timeline-v3/${timeline.id}`)}>
+          <Button
+            size="small"
+            variant="contained"
+            component="a"
+            href={`/timeline-v3/${timeline.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Open Timeline
           </Button>
         </Box>

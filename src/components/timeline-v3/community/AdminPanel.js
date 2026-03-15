@@ -1608,7 +1608,7 @@ const AdminPanel = () => {
               }}
             />
             <Tab 
-              label="Info Cards" 
+              label="Cards" 
               icon={<InfoIcon />} 
               iconPosition="start"
               sx={{ 
@@ -1645,8 +1645,8 @@ const AdminPanel = () => {
                 />
               )}
               {tabValue === 1 && <ManagePostsTab key="posts" timelineId={id} />}
-              {tabValue === 2 && <InfoCardsTab key="infocards" timelineId={id} />}
-              {tabValue === 3 && <SettingsTab key="settings" id={id} />}
+              {tabValue === 2 && <CardsTab key="cards" id={id} />}
+              {tabValue === 3 && <SettingsTab key="settings" id={id} mode="timeline" />}
             </AnimatePresence>
           </Box>
         </Paper>
@@ -1655,15 +1655,56 @@ const AdminPanel = () => {
   );
 };
 
-// Manage Posts Tab Component
+const CardsTab = ({ id }) => {
+  const [cardsTabValue, setCardsTabValue] = useState(0);
+
+  return (
+    <Box sx={{ py: 1 }}>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+        <Tabs
+          orientation="vertical"
+          value={cardsTabValue}
+          onChange={(_event, newValue) => setCardsTabValue(newValue)}
+          sx={{
+            minWidth: 220,
+            borderRight: '1px solid',
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              alignItems: 'flex-start',
+              textAlign: 'left',
+              minHeight: 44,
+            },
+          }}
+        >
+          <Tab label="Info Cards" icon={<InfoIcon />} iconPosition="start" />
+          <Tab label="Status Cards" icon={<CommentIcon />} iconPosition="start" />
+          <Tab label="Quote Card" icon={<NewspaperIcon />} iconPosition="start" />
+          <Tab label="Action Cards" icon={<VolunteerActivismRoundedIcon />} iconPosition="start" />
+        </Tabs>
+
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <AnimatePresence mode="wait">
+            {cardsTabValue === 0 && <InfoCardsTab key="cards-info" timelineId={id} />}
+            {cardsTabValue === 1 && <SettingsTab key="cards-status" id={id} mode="status" />}
+            {cardsTabValue === 2 && <SettingsTab key="cards-quote" id={id} mode="quote" />}
+            {cardsTabValue === 3 && <SettingsTab key="cards-actions" id={id} mode="actions" />}
+          </AnimatePresence>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
 const ManagePostsTab = ({ timelineId }) => {
   const theme = useTheme();
-  const [postTabValue, setPostTabValue] = useState(0); // 0 = Pending, 1 = Reviewing, 2 = Resolved
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState(''); // 'escalate' or 'safeguard'
   // Mandatory verdict text for safeguard
   const [actionVerdict, setActionVerdict] = useState('');
+  // ... rest of the code remains the same ...
   const [escalationType, setEscalationType] = useState('edit');
   const [escalationSummary, setEscalationSummary] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
@@ -1676,6 +1717,7 @@ const ManagePostsTab = ({ timelineId }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [postTabValue, setPostTabValue] = useState(0);
 
   // Helper: if EventPopup is open for this event, refresh it from backend so chips reflect latest associations
   const refreshPopupEventIfOpen = async (eventId) => {
@@ -3227,8 +3269,12 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
 };
 
 // Settings Tab Component
-const SettingsTab = ({ id }) => {
+const SettingsTab = ({ id, mode = 'all' }) => {
   const theme = useTheme();
+  const showTimelineSettings = mode === 'timeline' || mode === 'all';
+  const showStatusCards = mode === 'status' || mode === 'all';
+  const showQuoteCard = mode === 'quote' || mode === 'all';
+  const showActionCards = mode === 'actions' || mode === 'all';
   const [isPrivate, setIsPrivate] = useState(false);
   const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
@@ -3746,6 +3792,19 @@ const SettingsTab = ({ id }) => {
       setSnackbarOpen(true);
     }
   };
+
+  let cardsSectionTitle = 'Image Cover Select';
+  let cardsSectionDescription = 'Configure community timeline cover image selection and preview behavior.';
+  if (mode === 'status') {
+    cardsSectionTitle = 'Status Card Settings';
+    cardsSectionDescription = 'Configure timeline status card messaging.';
+  } else if (mode === 'quote') {
+    cardsSectionTitle = 'Quote Card Settings';
+    cardsSectionDescription = 'Configure the inspiration quote card shown in your community timeline.';
+  } else if (mode === 'actions') {
+    cardsSectionTitle = 'Action Card Settings';
+    cardsSectionDescription = 'Configure how community members can contribute through action cards.';
+  }
   
   return (
     <motion.div
@@ -3757,13 +3816,13 @@ const SettingsTab = ({ id }) => {
       {/* Timeline Settings */}
       <Box
         sx={{
-          display: 'flex',
+          display: showTimelineSettings ? 'flex' : 'none',
           alignItems: 'center',
           mb: 3,
           pb: 2,
           borderBottom: '2px solid',
           borderColor: 'primary.main',
-          width: 'fit-content'
+          width: 'fit-content',
         }}
       >
         <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -3775,6 +3834,8 @@ const SettingsTab = ({ id }) => {
       {/* Timeline Info */}
       {timelineData && (
         <>
+          {showTimelineSettings ? (
+            <>
           <motion.div
             variants={{
               hidden: { opacity: 0, y: 20 },
@@ -3820,7 +3881,7 @@ const SettingsTab = ({ id }) => {
               </Box>
             </Box>
           </motion.div>
-          
+
           <motion.div
             variants={{
               hidden: { opacity: 0, y: 20 },
@@ -3930,6 +3991,8 @@ const SettingsTab = ({ id }) => {
               </Box>
             </Box>
           </motion.div>
+            </>
+          ) : null}
           
           <motion.div
             variants={{
@@ -3954,26 +4017,26 @@ const SettingsTab = ({ id }) => {
               >
                 <SettingsIcon sx={{ mr: 1, color: 'primary.main', fontSize: 28 }} />
                 <Typography variant="h6" component="h2" sx={{ fontWeight: 'bold' }}>
-                  Community Action Settings
+                  {cardsSectionTitle}
                 </Typography>
               </Box>
-              
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 3, 
-                  mb: 4, 
-                  borderRadius: 2,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
-                }}
-              >
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                  Configure how community members can contribute to this timeline.
-                </Typography>
+              {showStatusCards ? (
+                <Paper 
+                  elevation={0} 
+                  sx={{ 
+                    p: 3, 
+                    mb: 4, 
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    {cardsSectionDescription}
+                  </Typography>
 
                 {/* Status Message */}
                 <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
@@ -4065,71 +4128,92 @@ const SettingsTab = ({ id }) => {
                     error={statusBody.length > 320}
                   />
                 </Box>
-              
-                {/* Quote Field */}
-                <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="subtitle2">
-                      Inspiration Quote
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={refreshQuote}
-                      disabled={isRefreshingQuote}
-                      sx={{ 
-                        color: 'primary.main',
-                        '&:hover': {
-                          bgcolor: 'primary.main',
-                          color: 'white'
-                        }
-                      }}
-                    >
-                      <RefreshIcon 
-                        sx={{ 
-                          fontSize: 18,
-                          transform: isRefreshingQuote ? 'rotate(360deg)' : 'none',
-                          transition: 'transform 0.6s ease-in-out'
-                        }} 
-                      />
-                    </IconButton>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Write something inspiring to display to members when no actions are currently set.
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    placeholder="E.g., 'Join us in building this community timeline! Your contributions make a difference.'"
-                    variant="outlined"
-                    value={communityQuote.text}
-                    onChange={(e) => {
-                      setCommunityQuote(prev => ({
-                        ...prev,
-                        text: e.target.value
-                      }));
-                      setHasUnsavedChanges(true);
-                    }}
-                    sx={{ mt: 1 }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Quote Author"
-                    placeholder="E.g., 'John F. Kennedy'"
-                    variant="outlined"
-                    value={communityQuote.author}
-                    onChange={(e) => {
-                      setCommunityQuote(prev => ({
-                        ...prev,
-                        author: e.target.value
-                      }));
-                      setHasUnsavedChanges(true);
-                    }}
-                    sx={{ mt: 2 }}
-                  />
-                </Box>
               </Paper>
+              ) : null}
+
+              {showQuoteCard ? (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    mb: 4,
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    {cardsSectionDescription}
+                  </Typography>
+                  <Box sx={{ mb: 1, p: 3, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="subtitle2">
+                        Inspiration Quote
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={refreshQuote}
+                        disabled={isRefreshingQuote}
+                        sx={{
+                          color: 'primary.main',
+                          '&:hover': {
+                            bgcolor: 'primary.main',
+                            color: 'white'
+                          }
+                        }}
+                      >
+                        <RefreshIcon
+                          sx={{
+                            fontSize: 18,
+                            transform: isRefreshingQuote ? 'rotate(360deg)' : 'none',
+                            transition: 'transform 0.6s ease-in-out'
+                          }}
+                        />
+                      </IconButton>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Write something inspiring to display to members when no actions are currently set.
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={2}
+                      placeholder="E.g., 'Join us in building this community timeline! Your contributions make a difference.'"
+                      variant="outlined"
+                      value={communityQuote.text}
+                      onChange={(e) => {
+                        setCommunityQuote(prev => ({
+                          ...prev,
+                          text: e.target.value
+                        }));
+                        setHasUnsavedChanges(true);
+                      }}
+                      sx={{ mt: 1 }}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Quote Author"
+                      placeholder="E.g., 'John F. Kennedy'"
+                      variant="outlined"
+                      value={communityQuote.author}
+                      onChange={(e) => {
+                        setCommunityQuote(prev => ({
+                          ...prev,
+                          author: e.target.value
+                        }));
+                        setHasUnsavedChanges(true);
+                      }}
+                      sx={{ mt: 2 }}
+                    />
+                  </Box>
+                </Paper>
+              ) : null}
               
+              {showActionCards ? (
+                <>
               {/* Gold Action Field */}
               <Paper 
                 elevation={0} 
@@ -4680,6 +4764,8 @@ const SettingsTab = ({ id }) => {
                   Additional settings for action requirements, rewards, and expiration dates will be available in a future update.
                 </Typography>
               </Paper>
+                </>
+              ) : null}
             </Box>
           </motion.div>
 
