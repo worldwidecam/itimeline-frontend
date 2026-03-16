@@ -47,6 +47,7 @@
 - [ ] update the members page and admin page buttons to FAB
 - [ ] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
+- [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 
 
 ## Completed

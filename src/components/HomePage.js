@@ -558,13 +558,15 @@ const HomePage = () => {
     ? 'Community Timeline'
     : (spotlightTimelineType === 'personal' ? 'Personal Timeline' : 'Hashtag Timeline');
   const spotlightTimelineImageUrl = String(
-    spotlightTimeline?.banner_url
+    spotlightTimeline?.cover_image_url
+    || spotlightTimeline?.banner_url
     || spotlightTimeline?.cover_url
     || spotlightTimeline?.background_image_url
     || spotlightTimeline?.image_url
     || spotlightTimeline?.thumbnail_url
     || '',
   ).trim();
+  const spotlightTimelineImagePrivilegeEnabled = spotlightTimeline?.cover_upload_enabled !== false;
   const spotlightEventImageUrl = String(
     spotlightEvent?.media_url
     || spotlightEvent?.image_url
@@ -580,6 +582,10 @@ const HomePage = () => {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         fogOverlay: 'linear-gradient(135deg, rgba(7,14,32,0.58) 0%, rgba(21,34,54,0.54) 38%, rgba(53,22,72,0.48) 100%)',
+        blurOverlay: spotlightTimelineImagePrivilegeEnabled
+          ? 'transparent'
+          : 'rgba(6, 9, 16, 0.22)',
+        applyHardBlur: !spotlightTimelineImagePrivilegeEnabled,
       };
     }
 
@@ -593,6 +599,8 @@ const HomePage = () => {
         fogOverlay: theme.palette.mode === 'dark'
           ? 'linear-gradient(135deg, rgba(8,14,28,0.52) 0%, rgba(16,24,43,0.48) 100%)'
           : 'linear-gradient(135deg, rgba(249,252,255,0.7) 0%, rgba(245,249,255,0.64) 100%)',
+        blurOverlay: 'transparent',
+        applyHardBlur: false,
       };
     }
 
@@ -602,6 +610,8 @@ const HomePage = () => {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         fogOverlay: 'linear-gradient(140deg, rgba(12,20,38,0.62) 0%, rgba(31,36,68,0.58) 55%, rgba(78,30,94,0.52) 100%)',
+        blurOverlay: 'transparent',
+        applyHardBlur: false,
       };
     }
 
@@ -615,6 +625,8 @@ const HomePage = () => {
         fogOverlay: theme.palette.mode === 'dark'
           ? 'linear-gradient(132deg, rgba(11,17,33,0.52) 0%, rgba(15,19,37,0.5) 100%)'
           : 'linear-gradient(132deg, rgba(252,252,255,0.72) 0%, rgba(246,250,255,0.68) 100%)',
+        blurOverlay: 'transparent',
+        applyHardBlur: false,
       };
     }
 
@@ -628,6 +640,8 @@ const HomePage = () => {
         fogOverlay: theme.palette.mode === 'dark'
           ? 'linear-gradient(120deg, rgba(23,14,8,0.44) 0%, rgba(24,10,17,0.42) 100%)'
           : 'linear-gradient(120deg, rgba(255,252,249,0.66) 0%, rgba(255,248,251,0.64) 100%)',
+        blurOverlay: 'transparent',
+        applyHardBlur: false,
       };
     }
 
@@ -638,8 +652,16 @@ const HomePage = () => {
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       fogOverlay: 'transparent',
+      blurOverlay: 'transparent',
+      applyHardBlur: false,
     };
-  }, [activeHeroSlide?.type, spotlightTimelineImageUrl, spotlightEventImageUrl, theme.palette.mode]);
+  }, [
+    activeHeroSlide?.type,
+    spotlightTimelineImageUrl,
+    spotlightTimelineImagePrivilegeEnabled,
+    spotlightEventImageUrl,
+    theme.palette.mode,
+  ]);
 
   const filteredTimelines = React.useMemo(() => {
     if (!isTimelineSearchScope) return [];
@@ -1565,6 +1587,14 @@ const HomePage = () => {
       : isPersonal
         ? 'linear-gradient(135deg, rgba(0,150,136,0.95) 0%, rgba(0,105,92,0.95) 100%)'
         : 'linear-gradient(135deg, rgba(217,119,6,0.95) 0%, rgba(180,83,9,0.95) 100%)';
+    const coverImageUrl = String(
+      timeline?.cover_image_url
+      || timeline?.banner_url
+      || timeline?.cover_url
+      || timeline?.background_image_url
+      || '',
+    ).trim();
+    const isImagePrivilegeEnabled = timeline?.cover_upload_enabled !== false;
 
     return (
       <Card
@@ -1592,6 +1622,8 @@ const HomePage = () => {
             px: 1.5,
             display: 'flex',
             alignItems: 'flex-end',
+            position: 'relative',
+            overflow: 'hidden',
             pb: 1.25,
             background: isCommunity
               ? 'linear-gradient(140deg, rgba(30,136,229,0.85) 0%, rgba(13,71,161,0.85) 100%)'
@@ -1600,9 +1632,50 @@ const HomePage = () => {
                 : 'linear-gradient(140deg, rgba(217,119,6,0.82) 0%, rgba(180,83,9,0.86) 100%)',
           }}
         >
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
-            Timeline banner placeholder (future image slot)
-          </Typography>
+          {coverImageUrl ? (
+            <>
+              <Box
+                component="img"
+                src={coverImageUrl}
+                alt={`${timeline?.name || 'Timeline'} cover`}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  filter: isImagePrivilegeEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                  transform: isImagePrivilegeEnabled ? 'none' : 'scale(1.08)',
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(6,10,19,0.08) 0%, rgba(6,10,19,0.35) 100%)',
+                }}
+              />
+              {!isImagePrivilegeEnabled ? (
+                <Chip
+                  size="small"
+                  label="Image Privilege Off"
+                  sx={{
+                    position: 'relative',
+                    zIndex: 1,
+                    color: '#fff',
+                    borderColor: 'rgba(255,255,255,0.45)',
+                    background: 'rgba(9,14,28,0.66)',
+                    fontWeight: 700,
+                  }}
+                  variant="outlined"
+                />
+              ) : null}
+            </>
+          ) : (
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
+              Timeline banner placeholder (future image slot)
+            </Typography>
+          )}
         </Box>
 
         <CardContent sx={{ flexGrow: 1 }}>
@@ -2353,7 +2426,21 @@ const HomePage = () => {
               position: 'absolute',
               inset: 0,
               background: heroVisualStyles.fogOverlay,
+              zIndex: 0,
               pointerEvents: 'none',
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: 'none',
+              background: heroVisualStyles.blurOverlay,
+              backdropFilter: heroVisualStyles.applyHardBlur ? 'blur(18px) saturate(0.45)' : 'none',
+            },
+            '& > *': {
+              position: 'relative',
+              zIndex: 1,
             },
           }}
         >

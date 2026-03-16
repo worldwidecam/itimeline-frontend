@@ -37,6 +37,8 @@ import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import HashtagIcon from '../../common/HashtagIcon';
 
+const EVENT_TITLE_MAX_LENGTH = 120;
+
 const RichEditor = ({ value, onChange, disabled }) => {
   const [indicator, setIndicator] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -183,6 +185,7 @@ const EventDialog = ({
   const [mediaUploadError, setMediaUploadError] = useState(null);
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
+  const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
   const isPersonalTimeline = String(timelineType || '').toLowerCase() === 'personal'
     || (typeof timelineName === 'string' && timelineName.startsWith('My-'));
 
@@ -199,7 +202,7 @@ const EventDialog = ({
   useEffect(() => {
     if (initialEvent) {
       setEventType(initialEvent.type || EVENT_TYPES.REMARK);
-      setTitle(initialEvent.title || '');
+      setTitle(clampTitle(initialEvent.title || ''));
       setDescription(initialEvent.description || '');
       setEventDate(initialEvent.event_date ? new Date(initialEvent.event_date) : new Date());
       setUrl(initialEvent.url || '');
@@ -237,7 +240,7 @@ const EventDialog = ({
         
         // Auto-fill title if empty and URL preview has a title
         if (!title && response.data.title) {
-          setTitle(response.data.title);
+          setTitle(clampTitle(response.data.title));
         }
       } catch (error) {
         console.error('Error fetching URL preview:', error);
@@ -719,7 +722,9 @@ const EventDialog = ({
             fullWidth
             label="Event Title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle(clampTitle(e.target.value))}
+            helperText={`${title.length}/${EVENT_TITLE_MAX_LENGTH}`}
+            inputProps={{ maxLength: EVENT_TITLE_MAX_LENGTH }}
           />
 
           <LocalizationProvider dateAdapter={AdapterDateFns}>

@@ -26,6 +26,8 @@ import api from '../../../utils/api';
 import EventMediaUploader from './EventMediaUploader';
 import { EVENT_TYPES } from './EventTypes';
 
+const EVENT_TITLE_MAX_LENGTH = 120;
+
 
 /**
  * A dialog component that uses the existing MediaUploader component
@@ -49,6 +51,8 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
   const [error, setError] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
+
+  const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
 
   // Reference to the MediaUploader component
   const mediaUploaderRef = useRef(null);
@@ -331,9 +335,11 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
             label="Title"
             fullWidth
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle(clampTitle(e.target.value))}
             required
             variant="outlined"
+            helperText={`${title.length}/${EVENT_TITLE_MAX_LENGTH}`}
+            inputProps={{ maxLength: EVENT_TITLE_MAX_LENGTH }}
             InputLabelProps={{
               sx: { 
                 fontSize: '0.9rem',

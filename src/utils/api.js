@@ -1027,6 +1027,8 @@ export const getTimelineDetails = async (timelineId) => {
       description: 'Could not load timeline details',
       timeline_type: 'hashtag',
       visibility: 'public',
+      cover_image_url: '',
+      cover_upload_enabled: true,
       error: true,
       errorMessage: responseData?.error || error.message,
       errorCode: responseData?.error_code || null,

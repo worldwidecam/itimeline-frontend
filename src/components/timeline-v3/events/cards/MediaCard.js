@@ -1123,7 +1123,21 @@ const MediaCard = forwardRef(({
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
                 <TypeIcon sx={{ color, mt: 0.5 }} />
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  <Typography
+                    variant="h6"
+                    component="h3"
+                    sx={{
+                      fontWeight: 'bold',
+                      mb: 1,
+                      pr: 1,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      lineHeight: 1.3,
+                    }}
+                  >
                     {event.title}
                   </Typography>
                   

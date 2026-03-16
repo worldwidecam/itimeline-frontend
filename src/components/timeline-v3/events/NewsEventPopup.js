@@ -182,9 +182,33 @@ const NewsEventPopup = ({
 
   if (!event) return null;
 
+  const normalizeExternalUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      return new URL(raw).toString();
+    } catch (_) {
+      try {
+        return new URL(`https://${raw.replace(/^\/+/, '')}`).toString();
+      } catch (_) {
+        return '';
+      }
+    }
+  };
+
+  const normalizedEventUrl = normalizeExternalUrl(event.url);
+
   // Determine if we have URL data to display
-  const hasUrlData = event.url && (event.url_title || event.url_description || event.url_image);
-  const urlDomain = event.url ? new URL(event.url).hostname.replace('www.', '') : '';
+  const hasUrlData = Boolean(normalizedEventUrl) && Boolean(event.url_title || event.url_description || event.url_image);
+  const urlDomain = normalizedEventUrl
+    ? (() => {
+        try {
+          return new URL(normalizedEventUrl).hostname.replace('www.', '');
+        } catch (_) {
+          return '';
+        }
+      })()
+    : '';
   const deriveTimelineId = () => {
     try {
       const match = location?.pathname?.match(/timeline-v3\/(\d+)/);
@@ -266,8 +290,8 @@ const NewsEventPopup = ({
   // Handle URL click to open in new tab
   const handleUrlClick = (e) => {
     e.preventDefault();
-    if (event.url) {
-      window.open(event.url, '_blank', 'noopener,noreferrer');
+    if (normalizedEventUrl) {
+      window.open(normalizedEventUrl, '_blank', 'noopener,noreferrer');
     }
   };
   
@@ -354,14 +378,6 @@ const NewsEventPopup = ({
           onClose={handleClose}
           maxWidth="lg" // Larger dialog for the two-container layout
           fullWidth
-          closeAfterTransition
-          TransitionComponent={motion.div}
-          TransitionProps={{
-            initial: { opacity: 0, y: 20, scale: 0.98 },
-            animate: { opacity: 1, y: 0, scale: 1 },
-            exit: { opacity: 0, y: 20, scale: 0.98 },
-            transition: { duration: 0.3 }
-          }}
           PaperProps={{
             component: motion.div,
             initial: { opacity: 0, y: 20, scale: 0.98 },
@@ -571,7 +587,7 @@ const NewsEventPopup = ({
                     <Box sx={{ mt: 'auto' }}>
                       <Button
                         component="a"
-                        href={event.url}
+                        href={normalizedEventUrl || undefined}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="outlined"
@@ -722,7 +738,7 @@ const NewsEventPopup = ({
                 </Box>
                 
                 {/* Source URL */}
-                {event.url && (
+                {normalizedEventUrl && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 3 }}>
                     <Box
                       sx={{
@@ -753,7 +769,7 @@ const NewsEventPopup = ({
                         Source
                       </Typography>
                       <Link 
-                        href={event.url} 
+                        href={normalizedEventUrl}
                         target="_blank" 
                         rel="noopener noreferrer"
                         sx={{

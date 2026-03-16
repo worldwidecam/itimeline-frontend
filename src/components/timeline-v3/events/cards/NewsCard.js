@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Typography,
   IconButton,
@@ -54,9 +54,12 @@ const NewsCard = forwardRef(({
   showInlineVoteControls = true,
   showVoteOverlay = false,
 }, ref) => {
+  const NEWS_LINK_FALLBACK_IMAGE = '/images/fallbacks/news-link-fallback.jpg';
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [hidePreviewImage, setHidePreviewImage] = useState(false);
+  const [useFallbackImage, setUseFallbackImage] = useState(false);
   const {
     value: voteValue,
     totalVotes,
@@ -101,6 +104,20 @@ const NewsCard = forwardRef(({
     } else {
       // If already selected, just open the menu
       setMenuAnchorEl(e.currentTarget);
+    }
+  };
+
+  const normalizeExternalUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      return new URL(raw).toString();
+    } catch (_) {
+      try {
+        return new URL(`https://${raw.replace(/^\/+/, '')}`).toString();
+      } catch (_) {
+        return '';
+      }
     }
   };
 
@@ -354,9 +371,26 @@ const NewsCard = forwardRef(({
     }
   };
 
+  const normalizedEventUrl = normalizeExternalUrl(event?.url);
+  const fallbackImageUrl = getFallbackImage(event?.url) || NEWS_LINK_FALLBACK_IMAGE;
+  const previewImageUrl = useFallbackImage ? fallbackImageUrl : (event?.url_image || fallbackImageUrl);
+
+  useEffect(() => {
+    setHidePreviewImage(false);
+    setUseFallbackImage(false);
+  }, [event?.id, event?.url, event?.url_image]);
+
+  const handlePreviewImageError = () => {
+    if (!useFallbackImage && event?.url_image && fallbackImageUrl && event.url_image !== fallbackImageUrl) {
+      setUseFallbackImage(true);
+      return;
+    }
+    setHidePreviewImage(true);
+  };
+
   // Determine if we have enough data to show a URL preview
   const hasUrlPreview = Boolean(
-    event.url && (event.url_title || event.url_description || event.url_image)
+    normalizedEventUrl && (event.url_title || event.url_description || previewImageUrl)
   );
 
   return (
@@ -419,7 +453,21 @@ const NewsCard = forwardRef(({
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
               <NewsIcon sx={{ color, mt: 0.5 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                <Typography
+                  variant="h6"
+                  component="div"
+                  sx={{
+                    fontWeight: 'bold',
+                    mb: 1,
+                    pr: 1,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    lineHeight: 1.3,
+                  }}
+                >
                   {event.title}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
@@ -452,7 +500,7 @@ const NewsCard = forwardRef(({
           {/* URL Preview Card */}
           {hasUrlPreview && (
             <Link 
-              href={event.url.startsWith('http') ? event.url : `https://${event.url}`} 
+              href={normalizedEventUrl || undefined}
               target="_blank" 
               rel="noopener noreferrer"
               underline="none"
@@ -477,47 +525,36 @@ const NewsCard = forwardRef(({
                 }}
               >
                 {/* For YouTube and Logo images, use side-by-side layout */}
-                {(isYouTubeImage(event.url_image) || isLogoImage(event.url_image)) ? (
+                {(isYouTubeImage(previewImageUrl) || isLogoImage(previewImageUrl)) ? (
                   <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                     {/* Image on the left */}
                     <Box sx={{
-                      width: isLogoImage(event.url_image) ? '120px' : '180px',
+                      width: isLogoImage(previewImageUrl) ? '120px' : '180px',
                       display: 'flex',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: isLogoImage(event.url_image) ? 'background.paper' : 'transparent',
+                      backgroundColor: isLogoImage(previewImageUrl) ? 'background.paper' : 'transparent',
                       borderRadius: 1,
                       overflow: 'hidden',
-                      padding: isLogoImage(event.url_image) ? 1 : 0,
+                      padding: isLogoImage(previewImageUrl) ? 1 : 0,
                     }}>
-                      <CardMedia
-                        component="img"
-                        height="auto"
-                        image={event.url_image || getFallbackImage(event.url)}
-                        alt={event.url_title || getSourceName(event.url) || "Link preview image"}
-                        sx={{ 
-                          objectFit: 'contain',
-                          width: 'auto',
-                          maxHeight: isLogoImage(event.url_image) ? '100px' : '180px',
-                          display: 'block',
-                          margin: 'auto',
-                          maxWidth: isLogoImage(event.url_image) ? '100px' : '180px'
-                        }}
-                        onError={(e) => {
-                          console.error('Error loading image:', e);
-                          if (event.url_image && getFallbackImage(event.url)) {
-                            e.target.src = getFallbackImage(event.url);
-                            e.target.style.objectFit = 'contain';
-                            e.target.style.maxHeight = '100px';
-                            e.target.style.maxWidth = '100px';
-                            e.target.style.margin = 'auto';
-                            e.target.style.width = 'auto';
-                            e.target.parentElement.style.width = '120px';
-                          } else {
-                            e.target.style.display = 'none';
-                          }
-                        }}
-                      />
+                      {!hidePreviewImage && previewImageUrl ? (
+                        <CardMedia
+                          component="img"
+                          height="auto"
+                          image={previewImageUrl}
+                          alt={event.url_title || getSourceName(event.url) || "Link preview image"}
+                          sx={{ 
+                            objectFit: 'contain',
+                            width: 'auto',
+                            maxHeight: isLogoImage(previewImageUrl) ? '100px' : '180px',
+                            display: 'block',
+                            margin: 'auto',
+                            maxWidth: isLogoImage(previewImageUrl) ? '100px' : '180px'
+                          }}
+                          onError={handlePreviewImageError}
+                        />
+                      ) : null}
                     </Box>
                     
                     {/* Content on the right */}
@@ -543,7 +580,7 @@ const NewsCard = forwardRef(({
                 ) : (
                   /* For news articles, keep the original stacked layout */
                   <>
-                    {(event.url_image || getFallbackImage(event.url)) && (
+                    {!hidePreviewImage && previewImageUrl && (
                       <Box sx={{
                         width: '100%',
                         display: 'flex',
@@ -558,7 +595,7 @@ const NewsCard = forwardRef(({
                         <CardMedia
                           component="img"
                           height="240"
-                          image={event.url_image || getFallbackImage(event.url)}
+                          image={previewImageUrl}
                           alt={event.url_title || getSourceName(event.url) || "Link preview image"}
                           sx={{ 
                             objectFit: 'cover',
@@ -568,22 +605,7 @@ const NewsCard = forwardRef(({
                             margin: '0',
                             maxWidth: '100%'
                           }}
-                          onError={(e) => {
-                            console.error('Error loading image:', e);
-                            if (event.url_image && getFallbackImage(event.url)) {
-                              e.target.src = getFallbackImage(event.url);
-                              e.target.style.objectFit = 'contain';
-                              e.target.style.maxHeight = '100px';
-                              e.target.style.maxWidth = '180px';
-                              e.target.style.margin = 'auto';
-                              e.target.style.width = 'auto';
-                              e.target.parentElement.style.height = '120px';
-                              e.target.parentElement.style.backgroundColor = 'var(--background-paper, #f5f5f5)';
-                              e.target.parentElement.style.padding = '8px';
-                            } else {
-                              e.target.style.display = 'none';
-                            }
-                          }}
+                          onError={handlePreviewImageError}
                         />
                       </Box>
                     )}

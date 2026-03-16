@@ -29,6 +29,7 @@ import {
   InputAdornment,
   Stack,
   Fab,
+  Slider,
   ToggleButton,
   ToggleButtonGroup
 } from '@mui/material';
@@ -181,7 +182,12 @@ const AdminPanel = () => {
           visibility: response.visibility || 'public',
           createdAt: new Date(response.created_at).toISOString().split('T')[0],
           memberCount: totalCount,
-          createdBy: response.created_by || response.createdBy || null
+          createdBy: response.created_by || response.createdBy || null,
+          coverImageUrl: String(response.cover_image_url || '').trim(),
+          coverUploadEnabled: response.cover_upload_enabled !== false,
+          coverLandscapeX: Number(response.cover_landscape_x ?? 50),
+          coverLandscapeY: Number(response.cover_landscape_y ?? 50),
+          coverZoom: Number(response.cover_zoom ?? 1),
         });
         
         // Set visibility state based on timeline data
@@ -200,7 +206,12 @@ const AdminPanel = () => {
           visibility: 'public',
           createdAt: '',
           memberCount: 0,
-          createdBy: null
+          createdBy: null,
+          coverImageUrl: '',
+          coverUploadEnabled: true,
+          coverLandscapeX: 50,
+          coverLandscapeY: 50,
+          coverZoom: 1,
         });
       }
     };
@@ -1439,13 +1450,70 @@ const AdminPanel = () => {
     );
   }
 
+  const adminCoverImageUrl = String(timelineData?.coverImageUrl || '').trim();
+  const adminCoverEnabled = timelineData?.coverUploadEnabled !== false;
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4 }}>
-      {/* Timeline Name Display - Centered */}
+      {/* Timeline hero banner */}
       {timelineData && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3, mt: 2 }}>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 'medium' }}>
-            <Box component="span" sx={{ fontFamily: 'Lobster, cursive', mr: 0.5, color: 'primary.main' }}>i-</Box>
+        <Box
+          sx={{
+            mb: 3,
+            mt: 2,
+            minHeight: { xs: 112, md: 148 },
+            borderRadius: 2.25,
+            border: '1px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.14)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
+              : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
+            overflow: 'hidden',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'flex-end',
+            px: { xs: 2, md: 3 },
+            pb: { xs: 1.5, md: 2 },
+            background: 'linear-gradient(130deg, rgba(30,136,229,0.88) 0%, rgba(13,71,161,0.86) 100%)',
+          }}
+        >
+          {adminCoverImageUrl ? (
+            <Box
+              component="img"
+              src={adminCoverImageUrl}
+              alt={`${timelineData.name} cover`}
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: '50% 50%',
+                filter: adminCoverEnabled ? 'none' : 'blur(18px) saturate(0.42)',
+                transform: `translate(${(Number(timelineData?.coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(timelineData?.coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${adminCoverEnabled ? (Number(timelineData?.coverZoom ?? 1) || 1) : ((Number(timelineData?.coverZoom ?? 1) || 1) + 0.08)})`,
+              }}
+            />
+          ) : null}
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(2,6,23,0.18) 0%, rgba(2,6,23,0.62) 100%)',
+            }}
+          />
+          <Typography
+            variant="h5"
+            component="h1"
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              fontWeight: 700,
+              color: '#fff',
+              textShadow: '0 2px 10px rgba(0,0,0,0.32)',
+            }}
+          >
+            <Box component="span" sx={{ fontFamily: 'Lobster, cursive', color: '#ffe082' }}>i</Box>
+            <Box component="span" sx={{ color: '#ffe082', ml: '0.16em', mr: 0.5 }}>-</Box>
             {timelineData.name}
           </Typography>
         </Box>
@@ -3325,6 +3393,239 @@ const SettingsTab = ({ id, mode = 'all' }) => {
   const [privacyChangedAt, setPrivacyChangedAt] = useState(null);
   const [cooldownDaysLeft, setCooldownDaysLeft] = useState(null);
   const [isChangingVisibility, setIsChangingVisibility] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [coverUploadEnabled, setCoverUploadEnabled] = useState(true);
+  const [portraitPosition, setPortraitPosition] = useState({ x: 50, y: 50 });
+  const [landscapePosition, setLandscapePosition] = useState({ x: 50, y: 50 });
+  const [portraitZoom, setPortraitZoom] = useState(1);
+  const [landscapeZoom, setLandscapeZoom] = useState(1);
+  const [activeFrameTarget, setActiveFrameTarget] = useState('landscape');
+  const joystickRef = useRef(null);
+  const joystickDragRef = useRef(null);
+  const [pendingCoverFile, setPendingCoverFile] = useState(null);
+  const [pendingCoverPreviewUrl, setPendingCoverPreviewUrl] = useState('');
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [siteRole, setSiteRole] = useState(null);
+  const [isSiteAdmin, setIsSiteAdmin] = useState(false);
+  const activeCoverPreviewUrl = pendingCoverPreviewUrl || coverImageUrl;
+
+  const FRAME_POSITION_MIN = -40;
+  const FRAME_POSITION_MAX = 140;
+  const JOYSTICK_SENSITIVITY = 0.42;
+  const CAMERA_PAN_MULTIPLIER = 0.9;
+
+  const clampPercent = useCallback((value) => Math.max(0, Math.min(100, Number(value) || 0)), []);
+  const clampFramePosition = useCallback((value, defaultValue = 50) => {
+    const numeric = Number(value);
+    const safe = Number.isFinite(numeric) ? numeric : Number(defaultValue);
+    return Math.max(FRAME_POSITION_MIN, Math.min(FRAME_POSITION_MAX, safe));
+  }, [FRAME_POSITION_MIN, FRAME_POSITION_MAX]);
+  const clampZoom = useCallback((value) => Math.max(1, Math.min(3.25, Number(value) || 1)), []);
+  const getFrameTranslate = useCallback((value) => {
+    const centered = clampFramePosition(value, 50) - 50;
+    return centered * CAMERA_PAN_MULTIPLIER;
+  }, [clampFramePosition, CAMERA_PAN_MULTIPLIER]);
+  const buildFrameTransform = useCallback((position, zoomValue, isPrivilegeEnabled = true) => {
+    const tx = getFrameTranslate(position?.x);
+    const ty = getFrameTranslate(position?.y);
+    const safeZoom = clampZoom(zoomValue);
+    const finalZoom = isPrivilegeEnabled ? safeZoom : (safeZoom + 0.08);
+    return `translate(${tx}%, ${ty}%) scale(${finalZoom})`;
+  }, [getFrameTranslate, clampZoom]);
+
+  const handleJoystickPointerDown = useCallback((event) => {
+    if (!activeCoverPreviewUrl) return;
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    const targetPosition = activeFrameTarget === 'portrait' ? portraitPosition : landscapePosition;
+    joystickDragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPositionX: clampFramePosition(targetPosition.x, 50),
+      startPositionY: clampFramePosition(targetPosition.y, 50),
+    };
+    if (event.currentTarget.setPointerCapture) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }, [activeCoverPreviewUrl, activeFrameTarget, portraitPosition, landscapePosition, clampFramePosition]);
+
+  const handleJoystickPointerMove = useCallback((event) => {
+    const drag = joystickDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    const node = joystickRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+
+    const deltaXPercent = ((event.clientX - drag.startClientX) / width) * 100 * JOYSTICK_SENSITIVITY;
+    const deltaYPercent = ((event.clientY - drag.startClientY) / height) * 100 * JOYSTICK_SENSITIVITY;
+    const next = {
+      x: clampFramePosition(drag.startPositionX + deltaXPercent, 50),
+      y: clampFramePosition(drag.startPositionY + deltaYPercent, 50),
+    };
+
+    if (activeFrameTarget === 'portrait') {
+      setPortraitPosition(next);
+    } else {
+      setLandscapePosition(next);
+    }
+    setHasUnsavedChanges(true);
+  }, [activeFrameTarget, clampFramePosition, JOYSTICK_SENSITIVITY]);
+
+  const handleJoystickPointerUp = useCallback((event) => {
+    if (joystickDragRef.current?.pointerId === event.pointerId) {
+      joystickDragRef.current = null;
+    }
+  }, []);
+
+  const activeJoystickPosition = activeFrameTarget === 'portrait' ? portraitPosition : landscapePosition;
+  const joystickKnobPosition = {
+    x: clampPercent(((clampFramePosition(activeJoystickPosition.x, 50) - FRAME_POSITION_MIN) / (FRAME_POSITION_MAX - FRAME_POSITION_MIN)) * 100),
+    y: clampPercent(((clampFramePosition(activeJoystickPosition.y, 50) - FRAME_POSITION_MIN) / (FRAME_POSITION_MAX - FRAME_POSITION_MIN)) * 100),
+  };
+
+  const canManageImagePrivilege = isSiteAdmin || siteRole === 'SiteOwner';
+
+  useEffect(() => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = Number(storedUser?.id || 0);
+      if (!(userId > 0)) {
+        setSiteRole(null);
+        setIsSiteAdmin(false);
+        return;
+      }
+      const passportKey = `user_passport_${userId}`;
+      const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
+      const resolvedSiteRole = passport?.site_role || (userId === 1 ? 'SiteOwner' : null);
+      setSiteRole(resolvedSiteRole);
+      setIsSiteAdmin(Boolean(passport?.is_site_admin) || userId === 1);
+    } catch (error) {
+      console.warn('[SettingsTab] Failed to parse local passport for site admin role:', error);
+      setSiteRole(null);
+      setIsSiteAdmin(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pendingCoverPreviewUrl);
+      }
+    };
+  }, [pendingCoverPreviewUrl]);
+
+  const handleSelectCoverFile = useCallback((event) => {
+    const nextFile = event?.target?.files?.[0];
+    if (event?.target) {
+      event.target.value = '';
+    }
+    if (!nextFile) return;
+
+    if (!String(nextFile.type || '').startsWith('image/')) {
+      setSnackbarMessage('Please select an image file for the community cover.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    const maxBytes = 10 * 1024 * 1024;
+    if ((Number(nextFile.size) || 0) > maxBytes) {
+      setSnackbarMessage('Cover image must be 10 MB or less.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pendingCoverPreviewUrl);
+    }
+
+    setPendingCoverFile(nextFile);
+    setPendingCoverPreviewUrl(URL.createObjectURL(nextFile));
+  }, [pendingCoverPreviewUrl]);
+
+  const handleUploadCoverImage = useCallback(async () => {
+    if (!pendingCoverFile) return;
+
+    try {
+      setIsUploadingCover(true);
+
+      const formData = new FormData();
+      formData.append('file', pendingCoverFile);
+      formData.append('upload_kind', 'timeline_cover');
+      formData.append('timeline_id', String(id));
+
+      const response = await api.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000,
+      });
+
+      const uploadedUrl = String(response?.data?.url || '').trim();
+      if (!uploadedUrl) {
+        throw new Error('No cover URL returned from upload response');
+      }
+
+      setCoverImageUrl(uploadedUrl);
+      setPortraitPosition({ x: 50, y: 50 });
+      setLandscapePosition({ x: 50, y: 50 });
+      setPortraitZoom(1);
+      setLandscapeZoom(1);
+      setTimelineData((prev) => ({
+        ...(prev || {}),
+        coverImageUrl: uploadedUrl,
+        coverPortraitX: 50,
+        coverPortraitY: 50,
+        coverLandscapeX: 50,
+        coverLandscapeY: 50,
+        coverZoom: 1,
+      }));
+      setHasUnsavedChanges(true);
+      setPendingCoverFile(null);
+      if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pendingCoverPreviewUrl);
+      }
+      setPendingCoverPreviewUrl('');
+
+      setSnackbarMessage('Cover image uploaded. Save settings to publish.');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('[SettingsTab] Failed to upload timeline cover image:', error);
+      const message = error?.response?.data?.error || error?.message || 'Failed to upload cover image';
+      setSnackbarMessage(message);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }, [id, pendingCoverFile, pendingCoverPreviewUrl]);
+
+  const handleClearCoverImage = useCallback(() => {
+    setCoverImageUrl('');
+    setPortraitPosition({ x: 50, y: 50 });
+    setLandscapePosition({ x: 50, y: 50 });
+    setPortraitZoom(1);
+    setLandscapeZoom(1);
+    setTimelineData((prev) => ({
+      ...(prev || {}),
+      coverImageUrl: '',
+      coverPortraitX: 50,
+      coverPortraitY: 50,
+      coverLandscapeX: 50,
+      coverLandscapeY: 50,
+      coverZoom: 1,
+    }));
+    setHasUnsavedChanges(true);
+  }, []);
   
   // Load saved settings from backend API
   useEffect(() => {
@@ -3348,8 +3649,29 @@ const SettingsTab = ({ id, mode = 'all' }) => {
             createdDate: timelineDetails.created_at ? new Date(timelineDetails.created_at).toLocaleDateString() : 'Unknown',
             visibility: timelineDetails.visibility || 'public',
             createdBy: timelineDetails.created_by,
-            privacyChangedAt: timelineDetails.privacy_changed_at
+            privacyChangedAt: timelineDetails.privacy_changed_at,
+            coverImageUrl: String(timelineDetails.cover_image_url || '').trim(),
+            coverUploadEnabled: timelineDetails.cover_upload_enabled !== false,
+            coverPortraitX: Number(timelineDetails.cover_portrait_x ?? 50),
+            coverPortraitY: Number(timelineDetails.cover_portrait_y ?? 50),
+            coverLandscapeX: Number(timelineDetails.cover_landscape_x ?? 50),
+            coverLandscapeY: Number(timelineDetails.cover_landscape_y ?? 50),
+            coverZoom: Number(timelineDetails.cover_zoom ?? 1),
           });
+
+          setCoverImageUrl(String(timelineDetails.cover_image_url || '').trim());
+          setCoverUploadEnabled(timelineDetails.cover_upload_enabled !== false);
+          setPortraitPosition({
+            x: clampFramePosition(timelineDetails.cover_portrait_x ?? 50),
+            y: clampFramePosition(timelineDetails.cover_portrait_y ?? 50),
+          });
+          setLandscapePosition({
+            x: clampFramePosition(timelineDetails.cover_landscape_x ?? 50),
+            y: clampFramePosition(timelineDetails.cover_landscape_y ?? 50),
+          });
+          const loadedZoom = clampZoom(timelineDetails.cover_zoom ?? 1);
+          setPortraitZoom(loadedZoom);
+          setLandscapeZoom(loadedZoom);
           
           // Set initial privacy state from backend
           setIsPrivate(timelineDetails.visibility === 'private');
@@ -3469,7 +3791,7 @@ const SettingsTab = ({ id, mode = 'all' }) => {
     if (id) {
       loadSettingsData();
     }
-  }, [id]);
+  }, [id, clampFramePosition, clampZoom]);
   
   // Live countdown timer - updates every minute
   useEffect(() => {
@@ -3638,8 +3960,18 @@ const SettingsTab = ({ id, mode = 'all' }) => {
       try {
         console.log(`[SettingsTab] Updating timeline settings (description, requires_approval)...`);
         const updateData = {
-          requires_approval: requireMembershipApproval
+          requires_approval: requireMembershipApproval,
+          cover_image_url: String(coverImageUrl || '').trim(),
+          cover_portrait_x: clampFramePosition(portraitPosition.x),
+          cover_portrait_y: clampFramePosition(portraitPosition.y),
+          cover_landscape_x: clampFramePosition(landscapePosition.x),
+          cover_landscape_y: clampFramePosition(landscapePosition.y),
+          cover_zoom: clampZoom(landscapeZoom),
         };
+
+        if (canManageImagePrivilege) {
+          updateData.cover_upload_enabled = Boolean(coverUploadEnabled);
+        }
         
         // Only include description if it exists
         if (timelineData && timelineData.description !== undefined) {
@@ -3878,6 +4210,273 @@ const SettingsTab = ({ id, mode = 'all' }) => {
                     Created: <strong>{timelineData?.createdDate || 'Unknown'}</strong>
                   </Typography>
                 </Box>
+
+                <Paper
+                  elevation={0}
+                  sx={{
+                    mt: 3,
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
+                  }}
+                >
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                    Image Cover Select
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Upload one source image, then review portrait (1200x2100) and landscape (1600x900) previews.
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2, mb: 2 }}>
+                    <Button variant="outlined" component="label" disabled={isUploadingCover}>
+                      Choose Source Image
+                      <input hidden accept="image/*" type="file" onChange={handleSelectCoverFile} />
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={handleUploadCoverImage}
+                      disabled={!pendingCoverFile || isUploadingCover}
+                    >
+                      {isUploadingCover ? 'Uploading...' : 'Upload Cover'}
+                    </Button>
+                    <Button
+                      variant="text"
+                      color="error"
+                      onClick={handleClearCoverImage}
+                      disabled={isUploadingCover || !(coverImageUrl || pendingCoverPreviewUrl)}
+                    >
+                      Clear Cover
+                    </Button>
+                  </Box>
+
+                  {pendingCoverFile ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Ready to upload: {pendingCoverFile.name} ({(pendingCoverFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </Typography>
+                  ) : null}
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 260px) minmax(260px, 420px) minmax(180px, 220px)' }, gap: 2 }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
+                        Portrait Preview (1200 x 2100)
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: '100%',
+                          aspectRatio: '4 / 7',
+                          borderRadius: 1.5,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          overflow: 'hidden',
+                          position: 'relative',
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                        }}
+                      >
+                        {activeCoverPreviewUrl ? (
+                          <Box
+                            component="img"
+                            src={activeCoverPreviewUrl}
+                            alt="Portrait cover preview"
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain',
+                              objectPosition: '50% 50%',
+                              filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                              transform: buildFrameTransform(
+                                portraitPosition,
+                                portraitZoom,
+                                coverUploadEnabled
+                              ),
+                            }}
+                          />
+                        ) : (
+                          <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
+                            <Typography variant="caption" color="text.secondary" align="center">
+                              No image selected yet
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
+                        Preview only.
+                      </Typography>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
+                        Landscape Preview (1600 x 900)
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: '100%',
+                          aspectRatio: '16 / 9',
+                          borderRadius: 1.5,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          overflow: 'hidden',
+                          position: 'relative',
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                        }}
+                      >
+                        {activeCoverPreviewUrl ? (
+                          <Box
+                            component="img"
+                            src={activeCoverPreviewUrl}
+                            alt="Landscape cover preview"
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain',
+                              objectPosition: '50% 50%',
+                              filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                              transform: buildFrameTransform(
+                                landscapePosition,
+                                landscapeZoom,
+                                coverUploadEnabled
+                              ),
+                            }}
+                          />
+                        ) : (
+                          <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
+                            <Typography variant="caption" color="text.secondary" align="center">
+                              No image selected yet
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
+                        Preview only.
+                      </Typography>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
+                        Framing Controls
+                      </Typography>
+                      <FormControlLabel
+                        sx={{ mb: 0.8 }}
+                        control={
+                          <Switch
+                            checked={activeFrameTarget === 'portrait'}
+                            disabled={!activeCoverPreviewUrl}
+                            onChange={(event) => {
+                              setActiveFrameTarget(event.target.checked ? 'portrait' : 'landscape');
+                            }}
+                            size="small"
+                          />
+                        }
+                        label={activeFrameTarget === 'portrait' ? 'Editing Portrait' : 'Editing Landscape'}
+                      />
+
+                      <Box
+                        ref={joystickRef}
+                        onPointerDown={handleJoystickPointerDown}
+                        onPointerMove={handleJoystickPointerMove}
+                        onPointerUp={handleJoystickPointerUp}
+                        onPointerCancel={handleJoystickPointerUp}
+                        sx={{
+                          width: 140,
+                          height: 140,
+                          borderRadius: '50%',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          position: 'relative',
+                          mx: 'auto',
+                          mb: 1.2,
+                          touchAction: 'none',
+                          cursor: activeCoverPreviewUrl ? 'grab' : 'not-allowed',
+                          opacity: activeCoverPreviewUrl ? 1 : 0.5,
+                          background: theme.palette.mode === 'dark'
+                            ? 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 70%)'
+                            : 'radial-gradient(circle at 50% 50%, rgba(15,23,42,0.06) 0%, rgba(15,23,42,0.015) 70%)',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            bgcolor: 'text.secondary',
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: `${joystickKnobPosition.x}%`,
+                            top: `${joystickKnobPosition.y}%`,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            bgcolor: activeFrameTarget === 'portrait' ? 'warning.main' : 'primary.main',
+                            border: '2px solid rgba(255,255,255,0.9)',
+                            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+                          }}
+                        />
+                      </Box>
+
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary">Zoom</Typography>
+                        <Slider
+                          size="small"
+                          value={activeFrameTarget === 'portrait' ? portraitZoom : landscapeZoom}
+                          min={1}
+                          max={3.25}
+                          step={0.01}
+                          disabled={!activeCoverPreviewUrl}
+                          onChange={(_, value) => {
+                            const zoomValue = Array.isArray(value) ? value[0] : value;
+                            const clampedZoom = clampZoom(zoomValue);
+                            if (activeFrameTarget === 'portrait') {
+                              setPortraitZoom(clampedZoom);
+                            } else {
+                              setLandscapeZoom(clampedZoom);
+                            }
+                            setHasUnsavedChanges(true);
+                          }}
+                        />
+                      </Stack>
+                    </Box>
+                  </Box>
+
+                  {canManageImagePrivilege ? (
+                    <Box sx={{ mt: 2.2 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={coverUploadEnabled}
+                            onChange={(event) => {
+                              setCoverUploadEnabled(event.target.checked);
+                              setTimelineData((prev) => ({
+                                ...(prev || {}),
+                                coverUploadEnabled: event.target.checked,
+                              }));
+                              setHasUnsavedChanges(true);
+                            }}
+                            color="warning"
+                          />
+                        }
+                        label="Image Privilege"
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {coverUploadEnabled
+                          ? 'Image Privilege is ON: cover image is displayed normally.'
+                          : 'Image Privilege is OFF: cover image is hard blurred for viewers.'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 2.2 }}>
+                      Image Privilege can be changed only by SiteOwner/SiteAdmin.
+                    </Alert>
+                  )}
+                </Paper>
               </Box>
             </Box>
           </motion.div>

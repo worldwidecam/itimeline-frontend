@@ -27,6 +27,8 @@ import { motion } from 'framer-motion';
 import api from '../../../utils/api';
 import { EVENT_TYPES } from './EventTypes';
 
+const EVENT_TITLE_MAX_LENGTH = 120;
+
 /**
  * A dialog component for creating news events with URL preview
  * @param {Object} props - Component props
@@ -47,6 +49,8 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
   const [currentTag, setCurrentTag] = useState('');
   const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
   const [error, setError] = useState(null);
+
+  const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
 
   // Reset form when dialog closes or update personal timeline flag when opened
   useEffect(() => {
@@ -123,7 +127,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
       
       // Auto-populate title and description if they're empty
       if (!title.trim() && response.data.title) {
-        setTitle(response.data.title);
+        setTitle(clampTitle(response.data.title));
       }
       if (!description.trim() && response.data.description) {
         setDescription(response.data.description);
@@ -300,9 +304,11 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
             label="Title"
             fullWidth
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle(clampTitle(e.target.value))}
             required
             variant="outlined"
+            helperText={`${title.length}/${EVENT_TITLE_MAX_LENGTH}`}
+            inputProps={{ maxLength: EVENT_TITLE_MAX_LENGTH }}
             InputLabelProps={{
               sx: { 
                 fontSize: '0.9rem',

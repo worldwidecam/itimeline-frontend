@@ -31,7 +31,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams } from 'react-router-dom';
-import { getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction } from '../../../utils/api';
 import { motion } from 'framer-motion';
 import CommunityDotTabs from './CommunityDotTabs';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -161,6 +161,14 @@ const getActionProgressDetails = (action, revealFactor = 1) => {
 const MemberListTab = () => {
   const { id } = useParams();
   const theme = useTheme();
+  const [timelineHeader, setTimelineHeader] = useState({
+    name: '',
+    coverImageUrl: '',
+    coverUploadEnabled: true,
+    coverLandscapeX: 50,
+    coverLandscapeY: 50,
+    coverZoom: 1,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [members, setMembers] = useState([]);
   const [error, setError] = useState(null);
@@ -394,6 +402,35 @@ const MemberListTab = () => {
   useEffect(() => {
     hasAnimatedInitialProgressRef.current = false;
     setProgressRevealByType({ bronze: 1, silver: 1, gold: 1 });
+  }, [id]);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchTimelineHeader = async () => {
+      if (!id) return;
+      try {
+        const timeline = await getTimelineDetails(id);
+        if (!active || !timeline) return;
+        setTimelineHeader({
+          name: String(timeline.name || ''),
+          coverImageUrl: String(timeline.cover_image_url || '').trim(),
+          coverUploadEnabled: timeline.cover_upload_enabled !== false,
+          coverLandscapeX: Number(timeline.cover_landscape_x ?? 50),
+          coverLandscapeY: Number(timeline.cover_landscape_y ?? 50),
+          coverZoom: Number(timeline.cover_zoom ?? 1),
+        });
+      } catch (err) {
+        if (!active) return;
+        console.warn('[MemberListTab] Failed to load timeline cover header:', err);
+      }
+    };
+
+    fetchTimelineHeader();
+
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   // Fetch action cards when component mounts or ID changes
@@ -719,6 +756,67 @@ const MemberListTab = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
+      <Box
+        sx={{
+          mb: 3,
+          mt: 1,
+          minHeight: { xs: 112, md: 148 },
+          borderRadius: 2.25,
+          border: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.14)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
+            : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'flex-end',
+          px: { xs: 2, md: 3 },
+          pb: { xs: 1.5, md: 2 },
+          background: 'linear-gradient(130deg, rgba(30,136,229,0.88) 0%, rgba(13,71,161,0.86) 100%)',
+        }}
+      >
+        {timelineHeader.coverImageUrl ? (
+          <Box
+            component="img"
+            src={timelineHeader.coverImageUrl}
+            alt={`${timelineHeader.name || 'Community'} cover`}
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              objectPosition: '50% 50%',
+              filter: timelineHeader.coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.42)',
+              transform: `translate(${(Number(timelineHeader.coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(timelineHeader.coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${timelineHeader.coverUploadEnabled ? (timelineHeader.coverZoom || 1) : ((timelineHeader.coverZoom || 1) + 0.08)})`,
+            }}
+          />
+        ) : null}
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(2,6,23,0.18) 0%, rgba(2,6,23,0.62) 100%)',
+          }}
+        />
+        <Typography
+          variant="h5"
+          component="h1"
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            fontWeight: 700,
+            color: '#fff',
+            textShadow: '0 2px 10px rgba(0,0,0,0.32)',
+          }}
+        >
+          <Box component="span" sx={{ fontFamily: 'Lobster, cursive', color: '#ffe082' }}>i</Box>
+          <Box component="span" sx={{ color: '#ffe082', ml: '0.16em', mr: 0.5 }}>-</Box>
+          {timelineHeader.name || 'Community'}
+        </Typography>
+      </Box>
+
       {isActionCardWarningActive && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Action Card Warning is active for this timeline. Action/quote cards are temporarily blurred.
