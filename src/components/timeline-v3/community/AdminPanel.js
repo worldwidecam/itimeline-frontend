@@ -162,6 +162,23 @@ const AdminPanel = () => {
   const [isPostLoading, setIsPostLoading] = useState(true);
   const theme = useTheme();
 
+  const handleTimelineUpdated = useCallback((updatedTimeline) => {
+    if (!updatedTimeline) return;
+    setTimelineData((prev) => ({
+      ...(prev || {}),
+      id: updatedTimeline.id ?? prev?.id,
+      name: updatedTimeline.name ?? prev?.name,
+      description: updatedTimeline.description ?? prev?.description,
+      coverImageUrl: String(updatedTimeline.cover_image_url || prev?.coverImageUrl || '').trim(),
+      coverPortraitImageUrl: String(updatedTimeline.cover_portrait_image_url || prev?.coverPortraitImageUrl || '').trim(),
+      coverLandscapeImageUrl: String(updatedTimeline.cover_landscape_image_url || prev?.coverLandscapeImageUrl || '').trim(),
+      coverUploadEnabled: updatedTimeline.cover_upload_enabled !== false,
+      coverLandscapeX: Number(updatedTimeline.cover_landscape_x ?? prev?.coverLandscapeX ?? 50),
+      coverLandscapeY: Number(updatedTimeline.cover_landscape_y ?? prev?.coverLandscapeY ?? 50),
+      coverZoom: Number(updatedTimeline.cover_landscape_zoom ?? updatedTimeline.cover_zoom ?? prev?.coverZoom ?? 1),
+    }));
+  }, []);
+
   // Load data from backend API with access check
   useEffect(() => {
     // Load timeline details
@@ -184,10 +201,12 @@ const AdminPanel = () => {
           memberCount: totalCount,
           createdBy: response.created_by || response.createdBy || null,
           coverImageUrl: String(response.cover_image_url || '').trim(),
+          coverPortraitImageUrl: String(response.cover_portrait_image_url || '').trim(),
+          coverLandscapeImageUrl: String(response.cover_landscape_image_url || '').trim(),
           coverUploadEnabled: response.cover_upload_enabled !== false,
           coverLandscapeX: Number(response.cover_landscape_x ?? 50),
           coverLandscapeY: Number(response.cover_landscape_y ?? 50),
-          coverZoom: Number(response.cover_zoom ?? 1),
+          coverZoom: Number(response.cover_landscape_zoom ?? response.cover_zoom ?? 1),
         });
         
         // Set visibility state based on timeline data
@@ -208,6 +227,8 @@ const AdminPanel = () => {
           memberCount: 0,
           createdBy: null,
           coverImageUrl: '',
+          coverPortraitImageUrl: '',
+          coverLandscapeImageUrl: '',
           coverUploadEnabled: true,
           coverLandscapeX: 50,
           coverLandscapeY: 50,
@@ -1450,7 +1471,7 @@ const AdminPanel = () => {
     );
   }
 
-  const adminCoverImageUrl = String(timelineData?.coverImageUrl || '').trim();
+  const adminCoverImageUrl = String(timelineData?.coverLandscapeImageUrl || '').trim();
   const adminCoverEnabled = timelineData?.coverUploadEnabled !== false;
 
   return (
@@ -1461,7 +1482,8 @@ const AdminPanel = () => {
           sx={{
             mb: 3,
             mt: 2,
-            minHeight: { xs: 112, md: 148 },
+            minHeight: { xs: 96, md: 120 },
+            aspectRatio: '8 / 1',
             borderRadius: 2.25,
             border: '1px solid',
             borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.14)',
@@ -1489,7 +1511,9 @@ const AdminPanel = () => {
                 height: '100%',
                 objectFit: 'contain',
                 objectPosition: '50% 50%',
-                filter: adminCoverEnabled ? 'none' : 'blur(18px) saturate(0.42)',
+                filter: adminCoverEnabled
+                  ? 'brightness(1.05) saturate(1.04)'
+                  : 'blur(18px) saturate(0.42)',
                 transform: `translate(${(Number(timelineData?.coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(timelineData?.coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${adminCoverEnabled ? (Number(timelineData?.coverZoom ?? 1) || 1) : ((Number(timelineData?.coverZoom ?? 1) || 1) + 0.08)})`,
               }}
             />
@@ -1498,7 +1522,7 @@ const AdminPanel = () => {
             sx={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, rgba(2,6,23,0.18) 0%, rgba(2,6,23,0.62) 100%)',
+              background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
             }}
           />
           <Typography
@@ -1714,7 +1738,14 @@ const AdminPanel = () => {
               )}
               {tabValue === 1 && <ManagePostsTab key="posts" timelineId={id} />}
               {tabValue === 2 && <CardsTab key="cards" id={id} />}
-              {tabValue === 3 && <SettingsTab key="settings" id={id} mode="timeline" />}
+              {tabValue === 3 && (
+                <SettingsTab
+                  key="settings"
+                  id={id}
+                  mode="timeline"
+                  onTimelineUpdated={handleTimelineUpdated}
+                />
+              )}
             </AnimatePresence>
           </Box>
         </Paper>
@@ -1753,9 +1784,30 @@ const CardsTab = ({ id }) => {
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <AnimatePresence mode="wait">
             {cardsTabValue === 0 && <InfoCardsTab key="cards-info" timelineId={id} />}
-            {cardsTabValue === 1 && <SettingsTab key="cards-status" id={id} mode="status" />}
-            {cardsTabValue === 2 && <SettingsTab key="cards-quote" id={id} mode="quote" />}
-            {cardsTabValue === 3 && <SettingsTab key="cards-actions" id={id} mode="actions" />}
+            {cardsTabValue === 1 && (
+              <SettingsTab
+                key="cards-status"
+                id={id}
+                mode="status"
+                onTimelineUpdated={handleTimelineUpdated}
+              />
+            )}
+            {cardsTabValue === 2 && (
+              <SettingsTab
+                key="cards-quote"
+                id={id}
+                mode="quote"
+                onTimelineUpdated={handleTimelineUpdated}
+              />
+            )}
+            {cardsTabValue === 3 && (
+              <SettingsTab
+                key="cards-actions"
+                id={id}
+                mode="actions"
+                onTimelineUpdated={handleTimelineUpdated}
+              />
+            )}
           </AnimatePresence>
         </Box>
       </Box>
@@ -3337,7 +3389,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
 };
 
 // Settings Tab Component
-const SettingsTab = ({ id, mode = 'all' }) => {
+const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
   const theme = useTheme();
   const showTimelineSettings = mode === 'timeline' || mode === 'all';
   const showStatusCards = mode === 'status' || mode === 'all';
@@ -3394,6 +3446,8 @@ const SettingsTab = ({ id, mode = 'all' }) => {
   const [cooldownDaysLeft, setCooldownDaysLeft] = useState(null);
   const [isChangingVisibility, setIsChangingVisibility] = useState(false);
   const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [coverPortraitImageUrl, setCoverPortraitImageUrl] = useState('');
+  const [coverLandscapeImageUrl, setCoverLandscapeImageUrl] = useState('');
   const [coverUploadEnabled, setCoverUploadEnabled] = useState(true);
   const [portraitPosition, setPortraitPosition] = useState({ x: 50, y: 50 });
   const [landscapePosition, setLandscapePosition] = useState({ x: 50, y: 50 });
@@ -3402,12 +3456,19 @@ const SettingsTab = ({ id, mode = 'all' }) => {
   const [activeFrameTarget, setActiveFrameTarget] = useState('landscape');
   const joystickRef = useRef(null);
   const joystickDragRef = useRef(null);
-  const [pendingCoverFile, setPendingCoverFile] = useState(null);
-  const [pendingCoverPreviewUrl, setPendingCoverPreviewUrl] = useState('');
+  const [pendingCoverPortraitFile, setPendingCoverPortraitFile] = useState(null);
+  const [pendingCoverLandscapeFile, setPendingCoverLandscapeFile] = useState(null);
+  const [pendingCoverPortraitPreviewUrl, setPendingCoverPortraitPreviewUrl] = useState('');
+  const [pendingCoverLandscapePreviewUrl, setPendingCoverLandscapePreviewUrl] = useState('');
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [siteRole, setSiteRole] = useState(null);
   const [isSiteAdmin, setIsSiteAdmin] = useState(false);
-  const activeCoverPreviewUrl = pendingCoverPreviewUrl || coverImageUrl;
+  const portraitPreviewUrl = pendingCoverPortraitPreviewUrl || coverPortraitImageUrl;
+  const landscapePreviewUrl = pendingCoverLandscapePreviewUrl || coverLandscapeImageUrl;
+  const hasPortraitPreview = Boolean(portraitPreviewUrl);
+  const hasLandscapePreview = Boolean(landscapePreviewUrl);
+  const activeCoverPreviewUrl = activeFrameTarget === 'portrait' ? portraitPreviewUrl : landscapePreviewUrl;
+  const hasActivePreview = activeFrameTarget === 'portrait' ? hasPortraitPreview : hasLandscapePreview;
 
   const FRAME_POSITION_MIN = -40;
   const FRAME_POSITION_MAX = 140;
@@ -3420,7 +3481,7 @@ const SettingsTab = ({ id, mode = 'all' }) => {
     const safe = Number.isFinite(numeric) ? numeric : Number(defaultValue);
     return Math.max(FRAME_POSITION_MIN, Math.min(FRAME_POSITION_MAX, safe));
   }, [FRAME_POSITION_MIN, FRAME_POSITION_MAX]);
-  const clampZoom = useCallback((value) => Math.max(1, Math.min(3.25, Number(value) || 1)), []);
+  const clampZoom = useCallback((value) => Math.max(1, Math.min(4.875, Number(value) || 1)), []);
   const getFrameTranslate = useCallback((value) => {
     const centered = clampFramePosition(value, 50) - 50;
     return centered * CAMERA_PAN_MULTIPLIER;
@@ -3434,7 +3495,7 @@ const SettingsTab = ({ id, mode = 'all' }) => {
   }, [getFrameTranslate, clampZoom]);
 
   const handleJoystickPointerDown = useCallback((event) => {
-    if (!activeCoverPreviewUrl) return;
+    if (!hasActivePreview) return;
     if (event.cancelable) {
       event.preventDefault();
     }
@@ -3449,7 +3510,7 @@ const SettingsTab = ({ id, mode = 'all' }) => {
     if (event.currentTarget.setPointerCapture) {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  }, [activeCoverPreviewUrl, activeFrameTarget, portraitPosition, landscapePosition, clampFramePosition]);
+  }, [hasActivePreview, activeFrameTarget, portraitPosition, landscapePosition, clampFramePosition]);
 
   const handleJoystickPointerMove = useCallback((event) => {
     const drag = joystickDragRef.current;
@@ -3515,117 +3576,201 @@ const SettingsTab = ({ id, mode = 'all' }) => {
 
   useEffect(() => {
     return () => {
-      if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(pendingCoverPreviewUrl);
+      if (pendingCoverPortraitPreviewUrl && pendingCoverPortraitPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pendingCoverPortraitPreviewUrl);
+      }
+      if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
       }
     };
-  }, [pendingCoverPreviewUrl]);
+  }, [pendingCoverLandscapePreviewUrl, pendingCoverPortraitPreviewUrl]);
 
-  const handleSelectCoverFile = useCallback((event) => {
+  const validateCoverFile = useCallback((nextFile) => {
+    if (!String(nextFile?.type || '').startsWith('image/')) {
+      setSnackbarMessage('Please select an image file for the community cover.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return false;
+    }
+
+    const maxBytes = 10 * 1024 * 1024;
+    if ((Number(nextFile?.size) || 0) > maxBytes) {
+      setSnackbarMessage('Cover image must be 10 MB or less.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return false;
+    }
+
+    return true;
+  }, []);
+
+  const handleSelectPortraitCoverFile = useCallback((event) => {
     const nextFile = event?.target?.files?.[0];
     if (event?.target) {
       event.target.value = '';
     }
-    if (!nextFile) return;
+    if (!nextFile || !validateCoverFile(nextFile)) return;
 
-    if (!String(nextFile.type || '').startsWith('image/')) {
-      setSnackbarMessage('Please select an image file for the community cover.');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-      return;
+    if (pendingCoverPortraitPreviewUrl && pendingCoverPortraitPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pendingCoverPortraitPreviewUrl);
     }
 
-    const maxBytes = 10 * 1024 * 1024;
-    if ((Number(nextFile.size) || 0) > maxBytes) {
-      setSnackbarMessage('Cover image must be 10 MB or less.');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-      return;
+    setPendingCoverPortraitFile(nextFile);
+    setPendingCoverPortraitPreviewUrl(URL.createObjectURL(nextFile));
+  }, [pendingCoverPortraitPreviewUrl, validateCoverFile]);
+
+  const handleSelectLandscapeCoverFile = useCallback((event) => {
+    const nextFile = event?.target?.files?.[0];
+    if (event?.target) {
+      event.target.value = '';
+    }
+    if (!nextFile || !validateCoverFile(nextFile)) return;
+
+    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
     }
 
-    if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(pendingCoverPreviewUrl);
+    setPendingCoverLandscapeFile(nextFile);
+    setPendingCoverLandscapePreviewUrl(URL.createObjectURL(nextFile));
+    setLandscapePosition({ x: 50, y: 50 });
+    setLandscapeZoom(1);
+  }, [pendingCoverLandscapePreviewUrl, validateCoverFile]);
+
+  const uploadCoverFile = useCallback(async (file, uploadKind) => {
+    if (!file) return '';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_kind', uploadKind);
+    formData.append('timeline_id', String(id));
+
+    const response = await api.post('/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 30000,
+    });
+
+    const uploadedUrl = String(response?.data?.url || '').trim();
+    if (!uploadedUrl) {
+      throw new Error('No cover URL returned from upload response');
     }
 
-    setPendingCoverFile(nextFile);
-    setPendingCoverPreviewUrl(URL.createObjectURL(nextFile));
-  }, [pendingCoverPreviewUrl]);
+    return uploadedUrl;
+  }, [id]);
 
-  const handleUploadCoverImage = useCallback(async () => {
-    if (!pendingCoverFile) return;
+  const handleUploadPortraitCover = useCallback(async () => {
+    if (!pendingCoverPortraitFile) return;
 
     try {
       setIsUploadingCover(true);
+      const uploadedUrl = await uploadCoverFile(pendingCoverPortraitFile, 'timeline_cover_portrait');
 
-      const formData = new FormData();
-      formData.append('file', pendingCoverFile);
-      formData.append('upload_kind', 'timeline_cover');
-      formData.append('timeline_id', String(id));
-
-      const response = await api.post('/api/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 30000,
-      });
-
-      const uploadedUrl = String(response?.data?.url || '').trim();
-      if (!uploadedUrl) {
-        throw new Error('No cover URL returned from upload response');
-      }
-
-      setCoverImageUrl(uploadedUrl);
+      setCoverPortraitImageUrl(uploadedUrl);
       setPortraitPosition({ x: 50, y: 50 });
-      setLandscapePosition({ x: 50, y: 50 });
       setPortraitZoom(1);
-      setLandscapeZoom(1);
       setTimelineData((prev) => ({
         ...(prev || {}),
-        coverImageUrl: uploadedUrl,
+        coverPortraitImageUrl: uploadedUrl,
         coverPortraitX: 50,
         coverPortraitY: 50,
-        coverLandscapeX: 50,
-        coverLandscapeY: 50,
-        coverZoom: 1,
+        coverZoom: prev?.coverZoom ?? 1,
       }));
       setHasUnsavedChanges(true);
-      setPendingCoverFile(null);
-      if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(pendingCoverPreviewUrl);
+      setPendingCoverPortraitFile(null);
+      if (pendingCoverPortraitPreviewUrl && pendingCoverPortraitPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pendingCoverPortraitPreviewUrl);
       }
-      setPendingCoverPreviewUrl('');
+      setPendingCoverPortraitPreviewUrl('');
 
-      setSnackbarMessage('Cover image uploaded. Save settings to publish.');
+      setSnackbarMessage('Portrait cover uploaded. Save settings to publish.');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (error) {
-      console.error('[SettingsTab] Failed to upload timeline cover image:', error);
-      const message = error?.response?.data?.error || error?.message || 'Failed to upload cover image';
+      console.error('[SettingsTab] Failed to upload portrait cover image:', error);
+      const message = error?.response?.data?.error || error?.message || 'Failed to upload portrait cover image';
       setSnackbarMessage(message);
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
       setIsUploadingCover(false);
     }
-  }, [id, pendingCoverFile, pendingCoverPreviewUrl]);
+  }, [pendingCoverPortraitFile, pendingCoverPortraitPreviewUrl, uploadCoverFile]);
 
-  const handleClearCoverImage = useCallback(() => {
-    setCoverImageUrl('');
+  const handleUploadLandscapeCover = useCallback(async () => {
+    if (!pendingCoverLandscapeFile) return;
+
+    try {
+      setIsUploadingCover(true);
+      const uploadedUrl = await uploadCoverFile(pendingCoverLandscapeFile, 'timeline_cover_landscape');
+
+      setCoverLandscapeImageUrl(uploadedUrl);
+      setLandscapePosition({ x: 50, y: 50 });
+      setLandscapeZoom(1);
+      setTimelineData((prev) => ({
+        ...(prev || {}),
+        coverLandscapeImageUrl: uploadedUrl,
+        coverLandscapeX: 50,
+        coverLandscapeY: 50,
+        coverZoom: 1,
+      }));
+      setHasUnsavedChanges(true);
+      setPendingCoverLandscapeFile(null);
+      if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
+      }
+      setPendingCoverLandscapePreviewUrl('');
+
+      setSnackbarMessage('Landscape cover uploaded. Save settings to publish.');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('[SettingsTab] Failed to upload landscape cover image:', error);
+      const message = error?.response?.data?.error || error?.message || 'Failed to upload landscape cover image';
+      setSnackbarMessage(message);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }, [pendingCoverLandscapeFile, pendingCoverLandscapePreviewUrl, uploadCoverFile]);
+
+  const handleClearPortraitCoverImage = useCallback(() => {
+    if (pendingCoverPortraitPreviewUrl && pendingCoverPortraitPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pendingCoverPortraitPreviewUrl);
+    }
+    setPendingCoverPortraitFile(null);
+    setPendingCoverPortraitPreviewUrl('');
+    setCoverPortraitImageUrl('');
     setPortraitPosition({ x: 50, y: 50 });
-    setLandscapePosition({ x: 50, y: 50 });
     setPortraitZoom(1);
+    setTimelineData((prev) => ({
+      ...(prev || {}),
+      coverPortraitImageUrl: '',
+      coverPortraitX: 50,
+      coverPortraitY: 50,
+    }));
+    setHasUnsavedChanges(true);
+  }, [pendingCoverPortraitPreviewUrl]);
+
+  const handleClearLandscapeCoverImage = useCallback(() => {
+    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
+    }
+    setPendingCoverLandscapeFile(null);
+    setPendingCoverLandscapePreviewUrl('');
+    setCoverLandscapeImageUrl('');
+    setLandscapePosition({ x: 50, y: 50 });
     setLandscapeZoom(1);
     setTimelineData((prev) => ({
       ...(prev || {}),
-      coverImageUrl: '',
-      coverPortraitX: 50,
-      coverPortraitY: 50,
+      coverLandscapeImageUrl: '',
       coverLandscapeX: 50,
       coverLandscapeY: 50,
       coverZoom: 1,
     }));
     setHasUnsavedChanges(true);
-  }, []);
+  }, [pendingCoverLandscapePreviewUrl]);
   
   // Load saved settings from backend API
   useEffect(() => {
@@ -3650,16 +3795,20 @@ const SettingsTab = ({ id, mode = 'all' }) => {
             visibility: timelineDetails.visibility || 'public',
             createdBy: timelineDetails.created_by,
             privacyChangedAt: timelineDetails.privacy_changed_at,
-            coverImageUrl: String(timelineDetails.cover_image_url || '').trim(),
+            coverImageUrl: '',
+            coverPortraitImageUrl: String(timelineDetails.cover_portrait_image_url || '').trim(),
+            coverLandscapeImageUrl: String(timelineDetails.cover_landscape_image_url || '').trim(),
             coverUploadEnabled: timelineDetails.cover_upload_enabled !== false,
             coverPortraitX: Number(timelineDetails.cover_portrait_x ?? 50),
             coverPortraitY: Number(timelineDetails.cover_portrait_y ?? 50),
             coverLandscapeX: Number(timelineDetails.cover_landscape_x ?? 50),
             coverLandscapeY: Number(timelineDetails.cover_landscape_y ?? 50),
-            coverZoom: Number(timelineDetails.cover_zoom ?? 1),
+            coverZoom: Number(timelineDetails.cover_landscape_zoom ?? 1),
           });
 
-          setCoverImageUrl(String(timelineDetails.cover_image_url || '').trim());
+          setCoverImageUrl('');
+          setCoverPortraitImageUrl(String(timelineDetails.cover_portrait_image_url || '').trim());
+          setCoverLandscapeImageUrl(String(timelineDetails.cover_landscape_image_url || '').trim());
           setCoverUploadEnabled(timelineDetails.cover_upload_enabled !== false);
           setPortraitPosition({
             x: clampFramePosition(timelineDetails.cover_portrait_x ?? 50),
@@ -3669,9 +3818,10 @@ const SettingsTab = ({ id, mode = 'all' }) => {
             x: clampFramePosition(timelineDetails.cover_landscape_x ?? 50),
             y: clampFramePosition(timelineDetails.cover_landscape_y ?? 50),
           });
-          const loadedZoom = clampZoom(timelineDetails.cover_zoom ?? 1);
-          setPortraitZoom(loadedZoom);
-          setLandscapeZoom(loadedZoom);
+          const loadedPortraitZoom = clampZoom(timelineDetails.cover_portrait_zoom ?? 1);
+          const loadedLandscapeZoom = clampZoom(timelineDetails.cover_landscape_zoom ?? 1);
+          setPortraitZoom(loadedPortraitZoom);
+          setLandscapeZoom(loadedLandscapeZoom);
           
           // Set initial privacy state from backend
           setIsPrivate(timelineDetails.visibility === 'private');
@@ -3955,22 +4105,60 @@ const SettingsTab = ({ id, mode = 'all' }) => {
       setIsSaving(true);
       setShowSavedState(false);
       console.log(`[SettingsTab] Saving settings for timeline ${id}...`);
+      let resolvedPortraitUrl = String(coverPortraitImageUrl || '').trim();
+      let resolvedLandscapeUrl = String(coverLandscapeImageUrl || '').trim();
+      let resolvedCoverUploadEnabled = coverUploadEnabled;
+
+      if (pendingCoverPortraitFile) {
+        try {
+          const uploadedUrl = await uploadCoverFile(pendingCoverPortraitFile, 'timeline_cover_portrait');
+          resolvedPortraitUrl = uploadedUrl;
+          setCoverPortraitImageUrl(uploadedUrl);
+          setPendingCoverPortraitFile(null);
+          if (pendingCoverPortraitPreviewUrl && pendingCoverPortraitPreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(pendingCoverPortraitPreviewUrl);
+          }
+          setPendingCoverPortraitPreviewUrl('');
+        } catch (uploadError) {
+          console.error('[SettingsTab] Failed to upload portrait cover image during save:', uploadError);
+          throw uploadError;
+        }
+      }
+
+      if (pendingCoverLandscapeFile) {
+        try {
+          const uploadedUrl = await uploadCoverFile(pendingCoverLandscapeFile, 'timeline_cover_landscape');
+          resolvedLandscapeUrl = uploadedUrl;
+          setCoverLandscapeImageUrl(uploadedUrl);
+          setPendingCoverLandscapeFile(null);
+          if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
+          }
+          setPendingCoverLandscapePreviewUrl('');
+        } catch (uploadError) {
+          console.error('[SettingsTab] Failed to upload landscape cover image during save:', uploadError);
+          throw uploadError;
+        }
+      }
       
       // Save timeline description and requires_approval to backend
       try {
         console.log(`[SettingsTab] Updating timeline settings (description, requires_approval)...`);
         const updateData = {
           requires_approval: requireMembershipApproval,
-          cover_image_url: String(coverImageUrl || '').trim(),
+          cover_image_url: null,
+          cover_portrait_image_url: resolvedPortraitUrl,
+          cover_landscape_image_url: resolvedLandscapeUrl,
           cover_portrait_x: clampFramePosition(portraitPosition.x),
           cover_portrait_y: clampFramePosition(portraitPosition.y),
           cover_landscape_x: clampFramePosition(landscapePosition.x),
           cover_landscape_y: clampFramePosition(landscapePosition.y),
-          cover_zoom: clampZoom(landscapeZoom),
+          cover_portrait_zoom: clampZoom(portraitZoom),
+          cover_landscape_zoom: clampZoom(landscapeZoom),
         };
 
         if (canManageImagePrivilege) {
-          updateData.cover_upload_enabled = Boolean(coverUploadEnabled);
+          updateData.cover_upload_enabled = Boolean(resolvedCoverUploadEnabled);
         }
         
         // Only include description if it exists
@@ -3978,7 +4166,43 @@ const SettingsTab = ({ id, mode = 'all' }) => {
           updateData.description = timelineData.description;
         }
         
-        await updateTimelineDetails(id, updateData);
+        const updatedTimeline = await updateTimelineDetails(id, updateData);
+        if (updatedTimeline) {
+          const updatedPortraitImageUrl = String(updatedTimeline.cover_portrait_image_url || resolvedPortraitUrl || '').trim();
+          const updatedLandscapeImageUrl = String(updatedTimeline.cover_landscape_image_url || resolvedLandscapeUrl || '').trim();
+          const updatedCoverUploadEnabled = updatedTimeline.cover_upload_enabled !== false;
+          const updatedPortraitX = clampFramePosition(updatedTimeline.cover_portrait_x ?? portraitPosition.x);
+          const updatedPortraitY = clampFramePosition(updatedTimeline.cover_portrait_y ?? portraitPosition.y);
+          const updatedLandscapeX = clampFramePosition(updatedTimeline.cover_landscape_x ?? landscapePosition.x);
+          const updatedLandscapeY = clampFramePosition(updatedTimeline.cover_landscape_y ?? landscapePosition.y);
+          const updatedPortraitZoom = clampZoom(updatedTimeline.cover_portrait_zoom ?? portraitZoom);
+          const updatedLandscapeZoom = clampZoom(updatedTimeline.cover_landscape_zoom ?? landscapeZoom);
+
+          setTimelineData((prev) => ({
+            ...(prev || {}),
+            id: updatedTimeline.id ?? prev?.id,
+            name: updatedTimeline.name ?? prev?.name,
+            description: updatedTimeline.description ?? prev?.description,
+            coverPortraitImageUrl: updatedPortraitImageUrl,
+            coverLandscapeImageUrl: updatedLandscapeImageUrl,
+            coverUploadEnabled: updatedCoverUploadEnabled,
+            coverPortraitX: updatedPortraitX,
+            coverPortraitY: updatedPortraitY,
+            coverLandscapeX: updatedLandscapeX,
+            coverLandscapeY: updatedLandscapeY,
+            coverZoom: updatedLandscapeZoom,
+          }));
+
+          setCoverImageUrl('');
+          setCoverPortraitImageUrl(updatedPortraitImageUrl);
+          setCoverLandscapeImageUrl(updatedLandscapeImageUrl);
+          setCoverUploadEnabled(updatedCoverUploadEnabled);
+          setPortraitPosition({ x: updatedPortraitX, y: updatedPortraitY });
+          setLandscapePosition({ x: updatedLandscapeX, y: updatedLandscapeY });
+          setPortraitZoom(updatedPortraitZoom);
+          setLandscapeZoom(updatedLandscapeZoom);
+          onTimelineUpdated?.(updatedTimeline);
+        }
         console.log(`[SettingsTab] Timeline settings updated successfully. requires_approval: ${requireMembershipApproval}`);
       } catch (descError) {
         console.error('[SettingsTab] Error updating timeline settings:', descError);
@@ -4226,36 +4450,70 @@ const SettingsTab = ({ id, mode = 'all' }) => {
                     Image Cover Select
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Upload one source image, then review portrait (1200x2100) and landscape (1600x900) previews.
+                    Upload portrait (1200x2100) and landscape (hero ratio 8:1, e.g. 1600x200) images separately.
                   </Typography>
 
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2, mb: 2 }}>
-                    <Button variant="outlined" component="label" disabled={isUploadingCover}>
-                      Choose Source Image
-                      <input hidden accept="image/*" type="file" onChange={handleSelectCoverFile} />
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleUploadCoverImage}
-                      disabled={!pendingCoverFile || isUploadingCover}
-                    >
-                      {isUploadingCover ? 'Uploading...' : 'Upload Cover'}
-                    </Button>
-                    <Button
-                      variant="text"
-                      color="error"
-                      onClick={handleClearCoverImage}
-                      disabled={isUploadingCover || !(coverImageUrl || pendingCoverPreviewUrl)}
-                    >
-                      Clear Cover
-                    </Button>
-                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700 }}>Portrait Upload</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2 }}>
+                        <Button variant="outlined" component="label" disabled={isUploadingCover}>
+                          Choose Portrait
+                          <input hidden accept="image/*" type="file" onChange={handleSelectPortraitCoverFile} />
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={handleUploadPortraitCover}
+                          disabled={!pendingCoverPortraitFile || isUploadingCover}
+                        >
+                          {isUploadingCover ? 'Uploading...' : 'Upload Portrait'}
+                        </Button>
+                        <Button
+                          variant="text"
+                          color="error"
+                          onClick={handleClearPortraitCoverImage}
+                          disabled={isUploadingCover || !(coverPortraitImageUrl || pendingCoverPortraitPreviewUrl)}
+                        >
+                          Clear Portrait
+                        </Button>
+                      </Box>
+                      {pendingCoverPortraitFile ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Ready: {pendingCoverPortraitFile.name} ({(pendingCoverPortraitFile.size / (1024 * 1024)).toFixed(2)} MB)
+                        </Typography>
+                      ) : null}
+                    </Box>
 
-                  {pendingCoverFile ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                      Ready to upload: {pendingCoverFile.name} ({(pendingCoverFile.size / (1024 * 1024)).toFixed(2)} MB)
-                    </Typography>
-                  ) : null}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700 }}>Landscape Upload</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2 }}>
+                        <Button variant="outlined" component="label" disabled={isUploadingCover}>
+                          Choose Landscape
+                          <input hidden accept="image/*" type="file" onChange={handleSelectLandscapeCoverFile} />
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={handleUploadLandscapeCover}
+                          disabled={!pendingCoverLandscapeFile || isUploadingCover}
+                        >
+                          {isUploadingCover ? 'Uploading...' : 'Upload Landscape'}
+                        </Button>
+                        <Button
+                          variant="text"
+                          color="error"
+                          onClick={handleClearLandscapeCoverImage}
+                          disabled={isUploadingCover || !(coverLandscapeImageUrl || pendingCoverLandscapePreviewUrl)}
+                        >
+                          Clear Landscape
+                        </Button>
+                      </Box>
+                      {pendingCoverLandscapeFile ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Ready: {pendingCoverLandscapeFile.name} ({(pendingCoverLandscapeFile.size / (1024 * 1024)).toFixed(2)} MB)
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  </Box>
 
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 260px) minmax(260px, 420px) minmax(180px, 220px)' }, gap: 2 }}>
                     <Box>
@@ -4274,10 +4532,10 @@ const SettingsTab = ({ id, mode = 'all' }) => {
                           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
                         }}
                       >
-                        {activeCoverPreviewUrl ? (
+                        {portraitPreviewUrl ? (
                           <Box
                             component="img"
-                            src={activeCoverPreviewUrl}
+                            src={portraitPreviewUrl}
                             alt="Portrait cover preview"
                             sx={{
                               width: '100%',
@@ -4307,12 +4565,12 @@ const SettingsTab = ({ id, mode = 'all' }) => {
 
                     <Box>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
-                        Landscape Preview (1600 x 900)
+                        Landscape Preview (Hero Ratio 8:1)
                       </Typography>
                       <Box
                         sx={{
                           width: '100%',
-                          aspectRatio: '16 / 9',
+                          aspectRatio: '8 / 1',
                           borderRadius: 1.5,
                           border: '1px solid',
                           borderColor: 'divider',
@@ -4321,10 +4579,10 @@ const SettingsTab = ({ id, mode = 'all' }) => {
                           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
                         }}
                       >
-                        {activeCoverPreviewUrl ? (
+                        {landscapePreviewUrl ? (
                           <Box
                             component="img"
-                            src={activeCoverPreviewUrl}
+                            src={landscapePreviewUrl}
                             alt="Landscape cover preview"
                             sx={{
                               width: '100%',
@@ -4428,7 +4686,7 @@ const SettingsTab = ({ id, mode = 'all' }) => {
                           size="small"
                           value={activeFrameTarget === 'portrait' ? portraitZoom : landscapeZoom}
                           min={1}
-                          max={3.25}
+                          max={4.875}
                           step={0.01}
                           disabled={!activeCoverPreviewUrl}
                           onChange={(_, value) => {

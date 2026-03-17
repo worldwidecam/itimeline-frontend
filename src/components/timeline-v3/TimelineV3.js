@@ -71,6 +71,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const effectiveId = timelineIdProp || routeId;
   const [timelineId, setTimelineId] = useState(effectiveId);
   const [timelineName, setTimelineName] = useState('');
+  const [coverPortraitUrl, setCoverPortraitUrl] = useState('');
+  const [coverUploadEnabled, setCoverUploadEnabled] = useState(true);
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
   const [createdBy, setCreatedBy] = useState(null);
@@ -159,6 +161,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             setCreatedBy(timelineData.created_by);
           }
           setRequiresApproval(timelineData.requires_approval || false);
+          setCoverPortraitUrl(String(timelineData.cover_portrait_image_url || '').trim());
+          setCoverUploadEnabled(timelineData.cover_upload_enabled !== false);
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
         }
@@ -3929,6 +3933,104 @@ const handleRecenter = () => {
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
       <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
+        {timeline_type === 'community' && coverPortraitUrl ? (
+          <Box
+            sx={{
+              position: 'absolute',
+              right: { xs: 70, sm: 82 },
+              bottom: 0,
+              width: { xs: 138, sm: 168 },
+              height: { xs: 204, sm: 248 },
+              borderRadius: 3,
+              padding: 0.8,
+              background: `linear-gradient(145deg, rgba(255,255,255,0.92), rgba(214,231,255,0.78)) padding-box,
+                linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.65), rgba(248,113,113,0.55)) border-box`,
+              border: '2px solid transparent',
+              boxShadow: floatingButtonsExpanded
+                ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
+                : '0 10px 24px rgba(15,23,42,0.18)',
+              transform: floatingButtonsExpanded
+                ? 'translateX(0) translateY(-6px) scale(1)'
+                : 'translateX(26px) translateY(6px) scale(0.92)',
+              opacity: floatingButtonsExpanded ? 1 : 0,
+              pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+              transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
+              transitionDelay: floatingButtonsExpanded ? '0.16s' : '0s',
+              zIndex: 1490,
+              backdropFilter: 'blur(6px)',
+            }}
+          >
+            <Box
+              sx={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                borderRadius: 2.4,
+                overflow: 'hidden',
+                background: 'linear-gradient(160deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.8) 100%)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
+              }}
+            >
+              <Box
+                component="img"
+                src={coverPortraitUrl}
+                alt={`${timelineName || 'Community'} portrait cover`}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: '50% 24%',
+                  filter: coverUploadEnabled
+                    ? 'brightness(1.08) saturate(1.08)'
+                    : 'blur(18px) saturate(0.45)',
+                  transform: coverUploadEnabled ? 'none' : 'scale(1.08)',
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.55) 100%)',
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 12,
+                  left: 12,
+                  right: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 0.6,
+                  color: '#f8fafc',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.35)',
+                }}
+              >
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.4,
+                    borderRadius: 999,
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    background: 'rgba(15,23,42,0.72)',
+                    border: '1px solid rgba(148,163,184,0.6)',
+                    letterSpacing: 0.8,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  COMMUNITY
+                </Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 0.4 }}>
+                  i-{timelineName || 'Community'}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        ) : null}
         {/* Consolidated Event Button - Animates in and out */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
           <Box sx={{

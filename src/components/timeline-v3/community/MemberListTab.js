@@ -414,11 +414,11 @@ const MemberListTab = () => {
         if (!active || !timeline) return;
         setTimelineHeader({
           name: String(timeline.name || ''),
-          coverImageUrl: String(timeline.cover_image_url || '').trim(),
+          coverImageUrl: String(timeline.cover_landscape_image_url || '').trim(),
           coverUploadEnabled: timeline.cover_upload_enabled !== false,
           coverLandscapeX: Number(timeline.cover_landscape_x ?? 50),
           coverLandscapeY: Number(timeline.cover_landscape_y ?? 50),
-          coverZoom: Number(timeline.cover_zoom ?? 1),
+          coverZoom: Number(timeline.cover_landscape_zoom ?? timeline.cover_zoom ?? 1),
         });
       } catch (err) {
         if (!active) return;
@@ -760,7 +760,8 @@ const MemberListTab = () => {
         sx={{
           mb: 3,
           mt: 1,
-          minHeight: { xs: 112, md: 148 },
+          minHeight: { xs: 96, md: 120 },
+          aspectRatio: '8 / 1',
           borderRadius: 2.25,
           border: '1px solid',
           borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.14)',
@@ -788,7 +789,9 @@ const MemberListTab = () => {
               height: '100%',
               objectFit: 'contain',
               objectPosition: '50% 50%',
-              filter: timelineHeader.coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.42)',
+              filter: timelineHeader.coverUploadEnabled
+                ? 'brightness(1.05) saturate(1.04)'
+                : 'blur(18px) saturate(0.42)',
               transform: `translate(${(Number(timelineHeader.coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(timelineHeader.coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${timelineHeader.coverUploadEnabled ? (timelineHeader.coverZoom || 1) : ((timelineHeader.coverZoom || 1) + 0.08)})`,
             }}
           />
@@ -797,7 +800,7 @@ const MemberListTab = () => {
           sx={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(180deg, rgba(2,6,23,0.18) 0%, rgba(2,6,23,0.62) 100%)',
+            background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
           }}
         />
         <Typography

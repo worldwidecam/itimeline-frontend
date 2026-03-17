@@ -1587,13 +1587,15 @@ const HomePage = () => {
       : isPersonal
         ? 'linear-gradient(135deg, rgba(0,150,136,0.95) 0%, rgba(0,105,92,0.95) 100%)'
         : 'linear-gradient(135deg, rgba(217,119,6,0.95) 0%, rgba(180,83,9,0.95) 100%)';
-    const coverImageUrl = String(
+    const communityCoverUrl = String(timeline?.cover_portrait_image_url || '').trim();
+    const fallbackCoverUrl = String(
       timeline?.cover_image_url
       || timeline?.banner_url
       || timeline?.cover_url
       || timeline?.background_image_url
       || '',
     ).trim();
+    const coverImageUrl = isCommunity ? communityCoverUrl : fallbackCoverUrl;
     const isImagePrivilegeEnabled = timeline?.cover_upload_enabled !== false;
 
     return (
@@ -1644,7 +1646,8 @@ const HomePage = () => {
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  filter: isImagePrivilegeEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                  objectPosition: isCommunity ? '50% 28%' : '50% 50%',
+                  filter: isImagePrivilegeEnabled ? 'brightness(1.06) saturate(1.04)' : 'blur(18px) saturate(0.45)',
                   transform: isImagePrivilegeEnabled ? 'none' : 'scale(1.08)',
                 }}
               />
@@ -1652,7 +1655,7 @@ const HomePage = () => {
                 sx={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'linear-gradient(180deg, rgba(6,10,19,0.08) 0%, rgba(6,10,19,0.35) 100%)',
+                  background: 'linear-gradient(180deg, rgba(6,10,19,0.04) 0%, rgba(6,10,19,0.22) 100%)',
                 }}
               />
               {!isImagePrivilegeEnabled ? (
