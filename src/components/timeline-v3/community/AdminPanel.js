@@ -1473,6 +1473,9 @@ const AdminPanel = () => {
 
   const adminCoverImageUrl = String(timelineData?.coverLandscapeImageUrl || '').trim();
   const adminCoverEnabled = timelineData?.coverUploadEnabled !== false;
+  const adminFallbackGradient = theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+    : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)';
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4 }}>
@@ -1496,7 +1499,9 @@ const AdminPanel = () => {
             alignItems: 'flex-end',
             px: { xs: 2, md: 3 },
             pb: { xs: 1.5, md: 2 },
-            background: 'linear-gradient(130deg, rgba(30,136,229,0.88) 0%, rgba(13,71,161,0.86) 100%)',
+            background: adminCoverImageUrl
+              ? 'transparent'
+              : adminFallbackGradient,
           }}
         >
           {adminCoverImageUrl ? (

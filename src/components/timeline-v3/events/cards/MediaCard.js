@@ -570,6 +570,9 @@ const MediaCard = forwardRef(({
         const srcMp4 = `${base}.mp4`;
         const srcWebm = `${base}.webm`;
         const srcOriginal = typeof mediaSource === 'string' && mediaSource.includes('cloudinary') ? mediaSource : '';
+        const sourceCandidates = srcOriginal
+          ? [srcOriginal]
+          : [srcMp4, srcWebm, base];
         return (
           <Box 
             sx={{ 
@@ -607,7 +610,10 @@ const MediaCard = forwardRef(({
                 onError={(e) => {
                   // Try a sequence of fallbacks
                   const current = e.target.currentSrc || e.target.src;
-                  const candidates = [srcOriginal, srcMp4, srcWebm, base, mediaSource].filter(Boolean);
+                  const candidates = Array.from(new Set([
+                    ...sourceCandidates,
+                    mediaSource,
+                  ].filter(Boolean)));
                   const idx = candidates.findIndex(u => current && current.startsWith(u));
                   const next = idx >= 0 && idx < candidates.length - 1 ? candidates[idx + 1] : null;
                   if (next) {
@@ -622,7 +628,7 @@ const MediaCard = forwardRef(({
                   }
                 }}
               >
-                {[srcOriginal, srcMp4, srcWebm, base].filter(Boolean).map((src, i) => {
+                {sourceCandidates.filter(Boolean).map((src, i) => {
                   const ext = src.split('.').pop();
                   const type = ext === 'mp4' ? 'video/mp4' : ext === 'webm' ? 'video/webm' : undefined;
                   return (

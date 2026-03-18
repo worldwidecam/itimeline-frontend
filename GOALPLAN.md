@@ -5,6 +5,9 @@
 
 ## Current Focus
 - [ ] Timeline cover image implementation
+  - [x] Community timeline images (portrait/landscape + FAB trading card/share page)
+  - [x] Personal timeline images
+  - [ ] Hashtag timeline images (in progress)
 
 ## Scope / Success Criteria
 - Timeline cover image can be uploaded, saved, and rendered reliably on timeline surfaces.
@@ -21,10 +24,31 @@
 - [ ] Validate create/edit flows and ensure no regressions to timeline loading.
 - [ ] Validate desktop + mobile rendering behavior.
 
+### Hashtag cover implementation tracker (Mar 2026)
+- [x] Decision: hashtag settings authority = SiteOwner + SiteAdmin (same authority at this level).
+- [x] Decision: use dedicated hashtag settings flow (not random timeline image selection).
+- [x] Add FAB gear sub-action entry for hashtag settings (role-gated).
+- [x] Add hashtag settings dialog scaffold (description + portrait cover upload/pan/zoom + save).
+- [x] Include hashtag timeline in FAB trading/share card portrait cover rendering.
+- [ ] Validate end-to-end save + refresh behavior across timeline page and Home timeline-card surfaces.
+
 ## Current Status Snapshot
 - Home page broken-events workflow: complete for audio/image/video auto-reporting + Open Event + historical Deleted status handling.
 - Home hub baseline remains stable (Search/My Creations/Friends List/Popular/Your Page progress preserved).
 - Current implementation focus moved to timeline cover image.
+- Personal timeline cover implementation is complete across timeline settings/save flow, FAB trading card, share page card, and Home timeline-card surfaces.
+- Hashtag cover implementation has started: SiteOwner/SiteAdmin role gating is wired in TimelineV3, hashtag settings dialog flow is added, and hashtag trading card now renders portrait cover.
+
+## Implementation Learnings / Nuances (Mar 2026)
+- Home timeline-card consistency depends on both rendering and data shaping.
+  - Shared timeline card renderer is reused across Home tab timeline sub-tabs.
+  - A prior mismatch came from Your Page timeline objects being rebuilt without all cover/framing fields; preserving full timeline fields fixed this.
+- Personal timeline portrait framing parity now follows the same renderer path used by other Home timeline lists.
+- TimelineV3 is carrying broad responsibilities; new hashtag settings were introduced as a self-contained dialog module so they can be extracted later.
+- Cache-version bumps are sometimes required when timeline object shape changes, to prevent stale session-cached cards from masking fixes.
+- Cloudinary video 404 console noise can be amplified by aggressive fallback source retries.
+  - Keep original full Cloudinary URL as primary source when available.
+  - Avoid deriving extra .mp4/.webm/no-extension variants from the same Cloudinary ID in that case.
 
 ## Learned / Required Systems Before Finalizing Remaining Home Tabs
 - Add a user follow system (follow/unfollow + followed-users retrieval) to power FRIENDS LIST and later YOUR PAGE.
@@ -37,11 +61,13 @@
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [x] Update/improve remark cards look
+- [ ] Investigate slow loading for Home > POPULAR and YOUR PAGE tabs (identify bottlenecks + solutions)
 - [ ] NSFW filter
 - [ ] Profile page implementation (existing page needs full build-out)
 - [ ] # hashtag chip voting system
 - [ ] make a home page submission box
 - [ ] sharing link system
+- [ ] consider timeline deletion capability (requirements + UX)
 - [ ] reorganizing community admin page action card settings under INFO CARDS umbrella
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
 - [ ] update the members page and admin page buttons to FAB
@@ -60,6 +86,7 @@
 
 ### Archived from Pending TODOs
 - [x] Update/improve remark cards look
+- [x] Personal timeline cover image implementation (portrait upload/framing + Save flow + Home/FAB/share parity)
 - [x] Home tab transition refactor: render/animation first, then async data fetch behind loading state
 - [x] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
 - [x] reporting action cards

@@ -754,6 +754,10 @@ const MemberListTab = () => {
   const silverActionSchedule = getActionScheduleDetails(silverAction?.dueDate);
   const bronzeActionSchedule = getActionScheduleDetails(bronzeAction?.dueDate);
 
+  const membersFallbackGradient = theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+    : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)';
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
       <Box
@@ -774,10 +778,12 @@ const MemberListTab = () => {
           alignItems: 'flex-end',
           px: { xs: 2, md: 3 },
           pb: { xs: 1.5, md: 2 },
-          background: 'linear-gradient(130deg, rgba(30,136,229,0.88) 0%, rgba(13,71,161,0.86) 100%)',
+          background: timelineHeader.coverImageUrl
+            ? 'transparent'
+            : membersFallbackGradient,
         }}
       >
-        {timelineHeader.coverImageUrl ? (
+        {!isLoading && timelineHeader.coverImageUrl ? (
           <Box
             component="img"
             src={timelineHeader.coverImageUrl}
@@ -803,21 +809,28 @@ const MemberListTab = () => {
             background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
           }}
         />
-        <Typography
-          variant="h5"
-          component="h1"
-          sx={{
-            position: 'relative',
-            zIndex: 1,
-            fontWeight: 700,
-            color: '#fff',
-            textShadow: '0 2px 10px rgba(0,0,0,0.32)',
-          }}
-        >
-          <Box component="span" sx={{ fontFamily: 'Lobster, cursive', color: '#ffe082' }}>i</Box>
-          <Box component="span" sx={{ color: '#ffe082', ml: '0.16em', mr: 0.5 }}>-</Box>
-          {timelineHeader.name || 'Community'}
-        </Typography>
+        {isLoading ? (
+          <Box sx={{ position: 'relative', zIndex: 1, width: '100%' }}>
+            <Skeleton variant="text" width={220} height={36} sx={{ bgcolor: 'rgba(255,255,255,0.25)' }} />
+            <Skeleton variant="text" width={140} height={24} sx={{ bgcolor: 'rgba(255,255,255,0.22)' }} />
+          </Box>
+        ) : (
+          <Typography
+            variant="h5"
+            component="h1"
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              fontWeight: 700,
+              color: '#fff',
+              textShadow: '0 2px 10px rgba(0,0,0,0.32)',
+            }}
+          >
+            <Box component="span" sx={{ fontFamily: 'Lobster, cursive', color: '#ffe082' }}>i</Box>
+            <Box component="span" sx={{ color: '#ffe082', ml: '0.16em', mr: 0.5 }}>-</Box>
+            {timelineHeader.name || 'Community'}
+          </Typography>
+        )}
       </Box>
 
       {isActionCardWarningActive && (

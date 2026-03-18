@@ -62,7 +62,7 @@ const POPULAR_SCROLL_TOP_HIDE_THRESHOLD_PX = 72;
 const POPULAR_SCROLL_IDLE_MS = 140;
 const HUB_PHASE_ONE_MS = 170;
 const POPULAR_HOME_CACHE_KEY_PREFIX = 'home_popular_cache_v2';
-const YOUR_PAGE_HOME_CACHE_KEY_PREFIX = 'home_your_page_cache_v1';
+const YOUR_PAGE_HOME_CACHE_KEY_PREFIX = 'home_your_page_cache_v2';
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
 
 const normalizeUserPrimaryColor = (profileUser) => {
@@ -581,7 +581,9 @@ const HomePage = () => {
         backgroundImage: `url(${spotlightTimelineImageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        fogOverlay: 'linear-gradient(135deg, rgba(7,14,32,0.58) 0%, rgba(21,34,54,0.54) 38%, rgba(53,22,72,0.48) 100%)',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(7,14,32,0.58) 0%, rgba(21,34,54,0.54) 38%, rgba(53,22,72,0.48) 100%)'
+          : 'linear-gradient(135deg, rgba(236,244,255,0.78) 0%, rgba(232,238,250,0.68) 45%, rgba(250,232,238,0.64) 100%)',
         blurOverlay: spotlightTimelineImagePrivilegeEnabled
           ? 'transparent'
           : 'rgba(6, 9, 16, 0.22)',
@@ -593,12 +595,12 @@ const HomePage = () => {
       return {
         backgroundImage: theme.palette.mode === 'dark'
           ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
-          : 'linear-gradient(135deg, rgba(217,236,255,0.96) 0%, rgba(210,229,255,0.94) 38%, rgba(240,224,255,0.95) 100%)',
+          : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         fogOverlay: theme.palette.mode === 'dark'
           ? 'linear-gradient(135deg, rgba(8,14,28,0.52) 0%, rgba(16,24,43,0.48) 100%)'
-          : 'linear-gradient(135deg, rgba(249,252,255,0.7) 0%, rgba(245,249,255,0.64) 100%)',
+          : 'linear-gradient(135deg, rgba(255,240,248,0.6) 0%, rgba(246,236,226,0.66) 55%, rgba(250,242,234,0.72) 100%)',
         blurOverlay: 'transparent',
         applyHardBlur: false,
       };
@@ -609,7 +611,9 @@ const HomePage = () => {
         backgroundImage: `url(${spotlightEventImageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        fogOverlay: 'linear-gradient(140deg, rgba(12,20,38,0.62) 0%, rgba(31,36,68,0.58) 55%, rgba(78,30,94,0.52) 100%)',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(140deg, rgba(12,20,38,0.62) 0%, rgba(31,36,68,0.58) 55%, rgba(78,30,94,0.52) 100%)'
+          : 'linear-gradient(140deg, rgba(236,244,255,0.78) 0%, rgba(227,236,252,0.7) 55%, rgba(249,230,244,0.64) 100%)',
         blurOverlay: 'transparent',
         applyHardBlur: false,
       };
@@ -619,12 +623,12 @@ const HomePage = () => {
       return {
         backgroundImage: theme.palette.mode === 'dark'
           ? 'linear-gradient(132deg, rgba(22,34,66,0.9) 0%, rgba(42,31,80,0.9) 45%, rgba(9,56,92,0.88) 100%)'
-          : 'linear-gradient(132deg, rgba(224,236,255,0.95) 0%, rgba(238,228,255,0.96) 45%, rgba(214,240,252,0.94) 100%)',
+          : 'linear-gradient(132deg, rgba(255,236,240,0.94) 0%, rgba(246,232,224,0.96) 66%, rgba(252,238,224,0.98) 100%)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         fogOverlay: theme.palette.mode === 'dark'
           ? 'linear-gradient(132deg, rgba(11,17,33,0.52) 0%, rgba(15,19,37,0.5) 100%)'
-          : 'linear-gradient(132deg, rgba(252,252,255,0.72) 0%, rgba(246,250,255,0.68) 100%)',
+          : 'linear-gradient(132deg, rgba(255,240,246,0.58) 0%, rgba(248,236,226,0.62) 58%, rgba(250,242,234,0.7) 100%)',
         blurOverlay: 'transparent',
         applyHardBlur: false,
       };
@@ -634,12 +638,27 @@ const HomePage = () => {
       return {
         backgroundImage: theme.palette.mode === 'dark'
           ? 'linear-gradient(120deg, rgba(62,35,8,0.84) 0%, rgba(120,52,18,0.86) 38%, rgba(153,45,88,0.82) 100%)'
-          : 'linear-gradient(120deg, rgba(255,236,208,0.95) 0%, rgba(255,222,199,0.96) 38%, rgba(255,224,238,0.94) 100%)',
+          : 'linear-gradient(120deg, rgba(255,232,246,0.92) 0%, rgba(246,228,214,0.96) 68%, rgba(252,236,216,0.98) 100%)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         fogOverlay: theme.palette.mode === 'dark'
           ? 'linear-gradient(120deg, rgba(23,14,8,0.44) 0%, rgba(24,10,17,0.42) 100%)'
-          : 'linear-gradient(120deg, rgba(255,252,249,0.66) 0%, rgba(255,248,251,0.64) 100%)',
+          : 'linear-gradient(120deg, rgba(255,240,246,0.6) 0%, rgba(250,242,234,0.66) 100%)',
+        blurOverlay: 'transparent',
+        applyHardBlur: false,
+      };
+    }
+
+    if (activeHeroSlide?.type === 'welcome') {
+      return {
+        backgroundImage: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(12,26,54,0.92) 0%, rgba(20,38,78,0.88) 42%, rgba(60,28,86,0.86) 100%)'
+          : 'linear-gradient(135deg, rgba(255,236,242,0.94) 0%, rgba(246,232,224,0.96) 68%, rgba(252,238,224,0.98) 100%)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(10,16,30,0.48) 0%, rgba(16,22,40,0.44) 100%)'
+          : 'linear-gradient(135deg, rgba(255,240,246,0.62) 0%, rgba(248,236,226,0.66) 55%, rgba(250,242,234,0.72) 100%)',
         blurOverlay: 'transparent',
         applyHardBlur: false,
       };
@@ -647,8 +666,8 @@ const HomePage = () => {
 
     return {
       backgroundImage: theme.palette.mode === 'dark'
-        ? 'linear-gradient(135deg, rgba(25,35,70,0.7) 0%, rgba(15,20,35,0.75) 70%)'
-        : 'linear-gradient(135deg, rgba(255,255,255,0.83) 0%, rgba(255,246,238,0.92) 70%)',
+        ? 'linear-gradient(135deg, rgba(20,30,60,0.82) 0%, rgba(12,18,35,0.86) 65%, rgba(42,22,64,0.84) 100%)'
+        : 'linear-gradient(135deg, rgba(255,236,240,0.92) 0%, rgba(248,234,230,0.94) 64%, rgba(252,238,224,0.96) 100%)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       fogOverlay: 'transparent',
@@ -1274,9 +1293,11 @@ const HomePage = () => {
 
         const known = timelineById.get(timelineId);
         yourTimelineMap.set(timelineId, {
+          ...(known || {}),
+          ...(membership || {}),
           id: timelineId,
           name: known?.name || membership?.timeline_name || `Timeline ${timelineId}`,
-          description: known?.description || '',
+          description: known?.description || membership?.description || '',
           timeline_type: known?.timeline_type || type,
           visibility: known?.visibility || membership?.visibility || 'public',
           created_by: known?.created_by || null,
@@ -1288,14 +1309,18 @@ const HomePage = () => {
         const timelineId = Number(timeline?.id || timeline?.timeline_id || 0);
         if (!(timelineId > 0)) return;
 
+        const known = timelineById.get(timelineId);
+
         yourTimelineMap.set(timelineId, {
+          ...(known || {}),
+          ...(timeline || {}),
           id: timelineId,
-          name: timeline?.name || `Timeline ${timelineId}`,
-          description: timeline?.description || '',
+          name: known?.name || timeline?.name || `Timeline ${timelineId}`,
+          description: known?.description || timeline?.description || '',
           timeline_type: 'hashtag',
-          visibility: timeline?.visibility || 'public',
-          created_by: timeline?.created_by || null,
-          created_at: timeline?.created_at || timeline?.followed_at || null,
+          visibility: known?.visibility || timeline?.visibility || 'public',
+          created_by: known?.created_by || timeline?.created_by || null,
+          created_at: known?.created_at || timeline?.created_at || timeline?.followed_at || null,
         });
       });
 
@@ -1567,6 +1592,7 @@ const HomePage = () => {
     const type = String(timeline?.timeline_type || 'hashtag').toLowerCase();
     const isCommunity = type === 'community';
     const isPersonal = type === 'personal';
+    const isHashtag = type === 'hashtag';
     const typeLabel = isCommunity ? 'Community Timeline' : isPersonal ? 'Personal Timeline' : 'Hashtag Timeline';
     const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
     const memberCount = Number(timeline?.member_count ?? timeline?.memberCount ?? 0) || 0;
@@ -1587,7 +1613,12 @@ const HomePage = () => {
       : isPersonal
         ? 'linear-gradient(135deg, rgba(0,150,136,0.95) 0%, rgba(0,105,92,0.95) 100%)'
         : 'linear-gradient(135deg, rgba(217,119,6,0.95) 0%, rgba(180,83,9,0.95) 100%)';
-    const communityCoverUrl = String(timeline?.cover_portrait_image_url || '').trim();
+    const portraitCoverUrl = String(timeline?.cover_portrait_image_url || '').trim();
+    const portraitCoverPosition = {
+      x: Number(timeline?.cover_portrait_x ?? 50),
+      y: Number(timeline?.cover_portrait_y ?? 50),
+    };
+    const portraitCoverZoom = Number(timeline?.cover_portrait_zoom ?? 1);
     const fallbackCoverUrl = String(
       timeline?.cover_image_url
       || timeline?.banner_url
@@ -1595,8 +1626,24 @@ const HomePage = () => {
       || timeline?.background_image_url
       || '',
     ).trim();
-    const coverImageUrl = isCommunity ? communityCoverUrl : fallbackCoverUrl;
+    const hasPortraitCover = Boolean(portraitCoverUrl);
+    const coverImageUrl = isCommunity
+      ? portraitCoverUrl
+      : ((isPersonal || isHashtag) ? (portraitCoverUrl || fallbackCoverUrl) : fallbackCoverUrl);
     const isImagePrivilegeEnabled = timeline?.cover_upload_enabled !== false;
+    const clampFramePosition = (value, defaultValue = 50) => {
+      const numeric = Number(value);
+      const safe = Number.isFinite(numeric) ? numeric : Number(defaultValue);
+      return Math.max(-40, Math.min(140, safe));
+    };
+    const clampZoom = (value) => Math.max(1, Math.min(4.875, Number(value) || 1));
+    const buildCoverTransform = (position, zoomValue, isPrivilegeEnabled) => {
+      const tx = (clampFramePosition(position?.x, 50) - 50) * 0.9;
+      const ty = (clampFramePosition(position?.y, 50) - 50) * 0.9;
+      const safeZoom = clampZoom(zoomValue);
+      const finalZoom = isPrivilegeEnabled ? safeZoom : (safeZoom + 0.08);
+      return `translate(${tx}%, ${ty}%) scale(${finalZoom})`;
+    };
 
     return (
       <Card
@@ -1646,9 +1693,11 @@ const HomePage = () => {
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  objectPosition: isCommunity ? '50% 28%' : '50% 50%',
+                  objectPosition: (isCommunity || ((isPersonal || isHashtag) && hasPortraitCover)) ? '50% 28%' : '50% 50%',
                   filter: isImagePrivilegeEnabled ? 'brightness(1.06) saturate(1.04)' : 'blur(18px) saturate(0.45)',
-                  transform: isImagePrivilegeEnabled ? 'none' : 'scale(1.08)',
+                  transform: (isPersonal || isHashtag) && hasPortraitCover
+                    ? buildCoverTransform(portraitCoverPosition, portraitCoverZoom, isImagePrivilegeEnabled)
+                    : (isImagePrivilegeEnabled ? 'none' : 'scale(1.08)'),
                 }}
               />
               <Box

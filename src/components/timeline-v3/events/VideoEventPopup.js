@@ -155,7 +155,7 @@ const VideoEventPopup = ({
       videoSources.push(`http://localhost:5000${mediaSource}`);
     }
     
-    if (event.cloudinary_id) {
+    if (event.cloudinary_id && !isCloudinaryUrl) {
       const cloudName = 'dnjwvuxn7';
       // For videos, use video/upload path and try common video extensions
       const baseUrl = `https://res.cloudinary.com/${cloudName}/video/upload/${event.cloudinary_id}`;

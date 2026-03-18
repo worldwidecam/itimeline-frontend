@@ -15,6 +15,8 @@ import EventMarker from './events/EventMarker';
 import EventMarkerCanvasV2 from './events/EventMarkerCanvasV2';
 import TimelineNameDisplay from './TimelineNameDisplay';
 import PersonalTimelineLock from './PersonalTimelineLock';
+import PersonalAccessPanel from './PersonalAccessPanel';
+import HashtagSettingsDialog from './HashtagSettingsDialog';
 import EventCounter from './events/EventCounter';
 import EventList from './events/EventList';
 import EventDialog from './events/EventDialog';
@@ -71,7 +73,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const effectiveId = timelineIdProp || routeId;
   const [timelineId, setTimelineId] = useState(effectiveId);
   const [timelineName, setTimelineName] = useState('');
+  const [timelineDescription, setTimelineDescription] = useState('');
   const [coverPortraitUrl, setCoverPortraitUrl] = useState('');
+  const [coverPortraitPosition, setCoverPortraitPosition] = useState({ x: 50, y: 50 });
+  const [coverPortraitZoom, setCoverPortraitZoom] = useState(1);
   const [coverUploadEnabled, setCoverUploadEnabled] = useState(true);
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
@@ -166,6 +171,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         
         if (timelineData && timelineData.name) {
           setTimelineName(timelineData.name);
+          setTimelineDescription(String(timelineData.description || ''));
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
           if (typeof timelineData.created_by !== 'undefined' && timelineData.created_by !== null) {
@@ -173,6 +179,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           }
           setRequiresApproval(timelineData.requires_approval || false);
           setCoverPortraitUrl(String(timelineData.cover_portrait_image_url || '').trim());
+          setCoverPortraitPosition({
+            x: Number(timelineData.cover_portrait_x ?? 50),
+            y: Number(timelineData.cover_portrait_y ?? 50),
+          });
+          setCoverPortraitZoom(Number(timelineData.cover_portrait_zoom ?? 1));
           setCoverUploadEnabled(timelineData.cover_upload_enabled !== false);
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
@@ -671,6 +682,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
+  const [hashtagSettingsOpen, setHashtagSettingsOpen] = useState(false);
+  const [siteRole, setSiteRole] = useState(null);
+  const [isSiteAdmin, setIsSiteAdmin] = useState(false);
   const [accessPanelOpen, setAccessPanelOpen] = useState(false);
   const [allowedViewers, setAllowedViewers] = useState([]);
   const [newViewerUsername, setNewViewerUsername] = useState('');
@@ -792,6 +806,64 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
   };
 
+  const communityFallbackGradient = useMemo(() => (
+    theme.palette.mode === 'dark'
+      ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+      : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)'
+  ), [theme.palette.mode]);
+
+  const clampCoverFramePosition = useCallback((value, defaultValue = 50) => {
+    const numeric = Number(value);
+    const safe = Number.isFinite(numeric) ? numeric : Number(defaultValue);
+    return Math.max(-40, Math.min(140, safe));
+  }, []);
+  const clampCoverZoom = useCallback((value) => Math.max(1, Math.min(4.875, Number(value) || 1)), []);
+  const getCoverTranslate = useCallback((value) => {
+    const centered = clampCoverFramePosition(value, 50) - 50;
+    return centered * 0.9;
+  }, [clampCoverFramePosition]);
+  const buildCoverPortraitTransform = useCallback((position, zoomValue, isPrivilegeEnabled = true) => {
+    const tx = getCoverTranslate(position?.x);
+    const ty = getCoverTranslate(position?.y);
+    const safeZoom = clampCoverZoom(zoomValue);
+    const finalZoom = isPrivilegeEnabled ? safeZoom : (safeZoom + 0.08);
+    return `translate(${tx}%, ${ty}%) scale(${finalZoom})`;
+  }, [getCoverTranslate, clampCoverZoom]);
+
+  const showShareTradingCard = timeline_type === 'community' || timeline_type === 'personal' || timeline_type === 'hashtag';
+  const shareCardLabel = timeline_type === 'community'
+    ? 'COMMUNITY'
+    : (timeline_type === 'personal' ? 'PERSONAL' : 'HASHTAG');
+  const shareCardTitle = timeline_type === 'community'
+    ? `i-${timelineName || 'Community'}`
+    : (timeline_type === 'hashtag' ? `#${timelineName || 'Hashtag'}` : (timelineName || 'Personal'));
+
+  const handleAccessPanelNotice = useCallback(({ message, severity }) => {
+    if (!message) return;
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity || 'info');
+    setSnackbarOpen(true);
+  }, []);
+
+  const handleOpenHashtagSettings = useCallback(() => {
+    setHashtagSettingsOpen(true);
+    setFloatingButtonsExpanded(false);
+  }, []);
+
+  const handleCloseHashtagSettings = useCallback(() => {
+    setHashtagSettingsOpen(false);
+  }, []);
+
+  const handleHashtagSettingsSaved = useCallback((nextSettings) => {
+    setTimelineDescription(String(nextSettings?.description || ''));
+    setCoverPortraitUrl(String(nextSettings?.coverPortraitUrl || '').trim());
+    setCoverPortraitPosition({
+      x: Number(nextSettings?.coverPortraitPosition?.x ?? 50),
+      y: Number(nextSettings?.coverPortraitPosition?.y ?? 50),
+    });
+    setCoverPortraitZoom(Number(nextSettings?.coverPortraitZoom ?? 1) || 1);
+  }, []);
+
   // Get sort order from localStorage
   const [sortOrder, setSortOrder] = useState(() => {
     return localStorage.getItem('timeline_sort_preference') || 'newest';
@@ -902,7 +974,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const isHashtagTimeline = timeline_type === 'hashtag';
   const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false && !user?.must_change_username;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
-  const isSiteOwner = user && Number(user.id) === 1;
+  const isSiteOwner = (Number(user?.id) === 1) || siteRole === 'SiteOwner';
+  const canManageHashtagSettings = isHashtagTimeline && (isSiteOwner || isSiteAdmin);
   const [isFollowingHashtag, setIsFollowingHashtag] = useState(false);
   const [hashtagFollowKind, setHashtagFollowKind] = useState('watch');
   const [isHashtagFollowLoading, setIsHashtagFollowLoading] = useState(false);
@@ -910,23 +983,24 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [creatorProfile, setCreatorProfile] = useState(null);
   const viewerCount = 1 + allowedViewers.length;
   const viewerLabel = `${viewerCount} viewer${viewerCount !== 1 ? 's' : ''}`;
-  const createSlugFromName = (name) => {
-    if (!name) return '';
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  };
 
-  const personalShareUrl =
-    typeof window !== 'undefined' && isPersonalTimeline && user
-      ? `${window.location.origin}/timeline-v3/${user.username}/${createSlugFromName(
-          timelineName
-        )}/${timelineId}`
-      : typeof window !== 'undefined'
-      ? window.location.href
-      : '';
+  useEffect(() => {
+    if (!user?.id) {
+      setSiteRole(null);
+      setIsSiteAdmin(false);
+      return;
+    }
+    try {
+      const passportKey = `user_passport_${user.id}`;
+      const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
+      setSiteRole(passport?.site_role || null);
+      setIsSiteAdmin(Boolean(passport?.is_site_admin) || Number(user.id) === 1);
+    } catch (error) {
+      console.warn('[TimelineV3] Failed to parse passport data for site role checks:', error);
+      setSiteRole(null);
+      setIsSiteAdmin(Number(user.id) === 1);
+    }
+  }, [user]);
 
   useEffect(() => {
     const loadCreatorProfile = async () => {
@@ -3131,206 +3205,25 @@ const handleRecenter = () => {
               </Button>
             </Fade>
           </Stack>
-          {/* Personal Access Panel dialog (creator-only, controlled by accessPanelOpen) */}
-          <Dialog
+          <PersonalAccessPanel
             open={accessPanelOpen}
             onClose={handleCloseAccessPanel}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle>Access Panel</DialogTitle>
-            <DialogContent>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Control who can see this personal timeline.
-              </Typography>
-
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={3}
-                alignItems="flex-start"
-              >
-                {/* Left column: viewers list */}
-                <Box
-                  sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    maxHeight: 320,
-                    overflowY: 'auto',
-                    pr: { xs: 0, sm: 1 },
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Allowed viewers
-                  </Typography>
-                  <Stack spacing={1.5} sx={{ mb: 2 }}>
-                    {/* Creator row with avatar + fun arrow label */}
-                    <Stack
-                      direction="row"
-                      spacing={1.5}
-                      alignItems="center"
-                      sx={{
-                        p: 1,
-                        borderRadius: 2,
-                        bgcolor:
-                          theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.04)'
-                            : 'rgba(0,0,0,0.02)',
-                      }}
-                    >
-                      {/* Avatar placeholder – later we can replace with real avatar */}
-                      <UserAvatar
-                        name={user?.username || 'You'}
-                        avatarUrl={user?.avatar_url}
-                        id={user?.id}
-                        size={32}
-                        sx={{
-                          bgcolor:
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.12)'
-                              : 'rgba(0,0,0,0.06)',
-                        }}
-                      />
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          @{user?.username || 'you'}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-                        >
-                          <span style={{ transform: 'rotate(-20deg)', display: 'inline-block' }}>
-                            ↪
-                          </span>
-                          You (creator)
-                        </Typography>
-                      </Box>
-                    </Stack>
-
-                    {/* Other allowed viewers */}
-                    {allowedViewers.map((viewer) => (
-                      <Stack
-                        key={viewer.id || viewer.username}
-                        direction="row"
-                        spacing={1.5}
-                        alignItems="center"
-                        sx={{
-                          p: 1,
-                          borderRadius: 2,
-                          bgcolor:
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.02)'
-                              : 'rgba(0,0,0,0.01)',
-                        }}
-                      >
-                        <UserAvatar
-                          name={viewer.username || 'User'}
-                          avatarUrl={viewer.avatarUrl}
-                          id={viewer.id}
-                          size={28}
-                          sx={{
-                            bgcolor:
-                              theme.palette.mode === 'dark'
-                                ? 'rgba(255,255,255,0.08)'
-                                : 'rgba(0,0,0,0.04)',
-                          }}
-                        />
-                        <Box sx={{ flexGrow: 1 }}>
-                          <Typography variant="body2">@{viewer.username}</Typography>
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveViewer(viewer.id)}
-                        >
-                          ×
-                        </IconButton>
-                      </Stack>
-                    ))}
-
-                    {allowedViewers.length === 0 && (
-                      <Typography variant="body2" color="text.secondary">
-                        Only you can currently see this personal timeline.
-                      </Typography>
-                    )}
-                  </Stack>
-                </Box>
-
-                {/* Right column: add viewer + share link */}
-                <Box
-                  sx={{
-                    flexBasis: { xs: '100%', sm: 260 },
-                    flexShrink: 0,
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Grant access by username
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Type a username"
-                      value={newViewerUsername}
-                      onChange={(e) => setNewViewerUsername(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddViewer();
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddViewer}
-                    >
-                      Add
-                    </Button>
-                  </Stack>
-                  {viewerError && (
-                    <Typography variant="body2" color="error" sx={{ mb: 2 }}>
-                      {viewerError}
-                    </Typography>
-                  )}
-
-                  <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-                    Share personal link
-                  </Typography>
-                  <Stack spacing={1}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={personalShareUrl}
-                      InputProps={{
-                        readOnly: true,
-                      }}
-                    />
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={async () => {
-                        try {
-                          if (navigator.clipboard && navigator.clipboard.writeText) {
-                            await navigator.clipboard.writeText(personalShareUrl);
-                          }
-                        } catch (e) {
-                          console.error('Failed to copy link:', e);
-                        }
-                      }}
-                      sx={{
-                        alignSelf: 'flex-start',
-                        borderRadius: 2,
-                      }}
-                    >
-                      Copy link
-                    </Button>
-                  </Stack>
-                </Box>
-              </Stack>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseAccessPanel}>Close</Button>
-            </DialogActions>
-          </Dialog>
+            user={user}
+            allowedViewers={allowedViewers}
+            newViewerUsername={newViewerUsername}
+            setNewViewerUsername={setNewViewerUsername}
+            viewerError={viewerError}
+            onAddViewer={handleAddViewer}
+            onRemoveViewer={handleRemoveViewer}
+            timelineId={timelineId}
+            coverPortraitUrl={coverPortraitUrl}
+            setCoverPortraitUrl={setCoverPortraitUrl}
+            coverPortraitPosition={coverPortraitPosition}
+            setCoverPortraitPosition={setCoverPortraitPosition}
+            coverPortraitZoom={coverPortraitZoom}
+            setCoverPortraitZoom={setCoverPortraitZoom}
+            onNotify={handleAccessPanelNotice}
+          />
           <Stack direction="row" spacing={2} alignItems="center">
             {/* Event Counter - Now shows filtered events count */}
             {(() => {
@@ -3960,6 +3853,19 @@ const handleRecenter = () => {
         </DialogActions>
       </Dialog>
 
+      <HashtagSettingsDialog
+        open={hashtagSettingsOpen}
+        onClose={handleCloseHashtagSettings}
+        timelineId={timelineId}
+        timelineName={timelineName}
+        initialDescription={timelineDescription}
+        initialCoverPortraitUrl={coverPortraitUrl}
+        initialCoverPortraitPosition={coverPortraitPosition}
+        initialCoverPortraitZoom={coverPortraitZoom}
+        onSaved={handleHashtagSettingsSaved}
+        onNotify={handleAccessPanelNotice}
+      />
+
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
       <ClickAwayListener
@@ -3970,7 +3876,7 @@ const handleRecenter = () => {
         }}
       >
         <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
-        {timeline_type === 'community' && coverPortraitUrl ? (
+        {showShareTradingCard ? (
           <Box
             sx={{
               position: 'absolute',
@@ -4026,24 +3932,39 @@ const handleRecenter = () => {
                 boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
               }}
             >
-              <Box
-                component="img"
-                src={coverPortraitUrl}
-                alt={`${timelineName || 'Community'} portrait cover`}
-                className="share-card-image"
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: '50% 24%',
-                  filter: coverUploadEnabled
-                    ? 'brightness(1.08) saturate(1.08)'
-                    : 'blur(18px) saturate(0.45)',
-                  transform: coverUploadEnabled ? 'none' : 'scale(1.08)',
-                }}
-              />
+              {coverPortraitUrl ? (
+                <Box
+                  component="img"
+                  src={coverPortraitUrl}
+                  alt={`${shareCardTitle} portrait cover`}
+                  className="share-card-image"
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: '50% 50%',
+                    filter: coverUploadEnabled
+                      ? 'brightness(1.08) saturate(1.08)'
+                      : 'blur(18px) saturate(0.45)',
+                    transform: buildCoverPortraitTransform(
+                      coverPortraitPosition,
+                      coverPortraitZoom,
+                      coverUploadEnabled
+                    ),
+                  }}
+                />
+              ) : (
+                <Box
+                  className="share-card-image"
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: communityFallbackGradient,
+                  }}
+                />
+              )}
               <Box
                 sx={{
                   position: 'absolute',
@@ -4079,10 +4000,10 @@ const handleRecenter = () => {
                     alignSelf: 'flex-start',
                   }}
                 >
-                  COMMUNITY
+                  {shareCardLabel}
                 </Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 0.4 }}>
-                  i-{timelineName || 'Community'}
+                  {shareCardTitle}
                 </Typography>
               </Box>
               {shareQrUrl ? (
@@ -4138,6 +4059,45 @@ const handleRecenter = () => {
         ) : null}
         {/* Consolidated Event Button - Animates in and out */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
+          {canManageHashtagSettings ? (
+            <Box sx={{
+              position: 'absolute',
+              bottom: floatingButtonsExpanded ? 168 : 0,
+              right: 0,
+              opacity: floatingButtonsExpanded ? 1 : 0,
+              pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+              transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out`,
+              transitionDelay: floatingButtonsExpanded ? '0.11s' : '0s',
+              zIndex: 1530,
+            }}>
+              <Tooltip title="Hashtag Settings" placement="left">
+                <Fab
+                  onClick={handleOpenHashtagSettings}
+                  size="medium"
+                  sx={{
+                    bgcolor: theme.palette.mode === 'dark' ? '#1f2937' : '#eef2ff',
+                    border: theme.palette.mode === 'dark' ? '2px solid #818cf8' : '2px solid #4f46e5',
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? '#111827' : '#e0e7ff',
+                      boxShadow: theme.palette.mode === 'dark'
+                        ? '0 0 18px rgba(129, 140, 248, 0.45)'
+                        : '0 0 18px rgba(79, 70, 229, 0.35)',
+                    },
+                    color: theme.palette.mode === 'dark' ? '#a5b4fc' : '#4338ca',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 0 12px rgba(129, 140, 248, 0.35)'
+                      : '0 0 12px rgba(79, 70, 229, 0.25)',
+                    transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
+                    transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transitionDelay: floatingButtonsExpanded ? '0.11s' : '0s',
+                  }}
+                >
+                  <SettingsIcon />
+                </Fab>
+              </Tooltip>
+            </Box>
+          ) : null}
+
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 112 : 0,
@@ -4175,6 +4135,7 @@ const handleRecenter = () => {
             </Tooltip>
           </Box>
 
+          {canCreateOrReport ? (
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 56 : 0,
@@ -4216,6 +4177,7 @@ const handleRecenter = () => {
               </Fab>
             </Tooltip>
           </Box>
+          ) : null}
         </Box>
         
         {/* Conditional rendering based on timeline type and membership status */}
@@ -4286,10 +4248,10 @@ const handleRecenter = () => {
             )
           : (
               // Non-community timelines always get Add button (when not blurred)
-              <Tooltip title={canCreateOrReport ? (floatingButtonsExpanded ? "Hide Options" : "Show Event Options") : "Posting Restricted"}>
+              <Tooltip title={(canCreateOrReport || canManageHashtagSettings) ? (floatingButtonsExpanded ? "Hide Options" : "Show Event Options") : "Posting Restricted"}>
                 <Fab
                   onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
-                  disabled={!canCreateOrReport}
+                  disabled={!canCreateOrReport && !canManageHashtagSettings}
                   sx={{
                     bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
                     color: 'white',
