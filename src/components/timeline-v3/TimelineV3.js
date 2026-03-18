@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, ClickAwayListener } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -95,6 +95,17 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     width: window.innerWidth,
     height: 300,
   });
+  const shareLink = useMemo(() => {
+    if (!timelineId || timelineId === 'new') {
+      return window.location.href;
+    }
+    return `${config.API_URL}/share/timeline/${timelineId}`;
+  }, [timelineId]);
+  const shareQrUrl = useMemo(() => (
+    shareLink
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareLink)}`
+      : ''
+  ), [shareLink]);
 
   // Centralized, headless membership logic (no UI changes)
   const {
@@ -219,6 +230,25 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       await refreshMembership();
     } catch (e) {
       console.error('Failed to sync passport:', e);
+    }
+  };
+
+  const handleShareCardClick = async () => {
+    if (!shareLink) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+      } else {
+        throw new Error('Clipboard unavailable');
+      }
+      setSnackbarMessage('Link Copied!');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Failed to copy share link:', error);
+      setSnackbarMessage('Failed to copy link');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
 
@@ -3932,7 +3962,14 @@ const handleRecenter = () => {
 
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
-      <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
+      <ClickAwayListener
+        onClickAway={() => {
+          if (floatingButtonsExpanded) {
+            setFloatingButtonsExpanded(false);
+          }
+        }}
+      >
+        <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
         {timeline_type === 'community' && coverPortraitUrl ? (
           <Box
             sx={{
@@ -3943,7 +3980,7 @@ const handleRecenter = () => {
               height: { xs: 204, sm: 248 },
               borderRadius: 3,
               padding: 0.8,
-              background: `linear-gradient(145deg, rgba(255,255,255,0.92), rgba(214,231,255,0.78)) padding-box,
+              background: `linear-gradient(160deg, rgba(120,86,36,0.95) 0%, rgba(120,86,36,0.9) 25%, rgba(10,10,12,0.96) 75%, rgba(0,0,0,0.98) 100%) padding-box,
                 linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.65), rgba(248,113,113,0.55)) border-box`,
               border: '2px solid transparent',
               boxShadow: floatingButtonsExpanded
@@ -3955,9 +3992,27 @@ const handleRecenter = () => {
               opacity: floatingButtonsExpanded ? 1 : 0,
               pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
               transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
-              transitionDelay: floatingButtonsExpanded ? '0.16s' : '0s',
+              transitionDelay: floatingButtonsExpanded ? '0.24s' : '0s',
               zIndex: 1490,
               backdropFilter: 'blur(6px)',
+              cursor: 'pointer',
+              '&:hover .share-card-overlay': {
+                opacity: 1,
+              },
+              '&:hover .share-card-image': {
+                filter: coverUploadEnabled
+                  ? 'brightness(0.88) saturate(1.02)'
+                  : 'blur(18px) saturate(0.45)',
+              },
+            }}
+            onClick={handleShareCardClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleShareCardClick();
+              }
             }}
           >
             <Box
@@ -3975,6 +4030,7 @@ const handleRecenter = () => {
                 component="img"
                 src={coverPortraitUrl}
                 alt={`${timelineName || 'Community'} portrait cover`}
+                className="share-card-image"
                 sx={{
                   position: 'absolute',
                   inset: 0,
@@ -3999,7 +4055,7 @@ const handleRecenter = () => {
                 sx={{
                   position: 'absolute',
                   bottom: 12,
-                  left: 12,
+                  left: 6,
                   right: 12,
                   display: 'flex',
                   flexDirection: 'column',
@@ -4011,15 +4067,16 @@ const handleRecenter = () => {
               >
                 <Box
                   sx={{
-                    px: 1,
-                    py: 0.4,
+                    px: 0.7,
+                    py: 0.24,
                     borderRadius: 999,
-                    fontSize: '0.62rem',
+                    fontSize: '0.36rem',
                     fontWeight: 700,
                     background: 'rgba(15,23,42,0.72)',
                     border: '1px solid rgba(148,163,184,0.6)',
                     letterSpacing: 0.8,
                     textTransform: 'uppercase',
+                    alignSelf: 'flex-start',
                   }}
                 >
                   COMMUNITY
@@ -4027,6 +4084,54 @@ const handleRecenter = () => {
                 <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 0.4 }}>
                   i-{timelineName || 'Community'}
                 </Typography>
+              </Box>
+              {shareQrUrl ? (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 52,
+                    right: 12,
+                    width: { xs: 54, sm: 64 },
+                    height: { xs: 54, sm: 64 },
+                    background: 'rgba(248,250,252,0.95)',
+                    borderRadius: 1.8,
+                    padding: 0.6,
+                    boxShadow: '0 6px 14px rgba(15,23,42,0.25)',
+                    border: '1px solid rgba(148,163,184,0.5)',
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={shareQrUrl}
+                    alt="Share QR code"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'block',
+                    }}
+                  />
+                </Box>
+              ) : null}
+              <Box
+                className="share-card-overlay"
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(2,6,23,0.6)',
+                  color: '#f8fafc',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  letterSpacing: 0.8,
+                  textTransform: 'uppercase',
+                  opacity: 0,
+                  transition: 'opacity 0.2s ease',
+                  pointerEvents: 'none',
+                }}
+              >
+                Tap to Share
               </Box>
             </Box>
           </Box>
@@ -4201,7 +4306,8 @@ const handleRecenter = () => {
                 </Fab>
               </Tooltip>
             )}
-      </Box>
+        </Box>
+      </ClickAwayListener>
       )}
       
       {/* Snackbar for event actions */}
