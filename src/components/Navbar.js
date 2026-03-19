@@ -40,65 +40,7 @@ import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismR
 import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import ToolbarSpacer from './ToolbarSpacer';
 import api, { checkMembershipStatus, getTimelineWarningState, getTimelineStatusMessage, getTimelineActions, getLandingRotatorSettings } from '../utils/api';
-
-const STATUS_ACTION_TYPE_MAP = {
-  bronze_action: 'bronze',
-  silver_action: 'silver',
-  gold_action: 'gold',
-};
-
-const formatActionSchedule = (dateValue) => {
-  if (!dateValue) return null;
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return {
-    dateLabel: date.toLocaleDateString(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    }),
-    timeLabel: date.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    }),
-    dayLabel: date.toLocaleDateString(undefined, { weekday: 'long' }),
-  };
-};
-
-const getActionProgressMeta = (action) => {
-  const progress = action?.progress;
-  if (!progress) return { label: '', ratio: 0, isUnlocked: false };
-
-  const safeNumber = (value, fallback = 0) => {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : fallback;
-  };
-
-  if (progress.threshold_type === 'members') {
-    const current = safeNumber(progress.current_additional_members, 0);
-    const goal = safeNumber(progress.goal_additional_members, 0);
-    const ratio = goal <= 0 ? 1 : Math.min(1, Math.max(0, current / goal));
-    return {
-      label: `${current}/${goal} additional members`,
-      ratio,
-      isUnlocked: progress.is_unlocked === true,
-    };
-  }
-
-  if (progress.threshold_type === 'votes') {
-    const current = safeNumber(progress.current_votes, 0);
-    const goal = safeNumber(progress.goal_votes, 0);
-    const ratio = goal <= 0 ? 1 : Math.min(1, Math.max(0, current / goal));
-    return {
-      label: `${current}/${goal} votes`,
-      ratio,
-      isUnlocked: progress.is_unlocked === true,
-    };
-  }
-
-  return { label: '', ratio: 0, isUnlocked: progress.is_unlocked === true };
-};
+import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta } from './timeline-v3/community/timelineStatusActionUtils';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -235,65 +177,30 @@ function Navbar() {
   const statusType = (timelineStatusMessage?.status_type || '').toLowerCase();
   const statusVariantMap = {
     good: {
+      ...STATUS_VARIANT_MAP.good,
       iconNode: <VolunteerActivismRoundedIcon sx={{ fontSize: '1.32rem' }} />,
-      icon: '#2e7d32',
-      hover: '#1b5e20',
-      header: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)',
-      body: 'linear-gradient(180deg, #b7e3c0 0%, #edf7ef 100%)',
-      text: '#1b5e20',
-      label: 'GOOD NEWS',
-      tooltip: 'View good news',
-      layout: 'portrait',
     },
     bad: {
+      ...STATUS_VARIANT_MAP.bad,
       iconNode: <ThumbDownAltRoundedIcon sx={{ fontSize: '1.32rem' }} />,
-      icon: '#c62828',
-      hover: '#8e0000',
-      header: 'linear-gradient(180deg, #c62828 0%, #ef5350 100%)',
-      body: 'linear-gradient(180deg, #f6b7b7 0%, #fdeaea 100%)',
-      text: '#8e0000',
-      label: 'BAD NEWS',
-      tooltip: 'View bad news',
-      layout: 'portrait',
     },
     bronze_action: {
+      ...STATUS_VARIANT_MAP.bronze_action,
       iconNode: <Box component="span" sx={{ fontSize: '1.42rem', lineHeight: 1 }}>🥉</Box>,
-      icon: '#cd7f32',
-      hover: '#a46122',
-      header: 'linear-gradient(180deg, #8d5524 0%, #cd7f32 100%)',
-      body: 'linear-gradient(180deg, #f4d4b4 0%, #fdf3e8 100%)',
-      text: '#5f3815',
-      label: 'BRONZE ACTION',
-      tooltip: 'View bronze action status',
-      layout: 'landscape',
     },
     silver_action: {
+      ...STATUS_VARIANT_MAP.silver_action,
       iconNode: <Box component="span" sx={{ fontSize: '1.42rem', lineHeight: 1 }}>🥈</Box>,
-      icon: '#9e9e9e',
-      hover: '#757575',
-      header: 'linear-gradient(180deg, #8f8f95 0%, #cfcfd6 100%)',
-      body: 'linear-gradient(180deg, #ececf0 0%, #fbfbfd 100%)',
-      text: '#4a4a52',
-      label: 'SILVER ACTION',
-      tooltip: 'View silver action status',
-      layout: 'landscape',
     },
     gold_action: {
+      ...STATUS_VARIANT_MAP.gold_action,
       iconNode: <Box component="span" sx={{ fontSize: '1.42rem', lineHeight: 1 }}>🥇</Box>,
-      icon: '#d4af37',
-      hover: '#a67c00',
-      header: 'linear-gradient(180deg, #b8860b 0%, #f1c84c 100%)',
-      body: 'linear-gradient(180deg, #ffe59a 0%, #fff8df 100%)',
-      text: '#6f5300',
-      label: 'GOLD ACTION',
-      tooltip: 'View gold action status',
-      layout: 'landscape',
     },
   };
   const statusTone = statusVariantMap[statusType] || null;
   const statusIcon = statusTone?.iconNode || null;
   const statusActionType = STATUS_ACTION_TYPE_MAP[statusType] || null;
-  const statusActionSchedule = formatActionSchedule(statusActionCard?.due_date);
+  const statusActionSchedule = formatActionSchedule(statusActionCard?.due_date, { includeDayLabel: true });
   const statusActionProgress = getActionProgressMeta(statusActionCard);
   const shouldBlurStatusCard = statusTone?.layout === 'landscape' && !isStatusViewerMember;
 

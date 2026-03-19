@@ -49,6 +49,8 @@ import RemarkCard from './timeline-v3/events/cards/RemarkCard';
 import NewsCard from './timeline-v3/events/cards/NewsCard';
 import MediaCard from './timeline-v3/events/cards/MediaCard';
 import QuoteDisplay from './timeline-v3/community/QuoteDisplay';
+import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta, canVoteForAction } from './timeline-v3/community/timelineStatusActionUtils';
+import TradingCard from './common/TradingCard';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -73,8 +75,6 @@ const DEFAULT_FAVORITE_QUOTE = {
   text: 'Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.',
   author: 'John F. Kennedy',
 };
-
-const canVoteForAction = (action) => action?.progress?.threshold_type === 'votes';
 const ACTION_CARD_DEFAULT_TITLE_BY_TYPE = {
   gold: 'Gold Community Action',
   silver: 'Silver Community Action',
@@ -94,63 +94,6 @@ const hasMeaningfulActionCardContent = (action) => {
   const hasCustomTitle = Boolean(title) && title !== (ACTION_CARD_DEFAULT_TITLE_BY_TYPE[actionType] || '');
   const hasCustomDescription = Boolean(description) && description !== (ACTION_CARD_DEFAULT_DESCRIPTION_BY_TYPE[actionType] || '');
   return hasCustomTitle || hasCustomDescription;
-};
-
-const STATUS_ACTION_TYPE_MAP = {
-  bronze_action: 'bronze',
-  silver_action: 'silver',
-  gold_action: 'gold',
-};
-
-const formatActionSchedule = (dateValue) => {
-  if (!dateValue) return null;
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return null;
-  return {
-    dateLabel: date.toLocaleDateString(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    }),
-    timeLabel: date.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    }),
-  };
-};
-
-const getActionProgressMeta = (action) => {
-  const progress = action?.progress;
-  if (!progress) return { label: '', ratio: 0, isUnlocked: false };
-  const ratioRaw = Number(progress?.progress_ratio ?? progress?.ratio ?? progress?.percent ?? 0);
-  const ratio = Math.max(0, Math.min(1, Number.isFinite(ratioRaw) ? ratioRaw : 0));
-  const isUnlocked = progress?.is_unlocked !== false;
-
-  if (progress.threshold_type === 'members') {
-    const current = Number(progress.current_members ?? progress.current ?? 0) || 0;
-    const required = Number(progress.threshold_value ?? progress.required_members ?? progress.goal_members ?? 0) || 0;
-    return {
-      label: required > 0 ? `${current}/${required} members` : '',
-      ratio,
-      isUnlocked,
-    };
-  }
-
-  if (progress.threshold_type === 'votes') {
-    const current = Number(progress.current_votes ?? progress.current ?? 0) || 0;
-    const required = Number(progress.threshold_value ?? progress.goal_votes ?? progress.required_votes ?? 0) || 0;
-    return {
-      label: required > 0 ? `${current}/${required} votes` : '',
-      ratio,
-      isUnlocked,
-    };
-  }
-
-  return {
-    label: '',
-    ratio,
-    isUnlocked,
-  };
 };
 
 const normalizeUserPrimaryColor = (profileUser) => {
@@ -1034,8 +977,11 @@ const HomePage = () => {
       return;
     }
 
-    const hasKnownFavoriteTimeline = allKnownTimelines.some((timeline) => Number(timeline?.id || 0) === numericFavoriteId);
-    if (hasKnownFavoriteTimeline) {
+    const knownFavoriteTimeline = allKnownTimelines.find((timeline) => Number(timeline?.id || 0) === numericFavoriteId) || null;
+    const knownFavoriteDescription = String(knownFavoriteTimeline?.description || '').trim();
+    const shouldFetchDetails = !knownFavoriteTimeline || !knownFavoriteDescription;
+
+    if (!shouldFetchDetails) {
       setFavoriteTimelineDetails(null);
       return;
     }
@@ -3758,7 +3704,9 @@ const HomePage = () => {
                     (() => {
                       const timelineType = String(selectedFavoriteTimeline?.timeline_type || 'hashtag').toLowerCase();
                       const timelineName = String(selectedFavoriteTimeline?.name || 'Timeline').trim() || 'Timeline';
-                      const titlePrefix = timelineType === 'community' ? 'i-' : (timelineType === 'hashtag' ? '#' : '');
+                      const titlePrefix = timelineType === 'community'
+                        ? 'i-'
+                        : (timelineType === 'personal' ? 'My-' : (timelineType === 'hashtag' ? '#' : ''));
                       const prefixedTitle = `${titlePrefix}${timelineName}`;
                       const shareCardLabel = timelineType === 'community'
                         ? 'COMMUNITY'
@@ -3810,49 +3758,16 @@ const HomePage = () => {
                       ).trim();
                       const statusBody = favoriteTimelineStatusMessage?.body || '';
                       const statusType = String(favoriteTimelineStatusMessage?.status_type || '').toLowerCase();
-                      const statusVariantMap = {
-                        good: {
-                          iconNode: '💚',
-                          header: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)',
-                          body: 'linear-gradient(180deg, #b7e3c0 0%, #edf7ef 100%)',
-                          text: '#1b5e20',
-                          label: 'GOOD NEWS',
-                          layout: 'portrait',
-                        },
-                        bad: {
-                          iconNode: '⚠️',
-                          header: 'linear-gradient(180deg, #c62828 0%, #ef5350 100%)',
-                          body: 'linear-gradient(180deg, #f6b7b7 0%, #fdeaea 100%)',
-                          text: '#8e0000',
-                          label: 'BAD NEWS',
-                          layout: 'portrait',
-                        },
-                        bronze_action: {
-                          iconNode: '🥉',
-                          header: 'linear-gradient(180deg, #8d5524 0%, #cd7f32 100%)',
-                          body: 'linear-gradient(180deg, #f4d4b4 0%, #fdf3e8 100%)',
-                          text: '#5f3815',
-                          label: 'BRONZE ACTION',
-                          layout: 'landscape',
-                        },
-                        silver_action: {
-                          iconNode: '🥈',
-                          header: 'linear-gradient(180deg, #8f8f95 0%, #cfcfd6 100%)',
-                          body: 'linear-gradient(180deg, #ececf0 0%, #fbfbfd 100%)',
-                          text: '#4a4a52',
-                          label: 'SILVER ACTION',
-                          layout: 'landscape',
-                        },
-                        gold_action: {
-                          iconNode: '🥇',
-                          header: 'linear-gradient(180deg, #b8860b 0%, #f1c84c 100%)',
-                          body: 'linear-gradient(180deg, #ffe59a 0%, #fff8df 100%)',
-                          text: '#6f5300',
-                          label: 'GOLD ACTION',
-                          layout: 'landscape',
-                        },
+                      const statusTone = {
+                        ...(STATUS_VARIANT_MAP[statusType] || STATUS_VARIANT_MAP.good),
+                        iconNode: ({
+                          good: '💚',
+                          bad: '⚠️',
+                          bronze_action: '🥉',
+                          silver_action: '🥈',
+                          gold_action: '🥇',
+                        })[statusType] || '💚',
                       };
-                      const statusTone = statusVariantMap[statusType] || statusVariantMap.good;
                       const statusActionType = STATUS_ACTION_TYPE_MAP[statusType] || null;
                       const statusActionCard = statusActionType
                         ? (favoriteTimelineActions.find((item) => item?.action_type === statusActionType) || null)
@@ -3922,10 +3837,8 @@ const HomePage = () => {
                                 <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
                                   Trading Card
                                 </Typography>
-                                <Box
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={async () => {
+                                <TradingCard
+                                  onActivate={async () => {
                                     if (!shareLink) return;
                                     try {
                                       if (navigator.clipboard?.writeText) {
@@ -3942,155 +3855,29 @@ const HomePage = () => {
                                       setUserFollowSnackbarOpen(true);
                                     }
                                   }}
-                                  onKeyDown={async (event) => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                      event.preventDefault();
-                                      try {
-                                        if (navigator.clipboard?.writeText) {
-                                          await navigator.clipboard.writeText(shareLink);
-                                        } else {
-                                          throw new Error('Clipboard unavailable');
-                                        }
-                                        setUserFollowSnackbarMessage('Link Copied!');
-                                        setUserFollowSnackbarSeverity('success');
-                                        setUserFollowSnackbarOpen(true);
-                                      } catch (error) {
-                                        setUserFollowSnackbarMessage('Failed to copy link');
-                                        setUserFollowSnackbarSeverity('error');
-                                        setUserFollowSnackbarOpen(true);
-                                      }
-                                    }
-                                  }}
-                                  sx={{
+                                  frameSx={{
                                     mt: 0.8,
-                                    width: { xs: 138, sm: 168 },
-                                    height: { xs: 204, sm: 248 },
-                                    borderRadius: 3,
-                                    padding: 0.8,
-                                    background: `linear-gradient(160deg, rgba(120,86,36,0.95) 0%, rgba(120,86,36,0.9) 25%, rgba(10,10,12,0.96) 75%, rgba(0,0,0,0.98) 100%) padding-box,
-                                      linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.65), rgba(248,113,113,0.55)) border-box`,
-                                    border: '2px solid transparent',
-                                    boxShadow: '0 10px 24px rgba(15,23,42,0.18)',
-                                    backdropFilter: 'blur(6px)',
-                                    cursor: 'pointer',
                                     '&:hover .favorite-share-card-overlay': {
                                       opacity: 1,
                                     },
                                   }}
-                                >
-                                  <Box
-                                    sx={{
-                                      position: 'relative',
-                                      width: '100%',
-                                      height: '100%',
-                                      borderRadius: 2.4,
-                                      overflow: 'hidden',
-                                      background: 'linear-gradient(160deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.8) 100%)',
-                                      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
-                                    }}
-                                  >
-                                    {tradingCardImageUrl ? (
-                                      <Box
-                                        component="img"
-                                        src={tradingCardImageUrl}
-                                        alt={`${prefixedTitle} portrait cover`}
-                                        sx={{
-                                          position: 'absolute',
-                                          inset: 0,
-                                          width: '100%',
-                                          height: '100%',
-                                          objectFit: shareCardImageObjectFit,
-                                          objectPosition: '50% 50%',
-                                          filter: coverUploadEnabled
-                                            ? 'brightness(1.08) saturate(1.08)'
-                                            : 'blur(18px) saturate(0.45)',
-                                          transform: coverPortraitTransform,
-                                        }}
-                                      />
-                                    ) : (
-                                      <Box sx={{ position: 'absolute', inset: 0, background: fallbackGradient }} />
-                                    )}
-                                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.55) 100%)' }} />
-                                    <Box
-                                      sx={{
-                                        position: 'absolute',
-                                        bottom: 12,
-                                        left: 6,
-                                        right: 12,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'flex-start',
-                                        gap: 0.6,
-                                        color: '#f8fafc',
-                                        textShadow: '0 2px 8px rgba(0,0,0,0.35)',
-                                      }}
-                                    >
-                                      <Box
-                                        sx={{
-                                          px: 0.7,
-                                          py: 0.24,
-                                          borderRadius: 999,
-                                          fontSize: '0.36rem',
-                                          fontWeight: 700,
-                                          background: 'rgba(15,23,42,0.72)',
-                                          border: '1px solid rgba(148,163,184,0.6)',
-                                          letterSpacing: 0.8,
-                                          textTransform: 'uppercase',
-                                          alignSelf: 'flex-start',
-                                        }}
-                                      >
-                                        {shareCardLabel}
-                                      </Box>
-                                      <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 0.4 }}>
-                                        {prefixedTitle}
-                                      </Typography>
-                                    </Box>
-                                    {shareQrUrl ? (
-                                      <Box
-                                        sx={{
-                                          position: 'absolute',
-                                          bottom: 52,
-                                          right: 12,
-                                          width: { xs: 54, sm: 64 },
-                                          height: { xs: 54, sm: 64 },
-                                          background: 'rgba(248,250,252,0.95)',
-                                          borderRadius: 1.8,
-                                          padding: 0.6,
-                                          boxShadow: '0 6px 14px rgba(15,23,42,0.25)',
-                                          border: '1px solid rgba(148,163,184,0.5)',
-                                        }}
-                                      >
-                                        <Box
-                                          component="img"
-                                          src={shareQrUrl}
-                                          alt="Share QR code"
-                                          sx={{ width: '100%', height: '100%', display: 'block' }}
-                                        />
-                                      </Box>
-                                    ) : null}
-                                    <Box
-                                      className="favorite-share-card-overlay"
-                                      sx={{
-                                        position: 'absolute',
-                                        inset: 0,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: 'rgba(2,6,23,0.6)',
-                                        color: '#f8fafc',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 700,
-                                        letterSpacing: 0.8,
-                                        textTransform: 'uppercase',
-                                        opacity: 0,
-                                        transition: 'opacity 0.2s ease',
-                                        pointerEvents: 'none',
-                                      }}
-                                    >
-                                      Tap to Share
-                                    </Box>
-                                  </Box>
-                                </Box>
+                                  imageUrl={tradingCardImageUrl}
+                                  imageAlt={`${prefixedTitle} portrait cover`}
+                                  imageSx={{
+                                    objectFit: shareCardImageObjectFit,
+                                    filter: coverUploadEnabled
+                                      ? 'brightness(1.08) saturate(1.08)'
+                                      : 'blur(18px) saturate(0.45)',
+                                    transform: coverPortraitTransform,
+                                  }}
+                                  fallbackSx={{ background: fallbackGradient }}
+                                  label={shareCardLabel}
+                                  title={prefixedTitle}
+                                  qrUrl={shareQrUrl}
+                                  overlayClassName="favorite-share-card-overlay"
+                                  overlayText="Tap to Share"
+                                  overlaySx={{ fontSize: '0.72rem' }}
+                                />
                               </Box>
 
                               <Box>

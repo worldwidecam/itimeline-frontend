@@ -39,6 +39,8 @@ const PersonalAccessPanel = ({
   onAddViewer,
   onRemoveViewer,
   timelineId,
+  timelineDescription,
+  setTimelineDescription,
   coverPortraitUrl,
   setCoverPortraitUrl,
   coverPortraitPosition,
@@ -206,12 +208,16 @@ const PersonalAccessPanel = ({
         resolvedUrl = await uploadCoverFile(pendingCoverFile);
       }
 
-      await updateTimelineDetails(timelineId, {
+      const updatedTimeline = await updateTimelineDetails(timelineId, {
+        description: String(timelineDescription || ''),
         cover_portrait_image_url: resolvedUrl,
         cover_portrait_x: clampFramePosition(coverPortraitPosition?.x ?? 50, 50),
         cover_portrait_y: clampFramePosition(coverPortraitPosition?.y ?? 50, 50),
         cover_portrait_zoom: clampZoom(coverPortraitZoom ?? 1),
       });
+
+      const nextDescription = String(updatedTimeline?.description ?? timelineDescription ?? '');
+      setTimelineDescription(nextDescription);
 
       setCoverPortraitUrl(resolvedUrl);
       setPendingCoverFile(null);
@@ -221,7 +227,7 @@ const PersonalAccessPanel = ({
       }
       setPendingCoverPreviewUrl('');
       setHasUnsavedChanges(false);
-      emitNotice('Portrait cover settings saved.', 'success');
+      emitNotice('Personal timeline settings saved.', 'success');
     } catch (error) {
       console.error('[PersonalAccessPanel] Failed to save portrait cover:', error);
       const message = error?.response?.data?.error || error?.message || 'Failed to save portrait cover.';
@@ -237,10 +243,12 @@ const PersonalAccessPanel = ({
     uploadCoverFile,
     coverPortraitPosition,
     coverPortraitZoom,
+    timelineDescription,
     clampFramePosition,
     clampZoom,
     pendingCoverPreviewUrl,
     emitNotice,
+    setTimelineDescription,
     setCoverPortraitUrl,
   ]);
 
@@ -460,6 +468,26 @@ const PersonalAccessPanel = ({
               gap: 2.5,
             }}
           >
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Timeline Description
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.2 }}>
+                This appears in places like your Favorite tab when a custom quote is not set.
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                label="Description"
+                value={timelineDescription}
+                onChange={(event) => {
+                  setTimelineDescription(event.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+              />
+            </Box>
+
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Portrait Cover
