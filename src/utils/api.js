@@ -1096,9 +1096,28 @@ export const getUserByUsername = async (username) => {
 
   try {
     console.log(`[API] Looking up user by username: ${trimmed}`);
-    const response = await api.get('/api/users/lookup', {
-      params: { username: trimmed }
-    });
+    const lookupPaths = ['/api/users/lookup', '/api/v1/users/lookup'];
+    let response = null;
+    let lastError = null;
+
+    for (const path of lookupPaths) {
+      try {
+        response = await api.get(path, {
+          params: { username: trimmed }
+        });
+        if (response) break;
+      } catch (error) {
+        lastError = error;
+        if (error?.response?.status === 404) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('User lookup endpoint unavailable');
+    }
 
     const data = response?.data;
     if (!data || !data.id || !data.username) {
@@ -2226,7 +2245,7 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
 
 /**
  * Update user preferences on the server via Passport
- * Allowed fields: { theme: 'dark'|'light', email_blur: boolean }
+ * Allowed fields: { theme: 'dark'|'light', email_blur: boolean, favorite_timeline_id: number|null }
  * @param {object} prefs
  * @returns {Promise<object>} Server response with merged preferences
  */
@@ -2238,6 +2257,17 @@ export const updateUserPreferences = async (prefs = {}) => {
     }
     if (typeof prefs.email_blur === 'boolean') {
       payload.email_blur = prefs.email_blur;
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'favorite_timeline_id')) {
+      const rawFavoriteTimelineId = prefs.favorite_timeline_id;
+      if (rawFavoriteTimelineId === null || rawFavoriteTimelineId === '' || rawFavoriteTimelineId === 0 || rawFavoriteTimelineId === '0') {
+        payload.favorite_timeline_id = null;
+      } else {
+        const parsedFavoriteTimelineId = Number(rawFavoriteTimelineId);
+        if (Number.isInteger(parsedFavoriteTimelineId) && parsedFavoriteTimelineId > 0) {
+          payload.favorite_timeline_id = parsedFavoriteTimelineId;
+        }
+      }
     }
     if (Object.keys(payload).length === 0) {
       return { message: 'No valid preference fields provided' };

@@ -1742,7 +1742,7 @@ const AdminPanel = () => {
                 />
               )}
               {tabValue === 1 && <ManagePostsTab key="posts" timelineId={id} />}
-              {tabValue === 2 && <CardsTab key="cards" id={id} />}
+              {tabValue === 2 && <CardsTab key="cards" id={id} onTimelineUpdated={handleTimelineUpdated} />}
               {tabValue === 3 && (
                 <SettingsTab
                   key="settings"
@@ -1759,7 +1759,7 @@ const AdminPanel = () => {
   );
 };
 
-const CardsTab = ({ id }) => {
+const CardsTab = ({ id, onTimelineUpdated }) => {
   const [cardsTabValue, setCardsTabValue] = useState(0);
 
   return (
@@ -1794,7 +1794,7 @@ const CardsTab = ({ id }) => {
                 key="cards-status"
                 id={id}
                 mode="status"
-                onTimelineUpdated={handleTimelineUpdated}
+                onTimelineUpdated={onTimelineUpdated}
               />
             )}
             {cardsTabValue === 2 && (
@@ -1802,7 +1802,7 @@ const CardsTab = ({ id }) => {
                 key="cards-quote"
                 id={id}
                 mode="quote"
-                onTimelineUpdated={handleTimelineUpdated}
+                onTimelineUpdated={onTimelineUpdated}
               />
             )}
             {cardsTabValue === 3 && (
@@ -1810,7 +1810,7 @@ const CardsTab = ({ id }) => {
                 key="cards-actions"
                 id={id}
                 mode="actions"
-                onTimelineUpdated={handleTimelineUpdated}
+                onTimelineUpdated={onTimelineUpdated}
               />
             )}
           </AnimatePresence>

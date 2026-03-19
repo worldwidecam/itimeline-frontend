@@ -22,7 +22,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../../common/UserAvatar';
 import HashtagIcon from '../../common/HashtagIcon';
-import api from '../../../utils/api';
+import api, { getUserByUsername } from '../../../utils/api';
 
 // Rich Content Renderer Component
 const RichContentRenderer = ({ content, theme }) => {
@@ -52,11 +52,11 @@ const RichContentRenderer = ({ content, theme }) => {
       return userCache[username];
     }
     try {
-      const response = await api.get(`/api/users/lookup?username=${encodeURIComponent(username)}`);
-      if (response.data) {
-        setUserCache(prev => ({ ...prev, [username]: response.data }));
-        setUserDataMap(prev => ({ ...prev, [username]: response.data }));
-        return response.data;
+      const userData = await getUserByUsername(username);
+      if (userData) {
+        setUserCache(prev => ({ ...prev, [username]: userData }));
+        setUserDataMap(prev => ({ ...prev, [username]: userData }));
+        return userData;
       }
     } catch (error) {
       console.error('Error fetching user data:', error);

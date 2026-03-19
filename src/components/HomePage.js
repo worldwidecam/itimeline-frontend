@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   CircularProgress,
+  LinearProgress,
   Box,
   Button,
   Menu,
@@ -36,15 +37,18 @@ import {
   Person as PersonIcon,
   AutoStories as AutoStoriesIcon,
   Cottage as CottageIcon,
+  Star as StarIcon,
   StarBorder as StarBorderIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount, getLandingRotatorSettings, addBrokenEventQueueItem } from '../utils/api';
+import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount, getLandingRotatorSettings, addBrokenEventQueueItem, updateUserPreferences, getTimelineDetails, getTimelineQuote, getTimelineActions, getTimelineStatusMessage, getTimelineWarningState, voteTimelineAction } from '../utils/api';
+import config from '../config';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
 import RemarkCard from './timeline-v3/events/cards/RemarkCard';
 import NewsCard from './timeline-v3/events/cards/NewsCard';
 import MediaCard from './timeline-v3/events/cards/MediaCard';
+import QuoteDisplay from './timeline-v3/community/QuoteDisplay';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -63,7 +67,91 @@ const POPULAR_SCROLL_IDLE_MS = 140;
 const HUB_PHASE_ONE_MS = 170;
 const POPULAR_HOME_CACHE_KEY_PREFIX = 'home_popular_cache_v2';
 const YOUR_PAGE_HOME_CACHE_KEY_PREFIX = 'home_your_page_cache_v2';
+const FAVORITE_TIMELINE_KEY_PREFIX = 'home_favorite_timeline_v1';
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
+const DEFAULT_FAVORITE_QUOTE = {
+  text: 'Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.',
+  author: 'John F. Kennedy',
+};
+
+const canVoteForAction = (action) => action?.progress?.threshold_type === 'votes';
+const ACTION_CARD_DEFAULT_TITLE_BY_TYPE = {
+  gold: 'Gold Community Action',
+  silver: 'Silver Community Action',
+  bronze: 'Bronze Community Action',
+};
+const ACTION_CARD_DEFAULT_DESCRIPTION_BY_TYPE = {
+  gold: 'Complete this action to unlock gold benefits.',
+  silver: 'Complete this action to unlock silver benefits.',
+  bronze: 'Complete this action to unlock bronze benefits.',
+};
+
+const hasMeaningfulActionCardContent = (action) => {
+  if (!action) return false;
+  const actionType = String(action?.action_type || '').toLowerCase();
+  const title = String(action?.title || '').trim();
+  const description = String(action?.description || '').trim();
+  const hasCustomTitle = Boolean(title) && title !== (ACTION_CARD_DEFAULT_TITLE_BY_TYPE[actionType] || '');
+  const hasCustomDescription = Boolean(description) && description !== (ACTION_CARD_DEFAULT_DESCRIPTION_BY_TYPE[actionType] || '');
+  return hasCustomTitle || hasCustomDescription;
+};
+
+const STATUS_ACTION_TYPE_MAP = {
+  bronze_action: 'bronze',
+  silver_action: 'silver',
+  gold_action: 'gold',
+};
+
+const formatActionSchedule = (dateValue) => {
+  if (!dateValue) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    dateLabel: date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }),
+    timeLabel: date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    }),
+  };
+};
+
+const getActionProgressMeta = (action) => {
+  const progress = action?.progress;
+  if (!progress) return { label: '', ratio: 0, isUnlocked: false };
+  const ratioRaw = Number(progress?.progress_ratio ?? progress?.ratio ?? progress?.percent ?? 0);
+  const ratio = Math.max(0, Math.min(1, Number.isFinite(ratioRaw) ? ratioRaw : 0));
+  const isUnlocked = progress?.is_unlocked !== false;
+
+  if (progress.threshold_type === 'members') {
+    const current = Number(progress.current_members ?? progress.current ?? 0) || 0;
+    const required = Number(progress.threshold_value ?? progress.required_members ?? progress.goal_members ?? 0) || 0;
+    return {
+      label: required > 0 ? `${current}/${required} members` : '',
+      ratio,
+      isUnlocked,
+    };
+  }
+
+  if (progress.threshold_type === 'votes') {
+    const current = Number(progress.current_votes ?? progress.current ?? 0) || 0;
+    const required = Number(progress.threshold_value ?? progress.goal_votes ?? progress.required_votes ?? 0) || 0;
+    return {
+      label: required > 0 ? `${current}/${required} votes` : '',
+      ratio,
+      isUnlocked,
+    };
+  }
+
+  return {
+    label: '',
+    ratio,
+    isUnlocked,
+  };
+};
 
 const normalizeUserPrimaryColor = (profileUser) => {
   const candidate = String(
@@ -79,8 +167,8 @@ const normalizeUserPrimaryColor = (profileUser) => {
 const LEFT_HUB_TABS = [
   { key: 'timeline-search', label: 'SEARCH', icon: SearchIcon },
   { key: 'popular', label: 'POPULAR', icon: LocalFireDepartmentIcon },
-  { key: 'your-page', label: 'YOUR PAGE', icon: CottageIcon },
-  { key: 'favorite', label: 'FAVORITE', icon: StarBorderIcon, soon: true },
+  { key: 'your-page', label: 'YOUR HOME PAGE', icon: CottageIcon },
+  { key: 'favorite', label: 'FAVORITE', icon: StarBorderIcon },
   { key: 'my-creations', label: 'MY CREATIONS', icon: AutoStoriesIcon },
   { key: 'friends-list', label: 'FRIENDS LIST', icon: GroupsIcon },
 ];
@@ -224,7 +312,98 @@ const HomePage = () => {
   const [loadingYourPage, setLoadingYourPage] = React.useState(false);
   const [hasLoadedYourPage, setHasLoadedYourPage] = React.useState(false);
   const [hasBootstrappedYourPageCache, setHasBootstrappedYourPageCache] = React.useState(false);
+  const [favoriteTimelineId, setFavoriteTimelineId] = React.useState(null);
+  const lastSyncedFavoriteTimelineIdRef = React.useRef(undefined);
+  const [favoriteTimelineDetails, setFavoriteTimelineDetails] = React.useState(null);
+  const [loadingFavoriteTimelineDetails, setLoadingFavoriteTimelineDetails] = React.useState(false);
+  const [favoriteTimelineEvents, setFavoriteTimelineEvents] = React.useState([]);
+  const [loadingFavoriteTimelineEvents, setLoadingFavoriteTimelineEvents] = React.useState(false);
+  const [favoriteTimelineQuote, setFavoriteTimelineQuote] = React.useState(DEFAULT_FAVORITE_QUOTE);
+  const [favoriteTimelineActions, setFavoriteTimelineActions] = React.useState([]);
+  const [favoriteTimelineStatusMessage, setFavoriteTimelineStatusMessage] = React.useState({ active: false, status_type: null, title: '', body: '' });
+  const [favoriteTimelineWarningState, setFavoriteTimelineWarningState] = React.useState({ active: false, warning_scope: null, title: '', body: '' });
+  const [loadingFavoriteTimelineContext, setLoadingFavoriteTimelineContext] = React.useState(false);
+  const [favoriteVoteLoadingByType, setFavoriteVoteLoadingByType] = React.useState({ bronze: false, silver: false, gold: false });
   const [formData, setFormData] = React.useState({ name: '', description: '' });
+
+  const getFavoriteTimelineKey = React.useCallback(
+    (userId) => `${FAVORITE_TIMELINE_KEY_PREFIX}:${Number(userId || 0)}`,
+    [],
+  );
+
+  React.useEffect(() => {
+    if (!user?.id) {
+      setFavoriteTimelineId(null);
+      lastSyncedFavoriteTimelineIdRef.current = null;
+      return;
+    }
+    let isCancelled = false;
+
+    const hydrateFavoriteTimeline = async () => {
+      let resolvedFavoriteTimelineId = null;
+
+      try {
+        const passportResponse = await api.get('/api/v1/user/passport');
+        const preferenceCandidate = passportResponse?.data?.preferences?.favorite_timeline_id;
+        const parsedPreference = Number(preferenceCandidate || 0);
+        if (parsedPreference > 0) {
+          resolvedFavoriteTimelineId = parsedPreference;
+        }
+      } catch (error) {
+        console.warn('[HomePage] Failed to hydrate favorite timeline from passport:', error?.response?.data || error?.message || error);
+      }
+
+      if (!(resolvedFavoriteTimelineId > 0)) {
+        try {
+          const passportCacheRaw = window.localStorage.getItem(`user_passport_${Number(user.id || 0)}`);
+          if (passportCacheRaw) {
+            const parsedPassportCache = JSON.parse(passportCacheRaw);
+            const passportFavorite = Number(parsedPassportCache?.preferences?.favorite_timeline_id || 0);
+            if (passportFavorite > 0) {
+              resolvedFavoriteTimelineId = passportFavorite;
+            }
+          }
+        } catch (error) {
+          console.warn('[HomePage] Failed to parse cached passport favorite:', error);
+        }
+      }
+
+      if (!(resolvedFavoriteTimelineId > 0)) {
+        try {
+          const raw = window.localStorage.getItem(getFavoriteTimelineKey(user.id));
+          const parsed = Number(raw || 0);
+          resolvedFavoriteTimelineId = parsed > 0 ? parsed : null;
+        } catch (error) {
+          console.error('Error reading favorite timeline from localStorage:', error);
+          resolvedFavoriteTimelineId = null;
+        }
+      }
+
+      if (isCancelled) return;
+      setFavoriteTimelineId(resolvedFavoriteTimelineId);
+      lastSyncedFavoriteTimelineIdRef.current = resolvedFavoriteTimelineId;
+    };
+
+    hydrateFavoriteTimeline();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, getFavoriteTimelineKey]);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const key = getFavoriteTimelineKey(user.id);
+      if (favoriteTimelineId && favoriteTimelineId > 0) {
+        window.localStorage.setItem(key, String(favoriteTimelineId));
+      } else {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error('Error writing favorite timeline to localStorage:', error);
+    }
+  }, [user?.id, favoriteTimelineId, getFavoriteTimelineKey]);
 
   React.useEffect(() => {
     setHasBootstrappedPopularCache(false);
@@ -814,6 +993,264 @@ const HomePage = () => {
   const visibleYourPagePosts = React.useMemo(() => {
     return yourPageEvents.slice(0, visibleYourPagePostCount);
   }, [yourPageEvents, visibleYourPagePostCount]);
+
+  const allKnownTimelines = React.useMemo(() => {
+    const merged = [
+      ...(Array.isArray(ownedTimelines) ? ownedTimelines : []),
+      ...(Array.isArray(yourPageTimelines) ? yourPageTimelines : []),
+      ...(Array.isArray(popularTimelines) ? popularTimelines : []),
+      ...(Array.isArray(timelines) ? timelines : []),
+    ];
+
+    const deduped = [];
+    const seen = new Set();
+    merged.forEach((timeline) => {
+      const id = Number(timeline?.id || 0);
+      if (!(id > 0) || seen.has(id)) return;
+      seen.add(id);
+      deduped.push(timeline);
+    });
+    return deduped;
+  }, [ownedTimelines, yourPageTimelines, popularTimelines, timelines]);
+
+  const selectedFavoriteTimeline = React.useMemo(() => {
+    const id = Number(favoriteTimelineId || 0);
+    if (!(id > 0)) return null;
+
+    const known = allKnownTimelines.find((timeline) => Number(timeline?.id || 0) === id);
+    if (known) return known;
+
+    if (Number(favoriteTimelineDetails?.id || 0) === id) {
+      return favoriteTimelineDetails;
+    }
+
+    return null;
+  }, [favoriteTimelineId, allKnownTimelines, favoriteTimelineDetails]);
+
+  React.useEffect(() => {
+    const numericFavoriteId = Number(favoriteTimelineId || 0);
+    if (!(numericFavoriteId > 0)) {
+      setFavoriteTimelineDetails(null);
+      return;
+    }
+
+    const hasKnownFavoriteTimeline = allKnownTimelines.some((timeline) => Number(timeline?.id || 0) === numericFavoriteId);
+    if (hasKnownFavoriteTimeline) {
+      setFavoriteTimelineDetails(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const loadFavoriteTimelineDetails = async () => {
+      try {
+        setLoadingFavoriteTimelineDetails(true);
+        const details = await getTimelineDetails(numericFavoriteId);
+        if (isCancelled) return;
+        setFavoriteTimelineDetails(details || null);
+      } catch (error) {
+        if (!isCancelled) {
+          console.warn('[HomePage] Failed to fetch favorite timeline details:', error?.response?.data || error?.message || error);
+          setFavoriteTimelineDetails(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingFavoriteTimelineDetails(false);
+        }
+      }
+    };
+
+    loadFavoriteTimelineDetails();
+    return () => {
+      isCancelled = true;
+    };
+  }, [favoriteTimelineId, allKnownTimelines]);
+
+  React.useEffect(() => {
+    const numericFavoriteId = Number(favoriteTimelineId || 0);
+    if (!(numericFavoriteId > 0) || activeHubTab !== 'favorite') {
+      setFavoriteTimelineEvents([]);
+      setLoadingFavoriteTimelineEvents(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const loadFavoriteTimelineEvents = async () => {
+      try {
+        setLoadingFavoriteTimelineEvents(true);
+        const response = await api.get(`/api/timeline-v3/${numericFavoriteId}/events`);
+        if (isCancelled) return;
+
+        const payload = response?.data;
+        const events = Array.isArray(payload?.events)
+          ? payload.events
+          : (Array.isArray(payload) ? payload : []);
+
+        const timelineName = selectedFavoriteTimeline?.name || payload?.timeline_name || '';
+        const timelineType = selectedFavoriteTimeline?.timeline_type || payload?.timeline_type || 'hashtag';
+        const timelineCreator = selectedFavoriteTimeline?.created_by
+          || selectedFavoriteTimeline?.creator_id
+          || selectedFavoriteTimeline?.owner_id
+          || selectedFavoriteTimeline?.user_id
+          || null;
+
+        setFavoriteTimelineEvents(
+          events
+            .map((event) => ({
+              ...event,
+              timeline_id: Number(event?.timeline_id || numericFavoriteId),
+              timeline_name: event?.timeline_name || timelineName,
+              timeline_type: event?.timeline_type || timelineType,
+              timeline_created_by: event?.timeline_created_by || timelineCreator,
+            }))
+            .sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0)),
+        );
+      } catch (error) {
+        if (!isCancelled) {
+          console.warn('[HomePage] Failed to fetch favorite timeline events:', error?.response?.data || error?.message || error);
+          setFavoriteTimelineEvents([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingFavoriteTimelineEvents(false);
+        }
+      }
+    };
+
+    loadFavoriteTimelineEvents();
+    return () => {
+      isCancelled = true;
+    };
+  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline]);
+
+  React.useEffect(() => {
+    const numericFavoriteId = Number(favoriteTimelineId || 0);
+    if (!(numericFavoriteId > 0) || activeHubTab !== 'favorite') {
+      setFavoriteTimelineQuote(DEFAULT_FAVORITE_QUOTE);
+      setFavoriteTimelineActions([]);
+      setFavoriteTimelineStatusMessage({ active: false, status_type: null, title: '', body: '' });
+      setFavoriteTimelineWarningState({ active: false, warning_scope: null, title: '', body: '' });
+      setLoadingFavoriteTimelineContext(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const loadFavoriteTimelineContext = async () => {
+      try {
+        setLoadingFavoriteTimelineContext(true);
+
+        const [quoteResponse, actionsResponse, statusResponse, warningResponse] = await Promise.all([
+          getTimelineQuote(numericFavoriteId),
+          getTimelineActions(numericFavoriteId),
+          getTimelineStatusMessage(numericFavoriteId),
+          getTimelineWarningState(numericFavoriteId),
+        ]);
+
+        if (isCancelled) return;
+
+        const quoteText = String(quoteResponse?.quote?.text || '').trim();
+        const quoteAuthor = String(quoteResponse?.quote?.author || '').trim();
+        const isCustomQuote = Boolean(quoteResponse?.quote?.is_custom);
+        const favoriteType = String(
+          selectedFavoriteTimeline?.timeline_type
+          || favoriteTimelineDetails?.timeline_type
+          || '',
+        ).toLowerCase();
+        const fallbackDescription = String(
+          selectedFavoriteTimeline?.description
+          || favoriteTimelineDetails?.description
+          || '',
+        ).trim();
+
+        if (!isCustomQuote && favoriteType !== 'community' && fallbackDescription) {
+          setFavoriteTimelineQuote({
+            text: fallbackDescription,
+            author: 'Timeline Description',
+          });
+        } else {
+          setFavoriteTimelineQuote({
+            text: quoteText || DEFAULT_FAVORITE_QUOTE.text,
+            author: quoteAuthor || DEFAULT_FAVORITE_QUOTE.author,
+          });
+        }
+
+        const nextActions = Array.isArray(actionsResponse?.actions)
+          ? actionsResponse.actions
+              .filter((action) => action && action.action_type)
+              .filter((action) => hasMeaningfulActionCardContent(action))
+              .sort((a, b) => {
+                const order = { gold: 0, silver: 1, bronze: 2 };
+                return (order[a.action_type] ?? 99) - (order[b.action_type] ?? 99);
+              })
+          : [];
+        setFavoriteTimelineActions(nextActions);
+
+        setFavoriteTimelineStatusMessage({
+          active: !!statusResponse?.active,
+          status_type: String(statusResponse?.status_type || statusResponse?.message_type || '').toLowerCase() || null,
+          title: String(statusResponse?.status_header || statusResponse?.title || '').trim(),
+          body: String(statusResponse?.status_body || statusResponse?.body || statusResponse?.message || '').trim(),
+        });
+
+        setFavoriteTimelineWarningState({
+          active: !!warningResponse?.active,
+          warning_scope: warningResponse?.warning_scope || null,
+          title: String(warningResponse?.title || '').trim(),
+          body: String(warningResponse?.body || warningResponse?.message || '').trim(),
+        });
+      } catch (error) {
+        if (!isCancelled) {
+          console.warn('[HomePage] Failed to load favorite timeline context:', error?.response?.data || error?.message || error);
+          setFavoriteTimelineQuote(DEFAULT_FAVORITE_QUOTE);
+          setFavoriteTimelineActions([]);
+          setFavoriteTimelineStatusMessage({ active: false, status_type: null, title: '', body: '' });
+          setFavoriteTimelineWarningState({ active: false, warning_scope: null, title: '', body: '' });
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingFavoriteTimelineContext(false);
+        }
+      }
+    };
+
+    loadFavoriteTimelineContext();
+    return () => {
+      isCancelled = true;
+    };
+  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline, favoriteTimelineDetails]);
+
+  const handleFavoriteActionVote = React.useCallback(async (actionType) => {
+    const timelineId = Number(favoriteTimelineId || 0);
+    if (!(timelineId > 0)) return;
+
+    const normalizedType = String(actionType || '').toLowerCase();
+    if (!['bronze', 'silver', 'gold'].includes(normalizedType)) return;
+
+    try {
+      setFavoriteVoteLoadingByType((prev) => ({ ...prev, [normalizedType]: true }));
+      const result = await voteTimelineAction(timelineId, normalizedType);
+      if (!result?.success || !result?.progress) {
+        throw new Error(result?.error || 'Vote could not be recorded');
+      }
+
+      setFavoriteTimelineActions((prev) => prev.map((action) => {
+        if (String(action?.action_type || '').toLowerCase() !== normalizedType) return action;
+        return {
+          ...action,
+          progress: result.progress,
+        };
+      }));
+
+      setUserFollowSnackbarMessage('Vote counted!');
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+    } catch (error) {
+      setUserFollowSnackbarMessage(error?.response?.data?.error || error?.message || 'Failed to submit vote');
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    } finally {
+      setFavoriteVoteLoadingByType((prev) => ({ ...prev, [normalizedType]: false }));
+    }
+  }, [favoriteTimelineId]);
 
   const fetchSearchEvents = React.useCallback(async () => {
     if (loadingSearchEvents || hasLoadedSearchEvents || !searchableTimelines.length) return;
@@ -1588,11 +2025,36 @@ const HomePage = () => {
     fetchMyCreationEvents,
   ]);
 
-  const renderTimelineCard = React.useCallback((timeline) => {
+  const handleToggleFavoriteTimeline = React.useCallback(async (timelineId) => {
+    const numericTimelineId = Number(timelineId || 0);
+    if (!(numericTimelineId > 0)) return;
+
+    const nextFavoriteTimelineId = favoriteTimelineId === numericTimelineId ? null : numericTimelineId;
+    setFavoriteTimelineId(nextFavoriteTimelineId);
+    lastSyncedFavoriteTimelineIdRef.current = nextFavoriteTimelineId;
+
+    try {
+      const response = await updateUserPreferences({ favorite_timeline_id: nextFavoriteTimelineId || null });
+      const serverFavorite = Number(response?.preferences?.favorite_timeline_id || 0);
+      const canonicalFavorite = serverFavorite > 0 ? serverFavorite : null;
+
+      if (canonicalFavorite !== nextFavoriteTimelineId) {
+        setFavoriteTimelineId(canonicalFavorite);
+        lastSyncedFavoriteTimelineIdRef.current = canonicalFavorite;
+      }
+    } catch (error) {
+      console.warn('[HomePage] Failed to persist favorite timeline preference:', error?.response?.data || error?.message || error);
+    }
+  }, [favoriteTimelineId]);
+
+  const renderTimelineCard = React.useCallback((timeline, options = {}) => {
+    const { allowFavoriteToggle = false } = options;
     const type = String(timeline?.timeline_type || 'hashtag').toLowerCase();
     const isCommunity = type === 'community';
     const isPersonal = type === 'personal';
     const isHashtag = type === 'hashtag';
+    const timelineId = Number(timeline?.id || 0);
+    const isFavoriteTimeline = timelineId > 0 && favoriteTimelineId === timelineId;
     const typeLabel = isCommunity ? 'Community Timeline' : isPersonal ? 'Personal Timeline' : 'Hashtag Timeline';
     const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
     const memberCount = Number(timeline?.member_count ?? timeline?.memberCount ?? 0) || 0;
@@ -1774,62 +2236,62 @@ const HomePage = () => {
                 flexWrap: 'wrap',
               }}
             >
-            <Typography
-              variant="h5"
-              sx={{
-                position: 'relative',
-                display: 'inline-flex',
-                lineHeight: 1.15,
-                fontWeight: 900,
-                letterSpacing: 0.25,
-                pr: 0.5,
-                pb: 0.45,
-                mb: 0,
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  left: 0,
-                  bottom: 0,
-                  width: '100%',
-                  height: 8,
-                  borderRadius: 12,
-                  background: isCommunity
-                    ? 'linear-gradient(90deg, rgba(30,136,229,0.78), rgba(13,71,161,0.42))'
-                    : isPersonal
-                      ? 'linear-gradient(90deg, rgba(0,150,136,0.78), rgba(0,105,92,0.42))'
-                      : 'linear-gradient(90deg, rgba(217,119,6,0.8), rgba(180,83,9,0.44))',
-                },
-              }}
-            >
-              {timeline.name}
-            </Typography>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.8,
-                px: 1.15,
-                py: 0.6,
-                borderRadius: 999,
-                border: '1px solid',
-                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.2)',
-                background: theme.palette.mode === 'dark'
-                  ? 'linear-gradient(120deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))'
-                  : 'linear-gradient(120deg, rgba(255,255,255,0.88), rgba(255,244,227,0.82))',
-              }}
-            >
-              <LocalFireDepartmentIcon sx={{ fontSize: 17, color: '#d97706' }} />
               <Typography
-                variant="body2"
+                variant="h5"
                 sx={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                  lineHeight: 1.15,
                   fontWeight: 900,
-                  letterSpacing: 0.35,
-                  color: theme.palette.text.primary,
+                  letterSpacing: 0.25,
+                  pr: 0.5,
+                  pb: 0.45,
+                  mb: 0,
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    bottom: 0,
+                    width: '100%',
+                    height: 8,
+                    borderRadius: 12,
+                    background: isCommunity
+                      ? 'linear-gradient(90deg, rgba(30,136,229,0.78), rgba(13,71,161,0.42))'
+                      : isPersonal
+                        ? 'linear-gradient(90deg, rgba(0,150,136,0.78), rgba(0,105,92,0.42))'
+                        : 'linear-gradient(90deg, rgba(217,119,6,0.8), rgba(180,83,9,0.44))',
+                  },
                 }}
               >
-                {audienceCount.toLocaleString()} {audienceLabel}
+                {timeline.name}
               </Typography>
-            </Box>
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.8,
+                  px: 1.15,
+                  py: 0.6,
+                  borderRadius: 999,
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.2)',
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(120deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))'
+                    : 'linear-gradient(120deg, rgba(255,255,255,0.88), rgba(255,244,227,0.82))',
+                }}
+              >
+                <LocalFireDepartmentIcon sx={{ fontSize: 17, color: '#d97706' }} />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 900,
+                    letterSpacing: 0.35,
+                    color: theme.palette.text.primary,
+                  }}
+                >
+                  {audienceCount.toLocaleString()} {audienceLabel}
+                </Typography>
+              </Box>
             </Box>
           </Box>
           {timeline.description ? (
@@ -1841,12 +2303,58 @@ const HomePage = () => {
             Created: {formatDate(timeline.created_at)}
           </Typography>
         </CardContent>
-        <Box sx={{ px: 2, pb: 2, alignSelf: { xs: 'stretch', md: 'flex-end' } }}>
+        <Box
+          sx={{
+            px: 2,
+            pt: { xs: 0, md: 2 },
+            pb: 2,
+            alignSelf: 'stretch',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: { xs: 'flex-start', md: 'space-between' },
+            gap: { xs: 0.75, md: 0 },
+          }}
+        >
+          {allowFavoriteToggle ? (
+            <IconButton
+              size="small"
+              aria-label={isFavoriteTimeline ? 'Remove favorite timeline' : 'Set as favorite timeline'}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleToggleFavoriteTimeline(timelineId);
+              }}
+              sx={{
+                border: '1px solid',
+                borderColor: isFavoriteTimeline
+                  ? (theme.palette.mode === 'dark' ? 'rgba(250,204,21,0.72)' : 'rgba(202,138,4,0.75)')
+                  : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.2)'),
+                color: isFavoriteTimeline
+                  ? (theme.palette.mode === 'dark' ? '#facc15' : '#ca8a04')
+                  : 'text.secondary',
+                background: isFavoriteTimeline
+                  ? (theme.palette.mode === 'dark'
+                    ? 'linear-gradient(135deg, rgba(146,64,14,0.2), rgba(250,204,21,0.2))'
+                    : 'linear-gradient(135deg, rgba(254,249,195,0.9), rgba(253,230,138,0.9))')
+                  : 'transparent',
+                '&:hover': {
+                  background: isFavoriteTimeline
+                    ? (theme.palette.mode === 'dark'
+                      ? 'linear-gradient(135deg, rgba(146,64,14,0.28), rgba(250,204,21,0.28))'
+                      : 'linear-gradient(135deg, rgba(254,240,138,0.94), rgba(252,211,77,0.94))')
+                    : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'),
+                },
+              }}
+            >
+              {isFavoriteTimeline ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+            </IconButton>
+          ) : null}
           <Button
             size="small"
             variant="contained"
             component="a"
-            href={`/timeline-v3/${timeline.id}`}
+            href={`/timeline-v3/${timelineId}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -1855,7 +2363,7 @@ const HomePage = () => {
         </Box>
       </Card>
     );
-  }, [theme.palette.mode, navigate]);
+  }, [theme.palette.mode, favoriteTimelineId, handleToggleFavoriteTimeline]);
 
   const renderSearchEventCard = React.useCallback((event) => {
     const handleMediaLoadError = async (errorPayload) => {
@@ -2874,7 +3382,7 @@ const HomePage = () => {
                           </Typography>
                           {ownedTimelines.length > 0 ? (
                             <Stack spacing={1.5} sx={{ mt: 0.75 }}>
-                              {visibleOwnedTimelines.map((timeline) => renderTimelineCard(timeline))}
+                              {visibleOwnedTimelines.map((timeline) => renderTimelineCard(timeline, { allowFavoriteToggle: true }))}
                             </Stack>
                           ) : (
                             <Typography color="text.secondary" sx={{ mt: 0.75 }}>
@@ -3081,7 +3589,7 @@ const HomePage = () => {
                 >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.45 }}>
                     <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                      Your Page
+                      Your Home Page
                     </Typography>
                     <IconButton
                       size="small"
@@ -3163,7 +3671,7 @@ const HomePage = () => {
                       </Typography>
                       {yourPageTimelines.length > 0 ? (
                         <Stack spacing={1.5} sx={{ mt: 0.75 }}>
-                          {visibleYourPageTimelines.map((timeline) => renderTimelineCard(timeline))}
+                          {visibleYourPageTimelines.map((timeline) => renderTimelineCard(timeline, { allowFavoriteToggle: true }))}
                         </Stack>
                       ) : (
                         <Typography color="text.secondary" sx={{ mt: 0.75 }}>
@@ -3210,6 +3718,673 @@ const HomePage = () => {
                         </Box>
                       ) : null}
                     </Box>
+                  )}
+                </Box>
+              ) : activeHubTab === 'favorite' ? (
+                <Box sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5, mb: 2.1, flexWrap: 'wrap' }}>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.45 }}>
+                        Favorite Timeline
+                      </Typography>
+                      <Typography color="text.secondary">
+                        This tab is bound to your one selected favorite timeline and its recent posts.
+                      </Typography>
+                    </Box>
+                    {selectedFavoriteTimeline?.id ? (
+                      <Button
+                        variant="outlined"
+                        component="a"
+                        href={`/timeline-v3/${selectedFavoriteTimeline.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ whiteSpace: 'nowrap' }}
+                      >
+                        Open Timeline
+                      </Button>
+                    ) : null}
+                  </Box>
+
+                  {!favoriteTimelineId ? (
+                    <Box sx={{ py: 6, textAlign: 'center' }}>
+                      <Typography sx={{ fontWeight: 700, mb: 0.6 }}>
+                        No favorite selected yet
+                      </Typography>
+                      <Typography color="text.secondary">
+                        Star a timeline card in My Creations or Your Home Page to populate this tab.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    (() => {
+                      const timelineType = String(selectedFavoriteTimeline?.timeline_type || 'hashtag').toLowerCase();
+                      const timelineName = String(selectedFavoriteTimeline?.name || 'Timeline').trim() || 'Timeline';
+                      const titlePrefix = timelineType === 'community' ? 'i-' : (timelineType === 'hashtag' ? '#' : '');
+                      const prefixedTitle = `${titlePrefix}${timelineName}`;
+                      const shareCardLabel = timelineType === 'community'
+                        ? 'COMMUNITY'
+                        : (timelineType === 'personal' ? 'PERSONAL' : 'HASHTAG');
+                      const shareCardImageObjectFit = timelineType === 'community' ? 'cover' : 'contain';
+                      const bannerImageUrl = String(
+                        selectedFavoriteTimeline?.cover_landscape_image_url
+                        || selectedFavoriteTimeline?.coverLandscapeImageUrl
+                        || selectedFavoriteTimeline?.cover_image_url
+                        || selectedFavoriteTimeline?.banner_url
+                        || selectedFavoriteTimeline?.cover_url
+                        || selectedFavoriteTimeline?.cover_portrait_image_url
+                        || '',
+                      ).trim();
+                      const tradingCardImageUrl = String(
+                        selectedFavoriteTimeline?.cover_portrait_image_url
+                        || selectedFavoriteTimeline?.cover_image_url
+                        || selectedFavoriteTimeline?.cover_landscape_image_url
+                        || '',
+                      ).trim();
+                      const coverPortraitPosition = {
+                        x: Number(selectedFavoriteTimeline?.cover_portrait_x ?? 50),
+                        y: Number(selectedFavoriteTimeline?.cover_portrait_y ?? 50),
+                      };
+                      const coverPortraitZoom = Number(selectedFavoriteTimeline?.cover_portrait_zoom ?? 1);
+                      const coverUploadEnabled = selectedFavoriteTimeline?.cover_upload_enabled !== false;
+                      const clampFramePosition = (value, fallback = 50) => {
+                        const numeric = Number(value);
+                        const safe = Number.isFinite(numeric) ? numeric : Number(fallback);
+                        return Math.max(-40, Math.min(140, safe));
+                      };
+                      const clampZoom = (value) => Math.max(1, Math.min(4.875, Number(value) || 1));
+                      const getCoverTranslate = (value) => (clampFramePosition(value, 50) - 50) * 0.9;
+                      const coverPortraitTransform = `translate(${getCoverTranslate(coverPortraitPosition?.x)}%, ${getCoverTranslate(coverPortraitPosition?.y)}%) scale(${coverUploadEnabled ? clampZoom(coverPortraitZoom) : (clampZoom(coverPortraitZoom) + 0.08)})`;
+                      const fallbackGradient = theme.palette.mode === 'dark'
+                        ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+                        : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)';
+                      const shareLink = selectedFavoriteTimeline?.id
+                        ? `${config.API_URL}/share/timeline/${selectedFavoriteTimeline.id}`
+                        : window.location.href;
+                      const shareQrUrl = shareLink
+                        ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareLink)}`
+                        : '';
+                      const statusTitle = String(
+                        favoriteTimelineStatusMessage?.title
+                        || favoriteTimelineStatusMessage?.header
+                        || favoriteTimelineStatusMessage?.status_type
+                        || 'Timeline Status',
+                      ).trim();
+                      const statusBody = favoriteTimelineStatusMessage?.body || '';
+                      const statusType = String(favoriteTimelineStatusMessage?.status_type || '').toLowerCase();
+                      const statusVariantMap = {
+                        good: {
+                          iconNode: '💚',
+                          header: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)',
+                          body: 'linear-gradient(180deg, #b7e3c0 0%, #edf7ef 100%)',
+                          text: '#1b5e20',
+                          label: 'GOOD NEWS',
+                          layout: 'portrait',
+                        },
+                        bad: {
+                          iconNode: '⚠️',
+                          header: 'linear-gradient(180deg, #c62828 0%, #ef5350 100%)',
+                          body: 'linear-gradient(180deg, #f6b7b7 0%, #fdeaea 100%)',
+                          text: '#8e0000',
+                          label: 'BAD NEWS',
+                          layout: 'portrait',
+                        },
+                        bronze_action: {
+                          iconNode: '🥉',
+                          header: 'linear-gradient(180deg, #8d5524 0%, #cd7f32 100%)',
+                          body: 'linear-gradient(180deg, #f4d4b4 0%, #fdf3e8 100%)',
+                          text: '#5f3815',
+                          label: 'BRONZE ACTION',
+                          layout: 'landscape',
+                        },
+                        silver_action: {
+                          iconNode: '🥈',
+                          header: 'linear-gradient(180deg, #8f8f95 0%, #cfcfd6 100%)',
+                          body: 'linear-gradient(180deg, #ececf0 0%, #fbfbfd 100%)',
+                          text: '#4a4a52',
+                          label: 'SILVER ACTION',
+                          layout: 'landscape',
+                        },
+                        gold_action: {
+                          iconNode: '🥇',
+                          header: 'linear-gradient(180deg, #b8860b 0%, #f1c84c 100%)',
+                          body: 'linear-gradient(180deg, #ffe59a 0%, #fff8df 100%)',
+                          text: '#6f5300',
+                          label: 'GOLD ACTION',
+                          layout: 'landscape',
+                        },
+                      };
+                      const statusTone = statusVariantMap[statusType] || statusVariantMap.good;
+                      const statusActionType = STATUS_ACTION_TYPE_MAP[statusType] || null;
+                      const statusActionCard = statusActionType
+                        ? (favoriteTimelineActions.find((item) => item?.action_type === statusActionType) || null)
+                        : null;
+                      const statusActionSchedule = formatActionSchedule(statusActionCard?.due_date);
+                      const statusActionProgress = getActionProgressMeta(statusActionCard);
+
+                      return (
+                        <Box>
+                          <Box
+                            sx={{
+                              borderRadius: 2,
+                              border: '1px solid',
+                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.12)',
+                              overflow: 'hidden',
+                              position: 'relative',
+                              aspectRatio: { xs: '5 / 1', md: '8 / 1' },
+                              mb: 2,
+                              background: bannerImageUrl
+                                ? 'transparent'
+                                : (theme.palette.mode === 'dark'
+                                  ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+                                  : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)'),
+                            }}
+                          >
+                            {bannerImageUrl ? (
+                              <Box
+                                component="img"
+                                src={bannerImageUrl}
+                                alt={`${prefixedTitle} banner`}
+                                sx={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            ) : null}
+                            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.06) 0%, rgba(2,6,23,0.42) 100%)' }} />
+                            <Box sx={{ position: 'absolute', left: 14, bottom: 10, zIndex: 1 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>
+                                <Box component="span" sx={{ color: '#ffe082' }}>{titlePrefix || ''}</Box>
+                                <Box component="span" sx={{ color: '#f8fafc' }}>{timelineName.toUpperCase()}</Box>
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <Box sx={{ mb: 2 }}>
+                            <QuoteDisplay
+                              quote={favoriteTimelineQuote.text}
+                              author={favoriteTimelineQuote.author}
+                              variant="gold"
+                            />
+                          </Box>
+
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gap: 2,
+                              gridTemplateColumns: { xs: '1fr', lg: 'minmax(260px, 33%) minmax(0, 1fr)' },
+                              alignItems: 'start',
+                            }}
+                          >
+                            <Stack spacing={1.5}>
+                              <Box>
+                                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                                  Trading Card
+                                </Typography>
+                                <Box
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={async () => {
+                                    if (!shareLink) return;
+                                    try {
+                                      if (navigator.clipboard?.writeText) {
+                                        await navigator.clipboard.writeText(shareLink);
+                                      } else {
+                                        throw new Error('Clipboard unavailable');
+                                      }
+                                      setUserFollowSnackbarMessage('Link Copied!');
+                                      setUserFollowSnackbarSeverity('success');
+                                      setUserFollowSnackbarOpen(true);
+                                    } catch (error) {
+                                      setUserFollowSnackbarMessage('Failed to copy link');
+                                      setUserFollowSnackbarSeverity('error');
+                                      setUserFollowSnackbarOpen(true);
+                                    }
+                                  }}
+                                  onKeyDown={async (event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      try {
+                                        if (navigator.clipboard?.writeText) {
+                                          await navigator.clipboard.writeText(shareLink);
+                                        } else {
+                                          throw new Error('Clipboard unavailable');
+                                        }
+                                        setUserFollowSnackbarMessage('Link Copied!');
+                                        setUserFollowSnackbarSeverity('success');
+                                        setUserFollowSnackbarOpen(true);
+                                      } catch (error) {
+                                        setUserFollowSnackbarMessage('Failed to copy link');
+                                        setUserFollowSnackbarSeverity('error');
+                                        setUserFollowSnackbarOpen(true);
+                                      }
+                                    }
+                                  }}
+                                  sx={{
+                                    mt: 0.8,
+                                    width: { xs: 138, sm: 168 },
+                                    height: { xs: 204, sm: 248 },
+                                    borderRadius: 3,
+                                    padding: 0.8,
+                                    background: `linear-gradient(160deg, rgba(120,86,36,0.95) 0%, rgba(120,86,36,0.9) 25%, rgba(10,10,12,0.96) 75%, rgba(0,0,0,0.98) 100%) padding-box,
+                                      linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.65), rgba(248,113,113,0.55)) border-box`,
+                                    border: '2px solid transparent',
+                                    boxShadow: '0 10px 24px rgba(15,23,42,0.18)',
+                                    backdropFilter: 'blur(6px)',
+                                    cursor: 'pointer',
+                                    '&:hover .favorite-share-card-overlay': {
+                                      opacity: 1,
+                                    },
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      position: 'relative',
+                                      width: '100%',
+                                      height: '100%',
+                                      borderRadius: 2.4,
+                                      overflow: 'hidden',
+                                      background: 'linear-gradient(160deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.8) 100%)',
+                                      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
+                                    }}
+                                  >
+                                    {tradingCardImageUrl ? (
+                                      <Box
+                                        component="img"
+                                        src={tradingCardImageUrl}
+                                        alt={`${prefixedTitle} portrait cover`}
+                                        sx={{
+                                          position: 'absolute',
+                                          inset: 0,
+                                          width: '100%',
+                                          height: '100%',
+                                          objectFit: shareCardImageObjectFit,
+                                          objectPosition: '50% 50%',
+                                          filter: coverUploadEnabled
+                                            ? 'brightness(1.08) saturate(1.08)'
+                                            : 'blur(18px) saturate(0.45)',
+                                          transform: coverPortraitTransform,
+                                        }}
+                                      />
+                                    ) : (
+                                      <Box sx={{ position: 'absolute', inset: 0, background: fallbackGradient }} />
+                                    )}
+                                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.55) 100%)' }} />
+                                    <Box
+                                      sx={{
+                                        position: 'absolute',
+                                        bottom: 12,
+                                        left: 6,
+                                        right: 12,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'flex-start',
+                                        gap: 0.6,
+                                        color: '#f8fafc',
+                                        textShadow: '0 2px 8px rgba(0,0,0,0.35)',
+                                      }}
+                                    >
+                                      <Box
+                                        sx={{
+                                          px: 0.7,
+                                          py: 0.24,
+                                          borderRadius: 999,
+                                          fontSize: '0.36rem',
+                                          fontWeight: 700,
+                                          background: 'rgba(15,23,42,0.72)',
+                                          border: '1px solid rgba(148,163,184,0.6)',
+                                          letterSpacing: 0.8,
+                                          textTransform: 'uppercase',
+                                          alignSelf: 'flex-start',
+                                        }}
+                                      >
+                                        {shareCardLabel}
+                                      </Box>
+                                      <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 0.4 }}>
+                                        {prefixedTitle}
+                                      </Typography>
+                                    </Box>
+                                    {shareQrUrl ? (
+                                      <Box
+                                        sx={{
+                                          position: 'absolute',
+                                          bottom: 52,
+                                          right: 12,
+                                          width: { xs: 54, sm: 64 },
+                                          height: { xs: 54, sm: 64 },
+                                          background: 'rgba(248,250,252,0.95)',
+                                          borderRadius: 1.8,
+                                          padding: 0.6,
+                                          boxShadow: '0 6px 14px rgba(15,23,42,0.25)',
+                                          border: '1px solid rgba(148,163,184,0.5)',
+                                        }}
+                                      >
+                                        <Box
+                                          component="img"
+                                          src={shareQrUrl}
+                                          alt="Share QR code"
+                                          sx={{ width: '100%', height: '100%', display: 'block' }}
+                                        />
+                                      </Box>
+                                    ) : null}
+                                    <Box
+                                      className="favorite-share-card-overlay"
+                                      sx={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'rgba(2,6,23,0.6)',
+                                        color: '#f8fafc',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        letterSpacing: 0.8,
+                                        textTransform: 'uppercase',
+                                        opacity: 0,
+                                        transition: 'opacity 0.2s ease',
+                                        pointerEvents: 'none',
+                                      }}
+                                    >
+                                      Tap to Share
+                                    </Box>
+                                  </Box>
+                                </Box>
+                              </Box>
+
+                              <Box>
+                                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                                  Status Card
+                                </Typography>
+                                {loadingFavoriteTimelineContext ? (
+                                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.8 }}>
+                                    <CircularProgress size={20} />
+                                  </Box>
+                                ) : favoriteTimelineWarningState?.active ? (
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.9 }}>
+                                    Status card is hidden while warning state is active.
+                                  </Typography>
+                                ) : favoriteTimelineStatusMessage?.active ? (
+                                  <Box
+                                    sx={{
+                                      mt: 0.8,
+                                      borderRadius: 2.4,
+                                      overflow: 'hidden',
+                                      border: '1px solid',
+                                      borderColor: 'rgba(148,163,184,0.4)',
+                                      background: statusTone.body,
+                                      color: statusTone.text,
+                                      boxShadow: '0 10px 24px rgba(15,23,42,0.15)',
+                                    }}
+                                  >
+                                    <Box sx={{ px: 1.6, py: 1.2, background: statusTone.header, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                                        <Typography component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                                          {statusTone.iconNode}
+                                        </Typography>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 800, letterSpacing: 0.6 }}>
+                                          {statusTone.label}
+                                        </Typography>
+                                      </Box>
+                                      <Typography variant="caption" sx={{ opacity: 0.92 }}>
+                                        Timeline Status
+                                      </Typography>
+                                    </Box>
+                                    <Box sx={{ px: 1.6, py: 1.2 }}>
+                                      <Typography sx={{ fontWeight: 800, mb: 0.5 }}>
+                                        {statusTitle || 'Timeline Status'}
+                                      </Typography>
+                                      <Typography variant="body2" sx={{ opacity: 0.88 }}>
+                                        {statusBody || 'Status card is active, but no body text was provided yet.'}
+                                      </Typography>
+
+                                      {statusTone.layout === 'landscape' && statusActionCard ? (
+                                        <Box sx={{ mt: 1.1, p: 1, borderRadius: 1.5, border: '1px solid rgba(15,23,42,0.18)', bgcolor: 'rgba(255,255,255,0.45)' }}>
+                                          {statusActionSchedule ? (
+                                            <Typography variant="caption" sx={{ display: 'block', mb: 0.4, fontWeight: 700 }}>
+                                              {statusActionSchedule.dateLabel} · {statusActionSchedule.timeLabel}
+                                            </Typography>
+                                          ) : null}
+                                          {statusActionProgress.label ? (
+                                            <>
+                                              <Typography variant="caption" sx={{ display: 'block', mb: 0.4, opacity: 0.9 }}>
+                                                Progress: {statusActionProgress.label}
+                                              </Typography>
+                                              <LinearProgress
+                                                variant="determinate"
+                                                value={Math.round((statusActionProgress.ratio || 0) * 100)}
+                                                sx={{
+                                                  height: 6,
+                                                  borderRadius: 999,
+                                                  bgcolor: 'rgba(255,255,255,0.35)',
+                                                  '& .MuiLinearProgress-bar': {
+                                                    bgcolor: statusTone.text,
+                                                  },
+                                                }}
+                                              />
+                                            </>
+                                          ) : null}
+                                        </Box>
+                                      ) : null}
+                                    </Box>
+                                  </Box>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.9 }}>
+                                    No active timeline status card.
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              <Box>
+                                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                                  Action Cards ({favoriteTimelineActions.length})
+                                </Typography>
+                                {loadingFavoriteTimelineContext ? (
+                                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.8 }}>
+                                    <CircularProgress size={20} />
+                                  </Box>
+                                ) : favoriteTimelineActions.length > 0 ? (
+                                  <Stack spacing={1.05} sx={{ mt: 0.8 }}>
+                                    {favoriteTimelineActions.map((action) => {
+                                      const actionType = String(action?.action_type || '').toLowerCase();
+                                      const actionSchedule = formatActionSchedule(action?.due_date);
+                                      const actionProgress = getActionProgressMeta(action);
+                                      const actionLocked = actionProgress.isUnlocked === false;
+                                      const actionVoteLoading = favoriteVoteLoadingByType[actionType] === true;
+                                      const actionStyles = {
+                                        bronze: {
+                                          strip: 'linear-gradient(90deg, #cd7f32, #e1a66b, #cd7f32)',
+                                          bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #2d2520, #1a1512)' : 'linear-gradient(145deg, #f8f0e8, #e6d0c0)',
+                                          edge: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.22)' : 'rgba(205,127,50,0.35)',
+                                          accent: '#cd7f32',
+                                          title: 'BRONZE ACTION',
+                                        },
+                                        silver: {
+                                          strip: 'linear-gradient(90deg, #c0c0c0, #e6e6e6, #c0c0c0)',
+                                          bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #2d2d32, #1a1a1f)' : 'linear-gradient(145deg, #f8f8fa, #e6e6e9)',
+                                          edge: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.2)' : 'rgba(192,192,192,0.34)',
+                                          accent: '#c0c0c0',
+                                          title: 'SILVER ACTION',
+                                        },
+                                        gold: {
+                                          strip: 'linear-gradient(90deg, #d4af37, #f5d970, #d4af37)',
+                                          bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #2d2a20, #19160f)' : 'linear-gradient(145deg, #f8f3e6, #eadcb0)',
+                                          edge: theme.palette.mode === 'dark' ? 'rgba(212,175,55,0.24)' : 'rgba(212,175,55,0.38)',
+                                          accent: '#d4af37',
+                                          title: 'GOLD ACTION',
+                                        },
+                                      }[actionType] || {
+                                        strip: 'linear-gradient(90deg, #64748b, #94a3b8, #64748b)',
+                                        bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #1f2937, #111827)' : 'linear-gradient(145deg, #f1f5f9, #e2e8f0)',
+                                        edge: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.22)' : 'rgba(100,116,139,0.3)',
+                                        accent: '#64748b',
+                                        title: String(actionType || 'ACTION').toUpperCase(),
+                                      };
+
+                                      return (
+                                        <Box
+                                          key={`favorite-action-${action.id || action.action_type}`}
+                                          sx={{
+                                            position: 'relative',
+                                            borderRadius: 2,
+                                            background: actionStyles.bg,
+                                            boxShadow: theme.palette.mode === 'dark'
+                                              ? `0 8px 16px rgba(0,0,0,0.35), 0 0 0 1px ${actionStyles.edge}`
+                                              : `0 8px 16px rgba(0,0,0,0.1), 0 0 0 1px ${actionStyles.edge}`,
+                                            overflow: 'hidden',
+                                            '&::before': {
+                                              content: '""',
+                                              position: 'absolute',
+                                              top: 0,
+                                              left: 0,
+                                              right: 0,
+                                              height: '3px',
+                                              background: actionStyles.strip,
+                                            },
+                                          }}
+                                        >
+                                          <Box sx={{ p: 1.15, pt: 1.35 }}>
+                                            {actionLocked ? (
+                                              <Box
+                                                sx={{
+                                                  position: 'absolute',
+                                                  top: 0,
+                                                  left: 0,
+                                                  right: 0,
+                                                  bottom: 0,
+                                                  backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                                                  backdropFilter: 'blur(10px)',
+                                                  display: 'flex',
+                                                  flexDirection: 'column',
+                                                  justifyContent: 'center',
+                                                  alignItems: 'center',
+                                                  zIndex: 10,
+                                                  p: 2,
+                                                  textAlign: 'center',
+                                                }}
+                                              >
+                                                <Typography variant="body2" sx={{ color: '#fff', mb: 0.8, fontWeight: 700 }}>
+                                                  {actionStyles.title} Locked
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1 }}>
+                                                  {actionProgress.label || 'Help unlock this action by contributing progress.'}
+                                                </Typography>
+                                                <Box sx={{ width: '100%', maxWidth: 220, mb: 1.5 }}>
+                                                  <LinearProgress
+                                                    variant="determinate"
+                                                    value={Math.round((actionProgress.ratio || 0) * 100)}
+                                                    sx={{
+                                                      height: 7,
+                                                      borderRadius: 999,
+                                                      bgcolor: 'rgba(255,255,255,0.2)',
+                                                      '& .MuiLinearProgress-bar': {
+                                                        bgcolor: actionStyles.accent,
+                                                      },
+                                                    }}
+                                                  />
+                                                </Box>
+                                                {canVoteForAction(action) ? (
+                                                  <Button
+                                                    size="small"
+                                                    variant={action?.progress?.user_voted ? 'outlined' : 'contained'}
+                                                    onClick={() => handleFavoriteActionVote(actionType)}
+                                                    disabled={actionVoteLoading || !!action?.progress?.user_voted}
+                                                    sx={{
+                                                      color: '#fff',
+                                                      borderColor: alpha(actionStyles.accent, 0.8),
+                                                      bgcolor: action?.progress?.user_voted
+                                                        ? 'transparent'
+                                                        : alpha(actionStyles.accent, 0.25),
+                                                    }}
+                                                  >
+                                                    {action?.progress?.user_voted
+                                                      ? 'Vote Counted'
+                                                      : (actionVoteLoading ? 'Voting...' : 'Count me in!')}
+                                                  </Button>
+                                                ) : null}
+                                              </Box>
+                                            ) : null}
+                                            <Typography variant="caption" sx={{ textTransform: 'uppercase', fontWeight: 800, letterSpacing: 0.6, color: actionStyles.accent }}>
+                                              {actionStyles.title}
+                                            </Typography>
+                                            <Typography sx={{ fontWeight: 700, lineHeight: 1.25, mt: 0.3 }}>
+                                              {action.title || 'Untitled action'}
+                                            </Typography>
+                                            {action.description ? (
+                                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45 }}>
+                                                {action.description}
+                                              </Typography>
+                                            ) : null}
+                                            {actionSchedule ? (
+                                              <Typography variant="caption" sx={{ display: 'block', mt: 0.6, opacity: 0.8 }}>
+                                                Day of Action: {actionSchedule.dateLabel} · {actionSchedule.timeLabel}
+                                              </Typography>
+                                            ) : null}
+                                            {actionProgress.label ? (
+                                              <Box sx={{ mt: 0.6 }}>
+                                                <Typography variant="caption" sx={{ display: 'block', mb: 0.4, opacity: 0.85 }}>
+                                                  Progress: {actionProgress.label}
+                                                </Typography>
+                                                <LinearProgress
+                                                  variant="determinate"
+                                                  value={Math.round((actionProgress.ratio || 0) * 100)}
+                                                  sx={{
+                                                    height: 6,
+                                                    borderRadius: 999,
+                                                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
+                                                    '& .MuiLinearProgress-bar': {
+                                                      bgcolor: actionStyles.accent,
+                                                    },
+                                                  }}
+                                                />
+                                              </Box>
+                                            ) : null}
+                                          </Box>
+                                        </Box>
+                                      );
+                                    })}
+                                  </Stack>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.9 }}>
+                                    No action cards configured for this timeline.
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              {favoriteTimelineWarningState?.active ? (
+                                <Alert severity="warning">
+                                  {favoriteTimelineWarningState.title || favoriteTimelineWarningState.body || 'Warning state is active for this timeline.'}
+                                </Alert>
+                              ) : null}
+                            </Stack>
+
+                            <Box>
+                              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                                Favorite Timeline Feed ({favoriteTimelineEvents.length})
+                              </Typography>
+                              {loadingFavoriteTimelineEvents ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                  <CircularProgress size={22} />
+                                </Box>
+                              ) : favoriteTimelineEvents.length > 0 ? (
+                                <Stack spacing={1.5} sx={{ mt: 0.75 }}>
+                                  {favoriteTimelineEvents.map((event) => (
+                                    <Box key={`favorite-event-${event.id}`}>
+                                      {renderSearchEventCard(event)}
+                                    </Box>
+                                  ))}
+                                </Stack>
+                              ) : (
+                                <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                                  No posts found yet for this timeline.
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </Box>
+                      );
+                    })()
                   )}
                 </Box>
               ) : activeHubTab === 'friends-list' ? (

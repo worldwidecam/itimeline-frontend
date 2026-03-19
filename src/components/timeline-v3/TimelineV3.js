@@ -837,6 +837,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const shareCardTitle = timeline_type === 'community'
     ? `i-${timelineName || 'Community'}`
     : (timeline_type === 'hashtag' ? `#${timelineName || 'Hashtag'}` : (timelineName || 'Personal'));
+  const shareCardImageObjectFit = timeline_type === 'community' ? 'cover' : 'contain';
 
   const handleAccessPanelNotice = useCallback(({ message, severity }) => {
     if (!message) return;
@@ -3943,7 +3944,7 @@ const handleRecenter = () => {
                     inset: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'contain',
+                    objectFit: shareCardImageObjectFit,
                     objectPosition: '50% 50%',
                     filter: coverUploadEnabled
                       ? 'brightness(1.08) saturate(1.08)'

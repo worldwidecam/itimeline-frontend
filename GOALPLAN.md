@@ -4,10 +4,14 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Timeline cover image implementation
+- [x] Timeline cover image implementation
   - [x] Community timeline images (portrait/landscape + FAB trading card/share page)
   - [x] Personal timeline images
-  - [ ] Hashtag timeline images (in progress)
+  - [x] Hashtag timeline images
+- [ ] Home page polish sprint (before switching to next major focus)
+  - [ ] Fully flesh out hero banner slides (use available timeline/event images where possible).
+  - [ ] Align left/right hub light-mode container backgrounds to the same gradient family used by hero banner.
+  - [ ] Implement FAVORITE tab foundation and data model.
 
 ## Scope / Success Criteria
 - Timeline cover image can be uploaded, saved, and rendered reliably on timeline surfaces.
@@ -17,12 +21,26 @@
 - Site Control/Timeline admin flow for cover image stays clear and actionable.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] Audit existing timeline image fields + where cover image should be sourced/rendered.
-- [ ] Define accepted image constraints (formats, size guidance, crop behavior, fallback behavior).
-- [ ] Implement/update upload + persistence flow for timeline cover image.
-- [ ] Wire cover image rendering in timeline header/surfaces.
-- [ ] Validate create/edit flows and ensure no regressions to timeline loading.
-- [ ] Validate desktop + mobile rendering behavior.
+- [x] Audit existing timeline image fields + where cover image should be sourced/rendered.
+- [x] Define accepted image constraints (formats, size guidance, crop behavior, fallback behavior).
+- [x] Implement/update upload + persistence flow for timeline cover image.
+- [x] Wire cover image rendering in timeline header/surfaces.
+- [x] Validate create/edit flows and ensure no regressions to timeline loading.
+- [x] Validate desktop + mobile rendering behavior.
+
+### Home page polish tracker (Mar 2026)
+- [ ] Hero banner slide expansion
+  - [ ] Expand slide content so each supported slide type uses available media/cover imagery when present.
+  - [ ] Keep graceful fallback visuals when no image is available.
+- [ ] Hub container light-mode visual adjustment
+  - [ ] Apply hero-family gradient background styling to left and right hub containers in light mode.
+  - [ ] Verify readability/contrast for cards, chips, and text over updated gradients.
+- [ ] FAVORITE tab implementation (phased)
+  - [ ] Timeline-card favorite action: add star toggle above Open Timeline CTA.
+  - [ ] Persist favorite timeline per-user.
+  - [ ] FAVORITE tab timeline summary surface: trading card, title/banner, follower count.
+  - [ ] Include optional timeline extras when available: action cards, quote, status.
+  - [ ] Add right-side scroll region for events tied to selected favorite timeline.
 
 ### Hashtag cover implementation tracker (Mar 2026)
 - [x] Decision: hashtag settings authority = SiteOwner + SiteAdmin (same authority at this level).
@@ -30,14 +48,14 @@
 - [x] Add FAB gear sub-action entry for hashtag settings (role-gated).
 - [x] Add hashtag settings dialog scaffold (description + portrait cover upload/pan/zoom + save).
 - [x] Include hashtag timeline in FAB trading/share card portrait cover rendering.
-- [ ] Validate end-to-end save + refresh behavior across timeline page and Home timeline-card surfaces.
+- [x] Validate end-to-end save + refresh behavior across timeline page and Home timeline-card surfaces.
 
 ## Current Status Snapshot
 - Home page broken-events workflow: complete for audio/image/video auto-reporting + Open Event + historical Deleted status handling.
 - Home hub baseline remains stable (Search/My Creations/Friends List/Popular/Your Page progress preserved).
-- Current implementation focus moved to timeline cover image.
-- Personal timeline cover implementation is complete across timeline settings/save flow, FAB trading card, share page card, and Home timeline-card surfaces.
-- Hashtag cover implementation has started: SiteOwner/SiteAdmin role gating is wired in TimelineV3, hashtag settings dialog flow is added, and hashtag trading card now renders portrait cover.
+- Timeline cover implementation is now complete across community, personal, and hashtag surfaces.
+- Hashtag settings workflow now includes role-gated FAB gear (SiteOwner/SiteAdmin), description editor, portrait upload/framing, save flow, and Home timeline-card portrait usage.
+- Next execution window: finish Home-page polish items, then switch main focus to Profile page implementation.
 
 ## Implementation Learnings / Nuances (Mar 2026)
 - Home timeline-card consistency depends on both rendering and data shaping.
@@ -63,7 +81,7 @@
 - [x] Update/improve remark cards look
 - [ ] Investigate slow loading for Home > POPULAR and YOUR PAGE tabs (identify bottlenecks + solutions)
 - [ ] NSFW filter
-- [ ] Profile page implementation (existing page needs full build-out)
+- [ ] Profile page implementation (existing page needs full build-out) — NEXT BIG MAIN FOCUS after current Home-page polish sprint
 - [ ] # hashtag chip voting system
 - [ ] make a home page submission box
 - [ ] sharing link system
@@ -87,6 +105,7 @@
 ### Archived from Pending TODOs
 - [x] Update/improve remark cards look
 - [x] Personal timeline cover image implementation (portrait upload/framing + Save flow + Home/FAB/share parity)
+- [x] Timeline cover image implementation complete (community + personal + hashtag settings/surfaces)
 - [x] Home tab transition refactor: render/animation first, then async data fetch behind loading state
 - [x] Update Profile Settings, Members Page, and Admin Page to match Site Control settings styling standard
 - [x] reporting action cards
