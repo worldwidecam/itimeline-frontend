@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  CircularProgress,
   TextField,
   Stack,
   Box,
@@ -168,6 +169,7 @@ const EventDialog = ({
   showVerdictField = false,
   verdict = '',
   onVerdictChange,
+  submitLoading = false,
   submitDisabled = false,
 }) => {
   const theme = useTheme();
@@ -852,11 +854,11 @@ const EventDialog = ({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose} disabled={submitLoading}>Cancel</Button>
         <Button
           variant="contained"
           onClick={handleSave}
-          disabled={submitDisabled || !title || !eventDate || (showVerdictField && !(verdict || '').trim())}
+          disabled={submitLoading || submitDisabled || !title || !eventDate || (showVerdictField && !(verdict || '').trim())}
           sx={{
             bgcolor: getTypeColor(),
             '&:hover': {
@@ -864,7 +866,12 @@ const EventDialog = ({
             }
           }}
         >
-          {submitLabel || (initialEvent ? 'Save Changes' : 'Create Event')}
+          {submitLoading ? (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={16} color="inherit" />
+              <span>Submitting...</span>
+            </Stack>
+          ) : (submitLabel || (initialEvent ? 'Save Changes' : 'Create Event'))}
         </Button>
       </DialogActions>
     </Dialog>

@@ -12,6 +12,11 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
   TextField,
   Stack,
   Card,
@@ -24,6 +29,7 @@ import {
   InputAdornment,
   Snackbar,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -51,6 +57,7 @@ import MediaCard from './timeline-v3/events/cards/MediaCard';
 import QuoteDisplay from './timeline-v3/community/QuoteDisplay';
 import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta, canVoteForAction } from './timeline-v3/community/timelineStatusActionUtils';
 import TradingCard from './common/TradingCard';
+import EventDialog from './timeline-v3/events/EventDialog';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -84,6 +91,22 @@ const ACTION_CARD_DEFAULT_DESCRIPTION_BY_TYPE = {
   gold: 'Complete this action to unlock gold benefits.',
   silver: 'Complete this action to unlock silver benefits.',
   bronze: 'Complete this action to unlock bronze benefits.',
+};
+
+const getTimelinePrefixByType = (timelineType) => {
+  const type = String(timelineType || '').toLowerCase();
+  if (type === 'community') return 'i-';
+  if (type === 'personal') return 'My-';
+  return '#';
+};
+
+const stripTimelinePrefix = (name, timelineType) => {
+  const raw = String(name || '').trim();
+  const type = String(timelineType || '').toLowerCase();
+  if (!raw) return '';
+  if (type === 'community') return raw.replace(/^i-/i, '');
+  if (type === 'personal') return raw.replace(/^my-/i, '');
+  return raw.replace(/^#+/, '');
 };
 
 const hasMeaningfulActionCardContent = (action) => {
@@ -267,7 +290,20 @@ const HomePage = () => {
   const [favoriteTimelineWarningState, setFavoriteTimelineWarningState] = React.useState({ active: false, warning_scope: null, title: '', body: '' });
   const [loadingFavoriteTimelineContext, setLoadingFavoriteTimelineContext] = React.useState(false);
   const [favoriteVoteLoadingByType, setFavoriteVoteLoadingByType] = React.useState({ bronze: false, silver: false, gold: false });
-  const [formData, setFormData] = React.useState({ name: '', description: '' });
+  const [postTypeDialogOpen, setPostTypeDialogOpen] = React.useState(false);
+  const [postEventDialogOpen, setPostEventDialogOpen] = React.useState(false);
+  const [postFlowLoading, setPostFlowLoading] = React.useState(false);
+  const [postSubmitLoading, setPostSubmitLoading] = React.useState(false);
+  const [postTargetTimeline, setPostTargetTimeline] = React.useState(null);
+  const [postAdvancedOpen, setPostAdvancedOpen] = React.useState(false);
+  const [postTimelineSearchInput, setPostTimelineSearchInput] = React.useState('');
+  const [formData, setFormData] = React.useState({
+    name: '',
+    description: '',
+    timeline_type: 'hashtag',
+    visibility: 'public',
+    timeline_mode: 'standard',
+  });
 
   const getFavoriteTimelineKey = React.useCallback(
     (userId) => `${FAVORITE_TIMELINE_KEY_PREFIX}:${Number(userId || 0)}`,
@@ -932,6 +968,33 @@ const HomePage = () => {
   const visibleYourPageTimelines = React.useMemo(() => {
     return yourPageTimelines.slice(0, visibleYourPageTimelineCount);
   }, [yourPageTimelines, visibleYourPageTimelineCount]);
+
+  const advancedPostTimelineOptions = React.useMemo(() => {
+    const query = postTimelineSearchInput.trim().toLowerCase();
+
+    return (Array.isArray(yourPageTimelines) ? yourPageTimelines : [])
+      .map((timeline) => {
+        const id = Number(timeline?.id || timeline?.timeline_id || 0);
+        const timelineType = String(timeline?.timeline_type || 'hashtag').toLowerCase();
+        if (!(id > 0)) return null;
+
+        const baseName = stripTimelinePrefix(timeline?.name, timelineType);
+        const prefix = getTimelinePrefixByType(timelineType);
+        const searchable = `${prefix}${baseName} ${timeline?.name || ''}`.toLowerCase();
+
+        return {
+          id,
+          baseName: baseName || String(timeline?.name || `Timeline ${id}`),
+          prefix,
+          timeline_type: timelineType,
+          visibility: timeline?.visibility || 'public',
+          searchable,
+        };
+      })
+      .filter((timeline) => Boolean(timeline))
+      .filter((timeline) => (query ? timeline.searchable.includes(query) : true))
+      .sort((a, b) => a.baseName.localeCompare(b.baseName));
+  }, [postTimelineSearchInput, yourPageTimelines]);
 
   const visibleYourPagePosts = React.useMemo(() => {
     return yourPageEvents.slice(0, visibleYourPagePostCount);
@@ -2639,6 +2702,161 @@ const HomePage = () => {
     }
   };
 
+  const handleOpenMakePostDialog = React.useCallback(() => {
+    setPostAdvancedOpen(false);
+    setPostTimelineSearchInput('');
+    setPostTypeDialogOpen(true);
+  }, []);
+
+  const handleCloseMakePostDialog = React.useCallback(() => {
+    if (postFlowLoading) return;
+    setPostTypeDialogOpen(false);
+    setPostAdvancedOpen(false);
+    setPostTimelineSearchInput('');
+  }, [postFlowLoading]);
+
+  const handleSelectAdvancedTimeline = React.useCallback((timeline) => {
+    if (!timeline?.id) return;
+
+    setPostTargetTimeline({
+      id: timeline.id,
+      name: timeline.baseName,
+      timeline_type: timeline.timeline_type || 'hashtag',
+      visibility: timeline.visibility || 'public',
+    });
+    setPostTypeDialogOpen(false);
+    setPostAdvancedOpen(false);
+    setPostTimelineSearchInput('');
+    setPostEventDialogOpen(true);
+  }, []);
+
+  const resolveOrCreatePostTimeline = React.useCallback(async (postVisibility) => {
+    const usernameBase = String(user?.username || '').trim();
+    if (!usernameBase) {
+      throw new Error('Missing username. Please sign in again and retry.');
+    }
+
+    const normalizedName = usernameBase.toUpperCase();
+    const desiredType = postVisibility === 'private' ? 'personal' : 'hashtag';
+
+    let existingTimeline = null;
+    if (desiredType === 'personal') {
+      existingTimeline = timelines.find((timeline) =>
+        (timeline.timeline_type || 'hashtag') === 'personal'
+        && Number(timeline.created_by || 0) === Number(user?.id || 0)
+        && (timeline.name || '').toUpperCase() === normalizedName,
+      );
+    } else {
+      existingTimeline = timelines.find((timeline) =>
+        (timeline.timeline_type || 'hashtag') === 'hashtag'
+        && (timeline.name || '').toUpperCase() === normalizedName,
+      );
+    }
+
+    if (existingTimeline?.id) {
+      return existingTimeline;
+    }
+
+    const response = await api.post('/api/timeline-v3', {
+      name: normalizedName,
+      description: desiredType === 'personal'
+        ? `${usernameBase}'s personal timeline`
+        : `${usernameBase}'s public posting timeline`,
+      timeline_type: desiredType,
+      visibility: 'public',
+    });
+
+    const createdTimeline = response?.data || null;
+    if (createdTimeline?.id) {
+      setTimelines((prev) => [createdTimeline, ...prev]);
+      return createdTimeline;
+    }
+
+    throw new Error('Timeline setup failed. Please retry.');
+  }, [timelines, user?.id, user?.username]);
+
+  const handleSelectPostVisibility = React.useCallback(async (postVisibility) => {
+    try {
+      setPostFlowLoading(true);
+      const timeline = await resolveOrCreatePostTimeline(postVisibility);
+      setPostTargetTimeline({
+        id: timeline.id,
+        name: timeline.name,
+        timeline_type: timeline.timeline_type || (postVisibility === 'private' ? 'personal' : 'hashtag'),
+        visibility: timeline.visibility || 'public',
+      });
+      setPostTypeDialogOpen(false);
+      setPostEventDialogOpen(true);
+    } catch (error) {
+      const message = error?.response?.data?.error || error?.message || 'Could not prepare posting timeline.';
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    } finally {
+      setPostFlowLoading(false);
+    }
+  }, [resolveOrCreatePostTimeline]);
+
+  const handleClosePostEventDialog = React.useCallback(() => {
+    if (postSubmitLoading) return;
+    setPostEventDialogOpen(false);
+    setPostTargetTimeline(null);
+  }, [postSubmitLoading]);
+
+  const handleSubmitHomeEvent = React.useCallback(async (eventData) => {
+    if (!postTargetTimeline?.id) {
+      setUserFollowSnackbarMessage('No timeline selected for posting.');
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+      return;
+    }
+
+    try {
+      setPostSubmitLoading(true);
+      const targetTimelineId = Number(postTargetTimeline.id);
+      const submitStartedAt = Date.now();
+
+      await api.post(`/api/timeline-v3/${targetTimelineId}/events`, {
+        title: eventData?.title || '',
+        description: eventData?.description || '',
+        type: eventData?.type,
+        event_date: eventData?.event_date,
+        raw_event_date: eventData?.raw_event_date,
+        is_exact_user_time: eventData?.is_exact_user_time !== false,
+        url: eventData?.url || '',
+        url_title: eventData?.url_title || '',
+        url_description: eventData?.url_description || '',
+        url_image: eventData?.url_image || '',
+        url_source: eventData?.url_source || '',
+        media_url: eventData?.media_url || '',
+        media_type: eventData?.media_type || '',
+        media_subtype: eventData?.media_subtype || '',
+        cloudinary_id: eventData?.cloudinary_id || undefined,
+        tags: Array.isArray(eventData?.tags) ? eventData.tags : [],
+      });
+
+      setUserFollowSnackbarMessage('Post created. Opening timeline...');
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+
+      const elapsedMs = Date.now() - submitStartedAt;
+      const remainingLoadingMs = Math.max(1200 - elapsedMs, 0);
+
+      window.setTimeout(() => {
+        setPostSubmitLoading(false);
+        setPostEventDialogOpen(false);
+        setPostTargetTimeline(null);
+        navigate(`/timeline-v3/${targetTimelineId}`);
+      }, remainingLoadingMs);
+    } catch (error) {
+      const message = error?.response?.data?.error || error?.message || 'Failed to create post.';
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+      setPostSubmitLoading(false);
+    }
+  }, [navigate, postTargetTimeline?.id]);
+
   const handlePopularFilterChange = (nextFilter) => {
     if (nextFilter === popularFilter) return;
     setPopularFilter(nextFilter);
@@ -2858,20 +3076,95 @@ const HomePage = () => {
 
   const handleDialogClose = () => {
     setDialogOpen(false);
-    setFormData({ name: '', description: '' });
+    setFormData({
+      name: '',
+      description: '',
+      timeline_type: 'hashtag',
+      visibility: 'public',
+      timeline_mode: 'standard',
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === 'timeline_type') {
+      if (value === 'hashtag') {
+        setFormData((prev) => ({
+          ...prev,
+          timeline_type: 'hashtag',
+          visibility: 'public',
+          timeline_mode: 'standard',
+        }));
+        return;
+      }
+
+      if (value === 'community') {
+        setFormData((prev) => ({
+          ...prev,
+          timeline_type: 'community',
+          visibility: 'public',
+          timeline_mode: 'community',
+        }));
+        return;
+      }
+
+      if (value === 'personal') {
+        setFormData((prev) => ({
+          ...prev,
+          timeline_type: 'personal',
+          visibility: 'public',
+          timeline_mode: 'personal',
+        }));
+        return;
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleCreateTimeline = async () => {
-    if (!formData.name.trim()) {
+    const rawName = formData.name.trim();
+    if (!rawName) {
       alert('Please enter a timeline name');
       return;
     }
 
     try {
       setLoading(true);
+
+      const normalizedName = rawName.toUpperCase();
+      const type = formData.timeline_type;
+
+      let existingTimeline = null;
+
+      if (type === 'personal') {
+        existingTimeline = timelines.find((timeline) =>
+          (timeline.timeline_type || 'hashtag') === 'personal'
+          && timeline.created_by === (user ? user.id : undefined)
+          && (timeline.name || '').toUpperCase() === normalizedName,
+        );
+      } else {
+        existingTimeline = timelines.find((timeline) =>
+          (timeline.timeline_type || 'hashtag') === type
+          && (timeline.name || '').toUpperCase() === normalizedName,
+        );
+      }
+
+      if (existingTimeline) {
+        handleDialogClose();
+        navigate(`/timeline-v3/${existingTimeline.id}`);
+        return;
+      }
+
       const response = await api.post('/api/timeline-v3', {
-        name: formData.name.trim().toUpperCase(),
+        name: normalizedName,
         description: formData.description.trim(),
+        timeline_type: type,
+        visibility: formData.visibility,
       });
 
       setTimelines((prev) => [response.data, ...prev]);
@@ -3027,7 +3320,7 @@ const HomePage = () => {
 
             {activeHeroSlide?.type === 'welcome' && user ? (
               <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} sx={{ mt: 2, justifyContent: 'center' }}>
-                <Button variant="contained" onClick={() => navigate('/timeline-v3/new')}>Try Timeline V3 Beta</Button>
+                <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
                 <Button variant="outlined" onClick={() => setDialogOpen(true)}>Create Your Timeline</Button>
               </Stack>
             ) : null}
@@ -3126,8 +3419,11 @@ const HomePage = () => {
               borderRadius: 3,
               p: 1.25,
               border: '1px solid',
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10,12,20,0.72)' : 'rgba(255,255,255,0.78)',
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(28,39,60,0.24)',
+              background: theme.palette.mode === 'dark'
+                ? 'rgba(10,12,20,0.72)'
+                : 'linear-gradient(170deg, rgba(255,215,190,0.86) 0%, rgba(255,238,214,0.92) 40%, rgba(242,231,214,0.95) 100%)',
+              boxShadow: theme.palette.mode === 'dark' ? 'none' : '0 14px 28px rgba(88, 58, 38, 0.12)',
             }}
           >
             <Stack spacing={1}>
@@ -3155,12 +3451,22 @@ const HomePage = () => {
                       },
                       color: isActive ? 'common.white' : 'text.primary',
                       border: isActive ? 'none' : '1px solid',
-                      borderColor: 'divider',
+                      borderColor: isActive
+                        ? 'transparent'
+                        : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.68)'),
+                      bgcolor: isActive
+                        ? 'primary.main'
+                        : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.56)'),
                       overflow: 'hidden',
                       transformOrigin: 'right center',
                       transform: isActive ? 'scaleX(1)' : 'scaleX(0.92)',
                       transition:
                         'width 420ms cubic-bezier(0.34, 1.56, 0.64, 1), min-width 420ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), padding 240ms ease',
+                      '&:hover': {
+                        bgcolor: isActive
+                          ? 'primary.dark'
+                          : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.74)'),
+                      },
                     }}
                   >
                     {isActive ? (
@@ -3214,8 +3520,11 @@ const HomePage = () => {
             sx={{
               borderRadius: 3,
               border: '1px solid',
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(9,11,18,0.72)' : 'rgba(255,255,255,0.82)',
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(30, 41, 59, 0.26)',
+              background: theme.palette.mode === 'dark'
+                ? 'rgba(9,11,18,0.72)'
+                : 'linear-gradient(168deg, rgba(255,224,198,0.92) 0%, rgba(249,236,216,0.95) 45%, rgba(239,229,213,0.96) 100%)',
+              boxShadow: theme.palette.mode === 'dark' ? 'none' : '0 16px 34px rgba(82, 55, 35, 0.14)',
               display: 'flex',
               flexDirection: 'column',
               minHeight: 0,
@@ -3283,14 +3592,14 @@ const HomePage = () => {
                             color: isActive ? 'common.white' : 'text.secondary',
                             background: isActive
                               ? 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)'
-                              : 'transparent',
+                              : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.62)'),
                             boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.24)' : 'none',
                             transform: isActive ? 'translateY(-0.5px)' : 'translateY(0px)',
                             transition: 'background 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, transform 220ms ease',
                             '&:hover': {
                               background: isActive
                                 ? 'linear-gradient(135deg, #0891b2 0%, #1d4ed8 100%)'
-                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.82)',
                               transform: isActive ? 'translateY(-0.5px)' : 'translateY(-1px)',
                             },
                           }}
@@ -3406,9 +3715,9 @@ const HomePage = () => {
                       sx={{
                         border: '1px solid',
                         borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.2)',
-                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.04)',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.62)',
                         '&:hover': {
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.11)' : 'rgba(15,23,42,0.08)',
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.82)',
                         },
                       }}
                     >
@@ -3449,14 +3758,14 @@ const HomePage = () => {
                             color: isActive ? 'common.white' : 'text.secondary',
                             background: isActive
                               ? 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)'
-                              : 'transparent',
+                              : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.62)'),
                             boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.24)' : 'none',
                             transform: isActive ? 'translateY(-0.5px)' : 'translateY(0px)',
                             transition: 'background 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, transform 220ms ease',
                             '&:hover': {
                               background: isActive
                                 ? 'linear-gradient(135deg, #0891b2 0%, #1d4ed8 100%)'
-                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.82)',
                               transform: isActive ? 'translateY(-0.5px)' : 'translateY(-1px)',
                             },
                           }}
@@ -3545,9 +3854,9 @@ const HomePage = () => {
                       sx={{
                         border: '1px solid',
                         borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.2)',
-                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.04)',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.62)',
                         '&:hover': {
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.11)' : 'rgba(15,23,42,0.08)',
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.82)',
                         },
                       }}
                     >
@@ -3588,14 +3897,14 @@ const HomePage = () => {
                             color: isActive ? 'common.white' : 'text.secondary',
                             background: isActive
                               ? 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)'
-                              : 'transparent',
+                              : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.62)'),
                             boxShadow: isActive ? '0 8px 16px rgba(37,99,235,0.24)' : 'none',
                             transform: isActive ? 'translateY(-0.5px)' : 'translateY(0px)',
                             transition: 'background 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, transform 220ms ease',
                             '&:hover': {
                               background: isActive
                                 ? 'linear-gradient(135deg, #0891b2 0%, #1d4ed8 100%)'
-                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+                                : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.82)',
                               transform: isActive ? 'translateY(-0.5px)' : 'translateY(-1px)',
                             },
                           }}
@@ -3684,7 +3993,16 @@ const HomePage = () => {
                         href={`/timeline-v3/${selectedFavoriteTimeline.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{ whiteSpace: 'nowrap' }}
+                        sx={{
+                          whiteSpace: 'nowrap',
+                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.24)',
+                          color: theme.palette.mode === 'dark' ? 'inherit' : 'rgba(15,23,42,0.86)',
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.66)',
+                          '&:hover': {
+                            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.42)' : 'rgba(15,23,42,0.3)',
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.86)',
+                          },
+                        }}
                       >
                         Open Timeline
                       </Button>
@@ -4472,6 +4790,125 @@ const HomePage = () => {
           </Paper>
         </Box>
 
+        <Dialog open={postTypeDialogOpen} onClose={handleCloseMakePostDialog} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ pb: 1 }}>Make a Post</DialogTitle>
+          <DialogContent sx={{ pt: '10px !important' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Choose where this post should be created.
+            </Typography>
+
+            <Stack spacing={1.15}>
+              <Button
+                variant="contained"
+                onClick={() => handleSelectPostVisibility('public')}
+                disabled={postFlowLoading}
+                sx={{ justifyContent: 'space-between', px: 1.5, py: 1.1 }}
+              >
+                <Box sx={{ textAlign: 'left' }}>
+                  <Typography variant="button" sx={{ display: 'block', lineHeight: 1.1 }}>Public Post</Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.86 }}>
+                    Uses your #{String(user?.username || '').trim().toUpperCase()} timeline.
+                  </Typography>
+                </Box>
+              </Button>
+
+              <Button
+                variant="outlined"
+                onClick={() => handleSelectPostVisibility('private')}
+                disabled={postFlowLoading}
+                sx={{ justifyContent: 'space-between', px: 1.5, py: 1.1 }}
+              >
+                <Box sx={{ textAlign: 'left' }}>
+                  <Typography variant="button" sx={{ display: 'block', lineHeight: 1.1 }}>Private Post</Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.86 }}>
+                    Uses your My-{String(user?.username || '').trim().toUpperCase()} personal timeline.
+                  </Typography>
+                </Box>
+              </Button>
+
+              <Button
+                variant="text"
+                onClick={() => setPostAdvancedOpen((prev) => !prev)}
+                disabled={postFlowLoading}
+                endIcon={<ExpandMoreIcon sx={{ transform: postAdvancedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 180ms ease' }} />}
+                sx={{ mt: 0.2, justifyContent: 'space-between', textTransform: 'none', fontWeight: 700 }}
+              >
+                Advanced Search
+              </Button>
+
+              {postAdvancedOpen ? (
+                <Paper variant="outlined" sx={{ p: 1.2, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(11,16,27,0.7)' : 'rgba(255,250,241,0.86)' }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Search followed timelines..."
+                    value={postTimelineSearchInput}
+                    onChange={(event) => setPostTimelineSearchInput(event.target.value)}
+                    sx={{ mb: 1 }}
+                  />
+
+                  <Box sx={{ maxHeight: 210, overflowY: 'auto', pr: 0.2 }}>
+                    {loadingYourPage ? (
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 1.5, px: 0.6 }}>
+                        <CircularProgress size={16} />
+                        <Typography variant="body2" color="text.secondary">Loading followed timelines...</Typography>
+                      </Stack>
+                    ) : advancedPostTimelineOptions.length ? (
+                      <Stack spacing={0.6}>
+                        {advancedPostTimelineOptions.map((timeline) => (
+                          <Button
+                            key={`advanced-post-${timeline.id}`}
+                            variant="text"
+                            onClick={() => handleSelectAdvancedTimeline(timeline)}
+                            sx={{
+                              justifyContent: 'flex-start',
+                              textTransform: 'none',
+                              py: 0.7,
+                              px: 0.7,
+                              borderRadius: 1.3,
+                              border: '1px solid',
+                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(30,41,59,0.16)',
+                              '&:hover': {
+                                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(251,241,223,0.72)',
+                              },
+                            }}
+                          >
+                            <Box sx={{ width: 46, fontFamily: 'monospace', fontWeight: 800, opacity: 0.86, textAlign: 'left' }}>
+                              {timeline.prefix}
+                            </Box>
+                            <Typography variant="body2" sx={{ fontWeight: 700, textAlign: 'left' }}>
+                              {timeline.baseName}
+                            </Typography>
+                          </Button>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ py: 1.2, px: 0.6 }}>
+                        No followed timelines found.
+                      </Typography>
+                    )}
+                  </Box>
+                </Paper>
+              ) : null}
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2.4, pt: 0.4 }}>
+            <Button onClick={handleCloseMakePostDialog} disabled={postFlowLoading}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
+
+        <EventDialog
+          open={postEventDialogOpen}
+          onClose={handleClosePostEventDialog}
+          onSave={handleSubmitHomeEvent}
+          timelineName={postTargetTimeline?.name || ''}
+          timelineType={postTargetTimeline?.timeline_type || 'hashtag'}
+          timelineVisibility={postTargetTimeline?.visibility || 'public'}
+          submitLabel="Post"
+          submitLoading={postSubmitLoading}
+          submitDisabled={postSubmitLoading}
+        />
+
         <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             Create New Timeline
@@ -4482,20 +4919,45 @@ const HomePage = () => {
               autoFocus
               name="name"
               label="Timeline Name"
+              placeholder="Enter a name for your timeline"
               fullWidth
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-              sx={{ mb: 2 }}
+              onChange={handleInputChange}
+              sx={{ mb: 2.2 }}
             />
             <TextField
               name="description"
               label="Description"
+              placeholder="Describe what this timeline is about"
               fullWidth
               multiline
               rows={3}
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={handleInputChange}
+              sx={{ mb: 2.2 }}
             />
+
+            <FormControl component="fieldset">
+              <FormLabel component="legend" sx={{ mb: 0.8, color: theme.palette.text.secondary }}>
+                Timeline Type
+              </FormLabel>
+              <RadioGroup
+                row
+                name="timeline_type"
+                value={formData.timeline_mode === 'personal' ? 'personal' : formData.timeline_type}
+                onChange={handleInputChange}
+              >
+                <Tooltip title="Standard timeline with hashtag-based organization">
+                  <FormControlLabel value="hashtag" control={<Radio />} label="Hashtag Timeline" />
+                </Tooltip>
+                <Tooltip title="Community timeline with member management and post sharing">
+                  <FormControlLabel value="community" control={<Radio />} label="Community Timeline" />
+                </Tooltip>
+                <Tooltip title="Your personal timeline space">
+                  <FormControlLabel value="personal" control={<Radio />} label="Personal Timeline" />
+                </Tooltip>
+              </RadioGroup>
+            </FormControl>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleDialogClose} disabled={loading}>Cancel</Button>
