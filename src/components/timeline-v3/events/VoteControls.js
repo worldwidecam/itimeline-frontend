@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 const ChevronArrow = ({ direction = 'up', sizeScale = 1 }) => (
@@ -34,6 +34,23 @@ const ChevronArrow = ({ direction = 'up', sizeScale = 1 }) => (
   </Box>
 );
 
+const formatCompactCount = (rawValue) => {
+  const value = Number(rawValue || 0);
+  if (!Number.isFinite(value)) return '0';
+  const absValue = Math.abs(value);
+
+  if (absValue >= 1000000000) {
+    return `${(value / 1000000000).toFixed(absValue >= 10000000000 ? 0 : 1).replace(/\.0$/, '')}B`;
+  }
+  if (absValue >= 1000000) {
+    return `${(value / 1000000).toFixed(absValue >= 10000000 ? 0 : 1).replace(/\.0$/, '')}M`;
+  }
+  if (absValue >= 1000) {
+    return `${(value / 1000).toFixed(absValue >= 10000 ? 0 : 1).replace(/\.0$/, '')}K`;
+  }
+  return String(Math.round(value));
+};
+
 const VoteControls = ({
   width = 70,
   height = 28,
@@ -48,268 +65,364 @@ const VoteControls = ({
   layout = 'inline',
   sizeScale = 1,
   pillScale = 1,
-  badgeScale = 1,
+  showBreakdown = true,
+  compact = false,
 }) => {
   const theme = useTheme();
-  const [internalVote, setInternalVote] = useState(null); // 'up' | 'down' | null
+  const [internalVote, setInternalVote] = useState(null);
   const vote = value !== undefined ? value : internalVote;
 
   const positiveColor = theme.palette.success.main;
   const negativeColor = theme.palette.error.main;
   const neutralColor = theme.palette.mode === 'dark'
-    ? 'rgba(255,255,255,0.4)'
-    : 'rgba(0,0,0,0.4)';
-
+    ? 'rgba(255,255,255,0.68)'
+    : 'rgba(30,41,59,0.62)';
   const isPositive = vote === 'up';
   const isNegative = vote === 'down';
-  const isActive = isPositive || isNegative;
-  const isHoveringUp = hoverDirection === 'up';
-  const isHoveringDown = hoverDirection === 'down';
-  const baseWidth = width * sizeScale;
-  const baseHeight = height * sizeScale;
-  const effectiveWidth = baseWidth * pillScale;
-  const effectiveHeight = baseHeight * pillScale;
-  const labelSlotWidth = 44 * sizeScale;
-  const activeRowWidth = effectiveWidth + (labelSlotWidth * 2) + (12 * sizeScale);
-  const pillOffset = labelSlotWidth;
+  const clampedPositiveRatio = Math.max(0, Math.min(Number(positiveRatio) || 0, 1));
+  const promotePercent = Math.round(clampedPositiveRatio * 100);
+  const demotePercent = 100 - promotePercent;
+  const totalValue = Number.isFinite(totalVotes) ? totalVotes : Number(totalVotes || 0);
+  const totalLabel = Number.isFinite(totalValue) ? formatCompactCount(Math.max(0, totalValue)) : '0';
+  const hasVotes = Math.max(0, totalValue) > 0;
   const isStacked = layout === 'stacked';
-  const badgeHeight = baseHeight * badgeScale;
-  const badgeMinWidth = 80 * sizeScale * badgeScale;
-  const badgeFontSize = `${0.7 * sizeScale * badgeScale}rem`;
-  const labelFontSize = `${0.75 * sizeScale}rem`;
-  const voteTextFontSize = `${0.75 * sizeScale}rem`;
-  const stackedCenterOffset = (12 * sizeScale) / 2;
-  const arrowScale = sizeScale * pillScale;
 
-  const clampedPositiveRatio = Math.max(0, Math.min(positiveRatio, 1));
-  const dividerPosition = clampedPositiveRatio * 100;
-  const isEvenSplit = Math.abs(clampedPositiveRatio - 0.5) < 0.0001;
-  const isNegativeMajority = clampedPositiveRatio < 0.5;
-  const showDivider = dividerPosition > 0 && dividerPosition < 100;
-  const showLeftLabel = isEvenSplit || !isNegativeMajority;
-  const showRightLabel = isEvenSplit || isNegativeMajority;
-  const leftPercentage = Math.round(dividerPosition);
-  const rightPercentage = Math.round(100 - dividerPosition);
-  const leftLabelColor = hasError ? theme.palette.error.main : positiveColor;
-  const rightLabelColor = hasError ? theme.palette.error.main : negativeColor;
-  const resolvedTotalVotes = Number.isFinite(totalVotes) ? totalVotes : Number(totalVotes || 0);
-  const totalVotesLabel = Number.isFinite(resolvedTotalVotes)
-    ? String(Math.max(0, resolvedTotalVotes)).padStart(3, '0')
-    : '000';
-  const badgeLabel = isActive ? `${totalVotesLabel} Votes!` : 'VOTE!';
-  const renderLabel = (side) => {
-    const isLeft = side === 'left';
-    const labelColor = isLeft ? leftLabelColor : rightLabelColor;
-    const percentage = isLeft ? leftPercentage : rightPercentage;
-    const spinnerColor = isLeft ? positiveColor : negativeColor;
-
-    if (isLoading) {
-      return <CircularProgress size={20 * sizeScale} sx={{ color: spinnerColor }} />;
-    }
-
-    return (
-      <Box
-        sx={{
-          fontSize: labelFontSize,
-          fontWeight: 700,
-          color: labelColor,
-          letterSpacing: '0.3px',
-        }}
-      >
-        {percentage}%
-      </Box>
-    );
-  };
+  const voteDigits = String(totalLabel).length;
+  const tallyWidth = Math.max(30, voteDigits * 9);
+  const controlHeight = Math.max(36, height * sizeScale * pillScale * (compact ? 1.28 : 1.42));
+  const actionWidth = compact ? Math.max(26, controlHeight * 0.66) : Math.max(38, controlHeight * 1.02);
+  const actionHeight = controlHeight - 6;
+  const compactExpandedWidth = Math.max(140, 92 + tallyWidth);
+  const compactCollapsedWidth = Math.max(70, (actionWidth * 2) + 14);
+  const isCompactZeroState = compact && !hasVotes;
+  const controlWidth = compact
+    ? (isCompactZeroState ? compactCollapsedWidth : compactExpandedWidth)
+    : Math.max(128, width * sizeScale * pillScale * (isStacked ? 2.2 : 2));
+  const tallyFontSize = `${Math.max(0.72, compact ? 0.9 * sizeScale : 0.84 * sizeScale)}rem`;
+  const ratioLabelSize = `${Math.max(0.62, 0.68 * sizeScale)}rem`;
+  const ratioBarHeight = Math.max(6, 7 * sizeScale);
 
   const handleVote = (direction) => (event) => {
     event.stopPropagation();
-    if (isLoading) return; // Prevent voting while loading
+    if (isLoading) return;
     const nextVote = vote === direction ? null : direction;
     if (onChange) {
       onChange(nextVote);
-    } else {
-      setInternalVote(nextVote);
+      return;
     }
+    setInternalVote(nextVote);
   };
 
-  const handlePillClick = (event) => {
-    event.stopPropagation();
-    if (isLoading) return; // Prevent voting while loading
-    if (onChange) {
-      onChange(null);
-    } else {
-      setInternalVote(null);
-    }
-  };
-
-  const easing = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
-
-  const badgeNode = (
-    <Box
+  const tallyNode = isLoading ? (
+    <CircularProgress size={16 * sizeScale} sx={{ color: theme.palette.text.secondary }} />
+  ) : (
+    <Typography
+      component="span"
       sx={{
-        height: badgeHeight,
-        borderRadius: badgeHeight / 2,
-        border: `2px solid ${neutralColor}`,
-        display: 'flex',
-        alignItems: 'center',
-        paddingX: 1.5 * sizeScale * badgeScale,
-        fontSize: badgeFontSize,
-        fontWeight: 700,
-        letterSpacing: '0.5px',
+        fontWeight: 800,
+        letterSpacing: '0.03em',
+        fontSize: tallyFontSize,
         color: hasError ? theme.palette.error.main : theme.palette.text.primary,
-        background: alpha(theme.palette.text.primary, 0.04),
-        minWidth: badgeMinWidth,
-        justifyContent: 'center',
+        whiteSpace: 'nowrap',
       }}
     >
-      {badgeLabel}
-    </Box>
+      {showVoteText ? `Votes ${totalLabel}` : totalLabel}
+    </Typography>
   );
 
-  const activeVoteNode = (
+  const resolveVoteStyle = (direction) => {
+    const isUp = direction === 'up';
+    const active = isUp ? isPositive : isNegative;
+    const hovered = hoverDirection === direction;
+    const directionColor = isUp ? positiveColor : negativeColor;
+
+    return {
+      color: hasError
+        ? theme.palette.error.main
+        : (active || hovered ? directionColor : neutralColor),
+      backgroundColor: active
+        ? alpha(directionColor, theme.palette.mode === 'dark' ? 0.28 : 0.16)
+        : 'transparent',
+      borderColor: active
+        ? alpha(directionColor, theme.palette.mode === 'dark' ? 0.82 : 0.56)
+        : 'transparent',
+      '&:hover': {
+        color: directionColor,
+        backgroundColor: alpha(directionColor, theme.palette.mode === 'dark' ? 0.25 : 0.14),
+      },
+    };
+  };
+
+  const pillBorderColor = hasError
+    ? theme.palette.error.main
+    : alpha(theme.palette.text.primary, isCompactZeroState
+      ? (theme.palette.mode === 'dark' ? 0.36 : 0.28)
+      : (theme.palette.mode === 'dark' ? 0.28 : 0.2));
+  const pillBackground = isCompactZeroState
+    ? (theme.palette.mode === 'dark'
+      ? `linear-gradient(120deg, ${alpha(theme.palette.grey[600], 0.38)}, ${alpha(theme.palette.grey[700], 0.3)})`
+      : `linear-gradient(120deg, ${alpha(theme.palette.grey[100], 0.96)}, ${alpha(theme.palette.grey[300], 0.8)})`)
+    : (theme.palette.mode === 'dark'
+      ? `linear-gradient(120deg, ${alpha(theme.palette.common.white, 0.08)}, ${alpha(theme.palette.common.white, 0.03)})`
+      : `linear-gradient(120deg, ${alpha('#ffffff', 0.94)}, ${alpha('#fff7ed', 0.88)})`);
+
+  return (
     <Box
+      onClick={(event) => event.stopPropagation()}
       sx={{
-        position: 'relative',
-        width: activeRowWidth,
-        height: effectiveHeight,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
+        gap: showBreakdown ? 0.5 : 0,
+        width: controlWidth,
+        transition: compact ? 'width 240ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
       }}
     >
       <Box
         sx={{
-          position: 'absolute',
-          left: pillOffset,
-          width: effectiveWidth,
-          height: effectiveHeight,
-          borderRadius: effectiveHeight / 2,
-          border: `2px solid ${neutralColor}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingX: 1.5 * sizeScale,
-          transition: `all 0.3s ${easing}`,
-          opacity: isActive ? 0 : 1,
-          transform: isActive ? 'scale(0.94)' : 'scale(1)',
-          pointerEvents: isActive ? 'none' : 'auto',
-          background: 'transparent',
+          position: 'relative',
+          width: '100%',
+          height: controlHeight,
+          borderRadius: controlHeight,
+          border: `1px solid ${pillBorderColor}`,
+          background: pillBackground,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 16px rgba(0,0,0,0.35)'
+            : '0 8px 16px rgba(15,23,42,0.12)',
+          overflow: 'hidden',
+          opacity: isLoading ? 0.72 : 1,
+          transition: 'background 220ms ease, border-color 220ms ease',
         }}
       >
-        {showVoteText ? (
+        {hasVotes && (
+          <>
+            <Box
+              sx={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: `${promotePercent}%`,
+                background: alpha(positiveColor, theme.palette.mode === 'dark' ? 0.24 : 0.16),
+                transition: 'width 240ms ease',
+              }}
+            />
+            <Box
+              sx={{
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: `${demotePercent}%`,
+                background: alpha(negativeColor, theme.palette.mode === 'dark' ? 0.2 : 0.12),
+                transition: 'width 240ms ease',
+              }}
+            />
+          </>
+        )}
+
+        {compact ? (
+          isCompactZeroState ? (
+            <Box
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.35,
+                px: 0.3,
+                transition: 'opacity 160ms ease',
+              }}
+            >
+              <Box
+                onClick={handleVote('up')}
+                sx={{
+                  ...resolveVoteStyle('up'),
+                  width: actionWidth,
+                  height: actionHeight,
+                  borderRadius: actionHeight,
+                  border: '1px solid',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 180ms ease',
+                }}
+              >
+                <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
+              </Box>
+
+              <Box
+                onClick={handleVote('down')}
+                sx={{
+                  ...resolveVoteStyle('down'),
+                  width: actionWidth,
+                  height: actionHeight,
+                  borderRadius: actionHeight,
+                  border: '1px solid',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 180ms ease',
+                }}
+              >
+                <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                height: '100%',
+              }}
+            >
+              <Box
+                onClick={handleVote('up')}
+                sx={{
+                  ...resolveVoteStyle('up'),
+                  position: 'absolute',
+                  left: '25%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: actionWidth,
+                  height: actionHeight,
+                  borderRadius: actionHeight,
+                  border: '1px solid',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 180ms ease',
+                }}
+              >
+                <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
+              </Box>
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  minWidth: 0,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  px: 0.25,
+                  transition: 'opacity 180ms ease, transform 180ms ease',
+                }}
+              >
+                {tallyNode}
+              </Box>
+
+              <Box
+                onClick={handleVote('down')}
+                sx={{
+                  ...resolveVoteStyle('down'),
+                  position: 'absolute',
+                  left: '75%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: actionWidth,
+                  height: actionHeight,
+                  borderRadius: actionHeight,
+                  border: '1px solid',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 180ms ease',
+                }}
+              >
+                <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
+              </Box>
+            </Box>
+          )
+        ) : (
           <Box
             sx={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: voteTextFontSize,
-              fontWeight: 600,
-              color: neutralColor,
-              letterSpacing: '0.5px',
+              position: 'relative',
+              zIndex: 1,
+              height: '100%',
             }}
           >
-            VOTE!
-          </Box>
-        ) : (
-          <>
             <Box
               onClick={handleVote('up')}
               sx={{
+                ...resolveVoteStyle('up'),
+                position: 'absolute',
+                left: '25%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: actionWidth,
+                height: actionHeight,
+                borderRadius: actionHeight,
+                border: '1px solid',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                color: hasError
-                  ? theme.palette.error.main
-                  : (isPositive || isHoveringUp ? positiveColor : neutralColor),
-                transition: `color 0.2s ease, transform 0.25s ${easing}`,
-                transform: isActive ? 'translateX(-10px)' : 'translateX(0px)',
-                opacity: isLoading ? 0.5 : 1,
-                '&:hover': {
-                  color: isLoading ? (hasError ? theme.palette.error.main : neutralColor) : positiveColor,
-                },
+                transition: 'all 180ms ease',
               }}
             >
-              <ChevronArrow direction="up" sizeScale={arrowScale} />
+              <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
             </Box>
 
             <Box
               sx={{
-                width: 0.5,
-                height: effectiveHeight * 0.6,
-                background: `linear-gradient(90deg, ${positiveColor}, ${negativeColor})`,
-                opacity: isActive ? 0 : 1,
-                transition: `opacity 0.2s ease`,
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                minWidth: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                px: 0.65,
               }}
-            />
+            >
+              {tallyNode}
+            </Box>
 
             <Box
               onClick={handleVote('down')}
               sx={{
+                ...resolveVoteStyle('down'),
+                position: 'absolute',
+                left: '75%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: actionWidth,
+                height: actionHeight,
+                borderRadius: actionHeight,
+                border: '1px solid',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                color: hasError
-                  ? theme.palette.error.main
-                  : (isNegative || isHoveringDown ? negativeColor : neutralColor),
-                transition: `color 0.2s ease, transform 0.25s ${easing}`,
-                transform: isActive ? 'translateX(10px)' : 'translateX(0px)',
-                opacity: isLoading ? 0.5 : 1,
-                '&:hover': {
-                  color: isLoading ? (hasError ? theme.palette.error.main : neutralColor) : negativeColor,
-                },
+                transition: 'all 180ms ease',
               }}
             >
-              <ChevronArrow direction="down" sizeScale={arrowScale} />
+              <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
             </Box>
-          </>
+          </Box>
         )}
       </Box>
 
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          opacity: isActive ? 1 : 0,
-          transform: isActive ? 'scale(1)' : 'scale(0.96)',
-          transition: `opacity 0.25s ease, transform 0.25s ${easing}`,
-          pointerEvents: isActive ? 'auto' : 'none',
-          width: activeRowWidth,
-        }}
-      >
+      {showBreakdown && (
+        <Box sx={{ width: '100%', px: 0.7 }}>
         <Box
-          sx={{
-            minWidth: labelSlotWidth,
-            display: 'flex',
-            justifyContent: 'flex-end',
-          }}
-        >
-          {showLeftLabel ? renderLabel('left') : null}
-        </Box>
-
-        <Box
-          onClick={handlePillClick}
           sx={{
             position: 'relative',
-            width: effectiveWidth,
-            height: effectiveHeight,
-            borderRadius: effectiveHeight / 2,
-            border: `2px solid ${hasError ? theme.palette.error.main : alpha(theme.palette.text.primary, 0.2)}`,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            transition: `all 0.3s ${easing}`,
-            opacity: isLoading ? 0.6 : 1,
-            transform: 'scale(1)',
+            width: '100%',
+            height: ratioBarHeight,
+            borderRadius: ratioBarHeight,
             overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            '@keyframes voteErrorPulse': {
-              '0%': { boxShadow: '0 0 0 rgba(244,67,54,0)' },
-              '70%': { boxShadow: '0 0 0 6px rgba(244,67,54,0.25)' },
-              '100%': { boxShadow: '0 0 0 rgba(244,67,54,0)' },
-            },
-            animation: hasError ? 'voteErrorPulse 0.45s ease' : 'none',
+            background: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.2 : 0.12),
           }}
         >
           <Box
@@ -317,84 +430,56 @@ const VoteControls = ({
               position: 'absolute',
               left: 0,
               top: 0,
-              height: '100%',
-              width: `${dividerPosition}%`,
-              background: positiveColor,
-              opacity: 0.9,
-              transition: `width 0.3s ${easing}`,
+              bottom: 0,
+              width: `${promotePercent}%`,
+              background: `linear-gradient(90deg, ${alpha(positiveColor, 0.9)}, ${alpha(positiveColor, 0.7)})`,
+              transition: 'width 240ms ease',
             }}
           />
-
           <Box
             sx={{
               position: 'absolute',
               right: 0,
               top: 0,
-              height: '100%',
-              width: `${100 - dividerPosition}%`,
-              background: negativeColor,
-              opacity: 0.9,
-              transition: `width 0.3s ${easing}`,
-            }}
-          />
-
-          <Box
-            sx={{
-              position: 'absolute',
-              left: `${dividerPosition}%`,
-              top: 0,
-              height: '100%',
-              width: 1.5,
-              background: 'rgba(255,255,255,0.9)',
-              transition: `left 0.3s ${easing}`,
-              opacity: showDivider ? 1 : 0,
+              bottom: 0,
+              width: `${demotePercent}%`,
+              background: `linear-gradient(90deg, ${alpha(negativeColor, 0.7)}, ${alpha(negativeColor, 0.9)})`,
+              transition: 'width 240ms ease',
             }}
           />
         </Box>
 
         <Box
           sx={{
-            minWidth: labelSlotWidth,
+            mt: 0.25,
             display: 'flex',
-            justifyContent: 'flex-start',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 0.8,
           }}
         >
-          {showRightLabel ? renderLabel('right') : null}
-        </Box>
-      </Box>
-    </Box>
-  );
-
-  return (
-    <Box
-      onClick={(e) => e.stopPropagation()}
-      sx={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: isStacked ? 'column' : 'row',
-        alignItems: isStacked ? 'flex-start' : 'center',
-        gap: isStacked ? 0.75 : 1,
-      }}
-    >
-      {isStacked ? (
-        <>
-          {activeVoteNode}
-          <Box
+          <Typography
+            component="span"
             sx={{
-              width: activeRowWidth,
-              display: 'flex',
-              justifyContent: 'center',
-              transform: `translateX(-${stackedCenterOffset}px)`,
+              fontSize: ratioLabelSize,
+              fontWeight: 700,
+              color: hasError ? theme.palette.error.main : alpha(positiveColor, 0.95),
             }}
           >
-            {badgeNode}
-          </Box>
-        </>
-      ) : (
-        <>
-          {badgeNode}
-          {activeVoteNode}
-        </>
+            {promotePercent}% Promote
+          </Typography>
+          <Typography
+            component="span"
+            sx={{
+              fontSize: ratioLabelSize,
+              fontWeight: 700,
+              color: hasError ? theme.palette.error.main : alpha(negativeColor, 0.95),
+            }}
+          >
+            {demotePercent}% Demote
+          </Typography>
+        </Box>
+        </Box>
       )}
     </Box>
   );

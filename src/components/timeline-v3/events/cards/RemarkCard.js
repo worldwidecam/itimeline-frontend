@@ -320,32 +320,6 @@ const RemarkCard = forwardRef(({
 
             </Box>
 
-            {showInlineVoteControls && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 2,
-                  right: -10,
-                  transform: 'scale(0.9)',
-                  transformOrigin: 'right top',
-                  zIndex: 3,
-                }}
-              >
-                <VoteControls
-                  value={voteValue}
-                  onChange={handleVoteChange}
-                  positiveRatio={positiveRatio}
-                  totalVotes={totalVotes}
-                  isLoading={voteLoading}
-                  hasError={!!voteError}
-                  layout="stacked"
-                  sizeScale={0.76}
-                  pillScale={0.92}
-                  badgeScale={0.72}
-                />
-              </Box>
-            )}
-
             <Box
               sx={{
                 display: 'flex',
@@ -433,9 +407,17 @@ const RemarkCard = forwardRef(({
               associatedTimelines={event.associated_timelines || []} 
               removedTimelineIds={event.removed_timeline_ids || []}
             />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                alignItems: 'center',
+                mt: 1,
+                columnGap: 1,
+              }}
+            >
               {event.created_by_username && (
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
                   <UserAvatar
                     name={event.created_by_username}
                     avatarUrl={event.created_by_avatar}
@@ -462,7 +444,24 @@ const RemarkCard = forwardRef(({
                   </Link>
                 </Box>
               )}
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {showInlineVoteControls && (
+                <Box sx={{ justifySelf: 'center' }}>
+                  <VoteControls
+                    value={voteValue}
+                    onChange={handleVoteChange}
+                    positiveRatio={positiveRatio}
+                    totalVotes={totalVotes}
+                    isLoading={voteLoading}
+                    hasError={!!voteError}
+                    layout="inline"
+                    sizeScale={0.76}
+                    pillScale={1}
+                    showBreakdown={false}
+                    compact
+                  />
+                </Box>
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'end', minWidth: 0 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
                 <Typography variant="caption" color="text.secondary">
                   {formatDate(event.created_at)}

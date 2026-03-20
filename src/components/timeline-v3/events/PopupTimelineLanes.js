@@ -17,7 +17,6 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
-  Label as TagIcon,
   People as CommunityIcon,
   FavoriteBorder as HeartIcon,
   Lock as LockIcon,
@@ -26,6 +25,7 @@ import {
   ExpandLess as ExpandLessIcon,
   Person as PersonIcon
 } from '@mui/icons-material';
+import HashtagIcon from '../../common/HashtagIcon';
 
 const stringToColor = (str) => {
   let hash = 0;
@@ -149,10 +149,11 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
           <Chip
             key={`${tagName}-${idx}`}
             icon={(
-              <TagIcon
+              <HashtagIcon
+                fontSize="small"
                 sx={{
-                  fontSize: 14,
                   color: theme.palette.mode === 'dark' ? 'inherit' : tagColor,
+                  marginLeft: 0,
                 }}
               />
             )}

@@ -2428,8 +2428,8 @@ const HomePage = () => {
       isSelected: true,
       setIsPopupOpen: () => {},
       reviewingEventIds: EMPTY_REVIEWING_EVENT_IDS,
-      showInlineVoteControls: false,
-      showVoteOverlay: true,
+      showInlineVoteControls: true,
+      showVoteOverlay: false,
       onMediaLoadError: handleMediaLoadError,
     };
 
@@ -3321,7 +3321,44 @@ const HomePage = () => {
             {activeHeroSlide?.type === 'welcome' && user ? (
               <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
-                <Button variant="outlined" onClick={() => setDialogOpen(true)}>Create Your Timeline</Button>
+                <Button
+                  variant="outlined"
+                  endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => setDialogOpen(true)}
+                  sx={{
+                    borderRadius: '999px',
+                    px: 2.2,
+                    py: 0.75,
+                    fontWeight: 800,
+                    letterSpacing: '0.02em',
+                    textTransform: 'none',
+                    color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                    borderColor: theme.palette.mode === 'dark'
+                      ? alpha('#f8fafc', 0.36)
+                      : alpha('#0f172a', 0.3),
+                    background: theme.palette.mode === 'dark'
+                      ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.22)} 0%, ${alpha('#0ea5e9', 0.12)} 100%)`
+                      : `linear-gradient(135deg, ${alpha('#ffffff', 0.84)} 0%, ${alpha('#e0f2fe', 0.84)} 100%)`,
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 10px 22px rgba(2, 132, 199, 0.22)'
+                      : '0 10px 22px rgba(14, 116, 144, 0.16)',
+                    transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease',
+                    '&:hover': {
+                      borderColor: theme.palette.mode === 'dark'
+                        ? alpha('#e0f2fe', 0.7)
+                        : alpha('#0369a1', 0.55),
+                      background: theme.palette.mode === 'dark'
+                        ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.3)} 0%, ${alpha('#0284c7', 0.16)} 100%)`
+                        : `linear-gradient(135deg, ${alpha('#f0f9ff', 0.95)} 0%, ${alpha('#bae6fd', 0.9)} 100%)`,
+                      boxShadow: theme.palette.mode === 'dark'
+                        ? '0 14px 28px rgba(2, 132, 199, 0.3)'
+                        : '0 14px 28px rgba(14, 116, 144, 0.2)',
+                      transform: 'translateY(-1px)',
+                    },
+                  }}
+                >
+                  Create Your Timeline
+                </Button>
               </Stack>
             ) : null}
 

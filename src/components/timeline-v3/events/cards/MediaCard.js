@@ -1159,18 +1159,6 @@ const MediaCard = forwardRef(({
                   )}
                 </Box>
               </Box>
-              {showInlineVoteControls && (
-                <Box sx={{ mt: 0.25, flexShrink: 0 }}>
-                  <VoteControls
-                    value={voteValue}
-                    onChange={handleVoteChange}
-                    positiveRatio={positiveRatio}
-                    totalVotes={totalVotes}
-                    isLoading={voteLoading}
-                    hasError={!!voteError}
-                  />
-                </Box>
-              )}
               
               {/* QUARANTINED: Vertical ellipsis menu removed
                   The edit and delete functionality was incomplete and caused issues
@@ -1193,19 +1181,19 @@ const MediaCard = forwardRef(({
                 removedTimelineIds={event.removed_timeline_ids || []}
               />
             </Box>
-            
             {/* Event metadata */}
             <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+              display: 'grid', 
+              gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
               alignItems: 'center',
               mt: 'auto',
               pt: 1,
-              borderTop: `1px solid ${theme.palette.divider}`
+              borderTop: `1px solid ${theme.palette.divider}`,
+              columnGap: 1,
             }}>
               {/* Author with avatar */}
               {event.created_by_username && (
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
                   <UserAvatar
                     name={event.created_by_username}
                     avatarUrl={event.created_by_avatar}
@@ -1232,9 +1220,26 @@ const MediaCard = forwardRef(({
                   </Link>
                 </Box>
               )}
+              {showInlineVoteControls && (
+                <Box sx={{ justifySelf: 'center' }}>
+                  <VoteControls
+                    value={voteValue}
+                    onChange={handleVoteChange}
+                    positiveRatio={positiveRatio}
+                    totalVotes={totalVotes}
+                    isLoading={voteLoading}
+                    hasError={!!voteError}
+                    layout="inline"
+                    sizeScale={0.76}
+                    pillScale={1}
+                    showBreakdown={false}
+                    compact
+                  />
+                </Box>
+              )}
               
               {/* Created date */}
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'end', minWidth: 0 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
                 <Typography variant="caption" color="text.secondary">
                   {formatDate(event.created_at)}

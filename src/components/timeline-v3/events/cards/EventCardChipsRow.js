@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { Box, Chip, Tooltip, useTheme } from '@mui/material';
-import { Label as TagIcon, People as CommunityIcon, FavoriteBorder as HeartIcon, Lock as LockIcon } from '@mui/icons-material';
+import { People as CommunityIcon, FavoriteBorder as HeartIcon, Lock as LockIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 import api from '../../../../utils/api';
+import HashtagIcon from '../../../common/HashtagIcon';
 
 const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) => {
   const theme = useTheme();
@@ -128,10 +129,11 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
             <Tooltip key={`${tagName}-${index}`} title="Hashtag Timeline" arrow>
               <Chip
                 icon={(
-                  <TagIcon
+                  <HashtagIcon
+                    fontSize="small"
                     sx={{
-                      fontSize: 14,
                       color: theme.palette.mode === 'dark' ? 'inherit' : tagColor,
+                      marginLeft: 0,
                     }}
                   />
                 )}
