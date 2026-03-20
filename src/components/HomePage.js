@@ -35,6 +35,8 @@ import {
   Close as CloseIcon,
   Search as SearchIcon,
   ArrowForward as ArrowForwardIcon,
+  FavoriteBorder as HeartIcon,
+  Lock as LockIcon,
   North as NorthIcon,
   ExpandMore as ExpandMoreIcon,
   LocalFireDepartment as LocalFireDepartmentIcon,
@@ -92,6 +94,41 @@ const ACTION_CARD_DEFAULT_DESCRIPTION_BY_TYPE = {
   silver: 'Complete this action to unlock silver benefits.',
   bronze: 'Complete this action to unlock bronze benefits.',
 };
+
+const CREATE_TIMELINE_TYPE_OPTIONS = [
+  {
+    key: 'community',
+    label: 'Community Timeline',
+    prefix: 'i-',
+    tag: 'COMMUNITY',
+    description: 'Public space where a community can collaborate and map events they care about together.',
+    helper: 'Great for causes, fandoms, local groups, and shared historical tracking.',
+    icon: GroupsIcon,
+  },
+  {
+    key: 'personal',
+    label: 'Personal Timeline',
+    prefix: 'My-',
+    tag: 'PERSONAL',
+    description: 'Private-leaning timeline space for moments that are for you and loved ones.',
+    helper: 'Privacy depends on you and the choices you set for your timeline.',
+    icon: null,
+  },
+];
+
+const PersonalTimelineChoiceIcon = () => (
+  <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+    <HeartIcon sx={{ fontSize: 20 }} />
+    <LockIcon
+      sx={{
+        fontSize: 11,
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+      }}
+    />
+  </Box>
+);
 
 const getTimelinePrefixByType = (timelineType) => {
   const type = String(timelineType || '').toLowerCase();
@@ -297,12 +334,13 @@ const HomePage = () => {
   const [postTargetTimeline, setPostTargetTimeline] = React.useState(null);
   const [postAdvancedOpen, setPostAdvancedOpen] = React.useState(false);
   const [postTimelineSearchInput, setPostTimelineSearchInput] = React.useState('');
+  const [hasSelectedTimelineType, setHasSelectedTimelineType] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: '',
     description: '',
-    timeline_type: 'hashtag',
+    timeline_type: 'community',
     visibility: 'public',
-    timeline_mode: 'standard',
+    timeline_mode: 'community',
   });
 
   const getFavoriteTimelineKey = React.useCallback(
@@ -3076,12 +3114,13 @@ const HomePage = () => {
 
   const handleDialogClose = () => {
     setDialogOpen(false);
+    setHasSelectedTimelineType(false);
     setFormData({
       name: '',
       description: '',
-      timeline_type: 'hashtag',
+      timeline_type: 'community',
       visibility: 'public',
-      timeline_mode: 'standard',
+      timeline_mode: 'community',
     });
   };
 
@@ -3089,15 +3128,7 @@ const HomePage = () => {
     const { name, value } = e.target;
 
     if (name === 'timeline_type') {
-      if (value === 'hashtag') {
-        setFormData((prev) => ({
-          ...prev,
-          timeline_type: 'hashtag',
-          visibility: 'public',
-          timeline_mode: 'standard',
-        }));
-        return;
-      }
+      setHasSelectedTimelineType(true);
 
       if (value === 'community') {
         setFormData((prev) => ({
@@ -4946,34 +4977,28 @@ const HomePage = () => {
           submitDisabled={postSubmitLoading}
         />
 
-        <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Dialog
+          open={dialogOpen}
+          onClose={handleDialogClose}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3.2,
+              overflow: 'hidden',
+              border: '1px solid',
+              borderColor: theme.palette.mode === 'dark' ? alpha('#7dd3fc', 0.2) : alpha('#0369a1', 0.2),
+              background: theme.palette.mode === 'dark'
+                ? `linear-gradient(150deg, ${alpha('#0b1220', 0.96)} 0%, ${alpha('#111827', 0.94)} 100%)`
+                : `linear-gradient(150deg, ${alpha('#ffffff', 0.97)} 0%, ${alpha('#f0f9ff', 0.94)} 100%)`,
+            },
+          }}
+        >
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1.1 }}>
             Create New Timeline
             <IconButton onClick={handleDialogClose} size="small"><CloseIcon /></IconButton>
           </DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              name="name"
-              label="Timeline Name"
-              placeholder="Enter a name for your timeline"
-              fullWidth
-              value={formData.name}
-              onChange={handleInputChange}
-              sx={{ mb: 2.2 }}
-            />
-            <TextField
-              name="description"
-              label="Description"
-              placeholder="Describe what this timeline is about"
-              fullWidth
-              multiline
-              rows={3}
-              value={formData.description}
-              onChange={handleInputChange}
-              sx={{ mb: 2.2 }}
-            />
-
+          <DialogContent sx={{ pt: 0.4 }}>
             <FormControl component="fieldset">
               <FormLabel component="legend" sx={{ mb: 0.8, color: theme.palette.text.secondary }}>
                 Timeline Type
@@ -4981,24 +5006,213 @@ const HomePage = () => {
               <RadioGroup
                 row
                 name="timeline_type"
-                value={formData.timeline_mode === 'personal' ? 'personal' : formData.timeline_type}
+                value={formData.timeline_type}
                 onChange={handleInputChange}
+                sx={{ display: 'none' }}
               >
-                <Tooltip title="Standard timeline with hashtag-based organization">
-                  <FormControlLabel value="hashtag" control={<Radio />} label="Hashtag Timeline" />
-                </Tooltip>
-                <Tooltip title="Community timeline with member management and post sharing">
-                  <FormControlLabel value="community" control={<Radio />} label="Community Timeline" />
-                </Tooltip>
-                <Tooltip title="Your personal timeline space">
-                  <FormControlLabel value="personal" control={<Radio />} label="Personal Timeline" />
-                </Tooltip>
+                <FormControlLabel value="community" control={<Radio />} label="Community Timeline" />
+                <FormControlLabel value="personal" control={<Radio />} label="Personal Timeline" />
               </RadioGroup>
+
+              <Stack spacing={1.2} sx={{ mt: 0.8 }}>
+                {CREATE_TIMELINE_TYPE_OPTIONS.map((option) => {
+                  const isSelected = formData.timeline_type === option.key;
+                  const isCondensed = hasSelectedTimelineType && !isSelected;
+
+                  return (
+                    <Box
+                      key={option.key}
+                      onClick={() => {
+                        handleInputChange({ target: { name: 'timeline_type', value: option.key } });
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleInputChange({ target: { name: 'timeline_type', value: option.key } });
+                        }
+                      }}
+                      sx={{
+                        borderRadius: 2.2,
+                        p: isCondensed ? 1 : 1.4,
+                        border: '1px solid',
+                        borderColor: isSelected
+                          ? (theme.palette.mode === 'dark' ? alpha('#7dd3fc', 0.7) : alpha('#0369a1', 0.5))
+                          : (theme.palette.mode === 'dark' ? alpha('#ffffff', 0.16) : alpha('#0f172a', 0.14)),
+                        background: isSelected
+                          ? (theme.palette.mode === 'dark'
+                            ? `linear-gradient(135deg, ${alpha('#0ea5e9', 0.28)} 0%, ${alpha('#0369a1', 0.12)} 100%)`
+                            : `linear-gradient(135deg, ${alpha('#e0f2fe', 0.92)} 0%, ${alpha('#f0f9ff', 0.95)} 100%)`)
+                          : (theme.palette.mode === 'dark'
+                            ? `linear-gradient(135deg, ${alpha('#0b1220', 0.72)} 0%, ${alpha('#111827', 0.56)} 100%)`
+                            : `linear-gradient(135deg, ${alpha('#ffffff', 0.95)} 0%, ${alpha('#f8fafc', 0.9)} 100%)`),
+                        boxShadow: isSelected
+                          ? (theme.palette.mode === 'dark'
+                            ? '0 10px 24px rgba(14, 165, 233, 0.24)'
+                            : '0 10px 24px rgba(14, 116, 144, 0.14)')
+                          : 'none',
+                        cursor: 'pointer',
+                        transform: isCondensed ? 'scale(0.98)' : 'scale(1)',
+                        transition: 'border-color 200ms ease, background 220ms ease, box-shadow 220ms ease, transform 180ms ease',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          borderColor: theme.palette.mode === 'dark' ? alpha('#bae6fd', 0.62) : alpha('#0284c7', 0.4),
+                        },
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.8 }}>
+                        <Avatar
+                          sx={{
+                            width: 34,
+                            height: 34,
+                            bgcolor: isSelected
+                              ? (theme.palette.mode === 'dark' ? alpha('#0284c7', 0.48) : alpha('#0ea5e9', 0.22))
+                              : (theme.palette.mode === 'dark' ? alpha('#1f2937', 0.8) : alpha('#e2e8f0', 0.9)),
+                            color: theme.palette.mode === 'dark' ? '#e2e8f0' : '#0f172a',
+                          }}
+                        >
+                          {option.key === 'personal'
+                            ? <PersonalTimelineChoiceIcon />
+                            : <GroupsIcon sx={{ fontSize: 20 }} />}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography sx={{ fontWeight: 800, lineHeight: 1.1 }}>{option.label}</Typography>
+                          {!isCondensed && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.15 }}>
+                              {option.helper}
+                            </Typography>
+                          )}
+                          {isCondensed && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.15 }}>
+                              Tap to switch
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={option.tag}
+                          sx={{
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            borderRadius: '999px',
+                            bgcolor: isSelected
+                              ? (theme.palette.mode === 'dark' ? alpha('#7dd3fc', 0.22) : alpha('#bae6fd', 0.86))
+                              : (theme.palette.mode === 'dark' ? alpha('#334155', 0.66) : alpha('#e2e8f0', 0.9)),
+                            color: theme.palette.mode === 'dark' ? '#e2e8f0' : '#0f172a',
+                          }}
+                        />
+                      </Stack>
+
+                      {!isCondensed && (
+                        <>
+                          <Typography variant="body2" sx={{ mb: 0.85, color: theme.palette.text.secondary }}>
+                            {option.description}
+                          </Typography>
+
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                            <Chip
+                              size="small"
+                              icon={<TagIcon sx={{ fontSize: '0.95rem !important' }} />}
+                              label={`Prefix ${option.prefix}`}
+                              sx={{ borderRadius: '999px' }}
+                            />
+                            <Chip
+                              size="small"
+                              label={`${option.prefix}YourTimelineName`}
+                              sx={{ borderRadius: '999px', fontFamily: 'monospace' }}
+                            />
+                          </Stack>
+                        </>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Stack>
             </FormControl>
+
+            {hasSelectedTimelineType && (
+              <Box sx={{ mt: 2.2 }}>
+                <TextField
+                  autoFocus
+                  name="name"
+                  label="Timeline Name"
+                  placeholder="Enter a name for your timeline"
+                  fullWidth
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  sx={{ mb: 2.2 }}
+                />
+                <TextField
+                  name="description"
+                  label="Description"
+                  placeholder="Describe what this timeline is about"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={formData.description}
+                  onChange={handleInputChange}
+                />
+              </Box>
+            )}
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleDialogClose} disabled={loading}>Cancel</Button>
-            <Button onClick={handleCreateTimeline} variant="contained" disabled={loading}>
+          <DialogActions sx={{ px: 3, pb: 2.4, pt: 1 }}>
+            <Button
+              onClick={handleDialogClose}
+              disabled={loading}
+              variant="contained"
+              sx={{
+                minWidth: 44,
+                width: 44,
+                height: 44,
+                borderRadius: 1,
+                p: 0,
+                bgcolor: theme.palette.mode === 'dark' ? '#0284c7' : '#0ea5e9',
+                color: '#ffffff',
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark' ? '#0369a1' : '#0284c7',
+                },
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </Button>
+            <Button
+              onClick={handleCreateTimeline}
+              variant="outlined"
+              endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} />}
+              disabled={loading || !hasSelectedTimelineType}
+              sx={{
+                borderRadius: '999px',
+                px: 2.2,
+                py: 0.75,
+                fontWeight: 800,
+                letterSpacing: '0.02em',
+                textTransform: 'none',
+                color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                borderColor: theme.palette.mode === 'dark'
+                  ? alpha('#f8fafc', 0.36)
+                  : alpha('#0f172a', 0.3),
+                background: theme.palette.mode === 'dark'
+                  ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.22)} 0%, ${alpha('#0ea5e9', 0.12)} 100%)`
+                  : `linear-gradient(135deg, ${alpha('#ffffff', 0.84)} 0%, ${alpha('#e0f2fe', 0.84)} 100%)`,
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 10px 22px rgba(2, 132, 199, 0.22)'
+                  : '0 10px 22px rgba(14, 116, 144, 0.16)',
+                transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease',
+                '&:hover': {
+                  borderColor: theme.palette.mode === 'dark'
+                    ? alpha('#e0f2fe', 0.7)
+                    : alpha('#0369a1', 0.55),
+                  background: theme.palette.mode === 'dark'
+                    ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.3)} 0%, ${alpha('#0284c7', 0.16)} 100%)`
+                    : `linear-gradient(135deg, ${alpha('#f0f9ff', 0.95)} 0%, ${alpha('#bae6fd', 0.9)} 100%)`,
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 14px 28px rgba(2, 132, 199, 0.3)'
+                    : '0 14px 28px rgba(14, 116, 144, 0.2)',
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Create Timeline'}
             </Button>
           </DialogActions>
