@@ -92,7 +92,8 @@ const SITE_SETTINGS_SECTIONS = [
 
 const HOME_HERO_TEMPLATE_OPTIONS = [
   { type: 'welcome', label: 'Welcome Banner' },
-  { type: 'timeline_spotlight', label: 'Timeline Spotlight' },
+  { type: 'timeline_spotlight', label: 'Random Timeline' },
+  { type: 'trending_community', label: 'Trending Community' },
   { type: 'event_spotlight', label: 'Event Spotlight' },
   { type: 'advertisement', label: 'Advertisement' },
 ];
@@ -2539,6 +2540,15 @@ const SiteSettingsTab = ({ canManageSettings }) => {
     return homeHeroSlides.some((slide) => String(slide?.type || '').toLowerCase() === normalizedType);
   }, [homeHeroSlides]);
 
+  useEffect(() => {
+    if (!hasHomeHeroTemplate(newHomeHeroSlideType)) return;
+
+    const firstAvailable = HOME_HERO_TEMPLATE_OPTIONS.find((option) => !hasHomeHeroTemplate(option.type));
+    if (firstAvailable?.type) {
+      setNewHomeHeroSlideType(firstAvailable.type);
+    }
+  }, [homeHeroSlides, hasHomeHeroTemplate, newHomeHeroSlideType]);
+
   const handleAddHomeHeroSlide = () => {
     const slideType = String(newHomeHeroSlideType || '').trim().toLowerCase();
     if (!slideType || hasHomeHeroTemplate(slideType)) return;
@@ -2550,6 +2560,10 @@ const SiteSettingsTab = ({ canManageSettings }) => {
 
     if (slideType === 'event_spotlight') {
       baseSlide.event_id = null;
+    }
+
+    if (slideType === 'trending_community') {
+      baseSlide.timeline_id = null;
     }
 
     if (slideType === 'advertisement') {
@@ -2771,6 +2785,18 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                                 />
                               </TableCell>
                               <TableCell>
+                                {slideType === 'trending_community' ? (
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    label="Timeline ID"
+                                    value={slide?.timeline_id ?? ''}
+                                    onChange={(e) => handleUpdateHomeHeroSlide(slideType, { timeline_id: Number(e.target.value) || null })}
+                                    helperText="Community timeline to feature in Trending Community slide"
+                                    disabled={loadingSettings}
+                                  />
+                                ) : null}
+
                                 {slideType === 'event_spotlight' ? (
                                   <TextField
                                     size="small"

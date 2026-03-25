@@ -50,7 +50,23 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import api, { getFollowedUsers, followUser, unfollowUser, fetchUserMemberships, getFollowedHashtagTimelines, syncUserPassport, getTimelineMemberCount, getLandingRotatorSettings, addBrokenEventQueueItem, updateUserPreferences, getTimelineDetails, getTimelineQuote, getTimelineActions, getTimelineStatusMessage, getTimelineWarningState, voteTimelineAction } from '../utils/api';
+import api, {
+  getFollowedUsers,
+  followUser,
+  unfollowUser,
+  fetchUserMemberships,
+  getFollowedHashtagTimelines,
+  syncUserPassport,
+  getLandingRotatorSettings,
+  addBrokenEventQueueItem,
+  updateUserPreferences,
+  getTimelineDetails,
+  getTimelineQuote,
+  getTimelineActions,
+  getTimelineStatusMessage,
+  getTimelineWarningState,
+  voteTimelineAction,
+} from '../utils/api';
 import config from '../config';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
 import RemarkCard from './timeline-v3/events/cards/RemarkCard';
@@ -60,6 +76,7 @@ import QuoteDisplay from './timeline-v3/community/QuoteDisplay';
 import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta, canVoteForAction } from './timeline-v3/community/timelineStatusActionUtils';
 import TradingCard from './common/TradingCard';
 import EventDialog from './timeline-v3/events/EventDialog';
+import EventPopup from './timeline-v3/events/EventPopup';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -75,10 +92,26 @@ const POPULAR_LIST_BATCH_SIZE = 50;
 const POPULAR_SCROLL_TOP_SHOW_THRESHOLD_PX = 140;
 const POPULAR_SCROLL_TOP_HIDE_THRESHOLD_PX = 72;
 const POPULAR_SCROLL_IDLE_MS = 140;
+const ACTIVE_HUB_LOAD_MORE_TRIGGER_PX = 120;
+const ACTIVE_HUB_LOAD_MORE_HIDE_PX = 260;
 const HUB_PHASE_ONE_MS = 170;
-const POPULAR_HOME_CACHE_KEY_PREFIX = 'home_popular_cache_v2';
-const YOUR_PAGE_HOME_CACHE_KEY_PREFIX = 'home_your_page_cache_v2';
+const POPULAR_HOME_CACHE_KEY_PREFIX = 'home_popular_cache_v3';
+const YOUR_PAGE_HOME_CACHE_KEY_PREFIX = 'home_your_page_cache_v3';
 const FAVORITE_TIMELINE_KEY_PREFIX = 'home_favorite_timeline_v1';
+const HOME_HERO_SETTINGS_CACHE_KEY = 'home_hero_settings_cache_v1';
+const HOME_TIMELINES_FETCH_LIMIT = 120;
+const HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT = 50;
+const HOME_POPULAR_TIMELINE_SOURCE_LIMIT = 50;
+const HOME_POPULAR_EVENTS_RANKING_LIMIT = 400;
+const HOME_SEARCH_TIMELINE_SOURCE_LIMIT = 50;
+const HOME_SEARCH_EVENTS_RESULT_LIMIT = 300;
+const HOME_YOUR_PAGE_TIMELINE_SOURCE_LIMIT = 50;
+const HOME_YOUR_PAGE_EVENTS_RESULT_LIMIT = 400;
+const HOME_MY_CREATIONS_TIMELINE_SOURCE_LIMIT = 50;
+const HOME_MY_CREATIONS_EVENTS_RESULT_LIMIT = 300;
+const HOME_FOLLOWED_USERS_SOURCE_LIMIT = 25;
+const HOME_FAVORITE_EVENTS_FETCH_LIMIT = 50;
+const HOME_SEARCH_USERS_RESULT_LIMIT = 50;
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
 const DEFAULT_FAVORITE_QUOTE = {
   text: 'Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.',
@@ -145,6 +178,42 @@ const stripTimelinePrefix = (name, timelineType) => {
   if (type === 'personal') return raw.replace(/^my-/i, '');
   return raw.replace(/^#+/, '');
 };
+
+const resolveHeroCtaTarget = (rawHref) => {
+  const href = String(rawHref || '').trim();
+  if (!href) return null;
+
+  if (/^(https?:|mailto:|tel:)/i.test(href)) {
+    return { external: true, href };
+  }
+
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(href)) {
+    return { external: true, href };
+  }
+
+  if (href.startsWith('/')) {
+    return { external: false, href };
+  }
+
+  if (/^[\w.-]+\.[a-z]{2,}(?:[/:?#]|$)/i.test(href)) {
+    return { external: true, href: `https://${href}` };
+  }
+
+  return { external: false, href: `/${href.replace(/^\/+/, '')}` };
+};
+
+const getTimelineHeroLandscapeImageUrl = (timeline) => String(
+  timeline?.cover_landscape_image_url
+  || timeline?.cover_landscape_url
+  || timeline?.landscape_image_url
+  || timeline?.banner_url
+  || timeline?.cover_image_url
+  || timeline?.cover_url
+  || timeline?.background_image_url
+  || timeline?.image_url
+  || timeline?.thumbnail_url
+  || '',
+).trim();
 
 const hasMeaningfulActionCardContent = (action) => {
   if (!action) return false;
@@ -286,6 +355,7 @@ const HomePage = () => {
   const [isHubContentVisible, setIsHubContentVisible] = React.useState(true);
   const [isHubPhaseOneLoading, setIsHubPhaseOneLoading] = React.useState(false);
   const [showActiveHubScrollTop, setShowActiveHubScrollTop] = React.useState(false);
+  const [showActiveHubLoadMore, setShowActiveHubLoadMore] = React.useState(false);
   const [isMyCreationsSubTabPhaseOneLoading, setIsMyCreationsSubTabPhaseOneLoading] = React.useState(false);
   const [searchSubFilter, setSearchSubFilter] = React.useState('all');
   const [popularFilter, setPopularFilter] = React.useState('posts');
@@ -327,6 +397,7 @@ const HomePage = () => {
   const [favoriteTimelineWarningState, setFavoriteTimelineWarningState] = React.useState({ active: false, warning_scope: null, title: '', body: '' });
   const [loadingFavoriteTimelineContext, setLoadingFavoriteTimelineContext] = React.useState(false);
   const [favoriteVoteLoadingByType, setFavoriteVoteLoadingByType] = React.useState({ bronze: false, silver: false, gold: false });
+  const [heroEventPopupEvent, setHeroEventPopupEvent] = React.useState(null);
   const [postTypeDialogOpen, setPostTypeDialogOpen] = React.useState(false);
   const [postEventDialogOpen, setPostEventDialogOpen] = React.useState(false);
   const [postFlowLoading, setPostFlowLoading] = React.useState(false);
@@ -432,7 +503,9 @@ const HomePage = () => {
       if (!user) return;
       try {
         setLoadingTimelines(true);
-        const response = await api.get('/api/timeline-v3');
+        const response = await api.get('/api/timeline-v3', {
+          params: { limit: HOME_TIMELINES_FETCH_LIMIT },
+        });
         setTimelines(response.data || []);
       } catch (error) {
         console.error('Error fetching timelines:', error);
@@ -447,6 +520,23 @@ const HomePage = () => {
   React.useEffect(() => {
     let active = true;
 
+    try {
+      const cachedRaw = window.localStorage.getItem(HOME_HERO_SETTINGS_CACHE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        const cachedSlides = Array.isArray(cached?.slides)
+          ? cached.slides.filter((slide) => slide && typeof slide === 'object')
+          : [];
+        const cachedInterval = Number(cached?.rotation_interval_ms) || HOME_HERO_DEFAULT_ROTATE_MS;
+        if (cachedSlides.length > 0) {
+          setHeroRotateMs(cachedInterval);
+          setHeroSlides(cachedSlides);
+        }
+      }
+    } catch (error) {
+      console.warn('[HomePage] Failed to hydrate cached hero settings:', error);
+    }
+
     const loadHomeHeroSettings = async () => {
       try {
         const data = await getLandingRotatorSettings();
@@ -459,6 +549,15 @@ const HomePage = () => {
 
         setHeroRotateMs(Number(homeHero?.rotation_interval_ms) || HOME_HERO_DEFAULT_ROTATE_MS);
         setHeroSlides(configuredSlides.length ? configuredSlides : HOME_HERO_DEFAULT_SLIDES);
+
+        try {
+          window.localStorage.setItem(HOME_HERO_SETTINGS_CACHE_KEY, JSON.stringify({
+            rotation_interval_ms: Number(homeHero?.rotation_interval_ms) || HOME_HERO_DEFAULT_ROTATE_MS,
+            slides: configuredSlides.length ? configuredSlides : HOME_HERO_DEFAULT_SLIDES,
+          }));
+        } catch (error) {
+          console.warn('[HomePage] Failed to cache hero settings:', error);
+        }
       } catch (error) {
         if (!active) return;
         setHeroRotateMs(HOME_HERO_DEFAULT_ROTATE_MS);
@@ -474,7 +573,7 @@ const HomePage = () => {
   }, []);
 
   const enabledHeroSlides = React.useMemo(() => {
-    const allowed = new Set(['welcome', 'timeline_spotlight', 'event_spotlight', 'advertisement']);
+    const allowed = new Set(['welcome', 'timeline_spotlight', 'trending_community', 'event_spotlight', 'advertisement']);
     const unique = [];
     const seen = new Set();
 
@@ -566,6 +665,7 @@ const HomePage = () => {
       setIsHubPhaseOneLoading(true);
       setIsHubContentVisible(false);
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
       setActiveHubTab(nextTab);
       hubTransitionTimeoutRef.current = window.setTimeout(() => {
         setIsHubContentVisible(true);
@@ -589,11 +689,18 @@ const HomePage = () => {
     const el = getActiveHubScrollElement();
     if (!el) {
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
       return;
     }
 
     const canScroll = el.scrollHeight > el.clientHeight + 2;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
     setShowActiveHubScrollTop(canScroll && el.scrollTop > 24);
+    setShowActiveHubLoadMore((prev) => {
+      if (distanceFromBottom <= ACTIVE_HUB_LOAD_MORE_TRIGGER_PX) return true;
+      if (distanceFromBottom >= ACTIVE_HUB_LOAD_MORE_HIDE_PX) return false;
+      return prev;
+    });
   }, [getActiveHubScrollElement]);
 
   React.useEffect(() => {
@@ -739,6 +846,22 @@ const HomePage = () => {
   }, [popularEvents, yourPageEvents, searchEvents, myCreationEvents]);
 
   const activeHeroSlide = enabledHeroSlides[heroIndex] || enabledHeroSlides[0] || null;
+  const trendingCommunityTimeline = React.useMemo(() => {
+    if (activeHeroSlide?.type !== 'trending_community') return null;
+
+    const targetId = Number(activeHeroSlide?.timeline_id || 0);
+    if (!(targetId > 0)) return null;
+
+    const timeline = normalizedTimelines.find((entry) => Number(entry?.id || entry?.timeline_id || 0) === targetId);
+    if (!timeline) return null;
+
+    const timelineType = String(timeline?.timeline_type || timeline?.type || '').toLowerCase();
+    const visibility = String(timeline?.visibility || 'public').toLowerCase();
+    if (timelineType !== 'community' || visibility === 'private') return null;
+
+    return timeline;
+  }, [activeHeroSlide?.type, activeHeroSlide?.timeline_id, normalizedTimelines]);
+
   const spotlightEvent = React.useMemo(() => {
     if (activeHeroSlide?.type !== 'event_spotlight') return null;
     const targetId = Number(activeHeroSlide?.event_id || 0);
@@ -753,16 +876,13 @@ const HomePage = () => {
   const spotlightTimelineTypeLabel = spotlightTimelineType === 'community'
     ? 'Community Timeline'
     : (spotlightTimelineType === 'personal' ? 'Personal Timeline' : 'Hashtag Timeline');
-  const spotlightTimelineImageUrl = String(
-    spotlightTimeline?.cover_image_url
-    || spotlightTimeline?.banner_url
-    || spotlightTimeline?.cover_url
-    || spotlightTimeline?.background_image_url
-    || spotlightTimeline?.image_url
-    || spotlightTimeline?.thumbnail_url
-    || '',
-  ).trim();
+  const spotlightTimelineImageUrl = getTimelineHeroLandscapeImageUrl(spotlightTimeline);
   const spotlightTimelineImagePrivilegeEnabled = spotlightTimeline?.cover_upload_enabled !== false;
+  const trendingCommunityImageUrl = getTimelineHeroLandscapeImageUrl(trendingCommunityTimeline);
+  const trendingCommunityImagePrivilegeEnabled = trendingCommunityTimeline?.cover_upload_enabled !== false;
+  const trendingCommunityLabel = trendingCommunityTimeline
+    ? `i-${stripTimelinePrefix(trendingCommunityTimeline?.name, 'community') || String(trendingCommunityTimeline?.name || '').trim()}`
+    : '';
   const spotlightEventImageUrl = String(
     spotlightEvent?.media_url
     || spotlightEvent?.image_url
@@ -784,6 +904,36 @@ const HomePage = () => {
           ? 'transparent'
           : 'rgba(6, 9, 16, 0.22)',
         applyHardBlur: !spotlightTimelineImagePrivilegeEnabled,
+      };
+    }
+
+    if (activeHeroSlide?.type === 'trending_community' && trendingCommunityImageUrl) {
+      return {
+        backgroundImage: `url(${trendingCommunityImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(6,18,30,0.6) 0%, rgba(12,40,46,0.56) 45%, rgba(27,70,61,0.5) 100%)'
+          : 'linear-gradient(135deg, rgba(234,251,244,0.8) 0%, rgba(229,247,241,0.72) 48%, rgba(232,250,246,0.68) 100%)',
+        blurOverlay: trendingCommunityImagePrivilegeEnabled
+          ? 'transparent'
+          : 'rgba(6, 9, 16, 0.22)',
+        applyHardBlur: !trendingCommunityImagePrivilegeEnabled,
+      };
+    }
+
+    if (activeHeroSlide?.type === 'trending_community') {
+      return {
+        backgroundImage: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(7,33,31,0.88) 0%, rgba(9,56,61,0.86) 42%, rgba(25,86,69,0.84) 100%)'
+          : 'linear-gradient(135deg, rgba(228,252,242,0.95) 0%, rgba(228,247,236,0.96) 58%, rgba(236,251,243,0.98) 100%)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        fogOverlay: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, rgba(8,22,25,0.52) 0%, rgba(11,29,28,0.48) 100%)'
+          : 'linear-gradient(135deg, rgba(240,255,248,0.62) 0%, rgba(235,248,239,0.68) 100%)',
+        blurOverlay: 'transparent',
+        applyHardBlur: false,
       };
     }
 
@@ -874,6 +1024,8 @@ const HomePage = () => {
     activeHeroSlide?.type,
     spotlightTimelineImageUrl,
     spotlightTimelineImagePrivilegeEnabled,
+    trendingCommunityImageUrl,
+    trendingCommunityImagePrivilegeEnabled,
     spotlightEventImageUrl,
     theme.palette.mode,
   ]);
@@ -1038,6 +1190,64 @@ const HomePage = () => {
     return yourPageEvents.slice(0, visibleYourPagePostCount);
   }, [yourPageEvents, visibleYourPagePostCount]);
 
+  const searchVisibleMaxCount = React.useMemo(() => {
+    return Math.max(
+      isTimelineSearchScope ? filteredTimelines.length : 0,
+      isPostSearchScope ? filteredPosts.length : 0,
+      isUserSearchScope ? filteredUsers.length : 0,
+    );
+  }, [isTimelineSearchScope, isPostSearchScope, isUserSearchScope, filteredTimelines.length, filteredPosts.length, filteredUsers.length]);
+
+  const activeHubCanLoadMore = React.useMemo(() => {
+    if (activeHubTab === 'timeline-search') {
+      if (!hasSearchQuery || loadingTimelines || loadingSearchEvents || loadingSearchUsers) return false;
+      return visibleTimelineCount < searchVisibleMaxCount;
+    }
+
+    if (activeHubTab === 'popular') {
+      return popularFilter === 'timelines'
+        ? visiblePopularTimelines.length < popularTimelines.length
+        : visiblePopularPosts.length < popularEvents.length;
+    }
+
+    if (activeHubTab === 'my-creations') {
+      return myCreationsFilter === 'timelines'
+        ? visibleOwnedTimelines.length < ownedTimelines.length
+        : visibleMyCreationPosts.length < myCreationEvents.length;
+    }
+
+    if (activeHubTab === 'your-page') {
+      return yourPageFilter === 'timelines'
+        ? visibleYourPageTimelines.length < yourPageTimelines.length
+        : visibleYourPagePosts.length < yourPageEvents.length;
+    }
+
+    return false;
+  }, [
+    activeHubTab,
+    hasSearchQuery,
+    loadingTimelines,
+    loadingSearchEvents,
+    loadingSearchUsers,
+    visibleTimelineCount,
+    searchVisibleMaxCount,
+    popularFilter,
+    visiblePopularTimelines.length,
+    popularTimelines.length,
+    visiblePopularPosts.length,
+    popularEvents.length,
+    myCreationsFilter,
+    visibleOwnedTimelines.length,
+    ownedTimelines.length,
+    visibleMyCreationPosts.length,
+    myCreationEvents.length,
+    yourPageFilter,
+    visibleYourPageTimelines.length,
+    yourPageTimelines.length,
+    visibleYourPagePosts.length,
+    yourPageEvents.length,
+  ]);
+
   const allKnownTimelines = React.useMemo(() => {
     const merged = [
       ...(Array.isArray(ownedTimelines) ? ownedTimelines : []),
@@ -1124,7 +1334,9 @@ const HomePage = () => {
     const loadFavoriteTimelineEvents = async () => {
       try {
         setLoadingFavoriteTimelineEvents(true);
-        const response = await api.get(`/api/timeline-v3/${numericFavoriteId}/events`);
+        const response = await api.get(`/api/timeline-v3/${numericFavoriteId}/events`, {
+          params: { limit: HOME_FAVORITE_EVENTS_FETCH_LIMIT },
+        });
         if (isCancelled) return;
 
         const payload = response?.data;
@@ -1305,15 +1517,19 @@ const HomePage = () => {
     try {
       setLoadingSearchEvents(true);
 
-      const requests = searchableTimelines.map((timeline) =>
-        api.get(`/api/timeline-v3/${timeline.id}/events`),
+      const targetTimelines = searchableTimelines.slice(0, HOME_SEARCH_TIMELINE_SOURCE_LIMIT);
+
+      const requests = targetTimelines.map((timeline) =>
+        api.get(`/api/timeline-v3/${timeline.id}/events`, {
+          params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
+        }),
       );
       const results = await Promise.allSettled(requests);
 
       const merged = [];
       for (let i = 0; i < results.length; i += 1) {
         const result = results[i];
-        const timeline = searchableTimelines[i];
+        const timeline = targetTimelines[i];
 
         if (result.status !== 'fulfilled') continue;
 
@@ -1341,7 +1557,7 @@ const HomePage = () => {
         dedupedById.push(event);
       });
 
-      setSearchEvents(dedupedById);
+      setSearchEvents(dedupedById.slice(0, HOME_SEARCH_EVENTS_RESULT_LIMIT));
       setHasLoadedSearchEvents(true);
     } catch (error) {
       console.error('Error fetching search events:', error);
@@ -1370,7 +1586,7 @@ const HomePage = () => {
         ? payload
         : (payload && payload.id ? [payload] : []);
 
-      setSearchUsers(users);
+      setSearchUsers(users.slice(0, HOME_SEARCH_USERS_RESULT_LIMIT));
     } catch (error) {
       if (error?.response?.status !== 404) {
         console.error('Error fetching search users:', error);
@@ -1390,7 +1606,7 @@ const HomePage = () => {
     try {
       setLoadingFollowedUsers(true);
       const users = await getFollowedUsers();
-      setFollowedUsers(Array.isArray(users) ? users : []);
+      setFollowedUsers(Array.isArray(users) ? users.slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT) : []);
     } catch (error) {
       console.error('Error fetching followed users:', error);
       setFollowedUsers([]);
@@ -1473,7 +1689,7 @@ const HomePage = () => {
         .map((timeline) => Number(timeline?.id || 0))
         .filter((id) => id > 0);
 
-      const uniqueCandidateIds = Array.from(new Set(candidateIds));
+      const uniqueCandidateIds = Array.from(new Set(candidateIds)).slice(0, HOME_POPULAR_TIMELINE_SOURCE_LIMIT);
       if (!uniqueCandidateIds.length) {
         setPopularTimelines([]);
         setPopularEvents([]);
@@ -1481,42 +1697,26 @@ const HomePage = () => {
         return;
       }
 
-      const [timelineDetailsResults, memberCountResults] = await Promise.all([
-        Promise.allSettled(uniqueCandidateIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}`))),
-        Promise.allSettled(uniqueCandidateIds.map((timelineId) => getTimelineMemberCount(timelineId))),
-      ]);
-
       const rankedTimelines = [];
 
-      uniqueCandidateIds.forEach((timelineId, index) => {
+      uniqueCandidateIds.forEach((timelineId) => {
         const base = baseTimelineMap.get(timelineId) || null;
-        const detail = timelineDetailsResults[index]?.status === 'fulfilled'
-          ? timelineDetailsResults[index].value?.data
-          : null;
-
-        const timelineType = String(detail?.timeline_type || base?.timeline_type || '').toLowerCase();
-        const visibility = String(detail?.visibility || base?.visibility || 'public').toLowerCase();
+        const timelineType = String(base?.timeline_type || '').toLowerCase();
+        const visibility = String(base?.visibility || 'public').toLowerCase();
 
         if (timelineType === 'personal') return;
         if (visibility === 'private') return;
 
-        const memberCount = Number(
-          memberCountResults[index]?.status === 'fulfilled'
-            ? memberCountResults[index].value?.count
-            : (detail?.member_count || 0),
-        ) || 0;
+        const memberCount = Number(base?.member_count || 0) || 0;
 
         const followCount = Number(
-          detail?.follow_count
-          || detail?.followers_count
-          || base?.follow_count
+          base?.follow_count
           || base?.followers_count
           || 0,
         ) || 0;
 
         rankedTimelines.push({
           ...(base || {}),
-          ...(detail || {}),
           id: timelineId,
           timeline_type: timelineType || 'hashtag',
           visibility,
@@ -1534,10 +1734,15 @@ const HomePage = () => {
       });
 
       setPopularTimelines(rankedTimelines);
+      const rankedTimelineMap = new Map(
+        rankedTimelines.map((timeline) => [Number(timeline?.id || 0), timeline]),
+      );
 
       const publicTimelineIds = rankedTimelines.map((timeline) => Number(timeline?.id || 0)).filter((id) => id > 0);
       const timelineEventsResults = await Promise.allSettled(
-        publicTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`)),
+        publicTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`, {
+          params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
+        })),
       );
 
       const eventById = new Map();
@@ -1546,7 +1751,7 @@ const HomePage = () => {
         if (result.status !== 'fulfilled') return;
 
         const timelineId = publicTimelineIds[index];
-        const timelineMeta = rankedTimelines.find((timeline) => Number(timeline?.id || 0) === timelineId) || null;
+        const timelineMeta = rankedTimelineMap.get(timelineId) || null;
         const payload = result.value?.data;
         const events = Array.isArray(payload?.events)
           ? payload.events
@@ -1574,7 +1779,9 @@ const HomePage = () => {
         });
       });
 
-      const events = Array.from(eventById.values());
+      const events = Array.from(eventById.values())
+        .sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0))
+        .slice(0, HOME_POPULAR_EVENTS_RANKING_LIMIT);
       const rankingWithKnownVotes = [];
       const eventsNeedingVoteFetch = [];
 
@@ -1735,21 +1942,24 @@ const HomePage = () => {
     try {
       setLoadingYourPage(true);
 
-      const [syncedMembershipsResult, membershipsResult, followedHashtagsResult] = await Promise.allSettled([
+      const [syncedMembershipsResult, followedHashtagsResult] = await Promise.allSettled([
         syncUserPassport(),
-        fetchUserMemberships(),
         getFollowedHashtagTimelines(),
       ]);
 
       const syncedMemberships = syncedMembershipsResult.status === 'fulfilled' && Array.isArray(syncedMembershipsResult.value)
         ? syncedMembershipsResult.value
         : [];
-
-      const fetchedMemberships = membershipsResult.status === 'fulfilled' && Array.isArray(membershipsResult.value)
-        ? membershipsResult.value
-        : [];
-
-      const memberships = syncedMemberships.length > 0 ? syncedMemberships : fetchedMemberships;
+      let memberships = syncedMemberships;
+      if (!memberships.length) {
+        try {
+          const fetchedMemberships = await fetchUserMemberships();
+          memberships = Array.isArray(fetchedMemberships) ? fetchedMemberships : [];
+        } catch (membershipError) {
+          console.warn('[HomePage] Membership fallback fetch failed:', membershipError);
+          memberships = [];
+        }
+      }
 
       const followedHashtags = followedHashtagsResult.status === 'fulfilled' && Array.isArray(followedHashtagsResult.value)
         ? followedHashtagsResult.value
@@ -1826,11 +2036,26 @@ const HomePage = () => {
         .map((timeline) => Number(timeline?.id || timeline?.timeline_id || 0))
         .filter((id) => id > 0);
 
-      const targetTimelineIds = Array.from(new Set([...membershipTimelineIds, ...followedHashtagTimelineIds]));
+      const targetTimelineIds = Array.from(new Set([...membershipTimelineIds, ...followedHashtagTimelineIds]))
+        .slice(0, HOME_YOUR_PAGE_TIMELINE_SOURCE_LIMIT);
 
-      const timelineEventResults = await Promise.allSettled(
-        targetTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`)),
-      );
+      const followedUserIds = followedUsers
+        .map((profileUser) => Number(profileUser?.id || 0))
+        .filter((id) => id > 0 && id !== currentUserId)
+        .slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT);
+
+      const [timelineEventResults, followedUserEventResults] = await Promise.all([
+        Promise.allSettled(
+          targetTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`, {
+            params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
+          })),
+        ),
+        Promise.allSettled(
+          followedUserIds.map((followedId) => api.get(`/api/users/${followedId}/events`, {
+            params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
+          })),
+        ),
+      ]);
 
       const timelineEvents = [];
       timelineEventResults.forEach((result, index) => {
@@ -1852,14 +2077,6 @@ const HomePage = () => {
           });
         });
       });
-
-      const followedUserIds = followedUsers
-        .map((profileUser) => Number(profileUser?.id || 0))
-        .filter((id) => id > 0 && id !== currentUserId);
-
-      const followedUserEventResults = await Promise.allSettled(
-        followedUserIds.map((followedId) => api.get(`/api/users/${followedId}/events`)),
-      );
 
       const followedUserEvents = [];
       followedUserEventResults.forEach((result) => {
@@ -1896,7 +2113,7 @@ const HomePage = () => {
 
       dedupedById.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
 
-      setYourPageEvents(dedupedById);
+      setYourPageEvents(dedupedById.slice(0, HOME_YOUR_PAGE_EVENTS_RESULT_LIMIT));
       setHasLoadedYourPage(true);
     } catch (error) {
       console.error('Error loading Your Page data:', error);
@@ -1989,35 +2206,78 @@ const HomePage = () => {
 
   const fetchMyCreationEvents = React.useCallback(async () => {
     if (loadingMyCreationEvents || hasLoadedMyCreationEvents || !ownedTimelines.length) return;
+    if (!(currentUserId > 0)) {
+      setMyCreationEvents([]);
+      setHasLoadedMyCreationEvents(true);
+      return;
+    }
 
     try {
       setLoadingMyCreationEvents(true);
 
-      const requests = ownedTimelines.map((timeline) => api.get(`/api/timeline-v3/${timeline.id}/events`));
-      const results = await Promise.allSettled(requests);
+      const sourceTimelines = ownedTimelines.slice(0, HOME_MY_CREATIONS_TIMELINE_SOURCE_LIMIT);
 
-      const merged = [];
-      for (let i = 0; i < results.length; i += 1) {
-        const result = results[i];
-        const timeline = ownedTimelines[i];
-        if (result.status !== 'fulfilled') continue;
+      const sourceTimelineMap = new Map(
+        sourceTimelines.map((timeline) => [Number(timeline?.id || 0), timeline]),
+      );
+      const sourceTimelineIds = new Set(
+        sourceTimelines.map((timeline) => Number(timeline?.id || 0)).filter((id) => id > 0),
+      );
 
-        const payload = result.value?.data;
+      let merged = [];
+      try {
+        const response = await api.get(`/api/users/${currentUserId}/events`, {
+          params: { limit: HOME_MY_CREATIONS_EVENTS_RESULT_LIMIT * 2 },
+        });
+        const payload = response?.data;
         const events = Array.isArray(payload?.events)
           ? payload.events
           : (Array.isArray(payload) ? payload : []);
 
-        events.forEach((event) => {
-          const authorId = Number(event?.created_by || event?.creator_id || event?.user_id || 0);
-          if (!(authorId > 0 && currentUserId > 0 && authorId === currentUserId)) return;
-
-          merged.push({
-            ...event,
-            timeline_id: event?.timeline_id || timeline?.id,
-            timeline_name: timeline?.name || event?.timeline_name || '',
-            timeline_type: timeline?.timeline_type || event?.timeline_type || 'hashtag',
+        merged = events
+          .filter((event) => {
+            const timelineId = Number(event?.timeline_id || 0);
+            return timelineId > 0 && sourceTimelineIds.has(timelineId);
+          })
+          .map((event) => {
+            const timelineId = Number(event?.timeline_id || 0);
+            const timelineMeta = sourceTimelineMap.get(timelineId) || null;
+            return {
+              ...event,
+              timeline_id: timelineId,
+              timeline_name: event?.timeline_name || timelineMeta?.name || '',
+              timeline_type: event?.timeline_type || timelineMeta?.timeline_type || 'hashtag',
+            };
           });
-        });
+      } catch (userEventsError) {
+        console.warn('[HomePage] Falling back to per-timeline fetch for My Creations events:', userEventsError);
+        const requests = sourceTimelines.map((timeline) => api.get(`/api/timeline-v3/${timeline.id}/events`, {
+          params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
+        }));
+        const results = await Promise.allSettled(requests);
+
+        for (let i = 0; i < results.length; i += 1) {
+          const result = results[i];
+          const timeline = sourceTimelines[i];
+          if (result.status !== 'fulfilled') continue;
+
+          const payload = result.value?.data;
+          const events = Array.isArray(payload?.events)
+            ? payload.events
+            : (Array.isArray(payload) ? payload : []);
+
+          events.forEach((event) => {
+            const authorId = Number(event?.created_by || event?.creator_id || event?.user_id || 0);
+            if (!(authorId > 0 && authorId === currentUserId)) return;
+
+            merged.push({
+              ...event,
+              timeline_id: event?.timeline_id || timeline?.id,
+              timeline_name: timeline?.name || event?.timeline_name || '',
+              timeline_type: timeline?.timeline_type || event?.timeline_type || 'hashtag',
+            });
+          });
+        }
       }
 
       const dedupedById = [];
@@ -2028,7 +2288,9 @@ const HomePage = () => {
         dedupedById.push(event);
       });
 
-      setMyCreationEvents(dedupedById);
+      dedupedById.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
+
+      setMyCreationEvents(dedupedById.slice(0, HOME_MY_CREATIONS_EVENTS_RESULT_LIMIT));
       setHasLoadedMyCreationEvents(true);
     } catch (error) {
       console.error('Error fetching my creation events:', error);
@@ -2158,8 +2420,9 @@ const HomePage = () => {
       <Card
         key={timeline.id}
         sx={{
+          width: '100%',
           display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
+          flexDirection: { xs: 'column', lg: 'row' },
           borderRadius: 2.5,
           border: '1px solid',
           borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(30, 41, 59, 0.18)',
@@ -2174,9 +2437,9 @@ const HomePage = () => {
       >
         <Box
           sx={{
-            width: { xs: '100%', md: 240 },
-            minWidth: { xs: '100%', md: 240 },
-            height: { xs: 76, md: 'auto' },
+            width: { xs: '100%', lg: 240 },
+            minWidth: { xs: '100%', lg: 240 },
+            height: { xs: 76, lg: 'auto' },
             px: 1.5,
             display: 'flex',
             alignItems: 'flex-end',
@@ -2239,38 +2502,37 @@ const HomePage = () => {
           )}
         </Box>
 
-        <CardContent sx={{ flexGrow: 1 }}>
+        <CardContent sx={{ flexGrow: 1, minWidth: 0 }}>
           <Box
             sx={{
-              position: 'relative',
-              minHeight: { xs: 'auto', md: 42 },
+              minHeight: 'auto',
               mb: 1.1,
             }}
           >
             <Chip
-              size="medium"
+              size="small"
               icon={<TypeIcon fontSize="small" />}
               label={typeLabel}
               sx={{
-                position: { xs: 'relative', md: 'absolute' },
-                left: 0,
-                top: 0,
-                mb: { xs: 1, md: 0 },
-                px: 0.6,
-                height: 34,
-                borderRadius: 1.8,
+                position: 'relative',
+                mb: 0.85,
+                px: 0.35,
+                height: 24,
+                borderRadius: 1.6,
                 color: '#fff',
-                fontWeight: 800,
-                letterSpacing: 0.45,
+                fontWeight: 700,
+                fontSize: '0.66rem',
+                letterSpacing: 0.28,
                 textTransform: 'uppercase',
                 background: typeChipGradient,
                 border: '1px solid rgba(255,255,255,0.24)',
                 boxShadow: '0 8px 18px rgba(0,0,0,0.22)',
                 '& .MuiChip-label': {
-                  px: 1.1,
+                  px: 0.85,
                 },
                 '& .MuiChip-icon': {
                   color: 'rgba(255,255,255,0.94)',
+                  fontSize: 14,
                 },
               }}
             />
@@ -2278,9 +2540,10 @@ const HomePage = () => {
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                justifyContent: 'center',
+                justifyContent: { xs: 'flex-start', lg: 'center' },
                 gap: 0.9,
                 flexWrap: 'wrap',
+                width: '100%',
               }}
             >
               <Typography
@@ -2289,11 +2552,16 @@ const HomePage = () => {
                   position: 'relative',
                   display: 'inline-flex',
                   lineHeight: 1.15,
+                  fontSize: { xs: '1.12rem', sm: '1.24rem', md: '1.34rem' },
                   fontWeight: 900,
                   letterSpacing: 0.25,
                   pr: 0.5,
                   pb: 0.45,
                   mb: 0,
+                  maxWidth: '100%',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                  textAlign: { xs: 'left', lg: 'center' },
                   '&::after': {
                     content: '""',
                     position: 'absolute',
@@ -2353,14 +2621,14 @@ const HomePage = () => {
         <Box
           sx={{
             px: 2,
-            pt: { xs: 0, md: 2 },
+            pt: { xs: 0, lg: 2 },
             pb: 2,
             alignSelf: 'stretch',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: { xs: 'flex-start', md: 'center' },
-            justifyContent: { xs: 'flex-start', md: 'space-between' },
-            gap: { xs: 0.75, md: 0 },
+            flexDirection: { xs: 'row', lg: 'column' },
+            alignItems: { xs: 'center', lg: 'center' },
+            justifyContent: { xs: 'space-between', lg: 'space-between' },
+            gap: { xs: 1, lg: 0 },
           }}
         >
           {allowFavoriteToggle ? (
@@ -2727,16 +2995,110 @@ const HomePage = () => {
     });
   };
 
+  const handleLoadMoreFromLeftHub = React.useCallback((event) => {
+    event.stopPropagation();
+    let attemptedManualLoad = false;
+    let revealedMore = false;
+
+    if (activeHubTab === 'timeline-search') {
+      attemptedManualLoad = hasSearchQuery && !loadingTimelines && !loadingSearchEvents && !loadingSearchUsers;
+      if (attemptedManualLoad) {
+        const nextCount = Math.min(visibleTimelineCount + HOME_LIST_BATCH_SIZE, searchVisibleMaxCount);
+        revealedMore = nextCount > visibleTimelineCount;
+        setVisibleTimelineCount(nextCount);
+      }
+    }
+
+    if (activeHubTab === 'popular') {
+      attemptedManualLoad = !loadingPopular;
+      if (attemptedManualLoad) {
+        if (popularFilter === 'timelines') {
+          const nextCount = Math.min(visiblePopularTimelineCount + POPULAR_LIST_BATCH_SIZE, popularTimelines.length);
+          revealedMore = nextCount > visiblePopularTimelineCount;
+          setVisiblePopularTimelineCount(nextCount);
+        } else {
+          const nextCount = Math.min(visiblePopularPostCount + POPULAR_LIST_BATCH_SIZE, popularEvents.length);
+          revealedMore = nextCount > visiblePopularPostCount;
+          setVisiblePopularPostCount(nextCount);
+        }
+      }
+    }
+
+    if (activeHubTab === 'my-creations') {
+      attemptedManualLoad = myCreationsFilter === 'timelines' ? !loadingTimelines : !loadingMyCreationEvents;
+      if (attemptedManualLoad) {
+        if (myCreationsFilter === 'timelines') {
+          const nextCount = Math.min(visibleMyCreationsTimelineCount + HOME_LIST_BATCH_SIZE, ownedTimelines.length);
+          revealedMore = nextCount > visibleMyCreationsTimelineCount;
+          setVisibleMyCreationsTimelineCount(nextCount);
+        } else {
+          const nextCount = Math.min(visibleMyCreationsPostCount + HOME_LIST_BATCH_SIZE, myCreationEvents.length);
+          revealedMore = nextCount > visibleMyCreationsPostCount;
+          setVisibleMyCreationsPostCount(nextCount);
+        }
+      }
+    }
+
+    if (activeHubTab === 'your-page') {
+      attemptedManualLoad = !loadingYourPage;
+      if (attemptedManualLoad) {
+        if (yourPageFilter === 'timelines') {
+          const nextCount = Math.min(visibleYourPageTimelineCount + HOME_LIST_BATCH_SIZE, yourPageTimelines.length);
+          revealedMore = nextCount > visibleYourPageTimelineCount;
+          setVisibleYourPageTimelineCount(nextCount);
+        } else {
+          const nextCount = Math.min(visibleYourPagePostCount + HOME_LIST_BATCH_SIZE, yourPageEvents.length);
+          revealedMore = nextCount > visibleYourPagePostCount;
+          setVisibleYourPagePostCount(nextCount);
+        }
+      }
+    }
+
+    if (attemptedManualLoad && !revealedMore) {
+      setUserFollowSnackbarMessage('No additional items are available to load.');
+      setUserFollowSnackbarSeverity('info');
+      setUserFollowSnackbarOpen(true);
+    }
+  }, [
+    activeHubTab,
+    hasSearchQuery,
+    loadingTimelines,
+    loadingSearchEvents,
+    loadingSearchUsers,
+    searchVisibleMaxCount,
+    visibleTimelineCount,
+    loadingPopular,
+    popularFilter,
+    visiblePopularTimelineCount,
+    popularTimelines.length,
+    visiblePopularPostCount,
+    popularEvents.length,
+    myCreationsFilter,
+    loadingMyCreationEvents,
+    visibleMyCreationsTimelineCount,
+    ownedTimelines.length,
+    visibleMyCreationsPostCount,
+    myCreationEvents.length,
+    loadingYourPage,
+    yourPageFilter,
+    visibleYourPageTimelineCount,
+    yourPageTimelines.length,
+    visibleYourPagePostCount,
+    yourPageEvents.length,
+  ]);
+
   const handleHubScroll = (e) => {
     const el = e.currentTarget;
     setShowActiveHubScrollTop(el.scrollTop > 24);
-    const maxCount = Math.max(
-      isTimelineSearchScope ? filteredTimelines.length : 0,
-      isPostSearchScope ? filteredPosts.length : 0,
-      isUserSearchScope ? filteredUsers.length : 0,
-    );
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && visibleTimelineCount < maxCount) {
-      setVisibleTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, maxCount));
+    const reachedBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ACTIVE_HUB_LOAD_MORE_TRIGGER_PX;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    setShowActiveHubLoadMore((prev) => {
+      if (distanceFromBottom <= ACTIVE_HUB_LOAD_MORE_TRIGGER_PX) return true;
+      if (distanceFromBottom >= ACTIVE_HUB_LOAD_MORE_HIDE_PX) return false;
+      return prev;
+    });
+    if (reachedBottom && visibleTimelineCount < searchVisibleMaxCount) {
+      setVisibleTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, searchVisibleMaxCount));
     }
   };
 
@@ -2917,6 +3279,7 @@ const HomePage = () => {
       }
       popularArrowVisibleRef.current = false;
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
     }
   };
 
@@ -2950,7 +3313,14 @@ const HomePage = () => {
       popularScrollIdleTimeoutRef.current = null;
     }, POPULAR_SCROLL_IDLE_MS);
 
-    if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
+    const reachedBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ACTIVE_HUB_LOAD_MORE_TRIGGER_PX;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    setShowActiveHubLoadMore((prev) => {
+      if (distanceFromBottom <= ACTIVE_HUB_LOAD_MORE_TRIGGER_PX) return true;
+      if (distanceFromBottom >= ACTIVE_HUB_LOAD_MORE_HIDE_PX) return false;
+      return prev;
+    });
+    if (!reachedBottom) return;
 
     if (popularFilter === 'timelines' && visiblePopularTimelines.length < popularTimelines.length) {
       setVisiblePopularTimelineCount((prev) => Math.min(prev + POPULAR_LIST_BATCH_SIZE, popularTimelines.length));
@@ -2965,6 +3335,7 @@ const HomePage = () => {
   const handleFriendsListScroll = React.useCallback((e) => {
     const el = e.currentTarget;
     setShowActiveHubScrollTop(el.scrollTop > 24);
+    setShowActiveHubLoadMore(false);
   }, []);
 
   const handleScrollActiveHubToTop = React.useCallback((event) => {
@@ -2974,12 +3345,20 @@ const HomePage = () => {
 
     el.scrollTo({ top: 0, behavior: 'smooth' });
     setShowActiveHubScrollTop(false);
+    setShowActiveHubLoadMore(false);
   }, [getActiveHubScrollElement]);
 
   const handleMyCreationsScroll = (e) => {
     const el = e.currentTarget;
     setShowActiveHubScrollTop(el.scrollTop > 24);
-    if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
+    const reachedBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ACTIVE_HUB_LOAD_MORE_TRIGGER_PX;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    setShowActiveHubLoadMore((prev) => {
+      if (distanceFromBottom <= ACTIVE_HUB_LOAD_MORE_TRIGGER_PX) return true;
+      if (distanceFromBottom >= ACTIVE_HUB_LOAD_MORE_HIDE_PX) return false;
+      return prev;
+    });
+    if (!reachedBottom) return;
 
     if (myCreationsFilter === 'timelines' && visibleOwnedTimelines.length < ownedTimelines.length) {
       setVisibleMyCreationsTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, ownedTimelines.length));
@@ -2997,6 +3376,7 @@ const HomePage = () => {
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
     }
   };
 
@@ -3006,6 +3386,7 @@ const HomePage = () => {
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
     }
   };
 
@@ -3028,6 +3409,7 @@ const HomePage = () => {
     if (myCreationsScrollRef.current) {
       myCreationsScrollRef.current.scrollTop = 0;
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
     }
 
     myCreationsFilterTransitionTimeoutRef.current = window.setTimeout(() => {
@@ -3048,13 +3430,21 @@ const HomePage = () => {
     if (yourPageScrollRef.current) {
       yourPageScrollRef.current.scrollTop = 0;
       setShowActiveHubScrollTop(false);
+      setShowActiveHubLoadMore(false);
     }
   };
 
   const handleYourPageScroll = (e) => {
     const el = e.currentTarget;
     setShowActiveHubScrollTop(el.scrollTop > 24);
-    if (el.scrollTop + el.clientHeight < el.scrollHeight - 120) return;
+    const reachedBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ACTIVE_HUB_LOAD_MORE_TRIGGER_PX;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    setShowActiveHubLoadMore((prev) => {
+      if (distanceFromBottom <= ACTIVE_HUB_LOAD_MORE_TRIGGER_PX) return true;
+      if (distanceFromBottom >= ACTIVE_HUB_LOAD_MORE_HIDE_PX) return false;
+      return prev;
+    });
+    if (!reachedBottom) return;
 
     if (yourPageFilter === 'timelines' && visibleYourPageTimelines.length < yourPageTimelines.length) {
       setVisibleYourPageTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageTimelines.length));
@@ -3319,7 +3709,24 @@ const HomePage = () => {
                   </Typography>
                 </Stack>
                 <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
-                  Timeline Spotlight of the Day
+                  Random Timeline
+                </Typography>
+              </>
+            ) : null}
+
+            {activeHeroSlide?.type === 'trending_community' ? (
+              <>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.2 }}>
+                  <GroupsIcon sx={{ fontSize: 22, opacity: 0.92 }} />
+                  <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.35rem' }, lineHeight: 1.1 }}>
+                    {trendingCommunityLabel || 'Trending community unavailable'}
+                  </Typography>
+                </Stack>
+                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
+                  Trending Community
+                </Typography>
+                <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
+                  {trendingCommunityTimeline?.description || 'Set a community timeline ID in Site Control to feature it here.'}
                 </Typography>
               </>
             ) : null}
@@ -3397,16 +3804,29 @@ const HomePage = () => {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Chip label={spotlightTimelineTypeLabel} variant="outlined" />
                 <Chip label={`Created ${formatDate(spotlightTimeline.created_at)}`} variant="outlined" />
-                <Button variant="contained" onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}>Open Spotlight Timeline</Button>
+                <Button variant="contained" onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}>Open Random Timeline</Button>
+              </Stack>
+            ) : null}
+
+            {activeHeroSlide?.type === 'trending_community' && trendingCommunityTimeline ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
+                <Chip label="Community Timeline" variant="outlined" />
+                <Chip label={`Created ${formatDate(trendingCommunityTimeline.created_at)}`} variant="outlined" />
+                <Button variant="contained" onClick={() => navigate(`/timeline-v3/${trendingCommunityTimeline.id}`)}>Open Trending Community</Button>
               </Stack>
             ) : null}
 
             {activeHeroSlide?.type === 'event_spotlight' && spotlightEvent ? (
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
-                {spotlightEvent?.timeline_name ? <Chip label={spotlightEvent.timeline_name} variant="outlined" /> : null}
+                <Button
+                  variant="contained"
+                  onClick={() => setHeroEventPopupEvent(spotlightEvent)}
+                >
+                  Open Event Popup
+                </Button>
                 {spotlightEvent?.timeline_id ? (
-                  <Button variant="contained" onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}>
-                    Open Timeline Event
+                  <Button variant="outlined" onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}>
+                    Open Timeline
                   </Button>
                 ) : null}
               </Stack>
@@ -3417,17 +3837,20 @@ const HomePage = () => {
                 <Button
                   variant="contained"
                   onClick={() => {
-                    const href = String(activeHeroSlide?.cta_href || '').trim();
-                    if (!href) return;
-                    if (/^https?:\/\//i.test(href)) {
-                      if (activeHeroSlide?.open_in_new_tab) {
-                        window.open(href, '_blank', 'noopener,noreferrer');
+                    const target = resolveHeroCtaTarget(activeHeroSlide?.cta_href);
+                    if (!target) return;
+
+                    if (target.external) {
+                      const shouldOpenInNewTab = activeHeroSlide?.open_in_new_tab !== false;
+                      if (shouldOpenInNewTab) {
+                        window.open(target.href, '_blank', 'noopener,noreferrer');
                       } else {
-                        window.location.assign(href);
+                        window.location.assign(target.href);
                       }
                       return;
                     }
-                    navigate(href.startsWith('/') ? href : `/${href}`);
+
+                    navigate(target.href);
                   }}
                 >
                   {activeHeroSlide?.cta_label}
@@ -3486,6 +3909,8 @@ const HomePage = () => {
             sx={{
               borderRadius: 3,
               p: 1.25,
+              display: 'flex',
+              flexDirection: 'column',
               border: '1px solid',
               borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(28,39,60,0.24)',
               background: theme.palette.mode === 'dark'
@@ -3581,6 +4006,37 @@ const HomePage = () => {
                 );
               })}
             </Stack>
+
+            <Box sx={{ mt: 'auto', pt: 1 }}>
+              <Button
+                aria-label="LOAD MORE"
+                startIcon={<ExpandMoreIcon fontSize="small" />}
+                variant="contained"
+                onClick={handleLoadMoreFromLeftHub}
+                sx={{
+                  justifyContent: 'flex-start',
+                  borderRadius: 2,
+                  width: '100%',
+                  height: 42,
+                  px: 1.5,
+                  color: 'common.white',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+                  boxShadow: '0 8px 16px rgba(37,99,235,0.25)',
+                  opacity: showActiveHubLoadMore ? 1 : 0,
+                  transform: showActiveHubLoadMore ? 'translateY(0px) scale(1)' : 'translateY(4px) scale(0.9)',
+                  pointerEvents: showActiveHubLoadMore ? 'auto' : 'none',
+                  transition: 'opacity 220ms ease, transform 220ms ease, background 200ms ease',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%)',
+                  },
+                }}
+              >
+                LOAD MORE
+              </Button>
+            </Box>
           </Paper>
 
           <Paper
@@ -3700,9 +4156,9 @@ const HomePage = () => {
                           </Box>
                         ) : (
                           <Box>
-                          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
-                            Created Timelines ({ownedTimelines.length})
-                          </Typography>
+                            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
+                              Created Timelines ({ownedTimelines.length})
+                            </Typography>
                           {ownedTimelines.length > 0 ? (
                             <Stack spacing={1.5} sx={{ mt: 0.75 }}>
                               {visibleOwnedTimelines.map((timeline) => renderTimelineCard(timeline, { allowFavoriteToggle: true }))}
@@ -3741,27 +4197,12 @@ const HomePage = () => {
                         )
                       )}
 
-                      {myCreationsFilter === 'timelines' && visibleOwnedTimelines.length < ownedTimelines.length ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 0.5 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => setVisibleMyCreationsTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, ownedTimelines.length))}
-                          >
-                            Load Next 100
-                          </Button>
+                      {showActiveHubLoadMore && !activeHubCanLoadMore && !loadingTimelines && !loadingMyCreationEvents ? (
+                        <Box sx={{ py: 2.25, textAlign: 'center' }}>
+                          <Typography color="text.secondary">You have reached the end</Typography>
                         </Box>
                       ) : null}
 
-                      {myCreationsFilter === 'posts' && visibleMyCreationPosts.length < myCreationEvents.length ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 0.5 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => setVisibleMyCreationsPostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, myCreationEvents.length))}
-                          >
-                            Load Next 100
-                          </Button>
-                        </Box>
-                      ) : null}
                     </Stack>
                   </Box>
                 </Box>
@@ -3862,16 +4303,6 @@ const HomePage = () => {
                           No public timelines with popularity data available yet.
                         </Typography>
                       )}
-                      {visiblePopularTimelines.length < popularTimelines.length ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => setVisiblePopularTimelineCount((prev) => Math.min(prev + POPULAR_LIST_BATCH_SIZE, popularTimelines.length))}
-                          >
-                            Load Next 50
-                          </Button>
-                        </Box>
-                      ) : null}
                     </Box>
                   ) : (
                     <Box>
@@ -3891,18 +4322,14 @@ const HomePage = () => {
                           No public posts with votes available yet.
                         </Typography>
                       )}
-                      {visiblePopularPosts.length < popularEvents.length ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => setVisiblePopularPostCount((prev) => Math.min(prev + POPULAR_LIST_BATCH_SIZE, popularEvents.length))}
-                          >
-                            Load Next 50
-                          </Button>
-                        </Box>
-                      ) : null}
                     </Box>
                   )}
+
+                  {showActiveHubLoadMore && !activeHubCanLoadMore && !loadingPopular ? (
+                    <Box sx={{ py: 2.25, textAlign: 'center' }}>
+                      <Typography color="text.secondary">You have reached the end</Typography>
+                    </Box>
+                  ) : null}
                 </Box>
               ) : activeHubTab === 'your-page' ? (
                 <Box
@@ -4001,16 +4428,6 @@ const HomePage = () => {
                           No timelines found yet. Watch hashtags or join communities to populate this list.
                         </Typography>
                       )}
-                      {visibleYourPageTimelines.length < yourPageTimelines.length ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => setVisibleYourPageTimelineCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageTimelines.length))}
-                          >
-                            Load Next 100
-                          </Button>
-                        </Box>
-                      ) : null}
                     </Box>
                   ) : (
                     <Box>
@@ -4030,18 +4447,14 @@ const HomePage = () => {
                           No posts available yet. Follow hashtags and users or join communities to build your feed.
                         </Typography>
                       )}
-                      {visibleYourPagePosts.length < yourPageEvents.length ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => setVisibleYourPagePostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, yourPageEvents.length))}
-                          >
-                            Load Next 100
-                          </Button>
-                        </Box>
-                      ) : null}
                     </Box>
                   )}
+
+                  {showActiveHubLoadMore && !activeHubCanLoadMore && !loadingYourPage ? (
+                    <Box sx={{ py: 2.25, textAlign: 'center' }}>
+                      <Typography color="text.secondary">You have reached the end</Typography>
+                    </Box>
+                  ) : null}
                 </Box>
               ) : activeHubTab === 'favorite' ? (
                 <Box sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}>
@@ -4810,28 +5223,12 @@ const HomePage = () => {
                           </Box>
                         )}
 
-                        {!loadingTimelines && !loadingSearchEvents && !loadingSearchUsers && hasSearchQuery &&
-                        visibleTimelineCount < Math.max(
-                          isTimelineSearchScope ? filteredTimelines.length : 0,
-                          isPostSearchScope ? filteredPosts.length : 0,
-                          isUserSearchScope ? filteredUsers.length : 0,
-                        ) ? (
-                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                            <Button
-                              variant="outlined"
-                              onClick={() => setVisibleTimelineCount((prev) => Math.min(
-                                prev + HOME_LIST_BATCH_SIZE,
-                                Math.max(
-                                  isTimelineSearchScope ? filteredTimelines.length : 0,
-                                  isPostSearchScope ? filteredPosts.length : 0,
-                                  isUserSearchScope ? filteredUsers.length : 0,
-                                ),
-                              ))}
-                            >
-                              Load Next 100
-                            </Button>
+                        {showActiveHubLoadMore && !activeHubCanLoadMore && !loadingTimelines && !loadingSearchEvents && !loadingSearchUsers && hasSearchQuery ? (
+                          <Box sx={{ py: 2.25, textAlign: 'center' }}>
+                            <Typography color="text.secondary">You have reached the end</Typography>
                           </Box>
                         ) : null}
+
                       </Box>
                       <Box
                         sx={{
@@ -4976,6 +5373,18 @@ const HomePage = () => {
           submitLoading={postSubmitLoading}
           submitDisabled={postSubmitLoading}
         />
+
+        {heroEventPopupEvent ? (
+          <EventPopup
+            event={heroEventPopupEvent}
+            open
+            onClose={() => setHeroEventPopupEvent(null)}
+            onDelete={() => {}}
+            onEdit={() => {}}
+            setIsPopupOpen={() => {}}
+            reviewingEventIds={EMPTY_REVIEWING_EVENT_IDS}
+          />
+        ) : null}
 
         <Dialog
           open={dialogOpen}

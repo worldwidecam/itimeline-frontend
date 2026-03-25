@@ -624,6 +624,22 @@ Frontend:
 
 ### Engineering Guidelines
 
+#### Responsive Card Layout Standard (Mar 2026)
+
+When cards are viewed under changing viewport dimensions (desktop DevTools, split views, mobile), **layout priority comes before density**.
+
+- **No element collisions**: text, chips, badges, and CTAs must never overlap.
+- **Preserve semantic zones**: keep media, metadata, content, and actions in stable zones.
+- **Reflow early**: switch to stacked/column layouts before horizontal squeeze causes collisions.
+- **Avoid brittle absolute positioning** inside card headers unless sufficient reserved space is guaranteed.
+- **Shrink/reflow the card container behavior**, not by compressing internal elements until they collide.
+- **Long-content resilience**: timeline names and labels must support wrapping/breaking without pushing controls off-canvas.
+
+Validation expectation before merge:
+1. Test common desktop widths with DevTools docked and undocked.
+2. Test at least one narrow mobile viewport where card actions are still tappable.
+3. Confirm that card sections remain readable with no overlap at each tested breakpoint.
+
 #### Settings Page Styling Standard (Site Control Baseline) (Feb 2026)
 
 Use the Site Control page as the baseline visual language for all settings-style pages.
