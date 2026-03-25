@@ -33,6 +33,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../utils/formStyleGuide';
 
 const Profile = () => {
   const { userId } = useParams();
@@ -419,9 +425,15 @@ const Profile = () => {
         </Box>
       )}
 
-      <Dialog open={reportDialogOpen} onClose={handleCloseReportDialog} fullWidth maxWidth="sm">
+      <Dialog
+        open={reportDialogOpen}
+        onClose={handleCloseReportDialog}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+      >
         <DialogTitle>Report {profileUser?.username || 'User'}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This report creates a moderation ticket for Site Control.
           </Typography>
@@ -448,9 +460,37 @@ const Profile = () => {
             placeholder="Add context for moderators"
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseReportDialog} disabled={reportSubmitting}>Cancel</Button>
-          <Button onClick={handleSubmitUserReport} variant="contained" color="error" disabled={reportSubmitting}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseReportDialog}
+            disabled={reportSubmitting}
+            variant="contained"
+            sx={{
+              ...getGlassSquareActionButtonSx(theme),
+              width: 'auto',
+              minWidth: 84,
+              px: 2,
+              borderRadius: 1.4,
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitUserReport}
+            variant="contained"
+            disabled={reportSubmitting}
+            sx={{
+              ...getGlassPillActionButtonSx(theme),
+              bgcolor: theme.palette.error.main,
+              color: '#fff',
+              border: '1px solid',
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(248,113,113,0.65)' : 'rgba(220,38,38,0.55)',
+              '&:hover': {
+                bgcolor: theme.palette.error.dark,
+                color: '#fff',
+              },
+            }}
+          >
             {reportSubmitting ? 'Submitting...' : 'Submit Report'}
           </Button>
         </DialogActions>

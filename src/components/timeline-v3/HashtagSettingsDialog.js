@@ -13,6 +13,12 @@ import {
   useTheme,
 } from '@mui/material';
 import api, { updateTimelineDetails } from '../../utils/api';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../utils/formStyleGuide';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const FRAME_POSITION_MIN = -40;
@@ -293,9 +299,15 @@ const HashtagSettingsDialog = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+    >
       <DialogTitle>Hashtag Settings</DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Manage description and portrait cover for #{timelineName || 'hashtag'} trading/share cards.
         </Typography>
@@ -459,8 +471,25 @@ const HashtagSettingsDialog = ({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" onClick={handleSaveSettings} disabled={!hasUnsavedChanges || isSaving}>
+        <Button
+          onClick={onClose}
+          variant="contained"
+          sx={{
+            ...getGlassSquareActionButtonSx(theme),
+            width: 'auto',
+            minWidth: 84,
+            px: 2,
+            borderRadius: 1.4,
+          }}
+        >
+          Close
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={handleSaveSettings}
+          disabled={!hasUnsavedChanges || isSaving}
+          sx={getGlassPillActionButtonSx(theme)}
+        >
           {isSaving ? 'Saving...' : 'Save changes'}
         </Button>
       </DialogActions>

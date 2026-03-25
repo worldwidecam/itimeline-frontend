@@ -37,6 +37,12 @@ import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import HashtagIcon from '../../common/HashtagIcon';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../../utils/formStyleGuide';
 
 const EVENT_TITLE_MAX_LENGTH = 120;
 
@@ -657,11 +663,7 @@ const EventDialog = ({
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: {
-          borderRadius: 3,
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(10px)',
-        }
+        sx: getGlassDialogPaperSx(theme)
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>
@@ -675,7 +677,12 @@ const EventDialog = ({
         </Stack>
       </DialogTitle>
 
-      <DialogContent sx={{ pb: 0 }}>
+      <DialogContent
+        sx={{
+          pb: 0,
+          '& .MuiTextField-root': getGlassInputSx(theme),
+        }}
+      >
         <ToggleButtonGroup
           value={eventType}
           exclusive
@@ -854,15 +861,33 @@ const EventDialog = ({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} disabled={submitLoading}>Cancel</Button>
+        <Button
+          onClick={onClose}
+          disabled={submitLoading}
+          variant="contained"
+          sx={{
+            ...getGlassSquareActionButtonSx(theme),
+            width: 'auto',
+            minWidth: 84,
+            px: 2,
+            borderRadius: 1.4,
+          }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={submitLoading || submitDisabled || !title || !eventDate || (showVerdictField && !(verdict || '').trim())}
           sx={{
+            ...getGlassPillActionButtonSx(theme),
             bgcolor: getTypeColor(),
+            color: '#fff',
+            border: '1px solid',
+            borderColor: `${getTypeColor()}66`,
             '&:hover': {
-              bgcolor: getHoverColor()
+              bgcolor: getHoverColor(),
+              color: '#fff',
             }
           }}
         >

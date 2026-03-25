@@ -77,6 +77,12 @@ import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getAc
 import TradingCard from './common/TradingCard';
 import EventDialog from './timeline-v3/events/EventDialog';
 import EventPopup from './timeline-v3/events/EventPopup';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassPillActionButtonSx,
+  getGlassSquareActionButtonSx,
+} from '../utils/formStyleGuide';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -1203,6 +1209,65 @@ const HomePage = () => {
     return '';
   }, [spotlightEvent]);
   const advertisementMediaUrl = String(activeHeroSlide?.media_url || '').trim();
+  const advertisementMetadataImageUrl = React.useMemo(() => {
+    if (activeHeroSlide?.type !== 'advertisement') return '';
+
+    const parsedContent = (() => {
+      const rawContent = activeHeroSlide?.content;
+      if (!rawContent || typeof rawContent !== 'string') return null;
+      const trimmed = rawContent.trim();
+      if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (_error) {
+        return null;
+      }
+    })();
+
+    const metadata = activeHeroSlide?.metadata && typeof activeHeroSlide.metadata === 'object'
+      ? activeHeroSlide.metadata
+      : null;
+
+    const linkPreview = activeHeroSlide?.link_preview && typeof activeHeroSlide.link_preview === 'object'
+      ? activeHeroSlide.link_preview
+      : null;
+
+    const urlPreview = activeHeroSlide?.url_preview && typeof activeHeroSlide.url_preview === 'object'
+      ? activeHeroSlide.url_preview
+      : null;
+
+    const ctaMetadata = activeHeroSlide?.cta_metadata && typeof activeHeroSlide.cta_metadata === 'object'
+      ? activeHeroSlide.cta_metadata
+      : null;
+
+    const candidateImageValues = [
+      activeHeroSlide?.image_url,
+      activeHeroSlide?.url_image,
+      activeHeroSlide?.preview_image,
+      activeHeroSlide?.thumbnail_url,
+      activeHeroSlide?.cover_url,
+      activeHeroSlide?.image,
+      metadata?.url_image,
+      metadata?.image,
+      metadata?.preview_image,
+      linkPreview?.image,
+      urlPreview?.image,
+      ctaMetadata?.url_image,
+      ctaMetadata?.image,
+      parsedContent?.url_image,
+      parsedContent?.image,
+      parsedContent?.preview_image,
+    ];
+
+    for (let index = 0; index < candidateImageValues.length; index += 1) {
+      const value = String(candidateImageValues[index] || '').trim();
+      if (value) return value;
+    }
+
+    return '';
+  }, [activeHeroSlide]);
+  const advertisementHeroImageUrl = advertisementMediaUrl || advertisementMetadataImageUrl;
 
   const heroVisualStyles = React.useMemo(() => {
     if (activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimelineImageUrl) {
@@ -1294,9 +1359,9 @@ const HomePage = () => {
     }
 
     if (activeHeroSlide?.type === 'advertisement') {
-      if (advertisementMediaUrl) {
+      if (advertisementHeroImageUrl) {
         return {
-          backgroundImage: `url(${advertisementMediaUrl})`,
+          backgroundImage: `url(${advertisementHeroImageUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           fogOverlay: theme.palette.mode === 'dark'
@@ -1353,7 +1418,7 @@ const HomePage = () => {
     trendingCommunityImageUrl,
     trendingCommunityImagePrivilegeEnabled,
     spotlightEventImageUrl,
-    advertisementMediaUrl,
+    advertisementHeroImageUrl,
     theme.palette.mode,
   ]);
 
@@ -4054,10 +4119,6 @@ const HomePage = () => {
               background: heroVisualStyles.blurOverlay,
               backdropFilter: heroVisualStyles.applyHardBlur ? 'blur(18px) saturate(0.45)' : 'none',
             },
-            '& > *': {
-              position: 'relative',
-              zIndex: 1,
-            },
           }}
         >
           <Box
@@ -4163,37 +4224,7 @@ const HomePage = () => {
                   variant="outlined"
                   endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} />}
                   onClick={() => setDialogOpen(true)}
-                  sx={{
-                    borderRadius: '999px',
-                    px: 2.2,
-                    py: 0.75,
-                    fontWeight: 800,
-                    letterSpacing: '0.02em',
-                    textTransform: 'none',
-                    color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
-                    borderColor: theme.palette.mode === 'dark'
-                      ? alpha('#f8fafc', 0.36)
-                      : alpha('#0f172a', 0.3),
-                    background: theme.palette.mode === 'dark'
-                      ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.22)} 0%, ${alpha('#0ea5e9', 0.12)} 100%)`
-                      : `linear-gradient(135deg, ${alpha('#ffffff', 0.84)} 0%, ${alpha('#e0f2fe', 0.84)} 100%)`,
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 10px 22px rgba(2, 132, 199, 0.22)'
-                      : '0 10px 22px rgba(14, 116, 144, 0.16)',
-                    transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease',
-                    '&:hover': {
-                      borderColor: theme.palette.mode === 'dark'
-                        ? alpha('#e0f2fe', 0.7)
-                        : alpha('#0369a1', 0.55),
-                      background: theme.palette.mode === 'dark'
-                        ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.3)} 0%, ${alpha('#0284c7', 0.16)} 100%)`
-                        : `linear-gradient(135deg, ${alpha('#f0f9ff', 0.95)} 0%, ${alpha('#bae6fd', 0.9)} 100%)`,
-                      boxShadow: theme.palette.mode === 'dark'
-                        ? '0 14px 28px rgba(2, 132, 199, 0.3)'
-                        : '0 14px 28px rgba(14, 116, 144, 0.2)',
-                      transform: 'translateY(-1px)',
-                    },
-                  }}
+                  sx={getGlassPillActionButtonSx(theme)}
                 >
                   Create Your Timeline
                 </Button>
@@ -4246,7 +4277,7 @@ const HomePage = () => {
             {activeHeroSlide?.type === 'advertisement' && activeHeroSlide?.cta_label ? (
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   onClick={() => {
                     const target = resolveHeroCtaTarget(activeHeroSlide?.cta_href);
                     if (!target) return;
@@ -4263,6 +4294,7 @@ const HomePage = () => {
 
                     navigate(target.href);
                   }}
+                  sx={getGlassPillActionButtonSx(theme)}
                 >
                   {activeHeroSlide?.cta_label}
                 </Button>
@@ -4290,7 +4322,7 @@ const HomePage = () => {
             />
           ) : null}
 
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2, position: 'relative', zIndex: 1 }}>
             {enabledHeroSlides.map((_slide, dotIndex) => {
               const isActive = dotIndex === heroIndex;
               return (
@@ -5704,7 +5736,13 @@ const HomePage = () => {
           </Paper>
         </Box>
 
-        <Dialog open={postTypeDialogOpen} onClose={handleCloseMakePostDialog} maxWidth="xs" fullWidth>
+        <Dialog
+          open={postTypeDialogOpen}
+          onClose={handleCloseMakePostDialog}
+          maxWidth="xs"
+          fullWidth
+          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+        >
           <DialogTitle sx={{ pb: 1 }}>Make a Post</DialogTitle>
           <DialogContent sx={{ pt: '10px !important' }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
@@ -5751,14 +5789,23 @@ const HomePage = () => {
               </Button>
 
               {postAdvancedOpen ? (
-                <Paper variant="outlined" sx={{ p: 1.2, borderRadius: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(11,16,27,0.7)' : 'rgba(255,250,241,0.86)' }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.2,
+                    borderRadius: 2,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(11,16,27,0.7)' : 'rgba(255,250,241,0.86)',
+                    borderColor: theme.palette.mode === 'dark' ? alpha('#cbd5e1', 0.2) : alpha('#0f172a', 0.16),
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
                   <TextField
                     size="small"
                     fullWidth
                     placeholder="Search followed timelines..."
                     value={postTimelineSearchInput}
                     onChange={(event) => setPostTimelineSearchInput(event.target.value)}
-                    sx={{ mb: 1 }}
+                    sx={{ mb: 1, ...getGlassInputSx(theme) }}
                   />
 
                   <Box sx={{ maxHeight: 210, overflowY: 'auto', pr: 0.2 }}>
@@ -5841,15 +5888,7 @@ const HomePage = () => {
           maxWidth="sm"
           fullWidth
           PaperProps={{
-            sx: {
-              borderRadius: 3.2,
-              overflow: 'hidden',
-              border: '1px solid',
-              borderColor: theme.palette.mode === 'dark' ? alpha('#7dd3fc', 0.2) : alpha('#0369a1', 0.2),
-              background: theme.palette.mode === 'dark'
-                ? `linear-gradient(150deg, ${alpha('#0b1220', 0.96)} 0%, ${alpha('#111827', 0.94)} 100%)`
-                : `linear-gradient(150deg, ${alpha('#ffffff', 0.97)} 0%, ${alpha('#f0f9ff', 0.94)} 100%)`,
-            },
+            sx: getGlassDialogPaperSx(theme),
           }}
         >
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1.1 }}>
@@ -5999,7 +6038,7 @@ const HomePage = () => {
                   fullWidth
                   value={formData.name}
                   onChange={handleInputChange}
-                  sx={{ mb: 2.2 }}
+                  sx={{ mb: 2.2, ...getGlassInputSx(theme) }}
                 />
                 <TextField
                   name="description"
@@ -6010,6 +6049,7 @@ const HomePage = () => {
                   rows={3}
                   value={formData.description}
                   onChange={handleInputChange}
+                  sx={getGlassInputSx(theme)}
                 />
               </Box>
             )}
@@ -6019,18 +6059,7 @@ const HomePage = () => {
               onClick={handleDialogClose}
               disabled={loading}
               variant="contained"
-              sx={{
-                minWidth: 44,
-                width: 44,
-                height: 44,
-                borderRadius: 1,
-                p: 0,
-                bgcolor: theme.palette.mode === 'dark' ? '#0284c7' : '#0ea5e9',
-                color: '#ffffff',
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? '#0369a1' : '#0284c7',
-                },
-              }}
+              sx={getGlassSquareActionButtonSx(theme)}
             >
               <CloseIcon fontSize="small" />
             </Button>
@@ -6039,37 +6068,7 @@ const HomePage = () => {
               variant="outlined"
               endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} />}
               disabled={loading || !hasSelectedTimelineType}
-              sx={{
-                borderRadius: '999px',
-                px: 2.2,
-                py: 0.75,
-                fontWeight: 800,
-                letterSpacing: '0.02em',
-                textTransform: 'none',
-                color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
-                borderColor: theme.palette.mode === 'dark'
-                  ? alpha('#f8fafc', 0.36)
-                  : alpha('#0f172a', 0.3),
-                background: theme.palette.mode === 'dark'
-                  ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.22)} 0%, ${alpha('#0ea5e9', 0.12)} 100%)`
-                  : `linear-gradient(135deg, ${alpha('#ffffff', 0.84)} 0%, ${alpha('#e0f2fe', 0.84)} 100%)`,
-                boxShadow: theme.palette.mode === 'dark'
-                  ? '0 10px 22px rgba(2, 132, 199, 0.22)'
-                  : '0 10px 22px rgba(14, 116, 144, 0.16)',
-                transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease',
-                '&:hover': {
-                  borderColor: theme.palette.mode === 'dark'
-                    ? alpha('#e0f2fe', 0.7)
-                    : alpha('#0369a1', 0.55),
-                  background: theme.palette.mode === 'dark'
-                    ? `linear-gradient(135deg, ${alpha('#38bdf8', 0.3)} 0%, ${alpha('#0284c7', 0.16)} 100%)`
-                    : `linear-gradient(135deg, ${alpha('#f0f9ff', 0.95)} 0%, ${alpha('#bae6fd', 0.9)} 100%)`,
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 14px 28px rgba(2, 132, 199, 0.3)'
-                    : '0 14px 28px rgba(14, 116, 144, 0.2)',
-                  transform: 'translateY(-1px)',
-                },
-              }}
+              sx={getGlassPillActionButtonSx(theme)}
             >
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Create Timeline'}
             </Button>

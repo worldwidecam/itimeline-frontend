@@ -12,6 +12,11 @@ import {
   useTheme,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassPillActionButtonSx,
+} from '../utils/formStyleGuide';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -72,10 +77,8 @@ const Login = () => {
         <Paper 
           elevation={3} 
           sx={{ 
+            ...getGlassDialogPaperSx(theme),
             p: 4, 
-            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 2,
             boxShadow: theme.palette.mode === 'dark' 
               ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
               : '0 8px 32px rgba(0, 0, 0, 0.1)',
@@ -93,7 +96,7 @@ const Login = () => {
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
           <TextField
             fullWidth
             label="Email"
@@ -104,21 +107,7 @@ const Login = () => {
             margin="normal"
             required
             autoComplete="username email"
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{
-              '& .MuiInputLabel-root': {
-                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
-                fontWeight: 500,
-              },
-              '& .MuiOutlinedInput-root': {
-                '&.Mui-focused fieldset': {
-                  borderColor: theme.palette.primary.main,
-                  borderWidth: 2,
-                },
-              },
-            }}
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             fullWidth
@@ -130,28 +119,17 @@ const Login = () => {
             margin="normal"
             required
             autoComplete="current-password"
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{
-              '& .MuiInputLabel-root': {
-                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
-                fontWeight: 500,
-              },
-              '& .MuiOutlinedInput-root': {
-                '&.Mui-focused fieldset': {
-                  borderColor: theme.palette.primary.main,
-                  borderWidth: 2,
-                },
-              },
-            }}
+            InputLabelProps={{ shrink: true }}
           />
           <Button
             type="submit"
             fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ mt: 3, mb: 2 }}
+            variant="outlined"
+            sx={{
+              ...getGlassPillActionButtonSx(theme),
+              mt: 3,
+              mb: 2,
+            }}
           >
             Login
           </Button>

@@ -12,6 +12,11 @@ import {
   useTheme,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassPillActionButtonSx,
+} from '../utils/formStyleGuide';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -92,10 +97,8 @@ const Register = () => {
         <Paper 
           elevation={3} 
           sx={{ 
+            ...getGlassDialogPaperSx(theme),
             p: 4, 
-            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 2,
             boxShadow: theme.palette.mode === 'dark' 
               ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
               : '0 8px 32px rgba(0, 0, 0, 0.1)',
@@ -114,7 +117,7 @@ const Register = () => {
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
           <TextField
             fullWidth
             label="Username"
@@ -157,9 +160,12 @@ const Register = () => {
           <Button
             type="submit"
             fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ mt: 3, mb: 2 }}
+            variant="outlined"
+            sx={{
+              ...getGlassPillActionButtonSx(theme),
+              mt: 3,
+              mb: 2,
+            }}
           >
             Register
           </Button>

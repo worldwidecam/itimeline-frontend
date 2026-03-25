@@ -14,6 +14,10 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { motion } from 'framer-motion';
 import { completeRequiredUsernameChange } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  getGlassInputSx,
+  getGlassPillActionButtonSx,
+} from '../utils/formStyleGuide';
 
 const RequiredUsernameChangePage = () => {
   const navigate = useNavigate();
@@ -224,7 +228,9 @@ const RequiredUsernameChangePage = () => {
                     autoFocus
                     variant="outlined"
                     sx={{
+                      ...getGlassInputSx(theme),
                       '& .MuiOutlinedInput-root': {
+                        ...getGlassInputSx(theme)['& .MuiOutlinedInput-root'],
                         borderRadius: 2,
                         background: 'rgba(255, 255, 255, 0.92)',
                       },
@@ -239,6 +245,7 @@ const RequiredUsernameChangePage = () => {
                     disabled={submitting}
                     fullWidth
                     sx={{
+                      ...getGlassPillActionButtonSx(theme),
                       mt: 2,
                       px: 4,
                       py: 1.5,

@@ -15,6 +15,12 @@ import {
 } from '@mui/material';
 import api, { updateTimelineDetails } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../utils/formStyleGuide';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const FRAME_POSITION_MIN = -40;
@@ -270,14 +276,18 @@ const PersonalAccessPanel = ({
       fullWidth
       PaperProps={{
         sx: {
+          ...getGlassDialogPaperSx(theme),
           minHeight: { xs: '82vh', md: '70vh' },
-          borderRadius: 3,
-          overflow: 'hidden',
         },
       }}
     >
       <DialogTitle sx={{ pb: 0 }}>Access Panel</DialogTitle>
-      <DialogContent sx={{ pt: 2 }}>
+      <DialogContent
+        sx={{
+          pt: 2,
+          '& .MuiTextField-root': getGlassInputSx(theme),
+        }}
+      >
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Control who can see this personal timeline, plus set a portrait cover for the trading card.
         </Typography>
@@ -679,11 +689,24 @@ const PersonalAccessPanel = ({
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Close</Button>
         <Button
+          onClick={onClose}
           variant="contained"
+          sx={{
+            ...getGlassSquareActionButtonSx(theme),
+            width: 'auto',
+            minWidth: 84,
+            px: 2,
+            borderRadius: 1.4,
+          }}
+        >
+          Close
+        </Button>
+        <Button
+          variant="outlined"
           onClick={handleSaveCover}
           disabled={!hasUnsavedChanges || isUploadingCover}
+          sx={getGlassPillActionButtonSx(theme)}
         >
           {isUploadingCover ? 'Saving...' : 'Save changes'}
         </Button>

@@ -33,6 +33,11 @@ import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassPillActionButtonSx,
+} from '../utils/formStyleGuide';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
@@ -451,10 +456,8 @@ const ProfileSettings = () => {
     >
     <Container maxWidth="md">
       <Paper sx={{ 
+        ...getGlassDialogPaperSx(theme),
         p: 4, 
-        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: 2,
         boxShadow: theme.palette.mode === 'dark' 
           ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
           : '0 8px 32px rgba(0, 0, 0, 0.1)'
@@ -545,7 +548,13 @@ const ProfileSettings = () => {
           <Divider sx={{ my: 3 }} />
         </Box>
         
-        <Box component="form" sx={{ mt: 3 }}>
+        <Box
+          component="form"
+          sx={{
+            mt: 3,
+            '& .MuiTextField-root': getGlassInputSx(theme),
+          }}
+        >
           <Grid container spacing={3}>
             <Grid item xs={12} sm={4} md={3}>
               <Tooltip title={`Max size: ${formatFileSize(MAX_FILE_SIZE)}`} placement="top">
@@ -788,10 +797,10 @@ const ProfileSettings = () => {
 
             <Grid item xs={12}>
               <Button
-                variant="contained"
-                color="primary"
+                variant="outlined"
                 onClick={handleMusicSubmit}
                 disabled={!musicFile}
+                sx={getGlassPillActionButtonSx(theme)}
               >
                 Update Music
               </Button>
