@@ -2559,16 +2559,19 @@ const SiteSettingsTab = ({ canManageSettings }) => {
     };
 
     if (slideType === 'event_spotlight') {
+      baseSlide.selection_mode = 'manual';
       baseSlide.event_id = null;
     }
 
     if (slideType === 'trending_community') {
+      baseSlide.selection_mode = 'manual';
       baseSlide.timeline_id = null;
     }
 
     if (slideType === 'advertisement') {
       baseSlide.headline = '';
       baseSlide.subtext = '';
+      baseSlide.media_url = '';
       baseSlide.cta_label = '';
       baseSlide.cta_href = '';
       baseSlide.open_in_new_tab = false;
@@ -2786,26 +2789,68 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                               </TableCell>
                               <TableCell>
                                 {slideType === 'trending_community' ? (
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    label="Timeline ID"
-                                    value={slide?.timeline_id ?? ''}
-                                    onChange={(e) => handleUpdateHomeHeroSlide(slideType, { timeline_id: Number(e.target.value) || null })}
-                                    helperText="Community timeline to feature in Trending Community slide"
-                                    disabled={loadingSettings}
-                                  />
+                                  <Stack spacing={1}>
+                                    <FormControl size="small" fullWidth disabled={loadingSettings}>
+                                      <InputLabel id={`home-hero-trending-mode-${slideType}`}>Selection Mode</InputLabel>
+                                      <Select
+                                        labelId={`home-hero-trending-mode-${slideType}`}
+                                        label="Selection Mode"
+                                        value={String(slide?.selection_mode || 'manual').toLowerCase()}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { selection_mode: e.target.value })}
+                                      >
+                                        <MenuItem value="manual">Manual Timeline ID</MenuItem>
+                                        <MenuItem value="top_members_followers">Top Members/Followers</MenuItem>
+                                      </Select>
+                                    </FormControl>
+
+                                    {String(slide?.selection_mode || 'manual').toLowerCase() === 'manual' ? (
+                                      <TextField
+                                        size="small"
+                                        type="number"
+                                        label="Timeline ID"
+                                        value={slide?.timeline_id ?? ''}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { timeline_id: Number(e.target.value) || null })}
+                                        helperText="Community timeline to feature in Trending Community slide"
+                                        disabled={loadingSettings}
+                                      />
+                                    ) : (
+                                      <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
+                                        Home Hero will auto-pick the public community with the highest members/followers score.
+                                      </Typography>
+                                    )}
+                                  </Stack>
                                 ) : null}
 
                                 {slideType === 'event_spotlight' ? (
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    label="Event ID"
-                                    value={slide?.event_id ?? ''}
-                                    onChange={(e) => handleUpdateHomeHeroSlide(slideType, { event_id: Number(e.target.value) || null })}
-                                    disabled={loadingSettings}
-                                  />
+                                  <Stack spacing={1}>
+                                    <FormControl size="small" fullWidth disabled={loadingSettings}>
+                                      <InputLabel id={`home-hero-event-mode-${slideType}`}>Selection Mode</InputLabel>
+                                      <Select
+                                        labelId={`home-hero-event-mode-${slideType}`}
+                                        label="Selection Mode"
+                                        value={String(slide?.selection_mode || 'manual').toLowerCase()}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { selection_mode: e.target.value })}
+                                      >
+                                        <MenuItem value="manual">Manual Event ID</MenuItem>
+                                        <MenuItem value="top_votes_today">Top Votes Today</MenuItem>
+                                      </Select>
+                                    </FormControl>
+
+                                    {String(slide?.selection_mode || 'manual').toLowerCase() === 'manual' ? (
+                                      <TextField
+                                        size="small"
+                                        type="number"
+                                        label="Event ID"
+                                        value={slide?.event_id ?? ''}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { event_id: Number(e.target.value) || null })}
+                                        disabled={loadingSettings}
+                                      />
+                                    ) : (
+                                      <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
+                                        Home Hero will auto-pick today's most-voted event from loaded public timeline feeds.
+                                      </Typography>
+                                    )}
+                                  </Stack>
                                 ) : null}
 
                                 {slideType === 'advertisement' ? (
@@ -2822,6 +2867,14 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                                       label="Subtext"
                                       value={slide?.subtext || ''}
                                       onChange={(e) => handleUpdateHomeHeroSlide(slideType, { subtext: e.target.value })}
+                                      disabled={loadingSettings}
+                                    />
+                                    <TextField
+                                      size="small"
+                                      label="Media URL (Landscape Background)"
+                                      value={slide?.media_url || ''}
+                                      onChange={(e) => handleUpdateHomeHeroSlide(slideType, { media_url: e.target.value })}
+                                      helperText="Optional image URL used as the ad slide background"
                                       disabled={loadingSettings}
                                     />
                                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>

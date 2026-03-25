@@ -83,7 +83,7 @@ const HOME_HERO_DEFAULT_SLIDES = [
   { type: 'welcome', enabled: true },
   { type: 'timeline_spotlight', enabled: true },
 ];
-const HERO_CONTENT_FADE_MS = 180;
+const HERO_CONTENT_FADE_MS = 280;
 const HOME_NAVBAR_OFFSET_PX = 78;
 const SEARCH_SUBMIT_DELAY_MS = 340;
 const SEARCH_RESULT_HANDOFF_MS = 140;
@@ -275,8 +275,13 @@ const HomePage = () => {
   const popularScrollRef = React.useRef(null);
   const myCreationsScrollRef = React.useRef(null);
   const yourPageScrollRef = React.useRef(null);
+  const favoriteScrollRef = React.useRef(null);
   const friendsListScrollRef = React.useRef(null);
   const heroTransitionTimeoutRef = React.useRef(null);
+  const heroTransitionRequestRef = React.useRef(0);
+  const topVotesTodayFetchPromiseRef = React.useRef(null);
+  const topVotesTodayFetchDayRef = React.useRef('');
+  const topVotesTodayFetchAtRef = React.useRef(0);
   const hubTransitionTimeoutRef = React.useRef(null);
   const myCreationsFetchTimeoutRef = React.useRef(null);
   const myCreationsFilterTransitionTimeoutRef = React.useRef(null);
@@ -348,6 +353,7 @@ const HomePage = () => {
   const [hasLoadedMyCreationEvents, setHasLoadedMyCreationEvents] = React.useState(false);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
   const [heroIndex, setHeroIndex] = React.useState(0);
+  const [heroTransitionPending, setHeroTransitionPending] = React.useState(false);
   const [heroRotateMs, setHeroRotateMs] = React.useState(HOME_HERO_DEFAULT_ROTATE_MS);
   const [heroSlides, setHeroSlides] = React.useState(HOME_HERO_DEFAULT_SLIDES);
   const [isHeroContentVisible, setIsHeroContentVisible] = React.useState(true);
@@ -375,6 +381,7 @@ const HomePage = () => {
   const [visibleMyCreationsPostCount, setVisibleMyCreationsPostCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleYourPageTimelineCount, setVisibleYourPageTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visibleYourPagePostCount, setVisibleYourPagePostCount] = React.useState(HOME_LIST_BATCH_SIZE);
+  const [visibleFavoritePostCount, setVisibleFavoritePostCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [popularTimelines, setPopularTimelines] = React.useState([]);
   const [popularEvents, setPopularEvents] = React.useState([]);
   const [loadingPopular, setLoadingPopular] = React.useState(false);
@@ -398,6 +405,10 @@ const HomePage = () => {
   const [loadingFavoriteTimelineContext, setLoadingFavoriteTimelineContext] = React.useState(false);
   const [favoriteVoteLoadingByType, setFavoriteVoteLoadingByType] = React.useState({ bronze: false, silver: false, gold: false });
   const [heroEventPopupEvent, setHeroEventPopupEvent] = React.useState(null);
+  const [heroEventPopupLoading, setHeroEventPopupLoading] = React.useState(false);
+  const [topVotesTodayEvent, setTopVotesTodayEvent] = React.useState(null);
+  const [topVotesTodayLoading, setTopVotesTodayLoading] = React.useState(false);
+  const [prefetchedSpotlightEvent, setPrefetchedSpotlightEvent] = React.useState(null);
   const [postTypeDialogOpen, setPostTypeDialogOpen] = React.useState(false);
   const [postEventDialogOpen, setPostEventDialogOpen] = React.useState(false);
   const [postFlowLoading, setPostFlowLoading] = React.useState(false);
@@ -588,21 +599,114 @@ const HomePage = () => {
     return unique.length ? unique : HOME_HERO_DEFAULT_SLIDES;
   }, [heroSlides]);
 
-  const transitionToHeroSlide = React.useCallback(
-    (nextIndex) => {
-      if (nextIndex === heroIndex) return;
+  const getTodayKey = React.useCallback(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  }, []);
 
-      if (heroTransitionTimeoutRef.current) {
-        window.clearTimeout(heroTransitionTimeoutRef.current);
+  const fetchAndHydrateTopVotesTodayEvent = React.useCallback(async ({ force = false } = {}) => {
+    const nowMs = Date.now();
+    const todayKey = getTodayKey();
+    const hasFreshTodaySnapshot = !force
+      && topVotesTodayFetchDayRef.current === todayKey
+      && nowMs - topVotesTodayFetchAtRef.current < 120000;
+
+    if (hasFreshTodaySnapshot) {
+      const prefetchedId = Number(prefetchedSpotlightEvent?.id || 0);
+      if (prefetchedId > 0) return prefetchedSpotlightEvent;
+      return topVotesTodayEvent;
+    }
+
+    if (topVotesTodayFetchPromiseRef.current) {
+      return topVotesTodayFetchPromiseRef.current;
+    }
+
+    const requestPromise = (async () => {
+      setTopVotesTodayLoading(true);
+      try {
+        const response = await api.get('/api/v1/events/spotlight/top-voted-today');
+        const rawEvent = response?.data?.event;
+        const baseEvent = rawEvent && typeof rawEvent === 'object' ? rawEvent : null;
+        setTopVotesTodayEvent(baseEvent);
+
+        let hydratedEvent = baseEvent;
+        const hydratedEventId = Number(baseEvent?.id || 0);
+        const hydratedTimelineId = Number(baseEvent?.timeline_id || 0);
+
+        if (hydratedEventId > 0 && hydratedTimelineId > 0) {
+          try {
+            const detailResponse = await api.get(`/api/timeline-v3/${hydratedTimelineId}/events/${hydratedEventId}`);
+            const detailEvent = detailResponse?.data;
+            if (detailEvent?.id) {
+              hydratedEvent = { ...detailEvent, ...baseEvent };
+            }
+          } catch (detailError) {
+            console.warn('[HomePage] Failed to hydrate top-voted spotlight event details:', detailError?.response?.data || detailError?.message || detailError);
+          }
+        }
+
+        setPrefetchedSpotlightEvent(hydratedEvent && typeof hydratedEvent === 'object' ? hydratedEvent : null);
+        topVotesTodayFetchDayRef.current = todayKey;
+        topVotesTodayFetchAtRef.current = Date.now();
+        return hydratedEvent;
+      } catch (error) {
+        setTopVotesTodayEvent(null);
+        setPrefetchedSpotlightEvent(null);
+        console.warn('[HomePage] Failed to fetch top-voted event for today:', error?.response?.data || error?.message || error);
+        return null;
+      } finally {
+        setTopVotesTodayLoading(false);
+        topVotesTodayFetchPromiseRef.current = null;
       }
+    })();
 
-      setIsHeroContentVisible(false);
-      heroTransitionTimeoutRef.current = window.setTimeout(() => {
-        setHeroIndex(nextIndex);
-        setIsHeroContentVisible(true);
-      }, HERO_CONTENT_FADE_MS);
+    topVotesTodayFetchPromiseRef.current = requestPromise;
+    return requestPromise;
+  }, [getTodayKey, prefetchedSpotlightEvent, topVotesTodayEvent]);
+
+  const transitionToHeroSlide = React.useCallback(
+    async (nextIndex) => {
+      if (nextIndex === heroIndex || heroTransitionPending) return;
+
+      try {
+        const nextSlide = enabledHeroSlides[nextIndex] || null;
+        const transitionRequestId = heroTransitionRequestRef.current + 1;
+        heroTransitionRequestRef.current = transitionRequestId;
+
+        setHeroTransitionPending(true);
+
+        if (
+          nextSlide?.type === 'event_spotlight'
+          && String(nextSlide?.selection_mode || 'manual').toLowerCase() === 'top_votes_today'
+        ) {
+          await fetchAndHydrateTopVotesTodayEvent();
+        }
+
+        if (transitionRequestId !== heroTransitionRequestRef.current) {
+          setHeroTransitionPending(false);
+          return;
+        }
+
+        if (heroTransitionTimeoutRef.current) {
+          window.clearTimeout(heroTransitionTimeoutRef.current);
+        }
+
+        setIsHeroContentVisible(false);
+        heroTransitionTimeoutRef.current = window.setTimeout(() => {
+          if (transitionRequestId !== heroTransitionRequestRef.current) {
+            setHeroTransitionPending(false);
+            return;
+          }
+          setHeroIndex(nextIndex);
+          setIsHeroContentVisible(true);
+          setHeroTransitionPending(false);
+        }, HERO_CONTENT_FADE_MS);
+      } catch (error) {
+        setHeroTransitionPending(false);
+        console.warn('[HomePage] Hero transition prep failed:', error?.response?.data || error?.message || error);
+      }
     },
-    [heroIndex],
+    [enabledHeroSlides, fetchAndHydrateTopVotesTodayEvent, heroIndex, heroTransitionPending],
   );
 
   React.useEffect(() => {
@@ -680,7 +784,7 @@ const HomePage = () => {
     if (activeHubTab === 'popular') return popularScrollRef.current;
     if (activeHubTab === 'my-creations') return myCreationsScrollRef.current;
     if (activeHubTab === 'your-page') return yourPageScrollRef.current;
-    if (activeHubTab === 'favorite') return null;
+    if (activeHubTab === 'favorite') return favoriteScrollRef.current;
     if (activeHubTab === 'friends-list') return friendsListScrollRef.current;
     return null;
   }, [activeHubTab]);
@@ -717,10 +821,13 @@ const HomePage = () => {
     isHubContentVisible,
     loadingPopular,
     loadingYourPage,
+    loadingFavoriteTimelineEvents,
     loadingFollowedUsers,
     popularFilter,
     yourPageFilter,
     myCreationsFilter,
+    visibleFavoritePostCount,
+    favoriteTimelineEvents.length,
     refreshActiveHubScrollTop,
   ]);
 
@@ -836,18 +943,71 @@ const HomePage = () => {
 
   const eventLookupPool = React.useMemo(() => {
     const byId = new Map();
-    [...popularEvents, ...yourPageEvents, ...searchEvents, ...myCreationEvents].forEach((event) => {
+    [...popularEvents, ...yourPageEvents, ...searchEvents, ...myCreationEvents, ...favoriteTimelineEvents].forEach((event) => {
       const eventId = Number(event?.id || 0);
       if (eventId > 0 && !byId.has(eventId)) {
         byId.set(eventId, event);
       }
     });
     return byId;
-  }, [popularEvents, yourPageEvents, searchEvents, myCreationEvents]);
+  }, [popularEvents, yourPageEvents, searchEvents, myCreationEvents, favoriteTimelineEvents]);
 
   const activeHeroSlide = enabledHeroSlides[heroIndex] || enabledHeroSlides[0] || null;
+  const isEventSpotlightTopVotesMode = activeHeroSlide?.type === 'event_spotlight'
+    && String(activeHeroSlide?.selection_mode || 'manual').toLowerCase() === 'top_votes_today';
+  const isEventPublishedToday = React.useCallback((event) => {
+    const rawDate = event?.created_at || event?.published_at || event?.publishedAt || event?.event_date;
+    if (!rawDate) return false;
+
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return false;
+
+    const now = new Date();
+    return parsed.getFullYear() === now.getFullYear()
+      && parsed.getMonth() === now.getMonth()
+      && parsed.getDate() === now.getDate();
+  }, []);
+  const getEventVoteTotal = React.useCallback((event) => {
+    const totalCount = Number(event?.total_count ?? event?.totalCount ?? event?.popularity_votes ?? 0) || 0;
+    if (totalCount > 0) return totalCount;
+    const promoteCount = Number(event?.promote_count ?? event?.promoteCount ?? event?.promote ?? 0) || 0;
+    const demoteCount = Number(event?.demote_count ?? event?.demoteCount ?? event?.demote ?? 0) || 0;
+    return promoteCount + demoteCount;
+  }, []);
   const trendingCommunityTimeline = React.useMemo(() => {
     if (activeHeroSlide?.type !== 'trending_community') return null;
+
+    const selectionMode = String(activeHeroSlide?.selection_mode || 'manual').toLowerCase();
+
+    if (selectionMode === 'top_members_followers') {
+      const eligibleCommunities = normalizedTimelines.filter((entry) => {
+        const timelineType = String(entry?.timeline_type || entry?.type || '').toLowerCase();
+        const visibility = String(entry?.visibility || 'public').toLowerCase();
+        return timelineType === 'community' && visibility !== 'private';
+      });
+
+      if (!eligibleCommunities.length) return null;
+
+      const getAudienceScore = (entry) => {
+        const memberCount = Number(entry?.member_count ?? entry?.memberCount ?? 0) || 0;
+        const followerCount = Number(
+          entry?.follow_count
+          ?? entry?.followers_count
+          ?? entry?.follower_count
+          ?? entry?.followersCount
+          ?? 0,
+        ) || 0;
+        const popularityCount = Number(entry?.popularity_count ?? 0) || 0;
+        return memberCount || followerCount || popularityCount;
+      };
+
+      return [...eligibleCommunities]
+        .sort((a, b) => {
+          const scoreDelta = getAudienceScore(b) - getAudienceScore(a);
+          if (scoreDelta !== 0) return scoreDelta;
+          return Number(b?.id || 0) - Number(a?.id || 0);
+        })[0] || null;
+    }
 
     const targetId = Number(activeHeroSlide?.timeline_id || 0);
     if (!(targetId > 0)) return null;
@@ -860,14 +1020,99 @@ const HomePage = () => {
     if (timelineType !== 'community' || visibility === 'private') return null;
 
     return timeline;
-  }, [activeHeroSlide?.type, activeHeroSlide?.timeline_id, normalizedTimelines]);
+  }, [activeHeroSlide?.type, activeHeroSlide?.timeline_id, activeHeroSlide?.selection_mode, normalizedTimelines]);
+
+  React.useEffect(() => {
+    if (!isEventSpotlightTopVotesMode) {
+      return undefined;
+    }
+
+    const loadTopVotesTodayEvent = async () => {
+      await fetchAndHydrateTopVotesTodayEvent();
+    };
+
+    loadTopVotesTodayEvent();
+  }, [fetchAndHydrateTopVotesTodayEvent, isEventSpotlightTopVotesMode]);
 
   const spotlightEvent = React.useMemo(() => {
     if (activeHeroSlide?.type !== 'event_spotlight') return null;
+
+    const selectionMode = String(activeHeroSlide?.selection_mode || 'manual').toLowerCase();
+    if (selectionMode === 'top_votes_today') {
+      const fetchedEventId = Number(topVotesTodayEvent?.id || 0);
+      if (fetchedEventId > 0) {
+        const prefetchedEventId = Number(prefetchedSpotlightEvent?.id || 0);
+        const fromLoadedFeeds = eventLookupPool.get(fetchedEventId) || null;
+        if (prefetchedEventId === fetchedEventId) {
+          return {
+            ...(fromLoadedFeeds || {}),
+            ...prefetchedSpotlightEvent,
+            ...topVotesTodayEvent,
+          };
+        }
+        return fromLoadedFeeds
+          ? { ...fromLoadedFeeds, ...topVotesTodayEvent }
+          : topVotesTodayEvent;
+      }
+
+      const candidates = Array.from(eventLookupPool.values()).filter((event) => {
+        const timelineType = String(event?.timeline_type || '').toLowerCase();
+        const timelineVisibility = String(event?.timeline_visibility || event?.visibility || 'public').toLowerCase();
+        if (timelineType === 'personal' || timelineVisibility === 'private') return false;
+        return isEventPublishedToday(event);
+      });
+
+      if (!candidates.length) return null;
+
+      return [...candidates].sort((a, b) => {
+        const voteDelta = getEventVoteTotal(b) - getEventVoteTotal(a);
+        if (voteDelta !== 0) return voteDelta;
+        const dateDelta = new Date(b?.event_date || b?.created_at || 0) - new Date(a?.event_date || a?.created_at || 0);
+        if (dateDelta !== 0) return dateDelta;
+        return Number(b?.id || 0) - Number(a?.id || 0);
+      })[0] || null;
+    }
+
     const targetId = Number(activeHeroSlide?.event_id || 0);
     if (!(targetId > 0)) return null;
     return eventLookupPool.get(targetId) || null;
-  }, [activeHeroSlide, eventLookupPool]);
+  }, [
+    activeHeroSlide?.type,
+    activeHeroSlide?.event_id,
+    activeHeroSlide?.selection_mode,
+    eventLookupPool,
+    getEventVoteTotal,
+    isEventPublishedToday,
+    prefetchedSpotlightEvent,
+    topVotesTodayEvent,
+  ]);
+  const handleOpenHeroEventPopup = React.useCallback(async () => {
+    const eventId = Number(spotlightEvent?.id || 0);
+    if (!(eventId > 0)) return;
+
+    const timelineId = Number(spotlightEvent?.timeline_id || 0);
+
+    if (!(timelineId > 0)) {
+      setHeroEventPopupEvent(spotlightEvent);
+      return;
+    }
+
+    try {
+      setHeroEventPopupLoading(true);
+      const response = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      const fetchedEvent = response?.data;
+      if (fetchedEvent?.id) {
+        setHeroEventPopupEvent(fetchedEvent);
+        return;
+      }
+    } catch (error) {
+      console.warn('[HomePage] Failed to fetch full hero spotlight event payload:', error?.response?.data || error?.message || error);
+    } finally {
+      setHeroEventPopupLoading(false);
+    }
+
+    setHeroEventPopupEvent(spotlightEvent);
+  }, [spotlightEvent]);
 
   const spotlightTimelineType = String(spotlightTimeline?.timeline_type || '').toLowerCase();
   const SpotlightTimelineIcon = spotlightTimelineType === 'community'
@@ -876,20 +1121,88 @@ const HomePage = () => {
   const spotlightTimelineTypeLabel = spotlightTimelineType === 'community'
     ? 'Community Timeline'
     : (spotlightTimelineType === 'personal' ? 'Personal Timeline' : 'Hashtag Timeline');
+  const getTimelineAudienceMeta = React.useCallback((timeline) => {
+    const type = String(timeline?.timeline_type || timeline?.type || 'hashtag').toLowerCase();
+    const isCommunity = type === 'community';
+    const memberCount = Number(timeline?.member_count ?? timeline?.memberCount ?? 0) || 0;
+    const followerCount = Number(
+      timeline?.follow_count
+      ?? timeline?.followers_count
+      ?? timeline?.follower_count
+      ?? timeline?.followersCount
+      ?? 0,
+    ) || 0;
+    const popularityCount = Number(timeline?.popularity_count ?? 0) || 0;
+    return {
+      label: isCommunity ? 'Members' : 'Followers',
+      count: isCommunity
+        ? (memberCount || followerCount || popularityCount)
+        : (followerCount || memberCount || popularityCount),
+    };
+  }, []);
+  const spotlightTimelineAudience = React.useMemo(
+    () => getTimelineAudienceMeta(spotlightTimeline),
+    [getTimelineAudienceMeta, spotlightTimeline],
+  );
   const spotlightTimelineImageUrl = getTimelineHeroLandscapeImageUrl(spotlightTimeline);
   const spotlightTimelineImagePrivilegeEnabled = spotlightTimeline?.cover_upload_enabled !== false;
+  const trendingCommunityAudience = React.useMemo(
+    () => getTimelineAudienceMeta(trendingCommunityTimeline),
+    [getTimelineAudienceMeta, trendingCommunityTimeline],
+  );
   const trendingCommunityImageUrl = getTimelineHeroLandscapeImageUrl(trendingCommunityTimeline);
   const trendingCommunityImagePrivilegeEnabled = trendingCommunityTimeline?.cover_upload_enabled !== false;
   const trendingCommunityLabel = trendingCommunityTimeline
     ? `i-${stripTimelinePrefix(trendingCommunityTimeline?.name, 'community') || String(trendingCommunityTimeline?.name || '').trim()}`
     : '';
-  const spotlightEventImageUrl = String(
-    spotlightEvent?.media_url
-    || spotlightEvent?.image_url
-    || spotlightEvent?.thumbnail_url
-    || spotlightEvent?.cover_url
-    || '',
-  ).trim();
+  const spotlightEventImageUrl = React.useMemo(() => {
+    if (!spotlightEvent || typeof spotlightEvent !== 'object') return '';
+
+    const parsedContent = (() => {
+      const rawContent = spotlightEvent?.content;
+      if (!rawContent || typeof rawContent !== 'string') return null;
+      const trimmed = rawContent.trim();
+      if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (_error) {
+        return null;
+      }
+    })();
+
+    const metadata = spotlightEvent?.metadata && typeof spotlightEvent.metadata === 'object'
+      ? spotlightEvent.metadata
+      : null;
+
+    const linkPreview = spotlightEvent?.link_preview && typeof spotlightEvent.link_preview === 'object'
+      ? spotlightEvent.link_preview
+      : null;
+
+    const candidateImageValues = [
+      spotlightEvent?.media_url,
+      spotlightEvent?.image_url,
+      spotlightEvent?.url_image,
+      spotlightEvent?.thumbnail_url,
+      spotlightEvent?.cover_url,
+      spotlightEvent?.preview_image,
+      spotlightEvent?.image,
+      metadata?.url_image,
+      metadata?.image,
+      linkPreview?.image,
+      parsedContent?.url_image,
+      parsedContent?.image,
+      parsedContent?.preview_image,
+    ];
+
+    for (let index = 0; index < candidateImageValues.length; index += 1) {
+      const value = String(candidateImageValues[index] || '').trim();
+      if (value) return value;
+    }
+
+    return '';
+  }, [spotlightEvent]);
+  const advertisementMediaUrl = String(activeHeroSlide?.media_url || '').trim();
 
   const heroVisualStyles = React.useMemo(() => {
     if (activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimelineImageUrl) {
@@ -981,6 +1294,19 @@ const HomePage = () => {
     }
 
     if (activeHeroSlide?.type === 'advertisement') {
+      if (advertisementMediaUrl) {
+        return {
+          backgroundImage: `url(${advertisementMediaUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          fogOverlay: theme.palette.mode === 'dark'
+            ? 'linear-gradient(120deg, rgba(23,14,8,0.52) 0%, rgba(24,10,17,0.48) 100%)'
+            : 'linear-gradient(120deg, rgba(255,240,246,0.62) 0%, rgba(250,242,234,0.68) 100%)',
+          blurOverlay: 'transparent',
+          applyHardBlur: false,
+        };
+      }
+
       return {
         backgroundImage: theme.palette.mode === 'dark'
           ? 'linear-gradient(120deg, rgba(62,35,8,0.84) 0%, rgba(120,52,18,0.86) 38%, rgba(153,45,88,0.82) 100%)'
@@ -1027,6 +1353,7 @@ const HomePage = () => {
     trendingCommunityImageUrl,
     trendingCommunityImagePrivilegeEnabled,
     spotlightEventImageUrl,
+    advertisementMediaUrl,
     theme.palette.mode,
   ]);
 
@@ -1190,6 +1517,10 @@ const HomePage = () => {
     return yourPageEvents.slice(0, visibleYourPagePostCount);
   }, [yourPageEvents, visibleYourPagePostCount]);
 
+  const visibleFavoritePosts = React.useMemo(() => {
+    return favoriteTimelineEvents.slice(0, visibleFavoritePostCount);
+  }, [favoriteTimelineEvents, visibleFavoritePostCount]);
+
   const searchVisibleMaxCount = React.useMemo(() => {
     return Math.max(
       isTimelineSearchScope ? filteredTimelines.length : 0,
@@ -1222,6 +1553,11 @@ const HomePage = () => {
         : visibleYourPagePosts.length < yourPageEvents.length;
     }
 
+    if (activeHubTab === 'favorite') {
+      if (loadingFavoriteTimelineEvents) return false;
+      return visibleFavoritePosts.length < favoriteTimelineEvents.length;
+    }
+
     return false;
   }, [
     activeHubTab,
@@ -1246,6 +1582,9 @@ const HomePage = () => {
     yourPageTimelines.length,
     visibleYourPagePosts.length,
     yourPageEvents.length,
+    loadingFavoriteTimelineEvents,
+    visibleFavoritePosts.length,
+    favoriteTimelineEvents.length,
   ]);
 
   const allKnownTimelines = React.useMemo(() => {
@@ -1475,7 +1814,14 @@ const HomePage = () => {
     return () => {
       isCancelled = true;
     };
-  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline, favoriteTimelineDetails]);
+  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline?.id, selectedFavoriteTimeline?.created_by, selectedFavoriteTimeline?.user_id]);
+
+  React.useEffect(() => {
+    setVisibleFavoritePostCount(HOME_LIST_BATCH_SIZE);
+    if (favoriteScrollRef.current) {
+      favoriteScrollRef.current.scrollTop = 0;
+    }
+  }, [favoriteTimelineId]);
 
   const handleFavoriteActionVote = React.useCallback(async (actionType) => {
     const timelineId = Number(favoriteTimelineId || 0);
@@ -3009,6 +3355,15 @@ const HomePage = () => {
       }
     }
 
+    if (activeHubTab === 'favorite') {
+      attemptedManualLoad = !loadingFavoriteTimelineEvents;
+      if (attemptedManualLoad) {
+        const nextCount = Math.min(visibleFavoritePostCount + HOME_LIST_BATCH_SIZE, favoriteTimelineEvents.length);
+        revealedMore = nextCount > visibleFavoritePostCount;
+        setVisibleFavoritePostCount(nextCount);
+      }
+    }
+
     if (activeHubTab === 'popular') {
       attemptedManualLoad = !loadingPopular;
       if (attemptedManualLoad) {
@@ -3085,6 +3440,9 @@ const HomePage = () => {
     yourPageTimelines.length,
     visibleYourPagePostCount,
     yourPageEvents.length,
+    loadingFavoriteTimelineEvents,
+    visibleFavoritePostCount,
+    favoriteTimelineEvents.length,
   ]);
 
   const handleHubScroll = (e) => {
@@ -3202,6 +3560,27 @@ const HomePage = () => {
     setPostEventDialogOpen(false);
     setPostTargetTimeline(null);
   }, [postSubmitLoading]);
+
+  const handleOpenFavoritePostDialog = React.useCallback(() => {
+    const targetTimelineId = Number(selectedFavoriteTimeline?.id || 0);
+    if (!(targetTimelineId > 0)) {
+      setUserFollowSnackbarMessage('Select a favorite timeline first.');
+      setUserFollowSnackbarSeverity('info');
+      setUserFollowSnackbarOpen(true);
+      return;
+    }
+
+    setPostTargetTimeline({
+      id: targetTimelineId,
+      name: String(selectedFavoriteTimeline?.name || 'Favorite Timeline').trim() || 'Favorite Timeline',
+      timeline_type: selectedFavoriteTimeline?.timeline_type || 'hashtag',
+      visibility: selectedFavoriteTimeline?.visibility || 'public',
+    });
+    setPostTypeDialogOpen(false);
+    setPostAdvancedOpen(false);
+    setPostTimelineSearchInput('');
+    setPostEventDialogOpen(true);
+  }, [selectedFavoriteTimeline]);
 
   const handleSubmitHomeEvent = React.useCallback(async (eventData) => {
     if (!postTargetTimeline?.id) {
@@ -3456,6 +3835,23 @@ const HomePage = () => {
     }
   };
 
+  const handleFavoriteScroll = (e) => {
+    const el = e.currentTarget;
+    setShowActiveHubScrollTop(el.scrollTop > 24);
+    const reachedBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ACTIVE_HUB_LOAD_MORE_TRIGGER_PX;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    setShowActiveHubLoadMore((prev) => {
+      if (distanceFromBottom <= ACTIVE_HUB_LOAD_MORE_TRIGGER_PX) return true;
+      if (distanceFromBottom >= ACTIVE_HUB_LOAD_MORE_HIDE_PX) return false;
+      return prev;
+    });
+    if (!reachedBottom || loadingFavoriteTimelineEvents) return;
+
+    if (visibleFavoritePosts.length < favoriteTimelineEvents.length) {
+      setVisibleFavoritePostCount((prev) => Math.min(prev + HOME_LIST_BATCH_SIZE, favoriteTimelineEvents.length));
+    }
+  };
+
   const handleSearchSubmit = React.useCallback((forcedQuery = null) => {
     const nextQuery = typeof forcedQuery === 'string' ? forcedQuery.trim() : timelineSearchInput.trim();
     const shouldLoadPostScope = nextQuery.length > 0 && isPostSearchScope;
@@ -3669,8 +4065,8 @@ const HomePage = () => {
               position: 'relative',
               zIndex: 1,
               opacity: isHeroContentVisible ? 1 : 0,
-              transform: isHeroContentVisible ? 'translateY(0px)' : 'translateY(6px)',
-              transition: 'opacity 220ms ease, transform 220ms ease',
+              transform: isHeroContentVisible ? 'translateY(0px)' : 'translateY(10px)',
+              transition: 'opacity 320ms cubic-bezier(0.22, 1, 0.36, 1), transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
               minHeight: { xs: 150, md: 165 },
               textAlign: 'center',
               display: 'flex',
@@ -3734,13 +4130,17 @@ const HomePage = () => {
             {activeHeroSlide?.type === 'event_spotlight' ? (
               <>
                 <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.25rem' }, lineHeight: 1.15 }}>
-                  {spotlightEvent?.title || `Event Spotlight #${Number(activeHeroSlide?.event_id || 0) || ''}`}
+                  {spotlightEvent?.title || (isEventSpotlightTopVotesMode
+                    ? (topVotesTodayLoading ? 'Loading Event Spotlight...' : 'Event Spotlight')
+                    : `Event Spotlight #${Number(activeHeroSlide?.event_id || 0) || ''}`)}
                 </Typography>
                 <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
                   Event Spotlight of the Day
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
-                  {spotlightEvent?.description || 'Selected event is not available in loaded home feeds yet.'}
+                  {spotlightEvent?.description || (isEventSpotlightTopVotesMode
+                    ? 'No top-voted event published today is available yet.'
+                    : 'Selected event is not available in loaded home feeds yet.')}
                 </Typography>
               </>
             ) : null}
@@ -3803,6 +4203,11 @@ const HomePage = () => {
             {activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimeline ? (
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Chip label={spotlightTimelineTypeLabel} variant="outlined" />
+                <Chip
+                  icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
+                  label={`${spotlightTimelineAudience.count.toLocaleString()} ${spotlightTimelineAudience.label}`}
+                  variant="outlined"
+                />
                 <Chip label={`Created ${formatDate(spotlightTimeline.created_at)}`} variant="outlined" />
                 <Button variant="contained" onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}>Open Random Timeline</Button>
               </Stack>
@@ -3811,6 +4216,11 @@ const HomePage = () => {
             {activeHeroSlide?.type === 'trending_community' && trendingCommunityTimeline ? (
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Chip label="Community Timeline" variant="outlined" />
+                <Chip
+                  icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
+                  label={`${trendingCommunityAudience.count.toLocaleString()} ${trendingCommunityAudience.label}`}
+                  variant="outlined"
+                />
                 <Chip label={`Created ${formatDate(trendingCommunityTimeline.created_at)}`} variant="outlined" />
                 <Button variant="contained" onClick={() => navigate(`/timeline-v3/${trendingCommunityTimeline.id}`)}>Open Trending Community</Button>
               </Stack>
@@ -3820,9 +4230,10 @@ const HomePage = () => {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Button
                   variant="contained"
-                  onClick={() => setHeroEventPopupEvent(spotlightEvent)}
+                  onClick={handleOpenHeroEventPopup}
+                  disabled={heroEventPopupLoading}
                 >
-                  Open Event Popup
+                  {heroEventPopupLoading ? 'Opening Event...' : 'Open Event Popup'}
                 </Button>
                 {spotlightEvent?.timeline_id ? (
                   <Button variant="outlined" onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}>
@@ -3859,6 +4270,26 @@ const HomePage = () => {
             ) : null}
           </Box>
 
+          {activeHeroSlide?.type === 'advertisement' ? (
+            <Chip
+              size="small"
+              label="Advertisement"
+              sx={{
+                position: 'absolute',
+                right: 14,
+                bottom: 14,
+                zIndex: 2,
+                fontWeight: 800,
+                letterSpacing: 0.2,
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(15,23,42,0.3)',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(8,12,20,0.58)' : 'rgba(255,255,255,0.7)',
+                color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                backdropFilter: 'blur(6px)',
+              }}
+            />
+          ) : null}
+
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
             {enabledHeroSlides.map((_slide, dotIndex) => {
               const isActive = dotIndex === heroIndex;
@@ -3868,25 +4299,24 @@ const HomePage = () => {
                   component="button"
                   type="button"
                   onClick={() => transitionToHeroSlide(dotIndex)}
+                  disabled={heroTransitionPending}
                   aria-label={`Hero slide ${dotIndex + 1}`}
+                  aria-disabled={heroTransitionPending}
                   sx={{
                     width: isActive ? 30 : 10,
                     height: 10,
                     borderRadius: 99,
                     border: 'none',
-                    cursor: 'pointer',
+                    cursor: heroTransitionPending ? 'wait' : 'pointer',
                     p: 0,
                     transform: isActive ? 'scale(1.03)' : 'scale(0.97)',
                     bgcolor: isActive ? 'primary.main' : 'text.disabled',
-                    opacity: isActive ? 1 : 0.75,
+                    opacity: heroTransitionPending ? 0.5 : (isActive ? 1 : 0.75),
                     transition: 'width 320ms cubic-bezier(0.22, 1, 0.36, 1), background-color 260ms ease, opacity 260ms ease, transform 280ms ease',
                   }}
                 />
               );
             })}
-            <Typography variant="caption" color="text.secondary">
-              Auto-rotates every {Math.max(1, Math.round((heroRotateMs || HOME_HERO_DEFAULT_ROTATE_MS) / 1000))} seconds
-            </Typography>
           </Stack>
         </Paper>
 
@@ -4457,7 +4887,11 @@ const HomePage = () => {
                   ) : null}
                 </Box>
               ) : activeHubTab === 'favorite' ? (
-                <Box sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+                <Box
+                  ref={favoriteScrollRef}
+                  onScroll={handleFavoriteScroll}
+                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5, mb: 2.1, flexWrap: 'wrap' }}>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.45 }}>
@@ -4468,25 +4902,34 @@ const HomePage = () => {
                       </Typography>
                     </Box>
                     {selectedFavoriteTimeline?.id ? (
-                      <Button
-                        variant="outlined"
-                        component="a"
-                        href={`/timeline-v3/${selectedFavoriteTimeline.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                          whiteSpace: 'nowrap',
-                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.24)',
-                          color: theme.palette.mode === 'dark' ? 'inherit' : 'rgba(15,23,42,0.86)',
-                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.66)',
-                          '&:hover': {
-                            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.42)' : 'rgba(15,23,42,0.3)',
-                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.86)',
-                          },
-                        }}
-                      >
-                        Open Timeline
-                      </Button>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <Button
+                          variant="contained"
+                          onClick={handleOpenFavoritePostDialog}
+                          sx={{ whiteSpace: 'nowrap' }}
+                        >
+                          Create Post
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          component="a"
+                          href={`/timeline-v3/${selectedFavoriteTimeline.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.24)',
+                            color: theme.palette.mode === 'dark' ? 'inherit' : 'rgba(15,23,42,0.86)',
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.66)',
+                            '&:hover': {
+                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.42)' : 'rgba(15,23,42,0.3)',
+                              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.86)',
+                            },
+                          }}
+                        >
+                          Open Timeline
+                        </Button>
+                      </Stack>
                     ) : null}
                   </Box>
 
@@ -4955,7 +5398,7 @@ const HomePage = () => {
                                 </Box>
                               ) : favoriteTimelineEvents.length > 0 ? (
                                 <Stack spacing={1.5} sx={{ mt: 0.75 }}>
-                                  {favoriteTimelineEvents.map((event) => (
+                                  {visibleFavoritePosts.map((event) => (
                                     <Box key={`favorite-event-${event.id}`}>
                                       {renderSearchEventCard(event)}
                                     </Box>
@@ -4966,6 +5409,12 @@ const HomePage = () => {
                                   No posts found yet for this timeline.
                                 </Typography>
                               )}
+
+                              {showActiveHubLoadMore && !activeHubCanLoadMore && !loadingFavoriteTimelineEvents && favoriteTimelineEvents.length > 0 ? (
+                                <Box sx={{ py: 2.25, textAlign: 'center' }}>
+                                  <Typography color="text.secondary">You have reached the end</Typography>
+                                </Box>
+                              ) : null}
                             </Box>
                           </Box>
                         </Box>

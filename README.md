@@ -640,6 +640,23 @@ Validation expectation before merge:
 2. Test at least one narrow mobile viewport where card actions are still tappable.
 3. Confirm that card sections remain readable with no overlap at each tested breakpoint.
 
+#### Form & Input Styling Baseline (Home Hero Create Timeline) (Mar 2026)
+
+Use the Home page Hero "Create Your Timeline" flow as the baseline visual language for form fields and dialog actions.
+
+- **Input geometry**: rounded corners with comfortable padding and clear focus ring.
+- **Input surface**: glass-like translucent background (theme-aware), not flat harsh white.
+- **Interactive response**: smooth hover/focus/validation transitions; avoid abrupt state jumps.
+- **Button hierarchy**:
+  - Secondary/left action uses rounded-square treatment.
+  - Primary/right action uses pill-like rectangular treatment with glass-compatible styling.
+- **Dialog consistency**: preserve this form/button relationship across creation/edit flows unless a domain-specific UX reason requires deviation.
+
+Validation expectation before merge:
+1. Verify keyboard focus states are visible and consistent across inputs.
+2. Verify button shape hierarchy (left rounded-square, right pill) remains intact on mobile and desktop.
+3. Confirm glass surfaces still maintain text contrast in light and dark themes.
+
 #### Settings Page Styling Standard (Site Control Baseline) (Feb 2026)
 
 Use the Site Control page as the baseline visual language for all settings-style pages.

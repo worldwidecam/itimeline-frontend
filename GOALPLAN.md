@@ -42,6 +42,13 @@
   - [ ] Include optional timeline extras when available: action cards, quote, status.
   - [ ] Add right-side scroll region for events tied to selected favorite timeline.
 
+### Home page UX refinement tracker (Mar 2026)
+- [x] FAVORITE tab parity pass: right-hub scroll tracking + left-hub scroll-up and LOAD MORE support + favorite post reveal batching.
+- [ ] FAVORITE tab: add CREATE POST CTA (when favorite timeline exists) wired to EventFormDialog with favorite timeline preselected.
+- [ ] Hero Welcome slide settings: add toggle between manual timeline ID and auto-select top timeline by members/followers.
+- [ ] Event Spotlight of the Day settings: add mode for top-voted event constrained to current-day publish date.
+- [ ] Promote Home hero "Create Timeline" form styling into site-wide form/input baseline guidance and apply progressively.
+
 ### Hashtag cover implementation tracker (Mar 2026)
 - [x] Decision: hashtag settings authority = SiteOwner + SiteAdmin (same authority at this level).
 - [x] Decision: use dedicated hashtag settings flow (not random timeline image selection).
