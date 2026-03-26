@@ -644,6 +644,11 @@ Validation expectation before merge:
 
 Use the Home page Hero "Create Your Timeline" flow as the baseline visual language for form fields and dialog actions.
 
+- **Shared helper source**: `src/utils/formStyleGuide.js`
+  - `getGlassDialogPaperSx`
+  - `getGlassInputSx`
+  - `getGlassSquareActionButtonSx`
+  - `getGlassPillActionButtonSx`
 - **Input geometry**: rounded corners with comfortable padding and clear focus ring.
 - **Input surface**: glass-like translucent background (theme-aware), not flat harsh white.
 - **Interactive response**: smooth hover/focus/validation transitions; avoid abrupt state jumps.
@@ -651,6 +656,17 @@ Use the Home page Hero "Create Your Timeline" flow as the baseline visual langua
   - Secondary/left action uses rounded-square treatment.
   - Primary/right action uses pill-like rectangular treatment with glass-compatible styling.
 - **Dialog consistency**: preserve this form/button relationship across creation/edit flows unless a domain-specific UX reason requires deviation.
+
+Implemented rollout status (Mar 2026):
+- ✅ Home hero Create Timeline form baseline
+- ✅ EventFormDialog
+- ✅ HashtagSettingsDialog
+- ✅ PersonalAccessPanel
+- ✅ Login
+- ✅ Register
+- ✅ RequiredUsernameChangePage
+- ✅ Profile report dialog
+- ✅ ProfileSettings (glass container + input surfaces + music action button)
 
 Validation expectation before merge:
 1. Verify keyboard focus states are visible and consistent across inputs.

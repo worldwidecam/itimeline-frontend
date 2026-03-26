@@ -33,11 +33,18 @@ import {
   Info as InfoIcon,
   Link as LinkIcon,
   Person as PersonIcon,
-  People as CommunityIcon
+  People as CommunityIcon,
+  EventOutlined as EventOutlinedIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import HashtagIcon from '../../common/HashtagIcon';
 import api from '../../../utils/api';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../../utils/formStyleGuide';
 
 // Rich Editor Component for Info Cards
 const RichEditor = ({ value, onChange, disabled, placeholder }) => {
@@ -73,6 +80,12 @@ const RichEditor = ({ value, onChange, disabled, placeholder }) => {
     if (wwwMatch) {
       return { type: 'url', label: 'URL', partial: wwwMatch[1], color: 'rgba(255, 152, 0, 0.15)' };
     }
+
+    // Check for ~123 (event reference)
+    const eventRefMatch = beforeCursor.match(/~([0-9]*)$/);
+    if (eventRefMatch) {
+      return { type: 'event', label: 'Event', partial: eventRefMatch[1], color: 'rgba(103, 58, 183, 0.15)' };
+    }
     
     return null;
   };
@@ -107,6 +120,8 @@ const RichEditor = ({ value, onChange, disabled, placeholder }) => {
       case 'link':
       case 'url':
         return <LinkIcon fontSize="small" />;
+      case 'event':
+        return <EventOutlinedIcon fontSize="small" />;
       default:
         return null;
     }
@@ -128,9 +143,9 @@ const RichEditor = ({ value, onChange, disabled, placeholder }) => {
         rows={6}
         value={value}
         onChange={handleChange}
-        placeholder="Type @ for user, # for hashtag, i- for community, or www. for URL..."
+        placeholder="Type @ for user, # for hashtag, i- for community, www. for URL, or ~123 for event..."
         disabled={disabled}
-        helperText="Use @ # i- or www. to add mentions and links"
+        helperText="Use @ # i- www. or ~123 to add mentions, links, and event references"
       />
       
       {/* Visual Indicator Popup (Non-clickable) */}
@@ -553,11 +568,12 @@ const InfoCardsTab = ({ timelineId }) => {
           onClose={handleCloseDialog}
           maxWidth="sm"
           fullWidth
+          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle>
             {editingCard ? 'Edit Info Card' : 'Create New Info Card'}
           </DialogTitle>
-          <DialogContent sx={{ pt: 2 }}>
+          <DialogContent sx={{ pt: 2, '& .MuiTextField-root': getGlassInputSx(theme) }}>
             <Stack spacing={2}>
               <TextField
                 label="Title"
@@ -577,14 +593,28 @@ const InfoCardsTab = ({ timelineId }) => {
               />
             </Stack>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog} disabled={isCreating}>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={handleCloseDialog}
+              disabled={isCreating}
+              variant="contained"
+              sx={{
+                ...getGlassSquareActionButtonSx(theme),
+                width: 'auto',
+                minWidth: 84,
+                px: 2,
+                borderRadius: 1.4,
+              }}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleSaveCard}
               variant="contained"
               disabled={isCreating || !formData.title.trim() || !formData.description.trim()}
+              sx={{
+                ...getGlassPillActionButtonSx(theme),
+              }}
             >
               {isCreating ? <CircularProgress size={24} /> : (editingCard ? 'Update' : 'Create')}
             </Button>

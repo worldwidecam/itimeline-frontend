@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import api from '../utils/api';
+import api, { updateUserPreferences } from '../utils/api';
 import {
   Box,
   Container,
@@ -16,6 +16,15 @@ import {
   LinearProgress,
   CircularProgress,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -26,6 +35,10 @@ import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InfoIcon from '@mui/icons-material/Info';
 import SaveIcon from '@mui/icons-material/Save';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ArrowUpwardOutlinedIcon from '@mui/icons-material/ArrowUpwardOutlined';
+import ArrowDownwardOutlinedIcon from '@mui/icons-material/ArrowDownwardOutlined';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
@@ -41,6 +54,7 @@ import {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
+const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
@@ -48,6 +62,62 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const isValidHexColor = (value) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(value || '').trim());
+
+const calculateAgeFromDob = (dobIso) => {
+  if (!dobIso) return null;
+  const birthDate = new Date(dobIso);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? age : null;
+};
+
+const formatDobForDisplay = (dobIso) => {
+  if (!dobIso) return '';
+  const parsed = new Date(dobIso);
+  return Number.isNaN(parsed.getTime()) ? dobIso : parsed.toLocaleDateString();
+};
+
+const safeParseJson = (rawValue, fallback) => {
+  if (!rawValue || typeof rawValue !== 'string') return fallback;
+  try {
+    const parsed = JSON.parse(rawValue);
+    return parsed ?? fallback;
+  } catch (_) {
+    return fallback;
+  }
+};
+
+const normalizeProfileModules = (rawModules) => {
+  if (!Array.isArray(rawModules)) return [];
+  return rawModules
+    .map((module, index) => {
+      const title = String(module?.title || '').trim().slice(0, 120);
+      const description = String(module?.description || '').trim().slice(0, 1200);
+      if (!title && !description) return null;
+      const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
+      return {
+        id: String(module?.id || `profile-module-${index + 1}`),
+        type: String(module?.type || PROFILE_MODULE_TYPE_INFO_CARD).trim() || PROFILE_MODULE_TYPE_INFO_CARD,
+        title,
+        description,
+        order: moduleOrder,
+        is_visible: module?.is_visible !== false,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order)
+    .map((module, index) => ({
+      ...module,
+      order: index,
+    }));
 };
 
 const ProfileSettings = () => {
@@ -66,7 +136,9 @@ const ProfileSettings = () => {
     showEmail: user?.preferences?.showEmail !== false, // Default to true if not set
     emailNotifications: user?.preferences?.emailNotifications !== false, // Default to true if not set
     defaultTimelineView: user?.preferences?.defaultTimelineView || 'base', // Default to 'base' if not set
-    blurEmail: false // This will be set from localStorage in fetchUserData
+    blurEmail: false, // This will be set from localStorage in fetchUserData
+    dateOfBirth: '',
+    userColor: '#4f7cff',
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || '');
@@ -90,6 +162,13 @@ const ProfileSettings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedState, setShowSavedState] = useState(false);
   const [initialFormData, setInitialFormData] = useState(null);
+  const [showDobInput, setShowDobInput] = useState(false);
+  const [profileModules, setProfileModules] = useState([]);
+  const [profileModuleDialogOpen, setProfileModuleDialogOpen] = useState(false);
+  const [moduleForm, setModuleForm] = useState({ id: null, title: '', description: '' });
+  const [modulesSaving, setModulesSaving] = useState(false);
+
+  const profileModulesStorageKey = user?.id ? `profile_modules_user_${user.id}` : '';
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -108,14 +187,84 @@ const ProfileSettings = () => {
         }
         
         // For now, we'll use localStorage for preferences
-        // This will be replaced when the backend endpoint is ready
+        const userId = Number(user?.id || 0);
         const savedBlurPref = localStorage.getItem('emailBlurPreference');
+        let resolvedDateOfBirth = userId > 0
+          ? String(localStorage.getItem(`date_of_birth_user_${userId}`) || '').trim()
+          : '';
+        let resolvedUserColor = userId > 0
+          ? String(localStorage.getItem(`user_color_pref_user_${userId}`) || '').trim()
+          : '';
+        let resolvedProfileModules = userId > 0
+          ? safeParseJson(localStorage.getItem(`profile_modules_user_${userId}`), [])
+          : [];
+
+        try {
+          const passportResponse = await api.get('/api/v1/user/passport');
+          const passportPrefs = passportResponse?.data?.preferences || {};
+          const hasPassportDateOfBirth = Object.prototype.hasOwnProperty.call(passportPrefs, 'date_of_birth');
+          const hasPassportUserColor = Object.prototype.hasOwnProperty.call(passportPrefs, 'user_color');
+          const hasPassportProfilePortraitUrl = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_image_url');
+          const hasPassportProfilePortraitX = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_x');
+          const hasPassportProfilePortraitY = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_y');
+          const hasPassportProfilePortraitZoom = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_zoom');
+          const hasPassportProfileModules = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_modules');
+          const passportDateOfBirth = passportPrefs?.date_of_birth ? String(passportPrefs.date_of_birth).trim() : '';
+          const passportUserColor = passportPrefs?.user_color ? String(passportPrefs.user_color).trim() : '';
+
+          if (hasPassportDateOfBirth) {
+            resolvedDateOfBirth = passportDateOfBirth;
+          }
+          if (hasPassportUserColor) {
+            resolvedUserColor = isValidHexColor(passportUserColor) ? passportUserColor.toLowerCase() : '';
+          }
+          if (userId > 0) {
+            if (hasPassportProfilePortraitUrl) {
+              const portraitUrl = String(passportPrefs?.profile_portrait_image_url || '').trim();
+              if (portraitUrl) {
+                localStorage.setItem(`profile_portrait_url_user_${userId}`, portraitUrl);
+              } else {
+                localStorage.removeItem(`profile_portrait_url_user_${userId}`);
+              }
+            }
+            if (hasPassportProfilePortraitX) {
+              const portraitX = Number(passportPrefs?.profile_portrait_x);
+              if (Number.isFinite(portraitX)) localStorage.setItem(`profile_portrait_x_user_${userId}`, String(portraitX));
+            }
+            if (hasPassportProfilePortraitY) {
+              const portraitY = Number(passportPrefs?.profile_portrait_y);
+              if (Number.isFinite(portraitY)) localStorage.setItem(`profile_portrait_y_user_${userId}`, String(portraitY));
+            }
+            if (hasPassportProfilePortraitZoom) {
+              const portraitZoom = Number(passportPrefs?.profile_portrait_zoom);
+              if (Number.isFinite(portraitZoom)) localStorage.setItem(`profile_portrait_zoom_user_${userId}`, String(portraitZoom));
+            }
+            if (hasPassportProfileModules) {
+              resolvedProfileModules = Array.isArray(passportPrefs?.profile_modules) ? passportPrefs.profile_modules : [];
+              localStorage.setItem(`profile_modules_user_${userId}`, JSON.stringify(resolvedProfileModules));
+            }
+          }
+        } catch (passportError) {
+          console.warn('Error fetching passport preferences:', passportError?.response?.data || passportError?.message || passportError);
+        }
+
+        setProfileModules(normalizeProfileModules(resolvedProfileModules));
+
         if (savedBlurPref !== null) {
           setFormData(prev => ({
             ...prev,
-            blurEmail: savedBlurPref === 'true'
+            blurEmail: savedBlurPref === 'true',
+            dateOfBirth: resolvedDateOfBirth,
+            userColor: isValidHexColor(resolvedUserColor) ? resolvedUserColor.toLowerCase() : '#4f7cff',
+          }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            dateOfBirth: resolvedDateOfBirth,
+            userColor: isValidHexColor(resolvedUserColor) ? resolvedUserColor.toLowerCase() : '#4f7cff',
           }));
         }
+        setShowDobInput(!Boolean(resolvedDateOfBirth));
         
         // If you want to implement the preferences endpoint later, uncomment this:
         /*
@@ -150,7 +299,9 @@ const ProfileSettings = () => {
         showEmail: user?.preferences?.showEmail !== false, // Default to true if not set
         emailNotifications: user?.preferences?.emailNotifications !== false, // Default to true if not set
         defaultTimelineView: user?.preferences?.defaultTimelineView || 'base', // Default to 'base' if not set
-        blurEmail: false // This will be set from localStorage in fetchUserData
+        blurEmail: false, // This will be set from localStorage in fetchUserData
+        dateOfBirth: '',
+        userColor: '#4f7cff',
       };
       setFormData(userData);
       setInitialFormData({ ...userData });
@@ -171,6 +322,32 @@ const ProfileSettings = () => {
     }));
     
     // Track unsaved changes
+    setHasUnsavedChanges(true);
+  };
+
+  const handleDateOfBirthChange = (event) => {
+    setFormData((prev) => ({
+      ...prev,
+      dateOfBirth: event.target.value,
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleDobReset = () => {
+    setFormData((prev) => ({
+      ...prev,
+      dateOfBirth: '',
+    }));
+    setShowDobInput(true);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleUserColorChange = (event) => {
+    const value = String(event.target.value || '').trim();
+    setFormData((prev) => ({
+      ...prev,
+      userColor: isValidHexColor(value) ? value.toLowerCase() : prev.userColor,
+    }));
     setHasUnsavedChanges(true);
   };
 
@@ -303,12 +480,51 @@ const ProfileSettings = () => {
         }
       );
       console.log('Profile update response:', response.data);
+      const uploadedAvatarUrl = String(response?.data?.avatar_url || '').trim();
+      const shouldSyncProfilePortraitFromAvatar = Boolean(selectedFile && uploadedAvatarUrl);
+      setSelectedFile(null);
+      setFileInfo(prev => ({ ...prev, avatar: null }));
+
+      let preferenceSyncFailed = false;
+      try {
+        const preferencePayload = {
+          date_of_birth: formData.dateOfBirth || null,
+          user_color: formData.userColor || null,
+        };
+        if (shouldSyncProfilePortraitFromAvatar) {
+          preferencePayload.profile_portrait_image_url = uploadedAvatarUrl;
+          preferencePayload.profile_portrait_x = 50;
+          preferencePayload.profile_portrait_y = 50;
+          preferencePayload.profile_portrait_zoom = 1;
+        }
+        await updateUserPreferences(preferencePayload);
+        if (user?.id) {
+          localStorage.setItem(`user_color_pref_user_${user.id}`, formData.userColor || '#4f7cff');
+          if (formData.dateOfBirth) {
+            localStorage.setItem(`date_of_birth_user_${user.id}`, formData.dateOfBirth);
+          } else {
+            localStorage.removeItem(`date_of_birth_user_${user.id}`);
+          }
+          if (shouldSyncProfilePortraitFromAvatar) {
+            localStorage.setItem(`profile_portrait_url_user_${user.id}`, uploadedAvatarUrl);
+            localStorage.setItem(`profile_portrait_x_user_${user.id}`, '50');
+            localStorage.setItem(`profile_portrait_y_user_${user.id}`, '50');
+            localStorage.setItem(`profile_portrait_zoom_user_${user.id}`, '1');
+          }
+        }
+        setShowDobInput(!Boolean(formData.dateOfBirth));
+      } catch (prefError) {
+        preferenceSyncFailed = true;
+        console.warn('Profile preference sync error:', prefError?.response?.data || prefError?.message || prefError);
+      }
 
       if (updateProfile) {
         try {
           // Update the user data in the auth context
           await updateProfile(response.data);
-          setSuccess('Profile updated successfully');
+          setSuccess(preferenceSyncFailed
+            ? 'Profile updated, but some preferences failed to sync'
+            : 'Profile updated successfully');
           
           // Don't reload the page, just update the UI
           // This prevents the token refresh issues that cause logout
@@ -334,7 +550,9 @@ const ProfileSettings = () => {
           }, 3000);
         }
       } else {
-        setSuccess('Profile updated successfully');
+        setSuccess(preferenceSyncFailed
+          ? 'Profile updated, but some preferences failed to sync'
+          : 'Profile updated successfully');
         setPreviewUrl(response.data.avatar_url);
         setHasUnsavedChanges(false);
         setShowSavedState(true);
@@ -348,6 +566,104 @@ const ProfileSettings = () => {
     } finally {
       setIsUploading(false);
       setIsSaving(false);
+    }
+  };
+
+  const resetProfileModuleForm = () => {
+    setModuleForm({ id: null, title: '', description: '' });
+  };
+
+  const handleOpenProfileModuleDialog = () => {
+    resetProfileModuleForm();
+    setProfileModuleDialogOpen(true);
+  };
+
+  const handleCloseProfileModuleDialog = () => {
+    if (modulesSaving) return;
+    resetProfileModuleForm();
+    setProfileModuleDialogOpen(false);
+  };
+
+  const handleEditProfileModule = (module) => {
+    setModuleForm({
+      id: module.id,
+      title: module.title,
+      description: module.description,
+    });
+    setProfileModuleDialogOpen(true);
+  };
+
+  const handleDeleteProfileModule = (moduleId) => {
+    setProfileModules((prev) => prev
+      .filter((module) => module.id !== moduleId)
+      .map((module, index) => ({ ...module, order: index })));
+    if (moduleForm.id === moduleId) resetProfileModuleForm();
+  };
+
+  const handleMoveProfileModule = (moduleId, direction) => {
+    setProfileModules((prev) => {
+      const modules = [...prev];
+      const currentIndex = modules.findIndex((module) => module.id === moduleId);
+      if (currentIndex < 0) return prev;
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= modules.length) return prev;
+
+      const [moved] = modules.splice(currentIndex, 1);
+      modules.splice(targetIndex, 0, moved);
+      return modules.map((module, index) => ({ ...module, order: index }));
+    });
+  };
+
+  const handleAddOrUpdateProfileModule = () => {
+    const title = String(moduleForm.title || '').trim();
+    const description = String(moduleForm.description || '').trim();
+
+    if (!title || !description) {
+      setError('Module title and description are required');
+      return;
+    }
+
+    setProfileModules((prev) => {
+      if (moduleForm.id) {
+        return prev.map((module) => module.id === moduleForm.id
+          ? { ...module, title, description }
+          : module);
+      }
+
+      return [
+        ...prev,
+        {
+          id: `profile-module-${Date.now()}`,
+          type: PROFILE_MODULE_TYPE_INFO_CARD,
+          title,
+          description,
+          order: prev.length,
+          is_visible: true,
+        },
+      ];
+    });
+
+    setProfileModuleDialogOpen(false);
+    resetProfileModuleForm();
+    setError('');
+  };
+
+  const handleSaveProfileModules = async () => {
+    if (!profileModulesStorageKey) return;
+    try {
+      setModulesSaving(true);
+      const normalized = normalizeProfileModules(profileModules);
+      await updateUserPreferences({ profile_modules: normalized });
+      localStorage.setItem(profileModulesStorageKey, JSON.stringify(normalized));
+      setProfileModules(normalized);
+      setSuccess('Profile modules updated successfully');
+      setError('');
+      resetProfileModuleForm();
+    } catch (moduleError) {
+      setError(moduleError?.response?.data?.error || moduleError?.message || 'Failed to save profile modules');
+    } finally {
+      setModulesSaving(false);
     }
   };
 
@@ -394,49 +710,6 @@ const ProfileSettings = () => {
     }
   };
   
-  const handlePreferencesSubmit = async (e) => {
-    if (e) e.preventDefault();
-    
-    setError('');
-    setSuccess('Successfully updated preferences');
-    setIsUploading(true);
-    
-    try {
-      // For now, we'll just update the local state and localStorage
-      // This will be replaced when the backend endpoint is ready
-      localStorage.setItem('emailBlurPreference', formData.blurEmail.toString());
-      
-      // If you want to implement the preferences endpoint later, uncomment this:
-      /*
-      const preferences = {
-        showEmail: formData.showEmail,
-        emailNotifications: formData.emailNotifications,
-        defaultTimelineView: formData.defaultTimelineView,
-        blurEmail: formData.blurEmail
-      };
-      
-      const response = await api.post(
-        '/api/profile/preferences',
-        preferences,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      if (updateProfile && response.data.user) {
-        await updateProfile(response.data.user);
-      }
-      */
-    } catch (error) {
-      console.error('Preferences update error:', error);
-      setError(error.response?.data?.error || 'Failed to update preferences');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   return (
     <Box
       sx={{
@@ -845,22 +1118,53 @@ const ProfileSettings = () => {
                     />
                   </Box>
                   
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    mb: 2,
-                    pb: 2,
-                    borderBottom: 1,
-                    borderColor: 'divider'
-                  }}>
-                    <Typography variant="body1" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                      Consectetur adipiscing elit
+                  <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      Date of Birth
                     </Typography>
-                    <Switch 
-                      disabled
-                      color="primary"
-                    />
+                    {!showDobInput && formData.dateOfBirth ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {formatDobForDisplay(formData.dateOfBirth)} • Age {calculateAgeFromDob(formData.dateOfBirth) ?? 'N/A'}
+                        </Typography>
+                        <Button variant="text" size="small" onClick={handleDobReset}>
+                          Reset
+                        </Button>
+                      </Box>
+                    ) : (
+                      <TextField
+                        type="date"
+                        value={formData.dateOfBirth || ''}
+                        onChange={handleDateOfBirthChange}
+                        inputProps={{ max: new Date().toISOString().split('T')[0] }}
+                        size="small"
+                      />
+                    )}
+                  </Box>
+
+                  <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      Identity Color
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <input
+                        type="color"
+                        value={formData.userColor || '#4f7cff'}
+                        onChange={handleUserColorChange}
+                        aria-label="Choose identity color"
+                        style={{
+                          width: 44,
+                          height: 32,
+                          border: 'none',
+                          borderRadius: 8,
+                          background: 'transparent',
+                          cursor: 'pointer',
+                        }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {formData.userColor || '#4f7cff'}
+                      </Typography>
+                    </Box>
                   </Box>
                   
                   <Box sx={{ 
@@ -881,12 +1185,142 @@ const ProfileSettings = () => {
                 </Box>
               </Paper>
             </Grid>
+
+            <Grid item xs={12}>
+              <Paper sx={{
+                p: 3,
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.7)' : 'rgba(250, 250, 250, 0.9)',
+                borderRadius: 2,
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+                  : '0 4px 20px rgba(0, 0, 0, 0.05)'
+              }}>
+                <Typography variant="h6" gutterBottom>
+                  Profile Modules
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Add, edit, delete, reorder, and save profile modules here. Current module type: Info Card.
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        Module List
+                      </Typography>
+                      <Button onClick={handleOpenProfileModuleDialog} variant="contained">
+                        Add Module
+                      </Button>
+                    </Box>
+                    <Stack spacing={1.2}>
+                      {profileModules.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          No modules added yet.
+                        </Typography>
+                      ) : profileModules.map((module, index) => (
+                        <Card key={module.id} variant="outlined">
+                          <CardContent sx={{ pb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              {module.title}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, whiteSpace: 'pre-wrap' }}>
+                              {module.description}
+                            </Typography>
+                          </CardContent>
+                          <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                            <IconButton size="small" onClick={() => handleMoveProfileModule(module.id, 'up')} disabled={index === 0}>
+                              <ArrowUpwardOutlinedIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" onClick={() => handleMoveProfileModule(module.id, 'down')} disabled={index === profileModules.length - 1}>
+                              <ArrowDownwardOutlinedIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" onClick={() => handleEditProfileModule(module)}>
+                              <EditOutlinedIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" color="error" onClick={() => handleDeleteProfileModule(module.id)}>
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </CardActions>
+                        </Card>
+                      ))}
+                    </Stack>
+                    <Button
+                      sx={{ mt: 1.5 }}
+                      variant="outlined"
+                      onClick={handleSaveProfileModules}
+                      disabled={modulesSaving}
+                    >
+                      {modulesSaving ? 'Saving modules...' : 'Save Modules'}
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
             
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />
             </Grid>
           </Grid>
         </Box>
+
+        <Dialog
+          open={profileModuleDialogOpen}
+          onClose={handleCloseProfileModuleDialog}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+        >
+          <DialogTitle>
+            {moduleForm.id ? 'Edit Module' : 'Add Module'}
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2, '& .MuiTextField-root': getGlassInputSx(theme) }}>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                margin="dense"
+                label="Module title"
+                value={moduleForm.title}
+                onChange={(e) => setModuleForm((prev) => ({ ...prev, title: e.target.value }))}
+                inputProps={{ maxLength: 120 }}
+                helperText={`${moduleForm.title.length}/120`}
+              />
+              <TextField
+                fullWidth
+                margin="dense"
+                multiline
+                minRows={5}
+                label="Module description"
+                value={moduleForm.description}
+                onChange={(e) => setModuleForm((prev) => ({ ...prev, description: e.target.value }))}
+                inputProps={{ maxLength: 1200 }}
+                placeholder="Use @ # i- www. or ~123 in your module text"
+                helperText={`${moduleForm.description.length}/1200`}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={handleCloseProfileModuleDialog}
+              disabled={modulesSaving}
+              variant="contained"
+              sx={{
+                width: 'auto',
+                minWidth: 84,
+                px: 2,
+                borderRadius: 1.4,
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddOrUpdateProfileModule}
+              variant="contained"
+              sx={getGlassPillActionButtonSx(theme)}
+            >
+              {moduleForm.id ? 'Update module' : 'Add module'}
+            </Button>
+          </DialogActions>
+        </Dialog>
         
         <Snackbar
           open={Boolean(success) && !success.includes('Music')}

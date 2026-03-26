@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, ClickAwayListener } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
@@ -69,6 +69,7 @@ const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCom
 function TimelineV3({ timelineId: timelineIdProp }) {
   const { id: routeId, username: routeUsername, slug: routeSlug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const theme = useTheme();
   const effectiveId = timelineIdProp || routeId;
@@ -690,6 +691,30 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [allowedViewers, setAllowedViewers] = useState([]);
   const [newViewerUsername, setNewViewerUsername] = useState('');
   const [viewerError, setViewerError] = useState('');
+
+  useEffect(() => {
+    if (!timelineId || timelineId === 'new' || !events.length) return;
+
+    const params = new URLSearchParams(location.search || '');
+    const queryEventId = Number(params.get('openEvent'));
+    const pendingEventId = Number(localStorage.getItem('timeline_pending_open_event_id') || 0);
+    const targetEventId = Number.isFinite(queryEventId) && queryEventId > 0 ? queryEventId : pendingEventId;
+    if (!Number.isFinite(targetEventId) || targetEventId <= 0) return;
+
+    const targetIndex = events.findIndex((event) => Number(event?.id) === targetEventId);
+    if (targetIndex < 0) return;
+
+    setSelectedEventId(targetEventId);
+    setCurrentEventIndex(targetIndex);
+    setShouldScrollToEvent(true);
+
+    localStorage.removeItem('timeline_pending_open_event_id');
+    if (params.has('openEvent')) {
+      params.delete('openEvent');
+      const nextSearch = params.toString();
+      navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ''}`, { replace: true });
+    }
+  }, [timelineId, events, location.pathname, location.search, navigate]);
   
   const handleAddEventClick = (event) => {
     setAddEventAnchorEl(event.currentTarget);

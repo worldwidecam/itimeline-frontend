@@ -1631,6 +1631,30 @@ export const fetchUserPassport = async () => {
             // Current EmailBlurContext uses a non-user-scoped key
             localStorage.setItem('emailBlurPreference', preferences.email_blur.toString());
           }
+          if (preferences.home_initial_tab === 'popular' || preferences.home_initial_tab === 'home') {
+            localStorage.setItem(`home_initial_tab_user_${userId}`, preferences.home_initial_tab);
+          }
+          if (typeof preferences.date_of_birth === 'string') {
+            localStorage.setItem(`date_of_birth_user_${userId}`, preferences.date_of_birth);
+          }
+          if (typeof preferences.user_color === 'string') {
+            localStorage.setItem(`user_color_pref_user_${userId}`, preferences.user_color);
+          }
+          if (typeof preferences.profile_portrait_image_url === 'string') {
+            localStorage.setItem(`profile_portrait_url_user_${userId}`, preferences.profile_portrait_image_url);
+          }
+          if (typeof preferences.profile_portrait_x === 'number' && Number.isFinite(preferences.profile_portrait_x)) {
+            localStorage.setItem(`profile_portrait_x_user_${userId}`, String(preferences.profile_portrait_x));
+          }
+          if (typeof preferences.profile_portrait_y === 'number' && Number.isFinite(preferences.profile_portrait_y)) {
+            localStorage.setItem(`profile_portrait_y_user_${userId}`, String(preferences.profile_portrait_y));
+          }
+          if (typeof preferences.profile_portrait_zoom === 'number' && Number.isFinite(preferences.profile_portrait_zoom)) {
+            localStorage.setItem(`profile_portrait_zoom_user_${userId}`, String(preferences.profile_portrait_zoom));
+          }
+          if (Array.isArray(preferences.profile_modules)) {
+            localStorage.setItem(`profile_modules_user_${userId}`, JSON.stringify(preferences.profile_modules));
+          }
         }
       } catch (e) {
         console.warn('[API] Failed to hydrate local preferences from passport:', e);
@@ -2245,7 +2269,19 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
 
 /**
  * Update user preferences on the server via Passport
- * Allowed fields: { theme: 'dark'|'light', email_blur: boolean, favorite_timeline_id: number|null }
+ * Allowed fields: {
+ *   theme: 'dark'|'light',
+ *   email_blur: boolean,
+ *   favorite_timeline_id: number|null,
+ *   home_initial_tab: 'popular'|'home',
+ *   date_of_birth: 'YYYY-MM-DD'|null,
+ *   user_color: '#RRGGBB'|'#RGB'|null,
+ *   profile_portrait_image_url: string|null,
+ *   profile_portrait_x: number|null,
+ *   profile_portrait_y: number|null,
+ *   profile_portrait_zoom: number|null,
+ *   profile_modules: Array<{id,type,title,description,order,is_visible}>|null,
+ * }
  * @param {object} prefs
  * @returns {Promise<object>} Server response with merged preferences
  */
@@ -2269,10 +2305,118 @@ export const updateUserPreferences = async (prefs = {}) => {
         }
       }
     }
+    if (prefs.home_initial_tab === 'popular' || prefs.home_initial_tab === 'home') {
+      payload.home_initial_tab = prefs.home_initial_tab;
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'date_of_birth')) {
+      const rawDateOfBirth = prefs.date_of_birth;
+      if (rawDateOfBirth === null || rawDateOfBirth === '') {
+        payload.date_of_birth = null;
+      } else if (typeof rawDateOfBirth === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDateOfBirth.trim())) {
+        payload.date_of_birth = rawDateOfBirth.trim();
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'user_color')) {
+      const rawUserColor = prefs.user_color;
+      if (rawUserColor === null || rawUserColor === '') {
+        payload.user_color = null;
+      } else if (typeof rawUserColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(rawUserColor.trim())) {
+        payload.user_color = rawUserColor.trim().toLowerCase();
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_portrait_image_url')) {
+      const rawProfilePortraitImageUrl = prefs.profile_portrait_image_url;
+      if (rawProfilePortraitImageUrl === null || rawProfilePortraitImageUrl === '') {
+        payload.profile_portrait_image_url = null;
+      } else if (typeof rawProfilePortraitImageUrl === 'string' && rawProfilePortraitImageUrl.trim()) {
+        payload.profile_portrait_image_url = rawProfilePortraitImageUrl.trim();
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_portrait_x')) {
+      const rawProfilePortraitX = prefs.profile_portrait_x;
+      if (rawProfilePortraitX === null || rawProfilePortraitX === '') {
+        payload.profile_portrait_x = null;
+      } else {
+        const parsedProfilePortraitX = Number(rawProfilePortraitX);
+        if (Number.isFinite(parsedProfilePortraitX)) {
+          payload.profile_portrait_x = Math.min(140, Math.max(-40, parsedProfilePortraitX));
+        }
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_portrait_y')) {
+      const rawProfilePortraitY = prefs.profile_portrait_y;
+      if (rawProfilePortraitY === null || rawProfilePortraitY === '') {
+        payload.profile_portrait_y = null;
+      } else {
+        const parsedProfilePortraitY = Number(rawProfilePortraitY);
+        if (Number.isFinite(parsedProfilePortraitY)) {
+          payload.profile_portrait_y = Math.min(140, Math.max(-40, parsedProfilePortraitY));
+        }
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_portrait_zoom')) {
+      const rawProfilePortraitZoom = prefs.profile_portrait_zoom;
+      if (rawProfilePortraitZoom === null || rawProfilePortraitZoom === '') {
+        payload.profile_portrait_zoom = null;
+      } else {
+        const parsedProfilePortraitZoom = Number(rawProfilePortraitZoom);
+        if (Number.isFinite(parsedProfilePortraitZoom)) {
+          payload.profile_portrait_zoom = Math.min(4.875, Math.max(1, parsedProfilePortraitZoom));
+        }
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_modules')) {
+      const rawProfileModules = prefs.profile_modules;
+      if (rawProfileModules === null) {
+        payload.profile_modules = [];
+      } else if (Array.isArray(rawProfileModules)) {
+        payload.profile_modules = rawProfileModules
+          .map((module, index) => {
+            const title = String(module?.title || '').trim().slice(0, 120);
+            const description = String(module?.description || '').trim().slice(0, 1200);
+            if (!title && !description) return null;
+            const normalizedOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
+            return {
+              id: String(module?.id || `profile-module-${index + 1}`),
+              type: String(module?.type || 'info_card').trim() || 'info_card',
+              title,
+              description,
+              order: normalizedOrder,
+              is_visible: module?.is_visible !== false,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.order - b.order)
+          .map((module, index) => ({
+            ...module,
+            order: index,
+          }));
+      }
+    }
     if (Object.keys(payload).length === 0) {
       return { message: 'No valid preference fields provided' };
     }
     const response = await api.put('/api/v1/user/preferences', payload);
+    const mergedPreferences = response?.data?.preferences;
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = Number(userData?.id || 0);
+    if (userId > 0 && mergedPreferences && typeof mergedPreferences === 'object') {
+      const storageKey = `user_passport_${userId}`;
+      try {
+        const cachedRaw = localStorage.getItem(storageKey);
+        const cachedPassport = cachedRaw ? JSON.parse(cachedRaw) : {};
+        localStorage.setItem(storageKey, JSON.stringify({
+          ...cachedPassport,
+          preferences: {
+            ...(cachedPassport?.preferences || {}),
+            ...mergedPreferences,
+          },
+          timestamp: new Date().toISOString(),
+        }));
+      } catch (e) {
+        console.warn('[API] Failed to update cached passport preferences:', e);
+      }
+    }
     return response.data;
   } catch (error) {
     console.error('[API] Failed to update user preferences:', error.response?.data || error.message);

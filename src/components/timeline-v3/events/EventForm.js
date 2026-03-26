@@ -36,6 +36,7 @@ import {
   Newspaper as NewsIcon,
   Movie as MediaIcon,
   Link as LinkIcon,
+  EventOutlined as EventOutlinedIcon,
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
   AudioFile as AudioFileIcon,
@@ -79,6 +80,11 @@ const RichEditor = ({ value, onChange, disabled, placeholder }) => {
       return { type: 'url', label: 'URL', partial: wwwMatch[1], color: 'rgba(255, 152, 0, 0.15)' };
     }
 
+    const eventRefMatch = beforeCursor.match(/~([0-9]*)$/);
+    if (eventRefMatch) {
+      return { type: 'event', label: 'Event', partial: eventRefMatch[1], color: 'rgba(103, 58, 183, 0.15)' };
+    }
+
     return null;
   };
 
@@ -111,6 +117,8 @@ const RichEditor = ({ value, onChange, disabled, placeholder }) => {
       case 'link':
       case 'url':
         return <LinkIcon fontSize="small" />;
+      case 'event':
+        return <EventOutlinedIcon fontSize="small" />;
       default:
         return null;
     }
@@ -136,7 +144,7 @@ const RichEditor = ({ value, onChange, disabled, placeholder }) => {
         variant="outlined"
         placeholder={placeholder}
         disabled={disabled}
-        helperText="Use @ # i- or www. to add mentions and links"
+        helperText="Use @ # i- www. or ~123 to add mentions, links, and event references"
         InputLabelProps={{
           sx: { 
             fontSize: '0.95rem',

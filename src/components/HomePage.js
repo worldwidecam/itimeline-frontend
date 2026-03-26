@@ -83,6 +83,7 @@ import {
   getGlassPillActionButtonSx,
   getGlassSquareActionButtonSx,
 } from '../utils/formStyleGuide';
+import { resolveUserIdentityColor } from '../utils/userIdentityColor';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -229,17 +230,6 @@ const hasMeaningfulActionCardContent = (action) => {
   const hasCustomTitle = Boolean(title) && title !== (ACTION_CARD_DEFAULT_TITLE_BY_TYPE[actionType] || '');
   const hasCustomDescription = Boolean(description) && description !== (ACTION_CARD_DEFAULT_DESCRIPTION_BY_TYPE[actionType] || '');
   return hasCustomTitle || hasCustomDescription;
-};
-
-const normalizeUserPrimaryColor = (profileUser) => {
-  const candidate = String(
-    profileUser?.primary_color
-      || profileUser?.profile_primary_color
-      || profileUser?.accent_color
-      || '',
-  ).trim();
-
-  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(candidate) ? candidate : null;
 };
 
 const LEFT_HUB_TABS = [
@@ -3160,7 +3150,7 @@ const HomePage = () => {
   }, []);
 
   const renderUserProfileCard = React.useCallback((profileUser) => {
-    const userPrimaryColor = normalizeUserPrimaryColor(profileUser);
+    const userPrimaryColor = resolveUserIdentityColor(profileUser);
     const fallbackStartTone = theme.palette.mode === 'dark' ? '#1a2a3f' : '#fff4ea';
     const fallbackEndTone = theme.palette.mode === 'dark' ? '#395574' : '#dcecff';
     const userCardBackground = userPrimaryColor

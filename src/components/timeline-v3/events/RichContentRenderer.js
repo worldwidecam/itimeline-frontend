@@ -2,15 +2,18 @@ import React from 'react';
 import { Box, Typography, Chip, Tooltip } from '@mui/material';
 import { Link as LinkIcon } from '@mui/icons-material';
 import { People as CommunityIcon } from '@mui/icons-material';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../../common/UserAvatar';
 import HashtagIcon from '../../common/HashtagIcon';
 import api from '../../../utils/api';
+import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 
 const RichContentRenderer = ({ content, theme }) => {
   const navigate = useNavigate();
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
+  const [eventReferenceCache, setEventReferenceCache] = React.useState({});
 
   if (!content) {
     return null;
@@ -53,6 +56,49 @@ const RichContentRenderer = ({ content, theme }) => {
     });
   }, [content]);
 
+  const getEventReferenceColor = (eventType) => {
+    const normalized = String(eventType || '').toLowerCase();
+    const palette = EVENT_TYPE_COLORS[normalized];
+    if (!palette) {
+      return {
+        bg: theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.22)' : 'rgba(25, 118, 210, 0.14)',
+        color: theme.palette.mode === 'dark' ? '#bbdefb' : '#0d47a1',
+      };
+    }
+    return {
+      bg: theme.palette.mode === 'dark' ? `${palette.dark}33` : `${palette.light}26`,
+      color: theme.palette.mode === 'dark' ? palette.dark : palette.light,
+    };
+  };
+
+  const resolveAndCacheEventReference = async (eventId) => {
+    const normalizedId = Number(eventId);
+    if (!Number.isFinite(normalizedId) || normalizedId <= 0) return null;
+
+    const existing = eventReferenceCache[normalizedId];
+    if (existing) return existing;
+
+    try {
+      const response = await api.get(`/api/v1/events/${normalizedId}/resolve`);
+      const payload = response?.data;
+      if (!payload?.id) return null;
+      setEventReferenceCache((prev) => ({ ...prev, [normalizedId]: payload }));
+      return payload;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  React.useEffect(() => {
+    const eventRefs = contentData.content.filter((item) => item.type === 'event_reference');
+    eventRefs.forEach((item) => {
+      const normalizedId = Number(item?.event_id);
+      if (Number.isFinite(normalizedId) && normalizedId > 0 && !eventReferenceCache[normalizedId]) {
+        resolveAndCacheEventReference(normalizedId);
+      }
+    });
+  }, [content, eventReferenceCache]);
+
   const handleMentionClick = async (type, name, username) => {
     switch (type) {
       case 'user_mention': {
@@ -89,6 +135,16 @@ const RichContentRenderer = ({ content, theme }) => {
       }
       case 'link': {
         window.open(name, '_blank');
+        break;
+      }
+      case 'event_reference': {
+        const normalizedEventId = Number(name);
+        if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) break;
+        const resolvedEvent = await resolveAndCacheEventReference(normalizedEventId);
+        if (!resolvedEvent?.timeline_id) break;
+
+        localStorage.setItem('timeline_pending_open_event_id', String(normalizedEventId));
+        navigate(`/timeline-v3/${resolvedEvent.timeline_id}?openEvent=${normalizedEventId}`);
         break;
       }
       default:
@@ -226,6 +282,34 @@ const RichContentRenderer = ({ content, theme }) => {
                     bgcolor: theme.palette.mode === 'dark'
                       ? 'rgba(255, 152, 0, 0.3)'
                       : 'rgba(255, 152, 0, 0.2)',
+                  },
+                }}
+              />
+            </Tooltip>
+          );
+        }
+
+        if (item.type === 'event_reference') {
+          const normalizedEventId = Number(item.event_id);
+          const cachedEvent = eventReferenceCache[normalizedEventId];
+          const eventType = cachedEvent?.type || EVENT_TYPES.REMARK;
+          const eventColor = getEventReferenceColor(eventType);
+
+          return (
+            <Tooltip key={index} title="Click to open event popup">
+              <Chip
+                icon={<EventOutlinedIcon fontSize="small" />}
+                label={item.text || `~${normalizedEventId}`}
+                size="small"
+                onClick={() => handleMentionClick('event_reference', normalizedEventId, null)}
+                sx={{
+                  cursor: 'pointer',
+                  bgcolor: eventColor.bg,
+                  color: eventColor.color,
+                  border: '1px solid',
+                  borderColor: eventColor.color,
+                  '&:hover': {
+                    filter: 'brightness(1.08)',
                   },
                 }}
               />

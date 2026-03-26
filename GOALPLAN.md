@@ -4,29 +4,55 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [x] Timeline cover image implementation
-  - [x] Community timeline images (portrait/landscape + FAB trading card/share page)
-  - [x] Personal timeline images
-  - [x] Hashtag timeline images
-- [ ] Home page polish sprint (before switching to next major focus)
-  - [ ] Fully flesh out hero banner slides (use available timeline/event images where possible).
-  - [ ] Align left/right hub light-mode container backgrounds to the same gradient family used by hero banner.
-  - [ ] Implement FAVORITE tab foundation and data model.
+- [ ] Profile page implementation — Phase 1 (NEW CURRENT FOCUS)
+  - [ ] Finalize profile page visual hierarchy and layout system.
+  - [ ] Complete profile settings and profile-adjacent dialog styling consistency pass.
+  - [ ] Ensure profile actions/reporting/settings flows remain behaviorally unchanged while UI is standardized.
+  - [ ] Validate mobile/desktop responsiveness for all profile surfaces.
+  - [ ] Phase 1 lock: Home init preference from Profile Settings (`popular|home`, default `popular`) persisted to DB + cache.
+  - [ ] Phase 1 lock: Birthday input includes year; age used for backend policy gating only (no public age display).
+  - [ ] Phase 1 lock: Single profile image upload flow (no duplicate systems) powering both circular avatar behavior and trading-card portrait metadata.
+  - [ ] Phase 1 lock: Keep dotted-line avatar upload UI treatment in Profile Settings.
+  - [ ] Phase 1 lock: Profile FAB share wiring uses existing trading-card share flow.
+  - [ ] Phase 1 lock: One user color preference (native color input) reused across profile identity surfaces (including avatar border color).
 
 ## Scope / Success Criteria
-- Timeline cover image can be uploaded, saved, and rendered reliably on timeline surfaces.
-- Cover image behavior is stable across desktop and mobile breakpoints.
-- Existing timeline routes/integrations remain intact.
+- Profile page is fully implemented with clear section hierarchy and stable interactions.
+- Profile surfaces are behaviorally consistent (edit/save/report/auth-related profile flows unchanged unless explicitly planned).
+- New profile capabilities are validated across desktop and mobile breakpoints.
+- Existing routes/integrations remain intact (including auth, profile settings, and report submission paths).
 - No placeholder/mock data is introduced.
-- Site Control/Timeline admin flow for cover image stays clear and actionable.
+- Profile visual language follows established glass-form and settings-page styling standards.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [x] Audit existing timeline image fields + where cover image should be sourced/rendered.
-- [x] Define accepted image constraints (formats, size guidance, crop behavior, fallback behavior).
-- [x] Implement/update upload + persistence flow for timeline cover image.
-- [x] Wire cover image rendering in timeline header/surfaces.
-- [x] Validate create/edit flows and ensure no regressions to timeline loading.
-- [x] Validate desktop + mobile rendering behavior.
+- [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
+- [x] Profile Modules compartmentalized form flow in Profile Settings: title/description moved into dedicated form dialog opened by Add Module/Edit Module actions.
+- [x] Rich-text token expansion baseline in active rich surfaces now includes `~eventId` references (`~113`) alongside `@`, `#`, `i-`, and `www.`.
+- [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).
+- [ ] Phase 1B — Profile Settings controls: add Home init preference toggle/select with only `popular|home` options.
+- [ ] Phase 1B — Profile Settings controls: add birthday input (with year) and persist without rendering age publicly.
+- [ ] Phase 1B — Profile Settings controls: add native HTML color input for single user identity color preference.
+- [ ] Phase 1C — Unified image workflow: merge trading-card portrait controls into existing profile avatar uploader so one upload flow serves both outcomes.
+- [ ] Phase 1C — Preserve existing dotted-line upload UI and existing circular avatar behavior.
+- [ ] Phase 1D — Home boot behavior: initialize home tab from cached/DB-backed preference (`popular` default).
+- [ ] Phase 1D — Profile share behavior: wire profile FAB share to existing trading-card share capability.
+- [ ] Phase 1E — Color consumer rollout audit: apply user color preference to known identity surfaces (including profile avatar border and user cards) and catalog remaining gaps.
+- [ ] Phase 1F — Regression + responsive validation across profile/home surfaces.
+
+### Profile implementation pillars (new major active TODOs)
+- [~] Profile Modules Framework: reusable module system for profile surfaces (target reuse of Community Info Cards patterns where applicable).
+  - [x] Module display now renders in its own profile section below the main username/bio container and constrained to the same max width.
+  - [x] Module management UI moved from profile page into Profile Settings as its own section.
+  - [x] Profile module display now renders rich-text chips for `@`, `#`, `i-`, `www.`, and `~eventId` token patterns.
+  - [ ] Public profile module read path for non-owner viewers (if product chooses to expose modules publicly) needs explicit API contract.
+- [ ] Mailbox / Letters: profile-level letter sending/receiving flow with moderation-safe baseline behavior.
+- [ ] Conspiracy Board (final in this sequence): visual cork-board to pin events and connect them with labeled yarn links.
+
+### Profile ideation queue (locked into Phase 1)
+- [x] Popular vs Home tab preference toggle.
+- [x] Birthday input (with year; age for backend gating only, no public display).
+- [x] Share capability with trading card via profile FAB.
+- [x] Single user color preference input for identity surfaces.
 
 ### Home page polish tracker (Mar 2026)
 - [ ] Hero banner slide expansion
@@ -62,7 +88,8 @@
 - Home hub baseline remains stable (Search/My Creations/Friends List/Popular/Your Page progress preserved).
 - Timeline cover implementation is now complete across community, personal, and hashtag surfaces.
 - Hashtag settings workflow now includes role-gated FAB gear (SiteOwner/SiteAdmin), description editor, portrait upload/framing, save flow, and Home timeline-card portrait usage.
-- Next execution window: finish Home-page polish items, then switch main focus to Profile page implementation.
+- Form styling baseline rollout is now implemented across core targeted forms/dialogs (EventFormDialog, HashtagSettingsDialog, PersonalAccessPanel, Login, Register, RequiredUsernameChangePage, Profile report dialog, ProfileSettings baseline surfaces).
+- Current execution window: Profile page implementation.
 
 ## Implementation Learnings / Nuances (Mar 2026)
 - Home timeline-card consistency depends on both rendering and data shaping.
@@ -86,17 +113,17 @@
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [x] Update/improve remark cards look
-- [ ] Investigate slow loading for Home > POPULAR and YOUR PAGE tabs (identify bottlenecks + solutions)
+- [x] Investigate slow loading for Home > POPULAR and YOUR PAGE tabs (identify bottlenecks + solutions)
 - [ ] NSFW filter
-- [ ] Profile page implementation (existing page needs full build-out) — NEXT BIG MAIN FOCUS after current Home-page polish sprint
+- [x] Profile page implementation (existing page needs full build-out) — CURRENT BIG MAIN FOCUS
 - [ ] # hashtag chip voting system
 - [ ] make a home page submission box
-- [ ] sharing link system
+- [x] sharing link system
 - [ ] consider timeline deletion capability (requirements + UX)
 - [ ] reorganizing community admin page action card settings under INFO CARDS umbrella
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
 - [ ] update the members page and admin page buttons to FAB
-- [ ] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
+- [x] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 
