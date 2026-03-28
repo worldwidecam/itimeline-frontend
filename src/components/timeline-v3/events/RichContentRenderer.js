@@ -9,7 +9,7 @@ import HashtagIcon from '../../common/HashtagIcon';
 import api from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 
-const RichContentRenderer = ({ content, theme }) => {
+const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
   const navigate = useNavigate();
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
@@ -141,8 +141,17 @@ const RichContentRenderer = ({ content, theme }) => {
         const normalizedEventId = Number(name);
         if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) break;
         const resolvedEvent = await resolveAndCacheEventReference(normalizedEventId);
-        if (!resolvedEvent?.timeline_id) break;
+        if (!resolvedEvent?.id) break;
 
+        if (typeof onOpenEventReference === 'function') {
+          onOpenEventReference({
+            eventId: normalizedEventId,
+            resolvedEvent,
+          });
+          break;
+        }
+
+        if (!resolvedEvent?.timeline_id) break;
         localStorage.setItem('timeline_pending_open_event_id', String(normalizedEventId));
         navigate(`/timeline-v3/${resolvedEvent.timeline_id}?openEvent=${normalizedEventId}`);
         break;

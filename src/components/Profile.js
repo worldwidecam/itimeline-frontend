@@ -37,6 +37,7 @@ import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
 import TradingCard from './common/TradingCard';
 import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
+import EventPopup from './timeline-v3/events/EventPopup';
 import config from '../config';
 import {
   getGlassDialogPaperSx,
@@ -155,6 +156,7 @@ const Profile = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [profileModules, setProfileModules] = useState([]);
+  const [profileModulePopupEvent, setProfileModulePopupEvent] = useState(null);
   const [profilePortraitMeta, setProfilePortraitMeta] = useState({
     imageUrl: '',
     x: 50,
@@ -197,6 +199,35 @@ const Profile = () => {
     () => profileModules.filter((module) => module.is_visible !== false),
     [profileModules]
   );
+  const handleOpenProfileModuleEventReference = React.useCallback(async ({ eventId, resolvedEvent }) => {
+    const normalizedEventId = Number(eventId || resolvedEvent?.id);
+    if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) return;
+
+    const fallbackEvent = resolvedEvent?.id ? resolvedEvent : null;
+    const resolvedTimelineId = Number(resolvedEvent?.timeline_id || 0);
+
+    if (!(resolvedTimelineId > 0)) {
+      if (fallbackEvent) {
+        setProfileModulePopupEvent(fallbackEvent);
+      }
+      return;
+    }
+
+    try {
+      const response = await api.get(`/api/timeline-v3/${resolvedTimelineId}/events/${normalizedEventId}`);
+      const fetchedEvent = response?.data;
+      if (fetchedEvent?.id) {
+        setProfileModulePopupEvent(fetchedEvent);
+        return;
+      }
+    } catch (fetchError) {
+      console.warn('[Profile] Failed to fetch full event payload for profile module chip:', fetchError?.response?.data || fetchError?.message || fetchError);
+    }
+
+    if (fallbackEvent) {
+      setProfileModulePopupEvent(fallbackEvent);
+    }
+  }, []);
   const clampPortraitFrameValue = (value, fallback = 50) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return fallback;
@@ -651,7 +682,11 @@ const Profile = () => {
                           {module.title}
                         </Typography>
                         <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
-                          <RichContentRenderer content={toRichContentPayload(module.description)} theme={theme} />
+                          <RichContentRenderer
+                            content={toRichContentPayload(module.description)}
+                            theme={theme}
+                            onOpenEventReference={handleOpenProfileModuleEventReference}
+                          />
                         </Box>
                       </CardContent>
                     </Card>
@@ -790,6 +825,17 @@ const Profile = () => {
           </Box>
         </ClickAwayListener>
       )}
+
+      {profileModulePopupEvent ? (
+        <EventPopup
+          event={profileModulePopupEvent}
+          open
+          onClose={() => setProfileModulePopupEvent(null)}
+          onDelete={() => {}}
+          onEdit={() => {}}
+          setIsPopupOpen={() => {}}
+        />
+      ) : null}
 
       <Dialog
         open={reportDialogOpen}

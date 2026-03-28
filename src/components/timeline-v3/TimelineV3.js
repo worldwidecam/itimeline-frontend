@@ -704,9 +704,24 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const targetIndex = events.findIndex((event) => Number(event?.id) === targetEventId);
     if (targetIndex < 0) return;
 
+    const targetEvent = events[targetIndex];
+    const targetType = String(targetEvent?.type || '').toLowerCase();
+    const cardRefKey = `${targetType}-card-${targetEventId}`;
+
+    const tryOpenPopup = (attempt = 0) => {
+      const cardRef = eventRefs.current[cardRefKey];
+      if (cardRef?.current?.openPopup) {
+        cardRef.current.openPopup();
+        return;
+      }
+      if (attempt >= 12) return;
+      setTimeout(() => tryOpenPopup(attempt + 1), 100);
+    };
+
     setSelectedEventId(targetEventId);
     setCurrentEventIndex(targetIndex);
     setShouldScrollToEvent(true);
+    setTimeout(() => tryOpenPopup(), 0);
 
     localStorage.removeItem('timeline_pending_open_event_id');
     if (params.has('openEvent')) {
