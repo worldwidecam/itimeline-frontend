@@ -48,6 +48,29 @@ import {
 import { getCachedUserIdentityColor, resolveUserIdentityColor } from '../utils/userIdentityColor';
 
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
+const PROFILE_MODULE_TYPE_TEXTS = 'texts';
+const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
+const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
+
+const PROFILE_MODULE_TYPE_META = {
+  [PROFILE_MODULE_TYPE_TEXTS]: { label: 'Texts' },
+  [PROFILE_MODULE_TYPE_MAILBOX]: { label: 'Mailbox' },
+  [PROFILE_MODULE_TYPE_CONSPIRACY_BOARD]: { label: 'Conspiracy Board' },
+};
+
+const normalizeProfileModuleType = (type) => {
+  const rawType = String(type || '').trim().toLowerCase();
+  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
+    return PROFILE_MODULE_TYPE_TEXTS;
+  }
+  if (rawType === PROFILE_MODULE_TYPE_MAILBOX) return PROFILE_MODULE_TYPE_MAILBOX;
+  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD) return PROFILE_MODULE_TYPE_CONSPIRACY_BOARD;
+  return PROFILE_MODULE_TYPE_TEXTS;
+};
+
+const getProfileModuleTypeLabel = (type) => (
+  PROFILE_MODULE_TYPE_META[normalizeProfileModuleType(type)]?.label || 'Texts'
+);
 
 const safeParseJson = (rawValue, fallback) => {
   if (!rawValue || typeof rawValue !== 'string') return fallback;
@@ -117,7 +140,7 @@ const normalizeProfileModules = (rawModules) => {
       const description = String(module?.description || '').trim().slice(0, 1200);
       if (!title && !description) return null;
 
-      const moduleType = String(module?.type || PROFILE_MODULE_TYPE_INFO_CARD).trim();
+      const moduleType = normalizeProfileModuleType(module?.type);
       const moduleId = String(module?.id || `profile-module-${index + 1}`);
       const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
 
@@ -199,6 +222,15 @@ const Profile = () => {
     () => profileModules.filter((module) => module.is_visible !== false),
     [profileModules]
   );
+  const groupedProfileModules = useMemo(() => {
+    const grouped = new Map();
+    visibleProfileModules.forEach((module) => {
+      const type = normalizeProfileModuleType(module?.type);
+      if (!grouped.has(type)) grouped.set(type, []);
+      grouped.get(type).push(module);
+    });
+    return Array.from(grouped.entries()).map(([type, modules]) => ({ type, modules }));
+  }, [visibleProfileModules]);
   const handleOpenProfileModuleEventReference = React.useCallback(async ({ eventId, resolvedEvent }) => {
     const normalizedEventId = Number(eventId || resolvedEvent?.id);
     if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) return;
@@ -632,69 +664,99 @@ const Profile = () => {
 
       {(visibleProfileModules.length > 0 || isOwnProfile) && (
         <Container maxWidth="md" sx={{ mt: '30px', pb: 2 }}>
-          <Paper
-            sx={{
-              ...getGlassDialogPaperSx(theme),
-              p: { xs: 2, sm: 2.5 },
-              borderRadius: 3,
-              boxShadow: profileContainerGlow,
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 1.5 }}>
-              Profile Modules
-            </Typography>
-
-            {visibleProfileModules.length === 0 ? (
+          {visibleProfileModules.length === 0 ? (
+            <Paper
+              sx={{
+                ...getGlassDialogPaperSx(theme),
+                p: { xs: 2, sm: 2.5 },
+                borderRadius: 3,
+                boxShadow: profileContainerGlow,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1.5 }}>
+                Texts
+              </Typography>
               <Typography variant="body2" color="text.secondary">
                 No modules yet. Manage modules from Profile Settings.
               </Typography>
-            ) : (
-              <Box
-                sx={{
-                  borderRadius: 2.5,
-                  p: 1.25,
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(8, 16, 44, 0.58)' : 'rgba(240, 244, 255, 0.75)',
-                  border: '1px solid',
-                  borderColor: theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.22)' : 'rgba(25, 118, 210, 0.2)',
-                }}
-              >
-                <Stack spacing={1.1}>
-                  {visibleProfileModules.map((module, index) => (
-                    <Card
-                      key={module.id}
-                      sx={{
-                        position: 'relative',
-                        alignSelf: index % 2 === 0 ? 'flex-start' : 'flex-end',
-                        width: { xs: '96%', sm: '85%' },
-                        borderRadius: index % 2 === 0 ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
-                        background: index % 2 === 0
-                          ? (theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #162a63 0%, #0f1f49 100%)' : 'linear-gradient(145deg, #ffffff 0%, #eef4ff 100%)')
-                          : (theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #254b97 0%, #1a3874 100%)' : 'linear-gradient(145deg, #d9e9ff 0%, #c7defd 100%)'),
-                        border: '1px solid',
-                        borderColor: index % 2 === 0
-                          ? (theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.34)' : 'rgba(33, 150, 243, 0.28)')
-                          : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
-                        boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
-                      }}
-                    >
-                      <CardContent sx={{ pb: 1.6 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.45, letterSpacing: 0.15 }}>
-                          {module.title}
-                        </Typography>
-                        <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
-                          <RichContentRenderer
-                            content={toRichContentPayload(module.description)}
-                            theme={theme}
-                            onOpenEventReference={handleOpenProfileModuleEventReference}
-                          />
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Stack>
-              </Box>
-            )}
-          </Paper>
+            </Paper>
+          ) : (
+            <Stack spacing={2.2}>
+              {groupedProfileModules.map((group) => (
+                <Paper
+                  key={group.type}
+                  sx={{
+                    ...getGlassDialogPaperSx(theme),
+                    p: { xs: 2, sm: 2.5 },
+                    borderRadius: 3,
+                    boxShadow: profileContainerGlow,
+                  }}
+                >
+                  <Typography variant="h6" sx={{ mb: 1.5 }}>
+                    {getProfileModuleTypeLabel(group.type)}
+                  </Typography>
+                  <Box
+                    sx={{
+                      borderRadius: 2.5,
+                      p: 1.25,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(8, 16, 44, 0.58)' : 'rgba(240, 244, 255, 0.75)',
+                      border: '1px solid',
+                      borderColor: theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.22)' : 'rgba(25, 118, 210, 0.2)',
+                    }}
+                  >
+                    <Stack spacing={1.1}>
+                      {group.modules.map((module, index) => {
+                        const isLeftBubble = index % 2 === 0;
+                        const isTextModule = normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_TEXTS;
+                        const textModuleLightBackground = isLeftBubble
+                          ? (theme.palette.mode === 'dark'
+                            ? 'linear-gradient(145deg, rgba(52, 91, 168, 0.7) 0%, rgba(40, 76, 148, 0.62) 100%)'
+                            : 'linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.94) 100%)')
+                          : (theme.palette.mode === 'dark'
+                            ? 'linear-gradient(145deg, rgba(69, 116, 202, 0.82) 0%, rgba(58, 101, 188, 0.72) 100%)'
+                            : 'linear-gradient(145deg, rgba(236, 245, 255, 0.98) 0%, rgba(223, 238, 255, 0.95) 100%)');
+
+                        return (
+                          <Card
+                            key={module.id}
+                            sx={{
+                              position: 'relative',
+                              alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
+                              width: { xs: '96%', sm: '85%' },
+                              borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
+                              background: isTextModule
+                                ? textModuleLightBackground
+                                : (theme.palette.mode === 'dark'
+                                  ? 'linear-gradient(145deg, #162a63 0%, #0f1f49 100%)'
+                                  : 'linear-gradient(145deg, #ffffff 0%, #eef4ff 100%)'),
+                              border: '1px solid',
+                              borderColor: isLeftBubble
+                                ? (theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.34)' : 'rgba(33, 150, 243, 0.28)')
+                                : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
+                              boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
+                            }}
+                          >
+                            <CardContent sx={{ pb: 1.6 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.45, letterSpacing: 0.15 }}>
+                                {module.title}
+                              </Typography>
+                              <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
+                                <RichContentRenderer
+                                  content={toRichContentPayload(module.description)}
+                                  theme={theme}
+                                  onOpenEventReference={handleOpenProfileModuleEventReference}
+                                />
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                </Paper>
+              ))}
+            </Stack>
+          )}
         </Container>
       )}
 

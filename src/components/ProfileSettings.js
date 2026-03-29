@@ -25,6 +25,8 @@ import {
   CardContent,
   CardActions,
   IconButton,
+  Chip,
+  Portal,
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -55,6 +57,42 @@ import {
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
+const PROFILE_MODULE_TYPE_TEXTS = 'texts';
+const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
+const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
+const SINGLE_INSTANCE_MODULE_TYPES = new Set([
+  PROFILE_MODULE_TYPE_MAILBOX,
+  PROFILE_MODULE_TYPE_CONSPIRACY_BOARD,
+]);
+const PROFILE_MODULE_TYPE_OPTIONS = [
+  {
+    key: PROFILE_MODULE_TYPE_TEXTS,
+    label: 'Texts',
+    helper: 'Conversational bubble-style module intended for message-like notes.',
+    tag: 'TEXTS',
+  },
+];
+
+const PROFILE_MODULE_TYPE_META = {
+  [PROFILE_MODULE_TYPE_TEXTS]: { label: 'Texts', tag: 'TEXTS' },
+  [PROFILE_MODULE_TYPE_MAILBOX]: { label: 'Mailbox', tag: 'MAIL' },
+  [PROFILE_MODULE_TYPE_CONSPIRACY_BOARD]: { label: 'Conspiracy Board', tag: 'BOARD' },
+};
+
+const normalizeProfileModuleType = (type) => {
+  const rawType = String(type || '').trim().toLowerCase();
+  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
+    return PROFILE_MODULE_TYPE_TEXTS;
+  }
+  if (rawType === PROFILE_MODULE_TYPE_MAILBOX) return PROFILE_MODULE_TYPE_MAILBOX;
+  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD) return PROFILE_MODULE_TYPE_CONSPIRACY_BOARD;
+  return PROFILE_MODULE_TYPE_TEXTS;
+};
+
+const getModuleTypeMeta = (type) => (
+  PROFILE_MODULE_TYPE_META[normalizeProfileModuleType(type)]
+  || PROFILE_MODULE_TYPE_META[PROFILE_MODULE_TYPE_TEXTS]
+);
 
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
@@ -105,7 +143,7 @@ const normalizeProfileModules = (rawModules) => {
       const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
       return {
         id: String(module?.id || `profile-module-${index + 1}`),
-        type: String(module?.type || PROFILE_MODULE_TYPE_INFO_CARD).trim() || PROFILE_MODULE_TYPE_INFO_CARD,
+        type: normalizeProfileModuleType(module?.type),
         title,
         description,
         order: moduleOrder,
@@ -165,10 +203,17 @@ const ProfileSettings = () => {
   const [showDobInput, setShowDobInput] = useState(false);
   const [profileModules, setProfileModules] = useState([]);
   const [profileModuleDialogOpen, setProfileModuleDialogOpen] = useState(false);
-  const [moduleForm, setModuleForm] = useState({ id: null, title: '', description: '' });
-  const [modulesSaving, setModulesSaving] = useState(false);
+  const [moduleForm, setModuleForm] = useState({
+    id: null,
+    type: PROFILE_MODULE_TYPE_TEXTS,
+    title: '',
+    description: '',
+  });
 
-  const profileModulesStorageKey = user?.id ? `profile_modules_user_${user.id}` : '';
+  const markUnsavedChanges = useCallback(() => {
+    setHasUnsavedChanges(true);
+    setShowSavedState(false);
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -310,8 +355,14 @@ const ProfileSettings = () => {
     }
   }, [user]);
 
-  const handleThemeChange = (event) => {
+  const handleThemeChange = () => {
     toggleTheme();
+    markUnsavedChanges();
+  };
+
+  const handleBlurEmailChange = () => {
+    toggleBlurEmail();
+    markUnsavedChanges();
   };
 
   const handleInputChange = (e) => {
@@ -322,7 +373,7 @@ const ProfileSettings = () => {
     }));
     
     // Track unsaved changes
-    setHasUnsavedChanges(true);
+    markUnsavedChanges();
   };
 
   const handleDateOfBirthChange = (event) => {
@@ -330,7 +381,7 @@ const ProfileSettings = () => {
       ...prev,
       dateOfBirth: event.target.value,
     }));
-    setHasUnsavedChanges(true);
+    markUnsavedChanges();
   };
 
   const handleDobReset = () => {
@@ -339,7 +390,7 @@ const ProfileSettings = () => {
       dateOfBirth: '',
     }));
     setShowDobInput(true);
-    setHasUnsavedChanges(true);
+    markUnsavedChanges();
   };
 
   const handleUserColorChange = (event) => {
@@ -348,7 +399,7 @@ const ProfileSettings = () => {
       ...prev,
       userColor: isValidHexColor(value) ? value.toLowerCase() : prev.userColor,
     }));
-    setHasUnsavedChanges(true);
+    markUnsavedChanges();
   };
 
   const onDrop = useCallback((acceptedFiles, type) => {
@@ -384,7 +435,7 @@ const ProfileSettings = () => {
       };
       reader.readAsDataURL(file);
       // Track unsaved changes
-      setHasUnsavedChanges(true);
+      markUnsavedChanges();
     } else if (type === 'music') {
       if (!file.type.startsWith('audio/')) {
         setError('Please upload an audio file (MP3, WAV, or OGG)');
@@ -393,9 +444,9 @@ const ProfileSettings = () => {
       setMusicFile(file);
       setMusicPreview(URL.createObjectURL(file));
       // Track unsaved changes
-      setHasUnsavedChanges(true);
+      markUnsavedChanges();
     }
-  }, []);
+  }, [markUnsavedChanges]);
 
   const { getRootProps: getAvatarRootProps, getInputProps: getAvatarInputProps } = useDropzone({
     onDrop: (files) => onDrop(files, 'avatar'),
@@ -490,6 +541,7 @@ const ProfileSettings = () => {
         const preferencePayload = {
           date_of_birth: formData.dateOfBirth || null,
           user_color: formData.userColor || null,
+          profile_modules: normalizeProfileModules(profileModules),
         };
         if (shouldSyncProfilePortraitFromAvatar) {
           preferencePayload.profile_portrait_image_url = uploadedAvatarUrl;
@@ -505,6 +557,7 @@ const ProfileSettings = () => {
           } else {
             localStorage.removeItem(`date_of_birth_user_${user.id}`);
           }
+          localStorage.setItem(`profile_modules_user_${user.id}`, JSON.stringify(normalizeProfileModules(profileModules)));
           if (shouldSyncProfilePortraitFromAvatar) {
             localStorage.setItem(`profile_portrait_url_user_${user.id}`, uploadedAvatarUrl);
             localStorage.setItem(`profile_portrait_x_user_${user.id}`, '50');
@@ -560,6 +613,7 @@ const ProfileSettings = () => {
           setShowSavedState(false);
         }, 3000);
       }
+      setProfileModules(normalizeProfileModules(profileModules));
     } catch (err) {
       console.error('Profile update error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to update profile');
@@ -570,7 +624,12 @@ const ProfileSettings = () => {
   };
 
   const resetProfileModuleForm = () => {
-    setModuleForm({ id: null, title: '', description: '' });
+    setModuleForm({
+      id: null,
+      type: PROFILE_MODULE_TYPE_TEXTS,
+      title: '',
+      description: '',
+    });
   };
 
   const handleOpenProfileModuleDialog = () => {
@@ -579,7 +638,7 @@ const ProfileSettings = () => {
   };
 
   const handleCloseProfileModuleDialog = () => {
-    if (modulesSaving) return;
+    if (isSaving) return;
     resetProfileModuleForm();
     setProfileModuleDialogOpen(false);
   };
@@ -587,6 +646,7 @@ const ProfileSettings = () => {
   const handleEditProfileModule = (module) => {
     setModuleForm({
       id: module.id,
+      type: normalizeProfileModuleType(module.type),
       title: module.title,
       description: module.description,
     });
@@ -598,6 +658,7 @@ const ProfileSettings = () => {
       .filter((module) => module.id !== moduleId)
       .map((module, index) => ({ ...module, order: index })));
     if (moduleForm.id === moduleId) resetProfileModuleForm();
+    markUnsavedChanges();
   };
 
   const handleMoveProfileModule = (moduleId, direction) => {
@@ -613,21 +674,36 @@ const ProfileSettings = () => {
       modules.splice(targetIndex, 0, moved);
       return modules.map((module, index) => ({ ...module, order: index }));
     });
+    markUnsavedChanges();
   };
 
   const handleAddOrUpdateProfileModule = () => {
     const title = String(moduleForm.title || '').trim();
     const description = String(moduleForm.description || '').trim();
+    const normalizedModuleType = normalizeProfileModuleType(moduleForm.type);
 
     if (!title || !description) {
       setError('Module title and description are required');
       return;
     }
 
+    if (!moduleForm.id && SINGLE_INSTANCE_MODULE_TYPES.has(normalizedModuleType)) {
+      const hasExisting = profileModules.some((module) => normalizeProfileModuleType(module.type) === normalizedModuleType);
+      if (hasExisting) {
+        setError(`${getModuleTypeMeta(normalizedModuleType).label} module is limited to one for now.`);
+        return;
+      }
+    }
+
     setProfileModules((prev) => {
       if (moduleForm.id) {
         return prev.map((module) => module.id === moduleForm.id
-          ? { ...module, title, description }
+          ? {
+            ...module,
+            type: normalizedModuleType,
+            title,
+            description,
+          }
           : module);
       }
 
@@ -635,7 +711,7 @@ const ProfileSettings = () => {
         ...prev,
         {
           id: `profile-module-${Date.now()}`,
-          type: PROFILE_MODULE_TYPE_INFO_CARD,
+          type: normalizedModuleType,
           title,
           description,
           order: prev.length,
@@ -647,24 +723,7 @@ const ProfileSettings = () => {
     setProfileModuleDialogOpen(false);
     resetProfileModuleForm();
     setError('');
-  };
-
-  const handleSaveProfileModules = async () => {
-    if (!profileModulesStorageKey) return;
-    try {
-      setModulesSaving(true);
-      const normalized = normalizeProfileModules(profileModules);
-      await updateUserPreferences({ profile_modules: normalized });
-      localStorage.setItem(profileModulesStorageKey, JSON.stringify(normalized));
-      setProfileModules(normalized);
-      setSuccess('Profile modules updated successfully');
-      setError('');
-      resetProfileModuleForm();
-    } catch (moduleError) {
-      setError(moduleError?.response?.data?.error || moduleError?.message || 'Failed to save profile modules');
-    } finally {
-      setModulesSaving(false);
-    }
+    markUnsavedChanges();
   };
 
   const handleMusicSubmit = async (e) => {
@@ -753,7 +812,7 @@ const ProfileSettings = () => {
             control={
               <Switch
                 checked={isDarkMode}
-                onChange={toggleTheme}
+                onChange={handleThemeChange}
                 sx={{
                   '& .MuiSwitch-switchBase': {
                     '&.Mui-checked': {
@@ -1113,7 +1172,7 @@ const ProfileSettings = () => {
                     </Typography>
                     <Switch 
                       checked={blurEmail}
-                      onChange={toggleBlurEmail}
+                      onChange={handleBlurEmailChange}
                       color="primary"
                     />
                   </Box>
@@ -1178,7 +1237,7 @@ const ProfileSettings = () => {
                     </Typography>
                     <Switch 
                       checked={isDarkMode}
-                      onChange={toggleTheme}
+                      onChange={handleThemeChange}
                       color="primary"
                     />
                   </Box>
@@ -1199,7 +1258,7 @@ const ProfileSettings = () => {
                   Profile Modules
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Add, edit, delete, reorder, and save profile modules here. Current module type: Info Card.
+                  Add, edit, delete, and reorder profile modules here. Texts is currently the active module type.
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -1220,9 +1279,16 @@ const ProfileSettings = () => {
                       ) : profileModules.map((module, index) => (
                         <Card key={module.id} variant="outlined">
                           <CardContent sx={{ pb: 1 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              {module.title}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                {module.title}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                label={getModuleTypeMeta(module.type).label}
+                                sx={{ fontWeight: 700 }}
+                              />
+                            </Box>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, whiteSpace: 'pre-wrap' }}>
                               {module.description}
                             </Typography>
@@ -1244,14 +1310,6 @@ const ProfileSettings = () => {
                         </Card>
                       ))}
                     </Stack>
-                    <Button
-                      sx={{ mt: 1.5 }}
-                      variant="outlined"
-                      onClick={handleSaveProfileModules}
-                      disabled={modulesSaving}
-                    >
-                      {modulesSaving ? 'Saving modules...' : 'Save Modules'}
-                    </Button>
                   </Grid>
                 </Grid>
               </Paper>
@@ -1275,6 +1333,65 @@ const ProfileSettings = () => {
           </DialogTitle>
           <DialogContent sx={{ pt: 2, '& .MuiTextField-root': getGlassInputSx(theme) }}>
             <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.8 }}>
+                  Module type
+                </Typography>
+                <Stack spacing={1}>
+                  {PROFILE_MODULE_TYPE_OPTIONS.map((option) => {
+                    const isSelected = moduleForm.type === option.key;
+                    return (
+                      <Box
+                        key={option.key}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setModuleForm((prev) => ({ ...prev, type: option.key }))}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setModuleForm((prev) => ({ ...prev, type: option.key }));
+                          }
+                        }}
+                        sx={{
+                          borderRadius: 2,
+                          p: 1.2,
+                          border: '1px solid',
+                          borderColor: isSelected
+                            ? (theme.palette.mode === 'dark' ? 'rgba(125, 211, 252, 0.68)' : 'rgba(3, 105, 161, 0.45)')
+                            : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15, 23, 42, 0.14)'),
+                          background: isSelected
+                            ? (theme.palette.mode === 'dark'
+                              ? 'linear-gradient(135deg, rgba(14, 165, 233, 0.24) 0%, rgba(3, 105, 161, 0.12) 100%)'
+                              : 'linear-gradient(135deg, rgba(224, 242, 254, 0.95) 0%, rgba(240, 249, 255, 0.95) 100%)')
+                            : (theme.palette.mode === 'dark'
+                              ? 'linear-gradient(135deg, rgba(11, 18, 32, 0.68) 0%, rgba(17, 24, 39, 0.52) 100%)'
+                              : 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(248, 250, 252, 0.9) 100%)'),
+                          boxShadow: isSelected
+                            ? (theme.palette.mode === 'dark'
+                              ? '0 8px 18px rgba(14, 165, 233, 0.22)'
+                              : '0 8px 18px rgba(3, 105, 161, 0.12)')
+                            : 'none',
+                          cursor: 'pointer',
+                          transition: 'border-color 180ms ease, background 200ms ease, box-shadow 200ms ease, transform 180ms ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                          },
+                        }}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                          <Box>
+                            <Typography sx={{ fontWeight: 800, lineHeight: 1.1 }}>{option.label}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {option.helper}
+                            </Typography>
+                          </Box>
+                          <Chip size="small" label={option.tag} sx={{ fontWeight: 800 }} />
+                        </Stack>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
               <TextField
                 fullWidth
                 margin="dense"
@@ -1301,7 +1418,7 @@ const ProfileSettings = () => {
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button
               onClick={handleCloseProfileModuleDialog}
-              disabled={modulesSaving}
+              disabled={isSaving}
               variant="contained"
               sx={{
                 width: 'auto',
@@ -1341,62 +1458,60 @@ const ProfileSettings = () => {
     </Container>
     
     {/* Floating Action Button for Save Changes - Outside main container for proper fixed positioning */}
-    <AnimatePresence>
-      {(hasUnsavedChanges || showSavedState) && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: 20 }}
-          animate={{ 
-            opacity: 1, 
-            scale: 1, 
-            y: showSavedState ? 10 : 0,
-            transition: { type: 'spring', stiffness: 300, damping: 25 }
-          }}
-          exit={{ 
-            opacity: 0, 
-            scale: 0.8, 
-            y: 40,
-            transition: { duration: 0.3 }
-          }}
-          style={{
-            position: 'fixed',
-            bottom: '2rem',
-            right: '2rem',
-            zIndex: 1000,
-          }}
-        >
-          <Button
-            variant="contained"
-            color={showSavedState ? 'success' : 'primary'}
-            onClick={handleSubmit}
-            disabled={isSaving || showSavedState}
-            sx={{
-              borderRadius: '28px',
-              padding: '12px 24px',
-              boxShadow: showSavedState 
-                ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
-                : '0 8px 16px rgba(0,0,0,0.2)',
-              '&:hover': {
-                boxShadow: showSavedState 
-                  ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
-                  : '0 12px 20px rgba(0,0,0,0.3)',
-              },
-              '&.Mui-disabled': {
-                color: 'white',
-                opacity: showSavedState ? 1 : 0.7
-              },
-              transition: 'all 0.3s ease'
+    <Portal>
+      <AnimatePresence>
+        {(hasUnsavedChanges || showSavedState) && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: showSavedState ? 10 : 0,
+              transition: { type: 'spring', stiffness: 300, damping: 25 }
             }}
-            startIcon={
-              showSavedState ? <CheckCircleIcon /> : 
-              isSaving ? null : <SaveIcon />
-            }
+            exit={{
+              opacity: 0,
+              scale: 0.8,
+              y: 40,
+              transition: { duration: 0.3 }
+            }}
+            style={{
+              position: 'fixed',
+              bottom: '2rem',
+              right: '2rem',
+              zIndex: 1400,
+            }}
           >
-            {showSavedState ? 'SAVED!' : 
-             isSaving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            <Button
+              variant="contained"
+              color={showSavedState ? 'success' : 'primary'}
+              onClick={handleSubmit}
+              disabled={isSaving || showSavedState}
+              startIcon={showSavedState ? <CheckCircleIcon /> : isSaving ? null : <SaveIcon />}
+              sx={{
+                borderRadius: '28px',
+                padding: '12px 24px',
+                boxShadow: showSavedState
+                  ? '0 8px 16px rgba(76, 175, 80, 0.3)'
+                  : '0 8px 16px rgba(0,0,0,0.2)',
+                '&:hover': {
+                  boxShadow: showSavedState
+                    ? '0 8px 16px rgba(76, 175, 80, 0.3)'
+                    : '0 12px 20px rgba(0,0,0,0.3)',
+                },
+                '&.Mui-disabled': {
+                  color: 'white',
+                  opacity: showSavedState ? 1 : 0.7
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {showSavedState ? 'SAVED!' : isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
     </Box>
   );
 };

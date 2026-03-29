@@ -44,6 +44,11 @@
   - [x] Module display now renders in its own profile section below the main username/bio container and constrained to the same max width.
   - [x] Module management UI moved from profile page into Profile Settings as its own section.
   - [x] Profile module display now renders rich-text chips for `@`, `#`, `i-`, `www.`, and `~eventId` token patterns.
+  - [x] Decision lock: keep only `Texts` as active selectable module type for now (legacy `Info Card` values normalize to `Texts`).
+  - [x] `Texts` modules now render conversational bubbles with alternating lighter, theme-aware color treatment while preserving existing Info Card styling.
+  - [x] Profile page module sections now use type-based titles and type-separated containers (no mixed-type container when multiple types exist).
+  - [x] Profile Settings floating save control aligned to standard settings-page SAVE FAB pattern (portal-mounted fixed action state), with module changes persisted through main Save FAB flow.
+  - [x] Singleton guard baseline added for future `Mailbox` and `Conspiracy Board` module types (max one each when enabled).
   - [ ] Public profile module read path for non-owner viewers (if product chooses to expose modules publicly) needs explicit API contract.
 - [ ] Mailbox / Letters: profile-level letter sending/receiving flow with moderation-safe baseline behavior.
 - [ ] Conspiracy Board (final in this sequence): visual cork-board to pin events and connect them with labeled yarn links.
