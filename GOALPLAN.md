@@ -49,6 +49,12 @@
   - [x] Profile page module sections now use type-based titles and type-separated containers (no mixed-type container when multiple types exist).
   - [x] Profile Settings floating save control aligned to standard settings-page SAVE FAB pattern (portal-mounted fixed action state), with module changes persisted through main Save FAB flow.
   - [x] Singleton guard baseline added for future `Mailbox` and `Conspiracy Board` module types (max one each when enabled).
+  - [x] Texts-first redesign pass: module-entry CRUD removed from Profile Settings in favor of generalized Texts module controls (enabled state + 10-item retention mode `manual|fifo`).
+  - [x] Profile page Texts feed now supports profile-side text submission and owner-only deletion controls, with visibility gated by module enablement.
+  - [x] Text bubble alignment now maps by author role (owner entries left, visitor entries right) and header label auto-renders as `USERNAME Says`.
+  - [x] Added dedicated profile-texts API surface for read/add/delete against profile owner Texts module while persisting in passport preferences (`profile_modules`).
+  - [x] Rich-token click behavior normalized: `@`, `#`, `i-`, and links now open in new tabs by default; `~event` references remain in-page for event popup/navigation behavior.
+  - [x] Username policy hardened to reject whitespace in signup and username-change flows (frontend validation + backend enforcement for register/profile update/required username change).
   - [ ] Public profile module read path for non-owner viewers (if product chooses to expose modules publicly) needs explicit API contract.
 - [ ] Mailbox / Letters: profile-level letter sending/receiving flow with moderation-safe baseline behavior.
 - [ ] Conspiracy Board (final in this sequence): visual cork-board to pin events and connect them with labeled yarn links.

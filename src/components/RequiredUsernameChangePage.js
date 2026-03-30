@@ -37,6 +37,11 @@ const RequiredUsernameChangePage = () => {
       return;
     }
 
+    if (/\s/.test(trimmed)) {
+      setError('Username cannot contain spaces.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       const updated = await completeRequiredUsernameChange(trimmed);

@@ -33,10 +33,16 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const trimmedUsername = String(formData.username || '').trim();
 
     // Client-side validation
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!trimmedUsername || !formData.email || !formData.password || !formData.confirmPassword) {
       setError('All fields are required');
+      return;
+    }
+
+    if (/\s/.test(trimmedUsername)) {
+      setError('Username cannot contain spaces.');
       return;
     }
 
@@ -56,7 +62,7 @@ const Register = () => {
     }
 
     try {
-      const response = await register(formData.username, formData.email, formData.password);
+      const response = await register(trimmedUsername, formData.email, formData.password);
       console.log('Registration successful:', response);
       navigate('/');
     } catch (error) {

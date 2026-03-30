@@ -6,6 +6,7 @@ import {
   Paper,
   Typography,
   TextField,
+  MenuItem,
   Button,
   Grid,
   Divider,
@@ -16,15 +17,9 @@ import {
   LinearProgress,
   CircularProgress,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Stack,
   Card,
   CardContent,
-  CardActions,
-  IconButton,
   Chip,
   Portal,
 } from '@mui/material';
@@ -37,10 +32,6 @@ import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InfoIcon from '@mui/icons-material/Info';
 import SaveIcon from '@mui/icons-material/Save';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ArrowUpwardOutlinedIcon from '@mui/icons-material/ArrowUpwardOutlined';
-import ArrowDownwardOutlinedIcon from '@mui/icons-material/ArrowDownwardOutlined';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
@@ -58,41 +49,15 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
-const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
-const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
-const SINGLE_INSTANCE_MODULE_TYPES = new Set([
-  PROFILE_MODULE_TYPE_MAILBOX,
-  PROFILE_MODULE_TYPE_CONSPIRACY_BOARD,
-]);
-const PROFILE_MODULE_TYPE_OPTIONS = [
-  {
-    key: PROFILE_MODULE_TYPE_TEXTS,
-    label: 'Texts',
-    helper: 'Conversational bubble-style module intended for message-like notes.',
-    tag: 'TEXTS',
-  },
-];
-
-const PROFILE_MODULE_TYPE_META = {
-  [PROFILE_MODULE_TYPE_TEXTS]: { label: 'Texts', tag: 'TEXTS' },
-  [PROFILE_MODULE_TYPE_MAILBOX]: { label: 'Mailbox', tag: 'MAIL' },
-  [PROFILE_MODULE_TYPE_CONSPIRACY_BOARD]: { label: 'Conspiracy Board', tag: 'BOARD' },
-};
+const TEXTS_MODULE_MAX_ITEMS = 10;
 
 const normalizeProfileModuleType = (type) => {
   const rawType = String(type || '').trim().toLowerCase();
   if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
     return PROFILE_MODULE_TYPE_TEXTS;
   }
-  if (rawType === PROFILE_MODULE_TYPE_MAILBOX) return PROFILE_MODULE_TYPE_MAILBOX;
-  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD) return PROFILE_MODULE_TYPE_CONSPIRACY_BOARD;
   return PROFILE_MODULE_TYPE_TEXTS;
 };
-
-const getModuleTypeMeta = (type) => (
-  PROFILE_MODULE_TYPE_META[normalizeProfileModuleType(type)]
-  || PROFILE_MODULE_TYPE_META[PROFILE_MODULE_TYPE_TEXTS]
-);
 
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
@@ -133,14 +98,40 @@ const safeParseJson = (rawValue, fallback) => {
   }
 };
 
+const normalizeOverflowMode = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'fifo' ? 'fifo' : 'manual';
+};
+
+const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry, index) => {
+      const text = String(entry?.text || '').trim().slice(0, 1200);
+      if (!text) return null;
+      const authorId = Number(entry?.author_id);
+      return {
+        id: String(entry?.id || `profile-text-${index + 1}`),
+        text,
+        author_id: Number.isInteger(authorId) && authorId > 0 ? authorId : null,
+        author_username: String(entry?.author_username || fallbackAuthor).trim().slice(0, 80),
+        created_at: String(entry?.created_at || '').trim() || null,
+      };
+    })
+    .filter(Boolean);
+};
+
 const normalizeProfileModules = (rawModules) => {
   if (!Array.isArray(rawModules)) return [];
   return rawModules
     .map((module, index) => {
       const title = String(module?.title || '').trim().slice(0, 120);
       const description = String(module?.description || '').trim().slice(0, 1200);
-      if (!title && !description) return null;
+      const texts = normalizeProfileTextEntries(module?.texts, title || 'User');
+      if (!title && !description && texts.length === 0) return null;
       const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
+      const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items) || TEXTS_MODULE_MAX_ITEMS));
+      const overflowMode = normalizeOverflowMode(module?.overflow_mode);
       return {
         id: String(module?.id || `profile-module-${index + 1}`),
         type: normalizeProfileModuleType(module?.type),
@@ -148,6 +139,9 @@ const normalizeProfileModules = (rawModules) => {
         description,
         order: moduleOrder,
         is_visible: module?.is_visible !== false,
+        max_items: maxItems,
+        overflow_mode: overflowMode,
+        texts,
       };
     })
     .filter(Boolean)
@@ -156,6 +150,31 @@ const normalizeProfileModules = (rawModules) => {
       ...module,
       order: index,
     }));
+};
+
+const getTextsModuleFromModules = (modules) => (
+  normalizeProfileModules(modules).find((module) => normalizeProfileModuleType(module.type) === PROFILE_MODULE_TYPE_TEXTS) || null
+);
+
+const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User' }) => {
+  const normalizedModules = normalizeProfileModules(modules);
+  const nextOverflowMode = normalizeOverflowMode(overflowMode);
+  const existingTextsModule = getTextsModuleFromModules(normalizedModules);
+  const fallbackTexts = existingTextsModule?.texts || [];
+  const nextTextsModule = {
+    id: existingTextsModule?.id || 'profile-module-texts-main',
+    type: PROFILE_MODULE_TYPE_TEXTS,
+    title: existingTextsModule?.title || `${ownerLabel} Says`,
+    description: existingTextsModule?.description || '',
+    order: 0,
+    is_visible: Boolean(enabled),
+    max_items: TEXTS_MODULE_MAX_ITEMS,
+    overflow_mode: nextOverflowMode,
+    texts: normalizeProfileTextEntries(fallbackTexts, ownerLabel),
+  };
+
+  const withoutTexts = normalizedModules.filter((module) => normalizeProfileModuleType(module.type) !== PROFILE_MODULE_TYPE_TEXTS);
+  return [nextTextsModule, ...withoutTexts].map((module, index) => ({ ...module, order: index }));
 };
 
 const ProfileSettings = () => {
@@ -202,13 +221,8 @@ const ProfileSettings = () => {
   const [initialFormData, setInitialFormData] = useState(null);
   const [showDobInput, setShowDobInput] = useState(false);
   const [profileModules, setProfileModules] = useState([]);
-  const [profileModuleDialogOpen, setProfileModuleDialogOpen] = useState(false);
-  const [moduleForm, setModuleForm] = useState({
-    id: null,
-    type: PROFILE_MODULE_TYPE_TEXTS,
-    title: '',
-    description: '',
-  });
+  const [textsModuleEnabled, setTextsModuleEnabled] = useState(false);
+  const [textsOverflowMode, setTextsOverflowMode] = useState('manual');
 
   const markUnsavedChanges = useCallback(() => {
     setHasUnsavedChanges(true);
@@ -293,7 +307,11 @@ const ProfileSettings = () => {
           console.warn('Error fetching passport preferences:', passportError?.response?.data || passportError?.message || passportError);
         }
 
-        setProfileModules(normalizeProfileModules(resolvedProfileModules));
+        const normalizedModules = normalizeProfileModules(resolvedProfileModules);
+        setProfileModules(normalizedModules);
+        const textsModule = getTextsModuleFromModules(normalizedModules);
+        setTextsModuleEnabled(Boolean(textsModule?.is_visible));
+        setTextsOverflowMode(normalizeOverflowMode(textsModule?.overflow_mode));
 
         if (savedBlurPref !== null) {
           setFormData(prev => ({
@@ -362,6 +380,16 @@ const ProfileSettings = () => {
 
   const handleBlurEmailChange = () => {
     toggleBlurEmail();
+    markUnsavedChanges();
+  };
+
+  const handleTextsModuleEnabledChange = (event) => {
+    setTextsModuleEnabled(Boolean(event.target.checked));
+    markUnsavedChanges();
+  };
+
+  const handleTextsOverflowModeChange = (event) => {
+    setTextsOverflowMode(normalizeOverflowMode(event.target.value));
     markUnsavedChanges();
   };
 
@@ -484,12 +512,25 @@ const ProfileSettings = () => {
     setSuccess('');
     setIsSaving(true);
     setIsUploading(true);
-    setUploadProgress(0);
-    setShowSavedState(false);
+    const trimmedUsername = String(formData.username || '').trim();
+
+    if (!trimmedUsername) {
+      setError('Username is required');
+      setIsUploading(false);
+      setIsSaving(false);
+      return;
+    }
+
+    if (/\s/.test(trimmedUsername)) {
+      setError('Username cannot contain spaces.');
+      setIsUploading(false);
+      setIsSaving(false);
+      return;
+    }
 
     try {
       const submitData = new FormData();
-      submitData.append('username', formData.username);
+      submitData.append('username', trimmedUsername);
       submitData.append('email', formData.email);
       submitData.append('bio', formData.bio);
       
@@ -538,10 +579,17 @@ const ProfileSettings = () => {
 
       let preferenceSyncFailed = false;
       try {
+        const nextProfileModules = upsertTextsModule({
+          modules: profileModules,
+          enabled: textsModuleEnabled,
+          overflowMode: textsOverflowMode,
+          ownerLabel: user?.username || 'User',
+        });
+
         const preferencePayload = {
           date_of_birth: formData.dateOfBirth || null,
           user_color: formData.userColor || null,
-          profile_modules: normalizeProfileModules(profileModules),
+          profile_modules: nextProfileModules,
         };
         if (shouldSyncProfilePortraitFromAvatar) {
           preferencePayload.profile_portrait_image_url = uploadedAvatarUrl;
@@ -557,7 +605,7 @@ const ProfileSettings = () => {
           } else {
             localStorage.removeItem(`date_of_birth_user_${user.id}`);
           }
-          localStorage.setItem(`profile_modules_user_${user.id}`, JSON.stringify(normalizeProfileModules(profileModules)));
+          localStorage.setItem(`profile_modules_user_${user.id}`, JSON.stringify(nextProfileModules));
           if (shouldSyncProfilePortraitFromAvatar) {
             localStorage.setItem(`profile_portrait_url_user_${user.id}`, uploadedAvatarUrl);
             localStorage.setItem(`profile_portrait_x_user_${user.id}`, '50');
@@ -613,7 +661,12 @@ const ProfileSettings = () => {
           setShowSavedState(false);
         }, 3000);
       }
-      setProfileModules(normalizeProfileModules(profileModules));
+      setProfileModules(upsertTextsModule({
+        modules: profileModules,
+        enabled: textsModuleEnabled,
+        overflowMode: textsOverflowMode,
+        ownerLabel: user?.username || 'User',
+      }));
     } catch (err) {
       console.error('Profile update error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to update profile');
@@ -621,109 +674,6 @@ const ProfileSettings = () => {
       setIsUploading(false);
       setIsSaving(false);
     }
-  };
-
-  const resetProfileModuleForm = () => {
-    setModuleForm({
-      id: null,
-      type: PROFILE_MODULE_TYPE_TEXTS,
-      title: '',
-      description: '',
-    });
-  };
-
-  const handleOpenProfileModuleDialog = () => {
-    resetProfileModuleForm();
-    setProfileModuleDialogOpen(true);
-  };
-
-  const handleCloseProfileModuleDialog = () => {
-    if (isSaving) return;
-    resetProfileModuleForm();
-    setProfileModuleDialogOpen(false);
-  };
-
-  const handleEditProfileModule = (module) => {
-    setModuleForm({
-      id: module.id,
-      type: normalizeProfileModuleType(module.type),
-      title: module.title,
-      description: module.description,
-    });
-    setProfileModuleDialogOpen(true);
-  };
-
-  const handleDeleteProfileModule = (moduleId) => {
-    setProfileModules((prev) => prev
-      .filter((module) => module.id !== moduleId)
-      .map((module, index) => ({ ...module, order: index })));
-    if (moduleForm.id === moduleId) resetProfileModuleForm();
-    markUnsavedChanges();
-  };
-
-  const handleMoveProfileModule = (moduleId, direction) => {
-    setProfileModules((prev) => {
-      const modules = [...prev];
-      const currentIndex = modules.findIndex((module) => module.id === moduleId);
-      if (currentIndex < 0) return prev;
-
-      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-      if (targetIndex < 0 || targetIndex >= modules.length) return prev;
-
-      const [moved] = modules.splice(currentIndex, 1);
-      modules.splice(targetIndex, 0, moved);
-      return modules.map((module, index) => ({ ...module, order: index }));
-    });
-    markUnsavedChanges();
-  };
-
-  const handleAddOrUpdateProfileModule = () => {
-    const title = String(moduleForm.title || '').trim();
-    const description = String(moduleForm.description || '').trim();
-    const normalizedModuleType = normalizeProfileModuleType(moduleForm.type);
-
-    if (!title || !description) {
-      setError('Module title and description are required');
-      return;
-    }
-
-    if (!moduleForm.id && SINGLE_INSTANCE_MODULE_TYPES.has(normalizedModuleType)) {
-      const hasExisting = profileModules.some((module) => normalizeProfileModuleType(module.type) === normalizedModuleType);
-      if (hasExisting) {
-        setError(`${getModuleTypeMeta(normalizedModuleType).label} module is limited to one for now.`);
-        return;
-      }
-    }
-
-    setProfileModules((prev) => {
-      if (moduleForm.id) {
-        return prev.map((module) => module.id === moduleForm.id
-          ? {
-            ...module,
-            type: normalizedModuleType,
-            title,
-            description,
-          }
-          : module);
-      }
-
-      return [
-        ...prev,
-        {
-          id: `profile-module-${Date.now()}`,
-          type: normalizedModuleType,
-          title,
-          description,
-          order: prev.length,
-          is_visible: true,
-        },
-      ];
-    });
-
-    setProfileModuleDialogOpen(false);
-    resetProfileModuleForm();
-    setError('');
-    markUnsavedChanges();
   };
 
   const handleMusicSubmit = async (e) => {
@@ -1258,7 +1208,7 @@ const ProfileSettings = () => {
                   Profile Modules
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Add, edit, delete, and reorder profile modules here. Texts is currently the active module type.
+                  Configure whether Texts is enabled on your profile and choose how it behaves at the 10-text limit.
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -1267,48 +1217,56 @@ const ProfileSettings = () => {
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                         Module List
                       </Typography>
-                      <Button onClick={handleOpenProfileModuleDialog} variant="contained">
-                        Add Module
+                      <Button onClick={() => {
+                        setTextsModuleEnabled((prev) => !prev);
+                        markUnsavedChanges();
+                      }} variant="contained">
+                        {textsModuleEnabled ? 'Disable Texts Module' : 'Add Texts Module'}
                       </Button>
                     </Box>
                     <Stack spacing={1.2}>
-                      {profileModules.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">
-                          No modules added yet.
-                        </Typography>
-                      ) : profileModules.map((module, index) => (
-                        <Card key={module.id} variant="outlined">
-                          <CardContent sx={{ pb: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                {module.title}
-                              </Typography>
-                              <Chip
-                                size="small"
-                                label={getModuleTypeMeta(module.type).label}
-                                sx={{ fontWeight: 700 }}
-                              />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, whiteSpace: 'pre-wrap' }}>
-                              {module.description}
+                      <Card variant="outlined">
+                        <CardContent sx={{ pb: 1.2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              Texts Module
                             </Typography>
-                          </CardContent>
-                          <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
-                            <IconButton size="small" onClick={() => handleMoveProfileModule(module.id, 'up')} disabled={index === 0}>
-                              <ArrowUpwardOutlinedIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" onClick={() => handleMoveProfileModule(module.id, 'down')} disabled={index === profileModules.length - 1}>
-                              <ArrowDownwardOutlinedIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" onClick={() => handleEditProfileModule(module)}>
-                              <EditOutlinedIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" color="error" onClick={() => handleDeleteProfileModule(module.id)}>
-                              <DeleteOutlineIcon fontSize="small" />
-                            </IconButton>
-                          </CardActions>
-                        </Card>
-                      ))}
+                            <Chip
+                              size="small"
+                              color={textsModuleEnabled ? 'success' : 'default'}
+                              label={textsModuleEnabled ? 'ACTIVE' : 'INACTIVE'}
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </Box>
+                          <FormControlLabel
+                            control={(
+                              <Switch
+                                checked={textsModuleEnabled}
+                                onChange={handleTextsModuleEnabledChange}
+                              />
+                            )}
+                            label="Show Texts module on your profile"
+                            sx={{ mb: 1.1 }}
+                          />
+
+                          <TextField
+                            select
+                            fullWidth
+                            size="small"
+                            label="At 10 texts"
+                            value={textsOverflowMode}
+                            onChange={handleTextsOverflowModeChange}
+                            disabled={!textsModuleEnabled}
+                            sx={getGlassInputSx(theme)}
+                            helperText={textsOverflowMode === 'fifo'
+                              ? 'FIFO: oldest text is removed automatically when a new one is sent.'
+                              : 'Manual: add button is hidden at 10 until you delete one.'}
+                          >
+                            <MenuItem value="manual">Manual delete only</MenuItem>
+                            <MenuItem value="fifo">Auto-delete oldest (FIFO)</MenuItem>
+                          </TextField>
+                        </CardContent>
+                      </Card>
                     </Stack>
                   </Grid>
                 </Grid>
@@ -1321,124 +1279,6 @@ const ProfileSettings = () => {
           </Grid>
         </Box>
 
-        <Dialog
-          open={profileModuleDialogOpen}
-          onClose={handleCloseProfileModuleDialog}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
-        >
-          <DialogTitle>
-            {moduleForm.id ? 'Edit Module' : 'Add Module'}
-          </DialogTitle>
-          <DialogContent sx={{ pt: 2, '& .MuiTextField-root': getGlassInputSx(theme) }}>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.8 }}>
-                  Module type
-                </Typography>
-                <Stack spacing={1}>
-                  {PROFILE_MODULE_TYPE_OPTIONS.map((option) => {
-                    const isSelected = moduleForm.type === option.key;
-                    return (
-                      <Box
-                        key={option.key}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setModuleForm((prev) => ({ ...prev, type: option.key }))}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setModuleForm((prev) => ({ ...prev, type: option.key }));
-                          }
-                        }}
-                        sx={{
-                          borderRadius: 2,
-                          p: 1.2,
-                          border: '1px solid',
-                          borderColor: isSelected
-                            ? (theme.palette.mode === 'dark' ? 'rgba(125, 211, 252, 0.68)' : 'rgba(3, 105, 161, 0.45)')
-                            : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15, 23, 42, 0.14)'),
-                          background: isSelected
-                            ? (theme.palette.mode === 'dark'
-                              ? 'linear-gradient(135deg, rgba(14, 165, 233, 0.24) 0%, rgba(3, 105, 161, 0.12) 100%)'
-                              : 'linear-gradient(135deg, rgba(224, 242, 254, 0.95) 0%, rgba(240, 249, 255, 0.95) 100%)')
-                            : (theme.palette.mode === 'dark'
-                              ? 'linear-gradient(135deg, rgba(11, 18, 32, 0.68) 0%, rgba(17, 24, 39, 0.52) 100%)'
-                              : 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(248, 250, 252, 0.9) 100%)'),
-                          boxShadow: isSelected
-                            ? (theme.palette.mode === 'dark'
-                              ? '0 8px 18px rgba(14, 165, 233, 0.22)'
-                              : '0 8px 18px rgba(3, 105, 161, 0.12)')
-                            : 'none',
-                          cursor: 'pointer',
-                          transition: 'border-color 180ms ease, background 200ms ease, box-shadow 200ms ease, transform 180ms ease',
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                          },
-                        }}
-                      >
-                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                          <Box>
-                            <Typography sx={{ fontWeight: 800, lineHeight: 1.1 }}>{option.label}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {option.helper}
-                            </Typography>
-                          </Box>
-                          <Chip size="small" label={option.tag} sx={{ fontWeight: 800 }} />
-                        </Stack>
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              </Box>
-              <TextField
-                fullWidth
-                margin="dense"
-                label="Module title"
-                value={moduleForm.title}
-                onChange={(e) => setModuleForm((prev) => ({ ...prev, title: e.target.value }))}
-                inputProps={{ maxLength: 120 }}
-                helperText={`${moduleForm.title.length}/120`}
-              />
-              <TextField
-                fullWidth
-                margin="dense"
-                multiline
-                minRows={5}
-                label="Module description"
-                value={moduleForm.description}
-                onChange={(e) => setModuleForm((prev) => ({ ...prev, description: e.target.value }))}
-                inputProps={{ maxLength: 1200 }}
-                placeholder="Use @ # i- www. or ~123 in your module text"
-                helperText={`${moduleForm.description.length}/1200`}
-              />
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              onClick={handleCloseProfileModuleDialog}
-              disabled={isSaving}
-              variant="contained"
-              sx={{
-                width: 'auto',
-                minWidth: 84,
-                px: 2,
-                borderRadius: 1.4,
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddOrUpdateProfileModule}
-              variant="contained"
-              sx={getGlassPillActionButtonSx(theme)}
-            >
-              {moduleForm.id ? 'Update module' : 'Add module'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-        
         <Snackbar
           open={Boolean(success) && !success.includes('Music')}
           autoHideDuration={6000}

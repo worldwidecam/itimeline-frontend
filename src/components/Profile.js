@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api, { submitUserReport } from '../utils/api';
 import {
@@ -23,6 +23,7 @@ import {
   Button,
   Card,
   CardContent,
+  IconButton,
   Snackbar,
   Alert,
 } from '@mui/material';
@@ -31,6 +32,7 @@ import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -51,6 +53,7 @@ const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
 const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
 const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
+const TEXTS_MODULE_MAX_ITEMS = 10;
 
 const PROFILE_MODULE_TYPE_META = {
   [PROFILE_MODULE_TYPE_TEXTS]: { label: 'Texts' },
@@ -71,6 +74,29 @@ const normalizeProfileModuleType = (type) => {
 const getProfileModuleTypeLabel = (type) => (
   PROFILE_MODULE_TYPE_META[normalizeProfileModuleType(type)]?.label || 'Texts'
 );
+
+const normalizeOverflowMode = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'fifo' ? 'fifo' : 'manual';
+};
+
+const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry, index) => {
+      const text = String(entry?.text || '').trim().slice(0, 1200);
+      if (!text) return null;
+      const authorId = Number(entry?.author_id);
+      return {
+        id: String(entry?.id || `profile-text-${index + 1}`),
+        text,
+        author_id: Number.isInteger(authorId) && authorId > 0 ? authorId : null,
+        author_username: String(entry?.author_username || fallbackAuthor).trim().slice(0, 80),
+        created_at: String(entry?.created_at || '').trim() || null,
+      };
+    })
+    .filter(Boolean);
+};
 
 const safeParseJson = (rawValue, fallback) => {
   if (!rawValue || typeof rawValue !== 'string') return fallback;
@@ -138,11 +164,14 @@ const normalizeProfileModules = (rawModules) => {
     .map((module, index) => {
       const title = String(module?.title || '').trim().slice(0, 120);
       const description = String(module?.description || '').trim().slice(0, 1200);
-      if (!title && !description) return null;
+      const texts = normalizeProfileTextEntries(module?.texts, title || 'User');
+      if (!title && !description && texts.length === 0) return null;
 
       const moduleType = normalizeProfileModuleType(module?.type);
       const moduleId = String(module?.id || `profile-module-${index + 1}`);
       const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
+      const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items) || TEXTS_MODULE_MAX_ITEMS));
+      const overflowMode = normalizeOverflowMode(module?.overflow_mode);
 
       return {
         id: moduleId,
@@ -151,6 +180,9 @@ const normalizeProfileModules = (rawModules) => {
         description,
         order: moduleOrder,
         is_visible: module?.is_visible !== false,
+        max_items: maxItems,
+        overflow_mode: overflowMode,
+        texts,
       };
     })
     .filter(Boolean)
@@ -179,6 +211,9 @@ const Profile = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [profileModules, setProfileModules] = useState([]);
+  const [profileTextDraft, setProfileTextDraft] = useState('');
+  const [profileTextSubmitting, setProfileTextSubmitting] = useState(false);
+  const [profileTextDeletingId, setProfileTextDeletingId] = useState('');
   const [profileModulePopupEvent, setProfileModulePopupEvent] = useState(null);
   const [profilePortraitMeta, setProfilePortraitMeta] = useState({
     imageUrl: '',
@@ -222,6 +257,23 @@ const Profile = () => {
     () => profileModules.filter((module) => module.is_visible !== false),
     [profileModules]
   );
+  const textsModule = useMemo(
+    () => profileModules.find((module) => normalizeProfileModuleType(module?.type) === PROFILE_MODULE_TYPE_TEXTS) || null,
+    [profileModules]
+  );
+  const visibleTextsModule = useMemo(
+    () => (textsModule && textsModule.is_visible !== false ? textsModule : null),
+    [textsModule]
+  );
+  const textsEntries = useMemo(
+    () => normalizeProfileTextEntries(visibleTextsModule?.texts, profileUser?.username || 'User'),
+    [visibleTextsModule?.texts, profileUser?.username]
+  );
+  const textsOverflowMode = normalizeOverflowMode(visibleTextsModule?.overflow_mode);
+  const textsMaxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(visibleTextsModule?.max_items) || TEXTS_MODULE_MAX_ITEMS));
+  const canWriteToTexts = Boolean(user?.id) && Boolean(visibleTextsModule);
+  const canDeleteTexts = Boolean(user?.id) && Number(user?.id) === Number(profileUser?.id);
+  const isManualModeAtCap = textsOverflowMode === 'manual' && textsEntries.length >= textsMaxItems;
   const groupedProfileModules = useMemo(() => {
     const grouped = new Map();
     visibleProfileModules.forEach((module) => {
@@ -231,6 +283,59 @@ const Profile = () => {
     });
     return Array.from(grouped.entries()).map(([type, modules]) => ({ type, modules }));
   }, [visibleProfileModules]);
+  const applyTextsModuleUpdate = useCallback((modulePayload) => {
+    const nextModules = normalizeProfileModules(modulePayload ? [modulePayload] : []);
+    setProfileModules(nextModules);
+    if (profileModulesStorageKey) {
+      localStorage.setItem(profileModulesStorageKey, JSON.stringify(nextModules));
+    }
+  }, [profileModulesStorageKey]);
+  const fetchProfileTextsModule = useCallback(async (targetUserId) => {
+    if (!targetUserId) return;
+    try {
+      const response = await api.get(`/api/v1/users/${targetUserId}/profile-texts`);
+      applyTextsModuleUpdate(response?.data?.module || null);
+    } catch (fetchError) {
+      console.warn('[Profile] Failed to fetch profile texts module:', fetchError?.response?.data || fetchError?.message || fetchError);
+    }
+  }, [applyTextsModuleUpdate]);
+  const handleSubmitProfileText = useCallback(async () => {
+    const targetUserId = Number(profileUser?.id || 0);
+    const textValue = String(profileTextDraft || '').trim();
+    if (!targetUserId || !textValue || !canWriteToTexts || profileTextSubmitting) return;
+
+    try {
+      setProfileTextSubmitting(true);
+      const response = await api.post(`/api/v1/users/${targetUserId}/profile-texts`, { text: textValue });
+      applyTextsModuleUpdate(response?.data?.module || null);
+      setProfileTextDraft('');
+      setSnackbar({ open: true, message: 'Text sent', severity: 'success' });
+    } catch (submitError) {
+      const errorCode = submitError?.response?.data?.code;
+      const message = errorCode === 'TEXTS_FULL_MANUAL'
+        ? 'Texts module is full. Wait for the owner to delete one.'
+        : (submitError?.response?.data?.error || submitError?.message || 'Failed to send text');
+      setSnackbar({ open: true, message, severity: 'error' });
+    } finally {
+      setProfileTextSubmitting(false);
+    }
+  }, [applyTextsModuleUpdate, canWriteToTexts, profileTextDraft, profileTextSubmitting, profileUser?.id]);
+  const handleDeleteProfileText = useCallback(async (textId) => {
+    const targetUserId = Number(profileUser?.id || 0);
+    if (!targetUserId || !textId || !canDeleteTexts || profileTextDeletingId) return;
+
+    try {
+      setProfileTextDeletingId(String(textId));
+      const response = await api.delete(`/api/v1/users/${targetUserId}/profile-texts/${encodeURIComponent(String(textId))}`);
+      applyTextsModuleUpdate(response?.data?.module || null);
+      setSnackbar({ open: true, message: 'Text deleted', severity: 'success' });
+    } catch (deleteError) {
+      const message = deleteError?.response?.data?.error || deleteError?.message || 'Failed to delete text';
+      setSnackbar({ open: true, message, severity: 'error' });
+    } finally {
+      setProfileTextDeletingId('');
+    }
+  }, [applyTextsModuleUpdate, canDeleteTexts, profileTextDeletingId, profileUser?.id]);
   const handleOpenProfileModuleEventReference = React.useCallback(async ({ eventId, resolvedEvent }) => {
     const normalizedEventId = Number(eventId || resolvedEvent?.id);
     if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) return;
@@ -392,6 +497,8 @@ const Profile = () => {
       setProfileModules(cachedModules);
     }
 
+    fetchProfileTextsModule(storageUserId);
+
     if (!isOwnProfile) return;
 
     let canceled = false;
@@ -427,7 +534,7 @@ const Profile = () => {
     return () => {
       canceled = true;
     };
-  }, [profileUser?.id, profileUser?.avatar_url, isOwnProfile, profileModulesStorageKey]);
+  }, [profileUser?.id, profileUser?.avatar_url, isOwnProfile, profileModulesStorageKey, fetchProfileTextsModule]);
 
   const handleCopyProfileLink = async () => {
     if (!profileShareLink) return;
@@ -704,54 +811,154 @@ const Profile = () => {
                       borderColor: theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.22)' : 'rgba(25, 118, 210, 0.2)',
                     }}
                   >
-                    <Stack spacing={1.1}>
-                      {group.modules.map((module, index) => {
-                        const isLeftBubble = index % 2 === 0;
-                        const isTextModule = normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_TEXTS;
-                        const textModuleLightBackground = isLeftBubble
-                          ? (theme.palette.mode === 'dark'
-                            ? 'linear-gradient(145deg, rgba(52, 91, 168, 0.7) 0%, rgba(40, 76, 148, 0.62) 100%)'
-                            : 'linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.94) 100%)')
-                          : (theme.palette.mode === 'dark'
-                            ? 'linear-gradient(145deg, rgba(69, 116, 202, 0.82) 0%, rgba(58, 101, 188, 0.72) 100%)'
-                            : 'linear-gradient(145deg, rgba(236, 245, 255, 0.98) 0%, rgba(223, 238, 255, 0.95) 100%)');
+                    {normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_TEXTS ? (
+                      <Stack spacing={1.2}>
+                        {textsEntries.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            No texts yet.
+                          </Typography>
+                        ) : textsEntries.map((entry) => {
+                          const isOwnerEntry = Number(entry.author_id) === Number(profileUser?.id);
+                          const isLeftBubble = isOwnerEntry;
+                          const textModuleBackground = isLeftBubble
+                            ? (theme.palette.mode === 'dark'
+                              ? 'linear-gradient(145deg, rgba(52, 91, 168, 0.7) 0%, rgba(40, 76, 148, 0.62) 100%)'
+                              : 'linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.94) 100%)')
+                            : (theme.palette.mode === 'dark'
+                              ? 'linear-gradient(145deg, rgba(69, 116, 202, 0.82) 0%, rgba(58, 101, 188, 0.72) 100%)'
+                              : 'linear-gradient(145deg, rgba(236, 245, 255, 0.98) 0%, rgba(223, 238, 255, 0.95) 100%)');
 
-                        return (
-                          <Card
-                            key={module.id}
-                            sx={{
-                              position: 'relative',
-                              alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
-                              width: { xs: '96%', sm: '85%' },
-                              borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
-                              background: isTextModule
-                                ? textModuleLightBackground
-                                : (theme.palette.mode === 'dark'
-                                  ? 'linear-gradient(145deg, #162a63 0%, #0f1f49 100%)'
-                                  : 'linear-gradient(145deg, #ffffff 0%, #eef4ff 100%)'),
-                              border: '1px solid',
-                              borderColor: isLeftBubble
-                                ? (theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.34)' : 'rgba(33, 150, 243, 0.28)')
-                                : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
-                              boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
-                            }}
-                          >
-                            <CardContent sx={{ pb: 1.6 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.45, letterSpacing: 0.15 }}>
-                                {module.title}
+                          return (
+                            <Card
+                              key={entry.id}
+                              sx={{
+                                position: 'relative',
+                                alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
+                                width: { xs: '96%', sm: '85%' },
+                                borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
+                                background: textModuleBackground,
+                                border: '1px solid',
+                                borderColor: isLeftBubble
+                                  ? (theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.34)' : 'rgba(33, 150, 243, 0.28)')
+                                  : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
+                                boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
+                              }}
+                            >
+                              <CardContent sx={{ pb: 1.4 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.45, letterSpacing: 0.15 }}>
+                                    {`${entry.author_username || 'User'} Says`}
+                                  </Typography>
+                                  {canDeleteTexts && (
+                                    <Tooltip title="Delete text">
+                                      <span>
+                                        <IconButton
+                                          size="small"
+                                          color="error"
+                                          onClick={() => handleDeleteProfileText(entry.id)}
+                                          disabled={Boolean(profileTextDeletingId) || profileTextSubmitting}
+                                        >
+                                          <DeleteOutlineIcon fontSize="small" />
+                                        </IconButton>
+                                      </span>
+                                    </Tooltip>
+                                  )}
+                                </Box>
+                                <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
+                                  <RichContentRenderer
+                                    content={toRichContentPayload(entry.text)}
+                                    theme={theme}
+                                    onOpenEventReference={handleOpenProfileModuleEventReference}
+                                  />
+                                </Box>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+
+                        {canWriteToTexts && !isManualModeAtCap && (
+                          <Box sx={{ mt: 0.5 }}>
+                            <TextField
+                              fullWidth
+                              multiline
+                              minRows={2}
+                              maxRows={4}
+                              value={profileTextDraft}
+                              onChange={(event) => setProfileTextDraft(event.target.value)}
+                              placeholder={isOwnProfile ? 'Write a text to your profile...' : `Write a text for ${profileUser?.username || 'this user'}...`}
+                              inputProps={{ maxLength: 1200 }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' && !event.shiftKey) {
+                                  event.preventDefault();
+                                  handleSubmitProfileText();
+                                }
+                              }}
+                              sx={{ mb: 1.1, '& .MuiInputBase-root': { borderRadius: 2 } }}
+                            />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {textsOverflowMode === 'fifo'
+                                  ? `Auto-rollover enabled (${textsEntries.length}/${textsMaxItems})`
+                                  : `Manual mode (${textsEntries.length}/${textsMaxItems})`}
                               </Typography>
-                              <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
-                                <RichContentRenderer
-                                  content={toRichContentPayload(module.description)}
-                                  theme={theme}
-                                  onOpenEventReference={handleOpenProfileModuleEventReference}
-                                />
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </Stack>
+                              <Button
+                                variant="contained"
+                                onClick={handleSubmitProfileText}
+                                disabled={profileTextSubmitting || !String(profileTextDraft || '').trim()}
+                                sx={getGlassPillActionButtonSx(theme)}
+                              >
+                                {profileTextSubmitting ? 'Sending...' : 'Send'}
+                              </Button>
+                            </Box>
+                          </Box>
+                        )}
+
+                        {canWriteToTexts && isManualModeAtCap && (
+                          <Typography variant="caption" color="text.secondary">
+                            Texts module is full (manual mode). Owner must delete one before new texts can be sent.
+                          </Typography>
+                        )}
+                      </Stack>
+                    ) : (
+                      <Stack spacing={1.1}>
+                        {group.modules.map((module, index) => {
+                          const isLeftBubble = index % 2 === 0;
+                          const cardBackground = isLeftBubble
+                            ? (theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #162a63 0%, #0f1f49 100%)' : 'linear-gradient(145deg, #ffffff 0%, #eef4ff 100%)')
+                            : (theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #254b97 0%, #1a3874 100%)' : 'linear-gradient(145deg, #d9e9ff 0%, #c7defd 100%)');
+                          return (
+                            <Card
+                              key={module.id}
+                              sx={{
+                                position: 'relative',
+                                alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
+                                width: { xs: '96%', sm: '85%' },
+                                borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
+                                background: cardBackground,
+                                border: '1px solid',
+                                borderColor: isLeftBubble
+                                  ? (theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.34)' : 'rgba(33, 150, 243, 0.28)')
+                                  : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
+                                boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
+                              }}
+                            >
+                              <CardContent sx={{ pb: 1.6 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.45, letterSpacing: 0.15 }}>
+                                  {module.title}
+                                </Typography>
+                                <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
+                                  <RichContentRenderer
+                                    content={toRichContentPayload(module.description)}
+                                    theme={theme}
+                                    onOpenEventReference={handleOpenProfileModuleEventReference}
+                                  />
+                                </Box>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </Stack>
+                    )}
                   </Box>
                 </Paper>
               ))}

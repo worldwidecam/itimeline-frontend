@@ -2370,11 +2370,35 @@ export const updateUserPreferences = async (prefs = {}) => {
       if (rawProfileModules === null) {
         payload.profile_modules = [];
       } else if (Array.isArray(rawProfileModules)) {
+        const normalizeOverflowMode = (value) => {
+          const normalized = String(value || '').trim().toLowerCase();
+          return normalized === 'fifo' ? 'fifo' : 'manual';
+        };
+
+        const normalizeTextEntries = (entries, fallbackOwnerLabel) => {
+          if (!Array.isArray(entries)) return [];
+          return entries
+            .map((entry, index) => {
+              const textValue = String(entry?.text || '').trim().slice(0, 1200);
+              if (!textValue) return null;
+              const parsedAuthorId = Number(entry?.author_id);
+              return {
+                id: String(entry?.id || `profile-text-${Date.now()}-${index + 1}`),
+                text: textValue,
+                author_id: Number.isInteger(parsedAuthorId) && parsedAuthorId > 0 ? parsedAuthorId : null,
+                author_username: String(entry?.author_username || fallbackOwnerLabel || '').trim().slice(0, 80),
+                created_at: String(entry?.created_at || '').trim() || null,
+              };
+            })
+            .filter(Boolean);
+        };
+
         payload.profile_modules = rawProfileModules
           .map((module, index) => {
             const title = String(module?.title || '').trim().slice(0, 120);
             const description = String(module?.description || '').trim().slice(0, 1200);
-            if (!title && !description) return null;
+            const textEntries = normalizeTextEntries(module?.texts, title || 'User');
+            if (!title && !description && textEntries.length === 0) return null;
             const normalizedOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
             return {
               id: String(module?.id || `profile-module-${index + 1}`),
@@ -2383,6 +2407,9 @@ export const updateUserPreferences = async (prefs = {}) => {
               description,
               order: normalizedOrder,
               is_visible: module?.is_visible !== false,
+              max_items: Math.max(1, Math.min(100, Number(module?.max_items) || 10)),
+              overflow_mode: normalizeOverflowMode(module?.overflow_mode),
+              texts: textEntries,
             };
           })
           .filter(Boolean)

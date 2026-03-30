@@ -111,42 +111,69 @@ const RichContentRenderer = ({ content, theme }) => {
   };
 
   const handleMentionClick = async (type, name, username) => {
+    const openRouteInNewTab = (route) => {
+      if (!route) return;
+      window.open(route, '_blank', 'noopener,noreferrer');
+    };
+    const openPendingNewTab = () => window.open('about:blank', '_blank', 'noopener,noreferrer');
+
     switch (type) {
-      case 'user_mention':
-        // Fetch user data and navigate to profile
+      case 'user_mention': {
+        const pendingTab = openPendingNewTab();
         const userData = await fetchUserData(username);
         if (userData && userData.id) {
-          navigate(`/profile/${userData.id}`);
+          const route = `/profile/${userData.id}`;
+          if (pendingTab) {
+            pendingTab.location.href = route;
+          } else {
+            openRouteInNewTab(route);
+          }
+        } else if (pendingTab) {
+          pendingTab.close();
         }
         break;
-      case 'hashtag_mention':
-        // Query API for hashtag timeline by name
+      }
+      case 'hashtag_mention': {
+        const pendingTab = openPendingNewTab();
         try {
           const timelineName = name.toUpperCase();
           const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
-          if (response.data && response.data.id) {
-            navigate(`/timeline-v3/${response.data.id}`);
+          const route = response.data && response.data.id
+            ? `/timeline-v3/${response.data.id}`
+            : `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
+          if (pendingTab) {
+            pendingTab.location.href = route;
           } else {
-            navigate(`/timeline-v3/new?name=${encodeURIComponent(timelineName)}`);
+            openRouteInNewTab(route);
           }
         } catch (error) {
+          if (pendingTab) pendingTab.close();
           console.error('Error fetching hashtag timeline:', error);
         }
         break;
-      case 'community_mention':
-        // Query API for community timeline by name
+      }
+      case 'community_mention': {
+        const pendingTab = openPendingNewTab();
         try {
           const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(name)}`);
           if (response.data && response.data.id) {
-            navigate(`/timeline-v3/${response.data.id}`);
+            const route = `/timeline-v3/${response.data.id}`;
+            if (pendingTab) {
+              pendingTab.location.href = route;
+            } else {
+              openRouteInNewTab(route);
+            }
+          } else if (pendingTab) {
+            pendingTab.close();
           }
         } catch (error) {
+          if (pendingTab) pendingTab.close();
           console.error('Error fetching community timeline:', error);
         }
         break;
+      }
       case 'link':
-        // Open link in new tab
-        window.open(name, '_blank');
+        window.open(name, '_blank', 'noopener,noreferrer');
         break;
       case 'event_reference': {
         const normalizedEventId = Number(name);
