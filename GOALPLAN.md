@@ -57,7 +57,23 @@
   - [x] Username policy hardened to reject whitespace in signup and username-change flows (frontend validation + backend enforcement for register/profile update/required username change).
   - [ ] Public profile module read path for non-owner viewers (if product chooses to expose modules publicly) needs explicit API contract.
 - [ ] Mailbox / Letters: profile-level letter sending/receiving flow with moderation-safe baseline behavior.
-- [ ] Conspiracy Board (final in this sequence): visual cork-board to pin events and connect them with labeled yarn links.
+- [ ] Theory Board (final in this sequence): standalone profile module tool with detective corkboard identity.
+  - [ ] Architecture lock: Theory Board must be implemented as its own standalone module system (avoid TimelineV3-style scope creep into unrelated page responsibilities).
+  - [ ] Visual lock: framed corkboard shell remains fixed; inner corkboard is the interactive canvas.
+  - [ ] Interaction lock (V1): drag canvas, click corkboard to zoom in, double-click to zoom out.
+  - [ ] Node source lock (V1): owner can add nodes by Event ID from profile-side drawer/palette.
+  - [ ] Node rendering lock (V1): event nodes render as timeline-style event hover cards on the corkboard; card click still opens EventPopup.
+  - [ ] Ownership lock: only profile owner can add/edit/delete/reposition nodes; visitors are view-only (drag/zoom allowed).
+  - [ ] Pin mechanic lock: each node has a visual random-color tac pin at top-middle; dragging the pin moves the card.
+  - [ ] Link mechanic lock: yarn-style edges between nodes with slight weighted droop aesthetic.
+  - [ ] Node uniqueness rule: each grid cell is unique, but event IDs are not globally unique-enforced (same event may be pinned in multiple cells if user chooses).
+  - [ ] Boundary visual lock: board workspace uses a perforated "ENDLINE" boundary with a one-cell visual buffer around occupied cells.
+  - [ ] Auto-edge/workspace expansion lock: when node graph extends outward (ex: drag/add from M25 to N25), boundary auto-expands to keep one-cell buffer (ex: L24-N26 -> L24-O26).
+  - [ ] Node deletion UX lock: use explicit tac-pin menu/icon action for delete (no destructive double-click delete baseline).
+  - [ ] Canvas behavior lock: non-static reactive workspace; frontend owns presentation/activity, backend stores board state in structured/grid-like coordinates.
+  - [ ] Scale guardrails (V1): max 50 nodes per Theory Board.
+  - [ ] Moderation extension idea: add report-verdict option to disable user modules for a duration or indefinitely.
+  - [ ] Mobile scope note: postpone full mobile editing to V2; evaluate universal fullscreen mode (available to owner and visitors) as likely V1 accessibility affordance.
 
 ### Profile ideation queue (locked into Phase 1)
 - [x] Popular vs Home tab preference toggle.

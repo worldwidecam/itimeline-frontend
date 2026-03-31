@@ -38,6 +38,7 @@ import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
 import TradingCard from './common/TradingCard';
+import TheoryBoardModule from './theory-board/TheoryBoardModule';
 import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
 import EventPopup from './timeline-v3/events/EventPopup';
 import config from '../config';
@@ -52,13 +53,14 @@ import { getCachedUserIdentityColor, resolveUserIdentityColor } from '../utils/u
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
 const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
+const PROFILE_MODULE_TYPE_THEORY_BOARD = 'theory_board';
 const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
 const TEXTS_MODULE_MAX_ITEMS = 10;
 
 const PROFILE_MODULE_TYPE_META = {
   [PROFILE_MODULE_TYPE_TEXTS]: { label: 'Texts' },
   [PROFILE_MODULE_TYPE_MAILBOX]: { label: 'Mailbox' },
-  [PROFILE_MODULE_TYPE_CONSPIRACY_BOARD]: { label: 'Conspiracy Board' },
+  [PROFILE_MODULE_TYPE_THEORY_BOARD]: { label: 'Theory Board' },
 };
 
 const normalizeProfileModuleType = (type) => {
@@ -67,7 +69,9 @@ const normalizeProfileModuleType = (type) => {
     return PROFILE_MODULE_TYPE_TEXTS;
   }
   if (rawType === PROFILE_MODULE_TYPE_MAILBOX) return PROFILE_MODULE_TYPE_MAILBOX;
-  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD) return PROFILE_MODULE_TYPE_CONSPIRACY_BOARD;
+  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD || rawType === PROFILE_MODULE_TYPE_THEORY_BOARD) {
+    return PROFILE_MODULE_TYPE_THEORY_BOARD;
+  }
   return PROFILE_MODULE_TYPE_TEXTS;
 };
 
@@ -919,6 +923,12 @@ const Profile = () => {
                           </Typography>
                         )}
                       </Stack>
+                    ) : normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_THEORY_BOARD ? (
+                      <TheoryBoardModule
+                        profileUserId={Number(profileUser?.id || 0)}
+                        isOwner={isOwnProfile}
+                        onOpenEventReference={handleOpenProfileModuleEventReference}
+                      />
                     ) : (
                       <Stack spacing={1.1}>
                         {group.modules.map((module, index) => {
