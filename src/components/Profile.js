@@ -84,6 +84,14 @@ const normalizeOverflowMode = (value) => {
   return normalized === 'fifo' ? 'fifo' : 'manual';
 };
 
+const normalizeTheoryBoardTitleBase = (value) => {
+  const compact = String(value || '').replace(/\s+/g, ' ').trim();
+  const withoutSuffix = compact.replace(/\s*board$/i, '').trim();
+  return withoutSuffix || 'Theory';
+};
+
+const formatTheoryBoardTitle = (value) => `${normalizeTheoryBoardTitleBase(value)} Board`;
+
 const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
   if (!Array.isArray(entries)) return [];
   return entries
@@ -166,12 +174,12 @@ const normalizeProfileModules = (rawModules) => {
 
   return rawModules
     .map((module, index) => {
+      const moduleType = normalizeProfileModuleType(module?.type);
       const title = String(module?.title || '').trim().slice(0, 120);
       const description = String(module?.description || '').trim().slice(0, 1200);
       const texts = normalizeProfileTextEntries(module?.texts, title || 'User');
-      if (!title && !description && texts.length === 0) return null;
-
-      const moduleType = normalizeProfileModuleType(module?.type);
+      const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0) return null;
       const moduleId = String(module?.id || `profile-module-${index + 1}`);
       const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
       const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items) || TEXTS_MODULE_MAX_ITEMS));
@@ -285,14 +293,32 @@ const Profile = () => {
       if (!grouped.has(type)) grouped.set(type, []);
       grouped.get(type).push(module);
     });
-    return Array.from(grouped.entries()).map(([type, modules]) => ({ type, modules }));
+    const moduleTypePriority = {
+      [PROFILE_MODULE_TYPE_TEXTS]: 0,
+      [PROFILE_MODULE_TYPE_THEORY_BOARD]: 1,
+    };
+    return Array.from(grouped.entries())
+      .map(([type, modules]) => ({ type, modules }))
+      .sort((a, b) => {
+        const left = Number.isFinite(moduleTypePriority[a.type]) ? moduleTypePriority[a.type] : 99;
+        const right = Number.isFinite(moduleTypePriority[b.type]) ? moduleTypePriority[b.type] : 99;
+        return left - right;
+      });
   }, [visibleProfileModules]);
   const applyTextsModuleUpdate = useCallback((modulePayload) => {
-    const nextModules = normalizeProfileModules(modulePayload ? [modulePayload] : []);
-    setProfileModules(nextModules);
-    if (profileModulesStorageKey) {
-      localStorage.setItem(profileModulesStorageKey, JSON.stringify(nextModules));
-    }
+    setProfileModules((previousModules) => {
+      const normalizedPrevious = normalizeProfileModules(previousModules);
+      const withoutTexts = normalizedPrevious.filter(
+        (module) => normalizeProfileModuleType(module?.type) !== PROFILE_MODULE_TYPE_TEXTS
+      );
+      const nextModules = normalizeProfileModules(
+        modulePayload ? [modulePayload, ...withoutTexts] : withoutTexts
+      );
+      if (profileModulesStorageKey) {
+        localStorage.setItem(profileModulesStorageKey, JSON.stringify(nextModules));
+      }
+      return nextModules;
+    });
   }, [profileModulesStorageKey]);
   const fetchProfileTextsModule = useCallback(async (targetUserId) => {
     if (!targetUserId) return;
@@ -803,9 +829,18 @@ const Profile = () => {
                     boxShadow: profileContainerGlow,
                   }}
                 >
-                  <Typography variant="h6" sx={{ mb: 1.5 }}>
-                    {getProfileModuleTypeLabel(group.type)}
-                  </Typography>
+                  {(() => {
+                    const normalizedGroupType = normalizeProfileModuleType(group.type);
+                    const primaryModule = Array.isArray(group.modules) ? group.modules[0] : null;
+                    const moduleHeading = normalizedGroupType === PROFILE_MODULE_TYPE_THEORY_BOARD
+                      ? formatTheoryBoardTitle(primaryModule?.title)
+                      : getProfileModuleTypeLabel(group.type);
+                    return (
+                      <Typography variant="h6" sx={{ mb: 1.5 }}>
+                        {moduleHeading}
+                      </Typography>
+                    );
+                  })()}
                   <Box
                     sx={{
                       borderRadius: 2.5,

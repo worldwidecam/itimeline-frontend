@@ -6,10 +6,10 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../../common/UserAvatar';
 import HashtagIcon from '../../common/HashtagIcon';
-import api from '../../../utils/api';
+import api, { getUserByUsername } from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 
-const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
+const RichContentRenderer = ({ content, theme, onOpenEventReference, solidChips = false, disableInteractions = false }) => {
   const navigate = useNavigate();
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
@@ -35,16 +35,43 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
       return userCache[username];
     }
     try {
-      const response = await api.get(`/api/users/lookup?username=${encodeURIComponent(username)}`);
-      if (response.data) {
-        setUserCache((prev) => ({ ...prev, [username]: response.data }));
-        setUserDataMap((prev) => ({ ...prev, [username]: response.data }));
-        return response.data;
+      const userData = await getUserByUsername(username);
+      if (userData) {
+        setUserCache((prev) => ({ ...prev, [username]: userData }));
+        setUserDataMap((prev) => ({ ...prev, [username]: userData }));
+        return userData;
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
     return null;
+  };
+
+  const resolveTimelineByName = async (timelineName) => {
+    const lookup = String(timelineName || '').trim();
+    if (!lookup) return null;
+
+    const paths = ['/api/timeline-v3/name/', '/api/v1/timeline-v3/name/'];
+    let lastError = null;
+
+    for (const path of paths) {
+      try {
+        const response = await api.get(`${path}${encodeURIComponent(lookup)}`);
+        if (response?.data?.id) return response.data;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError) throw lastError;
+    return null;
+  };
+
+  const pickChipBg = ({ softLight, softDark, solidLight, solidDark }) => {
+    if (theme.palette.mode === 'dark') {
+      return solidChips ? solidDark : softDark;
+    }
+    return solidChips ? solidLight : softLight;
   };
 
   React.useEffect(() => {
@@ -99,14 +126,31 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
     });
   }, [content, eventReferenceCache]);
 
-  const openRouteInNewTab = (route) => {
-    if (!route) return;
-    window.open(route, '_blank', 'noopener,noreferrer');
+  const toAbsoluteRoute = (route) => {
+    if (!route) return '';
+    if (/^https?:\/\//i.test(route)) return route;
+    return `${window.location.origin}${route.startsWith('/') ? route : `/${route}`}`;
   };
 
-  const openPendingNewTab = () => window.open('about:blank', '_blank', 'noopener,noreferrer');
+  const openRouteInNewTab = (route) => {
+    if (!route) return;
+    window.open(toAbsoluteRoute(route), '_blank', 'noopener,noreferrer');
+  };
+
+  const openPendingNewTab = () => {
+    const tab = window.open('about:blank', '_blank');
+    if (tab) {
+      try {
+        tab.opener = null;
+      } catch (_) {
+        // noop
+      }
+    }
+    return tab;
+  };
 
   const handleMentionClick = async (type, name, username) => {
+    if (disableInteractions) return;
     switch (type) {
       case 'user_mention': {
         const pendingTab = openPendingNewTab();
@@ -114,7 +158,7 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
         if (userData && userData.id) {
           const route = `/profile/${userData.id}`;
           if (pendingTab) {
-            pendingTab.location.href = route;
+            pendingTab.location.href = toAbsoluteRoute(route);
           } else {
             openRouteInNewTab(route);
           }
@@ -127,12 +171,12 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
         const pendingTab = openPendingNewTab();
         try {
           const timelineName = name.toUpperCase();
-          const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
-          const route = response.data && response.data.id
-            ? `/timeline-v3/${response.data.id}`
+          const timeline = await resolveTimelineByName(timelineName);
+          const route = timeline?.id
+            ? `/timeline-v3/${timeline.id}`
             : `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
           if (pendingTab) {
-            pendingTab.location.href = route;
+            pendingTab.location.href = toAbsoluteRoute(route);
           } else {
             openRouteInNewTab(route);
           }
@@ -145,11 +189,13 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
       case 'community_mention': {
         const pendingTab = openPendingNewTab();
         try {
-          const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(name)}`);
-          if (response.data && response.data.id) {
-            const route = `/timeline-v3/${response.data.id}`;
+          const baseName = String(name || '').trim();
+          const timeline = await resolveTimelineByName(baseName)
+            || await resolveTimelineByName(`i-${baseName}`);
+          if (timeline?.id) {
+            const route = `/timeline-v3/${timeline.id}`;
             if (pendingTab) {
-              pendingTab.location.href = route;
+              pendingTab.location.href = toAbsoluteRoute(route);
             } else {
               openRouteInNewTab(route);
             }
@@ -223,15 +269,21 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
                   px: 1,
                   py: 0.5,
                   borderRadius: 1.5,
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(33, 150, 243, 0.2)'
-                    : 'rgba(33, 150, 243, 0.1)',
-                  cursor: 'pointer',
+                  bgcolor: pickChipBg({
+                    softLight: 'rgba(230, 242, 255, 0.85)',
+                    softDark: 'rgba(24, 56, 84, 0.85)',
+                    solidLight: 'rgba(221, 237, 255, 0.97)',
+                    solidDark: 'rgba(27, 65, 99, 0.96)',
+                  }),
+                  cursor: disableInteractions ? 'default' : 'pointer',
                   transition: 'all 0.2s ease',
                   '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(33, 150, 243, 0.3)'
-                      : 'rgba(33, 150, 243, 0.2)',
+                    bgcolor: pickChipBg({
+                      softLight: 'rgba(216, 233, 251, 0.92)',
+                      softDark: 'rgba(29, 72, 108, 0.9)',
+                      solidLight: 'rgba(208, 228, 250, 0.99)',
+                      solidDark: 'rgba(33, 77, 115, 0.98)',
+                    }),
                   },
                 }}
               >
@@ -261,15 +313,21 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
                 size="small"
                 onClick={() => handleMentionClick('hashtag_mention', item.name, null)}
                 sx={{
-                  cursor: 'pointer',
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(76, 175, 80, 0.2)'
-                    : 'rgba(76, 175, 80, 0.1)',
+                  cursor: disableInteractions ? 'default' : 'pointer',
+                  bgcolor: pickChipBg({
+                    softLight: 'rgba(235, 251, 237, 0.88)',
+                    softDark: 'rgba(31, 69, 36, 0.84)',
+                    solidLight: 'rgba(235, 251, 237, 0.97)',
+                    solidDark: 'rgba(31, 69, 36, 0.96)',
+                  }),
                   color: theme.palette.success.main,
                   '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(76, 175, 80, 0.3)'
-                      : 'rgba(76, 175, 80, 0.2)',
+                    bgcolor: pickChipBg({
+                      softLight: 'rgba(223, 245, 226, 0.92)',
+                      softDark: 'rgba(38, 82, 43, 0.9)',
+                      solidLight: 'rgba(223, 245, 226, 0.99)',
+                      solidDark: 'rgba(38, 82, 43, 0.98)',
+                    }),
                   },
                 }}
               />
@@ -286,15 +344,21 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
                 size="small"
                 onClick={() => handleMentionClick('community_mention', item.name, null)}
                 sx={{
-                  cursor: 'pointer',
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(156, 39, 176, 0.2)'
-                    : 'rgba(156, 39, 176, 0.1)',
+                  cursor: disableInteractions ? 'default' : 'pointer',
+                  bgcolor: pickChipBg({
+                    softLight: 'rgba(245, 236, 251, 0.88)',
+                    softDark: 'rgba(70, 33, 79, 0.84)',
+                    solidLight: 'rgba(245, 236, 251, 0.97)',
+                    solidDark: 'rgba(70, 33, 79, 0.96)',
+                  }),
                   color: theme.palette.secondary.main,
                   '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(156, 39, 176, 0.3)'
-                      : 'rgba(156, 39, 176, 0.2)',
+                    bgcolor: pickChipBg({
+                      softLight: 'rgba(237, 225, 247, 0.92)',
+                      softDark: 'rgba(84, 39, 95, 0.9)',
+                      solidLight: 'rgba(237, 225, 247, 0.99)',
+                      solidDark: 'rgba(84, 39, 95, 0.98)',
+                    }),
                   },
                 }}
               />
@@ -311,15 +375,21 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
                 size="small"
                 onClick={() => handleMentionClick('link', item.url)}
                 sx={{
-                  cursor: 'pointer',
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(255, 152, 0, 0.2)'
-                    : 'rgba(255, 152, 0, 0.1)',
+                  cursor: disableInteractions ? 'default' : 'pointer',
+                  bgcolor: pickChipBg({
+                    softLight: 'rgba(255, 245, 229, 0.88)',
+                    softDark: 'rgba(89, 53, 14, 0.84)',
+                    solidLight: 'rgba(255, 245, 229, 0.97)',
+                    solidDark: 'rgba(89, 53, 14, 0.96)',
+                  }),
                   color: theme.palette.warning.main,
                   '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(255, 152, 0, 0.3)'
-                      : 'rgba(255, 152, 0, 0.2)',
+                    bgcolor: pickChipBg({
+                      softLight: 'rgba(255, 236, 209, 0.92)',
+                      softDark: 'rgba(106, 63, 16, 0.9)',
+                      solidLight: 'rgba(255, 236, 209, 0.99)',
+                      solidDark: 'rgba(106, 63, 16, 0.98)',
+                    }),
                   },
                 }}
               />
@@ -341,7 +411,7 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference }) => {
                 size="small"
                 onClick={() => handleMentionClick('event_reference', normalizedEventId, null)}
                 sx={{
-                  cursor: 'pointer',
+                  cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: eventColor.bg,
                   color: eventColor.color,
                   border: '1px solid',

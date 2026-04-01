@@ -49,12 +49,18 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
+const PROFILE_MODULE_TYPE_THEORY_BOARD = 'theory_board';
+const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
 const TEXTS_MODULE_MAX_ITEMS = 10;
+const THEORY_BOARD_TITLE_MAX_LENGTH = 50;
 
 const normalizeProfileModuleType = (type) => {
   const rawType = String(type || '').trim().toLowerCase();
   if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
     return PROFILE_MODULE_TYPE_TEXTS;
+  }
+  if (rawType === PROFILE_MODULE_TYPE_THEORY_BOARD || rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD) {
+    return PROFILE_MODULE_TYPE_THEORY_BOARD;
   }
   return PROFILE_MODULE_TYPE_TEXTS;
 };
@@ -103,6 +109,17 @@ const normalizeOverflowMode = (value) => {
   return normalized === 'fifo' ? 'fifo' : 'manual';
 };
 
+const normalizeTheoryBoardTitleBase = (value) => {
+  const compact = String(value || '').replace(/\s+/g, ' ').trim();
+  const withoutSuffix = compact.replace(/\s*board$/i, '').trim();
+  return withoutSuffix.slice(0, THEORY_BOARD_TITLE_MAX_LENGTH);
+};
+
+const formatTheoryBoardTitle = (value) => {
+  const base = normalizeTheoryBoardTitleBase(value);
+  return `${base || 'Theory'} Board`;
+};
+
 const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
   if (!Array.isArray(entries)) return [];
   return entries
@@ -125,16 +142,18 @@ const normalizeProfileModules = (rawModules) => {
   if (!Array.isArray(rawModules)) return [];
   return rawModules
     .map((module, index) => {
+      const moduleType = normalizeProfileModuleType(module?.type);
       const title = String(module?.title || '').trim().slice(0, 120);
       const description = String(module?.description || '').trim().slice(0, 1200);
       const texts = normalizeProfileTextEntries(module?.texts, title || 'User');
-      if (!title && !description && texts.length === 0) return null;
+      const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0) return null;
       const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
       const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items) || TEXTS_MODULE_MAX_ITEMS));
       const overflowMode = normalizeOverflowMode(module?.overflow_mode);
       return {
         id: String(module?.id || `profile-module-${index + 1}`),
-        type: normalizeProfileModuleType(module?.type),
+        type: moduleType,
         title,
         description,
         order: moduleOrder,
@@ -156,6 +175,10 @@ const getTextsModuleFromModules = (modules) => (
   normalizeProfileModules(modules).find((module) => normalizeProfileModuleType(module.type) === PROFILE_MODULE_TYPE_TEXTS) || null
 );
 
+const getTheoryBoardModuleFromModules = (modules) => (
+  normalizeProfileModules(modules).find((module) => normalizeProfileModuleType(module.type) === PROFILE_MODULE_TYPE_THEORY_BOARD) || null
+);
+
 const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User' }) => {
   const normalizedModules = normalizeProfileModules(modules);
   const nextOverflowMode = normalizeOverflowMode(overflowMode);
@@ -175,6 +198,27 @@ const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User'
 
   const withoutTexts = normalizedModules.filter((module) => normalizeProfileModuleType(module.type) !== PROFILE_MODULE_TYPE_TEXTS);
   return [nextTextsModule, ...withoutTexts].map((module, index) => ({ ...module, order: index }));
+};
+
+const upsertTheoryBoardModule = ({ modules, enabled, titleBase }) => {
+  const normalizedModules = normalizeProfileModules(modules);
+  const existingTheoryBoardModule = getTheoryBoardModuleFromModules(normalizedModules);
+  const nextTheoryBoardModule = {
+    id: existingTheoryBoardModule?.id || 'profile-module-theory-board-main',
+    type: PROFILE_MODULE_TYPE_THEORY_BOARD,
+    title: formatTheoryBoardTitle(titleBase || existingTheoryBoardModule?.title || 'Theory'),
+    description: existingTheoryBoardModule?.description || '',
+    order: 0,
+    is_visible: Boolean(enabled),
+    max_items: 100,
+    overflow_mode: 'manual',
+    texts: [],
+  };
+
+  const withoutTheoryBoard = normalizedModules.filter(
+    (module) => normalizeProfileModuleType(module.type) !== PROFILE_MODULE_TYPE_THEORY_BOARD
+  );
+  return [...withoutTheoryBoard, nextTheoryBoardModule].map((module, index) => ({ ...module, order: index }));
 };
 
 const ProfileSettings = () => {
@@ -223,6 +267,8 @@ const ProfileSettings = () => {
   const [profileModules, setProfileModules] = useState([]);
   const [textsModuleEnabled, setTextsModuleEnabled] = useState(false);
   const [textsOverflowMode, setTextsOverflowMode] = useState('manual');
+  const [theoryBoardModuleEnabled, setTheoryBoardModuleEnabled] = useState(false);
+  const [theoryBoardTitle, setTheoryBoardTitle] = useState('Theory');
 
   const markUnsavedChanges = useCallback(() => {
     setHasUnsavedChanges(true);
@@ -310,8 +356,11 @@ const ProfileSettings = () => {
         const normalizedModules = normalizeProfileModules(resolvedProfileModules);
         setProfileModules(normalizedModules);
         const textsModule = getTextsModuleFromModules(normalizedModules);
+        const theoryBoardModule = getTheoryBoardModuleFromModules(normalizedModules);
         setTextsModuleEnabled(Boolean(textsModule?.is_visible));
         setTextsOverflowMode(normalizeOverflowMode(textsModule?.overflow_mode));
+        setTheoryBoardModuleEnabled(Boolean(theoryBoardModule?.is_visible));
+        setTheoryBoardTitle(normalizeTheoryBoardTitleBase(theoryBoardModule?.title || 'Theory'));
 
         if (savedBlurPref !== null) {
           setFormData(prev => ({
@@ -390,6 +439,16 @@ const ProfileSettings = () => {
 
   const handleTextsOverflowModeChange = (event) => {
     setTextsOverflowMode(normalizeOverflowMode(event.target.value));
+    markUnsavedChanges();
+  };
+
+  const handleTheoryBoardModuleEnabledChange = (event) => {
+    setTheoryBoardModuleEnabled(Boolean(event.target.checked));
+    markUnsavedChanges();
+  };
+
+  const handleTheoryBoardTitleChange = (event) => {
+    setTheoryBoardTitle(normalizeTheoryBoardTitleBase(event.target.value));
     markUnsavedChanges();
   };
 
@@ -579,11 +638,16 @@ const ProfileSettings = () => {
 
       let preferenceSyncFailed = false;
       try {
-        const nextProfileModules = upsertTextsModule({
+        const withTextsModules = upsertTextsModule({
           modules: profileModules,
           enabled: textsModuleEnabled,
           overflowMode: textsOverflowMode,
           ownerLabel: user?.username || 'User',
+        });
+        const nextProfileModules = upsertTheoryBoardModule({
+          modules: withTextsModules,
+          enabled: theoryBoardModuleEnabled,
+          titleBase: theoryBoardTitle,
         });
 
         const preferencePayload = {
@@ -661,11 +725,15 @@ const ProfileSettings = () => {
           setShowSavedState(false);
         }, 3000);
       }
-      setProfileModules(upsertTextsModule({
-        modules: profileModules,
-        enabled: textsModuleEnabled,
-        overflowMode: textsOverflowMode,
-        ownerLabel: user?.username || 'User',
+      setProfileModules(upsertTheoryBoardModule({
+        modules: upsertTextsModule({
+          modules: profileModules,
+          enabled: textsModuleEnabled,
+          overflowMode: textsOverflowMode,
+          ownerLabel: user?.username || 'User',
+        }),
+        enabled: theoryBoardModuleEnabled,
+        titleBase: theoryBoardTitle,
       }));
     } catch (err) {
       console.error('Profile update error:', err);
@@ -1208,7 +1276,7 @@ const ProfileSettings = () => {
                   Profile Modules
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Configure whether Texts is enabled on your profile and choose how it behaves at the 10-text limit.
+                  Configure module visibility for your profile.
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -1217,14 +1285,43 @@ const ProfileSettings = () => {
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                         Module List
                       </Typography>
-                      <Button onClick={() => {
-                        setTextsModuleEnabled((prev) => !prev);
-                        markUnsavedChanges();
-                      }} variant="contained">
-                        {textsModuleEnabled ? 'Disable Texts Module' : 'Add Texts Module'}
-                      </Button>
                     </Box>
                     <Stack spacing={1.2}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ pb: 1.2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              Theory Board Module
+                            </Typography>
+                            <Chip
+                              size="small"
+                              color={theoryBoardModuleEnabled ? 'success' : 'default'}
+                              label={theoryBoardModuleEnabled ? 'ACTIVE' : 'INACTIVE'}
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </Box>
+                          <FormControlLabel
+                            control={(
+                              <Switch
+                                checked={theoryBoardModuleEnabled}
+                                onChange={handleTheoryBoardModuleEnabledChange}
+                              />
+                            )}
+                            label="Show Theory Board module on your profile"
+                          />
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Board Name"
+                            value={theoryBoardTitle}
+                            onChange={handleTheoryBoardTitleChange}
+                            inputProps={{ maxLength: THEORY_BOARD_TITLE_MAX_LENGTH }}
+                            sx={getGlassInputSx(theme)}
+                            helperText={`Displays as: ${formatTheoryBoardTitle(theoryBoardTitle)}`}
+                          />
+                        </CardContent>
+                      </Card>
+
                       <Card variant="outlined">
                         <CardContent sx={{ pb: 1.2 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>

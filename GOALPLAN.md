@@ -60,8 +60,64 @@
 - [ ] Theory Board (final in this sequence): standalone profile module tool with detective corkboard identity.
   - [ ] Architecture lock: Theory Board must be implemented as its own standalone module system (avoid TimelineV3-style scope creep into unrelated page responsibilities).
   - [ ] Visual lock: framed corkboard shell remains fixed; inner corkboard is the interactive canvas.
-  - [ ] Interaction lock (V1): drag canvas, click corkboard to zoom in, double-click to zoom out.
-  - [ ] Node source lock (V1): owner can add nodes by Event ID from profile-side drawer/palette.
+  - [x] Phase 0 scaffold: Profile Settings now includes Theory Board module enable/disable controls and persists in profile_modules.
+  - [x] Phase 0 scaffold: Profile page renders Theory Board base corkboard + frame layer when enabled.
+  - [x] Decision update: planned node input contract shifts from Event-ID-only to rich text cell input (chips for @, #, i-, www/http links).
+  - [x] Hard switch complete: Theory Board node storage contract is now `cell_content` plain text (no `event_id` node payload contract).
+  - [x] Persistence fix: theory_board module now survives profile refresh cycles (passport normalization + profile-text merge path preserve non-text modules).
+  - [x] V1 polish: Theory Board module name is now user-configurable in Profile Settings and always displayed as `<Name> Board` on Profile.
+  - [x] V1 polish: removed redundant inner Theory Board title; top strip now hosts starter controls.
+  - [x] Visual-base pass: frame/cork styling tuned closer to real corkboard reference (wood grain frame + denser cork texture) for baseline sign-off.
+  - [x] Interaction pass (V1 baseline): drag canvas, zoom controls, fullscreen toggle, and wrap-around cork texture movement.
+  - [x] Fullscreen sizing refinement: fullscreen board now fills available viewport space more reliably.
+  - [x] Initial-state framing: blank board now visually frames a single origin cell with perforated boundary cue.
+  - [x] Recenter control: one-click recenter returns pan/zoom to origin-cell baseline.
+  - [x] Top-strip action baseline: replaced placeholder copy with thumbtac `+Add` control and first-pin placement animation.
+  - [x] Drag responsiveness pass: reduced pan lag by requestAnimationFrame-throttled board pan updates.
+  - [x] Recenter pacing pass: recenter now eases into origin instead of snapping too quickly.
+  - [x] Origin-cell visual simplification: removed translucent inner cell fill so perforation boundary remains primary baseline cue.
+  - [x] Perforation bounds pass: boundary now expands to encapsulate all cells currently occupied by thumbtacs.
+  - [x] Tack placement model pass: thumbtacs are now draggable; first tack is constrained to origin cell zone, subsequent tacks are free-placement across board space.
+  - [x] Yarn styling pass: links shifted from dark line look toward segmented yarn-like strands with distance-aware weave cues.
+  - [x] Adaptive zoom guardrail pass: zoom-out floor now adapts to occupied perforation bounds so full occupied workspace can remain viewable.
+  - [x] Frame realism pass: outer wood frame darkened with layered grain overlays for less flat gradient appearance.
+  - [x] Owner tac dash baseline: selecting a tac shows mini side dash with owner-only content input + delete control.
+  - [x] Tac delete guardrail: origin tac cannot be deleted while non-origin tacs still exist.
+  - [x] Tac content rendering baseline: text content renders as rich chips; pure event-reference content (`~id`) renders embedded event-style card preview with click-to-open EventPopup wiring.
+  - [x] Toolbar cleanup pass: corrected label to `Thumb Tack`, removed icon backplate, and tightened icon/text spacing.
+  - [x] Mini-dash interaction pass: Enter now submits + closes dash, Shift+Enter keeps newline behavior, and explicit submit arrow button added.
+  - [x] Chip-only rendering polish: removed redundant outer content container when a tac payload is chip-only (non-event textless rich content).
+  - [x] Pin/content alignment polish: content cards now sit closer so tack visually anchors to the content below.
+  - [x] Add-tac placement refinement: new tacs now spawn at current viewport center (current board focus) instead of origin-biased placement.
+  - [x] Mini-dash utility control: added non-destructive minimize button to close editor without deleting tac.
+  - [x] Chip legibility refinement: added `solidChips` mode in RichContentRenderer and enabled it on Theory Board tac rendering for stronger pill backgrounds.
+  - [x] Event reference card polish: `~id` cards now use timeline-like type strip + media/title/date preview composition for closer visual parity with marker hover cards.
+  - [x] Interaction propagation fix: tac content cards now stop pointer-down propagation so chip clicks don't accidentally begin board pan.
+  - [x] Mini-dash live chip indicator restored: input now shows active mention-type feedback while typing (`Tagging`, `Hashtag`, `Community`, `URL`, `Event`).
+  - [x] Rich chip new-tab routing fix: mention chips now resolve app-relative routes to absolute URLs so new tabs no longer land on blank pages.
+  - [x] Event preview reuse correction: Theory Board now reuses timeline event marker preview components (news/media/remark) instead of bespoke card recreation.
+  - [x] Fullscreen EventPopup handoff fix: opening event references from fullscreen exits fullscreen first, then opens EventPopup in normal document context.
+  - [x] Mini-dash indicator parity correction: switched from custom inline chip indicator back to existing RichEditor-style Popper + Paper detection cue pattern.
+  - [x] Mention routing parity correction: RichContentRenderer now uses shared `getUserByUsername` + timeline-name fallback resolver (`/api/timeline-v3/name` and `/api/v1/timeline-v3/name`) for @/#/community chip targets.
+  - [x] Community mention resilience: community chip resolution now retries with both bare name and `i-` prefixed name before failing.
+  - [x] Fullscreen event-click behavior correction: removed forced fullscreen exit in Theory Board event-reference click handler; EventPopup now opens directly via existing callback path.
+  - [x] Fullscreen chip interaction lock: Theory Board now passes `disableInteractions` to RichContentRenderer while fullscreen so rich chips are intentionally non-clickable in fullscreen mode.
+  - [x] Yarn cut mode (owner): added scissors toolbar control to enter/exit cut mode; clicking a yarn segment now removes the connection.
+  - [x] Yarn cut transition polish: cut yarn now plays a taut-to-limp drop/fade animation before final removal.
+  - [x] Mini-dash yarn creation flow: added fourth mini-dash action button to start yarn from selected tack and complete by clicking a second tack.
+  - [x] Create-yarn live preview: while in yarn-create mode, pending yarn endpoint now follows pointer until target tack is chosen.
+  - [x] Toolbar order polish: fullscreen control restored to far-right position in Theory Board toolbar.
+  - [x] Scissors UX polish: cut mode now auto-exits after a single yarn cut (re-arm by pressing scissors again).
+  - [x] Mini-dash action layout polish: converted from one horizontal row to compact 2x2 action grid.
+  - [x] Yarn-create icon polish: replaced hyperlink-like icon with a node-connection icon for clearer intent.
+  - [x] Persistence integration (load): Theory Board now hydrates from `/api/v1/users/{id}/theory-board` snapshot on module mount/profile switch.
+  - [x] Persistence integration (save): centered toolbar Save button now writes board state (nodes, yarn edges, viewport) to Theory Board backend endpoints.
+  - [x] Save UX: dirty-state tracking added for pan/zoom/pins/yarn, with save feedback messaging (`Saving...`, `Board saved.`, and error states).
+  - [x] Storage-unavailable guardrail: when backend returns `503 Theory Board storage is unavailable`, module now surfaces explicit migration-needed feedback and disables Save to prevent repeated failing writes.
+  - [~] Infra dependency note: Theory Board backend endpoints require DB tables (`theory_board`, `theory_board_node`, `theory_board_edge`) from iTimeline-DB migration `migrations/add_theory_board_tables.py`.
+  - [~] Wheel zoom behavior: currently restricted to fullscreen mode by design; validate this UX choice with user after next pass.
+  - [~] Pin/yarn motion baseline: gravity-style idle animation scaffold added for thumbtacs and yarn links; tune values after richer node rendering lands.
+  - [ ] Node source lock (V1): owner can add nodes via text input; frontend parses/renders rich chips (@, #, i-, www/http) from cell payload.
   - [ ] Node rendering lock (V1): event nodes render as timeline-style event hover cards on the corkboard; card click still opens EventPopup.
   - [ ] Ownership lock: only profile owner can add/edit/delete/reposition nodes; visitors are view-only (drag/zoom allowed).
   - [ ] Pin mechanic lock: each node has a visual random-color tac pin at top-middle; dragging the pin moves the card.

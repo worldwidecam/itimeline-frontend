@@ -2395,14 +2395,19 @@ export const updateUserPreferences = async (prefs = {}) => {
 
         payload.profile_modules = rawProfileModules
           .map((module, index) => {
+            const rawType = String(module?.type || 'info_card').trim().toLowerCase();
+            const normalizedType = (rawType === 'conspiracy_board' || rawType === 'theory_board')
+              ? 'theory_board'
+              : rawType;
             const title = String(module?.title || '').trim().slice(0, 120);
             const description = String(module?.description || '').trim().slice(0, 1200);
             const textEntries = normalizeTextEntries(module?.texts, title || 'User');
-            if (!title && !description && textEntries.length === 0) return null;
+            const hasTheoryBoardPayload = normalizedType === 'theory_board';
+            if (!hasTheoryBoardPayload && !title && !description && textEntries.length === 0) return null;
             const normalizedOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
             return {
               id: String(module?.id || `profile-module-${index + 1}`),
-              type: String(module?.type || 'info_card').trim() || 'info_card',
+              type: normalizedType || 'info_card',
               title,
               description,
               order: normalizedOrder,
