@@ -81,6 +81,8 @@ const RichContentRenderer = ({
     return solidChips ? solidLight : softLight;
   };
 
+  const getTimelineMentionLabel = (rawName) => String(rawName || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+
   React.useEffect(() => {
     const userMentions = contentData.content.filter((item) => item.type === 'user_mention');
     userMentions.forEach((item) => {
@@ -322,7 +324,7 @@ const RichContentRenderer = ({
             <Tooltip key={index} title="Click to view timeline">
               <Chip
                 icon={<HashtagIcon fontSize="small" />}
-                label={item.name}
+                label={getTimelineMentionLabel(item.name)}
                 size="small"
                 onClick={() => handleMentionClick('hashtag_mention', item.name, null)}
                 sx={{
@@ -353,7 +355,7 @@ const RichContentRenderer = ({
             <Tooltip key={index} title="Click to view community">
               <Chip
                 icon={<CommunityIcon />}
-                label={item.name}
+                label={getTimelineMentionLabel(item.name)}
                 size="small"
                 onClick={() => handleMentionClick('community_mention', item.name, null)}
                 sx={{

@@ -116,6 +116,7 @@
   - [x] Scissors UX polish: cut mode now auto-exits after a single yarn cut (re-arm by pressing scissors again).
   - [x] Mini-dash action layout polish: converted from one horizontal row to compact 2x2 action grid.
   - [x] Yarn-create icon polish: replaced hyperlink-like icon with a node-connection icon for clearer intent.
+  - [x] Toolbar action relocation: moved `Add yarn` out of mini-dash and into top-right toolbar between scissors and fullscreen.
   - [x] Persistence integration (load): Theory Board now hydrates from `/api/v1/users/{id}/theory-board` snapshot on module mount/profile switch.
   - [x] Persistence integration (save): centered toolbar Save button now writes board state (nodes, yarn edges, viewport) to Theory Board backend endpoints.
   - [x] Save UX: dirty-state tracking added for pan/zoom/pins/yarn, with save feedback messaging (`Saving...`, `Board saved.`, and error states).
@@ -123,6 +124,7 @@
   - [x] Storage-unavailable guardrail: when backend returns `503 Theory Board storage is unavailable`, module now surfaces explicit migration-needed feedback and disables Save to prevent repeated failing writes.
   - [~] Infra dependency note: Theory Board backend endpoints require DB tables (`theory_board`, `theory_board_node`, `theory_board_edge`) from iTimeline-DB migration `migrations/add_theory_board_tables.py`.
   - [x] Pin color decision pass: non-origin tacks now render with randomized palette colors (seeded) while origin-cell tack is always red.
+  - [x] Content card sizing fix: tack content containers no longer clamp to cell-scaled dimensions, preventing paragraph/chip/event text clipping.
   - [x] V1 completion checkpoint: owner flow + viewer restrictions validated (viewers cannot add thumbtacks); Theory Board considered complete for current scope.
   - [~] Wheel zoom behavior: currently restricted to fullscreen mode by design; validate this UX choice with user after next pass.
   - [~] Pin/yarn motion baseline: gravity-style idle animation scaffold added for thumbtacs and yarn links; tune values after richer node rendering lands.

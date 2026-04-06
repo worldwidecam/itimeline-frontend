@@ -732,12 +732,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     setSelectedPinId(null);
   }, []);
 
-  const beginYarnCreationFromPin = useCallback((startPinId) => {
-    if (!isOwner || !startPinId) return;
-    setInteractionMode('create_yarn');
-    setPendingYarnStartPinId(startPinId);
-  }, [isOwner]);
-
   const completeYarnCreation = useCallback((targetPinId) => {
     if (!isOwner || interactionMode !== 'create_yarn') return;
     if (!pendingYarnStartPinId || pendingYarnStartPinId === targetPinId) return;
@@ -799,13 +793,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       grid_col: toCellCoord(Number(pin?.worldX || 0)),
       grid_row: toCellCoord(Number(pin?.worldY || 0)),
     }));
-
-    const emptyPins = normalizedPins.filter((pin) => !pin.cell_content);
-    if (emptyPins.length > 0) {
-      setSaveFeedback('Fill or delete empty tacks before saving.');
-      setSaveFeedbackTone('error');
-      return;
-    }
 
     const occupiedCells = new Set();
     for (let index = 0; index < normalizedPins.length; index += 1) {
@@ -1263,6 +1250,31 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                   </IconButton>
                 </Tooltip>
               )}
+              {isOwner && (
+                <Tooltip title={interactionMode === 'create_yarn' ? 'Exit yarn create mode' : 'Add yarn'}>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      if (interactionMode === 'create_yarn') {
+                        setInteractionMode('default');
+                        setPendingYarnStartPinId(null);
+                        setYarnPreviewPoint(null);
+                        return;
+                      }
+                      setInteractionMode('create_yarn');
+                      setPendingYarnStartPinId(null);
+                      setYarnPreviewPoint(null);
+                    }}
+                    sx={{
+                      color: interactionMode === 'create_yarn'
+                        ? (theme.palette.mode === 'dark' ? 'rgba(255,210,160,0.98)' : 'rgba(120, 44, 14, 0.96)')
+                        : (theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)'),
+                    }}
+                  >
+                    <HubIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Tooltip title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
                 <IconButton
                   size="small"
@@ -1456,14 +1468,13 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     position: 'absolute',
                     left: pin.screenX,
                     top: pin.screenY + 10,
-                    width: isEventReference
-                      ? Math.min(282, Math.max(206, scaledCell * 0.92))
-                      : isChipOnlyContent
-                        ? 'auto'
-                        : Math.min(280, Math.max(126, scaledCell * 0.85)),
-                    maxWidth: Math.min(300, Math.max(154, scaledCell * 0.92)),
-                    maxHeight: isEventReference ? 'none' : (isChipOnlyContent ? 'none' : Math.max(88, scaledCell * 0.66)),
-                    overflow: (isChipOnlyContent || isEventReference) ? 'visible' : 'hidden',
+                    width: isEventReference ? 'auto' : (isChipOnlyContent ? 'auto' : 'fit-content'),
+                    minWidth: (!isEventReference && !isChipOnlyContent) ? 180 : undefined,
+                    maxWidth: isEventReference
+                      ? Math.min(520, Math.max(250, viewportSize.width * 0.72))
+                      : Math.min(560, Math.max(230, viewportSize.width * 0.68)),
+                    maxHeight: 'none',
+                    overflow: 'visible',
                     borderRadius: 1,
                     border: (isChipOnlyContent || isEventReference) ? 'none' : '1px solid',
                     borderColor: isChipOnlyContent
@@ -1479,6 +1490,8 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     zIndex: 2,
                     transform: 'translateX(-50%)',
                     cursor: isEventReference ? 'pointer' : 'default',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {isEventReference ? (
@@ -1699,29 +1712,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                             }}
                           >
                             <EastIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title={interactionMode === 'create_yarn' && pendingYarnStartPinId === selectedPinId ? 'Cancel yarn creation' : 'Create yarn from this tack'}>
-                        <span>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              if (interactionMode === 'create_yarn' && pendingYarnStartPinId === selectedPinId) {
-                                setInteractionMode('default');
-                                setPendingYarnStartPinId(null);
-                                setYarnPreviewPoint(null);
-                                return;
-                              }
-                              beginYarnCreationFromPin(selectedPinId);
-                            }}
-                            sx={{
-                              color: interactionMode === 'create_yarn' && pendingYarnStartPinId === selectedPinId
-                                ? (theme.palette.mode === 'dark' ? 'rgba(255,210,160,0.98)' : 'rgba(120, 44, 14, 0.96)')
-                                : (theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.75)' : 'rgba(84,48,24,0.68)'),
-                            }}
-                          >
-                            <HubIcon sx={{ fontSize: 16 }} />
                           </IconButton>
                         </span>
                       </Tooltip>

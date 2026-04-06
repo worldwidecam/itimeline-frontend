@@ -369,7 +369,7 @@ const HomePage = () => {
   const [isMyCreationsSubTabPhaseOneLoading, setIsMyCreationsSubTabPhaseOneLoading] = React.useState(false);
   const [searchSubFilter, setSearchSubFilter] = React.useState('all');
   const [popularFilter, setPopularFilter] = React.useState('posts');
-  const [myCreationsFilter, setMyCreationsFilter] = React.useState('timelines');
+  const [myCreationsFilter, setMyCreationsFilter] = React.useState('posts');
   const [yourPageFilter, setYourPageFilter] = React.useState('posts');
   const [friendsListFilter, setFriendsListFilter] = React.useState('following');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
