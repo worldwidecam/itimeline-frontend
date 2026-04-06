@@ -52,6 +52,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import api, {
   getFollowedUsers,
+  getFollowerUsers,
   followUser,
   unfollowUser,
   fetchUserMemberships,
@@ -248,6 +249,11 @@ const SEARCH_SUB_FILTERS = [
   { key: 'users', label: 'USERS', mode: 'user' },
 ];
 
+const FRIENDS_LIST_FILTERS = [
+  { key: 'following', label: 'Following' },
+  { key: 'followers', label: 'Followers' },
+];
+
 const MY_CREATIONS_FILTERS = [
   { key: 'timelines', label: 'Timelines' },
   { key: 'posts', label: 'Posts' },
@@ -338,10 +344,12 @@ const HomePage = () => {
   const [searchEvents, setSearchEvents] = React.useState([]);
   const [searchUsers, setSearchUsers] = React.useState([]);
   const [followedUsers, setFollowedUsers] = React.useState([]);
+  const [followerUsers, setFollowerUsers] = React.useState([]);
   const [myCreationEvents, setMyCreationEvents] = React.useState([]);
   const [loadingSearchEvents, setLoadingSearchEvents] = React.useState(false);
   const [loadingSearchUsers, setLoadingSearchUsers] = React.useState(false);
   const [loadingFollowedUsers, setLoadingFollowedUsers] = React.useState(false);
+  const [loadingFollowerUsers, setLoadingFollowerUsers] = React.useState(false);
   const [loadingMyCreationEvents, setLoadingMyCreationEvents] = React.useState(false);
   const [followActionByUserId, setFollowActionByUserId] = React.useState({});
   const [userActionMenu, setUserActionMenu] = React.useState({ anchorEl: null, userId: null });
@@ -363,6 +371,7 @@ const HomePage = () => {
   const [popularFilter, setPopularFilter] = React.useState('posts');
   const [myCreationsFilter, setMyCreationsFilter] = React.useState('timelines');
   const [yourPageFilter, setYourPageFilter] = React.useState('posts');
+  const [friendsListFilter, setFriendsListFilter] = React.useState('following');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
   const [timelineSearch, setTimelineSearch] = React.useState('');
   const [isSearchSubmitting, setIsSearchSubmitting] = React.useState(false);
@@ -832,6 +841,7 @@ const HomePage = () => {
   const isTimelineSearchScope = searchSubFilter === 'all' || searchSubFilter === 'timelines';
   const isPostSearchScope = searchSubFilter === 'all' || searchSubFilter === 'posts';
   const isUserSearchScope = searchSubFilter === 'all' || searchSubFilter === 'users';
+  const isFollowersFriendsListFilter = friendsListFilter === 'followers';
   const currentUserId = Number(user?.id || 0);
   const followedUserIdSet = React.useMemo(() => {
     return new Set(
@@ -840,6 +850,8 @@ const HomePage = () => {
         .filter((id) => id > 0),
     );
   }, [followedUsers]);
+  const activeFriendsUsers = isFollowersFriendsListFilter ? followerUsers : followedUsers;
+  const activeFriendsLoading = isFollowersFriendsListFilter ? loadingFollowerUsers : loadingFollowedUsers;
 
   const normalizedTimelines = React.useMemo(() => {
     return [...timelines].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
@@ -2016,9 +2028,31 @@ const HomePage = () => {
     }
   }, [user]);
 
+  const fetchFollowerUsers = React.useCallback(async () => {
+    if (!user) {
+      setFollowerUsers([]);
+      return;
+    }
+
+    try {
+      setLoadingFollowerUsers(true);
+      const users = await getFollowerUsers();
+      setFollowerUsers(Array.isArray(users) ? users.slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT) : []);
+    } catch (error) {
+      console.error('Error fetching follower users:', error);
+      setFollowerUsers([]);
+    } finally {
+      setLoadingFollowerUsers(false);
+    }
+  }, [user]);
+
   React.useEffect(() => {
     fetchFollowedUsers();
   }, [fetchFollowedUsers]);
+
+  React.useEffect(() => {
+    fetchFollowerUsers();
+  }, [fetchFollowerUsers]);
 
   React.useEffect(() => {
     if (!user?.id) {
@@ -2581,6 +2615,7 @@ const HomePage = () => {
         setUserFollowSnackbarMessage(`Following ${targetLabel}`);
       }
       await fetchFollowedUsers();
+      await fetchFollowerUsers();
       setUserFollowSnackbarSeverity('success');
       setUserFollowSnackbarOpen(true);
     } catch (error) {
@@ -2592,7 +2627,7 @@ const HomePage = () => {
     } finally {
       setFollowActionByUserId((prev) => ({ ...prev, [targetId]: false }));
     }
-  }, [currentUserId, followActionByUserId, followedUserIdSet, fetchFollowedUsers]);
+  }, [currentUserId, fetchFollowedUsers, fetchFollowerUsers, followActionByUserId, followedUserIdSet]);
 
   const handleOpenUserActionMenu = React.useCallback((event, profileUser) => {
     event.stopPropagation();
@@ -5454,21 +5489,69 @@ const HomePage = () => {
                     Friends List
                   </Typography>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
-                    Profiles you follow. Use Follow from search users to add people here.
+                    View both sides of your current follow graph.
                   </Typography>
 
-                  {loadingFollowedUsers ? (
+                  <Alert severity="info" sx={{ mb: 1.6 }}>
+                    Privacy note: when your profile is set to Private, users you follow are allowed to view it.
+                  </Alert>
+
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', mb: 2.1 }}>
+                    {FRIENDS_LIST_FILTERS.map((filter) => {
+                      const isActive = friendsListFilter === filter.key;
+                      const tally = filter.key === 'followers' ? followerUsers.length : followedUsers.length;
+                      return (
+                        <Button
+                          key={filter.key}
+                          size="small"
+                          onClick={() => setFriendsListFilter(filter.key)}
+                          sx={{
+                            textTransform: 'none',
+                            borderRadius: 1.5,
+                            fontWeight: 700,
+                            px: 1.25,
+                            border: '1px solid',
+                            borderColor: isActive
+                              ? 'primary.main'
+                              : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(17,24,39,0.2)'),
+                            backgroundColor: isActive
+                              ? (theme.palette.mode === 'dark' ? 'rgba(30,64,175,0.32)' : 'rgba(59,130,246,0.16)')
+                              : 'transparent',
+                            color: isActive ? 'primary.main' : 'text.secondary',
+                          }}
+                        >
+                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.7 }}>
+                            <span>{filter.label}</span>
+                            <Chip
+                              size="small"
+                              label={`🔥 ${tally}`}
+                              sx={{
+                                height: 22,
+                                fontWeight: 700,
+                                borderRadius: 999,
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(244, 114, 34, 0.26)' : 'rgba(251, 146, 60, 0.2)',
+                              }}
+                            />
+                          </Box>
+                        </Button>
+                      );
+                    })}
+                  </Stack>
+
+                  {activeFriendsLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                       <CircularProgress />
                     </Box>
-                  ) : followedUsers.length > 0 ? (
+                  ) : activeFriendsUsers.length > 0 ? (
                     <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 1.6, sm: 2.1 } }}>
-                      {followedUsers.map((profileUser) => renderUserProfileCard(profileUser))}
+                      {activeFriendsUsers.map((profileUser) => renderUserProfileCard(profileUser))}
                     </Stack>
                   ) : (
                     <Box sx={{ py: 6, textAlign: 'center' }}>
                       <Typography color="text.secondary">
-                        You are not following anyone yet. Use Search → Users and tap Follow.
+                        {isFollowersFriendsListFilter
+                          ? 'No one follows you yet.'
+                          : 'You are not following anyone yet. Use Search → Users and tap Follow.'}
                       </Typography>
                     </Box>
                   )}

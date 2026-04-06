@@ -240,6 +240,8 @@ const ProfileSettings = () => {
     blurEmail: false, // This will be set from localStorage in fetchUserData
     dateOfBirth: '',
     userColor: '#4f7cff',
+    profileVisibility: 'public',
+    profileAccessKey: '',
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || '');
@@ -300,6 +302,12 @@ const ProfileSettings = () => {
         let resolvedUserColor = userId > 0
           ? String(localStorage.getItem(`user_color_pref_user_${userId}`) || '').trim()
           : '';
+        let resolvedProfileVisibility = userId > 0
+          ? String(localStorage.getItem(`profile_visibility_user_${userId}`) || 'public').trim().toLowerCase()
+          : 'public';
+        let resolvedProfileAccessKey = userId > 0
+          ? String(localStorage.getItem(`profile_access_key_user_${userId}`) || '').trim()
+          : '';
         let resolvedProfileModules = userId > 0
           ? safeParseJson(localStorage.getItem(`profile_modules_user_${userId}`), [])
           : [];
@@ -314,14 +322,24 @@ const ProfileSettings = () => {
           const hasPassportProfilePortraitY = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_y');
           const hasPassportProfilePortraitZoom = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_zoom');
           const hasPassportProfileModules = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_modules');
+          const hasPassportProfileVisibility = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_visibility');
+          const hasPassportProfileAccessKey = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_access_key');
           const passportDateOfBirth = passportPrefs?.date_of_birth ? String(passportPrefs.date_of_birth).trim() : '';
           const passportUserColor = passportPrefs?.user_color ? String(passportPrefs.user_color).trim() : '';
+          const passportProfileVisibility = String(passportPrefs?.profile_visibility || 'public').trim().toLowerCase();
+          const passportProfileAccessKey = String(passportPrefs?.profile_access_key || '').trim();
 
           if (hasPassportDateOfBirth) {
             resolvedDateOfBirth = passportDateOfBirth;
           }
           if (hasPassportUserColor) {
             resolvedUserColor = isValidHexColor(passportUserColor) ? passportUserColor.toLowerCase() : '';
+          }
+          if (hasPassportProfileVisibility) {
+            resolvedProfileVisibility = passportProfileVisibility === 'private' ? 'private' : 'public';
+          }
+          if (hasPassportProfileAccessKey) {
+            resolvedProfileAccessKey = passportProfileAccessKey;
           }
           if (userId > 0) {
             if (hasPassportProfilePortraitUrl) {
@@ -348,6 +366,12 @@ const ProfileSettings = () => {
               resolvedProfileModules = Array.isArray(passportPrefs?.profile_modules) ? passportPrefs.profile_modules : [];
               localStorage.setItem(`profile_modules_user_${userId}`, JSON.stringify(resolvedProfileModules));
             }
+            localStorage.setItem(`profile_visibility_user_${userId}`, resolvedProfileVisibility === 'private' ? 'private' : 'public');
+            if (resolvedProfileAccessKey) {
+              localStorage.setItem(`profile_access_key_user_${userId}`, resolvedProfileAccessKey);
+            } else {
+              localStorage.removeItem(`profile_access_key_user_${userId}`);
+            }
           }
         } catch (passportError) {
           console.warn('Error fetching passport preferences:', passportError?.response?.data || passportError?.message || passportError);
@@ -368,12 +392,16 @@ const ProfileSettings = () => {
             blurEmail: savedBlurPref === 'true',
             dateOfBirth: resolvedDateOfBirth,
             userColor: isValidHexColor(resolvedUserColor) ? resolvedUserColor.toLowerCase() : '#4f7cff',
+            profileVisibility: resolvedProfileVisibility === 'private' ? 'private' : 'public',
+            profileAccessKey: resolvedProfileAccessKey,
           }));
         } else {
           setFormData(prev => ({
             ...prev,
             dateOfBirth: resolvedDateOfBirth,
             userColor: isValidHexColor(resolvedUserColor) ? resolvedUserColor.toLowerCase() : '#4f7cff',
+            profileVisibility: resolvedProfileVisibility === 'private' ? 'private' : 'public',
+            profileAccessKey: resolvedProfileAccessKey,
           }));
         }
         setShowDobInput(!Boolean(resolvedDateOfBirth));
@@ -414,6 +442,8 @@ const ProfileSettings = () => {
         blurEmail: false, // This will be set from localStorage in fetchUserData
         dateOfBirth: '',
         userColor: '#4f7cff',
+        profileVisibility: 'public',
+        profileAccessKey: '',
       };
       setFormData(userData);
       setInitialFormData({ ...userData });
@@ -485,6 +515,26 @@ const ProfileSettings = () => {
     setFormData((prev) => ({
       ...prev,
       userColor: isValidHexColor(value) ? value.toLowerCase() : prev.userColor,
+    }));
+    markUnsavedChanges();
+  };
+
+  const handleProfileVisibilityChange = (event) => {
+    const isPrivate = event?.target?.type === 'checkbox'
+      ? Boolean(event.target.checked)
+      : String(event?.target?.value || '').trim().toLowerCase() === 'private';
+    setFormData((prev) => ({
+      ...prev,
+      profileVisibility: isPrivate ? 'private' : 'public',
+    }));
+    markUnsavedChanges();
+  };
+
+  const handleProfileAccessKeyChange = (event) => {
+    const value = String(event.target.value || '').slice(0, 120);
+    setFormData((prev) => ({
+      ...prev,
+      profileAccessKey: value,
     }));
     markUnsavedChanges();
   };
@@ -653,6 +703,10 @@ const ProfileSettings = () => {
         const preferencePayload = {
           date_of_birth: formData.dateOfBirth || null,
           user_color: formData.userColor || null,
+          profile_visibility: formData.profileVisibility === 'private' ? 'private' : 'public',
+          profile_access_key: formData.profileVisibility === 'private'
+            ? (String(formData.profileAccessKey || '').trim() || null)
+            : null,
           profile_modules: nextProfileModules,
         };
         if (shouldSyncProfilePortraitFromAvatar) {
@@ -668,6 +722,12 @@ const ProfileSettings = () => {
             localStorage.setItem(`date_of_birth_user_${user.id}`, formData.dateOfBirth);
           } else {
             localStorage.removeItem(`date_of_birth_user_${user.id}`);
+          }
+          localStorage.setItem(`profile_visibility_user_${user.id}`, formData.profileVisibility === 'private' ? 'private' : 'public');
+          if (formData.profileVisibility === 'private' && String(formData.profileAccessKey || '').trim()) {
+            localStorage.setItem(`profile_access_key_user_${user.id}`, String(formData.profileAccessKey || '').trim());
+          } else {
+            localStorage.removeItem(`profile_access_key_user_${user.id}`);
           }
           localStorage.setItem(`profile_modules_user_${user.id}`, JSON.stringify(nextProfileModules));
           if (shouldSyncProfilePortraitFromAvatar) {
@@ -1242,6 +1302,36 @@ const ProfileSettings = () => {
                         {formData.userColor || '#4f7cff'}
                       </Typography>
                     </Box>
+                  </Box>
+
+                  <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.7 }}>
+                      <Typography variant="body1">
+                        Private Profile
+                      </Typography>
+                      <Switch
+                        checked={formData.profileVisibility === 'private'}
+                        onChange={handleProfileVisibilityChange}
+                        color="primary"
+                      />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                      Private mode allows you and users you follow. Others need your access key.
+                    </Typography>
+
+                    {formData.profileVisibility === 'private' && (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="password"
+                        label="Profile Access Key"
+                        value={formData.profileAccessKey || ''}
+                        onChange={handleProfileAccessKeyChange}
+                        inputProps={{ maxLength: 120 }}
+                        sx={{ mt: 1.35, ...getGlassInputSx(theme) }}
+                        helperText="Share this key with viewers you want to temporarily allow."
+                      />
+                    )}
                   </Box>
                   
                   <Box sx={{ 

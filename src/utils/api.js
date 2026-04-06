@@ -433,6 +433,19 @@ export const getFollowedUsers = async () => {
   }
 };
 
+export const getFollowerUsers = async () => {
+  try {
+    const response = await api.get('/api/v1/users/followers');
+    const users = Array.isArray(response?.data?.users)
+      ? response.data.users
+      : (Array.isArray(response?.data) ? response.data : []);
+    return users;
+  } catch (error) {
+    console.error('[API] Error fetching follower users:', error);
+    throw error;
+  }
+};
+
 export const followUser = async (userId) => {
   if (!userId) {
     throw new Error('userId is required');
@@ -2280,6 +2293,8 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
  *   profile_portrait_x: number|null,
  *   profile_portrait_y: number|null,
  *   profile_portrait_zoom: number|null,
+ *   profile_visibility: 'public'|'private',
+ *   profile_access_key: string|null,
  *   profile_modules: Array<{id,type,title,description,order,is_visible}>|null,
  * }
  * @param {object} prefs
@@ -2363,6 +2378,21 @@ export const updateUserPreferences = async (prefs = {}) => {
         if (Number.isFinite(parsedProfilePortraitZoom)) {
           payload.profile_portrait_zoom = Math.min(4.875, Math.max(1, parsedProfilePortraitZoom));
         }
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_visibility')) {
+      const rawProfileVisibility = String(prefs.profile_visibility || '').trim().toLowerCase();
+      if (rawProfileVisibility === 'private' || rawProfileVisibility === 'public') {
+        payload.profile_visibility = rawProfileVisibility;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(prefs, 'profile_access_key')) {
+      const rawProfileAccessKey = prefs.profile_access_key;
+      if (rawProfileAccessKey === null || rawProfileAccessKey === '') {
+        payload.profile_access_key = null;
+      } else if (typeof rawProfileAccessKey === 'string') {
+        const trimmedProfileAccessKey = rawProfileAccessKey.trim().slice(0, 120);
+        payload.profile_access_key = trimmedProfileAccessKey || null;
       }
     }
     if (Object.prototype.hasOwnProperty.call(prefs, 'profile_modules')) {

@@ -43,6 +43,8 @@ const ABS_MIN_ZOOM = 0.2;
 const CUT_LIMP_DURATION_MS = 520;
 
 const TACK_COLORS = ['#cd4f56', '#4a78cf', '#4aa867', '#d9a248', '#8a67d8'];
+const ORIGIN_TACK_COLOR = TACK_COLORS[0];
+const NON_ORIGIN_TACK_COLORS = TACK_COLORS.slice(1);
 
 const wrapOffset = (value, tileSize) => {
   if (!Number.isFinite(tileSize) || tileSize <= 0) return 0;
@@ -58,6 +60,19 @@ const isTheoryBoardStorageUnavailableError = (error) => {
 const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 
 const toCellCoord = (value) => Math.floor(value + 0.5);
+
+const resolveRandomizedTackColor = (seed, isOriginCell = false) => {
+  if (isOriginCell) return ORIGIN_TACK_COLOR;
+  const palette = NON_ORIGIN_TACK_COLORS.length > 0 ? NON_ORIGIN_TACK_COLORS : TACK_COLORS;
+  const rawSeed = String(seed || '0');
+  let hash = 0;
+  for (let i = 0; i < rawSeed.length; i += 1) {
+    hash = ((hash << 5) - hash) + rawSeed.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % palette.length;
+  return palette[index];
+};
 
 const createYarnLink = (pinAId, pinBId) => {
   const fromId = String(pinAId || '').trim();
@@ -211,11 +226,15 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       const gridRow = Number(node?.grid_row || 0);
       const offsetX = Number(node?.offset_x || 0) / 100;
       const offsetY = Number(node?.offset_y || 0) / 100;
+      const isOriginCell = gridCol === 0 && gridRow === 0;
+      const colorSeed = Number.isFinite(serverId) && serverId > 0
+        ? `srv-${serverId}`
+        : `tmp-${gridCol}:${gridRow}:${index + 1}`;
       return {
         id: localId,
         worldX: gridCol + offsetX,
         worldY: gridRow + offsetY,
-        color: String(node?.pin_color || TACK_COLORS[index % TACK_COLORS.length]),
+        color: resolveRandomizedTackColor(colorSeed, isOriginCell),
         content: String(node?.cell_content || ''),
       };
     });
@@ -502,6 +521,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   }, [latestPinId]);
 
   const handleAddPin = useCallback(() => {
+    if (!isOwner) return;
     const createdId = `${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
     const previousPinId = pins[pins.length - 1]?.id || null;
     const currentZoom = Number.isFinite(zoomRef.current) && zoomRef.current > 0 ? zoomRef.current : 1;
@@ -510,11 +530,14 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     const centerWorldY = -panRef.current.y / currentScaledCell;
 
     setPins((previousPins) => {
+      const nextCellX = toCellCoord(centerWorldX);
+      const nextCellY = toCellCoord(centerWorldY);
+      const isOriginCell = nextCellX === 0 && nextCellY === 0;
       const nextPin = {
         id: createdId,
         worldX: centerWorldX,
         worldY: centerWorldY,
-        color: TACK_COLORS[previousPins.length % TACK_COLORS.length],
+        color: resolveRandomizedTackColor(createdId, isOriginCell),
         content: '',
       };
       return [...previousPins, nextPin];
@@ -547,15 +570,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
 
     setYarnLinks((previousLinks) => {
       const validIds = new Set(pins.map((pin) => pin.id));
-      const filtered = previousLinks.filter((link) => validIds.has(link.fromId) && validIds.has(link.toId));
-      if (filtered.length > 0) return filtered;
-
-      const seeded = [];
-      for (let i = 1; i < pins.length; i += 1) {
-        const seededLink = createYarnLink(pins[i - 1].id, pins[i].id);
-        if (seededLink) seeded.push(seededLink);
-      }
-      return seeded;
+      return previousLinks.filter((link) => validIds.has(link.fromId) && validIds.has(link.toId));
     });
 
     setLimpYarnLinks((previousLinks) => {
@@ -1115,25 +1130,29 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
             }}
           >
             <Stack direction="row" spacing={0.35} alignItems="center" sx={{ justifySelf: 'start' }}>
-              <IconButton
-                size="small"
-                onClick={handleAddPin}
-                sx={{
-                  p: 0.35,
-                  color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.92)' : 'rgba(84,48,24,0.92)',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                  },
-                }}
-              >
-                <PushPinIcon fontSize="small" />
-                <AddIcon sx={{ fontSize: 13, ml: 0.2 }} />
-              </IconButton>
-              <Typography variant="caption" sx={{ letterSpacing: 0.3, color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.82)' : 'rgba(84,48,24,0.82)' }}>
-                Thumb Tack
-              </Typography>
+              {isOwner && (
+                <>
+                  <IconButton
+                    size="small"
+                    onClick={handleAddPin}
+                    sx={{
+                      p: 0.35,
+                      color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.92)' : 'rgba(84,48,24,0.92)',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                      },
+                    }}
+                  >
+                    <PushPinIcon fontSize="small" />
+                    <AddIcon sx={{ fontSize: 13, ml: 0.2 }} />
+                  </IconButton>
+                  <Typography variant="caption" sx={{ letterSpacing: 0.3, color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.82)' : 'rgba(84,48,24,0.82)' }}>
+                    Thumb Tack
+                  </Typography>
+                </>
+              )}
             </Stack>
 
             <Box sx={{ justifySelf: 'center', minHeight: 28, display: 'flex', alignItems: 'center', gap: 0.75 }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import api, { submitUserReport } from '../utils/api';
 import {
   Container,
@@ -206,6 +206,7 @@ const normalizeProfileModules = (rawModules) => {
 };
 
 const Profile = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { userId } = useParams();
   const { user } = useAuth();
@@ -227,6 +228,13 @@ const Profile = () => {
   const [profileTextSubmitting, setProfileTextSubmitting] = useState(false);
   const [profileTextDeletingId, setProfileTextDeletingId] = useState('');
   const [profileModulePopupEvent, setProfileModulePopupEvent] = useState(null);
+  const [profileAccessLocked, setProfileAccessLocked] = useState(false);
+  const [profileAccessVisibility, setProfileAccessVisibility] = useState('public');
+  const [profileAccessMessage, setProfileAccessMessage] = useState('');
+  const [showProfileAccessInput, setShowProfileAccessInput] = useState(false);
+  const [profileAccessKeyDraft, setProfileAccessKeyDraft] = useState('');
+  const [profileAccessSubmitting, setProfileAccessSubmitting] = useState(false);
+  const [profileAccessRefreshNonce, setProfileAccessRefreshNonce] = useState(0);
   const [profilePortraitMeta, setProfilePortraitMeta] = useState({
     imageUrl: '',
     x: 50,
@@ -235,6 +243,16 @@ const Profile = () => {
   });
   
   const isOwnProfile = !userId || (user && userId === user.id.toString());
+  const queryAccessKey = useMemo(() => {
+    const params = new URLSearchParams(location.search || '');
+    return String(params.get('access_key') || '').trim();
+  }, [location.search]);
+  const profileAccessStorageKey = useMemo(() => {
+    const currentUserId = Number(user?.id || 0);
+    const targetUserId = Number(userId || user?.id || 0);
+    if (!(currentUserId > 0) || !(targetUserId > 0) || currentUserId === targetUserId) return '';
+    return `profile_private_access_${currentUserId}_${targetUserId}`;
+  }, [user?.id, userId]);
   const cachedOwnUserColor = React.useMemo(() => {
     return isOwnProfile ? getCachedUserIdentityColor(user?.id) : null;
   }, [isOwnProfile, user?.id]);
@@ -432,8 +450,12 @@ const Profile = () => {
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
+        setError(null);
+        setProfileAccessLocked(false);
         
         if (isOwnProfile) {
+          setProfileAccessVisibility('public');
+          setProfileAccessMessage('');
           // If viewing own profile, always fetch fresh data from API
           // This ensures all fields (including bio) are loaded from database
           if (user) {
@@ -463,6 +485,63 @@ const Profile = () => {
             console.error('Error fetching music preferences:', musicError);
           }
         } else {
+          const targetUserId = Number(userId || 0);
+          if (!(targetUserId > 0)) {
+            setError('User profile not found');
+            return;
+          }
+
+          let accessDecision = null;
+          try {
+            const accessResponse = await api.get(`/api/v1/users/${targetUserId}/profile-access`);
+            accessDecision = accessResponse?.data || null;
+          } catch (accessError) {
+            console.error('Error fetching profile access state:', accessError);
+            setError('Failed to resolve profile access');
+            return;
+          }
+
+          const visibility = String(accessDecision?.visibility || 'public').toLowerCase();
+          setProfileAccessVisibility(visibility === 'private' ? 'private' : 'public');
+
+          if (!accessDecision?.allowed) {
+            let candidateKey = queryAccessKey;
+            if (!candidateKey && profileAccessStorageKey) {
+              candidateKey = String(localStorage.getItem(profileAccessStorageKey) || '').trim();
+            }
+
+            if (candidateKey) {
+              try {
+                const verifyResponse = await api.post(`/api/v1/users/${targetUserId}/profile-access`, {
+                  access_key: candidateKey,
+                });
+                const verifyDecision = verifyResponse?.data || {};
+                if (!verifyDecision?.allowed) {
+                  throw new Error('Access denied');
+                }
+                if (profileAccessStorageKey) {
+                  localStorage.setItem(profileAccessStorageKey, candidateKey);
+                }
+              } catch (verifyError) {
+                if (profileAccessStorageKey) {
+                  localStorage.removeItem(profileAccessStorageKey);
+                }
+                setProfileAccessLocked(true);
+                setProfileAccessMessage('Access denied. Enter a valid access key.');
+                setShowProfileAccessInput(false);
+                return;
+              }
+            } else {
+              setProfileAccessLocked(true);
+              setProfileAccessMessage('This profile is private. Enter access key to continue.');
+              setShowProfileAccessInput(false);
+              return;
+            }
+          }
+
+          setProfileAccessLocked(false);
+          setProfileAccessMessage('');
+
           // If viewing someone else's profile
           try {
             const userResponse = await api.get(`/api/users/${userId}`);
@@ -497,7 +576,35 @@ const Profile = () => {
     return () => {
       setShowMusic(false);
     };
-  }, [userId, user, isOwnProfile]);
+  }, [userId, user, isOwnProfile, profileAccessRefreshNonce, profileAccessStorageKey, queryAccessKey]);
+
+  const handleSubmitProfileAccessKey = useCallback(async () => {
+    const targetUserId = Number(userId || 0);
+    const accessKey = String(profileAccessKeyDraft || '').trim();
+    if (!(targetUserId > 0) || !accessKey || profileAccessSubmitting) return;
+
+    try {
+      setProfileAccessSubmitting(true);
+      const response = await api.post(`/api/v1/users/${targetUserId}/profile-access`, {
+        access_key: accessKey,
+      });
+      const decision = response?.data || {};
+      if (!decision?.allowed) {
+        throw new Error('Access denied');
+      }
+      if (profileAccessStorageKey) {
+        localStorage.setItem(profileAccessStorageKey, accessKey);
+      }
+      setProfileAccessLocked(false);
+      setProfileAccessMessage('');
+      setShowProfileAccessInput(false);
+      setProfileAccessRefreshNonce((prev) => prev + 1);
+    } catch (accessError) {
+      setProfileAccessMessage('Access denied. Enter a valid access key.');
+    } finally {
+      setProfileAccessSubmitting(false);
+    }
+  }, [profileAccessKeyDraft, profileAccessStorageKey, profileAccessSubmitting, userId]);
 
   useEffect(() => {
     setFabOpen(false);
@@ -663,6 +770,76 @@ const Profile = () => {
         }}
       >
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (profileAccessLocked && !isOwnProfile) {
+    return (
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
+            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        }}
+      >
+        <Paper sx={{ p: 3, width: '100%', maxWidth: 520, ...getGlassDialogPaperSx(theme) }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.8 }}>
+            Private Profile
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            {profileAccessVisibility === 'private'
+              ? 'Only the owner and users they follow can view this profile without a key.'
+              : 'This profile requires access.'}
+          </Typography>
+
+          {!showProfileAccessInput ? (
+            <Button
+              variant="contained"
+              onClick={() => setShowProfileAccessInput(true)}
+              sx={getGlassPillActionButtonSx(theme)}
+            >
+              Enter Access Key
+            </Button>
+          ) : (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.1}>
+              <TextField
+                fullWidth
+                size="small"
+                type="password"
+                placeholder="Enter access key"
+                value={profileAccessKeyDraft}
+                onChange={(event) => setProfileAccessKeyDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSubmitProfileAccessKey();
+                  }
+                }}
+                sx={getGlassInputSx(theme)}
+              />
+              <Button
+                variant="contained"
+                onClick={handleSubmitProfileAccessKey}
+                disabled={profileAccessSubmitting || !String(profileAccessKeyDraft || '').trim()}
+                sx={getGlassPillActionButtonSx(theme)}
+              >
+                {profileAccessSubmitting ? 'Checking...' : 'Submit'}
+              </Button>
+            </Stack>
+          )}
+
+          {profileAccessMessage ? (
+            <Typography color="error" sx={{ mt: 1.2, fontWeight: 700 }}>
+              {profileAccessMessage}
+            </Typography>
+          ) : null}
+        </Paper>
       </Box>
     );
   }
@@ -861,11 +1038,14 @@ const Profile = () => {
                           const isLeftBubble = isOwnerEntry;
                           const textModuleBackground = isLeftBubble
                             ? (theme.palette.mode === 'dark'
-                              ? 'linear-gradient(145deg, rgba(52, 91, 168, 0.7) 0%, rgba(40, 76, 148, 0.62) 100%)'
+                              ? 'linear-gradient(145deg, rgba(246, 244, 236, 0.94) 0%, rgba(232, 228, 216, 0.92) 100%)'
                               : 'linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.94) 100%)')
                             : (theme.palette.mode === 'dark'
                               ? 'linear-gradient(145deg, rgba(69, 116, 202, 0.82) 0%, rgba(58, 101, 188, 0.72) 100%)'
                               : 'linear-gradient(145deg, rgba(236, 245, 255, 0.98) 0%, rgba(223, 238, 255, 0.95) 100%)');
+                          const textModuleBodyColor = isLeftBubble
+                            ? (theme.palette.mode === 'dark' ? 'rgba(28, 24, 18, 0.96)' : 'text.secondary')
+                            : 'text.secondary';
 
                           return (
                             <Card
@@ -878,14 +1058,23 @@ const Profile = () => {
                                 background: textModuleBackground,
                                 border: '1px solid',
                                 borderColor: isLeftBubble
-                                  ? (theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.34)' : 'rgba(33, 150, 243, 0.28)')
+                                  ? (theme.palette.mode === 'dark' ? 'rgba(78, 60, 36, 0.42)' : 'rgba(33, 150, 243, 0.28)')
                                   : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
                                 boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
                               }}
                             >
                               <CardContent sx={{ pb: 1.4 }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.45, letterSpacing: 0.15 }}>
+                                  <Typography
+                                    variant="subtitle2"
+                                    sx={{
+                                      fontWeight: 800,
+                                      mb: 0.45,
+                                      letterSpacing: 0.15,
+                                      color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.96)' : undefined,
+                                      textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
+                                    }}
+                                  >
                                     {`${entry.author_username || 'User'} Says`}
                                   </Typography>
                                   {canDeleteTexts && (
@@ -903,11 +1092,20 @@ const Profile = () => {
                                     </Tooltip>
                                   )}
                                 </Box>
-                                <Box sx={{ color: 'text.secondary', lineHeight: 1.45 }}>
+                                <Box
+                                  sx={{
+                                    color: textModuleBodyColor,
+                                    lineHeight: 1.45,
+                                    textShadow: isLeftBubble && theme.palette.mode === 'dark'
+                                      ? '0 0 0.42px rgba(0, 0, 0, 0.74)'
+                                      : 'none',
+                                  }}
+                                >
                                   <RichContentRenderer
                                     content={toRichContentPayload(entry.text)}
                                     theme={theme}
                                     onOpenEventReference={handleOpenProfileModuleEventReference}
+                                    inheritTextColor
                                   />
                                 </Box>
                               </CardContent>

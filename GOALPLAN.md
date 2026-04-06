@@ -38,6 +38,7 @@
 - [ ] Phase 1D — Profile share behavior: wire profile FAB share to existing trading-card share capability.
 - [ ] Phase 1E — Color consumer rollout audit: apply user color preference to known identity surfaces (including profile avatar border and user cards) and catalog remaining gaps.
 - [ ] Phase 1F — Regression + responsive validation across profile/home surfaces.
+- [ ] Phase 1G — Privacy settings ideation: define profile privacy toggle scope (what becomes private, who can view, and route/API implications).
 
 ### Profile implementation pillars (new major active TODOs)
 - [~] Profile Modules Framework: reusable module system for profile surfaces (target reuse of Community Info Cards patterns where applicable).
@@ -52,6 +53,11 @@
   - [x] Texts-first redesign pass: module-entry CRUD removed from Profile Settings in favor of generalized Texts module controls (enabled state + 10-item retention mode `manual|fifo`).
   - [x] Profile page Texts feed now supports profile-side text submission and owner-only deletion controls, with visibility gated by module enablement.
   - [x] Text bubble alignment now maps by author role (owner entries left, visitor entries right) and header label auto-renders as `USERNAME Says`.
+  - [x] Text bubble contrast refinement: dark-mode owner-side (left) bubble shifted to soft off-white with stronger black-edged text treatment for readability vs visitor bubble.
+  - [x] Rich text readability follow-up: plain text segments now inherit bubble text color in Profile Texts, and `@user` chip label color is explicitly dark-mode-safe (prevents black-on-dark regression).
+  - [x] Profile privacy v1 pass: Profile Settings now persists `profile_visibility` (`public|private`) and optional `profile_access_key` in passport preferences.
+  - [x] Profile access gate baseline: profile route now calls `/api/v1/users/{id}/profile-access` and enforces private lock-screen flow with access-key submit for disallowed viewers.
+  - [x] Access contract lock: private-profile bypass includes owner and users followed by owner (from `user_follow` relation); non-bypass viewers require valid access key.
   - [x] Added dedicated profile-texts API surface for read/add/delete against profile owner Texts module while persisting in passport preferences (`profile_modules`).
   - [x] Rich-token click behavior normalized: `@`, `#`, `i-`, and links now open in new tabs by default; `~event` references remain in-page for event popup/navigation behavior.
   - [x] Username policy hardened to reject whitespace in signup and username-change flows (frontend validation + backend enforcement for register/profile update/required username change).
@@ -113,8 +119,11 @@
   - [x] Persistence integration (load): Theory Board now hydrates from `/api/v1/users/{id}/theory-board` snapshot on module mount/profile switch.
   - [x] Persistence integration (save): centered toolbar Save button now writes board state (nodes, yarn edges, viewport) to Theory Board backend endpoints.
   - [x] Save UX: dirty-state tracking added for pan/zoom/pins/yarn, with save feedback messaging (`Saving...`, `Board saved.`, and error states).
+  - [x] Yarn persistence correction: removed auto-reseed fallback that reconnected links when yarn set became empty, so cut connections remain removed after save/reload.
   - [x] Storage-unavailable guardrail: when backend returns `503 Theory Board storage is unavailable`, module now surfaces explicit migration-needed feedback and disables Save to prevent repeated failing writes.
   - [~] Infra dependency note: Theory Board backend endpoints require DB tables (`theory_board`, `theory_board_node`, `theory_board_edge`) from iTimeline-DB migration `migrations/add_theory_board_tables.py`.
+  - [x] Pin color decision pass: non-origin tacks now render with randomized palette colors (seeded) while origin-cell tack is always red.
+  - [x] V1 completion checkpoint: owner flow + viewer restrictions validated (viewers cannot add thumbtacks); Theory Board considered complete for current scope.
   - [~] Wheel zoom behavior: currently restricted to fullscreen mode by design; validate this UX choice with user after next pass.
   - [~] Pin/yarn motion baseline: gravity-style idle animation scaffold added for thumbtacs and yarn links; tune values after richer node rendering lands.
   - [ ] Node source lock (V1): owner can add nodes via text input; frontend parses/renders rich chips (@, #, i-, www/http) from cell payload.
@@ -138,6 +147,8 @@
 - [x] Single user color preference input for identity surfaces.
 
 ### Home page polish tracker (Mar 2026)
+- [x] Friends List right-hub now includes `Following` + `Followers` sub-tabs (both sourced from user-follow graph endpoints).
+- [x] Friends List right-hub polish: added 🔥 tally chips for both sub-tabs and privacy disclaimer clarifying that users you follow can view your private profile.
 - [ ] Hero banner slide expansion
   - [ ] Expand slide content so each supported slide type uses available media/cover imagery when present.
   - [ ] Keep graceful fallback visuals when no image is available.

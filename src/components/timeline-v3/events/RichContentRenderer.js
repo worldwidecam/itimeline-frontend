@@ -9,7 +9,14 @@ import HashtagIcon from '../../common/HashtagIcon';
 import api, { getUserByUsername } from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 
-const RichContentRenderer = ({ content, theme, onOpenEventReference, solidChips = false, disableInteractions = false }) => {
+const RichContentRenderer = ({
+  content,
+  theme,
+  onOpenEventReference,
+  solidChips = false,
+  disableInteractions = false,
+  inheritTextColor = false,
+}) => {
   const navigate = useNavigate();
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
@@ -245,7 +252,7 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference, solidChips 
               key={index}
               variant="body2"
               sx={{
-                color: 'text.secondary',
+                color: inheritTextColor ? 'inherit' : 'text.secondary',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 display: 'inline',
@@ -296,7 +303,13 @@ const RichContentRenderer = ({ content, theme, onOpenEventReference, solidChips 
                     border: `1px solid ${theme.palette.primary.main}`,
                   }}
                 />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 500,
+                    color: theme.palette.mode === 'dark' ? 'rgba(233, 244, 255, 0.96)' : 'rgba(17, 36, 57, 0.92)',
+                  }}
+                >
                   {item.username}
                 </Typography>
               </Box>
