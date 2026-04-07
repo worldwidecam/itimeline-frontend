@@ -51,7 +51,7 @@ const RichContentRenderer = ({ content, theme }) => {
 
   // Fetch user data by username
   const fetchUserData = async (username) => {
-    if (userCache[username]) {
+    if (Object.prototype.hasOwnProperty.call(userCache, username)) {
       return userCache[username];
     }
     try {
@@ -62,7 +62,13 @@ const RichContentRenderer = ({ content, theme }) => {
         return userData;
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      const message = String(error?.message || '').toLowerCase();
+      if (message.includes('not found')) {
+        // Cache misses too so we do not repeatedly retry the same invalid mention.
+        setUserCache(prev => ({ ...prev, [username]: null }));
+      } else {
+        console.error('Error fetching user data:', error);
+      }
     }
     return null;
   };

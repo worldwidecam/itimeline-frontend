@@ -1553,10 +1553,47 @@ const HomePage = () => {
     return yourPageTimelines.slice(0, visibleYourPageTimelineCount);
   }, [yourPageTimelines, visibleYourPageTimelineCount]);
 
+  const isPostAllowedOnTimeline = React.useCallback((timeline) => {
+    const explicitPostAllowed = timeline?.post_allowed;
+    if (typeof explicitPostAllowed === 'boolean') return explicitPostAllowed;
+
+    const explicitCanPost = timeline?.can_post;
+    if (typeof explicitCanPost === 'boolean') return explicitCanPost;
+
+    const explicitCanAddEvents = timeline?.can_add_events;
+    if (typeof explicitCanAddEvents === 'boolean') return explicitCanAddEvents;
+
+    const timelineType = String(timeline?.timeline_type || 'hashtag').toLowerCase();
+    if (timelineType === 'hashtag') return true;
+
+    if (timelineType === 'personal') {
+      const ownerId = Number(
+        timeline?.created_by
+        || timeline?.creator_id
+        || timeline?.owner_id
+        || timeline?.user_id
+        || 0,
+      );
+      return ownerId > 0 && ownerId === currentUserId;
+    }
+
+    const role = String(timeline?.role || '').toLowerCase();
+    if (role === 'pending' || role === 'blocked' || role === 'banned') return false;
+
+    return timeline?.is_active_member !== false;
+  }, [currentUserId]);
+
   const advancedPostTimelineOptions = React.useMemo(() => {
     const query = postTimelineSearchInput.trim().toLowerCase();
+    const getTimelineTypeLabel = (timelineType) => {
+      const type = String(timelineType || '').toLowerCase();
+      if (type === 'community') return 'Community';
+      if (type === 'personal') return 'Personal';
+      return 'Hashtag';
+    };
 
     return (Array.isArray(yourPageTimelines) ? yourPageTimelines : [])
+      .filter((timeline) => isPostAllowedOnTimeline(timeline))
       .map((timeline) => {
         const id = Number(timeline?.id || timeline?.timeline_id || 0);
         const timelineType = String(timeline?.timeline_type || 'hashtag').toLowerCase();
@@ -1571,6 +1608,7 @@ const HomePage = () => {
           baseName: baseName || String(timeline?.name || `Timeline ${id}`),
           prefix,
           timeline_type: timelineType,
+          timeline_type_label: getTimelineTypeLabel(timelineType),
           visibility: timeline?.visibility || 'public',
           searchable,
         };
@@ -1578,7 +1616,7 @@ const HomePage = () => {
       .filter((timeline) => Boolean(timeline))
       .filter((timeline) => (query ? timeline.searchable.includes(query) : true))
       .sort((a, b) => a.baseName.localeCompare(b.baseName));
-  }, [postTimelineSearchInput, yourPageTimelines]);
+  }, [isPostAllowedOnTimeline, postTimelineSearchInput, yourPageTimelines]);
 
   const visibleYourPagePosts = React.useMemo(() => {
     return yourPageEvents.slice(0, visibleYourPagePostCount);
@@ -3554,7 +3592,11 @@ const HomePage = () => {
     setPostAdvancedOpen(false);
     setPostTimelineSearchInput('');
     setPostTypeDialogOpen(true);
-  }, []);
+
+    if (user?.id && !loadingYourPage) {
+      fetchYourPageData();
+    }
+  }, [fetchYourPageData, loadingYourPage, user?.id]);
 
   const handleCloseMakePostDialog = React.useCallback(() => {
     if (postFlowLoading) return;
@@ -5889,6 +5931,25 @@ const HomePage = () => {
                       </Stack>
                     ) : advancedPostTimelineOptions.length ? (
                       <Stack spacing={0.6}>
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: '52px minmax(0, 1fr) 90px',
+                            alignItems: 'center',
+                            px: 0.8,
+                            pb: 0.3,
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: 0.4, opacity: 0.75 }}>
+                            Prefix
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: 0.4, opacity: 0.75 }}>
+                            Timeline
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: 0.4, opacity: 0.75, textAlign: 'right' }}>
+                            Type
+                          </Typography>
+                        </Box>
                         {advancedPostTimelineOptions.map((timeline) => (
                           <Button
                             key={`advanced-post-${timeline.id}`}
@@ -5907,18 +5968,21 @@ const HomePage = () => {
                               },
                             }}
                           >
-                            <Box sx={{ width: 46, fontFamily: 'monospace', fontWeight: 800, opacity: 0.86, textAlign: 'left' }}>
+                            <Box sx={{ width: 52, fontFamily: 'monospace', fontWeight: 800, opacity: 0.86, textAlign: 'left' }}>
                               {timeline.prefix}
                             </Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700, textAlign: 'left' }}>
+                            <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontWeight: 700, textAlign: 'left' }}>
                               {timeline.baseName}
+                            </Typography>
+                            <Typography variant="caption" sx={{ ml: 1, fontWeight: 700, opacity: 0.8, textAlign: 'right' }}>
+                              {timeline.timeline_type_label}
                             </Typography>
                           </Button>
                         ))}
                       </Stack>
                     ) : (
                       <Typography variant="body2" color="text.secondary" sx={{ py: 1.2, px: 0.6 }}>
-                        No followed timelines found.
+                        No followed timelines available for posting.
                       </Typography>
                     )}
                   </Box>

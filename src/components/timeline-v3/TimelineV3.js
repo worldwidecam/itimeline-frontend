@@ -84,6 +84,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [visibility, setVisibility] = useState('public');
   const [createdBy, setCreatedBy] = useState(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [postingRestrictionEnabled, setPostingRestrictionEnabled] = useState(false);
+  const [postingMinRole, setPostingMinRole] = useState('moderator');
   const [accessDenied, setAccessDenied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [joinRequestSent, setJoinRequestSent] = useState(false);
@@ -176,6 +178,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           setTimelineDescription(String(timelineData.description || ''));
           setTimelineType(timelineData.timeline_type || 'hashtag');
           setVisibility(timelineData.visibility || 'public');
+          setPostingRestrictionEnabled(Boolean(timelineData.posting_restriction_enabled));
+          setPostingMinRole(
+            String(timelineData.posting_min_role || 'moderator').toLowerCase() === 'admin'
+              ? 'admin'
+              : 'moderator'
+          );
           if (typeof timelineData.created_by !== 'undefined' && timelineData.created_by !== null) {
             setCreatedBy(timelineData.created_by);
           }
@@ -1013,10 +1021,29 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [filteredEventsCount, setFilteredEventsCount] = useState(0);
 
   const isPersonalTimeline = timeline_type === 'personal';
+  const isCommunityTimeline = timeline_type === 'community';
   const isHashtagTimeline = timeline_type === 'hashtag';
   const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false && !user?.must_change_username;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = (Number(user?.id) === 1) || siteRole === 'SiteOwner';
+  const canCreateTimelineEvents = canCreateOrReport && (!isPersonalTimeline || isCreator || isSiteOwner);
+  const normalizedCommunityRole = String(hookRole || '').toLowerCase();
+  const communityPostingMinRole = postingMinRole === 'admin' ? 'admin' : 'moderator';
+  const meetsCommunityRoleRestriction =
+    !postingRestrictionEnabled
+    || isCreator
+    || isSiteOwner
+    || (communityPostingMinRole === 'admin'
+      ? normalizedCommunityRole === 'admin' || normalizedCommunityRole === 'siteowner'
+      : ['moderator', 'admin', 'siteowner'].includes(normalizedCommunityRole));
+  const canCreateCommunityEvents =
+    isMember === true
+    && canCreateOrReport
+    && (!isCommunityTimeline || meetsCommunityRoleRestriction);
+  const canOpenCommunityActionFab = isMember === true && canCreateOrReport;
+  const canCreateEventAction =
+    canCreateTimelineEvents
+    && (!isCommunityTimeline || canCreateCommunityEvents);
   const canManageHashtagSettings = isHashtagTimeline && (isSiteOwner || isSiteAdmin);
   const [isFollowingHashtag, setIsFollowingHashtag] = useState(false);
   const [hashtagFollowKind, setHashtagFollowKind] = useState('watch');
@@ -3192,8 +3219,8 @@ const handleRecenter = () => {
                   </Button>
                 )
               )}
-              {/* Only show the add-event menu for non-community, non-hashtag timelines */}
-              {!isHashtagTimeline && timeline_type !== 'community' && (
+              {/* Only show the add-event menu when event creation is allowed on this timeline */}
+              {!isHashtagTimeline && timeline_type !== 'community' && canCreateTimelineEvents && (
                 <Menu
                   anchorEl={addEventAnchorEl}
                   open={Boolean(addEventAnchorEl)}
@@ -4048,7 +4075,7 @@ const handleRecenter = () => {
             </Tooltip>
           </Box>
 
-          {canCreateOrReport ? (
+          {canCreateEventAction ? (
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 56 : 0,
@@ -4137,7 +4164,7 @@ const handleRecenter = () => {
                   )
                 : (
                     // For community: only members get the Add button
-                    isMember === true && canCreateOrReport && (
+                    canOpenCommunityActionFab && (
                       <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
                         <Fab
                           onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
@@ -4161,7 +4188,7 @@ const handleRecenter = () => {
             )
           : (
               // Non-community timelines always get Add button (when not blurred)
-              <Tooltip title={(canCreateOrReport || canManageHashtagSettings) ? (floatingButtonsExpanded ? "Hide Options" : "Show Event Options") : "Posting Restricted"}>
+              <Tooltip title={(canCreateOrReport || canManageHashtagSettings) ? (floatingButtonsExpanded ? "Hide Options" : "Show Options") : "Posting Restricted"}>
                 <Fab
                   onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
                   disabled={!canCreateOrReport && !canManageHashtagSettings}

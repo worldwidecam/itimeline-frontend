@@ -35,7 +35,12 @@
 - [ ] Phase 1C — Unified image workflow: merge trading-card portrait controls into existing profile avatar uploader so one upload flow serves both outcomes.
 - [ ] Phase 1C — Preserve existing dotted-line upload UI and existing circular avatar behavior.
 - [ ] Phase 1D — Home boot behavior: initialize home tab from cached/DB-backed preference (`popular` default).
+- [x] Home Hero Make-a-Post advanced search now preloads followed timeline candidates, filters to post-allowed timelines, and shows prefix + timeline type columns.
 - [ ] Phase 1D — Profile share behavior: wire profile FAB share to existing trading-card share capability.
+- [x] Personal timeline post-permission hardening: visitor view access no longer implies create-post access (FAB create action hidden for non-owner viewers; backend event-create now enforces owner/site-owner-only posting on personal timelines).
+- [x] Community Admin privacy toggle pass: private/public switch now stages locally and only enforces via backend on `SAVE CHANGES` (warning + cooldown chip still respond immediately in UI); private-description copy updated to "Only approved members can view this Timeline".
+- [x] Community Admin image-cover placement pass: Image Cover Select upload/preview/framing controls moved from upper Timeline Settings area into the dedicated lower `Image Cover Select` section.
+- [x] Community Admin posting/tagging scope controls: added `Restrict Posting & Tagging` setting with `moderator|admin` minimum role, wired through timeline settings load/save payload and enforced in backend for both event create and timeline tagging (`add-event`) paths.
 - [ ] Phase 1E — Color consumer rollout audit: apply user color preference to known identity surfaces (including profile avatar border and user cards) and catalog remaining gaps.
 - [ ] Phase 1F — Regression + responsive validation across profile/home surfaces.
 - [ ] Phase 1G — Privacy settings ideation: define profile privacy toggle scope (what becomes private, who can view, and route/API implications).

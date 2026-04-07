@@ -425,20 +425,7 @@ const AdminPanel = () => {
     };
 
     console.log('[AdminPanel] useEffect triggered for timeline:', id);
-    
-    // Test direct API call
-    console.log('[AdminPanel] Testing direct getBlockedMembers call...');
-    getBlockedMembers(id).then(result => {
-      console.log('[AdminPanel] Direct API test result:', result);
-    }).catch(err => {
-      console.error('[AdminPanel] Direct API test failed:', err);
-    });
-
     checkAccess();
-    
-    // Force load blocked members directly
-    console.log('[AdminPanel] Force loading blocked members...');
-    reloadBlockedMembers();
   }, [id]);
 
   const handleTabChange = (event, newValue) => {
@@ -3402,6 +3389,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
   const showActionCards = mode === 'actions' || mode === 'all';
   const [isPrivate, setIsPrivate] = useState(false);
   const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
+  const [postingRestrictionEnabled, setPostingRestrictionEnabled] = useState(false);
+  const [postingMinRole, setPostingMinRole] = useState('moderator');
   const [showWarning, setShowWarning] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -3834,6 +3823,13 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
           // Set requires_approval state from backend
           setRequireMembershipApproval(timelineDetails.requires_approval || false);
           console.log(`[SettingsTab] Loaded requires_approval: ${timelineDetails.requires_approval}`);
+
+          const loadedPostingRestrictionEnabled = Boolean(timelineDetails.posting_restriction_enabled);
+          const loadedPostingMinRole = String(timelineDetails.posting_min_role || 'moderator').toLowerCase() === 'admin'
+            ? 'admin'
+            : 'moderator';
+          setPostingRestrictionEnabled(loadedPostingRestrictionEnabled);
+          setPostingMinRole(loadedPostingMinRole);
           
           // Calculate cooldown if privacy was changed
           console.log(`[SettingsTab] privacy_changed_at from backend:`, timelineDetails.privacy_changed_at);
@@ -3971,67 +3967,16 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
     return () => clearInterval(interval);
   }, [privacyChangedAt]);
   
-  // Handle visibility change - saves immediately to backend
-  const handleVisibilityChange = async (event) => {
+  // Handle visibility change locally (persisted on Save Changes)
+  const handleVisibilityChange = (event) => {
     const newValue = event.target.checked;
-    const newVisibility = newValue ? 'private' : 'public';
-    
-    try {
-      setIsChangingVisibility(true);
-      console.log(`[SettingsTab] Changing visibility to ${newVisibility}...`);
-      
-      // Call backend to update visibility
-      const result = await updateTimelineVisibility(id, newVisibility);
-      
-      console.log(`[SettingsTab] Visibility updated successfully:`, result);
-      
-      // Update local state
-      setIsPrivate(newValue);
-      setTimelineData(prev => ({
-        ...prev,
-        visibility: newVisibility,
-        privacyChangedAt: result.privacy_changed_at || new Date().toISOString()
-      }));
-      
-      // Update privacy changed timestamp and cooldown from backend response
-      if (result.privacy_changed_at) {
-        const changedDate = new Date(result.privacy_changed_at);
-        setPrivacyChangedAt(changedDate);
-        
-        // Calculate cooldown days left
-        const cooldownEnd = new Date(changedDate);
-        cooldownEnd.setDate(cooldownEnd.getDate() + 10);
-        const now = new Date();
-        const daysLeft = Math.ceil((cooldownEnd - now) / (1000 * 60 * 60 * 24));
-        setCooldownDaysLeft(daysLeft);
-        console.log(`[SettingsTab] Cooldown set to ${daysLeft} days after visibility change`);
-      }
-      
-      // Show/hide warning based on new state
-      if (newValue) {
-        setShowWarning(true);
-      } else {
-        setShowWarning(false);
-      }
-      
-      // Show success message
-      setSnackbarMessage(`Timeline is now ${newVisibility}`);
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-      
-    } catch (error) {
-      console.error('[SettingsTab] Error updating visibility:', error);
-      
-      // Show error message
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to update visibility';
-      setSnackbarMessage(errorMsg);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-      
-      // Revert toggle state on error
-      // Don't change isPrivate state
-    } finally {
-      setIsChangingVisibility(false);
+    setIsPrivate(newValue);
+    setShowWarning(newValue);
+    setHasUnsavedChanges(true);
+
+    // Keep immediate UI feedback for cooldown chip while deferring enforcement to Save.
+    if (newValue && cooldownDaysLeft === null) {
+      setCooldownDaysLeft(10);
     }
   };
   
@@ -4145,12 +4090,49 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
           throw uploadError;
         }
       }
+
+      // Persist visibility only when user saves settings.
+      const desiredVisibility = isPrivate ? 'private' : 'public';
+      const persistedVisibility = String(timelineData?.visibility || 'public').toLowerCase();
+      if (desiredVisibility !== persistedVisibility) {
+        try {
+          setIsChangingVisibility(true);
+          const visibilityResult = await updateTimelineVisibility(id, desiredVisibility);
+          const changedAtIso = visibilityResult?.privacy_changed_at || null;
+
+          setTimelineData((prev) => ({
+            ...(prev || {}),
+            visibility: desiredVisibility,
+            privacyChangedAt: changedAtIso,
+          }));
+
+          if (changedAtIso) {
+            const changedDate = new Date(changedAtIso);
+            setPrivacyChangedAt(changedDate);
+            const cooldownEnd = new Date(changedDate);
+            cooldownEnd.setDate(cooldownEnd.getDate() + 10);
+            const now = new Date();
+            const daysLeft = Math.ceil((cooldownEnd - now) / (1000 * 60 * 60 * 24));
+            setCooldownDaysLeft(daysLeft);
+          } else if (desiredVisibility === 'public') {
+            setPrivacyChangedAt(null);
+            setCooldownDaysLeft(null);
+          }
+        } catch (visibilityError) {
+          console.error('[SettingsTab] Error saving visibility:', visibilityError);
+          throw visibilityError;
+        } finally {
+          setIsChangingVisibility(false);
+        }
+      }
       
       // Save timeline description and requires_approval to backend
       try {
         console.log(`[SettingsTab] Updating timeline settings (description, requires_approval)...`);
         const updateData = {
           requires_approval: requireMembershipApproval,
+          posting_restriction_enabled: postingRestrictionEnabled,
+          posting_min_role: postingMinRole,
           cover_image_url: null,
           cover_portrait_image_url: resolvedPortraitUrl,
           cover_landscape_image_url: resolvedLandscapeUrl,
@@ -4188,6 +4170,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
             id: updatedTimeline.id ?? prev?.id,
             name: updatedTimeline.name ?? prev?.name,
             description: updatedTimeline.description ?? prev?.description,
+            postingRestrictionEnabled: Boolean(updatedTimeline.posting_restriction_enabled),
+            postingMinRole: String(updatedTimeline.posting_min_role || 'moderator').toLowerCase() === 'admin' ? 'admin' : 'moderator',
             coverPortraitImageUrl: updatedPortraitImageUrl,
             coverLandscapeImageUrl: updatedLandscapeImageUrl,
             coverUploadEnabled: updatedCoverUploadEnabled,
@@ -4201,6 +4185,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
           setCoverImageUrl('');
           setCoverPortraitImageUrl(updatedPortraitImageUrl);
           setCoverLandscapeImageUrl(updatedLandscapeImageUrl);
+          setPostingRestrictionEnabled(Boolean(updatedTimeline.posting_restriction_enabled));
+          setPostingMinRole(String(updatedTimeline.posting_min_role || 'moderator').toLowerCase() === 'admin' ? 'admin' : 'moderator');
           setCoverUploadEnabled(updatedCoverUploadEnabled);
           setPortraitPosition({ x: updatedPortraitX, y: updatedPortraitY });
           setLandscapePosition({ x: updatedLandscapeX, y: updatedLandscapeY });
@@ -4366,6 +4352,309 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
     cardsSectionTitle = 'Action Card Settings';
     cardsSectionDescription = 'Configure how community members can contribute through action cards.';
   }
+
+  const imageCoverSelectPanel = (
+    <Paper
+      elevation={0}
+      sx={{
+        mt: 3,
+        p: 2.5,
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
+      }}
+    >
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+        Image Cover Select
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Upload portrait (1200x2100) and landscape (hero ratio 8:1, e.g. 1600x200) images separately.
+      </Typography>
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+          <Typography variant="caption" sx={{ fontWeight: 700 }}>Portrait Upload</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2 }}>
+            <Button variant="outlined" component="label" disabled={isUploadingCover}>
+              Choose Portrait
+              <input hidden accept="image/*" type="file" onChange={handleSelectPortraitCoverFile} />
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleUploadPortraitCover}
+              disabled={!pendingCoverPortraitFile || isUploadingCover}
+            >
+              {isUploadingCover ? 'Uploading...' : 'Upload Portrait'}
+            </Button>
+            <Button
+              variant="text"
+              color="error"
+              onClick={handleClearPortraitCoverImage}
+              disabled={isUploadingCover || !(coverPortraitImageUrl || pendingCoverPortraitPreviewUrl)}
+            >
+              Clear Portrait
+            </Button>
+          </Box>
+          {pendingCoverPortraitFile ? (
+            <Typography variant="caption" color="text.secondary">
+              Ready: {pendingCoverPortraitFile.name} ({(pendingCoverPortraitFile.size / (1024 * 1024)).toFixed(2)} MB)
+            </Typography>
+          ) : null}
+        </Box>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+          <Typography variant="caption" sx={{ fontWeight: 700 }}>Landscape Upload</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2 }}>
+            <Button variant="outlined" component="label" disabled={isUploadingCover}>
+              Choose Landscape
+              <input hidden accept="image/*" type="file" onChange={handleSelectLandscapeCoverFile} />
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleUploadLandscapeCover}
+              disabled={!pendingCoverLandscapeFile || isUploadingCover}
+            >
+              {isUploadingCover ? 'Uploading...' : 'Upload Landscape'}
+            </Button>
+            <Button
+              variant="text"
+              color="error"
+              onClick={handleClearLandscapeCoverImage}
+              disabled={isUploadingCover || !(coverLandscapeImageUrl || pendingCoverLandscapePreviewUrl)}
+            >
+              Clear Landscape
+            </Button>
+          </Box>
+          {pendingCoverLandscapeFile ? (
+            <Typography variant="caption" color="text.secondary">
+              Ready: {pendingCoverLandscapeFile.name} ({(pendingCoverLandscapeFile.size / (1024 * 1024)).toFixed(2)} MB)
+            </Typography>
+          ) : null}
+        </Box>
+      </Box>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 260px) minmax(260px, 420px) minmax(180px, 220px)' }, gap: 2 }}>
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
+            Portrait Preview (1200 x 2100)
+          </Typography>
+          <Box
+            sx={{
+              width: '100%',
+              aspectRatio: '4 / 7',
+              borderRadius: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              overflow: 'hidden',
+              position: 'relative',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+            }}
+          >
+            {portraitPreviewUrl ? (
+              <Box
+                component="img"
+                src={portraitPreviewUrl}
+                alt="Portrait cover preview"
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  objectPosition: '50% 50%',
+                  filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                  transform: buildFrameTransform(
+                    portraitPosition,
+                    portraitZoom,
+                    coverUploadEnabled
+                  ),
+                }}
+              />
+            ) : (
+              <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" align="center">
+                  No image selected yet
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
+            Preview only.
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
+            Landscape Preview (Hero Ratio 8:1)
+          </Typography>
+          <Box
+            sx={{
+              width: '100%',
+              aspectRatio: '8 / 1',
+              borderRadius: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              overflow: 'hidden',
+              position: 'relative',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+            }}
+          >
+            {landscapePreviewUrl ? (
+              <Box
+                component="img"
+                src={landscapePreviewUrl}
+                alt="Landscape cover preview"
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  objectPosition: '50% 50%',
+                  filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                  transform: buildFrameTransform(
+                    landscapePosition,
+                    landscapeZoom,
+                    coverUploadEnabled
+                  ),
+                }}
+              />
+            ) : (
+              <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" align="center">
+                  No image selected yet
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
+            Preview only.
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
+            Framing Controls
+          </Typography>
+          <FormControlLabel
+            sx={{ mb: 0.8 }}
+            control={
+              <Switch
+                checked={activeFrameTarget === 'portrait'}
+                disabled={!activeCoverPreviewUrl}
+                onChange={(event) => {
+                  setActiveFrameTarget(event.target.checked ? 'portrait' : 'landscape');
+                }}
+                size="small"
+              />
+            }
+            label={activeFrameTarget === 'portrait' ? 'Editing Portrait' : 'Editing Landscape'}
+          />
+
+          <Box
+            ref={joystickRef}
+            onPointerDown={handleJoystickPointerDown}
+            onPointerMove={handleJoystickPointerMove}
+            onPointerUp={handleJoystickPointerUp}
+            onPointerCancel={handleJoystickPointerUp}
+            sx={{
+              width: 140,
+              height: 140,
+              borderRadius: '50%',
+              border: '1px solid',
+              borderColor: 'divider',
+              position: 'relative',
+              mx: 'auto',
+              mb: 1.2,
+              touchAction: 'none',
+              cursor: activeCoverPreviewUrl ? 'grab' : 'not-allowed',
+              opacity: activeCoverPreviewUrl ? 1 : 0.5,
+              background: theme.palette.mode === 'dark'
+                ? 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 70%)'
+                : 'radial-gradient(circle at 50% 50%, rgba(15,23,42,0.06) 0%, rgba(15,23,42,0.015) 70%)',
+            }}
+          >
+            <Box
+              sx={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                bgcolor: 'text.secondary',
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+            <Box
+              sx={{
+                position: 'absolute',
+                left: `${joystickKnobPosition.x}%`,
+                top: `${joystickKnobPosition.y}%`,
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                transform: 'translate(-50%, -50%)',
+                bgcolor: activeFrameTarget === 'portrait' ? 'warning.main' : 'primary.main',
+                border: '2px solid rgba(255,255,255,0.9)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+              }}
+            />
+          </Box>
+
+          <Stack spacing={0.5}>
+            <Typography variant="caption" color="text.secondary">Zoom</Typography>
+            <Slider
+              size="small"
+              value={activeFrameTarget === 'portrait' ? portraitZoom : landscapeZoom}
+              min={1}
+              max={4.875}
+              step={0.01}
+              disabled={!activeCoverPreviewUrl}
+              onChange={(_, value) => {
+                const zoomValue = Array.isArray(value) ? value[0] : value;
+                const clampedZoom = clampZoom(zoomValue);
+                if (activeFrameTarget === 'portrait') {
+                  setPortraitZoom(clampedZoom);
+                } else {
+                  setLandscapeZoom(clampedZoom);
+                }
+                setHasUnsavedChanges(true);
+              }}
+            />
+          </Stack>
+        </Box>
+      </Box>
+
+      {canManageImagePrivilege ? (
+        <Box sx={{ mt: 2.2 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={coverUploadEnabled}
+                onChange={(event) => {
+                  setCoverUploadEnabled(event.target.checked);
+                  setTimelineData((prev) => ({
+                    ...(prev || {}),
+                    coverUploadEnabled: event.target.checked,
+                  }));
+                  setHasUnsavedChanges(true);
+                }}
+                color="warning"
+              />
+            }
+            label="Image Privilege"
+          />
+          <Typography variant="body2" color="text.secondary">
+            {coverUploadEnabled
+              ? 'Image Privilege is ON: cover image is displayed normally.'
+              : 'Image Privilege is OFF: cover image is hard blurred for viewers.'}
+          </Typography>
+        </Box>
+      ) : (
+        <Alert severity="info" sx={{ mt: 2.2 }}>
+          Image Privilege can be changed only by SiteOwner/SiteAdmin.
+        </Alert>
+      )}
+    </Paper>
+  );
   
   return (
     <motion.div
@@ -4440,306 +4729,6 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
                   </Typography>
                 </Box>
 
-                <Paper
-                  elevation={0}
-                  sx={{
-                    mt: 3,
-                    p: 2.5,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
-                  }}
-                >
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-                    Image Cover Select
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Upload portrait (1200x2100) and landscape (hero ratio 8:1, e.g. 1600x200) images separately.
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700 }}>Portrait Upload</Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2 }}>
-                        <Button variant="outlined" component="label" disabled={isUploadingCover}>
-                          Choose Portrait
-                          <input hidden accept="image/*" type="file" onChange={handleSelectPortraitCoverFile} />
-                        </Button>
-                        <Button
-                          variant="contained"
-                          onClick={handleUploadPortraitCover}
-                          disabled={!pendingCoverPortraitFile || isUploadingCover}
-                        >
-                          {isUploadingCover ? 'Uploading...' : 'Upload Portrait'}
-                        </Button>
-                        <Button
-                          variant="text"
-                          color="error"
-                          onClick={handleClearPortraitCoverImage}
-                          disabled={isUploadingCover || !(coverPortraitImageUrl || pendingCoverPortraitPreviewUrl)}
-                        >
-                          Clear Portrait
-                        </Button>
-                      </Box>
-                      {pendingCoverPortraitFile ? (
-                        <Typography variant="caption" color="text.secondary">
-                          Ready: {pendingCoverPortraitFile.name} ({(pendingCoverPortraitFile.size / (1024 * 1024)).toFixed(2)} MB)
-                        </Typography>
-                      ) : null}
-                    </Box>
-
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700 }}>Landscape Upload</Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2 }}>
-                        <Button variant="outlined" component="label" disabled={isUploadingCover}>
-                          Choose Landscape
-                          <input hidden accept="image/*" type="file" onChange={handleSelectLandscapeCoverFile} />
-                        </Button>
-                        <Button
-                          variant="contained"
-                          onClick={handleUploadLandscapeCover}
-                          disabled={!pendingCoverLandscapeFile || isUploadingCover}
-                        >
-                          {isUploadingCover ? 'Uploading...' : 'Upload Landscape'}
-                        </Button>
-                        <Button
-                          variant="text"
-                          color="error"
-                          onClick={handleClearLandscapeCoverImage}
-                          disabled={isUploadingCover || !(coverLandscapeImageUrl || pendingCoverLandscapePreviewUrl)}
-                        >
-                          Clear Landscape
-                        </Button>
-                      </Box>
-                      {pendingCoverLandscapeFile ? (
-                        <Typography variant="caption" color="text.secondary">
-                          Ready: {pendingCoverLandscapeFile.name} ({(pendingCoverLandscapeFile.size / (1024 * 1024)).toFixed(2)} MB)
-                        </Typography>
-                      ) : null}
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 260px) minmax(260px, 420px) minmax(180px, 220px)' }, gap: 2 }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
-                        Portrait Preview (1200 x 2100)
-                      </Typography>
-                      <Box
-                        sx={{
-                          width: '100%',
-                          aspectRatio: '4 / 7',
-                          borderRadius: 1.5,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          overflow: 'hidden',
-                          position: 'relative',
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                        }}
-                      >
-                        {portraitPreviewUrl ? (
-                          <Box
-                            component="img"
-                            src={portraitPreviewUrl}
-                            alt="Portrait cover preview"
-                            sx={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'contain',
-                              objectPosition: '50% 50%',
-                              filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
-                              transform: buildFrameTransform(
-                                portraitPosition,
-                                portraitZoom,
-                                coverUploadEnabled
-                              ),
-                            }}
-                          />
-                        ) : (
-                          <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
-                            <Typography variant="caption" color="text.secondary" align="center">
-                              No image selected yet
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
-                        Preview only.
-                      </Typography>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
-                        Landscape Preview (Hero Ratio 8:1)
-                      </Typography>
-                      <Box
-                        sx={{
-                          width: '100%',
-                          aspectRatio: '8 / 1',
-                          borderRadius: 1.5,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          overflow: 'hidden',
-                          position: 'relative',
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                        }}
-                      >
-                        {landscapePreviewUrl ? (
-                          <Box
-                            component="img"
-                            src={landscapePreviewUrl}
-                            alt="Landscape cover preview"
-                            sx={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'contain',
-                              objectPosition: '50% 50%',
-                              filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
-                              transform: buildFrameTransform(
-                                landscapePosition,
-                                landscapeZoom,
-                                coverUploadEnabled
-                              ),
-                            }}
-                          />
-                        ) : (
-                          <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
-                            <Typography variant="caption" color="text.secondary" align="center">
-                              No image selected yet
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
-                        Preview only.
-                      </Typography>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
-                        Framing Controls
-                      </Typography>
-                      <FormControlLabel
-                        sx={{ mb: 0.8 }}
-                        control={
-                          <Switch
-                            checked={activeFrameTarget === 'portrait'}
-                            disabled={!activeCoverPreviewUrl}
-                            onChange={(event) => {
-                              setActiveFrameTarget(event.target.checked ? 'portrait' : 'landscape');
-                            }}
-                            size="small"
-                          />
-                        }
-                        label={activeFrameTarget === 'portrait' ? 'Editing Portrait' : 'Editing Landscape'}
-                      />
-
-                      <Box
-                        ref={joystickRef}
-                        onPointerDown={handleJoystickPointerDown}
-                        onPointerMove={handleJoystickPointerMove}
-                        onPointerUp={handleJoystickPointerUp}
-                        onPointerCancel={handleJoystickPointerUp}
-                        sx={{
-                          width: 140,
-                          height: 140,
-                          borderRadius: '50%',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          position: 'relative',
-                          mx: 'auto',
-                          mb: 1.2,
-                          touchAction: 'none',
-                          cursor: activeCoverPreviewUrl ? 'grab' : 'not-allowed',
-                          opacity: activeCoverPreviewUrl ? 1 : 0.5,
-                          background: theme.palette.mode === 'dark'
-                            ? 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 70%)'
-                            : 'radial-gradient(circle at 50% 50%, rgba(15,23,42,0.06) 0%, rgba(15,23,42,0.015) 70%)',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: '50%',
-                            top: '50%',
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            bgcolor: 'text.secondary',
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                        />
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: `${joystickKnobPosition.x}%`,
-                            top: `${joystickKnobPosition.y}%`,
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            bgcolor: activeFrameTarget === 'portrait' ? 'warning.main' : 'primary.main',
-                            border: '2px solid rgba(255,255,255,0.9)',
-                            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
-                          }}
-                        />
-                      </Box>
-
-                      <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary">Zoom</Typography>
-                        <Slider
-                          size="small"
-                          value={activeFrameTarget === 'portrait' ? portraitZoom : landscapeZoom}
-                          min={1}
-                          max={4.875}
-                          step={0.01}
-                          disabled={!activeCoverPreviewUrl}
-                          onChange={(_, value) => {
-                            const zoomValue = Array.isArray(value) ? value[0] : value;
-                            const clampedZoom = clampZoom(zoomValue);
-                            if (activeFrameTarget === 'portrait') {
-                              setPortraitZoom(clampedZoom);
-                            } else {
-                              setLandscapeZoom(clampedZoom);
-                            }
-                            setHasUnsavedChanges(true);
-                          }}
-                        />
-                      </Stack>
-                    </Box>
-                  </Box>
-
-                  {canManageImagePrivilege ? (
-                    <Box sx={{ mt: 2.2 }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={coverUploadEnabled}
-                            onChange={(event) => {
-                              setCoverUploadEnabled(event.target.checked);
-                              setTimelineData((prev) => ({
-                                ...(prev || {}),
-                                coverUploadEnabled: event.target.checked,
-                              }));
-                              setHasUnsavedChanges(true);
-                            }}
-                            color="warning"
-                          />
-                        }
-                        label="Image Privilege"
-                      />
-                      <Typography variant="body2" color="text.secondary">
-                        {coverUploadEnabled
-                          ? 'Image Privilege is ON: cover image is displayed normally.'
-                          : 'Image Privilege is OFF: cover image is hard blurred for viewers.'}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Alert severity="info" sx={{ mt: 2.2 }}>
-                      Image Privilege can be changed only by SiteOwner/SiteAdmin.
-                    </Alert>
-                  )}
-                </Paper>
               </Box>
             </Box>
           </motion.div>
@@ -4766,7 +4755,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
                         checked={isPrivate}
                         onChange={handleVisibilityChange}
                         color="primary"
-                        disabled={isChangingVisibility || isLoadingTimeline}
+                        disabled={isChangingVisibility || isLoadingTimeline || isSaving}
                       />
                     }
                     label="Private Timeline"
@@ -4810,8 +4799,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
                 
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                   {isPrivate ? 
-                    "Only approved members can view and contribute to this timeline." : 
-                    "Anyone can view this timeline, but only members can contribute."}
+                    "Only approved members can view this Timeline" : 
+                    "Anyone can view this timeline. Posting/tagging access is controlled below."}
                 </Typography>
                 
                 <Box sx={{ mt: 3, mb: 1 }}>
@@ -4834,6 +4823,48 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
                       "New members must be approved by an admin or moderator before they can join." : 
                       "Anyone can join this timeline without approval."}
                   </Typography>
+                </Box>
+
+                <Box sx={{ mt: 3, mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={postingRestrictionEnabled}
+                        onChange={(e) => {
+                          setPostingRestrictionEnabled(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
+                        color="primary"
+                      />
+                    }
+                    label="Restrict Posting & Tagging"
+                  />
+
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {postingRestrictionEnabled
+                      ? (postingMinRole === 'admin'
+                        ? 'Only admins can post new events or tag this community timeline.'
+                        : 'Only moderators and admins can post new events or tag this community timeline.')
+                      : (requireMembershipApproval
+                        ? 'Posting follows normal membership rules: approved members can post/tag.'
+                        : 'Posting follows normal membership rules: any joined member can post/tag.')}
+                  </Typography>
+
+                  <FormControl sx={{ mt: 2, minWidth: 260 }} size="small" disabled={!postingRestrictionEnabled}>
+                    <InputLabel id="posting-min-role-label">Minimum posting role</InputLabel>
+                    <Select
+                      labelId="posting-min-role-label"
+                      value={postingMinRole}
+                      label="Minimum posting role"
+                      onChange={(e) => {
+                        setPostingMinRole(String(e.target.value || 'moderator'));
+                        setHasUnsavedChanges(true);
+                      }}
+                    >
+                      <MenuItem value="moderator">Moderator and above</MenuItem>
+                      <MenuItem value="admin">Admin only</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Box>
                 
                 <AnimatePresence>
@@ -4882,6 +4913,9 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
                   {cardsSectionTitle}
                 </Typography>
               </Box>
+
+              {showTimelineSettings ? imageCoverSelectPanel : null}
+
               {showStatusCards ? (
                 <Paper 
                   elevation={0} 

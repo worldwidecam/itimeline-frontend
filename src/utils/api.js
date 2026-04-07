@@ -1122,6 +1122,10 @@ export const getUserByUsername = async (username) => {
       } catch (error) {
         lastError = error;
         if (error?.response?.status === 404) {
+          const apiMessage = String(error?.response?.data?.error || error?.response?.data?.message || '').toLowerCase();
+          if (apiMessage.includes('user not found')) {
+            throw error;
+          }
           continue;
         }
         throw error;
