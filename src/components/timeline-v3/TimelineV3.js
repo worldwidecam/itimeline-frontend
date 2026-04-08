@@ -24,6 +24,7 @@ import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
 import NavFab from './community/NavFab';
+import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
 import CommunityMembershipControl from './community/CommunityMembershipControl.js';
 import useJoinStatus from '../../hooks/useJoinStatus';
 import { getVoteStats } from '../../api/voteApi';
@@ -72,6 +73,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const theme = useTheme();
+  const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const effectiveId = timelineIdProp || routeId;
   const [timelineId, setTimelineId] = useState(effectiveId);
   const [timelineName, setTimelineName] = useState('');
@@ -796,6 +798,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleOpenAccessPanel = () => {
     setViewerError('');
     setAccessPanelOpen(true);
+    setFloatingButtonsExpanded(false);
   };
 
   const handleCloseAccessPanel = () => {
@@ -1054,6 +1057,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     canCreateTimelineEvents
     && (!isCommunityTimeline || canCreateCommunityEvents);
   const canManageHashtagSettings = isHashtagTimeline && (isSiteOwner || isSiteAdmin);
+  const canManagePersonalAccessPanel = isPersonalTimeline && isCreator;
   const nonCommunityFabActions = useMemo(() => {
     const actions = [];
 
@@ -1104,10 +1108,27 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       });
     }
 
+    if (canManagePersonalAccessPanel) {
+      actions.push({
+        key: 'personal-access-settings',
+        tooltip: 'Personal Timeline Settings',
+        icon: <SettingsIcon />,
+        onClick: handleOpenAccessPanel,
+        size: 'medium',
+        step: 56,
+        accent: {
+          dark: '#A5B4FC',
+          light: '#4338CA',
+        },
+      });
+    }
+
     return actions;
   }, [
     canCreateEventAction,
     canManageHashtagSettings,
+    canManagePersonalAccessPanel,
+    handleOpenAccessPanel,
     handleOpenHashtagSettings,
     handleOpenTimelineReportDialog,
   ]);
@@ -3057,10 +3078,12 @@ const handleRecenter = () => {
       display: 'flex',
       flexDirection: 'column',
       minHeight: '400px',
-      bgcolor: theme.palette.mode === 'light' ? 'background.default' : '#000',
+      background: timelineSurfaces.shell,
       overflowX: 'hidden',
       borderRadius: '8px',
       boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+      border: `1px solid ${timelineSurfaces.shellBorder}`,
+      ...(timelineSurfaces.shellBlur !== 'none' ? { backdropFilter: timelineSurfaces.shellBlur } : {}),
       position: 'relative',
       mb: 3
     }}>
@@ -3104,20 +3127,6 @@ const handleRecenter = () => {
               ) : isPersonalTimeline ? (
                 isCreator ? (
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Button
-                      onClick={handleOpenAccessPanel}
-                      variant="contained"
-                      sx={{
-                        bgcolor: theme.palette.info.main,
-                        color: 'white',
-                        boxShadow: 2,
-                        '&:hover': {
-                          bgcolor: theme.palette.info.dark,
-                        },
-                      }}
-                    >
-                      Access Panel
-                    </Button>
                     <Button
                       disabled
                       startIcon={<VisibilityIcon sx={{ fontSize: '1.4rem' }} />}
@@ -3529,9 +3538,11 @@ const handleRecenter = () => {
           sx={{
             width: '100%',
             height: '300px',
-            bgcolor: theme.palette.mode === 'light' ? 'background.paper' : '#2c1b47',
+            background: timelineSurfaces.tool,
             borderRadius: 2,
             boxShadow: 1,
+            border: `1px solid ${timelineSurfaces.toolBorder}`,
+            backdropFilter: timelineSurfaces.toolBlur,
             position: 'relative',
             overflow: 'hidden',
             touchAction: 'none',
@@ -4077,7 +4088,7 @@ const handleRecenter = () => {
             onCollapse={() => setFloatingButtonsExpanded(false)}
             actions={nonCommunityFabActions}
             showMainFab
-            mainFabDisabled={!canCreateOrReport && !canManageHashtagSettings}
+            mainFabDisabled={!canCreateOrReport && !canManageHashtagSettings && !canManagePersonalAccessPanel}
             mainTooltipClosed="Show Options"
             mainTooltipOpen="Hide Options"
             mainTooltipDisabled="Posting Restricted"

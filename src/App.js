@@ -55,6 +55,7 @@ import PageTransition from './components/PageTransition';
 import api from './utils/api';
 import setupKeepAlive from './utils/keepAlive';
 import TimelineNameDisplay from './components/timeline-v3/TimelineNameDisplay';
+import { getTimelineSurfaceTheme } from './components/timeline-v3/timelineSurfaceTheme';
 
 const REQUIRED_USERNAME_CHANGE_PATH = '/account/required-username-change';
 const REQUIRED_USERNAME_CHANGE_ALIASES = new Set([
@@ -1056,6 +1057,15 @@ function App() {
     setupKeepAlive();
   }, []);
 
+  const timelineViewportSx = (theme) => {
+    const surfaces = getTimelineSurfaceTheme(theme);
+    return {
+      pt: 8,
+      minHeight: '100vh',
+      background: surfaces.canvas,
+    };
+  };
+
   return (
     <AuthProvider>
       <CustomThemeProvider>
@@ -1109,7 +1119,7 @@ function App() {
                   </Box>
                 } />
                 <Route path="/timeline-v3/:id" element={
-                  <Box sx={{ pt: 8 }}>
+                  <Box sx={timelineViewportSx}>
                     <ProtectedRoute>
                       <ErrorBoundary onReset={() => window.location.reload()}>
                         <TimelineV3 />
@@ -1118,14 +1128,14 @@ function App() {
                   </Box>
                 } />
                 <Route path="/timeline-v3/:username/:slug" element={
-                  <Box sx={{ pt: 8 }}>
+                  <Box sx={timelineViewportSx}>
                     <ProtectedRoute>
                       <PersonalTimelineWrapper />
                     </ProtectedRoute>
                   </Box>
                 } />
                 <Route path="/timeline-v3/:username/:slug/:id" element={
-                  <Box sx={{ pt: 8 }}>
+                  <Box sx={timelineViewportSx}>
                     <ProtectedRoute>
                       <ErrorBoundary onReset={() => window.location.reload()}>
                         <TimelineV3 />
@@ -1134,14 +1144,14 @@ function App() {
                   </Box>
                 } />
                 <Route path="/timeline-v3/:id/members" element={
-                  <Box sx={{ pt: 8 }}>
+                  <Box sx={timelineViewportSx}>
                     <ProtectedRoute>
                       <MemberListTab />
                     </ProtectedRoute>
                   </Box>
                 } />
                 <Route path="/timeline-v3/:id/admin" element={
-                  <Box sx={{ pt: 8 }}>
+                  <Box sx={timelineViewportSx}>
                     <ProtectedRoute>
                       <AdminPanel />
                     </ProtectedRoute>

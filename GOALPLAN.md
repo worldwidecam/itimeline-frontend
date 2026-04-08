@@ -216,7 +216,13 @@
   - [x] Admin offset motion pass: shared FAB bottom-position changes now animate smoothly to match Save FAB fall-in movement.
   - [x] Final cleanup: removed CommunityDotTabs renders/imports from TimelineV3, Members, and Admin surfaces (legacy component now unreferenced/deprecated).
   - [x] NavFab consolidation pass: extracted generic `community/NavFab.js`, converted `CommunityNavFab` into a compatibility wrapper, and rewired TimelineV3 hashtag/personal/community FAB stacks plus Members/Admin usages to the shared NavFab primitive.
+  - [x] Personal timeline FAB parity pass: owner-only `Access Panel` control moved from legacy inline header button into FAB as a gear/settings sub-action; non-community main FAB disable logic now respects personal-owner settings availability.
+  - [x] Wrapper audit pass: verified no active `CommunityNavFab` imports remain in `src/`; completed hard cleanup by deleting `community/CommunityNavFab.js`.
 - [x] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
+- [ ] timeline theming architecture hardening (light + dark + future theme packages)
+  - [x] Introduced shared timeline surface token map (`timelineSurfaceTheme`) to define canvas/shell/tool/panel/glass layers by mode.
+  - [x] Rewired timeline route viewport + TimelineV3 shell/tool + EventList panel/filter layers to use shared surface tokens instead of scattered one-off mode conditionals.
+  - [ ] Do full visual tuning pass for both light and dark under the new model (light is intentionally not treated as final yet).
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 

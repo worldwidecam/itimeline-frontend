@@ -34,6 +34,7 @@ import RemarkCard from './cards/RemarkCard';
 import NewsCard from './cards/NewsCard';
 import MediaCard from './cards/MediaCard';
 import EventCounter from './EventCounter';
+import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
 import { 
   isSameDay, 
   isSameMonth, 
@@ -69,6 +70,7 @@ const EventList = ({
   eventRefs: externalEventRefs // Optional shared refs for TimelineV3 integration
 }) => {
   const theme = useTheme();
+  const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState(null);
   const [sortOrder, setSortOrder] = useState(() => {
@@ -511,7 +513,16 @@ const EventList = ({
   };
 
   return (
-    <Stack spacing={2} sx={{ px: 3 }}>
+    <Stack
+      spacing={2}
+      sx={{
+        px: 3,
+        background: timelineSurfaces.panel,
+        border: `1px solid ${timelineSurfaces.panelBorder}`,
+        backdropFilter: timelineSurfaces.panelBlur,
+        borderRadius: 2,
+      }}
+    >
       {/* We've removed the loading indicator here to prevent flickering */}
       {/* The loading state is now handled by the fixed position indicator in TimelineV3.js */}
       
@@ -553,9 +564,11 @@ const EventList = ({
       <Paper 
         sx={{ 
           p: 1,
-          bgcolor: theme => theme.palette.mode === 'light' 
-            ? 'rgba(255, 255, 255, 0.6)' 
-            : 'rgba(0, 0, 0, 0.2)',
+          background: timelineSurfaces.glass,
+          border: `1px solid ${timelineSurfaces.glassBorder}`,
+          '&:hover': {
+            background: timelineSurfaces.glassHover,
+          },
           backdropFilter: 'blur(8px)'
         }}
         elevation={0}

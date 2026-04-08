@@ -2701,6 +2701,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
   
   // Real data for members
   const [members, setMembers] = useState([]);
+  const [pendingMembers, setPendingMembers] = useState([]);
   const [blockedMembers, setBlockedMembers] = useState([]);
   const [timelineMemberCount, setTimelineMemberCount] = useState(0);
   
