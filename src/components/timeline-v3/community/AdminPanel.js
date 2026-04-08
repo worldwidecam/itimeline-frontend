@@ -62,10 +62,10 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import InfoIcon from '@mui/icons-material/Info';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
 import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import CommunityDotTabs from './CommunityDotTabs';
+import CommunityNavFab from './CommunityNavFab';
 import api from '../../../utils/api';
 import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
@@ -135,6 +135,8 @@ const formatDateForAPI = (date) => {
 
 const AdminPanel = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [tabValue, setTabValue] = useState(0);
   const [memberTabValue, setMemberTabValue] = useState(0); // 0 = Active Members, 1 = Blocked Members
   const [isLoading, setIsLoading] = useState(true);
@@ -160,7 +162,20 @@ const AdminPanel = () => {
   const [confirmPostActionDialogOpen, setConfirmPostActionDialogOpen] = useState(false);
   const [postActionType, setPostActionType] = useState(''); // 'delete' or 'safeguard'
   const [isPostLoading, setIsPostLoading] = useState(true);
+  const [communityFabExpanded, setCommunityFabExpanded] = useState(false);
+  const [settingsSaveFabVisible, setSettingsSaveFabVisible] = useState(false);
   const theme = useTheme();
+
+  const communityFabBottom = settingsSaveFabVisible ? 'calc(2rem + 56px + 30px)' : '2rem';
+
+  const handleCommunityNavigate = (targetPath) => {
+    if (!targetPath || location.pathname === targetPath) {
+      setCommunityFabExpanded(false);
+      return;
+    }
+    setCommunityFabExpanded(false);
+    navigate(targetPath);
+  };
 
   const handleTimelineUpdated = useCallback((updatedTimeline) => {
     if (!updatedTimeline) return;
@@ -1535,11 +1550,6 @@ const AdminPanel = () => {
         </Box>
       )}
       
-      {/* Community Dot Tabs - Always visible at the top */}
-      <CommunityDotTabs 
-        timelineId={id} 
-      />
-      
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -1729,24 +1739,49 @@ const AdminPanel = () => {
                 />
               )}
               {tabValue === 1 && <ManagePostsTab key="posts" timelineId={id} />}
-              {tabValue === 2 && <CardsTab key="cards" id={id} onTimelineUpdated={handleTimelineUpdated} />}
+              {tabValue === 2 && (
+                <CardsTab
+                  key="cards"
+                  id={id}
+                  onTimelineUpdated={handleTimelineUpdated}
+                  onSettingsSaveFabVisibilityChange={setSettingsSaveFabVisible}
+                />
+              )}
               {tabValue === 3 && (
                 <SettingsTab
                   key="settings"
                   id={id}
                   mode="timeline"
                   onTimelineUpdated={handleTimelineUpdated}
+                  onSaveFabVisibilityChange={setSettingsSaveFabVisible}
                 />
               )}
             </AnimatePresence>
           </Box>
         </Paper>
       </motion.div>
+
+      <CommunityNavFab
+        timelineId={id}
+        pathname={location.pathname}
+        expanded={communityFabExpanded}
+        onToggleExpanded={() => setCommunityFabExpanded((prev) => !prev)}
+        onCollapse={() => setCommunityFabExpanded(false)}
+        onNavigate={handleCommunityNavigate}
+        bottom={communityFabBottom}
+        right={32}
+        showReport={false}
+        showCreate={false}
+        showMembersNav={isMember === true}
+        showAdminNav={['moderator', 'admin', 'creator', 'siteowner'].includes(String(userRole || '').toLowerCase())}
+        mainTooltipClosed="Show Event Options"
+        mainTooltipOpen="Hide Options"
+      />
     </Box>
   );
 };
 
-const CardsTab = ({ id, onTimelineUpdated }) => {
+const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) => {
   const [cardsTabValue, setCardsTabValue] = useState(0);
 
   return (
@@ -1782,6 +1817,7 @@ const CardsTab = ({ id, onTimelineUpdated }) => {
                 id={id}
                 mode="status"
                 onTimelineUpdated={onTimelineUpdated}
+                onSaveFabVisibilityChange={onSettingsSaveFabVisibilityChange}
               />
             )}
             {cardsTabValue === 2 && (
@@ -1790,6 +1826,7 @@ const CardsTab = ({ id, onTimelineUpdated }) => {
                 id={id}
                 mode="quote"
                 onTimelineUpdated={onTimelineUpdated}
+                onSaveFabVisibilityChange={onSettingsSaveFabVisibilityChange}
               />
             )}
             {cardsTabValue === 3 && (
@@ -1798,6 +1835,7 @@ const CardsTab = ({ id, onTimelineUpdated }) => {
                 id={id}
                 mode="actions"
                 onTimelineUpdated={onTimelineUpdated}
+                onSaveFabVisibilityChange={onSettingsSaveFabVisibilityChange}
               />
             )}
           </AnimatePresence>
@@ -2664,7 +2702,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
   // Real data for members
   const [members, setMembers] = useState([]);
   const [blockedMembers, setBlockedMembers] = useState([]);
-  const [pendingMembers, setPendingMembers] = useState([]);
+  const [timelineMemberCount, setTimelineMemberCount] = useState(0);
   
   // Load members data from API
   const loadMembers = useCallback(async () => {
@@ -3381,7 +3419,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
 };
 
 // Settings Tab Component
-const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
+const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityChange }) => {
   const theme = useTheme();
   const showTimelineSettings = mode === 'timeline' || mode === 'all';
   const showStatusCards = mode === 'status' || mode === 'all';
@@ -3457,6 +3495,18 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [siteRole, setSiteRole] = useState(null);
   const [isSiteAdmin, setIsSiteAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof onSaveFabVisibilityChange === 'function') {
+      onSaveFabVisibilityChange(hasUnsavedChanges || showSavedState);
+    }
+    return () => {
+      if (typeof onSaveFabVisibilityChange === 'function') {
+        onSaveFabVisibilityChange(false);
+      }
+    };
+  }, [hasUnsavedChanges, showSavedState, onSaveFabVisibilityChange]);
+
   const portraitPreviewUrl = pendingCoverPortraitPreviewUrl || coverPortraitImageUrl;
   const landscapePreviewUrl = pendingCoverLandscapePreviewUrl || coverLandscapeImageUrl;
   const hasPortraitPreview = Boolean(portraitPreviewUrl);
@@ -5684,6 +5734,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated }) => {
               </Button>
             </DialogActions>
           </Dialog>
+
           {/* Floating Action Button for Save Changes */}
           <AnimatePresence>
             {(hasUnsavedChanges || showSavedState) && (

@@ -23,7 +23,7 @@ import EventDialog from './events/EventDialog';
 import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
-import CommunityDotTabs from './community/CommunityDotTabs';
+import CommunityNavFab from './community/CommunityNavFab';
 import CommunityMembershipControl from './community/CommunityMembershipControl.js';
 import useJoinStatus from '../../hooks/useJoinStatus';
 import { getVoteStats } from '../../api/voteApi';
@@ -214,7 +214,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         window.scrollTo(0, 0);  // Scroll to the top of the page
       }
     };
-  
+
     // First try to get name from URL params (for newly created timelines)
     const params = new URLSearchParams(window.location.search);
     const nameFromUrl = params.get('name');
@@ -745,6 +745,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   
   const handleAddEventMenuClose = () => {
     setAddEventAnchorEl(null);
+  };
+
+  const handleCommunityNavigate = (targetPath) => {
+    if (!targetPath || location.pathname === targetPath) {
+      setFloatingButtonsExpanded(false);
+      return;
+    }
+    setFloatingButtonsExpanded(false);
+    navigate(targetPath);
   };
 
   const handleOpenTimelineReportDialog = () => {
@@ -3735,14 +3744,6 @@ const handleRecenter = () => {
       {/* Visual Separator */}
       <Box sx={{ height: 24 }} />
       
-      {/* Community Dot Tabs - Only shown for community timelines */}
-      {timeline_type === 'community' && (
-        <CommunityDotTabs 
-          timelineId={timelineId} 
-          userRole={user?.role || 'user'} 
-        />
-      )}
-      
       {/* Event List Workspace - Enhanced smooth fade-in transition */}
       <Box sx={{
         opacity: progressiveLoadingState === 'complete' ? 1 : 0.6,
@@ -3947,6 +3948,27 @@ const handleRecenter = () => {
         }}
       >
         <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
+        {timeline_type === 'community' && canOpenCommunityActionFab ? (
+          <CommunityNavFab
+            timelineId={timelineId}
+            pathname={location.pathname}
+            expanded={floatingButtonsExpanded}
+            onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
+            onCollapse={() => setFloatingButtonsExpanded(false)}
+            onNavigate={handleCommunityNavigate}
+            showReport
+            onReport={handleOpenTimelineReportDialog}
+            showCreate={canCreateEventAction}
+            showMembersNav={isMember === true}
+            showAdminNav={['moderator', 'admin', 'creator', 'siteowner'].includes(normalizedCommunityRole)}
+            onCreate={() => {
+              setEditingEvent(null);
+              setDialogOpen(true);
+              setFloatingButtonsExpanded(false);
+            }}
+            createEmphasis
+          />
+        ) : null}
         {showShareTradingCard ? (
           <TradingCard
             onActivate={handleShareCardClick}
@@ -4038,6 +4060,7 @@ const handleRecenter = () => {
             </Box>
           ) : null}
 
+          {timeline_type !== 'community' ? (
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 112 : 0,
@@ -4074,8 +4097,9 @@ const handleRecenter = () => {
               </Fab>
             </Tooltip>
           </Box>
+          ) : null}
 
-          {canCreateEventAction ? (
+          {timeline_type !== 'community' && canCreateEventAction ? (
           <Box sx={{
             position: 'absolute',
             bottom: floatingButtonsExpanded ? 56 : 0,
@@ -4164,7 +4188,7 @@ const handleRecenter = () => {
                   )
                 : (
                     // For community: only members get the Add button
-                    canOpenCommunityActionFab && (
+                    canOpenCommunityActionFab && !isCommunityTimeline && (
                       <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
                         <Fab
                           onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}

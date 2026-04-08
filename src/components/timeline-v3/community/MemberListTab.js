@@ -20,7 +20,11 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -30,10 +34,10 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import { useParams } from 'react-router-dom';
-import { getTimelineDetails, getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction } from '../../../utils/api';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { getTimelineDetails, getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction, submitTimelineReport } from '../../../utils/api';
 import { motion } from 'framer-motion';
-import CommunityDotTabs from './CommunityDotTabs';
+import CommunityNavFab from './CommunityNavFab';
 import FlagIcon from '@mui/icons-material/Flag';
 import LockIcon from '@mui/icons-material/Lock';
 import QuoteDisplay from './QuoteDisplay';
@@ -160,6 +164,8 @@ const getActionProgressDetails = (action, revealFactor = 1) => {
 
 const MemberListTab = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const [timelineHeader, setTimelineHeader] = useState({
     name: '',
@@ -207,11 +213,17 @@ const MemberListTab = () => {
   // Access control state
   const [accessLoading, setAccessLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+  const [communityRole, setCommunityRole] = useState('');
   const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
   const [voteLoadingByType, setVoteLoadingByType] = useState({ bronze: false, silver: false, gold: false });
   const [snackbarState, setSnackbarState] = useState({ open: false, severity: 'info', message: '' });
   const [progressRevealByType, setProgressRevealByType] = useState({ bronze: 1, silver: 1, gold: 1 });
   const hasAnimatedInitialProgressRef = useRef(false);
+  const [communityFabExpanded, setCommunityFabExpanded] = useState(false);
+  const [timelineReportDialogOpen, setTimelineReportDialogOpen] = useState(false);
+  const [timelineReportCategory, setTimelineReportCategory] = useState('');
+  const [timelineReportReason, setTimelineReportReason] = useState('');
+  const [timelineReportSubmitting, setTimelineReportSubmitting] = useState(false);
 
   // Search / Filter / Sort state and menu anchors
   const [searchTerm, setSearchTerm] = useState('');
@@ -234,6 +246,58 @@ const MemberListTab = () => {
 
   const handleSnackbarClose = () => {
     setSnackbarState((prev) => ({ ...prev, open: false }));
+  };
+
+  const handleCommunityNavigate = (targetPath) => {
+    if (!targetPath || location.pathname === targetPath) {
+      setCommunityFabExpanded(false);
+      return;
+    }
+    setCommunityFabExpanded(false);
+    navigate(targetPath);
+  };
+
+  const handleOpenTimelineReportDialog = () => {
+    setTimelineReportCategory('');
+    setTimelineReportReason('');
+    setTimelineReportDialogOpen(true);
+    setCommunityFabExpanded(false);
+  };
+
+  const handleCloseTimelineReportDialog = () => {
+    if (timelineReportSubmitting) return;
+    setTimelineReportDialogOpen(false);
+  };
+
+  const handleSubmitTimelineReport = async () => {
+    if (!id) return;
+    if (!timelineReportCategory) {
+      setSnackbarState({
+        open: true,
+        severity: 'warning',
+        message: 'Please choose a report category',
+      });
+      return;
+    }
+    try {
+      setTimelineReportSubmitting(true);
+      await submitTimelineReport(id, timelineReportReason || '', timelineReportCategory);
+      setTimelineReportDialogOpen(false);
+      setSnackbarState({
+        open: true,
+        severity: 'success',
+        message: 'Timeline report submitted',
+      });
+    } catch (error) {
+      const message = error?.response?.data?.error || error?.message || 'Failed to submit timeline report';
+      setSnackbarState({
+        open: true,
+        severity: 'error',
+        message,
+      });
+    } finally {
+      setTimelineReportSubmitting(false);
+    }
   };
 
   const setVoteLoading = (actionType, isLoading) => {
@@ -333,13 +397,18 @@ const MemberListTab = () => {
         setAccessLoading(true);
         const status = await checkMembershipStatus(id, 0, true);
         const allowed = !!status?.is_member;
+        const resolvedRole = String(status?.role || '').toLowerCase();
         if (isMounted) {
           setIsMember(allowed);
+          setCommunityRole(resolvedRole);
           console.log(`[MemberListTab] Membership status for timeline ${id}:`, allowed);
         }
       } catch (e) {
         console.error('[MemberListTab] Access check failed:', e);
-        if (isMounted) setIsMember(false);
+        if (isMounted) {
+          setIsMember(false);
+          setCommunityRole('');
+        }
       } finally {
         if (isMounted) setAccessLoading(false);
       }
@@ -1705,11 +1774,6 @@ const MemberListTab = () => {
         </Box>
       </motion.div>
       
-      {/* Community Dot Tabs */}
-      <CommunityDotTabs 
-        timelineId={id} 
-      />
-      
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -2006,6 +2070,59 @@ const MemberListTab = () => {
           </motion.div>
         </Box>
       </motion.div>
+
+      <CommunityNavFab
+        timelineId={id}
+        pathname={location.pathname}
+        expanded={communityFabExpanded}
+        onToggleExpanded={() => setCommunityFabExpanded((prev) => !prev)}
+        onCollapse={() => setCommunityFabExpanded(false)}
+        onNavigate={handleCommunityNavigate}
+        showReport
+        onReport={handleOpenTimelineReportDialog}
+        showMembersNav={isMember}
+        showAdminNav={['moderator', 'admin', 'creator', 'siteowner'].includes(communityRole)}
+        mainTooltipClosed="Show Event Options"
+        mainTooltipOpen="Hide Options"
+      />
+
+      <Dialog open={timelineReportDialogOpen} onClose={handleCloseTimelineReportDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Report Timeline</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Help us understand the issue with this timeline.
+          </Typography>
+          <TextField
+            select
+            fullWidth
+            label="Category"
+            value={timelineReportCategory}
+            onChange={(e) => setTimelineReportCategory(e.target.value)}
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="spam">Spam</MenuItem>
+            <MenuItem value="harassment">Harassment</MenuItem>
+            <MenuItem value="hate">Hate speech</MenuItem>
+            <MenuItem value="violence">Violence or threats</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </TextField>
+          <TextField
+            fullWidth
+            multiline
+            minRows={4}
+            label="Reason"
+            value={timelineReportReason}
+            onChange={(e) => setTimelineReportReason(e.target.value)}
+            placeholder="Add optional details"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTimelineReportDialog} disabled={timelineReportSubmitting}>Cancel</Button>
+          <Button onClick={handleSubmitTimelineReport} variant="contained" disabled={timelineReportSubmitting || !timelineReportCategory}>
+            {timelineReportSubmitting ? 'Submitting...' : 'Submit report'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbarState.open}
