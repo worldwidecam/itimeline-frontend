@@ -65,7 +65,7 @@ import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import CommunityNavFab from './CommunityNavFab';
+import NavFab from './NavFab';
 import api from '../../../utils/api';
 import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
@@ -1761,7 +1761,7 @@ const AdminPanel = () => {
         </Paper>
       </motion.div>
 
-      <CommunityNavFab
+      <NavFab
         timelineId={id}
         pathname={location.pathname}
         expanded={communityFabExpanded}

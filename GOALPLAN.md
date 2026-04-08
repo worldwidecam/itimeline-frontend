@@ -4,25 +4,9 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] Profile page implementation — Phase 1 (NEW CURRENT FOCUS)
-  - [ ] Finalize profile page visual hierarchy and layout system.
-  - [ ] Complete profile settings and profile-adjacent dialog styling consistency pass.
-  - [ ] Ensure profile actions/reporting/settings flows remain behaviorally unchanged while UI is standardized.
-  - [ ] Validate mobile/desktop responsiveness for all profile surfaces.
-  - [ ] Phase 1 lock: Home init preference from Profile Settings (`popular|home`, default `popular`) persisted to DB + cache.
-  - [ ] Phase 1 lock: Birthday input includes year; age used for backend policy gating only (no public age display).
-  - [ ] Phase 1 lock: Single profile image upload flow (no duplicate systems) powering both circular avatar behavior and trading-card portrait metadata.
-  - [ ] Phase 1 lock: Keep dotted-line avatar upload UI treatment in Profile Settings.
-  - [ ] Phase 1 lock: Profile FAB share wiring uses existing trading-card share flow.
-  - [ ] Phase 1 lock: One user color preference (native color input) reused across profile identity surfaces (including avatar border color).
+- [x] Profile page implementation — Phase 1 (COMPLETE)
 
 ## Scope / Success Criteria
-- Profile page is fully implemented with clear section hierarchy and stable interactions.
-- Profile surfaces are behaviorally consistent (edit/save/report/auth-related profile flows unchanged unless explicitly planned).
-- New profile capabilities are validated across desktop and mobile breakpoints.
-- Existing routes/integrations remain intact (including auth, profile settings, and report submission paths).
-- No placeholder/mock data is introduced.
-- Profile visual language follows established glass-form and settings-page styling standards.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
@@ -216,14 +200,14 @@
 - [x] Update/improve remark cards look
 - [x] Investigate slow loading for Home > POPULAR and YOUR PAGE tabs (identify bottlenecks + solutions)
 - [ ] NSFW filter
-- [x] Profile page implementation (existing page needs full build-out) — CURRENT BIG MAIN FOCUS
+- [x] Profile page implementation (existing page needs full build-out) — COMPLETE
 - [ ] # hashtag chip voting system
 - [ ] make a home page submission box
 - [x] sharing link system
 - [ ] consider timeline deletion capability (requirements + UX)
 - [ ] reorganizing community admin page action card settings under INFO CARDS umbrella
 - [ ] odds and ends. things like user count on landing page, community timelines getting an image background option.
-- [~] update the members page and admin page buttons to FAB
+- [x] update the members page and admin page buttons to FAB
   - [x] Members page now has community navigation/report FAB stack (Timeline/Members/Admin + Report).
   - [x] Admin page now has community navigation FAB stack (Timeline/Members/Admin) with dynamic upward shift when Save FAB appears.
   - [x] Shared FAB refinement pass: timeline marker icon adjusted (longer baseline + taller marker stem), report action moved to top-most slot, create action remains closest to main FAB with emphasized sizing, and current-page nav sub-button is hidden.
@@ -231,6 +215,7 @@
   - [x] Admin nav FAB accent tuned to lighter purple to separate from Timeline nav blue.
   - [x] Admin offset motion pass: shared FAB bottom-position changes now animate smoothly to match Save FAB fall-in movement.
   - [x] Final cleanup: removed CommunityDotTabs renders/imports from TimelineV3, Members, and Admin surfaces (legacy component now unreferenced/deprecated).
+  - [x] NavFab consolidation pass: extracted generic `community/NavFab.js`, converted `CommunityNavFab` into a compatibility wrapper, and rewired TimelineV3 hashtag/personal/community FAB stacks plus Members/Admin usages to the shared NavFab primitive.
 - [x] what's the color behind the light theme description box in EventPopups? i love it. can we have that color be the light theme container background color standard now? instead of this harsh bright white? exception would be for light-theme EventPopups and other color coordinated things of their own.
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups

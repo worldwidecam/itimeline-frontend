@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, ClickAwayListener } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -23,7 +23,7 @@ import EventDialog from './events/EventDialog';
 import MediaEventCreator from './events/MediaEventCreator';
 import RemarkEventCreator from './events/RemarkEventCreator';
 import NewsEventCreator from './events/NewsEventCreator';
-import CommunityNavFab from './community/CommunityNavFab';
+import NavFab from './community/NavFab';
 import CommunityMembershipControl from './community/CommunityMembershipControl.js';
 import useJoinStatus from '../../hooks/useJoinStatus';
 import { getVoteStats } from '../../api/voteApi';
@@ -1054,6 +1054,63 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     canCreateTimelineEvents
     && (!isCommunityTimeline || canCreateCommunityEvents);
   const canManageHashtagSettings = isHashtagTimeline && (isSiteOwner || isSiteAdmin);
+  const nonCommunityFabActions = useMemo(() => {
+    const actions = [];
+
+    if (canCreateEventAction) {
+      actions.push({
+        key: 'create',
+        tooltip: 'Create Event',
+        icon: <EventIcon />,
+        onClick: () => {
+          setEditingEvent(null);
+          setDialogOpen(true);
+          setFloatingButtonsExpanded(false);
+        },
+        size: 'medium',
+        step: 56,
+        accent: {
+          dark: '#69F0AE',
+          light: '#00CFA1',
+        },
+      });
+    }
+
+    actions.push({
+      key: 'report',
+      tooltip: 'Report Timeline',
+      icon: <OutlinedFlagIcon />,
+      onClick: handleOpenTimelineReportDialog,
+      size: 'medium',
+      step: 56,
+      accent: {
+        dark: '#EF5350',
+        light: '#D32F2F',
+      },
+    });
+
+    if (canManageHashtagSettings) {
+      actions.push({
+        key: 'hashtag-settings',
+        tooltip: 'Hashtag Settings',
+        icon: <SettingsIcon />,
+        onClick: handleOpenHashtagSettings,
+        size: 'medium',
+        step: 56,
+        accent: {
+          dark: '#A5B4FC',
+          light: '#4338CA',
+        },
+      });
+    }
+
+    return actions;
+  }, [
+    canCreateEventAction,
+    canManageHashtagSettings,
+    handleOpenHashtagSettings,
+    handleOpenTimelineReportDialog,
+  ]);
   const [isFollowingHashtag, setIsFollowingHashtag] = useState(false);
   const [hashtagFollowKind, setHashtagFollowKind] = useState('watch');
   const [isHashtagFollowLoading, setIsHashtagFollowLoading] = useState(false);
@@ -3940,16 +3997,9 @@ const handleRecenter = () => {
 
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
-      <ClickAwayListener
-        onClickAway={() => {
-          if (floatingButtonsExpanded) {
-            setFloatingButtonsExpanded(false);
-          }
-        }}
-      >
         <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
         {timeline_type === 'community' && canOpenCommunityActionFab ? (
-          <CommunityNavFab
+          <NavFab
             timelineId={timelineId}
             pathname={location.pathname}
             expanded={floatingButtonsExpanded}
@@ -4019,130 +4069,21 @@ const handleRecenter = () => {
             overlayText="Tap to Share"
           />
         ) : null}
-        {/* Consolidated Event Button - Animates in and out */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
-          {canManageHashtagSettings ? (
-            <Box sx={{
-              position: 'absolute',
-              bottom: floatingButtonsExpanded ? 168 : 0,
-              right: 0,
-              opacity: floatingButtonsExpanded ? 1 : 0,
-              pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
-              transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out`,
-              transitionDelay: floatingButtonsExpanded ? '0.11s' : '0s',
-              zIndex: 1530,
-            }}>
-              <Tooltip title="Hashtag Settings" placement="left">
-                <Fab
-                  onClick={handleOpenHashtagSettings}
-                  size="medium"
-                  sx={{
-                    bgcolor: theme.palette.mode === 'dark' ? '#1f2937' : '#eef2ff',
-                    border: theme.palette.mode === 'dark' ? '2px solid #818cf8' : '2px solid #4f46e5',
-                    '&:hover': {
-                      bgcolor: theme.palette.mode === 'dark' ? '#111827' : '#e0e7ff',
-                      boxShadow: theme.palette.mode === 'dark'
-                        ? '0 0 18px rgba(129, 140, 248, 0.45)'
-                        : '0 0 18px rgba(79, 70, 229, 0.35)',
-                    },
-                    color: theme.palette.mode === 'dark' ? '#a5b4fc' : '#4338ca',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 0 12px rgba(129, 140, 248, 0.35)'
-                      : '0 0 12px rgba(79, 70, 229, 0.25)',
-                    transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
-                    transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    transitionDelay: floatingButtonsExpanded ? '0.11s' : '0s',
-                  }}
-                >
-                  <SettingsIcon />
-                </Fab>
-              </Tooltip>
-            </Box>
-          ) : null}
-
-          {timeline_type !== 'community' ? (
-          <Box sx={{
-            position: 'absolute',
-            bottom: floatingButtonsExpanded ? 112 : 0,
-            right: 0,
-            opacity: floatingButtonsExpanded ? 1 : 0,
-            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
-            transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out`,
-            transitionDelay: floatingButtonsExpanded ? '0.08s' : '0s',
-            zIndex: 1530,
-          }}>
-            <Tooltip title="Report Timeline" placement="left">
-              <Fab
-                onClick={handleOpenTimelineReportDialog}
-                size="medium"
-                sx={{
-                  bgcolor: theme.palette.mode === 'dark' ? '#2b1e20' : '#fff5f5',
-                  border: theme.palette.mode === 'dark' ? '2px solid #ef5350' : '2px solid #d32f2f',
-                  '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark' ? '#3a2225' : '#ffe9e9',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 0 18px rgba(239, 83, 80, 0.45)'
-                      : '0 0 18px rgba(211, 47, 47, 0.35)',
-                  },
-                  color: theme.palette.mode === 'dark' ? '#ef5350' : '#d32f2f',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 0 12px rgba(239, 83, 80, 0.35)'
-                    : '0 0 12px rgba(211, 47, 47, 0.25)',
-                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
-                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transitionDelay: floatingButtonsExpanded ? '0.08s' : '0s',
-                }}
-              >
-                <OutlinedFlagIcon />
-              </Fab>
-            </Tooltip>
-          </Box>
-          ) : null}
-
-          {timeline_type !== 'community' && canCreateEventAction ? (
-          <Box sx={{
-            position: 'absolute',
-            bottom: floatingButtonsExpanded ? 56 : 0,
-            right: 0,
-            opacity: floatingButtonsExpanded ? 1 : 0,
-            pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
-            transition: `bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                        opacity 0.3s ease-in-out`,
-            transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s',
-            zIndex: 1530,
-          }}>
-            <Tooltip title="Create Event" placement="left">
-              <Fab
-                onClick={() => {
-                  setEditingEvent(null);
-                  setDialogOpen(true);
-                  setFloatingButtonsExpanded(false);
-                }}
-                size="medium"
-                sx={{
-                  bgcolor: theme.palette.mode === 'dark' ? '#263238' : '#ffffff',
-                  border: theme.palette.mode === 'dark' ? '2px solid #69F0AE' : '2px solid #00CFA1',
-                  '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark' ? '#1c2326' : '#f5fffb',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 0 18px rgba(105, 240, 174, 0.45)'
-                      : '0 0 18px rgba(0, 207, 161, 0.35)'
-                  },
-                  color: theme.palette.mode === 'dark' ? '#69F0AE' : '#00CFA1',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 0 12px rgba(105, 240, 174, 0.35)'
-                    : '0 0 12px rgba(0, 207, 161, 0.25)',
-                  transform: floatingButtonsExpanded ? 'scale(1)' : 'scale(0.5)',
-                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transitionDelay: floatingButtonsExpanded ? '0.05s' : '0s'
-                }}
-              >
-                <EventIcon />
-              </Fab>
-            </Tooltip>
-          </Box>
-          ) : null}
-        </Box>
+        {timeline_type !== 'community' ? (
+          <NavFab
+            pathname={location.pathname}
+            expanded={floatingButtonsExpanded}
+            onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
+            onCollapse={() => setFloatingButtonsExpanded(false)}
+            actions={nonCommunityFabActions}
+            showMainFab
+            mainFabDisabled={!canCreateOrReport && !canManageHashtagSettings}
+            mainTooltipClosed="Show Options"
+            mainTooltipOpen="Hide Options"
+            mainTooltipDisabled="Posting Restricted"
+            enableClickAway={false}
+          />
+        ) : null}
         
         {/* Conditional rendering based on timeline type and membership status */}
         {timeline_type === 'community'
@@ -4186,54 +4127,10 @@ const handleRecenter = () => {
                       </Fab>
                     </Tooltip>
                   )
-                : (
-                    // For community: only members get the Add button
-                    canOpenCommunityActionFab && !isCommunityTimeline && (
-                      <Tooltip title={floatingButtonsExpanded ? "Hide Options" : "Show Event Options"}>
-                        <Fab
-                          onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
-                          sx={{
-                            bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
-                            color: 'white',
-                            '&:hover': {
-                              bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.success.main,
-                            },
-                            boxShadow: 3,
-                            transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.3s ease, background-color 0.2s ease',
-                            zIndex: 1540
-                          }}
-                        >
-                          <AddIcon />
-                        </Fab>
-                      </Tooltip>
-                    )
-                  )
+                : null
             )
-          : (
-              // Non-community timelines always get Add button (when not blurred)
-              <Tooltip title={(canCreateOrReport || canManageHashtagSettings) ? (floatingButtonsExpanded ? "Hide Options" : "Show Options") : "Posting Restricted"}>
-                <Fab
-                  onClick={() => setFloatingButtonsExpanded(!floatingButtonsExpanded)}
-                  disabled={!canCreateOrReport && !canManageHashtagSettings}
-                  sx={{
-                    bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.success.main,
-                    },
-                    boxShadow: 3,
-                    transform: floatingButtonsExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.3s ease, background-color 0.2s ease',
-                    zIndex: 1540
-                  }}
-                >
-                  <AddIcon />
-                </Fab>
-              </Tooltip>
-            )}
+          : null}
         </Box>
-      </ClickAwayListener>
       )}
       
       {/* Snackbar for event actions */}

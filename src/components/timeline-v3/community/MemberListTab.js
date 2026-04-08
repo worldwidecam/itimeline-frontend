@@ -37,7 +37,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getTimelineDetails, getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction, submitTimelineReport } from '../../../utils/api';
 import { motion } from 'framer-motion';
-import CommunityNavFab from './CommunityNavFab';
+import NavFab from './NavFab';
 import FlagIcon from '@mui/icons-material/Flag';
 import LockIcon from '@mui/icons-material/Lock';
 import QuoteDisplay from './QuoteDisplay';
@@ -2071,7 +2071,7 @@ const MemberListTab = () => {
         </Box>
       </motion.div>
 
-      <CommunityNavFab
+      <NavFab
         timelineId={id}
         pathname={location.pathname}
         expanded={communityFabExpanded}
