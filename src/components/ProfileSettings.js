@@ -37,6 +37,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -226,6 +227,7 @@ const ProfileSettings = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { blurEmail, toggleBlurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
   const theme = useMuiTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const [formData, setFormData] = useState({
     email: user?.email || '',
     username: user?.username || '',
@@ -853,9 +855,7 @@ const ProfileSettings = () => {
         minHeight: 'calc(100vh - 64px)',
         width: '100%',
         position: 'relative',
-        background: theme.palette.mode === 'dark'
-          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-          : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        background: appCanvasBackground,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',

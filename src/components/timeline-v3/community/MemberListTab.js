@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -44,6 +44,7 @@ import QuoteDisplay from './QuoteDisplay';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import CommunityInfoCardsDisplay from './CommunityInfoCardsDisplay';
+import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
 
 // Helper function to safely format dates
 const formatActionDate = (dateValue) => {
@@ -167,6 +168,7 @@ const MemberListTab = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const [timelineHeader, setTimelineHeader] = useState({
     name: '',
     coverImageUrl: '',
@@ -1786,7 +1788,9 @@ const MemberListTab = () => {
             sx={{ 
               p: 3, 
               borderRadius: 2,
-              bgcolor: 'background.paper',
+              background: timelineSurfaces.panel,
+              border: `1px solid ${timelineSurfaces.panelBorder}`,
+              backdropFilter: timelineSurfaces.panelBlur,
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column'
@@ -2055,7 +2059,9 @@ const MemberListTab = () => {
               sx={{ 
                 p: 3, 
                 borderRadius: 2,
-                bgcolor: 'background.paper',
+                background: timelineSurfaces.panel,
+                border: `1px solid ${timelineSurfaces.panelBorder}`,
+                backdropFilter: timelineSurfaces.panelBlur,
                 overflow: 'hidden'
               }}
             >

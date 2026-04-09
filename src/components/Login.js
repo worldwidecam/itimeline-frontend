@@ -17,11 +17,13 @@ import {
   getGlassInputSx,
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const theme = useTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -62,9 +64,7 @@ const Login = () => {
         left: 0,
         right: 0,
         bottom: 0,
-        background: theme.palette.mode === 'dark'
-          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-          : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        background: appCanvasBackground,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

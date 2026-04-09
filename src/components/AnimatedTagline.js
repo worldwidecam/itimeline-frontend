@@ -162,8 +162,10 @@ const AnimatedTagline = () => {
                 component="span"
                 sx={{
                   color: getRandomColor(),
-                  fontWeight: 600,
-                  textShadow: '0 0 8px rgba(255, 255, 255, 0.3)',
+                  fontWeight: 700,
+                  WebkitTextStroke: '2px #111',
+                  paintOrder: 'stroke fill',
+                  textShadow: '0 1px 0 rgba(255, 255, 255, 0.35)',
                   display: 'inline-block'
                 }}
               >

@@ -5,6 +5,7 @@ import {
   Button,
   Typography,
   Container,
+  Chip,
   Paper,
   Grid,
   Card,
@@ -36,6 +37,7 @@ import api, { getLandingRotatorSettings, getSiteUserCount } from '../utils/api';
 import LandingTimelineV3 from './LandingTimelineV3';
 import DonationButtons from './DonationButtons';
 import AnimatedTagline from './AnimatedTagline';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 
 // API Health Check Component
 const ApiHealthCheck = () => {
@@ -124,6 +126,7 @@ const ApiHealthCheck = () => {
 // Main Landing Page Component
 const LandingPage = () => {
   const theme = useTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -214,9 +217,7 @@ const LandingPage = () => {
     <Box 
       sx={{ 
         minHeight: 'calc(100vh - 64px)',
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)' 
-          : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        background: appCanvasBackground,
         pt: 6,
         pb: 8,
         position: 'relative'
@@ -360,16 +361,30 @@ const LandingPage = () => {
             )}
           </Box>
           {typeof siteUserCount === 'number' && (
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 1.5,
-                color: '#1f1f1f',
-                fontWeight: 600
-              }}
-            >
-              {siteUserCount.toLocaleString()} Users Strong!
-            </Typography>
+            <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center' }}>
+              <Chip
+                label={`🔥 ${siteUserCount.toLocaleString()} Users Strong!`}
+                sx={{
+                  height: 30,
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark'
+                    ? 'rgba(251, 146, 60, 0.42)'
+                    : 'rgba(194, 65, 12, 0.34)',
+                  color: theme.palette.mode === 'dark' ? '#fde68a' : '#7c2d12',
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? 'rgba(244, 114, 34, 0.26)'
+                    : 'rgba(251, 146, 60, 0.22)',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 8px 20px rgba(0, 0, 0, 0.24)'
+                    : '0 8px 18px rgba(194, 65, 12, 0.14)',
+                  '& .MuiChip-label': {
+                    px: 1.25,
+                  },
+                }}
+              />
+            </Box>
           )}
         </Box>
         

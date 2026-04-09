@@ -54,6 +54,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '../../contexts/AuthContext';
+import { getTimelineSurfaceTheme } from '../timeline-v3/timelineSurfaceTheme';
 import api, {
   addSiteAdmin,
   listSiteAdmins,
@@ -3238,6 +3239,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
 
 const SiteControlPage = () => {
   const theme = useTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const { user } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [accessLoading, setAccessLoading] = useState(true);
@@ -3299,9 +3301,7 @@ const SiteControlPage = () => {
           right: 0,
           bottom: 0,
           zIndex: 0,
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(180deg, #050505 0%, #0b1d2a 55%, #152f48 100%)'
-            : 'linear-gradient(180deg, #f6f4ef 0%, #fbe7da 40%, #ffe7f1 100%)',
+          background: appCanvasBackground,
         }}
       />
       <Box

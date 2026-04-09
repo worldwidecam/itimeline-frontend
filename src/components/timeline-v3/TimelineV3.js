@@ -3577,7 +3577,8 @@ const handleRecenter = () => {
                 px: 2,
                 py: 1,
                 borderRadius: 2,
-                bgcolor: theme.palette.background.paper,
+                background: timelineSurfaces.glass,
+                border: `1px solid ${timelineSurfaces.glassBorder}`,
                 boxShadow: 2,
                 fontSize: '0.85rem',
                 color: theme.palette.text.secondary
@@ -3609,7 +3610,9 @@ const handleRecenter = () => {
                   px: 3,
                   py: 1.5,
                   borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
+                  background: timelineSurfaces.panel,
+                  border: `1px solid ${timelineSurfaces.panelBorder}`,
+                  backdropFilter: timelineSurfaces.panelBlur,
                   boxShadow: 3,
                   display: 'flex',
                   flexDirection: 'column',
@@ -3776,11 +3779,12 @@ const handleRecenter = () => {
               top: '50%',
               transform: 'translateY(-50%)',
               minWidth: 100,
-              bgcolor: 'background.paper',
+              background: timelineSurfaces.glass,
+              border: `1px solid ${timelineSurfaces.glassBorder}`,
               zIndex: 1050, // Increased z-index to be above marker popups
               boxShadow: 3, // Add shadow to make it stand out
               '&:hover': {
-                bgcolor: 'background.paper',
+                background: timelineSurfaces.glassHover,
                 boxShadow: 4, // Enhanced shadow on hover
               }
             }}
@@ -3795,11 +3799,12 @@ const handleRecenter = () => {
               top: '50%',
               transform: 'translateY(-50%)',
               minWidth: 100,
-              bgcolor: 'background.paper',
+              background: timelineSurfaces.glass,
+              border: `1px solid ${timelineSurfaces.glassBorder}`,
               zIndex: 1050, // Increased z-index to be above marker popups
               boxShadow: 3, // Add shadow to make it stand out
               '&:hover': {
-                bgcolor: 'background.paper',
+                background: timelineSurfaces.glassHover,
                 boxShadow: 4, // Enhanced shadow on hover
               }
             }}

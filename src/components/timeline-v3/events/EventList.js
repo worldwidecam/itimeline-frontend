@@ -517,9 +517,10 @@ const EventList = ({
       spacing={2}
       sx={{
         px: 3,
-        background: timelineSurfaces.panel,
-        border: `1px solid ${timelineSurfaces.panelBorder}`,
-        backdropFilter: timelineSurfaces.panelBlur,
+        py: 1.5,
+        background: timelineSurfaces.tool,
+        border: `1px solid ${timelineSurfaces.toolBorder}`,
+        backdropFilter: timelineSurfaces.toolBlur,
         borderRadius: 2,
       }}
     >
@@ -527,7 +528,18 @@ const EventList = ({
       {/* The loading state is now handled by the fixed position indicator in TimelineV3.js */}
       
       {/* Search and Sort Controls */}
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        sx={{
+          p: 1,
+          borderRadius: 2,
+          background: timelineSurfaces.glass,
+          border: `1px solid ${timelineSurfaces.glassBorder}`,
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <TextField
           size="small"
           placeholder="Search events..."
@@ -540,9 +552,32 @@ const EventList = ({
               </InputAdornment>
             ),
           }}
-          sx={{ flexGrow: 1 }}
+          sx={{
+            flexGrow: 1,
+            '& .MuiInputBase-root': {
+              background: `${timelineSurfaces.tool} !important`,
+              borderRadius: 1.5,
+              backdropFilter: 'blur(8px)',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: `${timelineSurfaces.toolBorder} !important`,
+            },
+          }}
         />
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl
+          size="small"
+          sx={{
+            minWidth: 120,
+            '& .MuiInputBase-root': {
+              background: `${timelineSurfaces.tool} !important`,
+              borderRadius: 1.5,
+              backdropFilter: 'blur(8px)',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: `${timelineSurfaces.toolBorder} !important`,
+            },
+          }}
+        >
           <InputLabel>Sort By</InputLabel>
           <Select
             value={sortOrder}

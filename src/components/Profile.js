@@ -38,6 +38,7 @@ import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
 import TradingCard from './common/TradingCard';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import TheoryBoardModule from './theory-board/TheoryBoardModule';
 import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
 import EventPopup from './timeline-v3/events/EventPopup';
@@ -206,12 +207,13 @@ const normalizeProfileModules = (rawModules) => {
 };
 
 const Profile = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { userId } = useParams();
   const { user } = useAuth();
-  const { getBlurredEmail } = useEmailBlur();
+  const { userId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
+  const { blurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
   const [profileUser, setProfileUser] = useState(null);
   const [musicData, setMusicData] = useState(null);
   const [showMusic, setShowMusic] = useState(false);
@@ -728,9 +730,7 @@ const Profile = () => {
           minHeight: 'calc(100vh - 64px)',
           width: '100%',
           position: 'relative',
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          background: appCanvasBackground,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
@@ -761,9 +761,7 @@ const Profile = () => {
           minHeight: 'calc(100vh - 64px)',
           width: '100%',
           position: 'relative',
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          background: appCanvasBackground,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center'
@@ -783,9 +781,7 @@ const Profile = () => {
           alignItems: 'center',
           justifyContent: 'center',
           px: 2,
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          background: appCanvasBackground,
         }}
       >
         <Paper sx={{ p: 3, width: '100%', maxWidth: 520, ...getGlassDialogPaperSx(theme) }}>
@@ -851,9 +847,7 @@ const Profile = () => {
           minHeight: 'calc(100vh - 64px)',
           width: '100%',
           position: 'relative',
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-            : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          background: appCanvasBackground,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-start',
@@ -883,9 +877,7 @@ const Profile = () => {
         minHeight: 'calc(100vh - 64px)',
         width: '100%',
         position: 'relative',
-        background: theme.palette.mode === 'dark'
-          ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-          : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+        background: appCanvasBackground,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',

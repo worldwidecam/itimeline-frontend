@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -73,6 +73,7 @@ import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
 import ErrorBoundary from '../../ErrorBoundary';
 import InfoCardsTab from './InfoCardsTab';
+import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
 
 // ----- Shared helpers (module scope) -----
 // Normalize role string
@@ -165,6 +166,7 @@ const AdminPanel = () => {
   const [communityFabExpanded, setCommunityFabExpanded] = useState(false);
   const [settingsSaveFabVisible, setSettingsSaveFabVisible] = useState(false);
   const theme = useTheme();
+  const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
 
   const communityFabBottom = settingsSaveFabVisible ? 'calc(2rem + 56px + 30px)' : '2rem';
 
@@ -1655,7 +1657,9 @@ const AdminPanel = () => {
             p: 3, 
             mt: 2, 
             borderRadius: 2,
-            bgcolor: 'background.paper',
+            background: timelineSurfaces.panel,
+            border: `1px solid ${timelineSurfaces.panelBorder}`,
+            backdropFilter: timelineSurfaces.panelBlur,
             overflow: 'hidden'
           }}
         >
@@ -3422,6 +3426,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
 // Settings Tab Component
 const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityChange }) => {
   const theme = useTheme();
+  const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const showTimelineSettings = mode === 'timeline' || mode === 'all';
   const showStatusCards = mode === 'status' || mode === 'all';
   const showQuoteCard = mode === 'quote' || mode === 'all';
@@ -4974,10 +4979,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                     p: 3, 
                     mb: 4, 
                     borderRadius: 2,
-                    bgcolor: 'background.paper',
+                    background: timelineSurfaces.panel,
                     border: '1px solid',
-                    borderColor: 'divider',
-                    backdropFilter: 'blur(10px)',
+                    borderColor: timelineSurfaces.panelBorder,
+                    backdropFilter: timelineSurfaces.panelBlur,
                     boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
                   }}
                 >
@@ -5085,10 +5090,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                     p: 3,
                     mb: 4,
                     borderRadius: 2,
-                    bgcolor: 'background.paper',
+                    background: timelineSurfaces.panel,
                     border: '1px solid',
-                    borderColor: 'divider',
-                    backdropFilter: 'blur(10px)',
+                    borderColor: timelineSurfaces.panelBorder,
+                    backdropFilter: timelineSurfaces.panelBlur,
                     boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
                   }}
                 >
@@ -5262,10 +5267,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                   p: 2, 
                   mt: 1, 
                   mb: 2, 
-                  bgcolor: 'background.paper', 
+                  background: timelineSurfaces.glass,
                   borderRadius: 1,
                   position: 'relative',
-                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  border: `1px solid ${timelineSurfaces.glassBorder}`,
                   backdropFilter: 'blur(4px)',
                 }}>
                   <Box sx={{ 
@@ -5430,10 +5435,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                   p: 2, 
                   mt: 1, 
                   mb: 2, 
-                  bgcolor: 'background.paper', 
+                  background: timelineSurfaces.glass,
                   borderRadius: 1,
                   position: 'relative',
-                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  border: `1px solid ${timelineSurfaces.glassBorder}`,
                   backdropFilter: 'blur(4px)',
                 }}>
                   <Box sx={{ 

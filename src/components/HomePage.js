@@ -78,6 +78,7 @@ import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getAc
 import TradingCard from './common/TradingCard';
 import EventDialog from './timeline-v3/events/EventDialog';
 import EventPopup from './timeline-v3/events/EventPopup';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -273,6 +274,7 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const resultsScrollRef = React.useRef(null);
   const popularScrollRef = React.useRef(null);
   const myCreationsScrollRef = React.useRef(null);
@@ -4137,10 +4139,7 @@ const HomePage = () => {
           right: 0,
           bottom: 0,
           zIndex: 0,
-          background:
-            theme.palette.mode === 'dark'
-              ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-              : 'linear-gradient(180deg, #ffd5c8 0%, #ffeae0 40%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)',
+          background: appCanvasBackground,
         }}
       />
 

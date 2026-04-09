@@ -222,7 +222,17 @@
 - [ ] timeline theming architecture hardening (light + dark + future theme packages)
   - [x] Introduced shared timeline surface token map (`timelineSurfaceTheme`) to define canvas/shell/tool/panel/glass layers by mode.
   - [x] Rewired timeline route viewport + TimelineV3 shell/tool + EventList panel/filter layers to use shared surface tokens instead of scattered one-off mode conditionals.
-  - [ ] Do full visual tuning pass for both light and dark under the new model (light is intentionally not treated as final yet).
+  - [x] Completed dark-mode audit pass across timeline-adjacent routes and interaction states (Timeline/Members/Admin + wrappers).
+  - [x] Frozen naming + ownership contract in `src/components/timeline-v3/THEME_TOKEN_CONTRACT.md` (dark baseline reference).
+  - [x] Light-mode token alignment pass (high-impact surfaces): removed `background.paper` dependencies from TimelineV3 overlays/nav controls, MemberListTab primary panels, and AdminPanel primary/settings containers in favor of timeline semantic tokens.
+  - [x] Light baseline correction: switched light `canvas` to gradient-first baseline and increased shell/tool/panel/glass separation (semi-opaque + border/blur) to prevent floating-content readability loss.
+  - [x] EventList glass pass: search/sort controls now use timeline glass surfaces (background + border + blur) to remove residual white container look in light mode.
+  - [x] Canvas standard expansion: applied shared mode-aware timeline canvas background to Home, Landing, Login, Profile, Profile Settings, and Site Control page viewports.
+  - [x] Light canvas gradient direction pass: flipped light gradient vertically (darker top -> lighter bottom) while preserving palette.
+  - [x] EventList container parity pass: root list shell + search/sort row + input/select controls now use timeline tool/glass token treatment to prevent default white MUI surfaces.
+  - [x] Landing count readability pass: replaced plain `X Users Strong!` text with a fire-chip badge style so count remains readable in both light and dark modes.
+  - [x] Landing rotator readability final pass: reverted bubble container and applied thick black character border styling on rotating text for reliable contrast across gradients.
+  - [ ] Do final visual tuning pass under the new model (focus remaining light-mode micro-surfaces + interaction states).
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 
