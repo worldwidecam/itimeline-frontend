@@ -26,6 +26,15 @@ const TradingCard = ({
   overlayText = 'Tap to Share',
   overlaySx = {},
 }) => {
+  const [imageLoadFailed, setImageLoadFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageLoadFailed(false);
+  }, [imageUrl]);
+
+  const hasValidImageUrl = Boolean(String(imageUrl || '').trim());
+  const shouldRenderImage = hasValidImageUrl && !imageLoadFailed;
+
   const handleKeyDown = async (event) => {
     if (!onActivate) return;
     if (event.key === 'Enter' || event.key === ' ') {
@@ -72,12 +81,13 @@ const TradingCard = ({
           ...innerSx,
         }}
       >
-        {imageUrl ? (
+        {shouldRenderImage ? (
           <Box
             component="img"
             src={imageUrl}
             alt={imageAlt}
             className={imageClassName}
+            onError={() => setImageLoadFailed(true)}
             sx={{
               position: 'absolute',
               inset: 0,

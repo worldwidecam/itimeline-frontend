@@ -225,6 +225,42 @@ The platform includes a **per-post voting system** that surfaces engagement sent
 
 ---
 
+## Completed Context Migrated from GOALPLAN (April 2026)
+
+The GOALPLAN has been intentionally slimmed to active execution work. The following items are preserved here as durable implementation context and historical understanding.
+
+### Timeline Theming Architecture Hardening (Completed)
+
+- Shared semantic timeline surface token system introduced at `src/components/timeline-v3/timelineSurfaceTheme.js` with canonical layers: `canvas`, `shell`, `tool`, `panel`, `glass`.
+- Token ownership and naming contract frozen in `src/components/timeline-v3/THEME_TOKEN_CONTRACT.md`.
+- Dark mode remains canonical baseline; light mode mirrors dark-mode structural placement using mode-appropriate values.
+- Light canvas baseline standardized to gradient-first and rolled out across major pages (Home, Landing, Login, Profile, Profile Settings, Site Control).
+- Timeline surfaces (TimelineV3, EventList, Members/Admin primary panels, overlays, controls) were migrated away from scattered one-off `background.paper` usage to shared semantic tokens.
+- EventList outer/search/sort treatment parity was completed with timeline tool shell aesthetics (glass/tool token usage and MUI default-white override hardening).
+- Landing readability follow-up completed:
+  - user count now uses a fire-chip treatment for both modes,
+  - rotating text now uses thick black character border styling (bubble experiment reverted).
+
+### Community/Admin UX Consolidation (Completed)
+
+- Community navigation controls were consolidated into shared FAB patterns, with legacy `CommunityDotTabs` removed from active timeline/member/admin surfaces.
+- Shared `NavFab` primitive is now the consolidated navigation control path for hashtag/personal/community timeline stacks.
+- Personal timeline owner `Access Panel` control parity was moved into FAB gear sub-action (owner-only), replacing legacy inline-header approach.
+
+### Profile/Theory Board Maturity Notes (Completed Baseline + Active Follow-ups)
+
+- Profile module system baseline completed: modular rendering + settings integration + rich token support (`@`, `#`, `i-`, links, and `~event` references).
+- Profile privacy v1 gate completed (public/private + optional access key contract).
+- Theory Board reached a stable V1 baseline with owner editing flow, yarn links, persistence wiring, and fullscreen behavior safeguards.
+- Remaining Theory Board expansion work is tracked in GOALPLAN as active forward work (not archived here).
+
+### Home/Discovery Understanding (Carried Context)
+
+- Community membership is treated as follow-equivalent in ranking/feed logic.
+- POPULAR target signal: timeline popularity (membership/follow + post volume) and post popularity (total votes).
+- YOUR PAGE target feed: community posts from memberships + posts by followed users (excluding personal posts) + posts from followed hashtags.
+
+
 ## Previous Focus (October 2025)
 
 ### ✅ Community Timeline Implementation - COMPLETE!

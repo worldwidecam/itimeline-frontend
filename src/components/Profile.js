@@ -435,10 +435,22 @@ const Profile = () => {
     const safeZoom = clampPortraitZoom(profilePortraitMeta.zoom, 1);
     return `translate(${tx}%, ${ty}%) scale(${safeZoom})`;
   }, [profilePortraitMeta.x, profilePortraitMeta.y, profilePortraitMeta.zoom]);
-  const profileFallbackGradient = useMemo(() => (
+  const profileFallbackSx = useMemo(() => (
     theme.palette.mode === 'dark'
-      ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
-      : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)'
+      ? {
+          backgroundImage: [
+            'radial-gradient(circle at 22% 18%, rgba(125,211,252,0.34) 0%, rgba(125,211,252,0) 36%)',
+            'radial-gradient(circle at 78% 84%, rgba(251,191,36,0.26) 0%, rgba(251,191,36,0) 34%)',
+            'linear-gradient(145deg, rgba(13,36,63,0.96) 0%, rgba(20,48,92,0.94) 44%, rgba(65,34,106,0.9) 100%)',
+          ].join(', '),
+        }
+      : {
+          backgroundImage: [
+            'radial-gradient(circle at 20% 20%, rgba(56,189,248,0.28) 0%, rgba(56,189,248,0) 36%)',
+            'radial-gradient(circle at 82% 80%, rgba(251,146,60,0.2) 0%, rgba(251,146,60,0) 34%)',
+            'linear-gradient(145deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)',
+          ].join(', '),
+        }
   ), [theme.palette.mode]);
   const profileShareImageUrl = String(profilePortraitMeta.imageUrl || profileUser?.avatar_url || '').trim();
 
@@ -1245,9 +1257,7 @@ const Profile = () => {
                 filter: 'brightness(1.08) saturate(1.08)',
                 transform: profileShareCardTransform,
               }}
-              fallbackSx={{
-                background: profileFallbackGradient,
-              }}
+              fallbackSx={profileFallbackSx}
               label="PROFILE"
               title={String(profileUser?.username || '').toUpperCase()}
               qrUrl={profileShareQrUrl}
