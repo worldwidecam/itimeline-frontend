@@ -68,6 +68,7 @@
 - [ ] Anonymous Guest implementation (ideation → scope lock → phased rollout).
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
+- [ ] Consolidate App.js and App.jsx — currently both files exist and both have been edited. The real active entry is App.js (loaded by index.js). App.jsx should be removed or merged to avoid split-brain confusion.
 
 ## Notes / Decisions
 - Completed history/context has been migrated to README to keep GOALPLAN execution-focused.

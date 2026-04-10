@@ -13,6 +13,7 @@ import RequiredUsernameChangePage from './components/RequiredUsernameChangePage'
 import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
+import GuestProfilePage from './components/GuestProfilePage';
 import LandingPage from './components/LandingPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -191,6 +192,8 @@ function App() {
                     <Profile />
                   </ProtectedRoute>
                 } />
+                {/* Guest profile — must be above /profile/:userId so "guest" isn't parsed as a userId */}
+                <Route path="/profile/guest" element={<GuestProfilePage />} />
                 <Route path="/profile/:userId" element={
                   <ProtectedRoute>
                     <Profile />
