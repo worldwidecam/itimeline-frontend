@@ -94,7 +94,8 @@ const VoteControls = ({
   const actionHeight = controlHeight - 6;
   const compactExpandedWidth = Math.max(140, 92 + tallyWidth);
   const compactCollapsedWidth = Math.max(70, (actionWidth * 2) + 14);
-  const isCompactZeroState = compact && !hasVotes;
+  const isUnvoted = vote === null;
+  const isCompactZeroState = compact && (!hasVotes || isUnvoted);
   const controlWidth = compact
     ? (isCompactZeroState ? compactCollapsedWidth : compactExpandedWidth)
     : Math.max(128, width * sizeScale * pillScale * (isStacked ? 2.2 : 2));
@@ -153,6 +154,8 @@ const VoteControls = ({
     };
   };
 
+
+
   const pillBorderColor = hasError
     ? theme.palette.error.main
     : alpha(theme.palette.text.primary, isCompactZeroState
@@ -194,7 +197,7 @@ const VoteControls = ({
           transition: 'background 220ms ease, border-color 220ms ease',
         }}
       >
-        {hasVotes && (
+        {hasVotes && (!compact || !isUnvoted) && (
           <>
             <Box
               sx={{

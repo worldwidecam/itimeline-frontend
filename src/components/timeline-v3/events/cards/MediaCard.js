@@ -25,7 +25,7 @@ import {
 import MovieIcon from '@mui/icons-material/Movie';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
@@ -85,6 +85,12 @@ const MediaCard = forwardRef(({
     error: voteError,
     handleVoteChange,
   } = useEventVote(event?.id);
+
+  // Consensus derived values — for label and tie detection
+  const positiveVotes = Math.round((positiveRatio || 0) * (totalVotes || 0));
+  const negativeVotes = (totalVotes || 0) - positiveVotes;
+  const isPositiveWinning = positiveVotes > negativeVotes;
+  const winningCount = isPositiveWinning ? positiveVotes : negativeVotes;
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
   
@@ -1221,20 +1227,51 @@ const MediaCard = forwardRef(({
                 </Box>
               )}
               {showInlineVoteControls && (
-                <Box sx={{ justifySelf: 'center' }}>
-                  <VoteControls
-                    value={voteValue}
-                    onChange={handleVoteChange}
-                    positiveRatio={positiveRatio}
-                    totalVotes={totalVotes}
-                    isLoading={voteLoading}
-                    hasError={!!voteError}
-                    layout="inline"
-                    sizeScale={0.76}
-                    pillScale={1}
-                    showBreakdown={false}
-                    compact
-                  />
+                <Box sx={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                  {/* Consensus label — hidden on 0 votes and on exact ties */}
+                  <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
+                    <AnimatePresence mode="wait">
+                      {(totalVotes || 0) > 0 && positiveVotes !== negativeVotes && !voteLoading && (
+                        <motion.div
+                          key={`${winningCount}-${isPositiveWinning ? 'pos' : 'neg'}`}
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 5 }}
+                          transition={{ duration: 0.2, ease: 'easeOut' }}
+                          style={{ display: 'flex', alignItems: 'center' }}
+                        >
+                          <Typography sx={{
+                            fontSize: '0.95rem', fontWeight: 400, letterSpacing: 0.5,
+                            fontFamily: '"Lobster", "Pacifico", cursive',
+                            whiteSpace: 'nowrap', lineHeight: 1,
+                            color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
+                          }}>
+                            {isPositiveWinning ? 'Good Moment' : 'Bad Moment'}
+                          </Typography>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </Box>
+                  {/* Vote pill — shrinks 50% after the user votes */}
+                  <Box sx={{
+                    transform: voteValue ? 'scale(0.5)' : 'scale(1)',
+                    transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    transformOrigin: 'center top',
+                  }}>
+                    <VoteControls
+                      value={voteValue}
+                      onChange={handleVoteChange}
+                      positiveRatio={positiveRatio}
+                      totalVotes={totalVotes}
+                      isLoading={voteLoading}
+                      hasError={!!voteError}
+                      layout="inline"
+                      sizeScale={0.76}
+                      pillScale={1}
+                      showBreakdown={false}
+                      compact
+                    />
+                  </Box>
                 </Box>
               )}
               
