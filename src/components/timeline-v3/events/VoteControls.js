@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ChevronArrow = ({ direction = 'up', sizeScale = 1 }) => (
   <Box
@@ -69,6 +70,7 @@ const VoteControls = ({
   compact = false,
 }) => {
   const theme = useTheme();
+  const { isGuest } = useAuth();
   const [internalVote, setInternalVote] = useState(null);
   const vote = value !== undefined ? value : internalVote;
 
@@ -181,100 +183,200 @@ const VoteControls = ({
         transition: compact ? 'width 240ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
       }}
     >
-      <Box
-        sx={{
-          position: 'relative',
-          width: '100%',
-          height: controlHeight,
-          borderRadius: controlHeight,
-          border: `1px solid ${pillBorderColor}`,
-          background: pillBackground,
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 8px 16px rgba(0,0,0,0.35)'
-            : '0 8px 16px rgba(15,23,42,0.12)',
-          overflow: 'hidden',
-          opacity: isLoading ? 0.72 : 1,
-          transition: 'background 220ms ease, border-color 220ms ease',
-        }}
-      >
-        {hasVotes && (!compact || !isUnvoted) && (
-          <>
-            <Box
-              sx={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: `${promotePercent}%`,
-                background: alpha(positiveColor, theme.palette.mode === 'dark' ? 0.24 : 0.16),
-                transition: 'width 240ms ease',
-              }}
-            />
-            <Box
-              sx={{
-                position: 'absolute',
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: `${demotePercent}%`,
-                background: alpha(negativeColor, theme.palette.mode === 'dark' ? 0.2 : 0.12),
-                transition: 'width 240ms ease',
-              }}
-            />
-          </>
-        )}
-
-        {compact ? (
-          isCompactZeroState ? (
-            <Box
-              sx={{
-                position: 'relative',
-                zIndex: 1,
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 0.35,
-                px: 0.3,
-                transition: 'opacity 160ms ease',
-              }}
-            >
+      {isGuest ? (
+        <Box
+          sx={{
+            height: controlHeight,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 2,
+            borderRadius: controlHeight,
+            background: theme.palette.mode === 'dark'
+              ? alpha(theme.palette.common.white, 0.05)
+              : alpha(theme.palette.grey[200], 0.5),
+            border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              fontSize: '0.65rem',
+              color: theme.palette.text.secondary,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {totalLabel} Total Vote{totalValue !== 1 ? 's' : ''}
+          </Typography>
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            position: 'relative',
+            width: '100%',
+            height: controlHeight,
+            borderRadius: controlHeight,
+            border: `1px solid ${pillBorderColor}`,
+            background: pillBackground,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 16px rgba(0,0,0,0.35)'
+              : '0 8px 16px rgba(15,23,42,0.12)',
+            overflow: 'hidden',
+            opacity: isLoading ? 0.72 : 1,
+            transition: 'background 220ms ease, border-color 220ms ease',
+          }}
+        >
+          {hasVotes && (!compact || !isUnvoted) && (
+            <>
               <Box
-                onClick={handleVote('up')}
                 sx={{
-                  ...resolveVoteStyle('up'),
-                  width: actionWidth,
-                  height: actionHeight,
-                  borderRadius: actionHeight,
-                  border: '1px solid',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: `${promotePercent}%`,
+                  background: alpha(positiveColor, theme.palette.mode === 'dark' ? 0.24 : 0.16),
+                  transition: 'width 240ms ease',
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: `${demotePercent}%`,
+                  background: alpha(negativeColor, theme.palette.mode === 'dark' ? 0.2 : 0.12),
+                  transition: 'width 240ms ease',
+                }}
+              />
+            </>
+          )}
+
+          {compact ? (
+            isCompactZeroState ? (
+              <Box
+                sx={{
+                  position: 'relative',
+                  zIndex: 1,
+                  height: '100%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  transition: 'all 180ms ease',
+                  gap: 0.35,
+                  px: 0.3,
+                  transition: 'opacity 160ms ease',
                 }}
               >
-                <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
-              </Box>
+                <Box
+                  onClick={handleVote('up')}
+                  sx={{
+                    ...resolveVoteStyle('up'),
+                    width: actionWidth,
+                    height: actionHeight,
+                    borderRadius: actionHeight,
+                    border: '1px solid',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 180ms ease',
+                  }}
+                >
+                  <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
+                </Box>
 
+                <Box
+                  onClick={handleVote('down')}
+                  sx={{
+                    ...resolveVoteStyle('down'),
+                    width: actionWidth,
+                    height: actionHeight,
+                    borderRadius: actionHeight,
+                    border: '1px solid',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 180ms ease',
+                  }}
+                >
+                  <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
+                </Box>
+              </Box>
+            ) : (
               <Box
-                onClick={handleVote('down')}
                 sx={{
-                  ...resolveVoteStyle('down'),
-                  width: actionWidth,
-                  height: actionHeight,
-                  borderRadius: actionHeight,
-                  border: '1px solid',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  transition: 'all 180ms ease',
+                  position: 'relative',
+                  zIndex: 1,
+                  height: '100%',
                 }}
               >
-                <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
+                <Box
+                  onClick={handleVote('up')}
+                  sx={{
+                    ...resolveVoteStyle('up'),
+                    position: 'absolute',
+                    left: '25%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: actionWidth,
+                    height: actionHeight,
+                    borderRadius: actionHeight,
+                    border: '1px solid',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 180ms ease',
+                  }}
+                >
+                  <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
+                </Box>
+
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    minWidth: 0,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    px: 0.25,
+                    transition: 'opacity 180ms ease, transform 180ms ease',
+                  }}
+                >
+                  {tallyNode}
+                </Box>
+
+                <Box
+                  onClick={handleVote('down')}
+                  sx={{
+                    ...resolveVoteStyle('down'),
+                    position: 'absolute',
+                    left: '75%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: actionWidth,
+                    height: actionHeight,
+                    borderRadius: actionHeight,
+                    border: '1px solid',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 180ms ease',
+                  }}
+                >
+                  <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
+                </Box>
               </Box>
-            </Box>
+            )
           ) : (
             <Box
               sx={{
@@ -315,8 +417,7 @@ const VoteControls = ({
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  px: 0.25,
-                  transition: 'opacity 180ms ease, transform 180ms ease',
+                  px: 0.65,
                 }}
               >
                 {tallyNode}
@@ -344,77 +445,9 @@ const VoteControls = ({
                 <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
               </Box>
             </Box>
-          )
-        ) : (
-          <Box
-            sx={{
-              position: 'relative',
-              zIndex: 1,
-              height: '100%',
-            }}
-          >
-            <Box
-              onClick={handleVote('up')}
-              sx={{
-                ...resolveVoteStyle('up'),
-                position: 'absolute',
-                left: '25%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: actionWidth,
-                height: actionHeight,
-                borderRadius: actionHeight,
-                border: '1px solid',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                transition: 'all 180ms ease',
-              }}
-            >
-              <ChevronArrow direction="up" sizeScale={sizeScale * 0.95} />
-            </Box>
-
-            <Box
-              sx={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                minWidth: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                px: 0.65,
-              }}
-            >
-              {tallyNode}
-            </Box>
-
-            <Box
-              onClick={handleVote('down')}
-              sx={{
-                ...resolveVoteStyle('down'),
-                position: 'absolute',
-                left: '75%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: actionWidth,
-                height: actionHeight,
-                borderRadius: actionHeight,
-                border: '1px solid',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                transition: 'all 180ms ease',
-              }}
-            >
-              <ChevronArrow direction="down" sizeScale={sizeScale * 0.95} />
-            </Box>
-          </Box>
-        )}
-      </Box>
+          )}
+        </Box>
+      )}
 
       {showBreakdown && (
         <Box sx={{ width: '100%', px: 0.7 }}>

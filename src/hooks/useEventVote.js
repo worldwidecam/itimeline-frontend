@@ -39,9 +39,6 @@ export const loadVoteStatsForEvent = async (eventId, tokenOverride = null) => {
 
   try {
     const token = tokenOverride || getCookie('access_token') || localStorage.getItem('access_token');
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
     const stats = normalizeStats(await getVoteStats(eventId, token));
     setState(eventId, {
       stats,
@@ -131,9 +128,7 @@ export const useEventVote = (eventId, options = {}) => {
 
     try {
       const token = getCookie('access_token') || localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
+      // Guests don't have tokens initially, and stats fetching is public
       const stats = normalizeStats(await getVoteStats(eventId, token));
       setState(eventId, {
         stats,

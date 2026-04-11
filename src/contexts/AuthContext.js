@@ -243,19 +243,37 @@ export const AuthProvider = ({ children }) => {
     setIsGuest(false);
   };
 
-  const loginAsGuest = () => {
-    const guestUser = {
-      id: null,
-      username: 'Goblin',
-      avatar_url: '/images/GUEST_img.png',
-      email: null,
-      role: 'guest',
-    };
-    setUser(guestUser);
-    setIsGuest(true);
-    // Persist so a page refresh restores the guest session
-    localStorage.setItem('guest_session', 'true');
-    console.log('[Auth] Guest session started');
+  const loginAsGuest = async () => {
+    try {
+      console.log('[Auth] Fetching guest session from backend...');
+      const response = await api.post('/api/v1/guest/session');
+      const { access_token, user: guestUser } = response.data;
+
+      // Store guest token in cookies
+      setCookie('access_token', access_token, 1); // 24 hour expiry
+
+      setUser(guestUser);
+      setIsGuest(true);
+      
+      // Persist so a page refresh restores the guest session
+      localStorage.setItem('guest_session', 'true');
+      console.log('[Auth] Guest session started with token');
+      return guestUser;
+    } catch (error) {
+      console.error('[Auth] Failed to create guest session:', error);
+      // Fallback to local guest if backend fails
+      const fallbackGuest = {
+        id: null,
+        username: 'Goblin',
+        avatar_url: '/images/GUEST_img.png',
+        email: null,
+        role: 'guest',
+      };
+      setUser(fallbackGuest);
+      setIsGuest(true);
+      localStorage.setItem('guest_session', 'true');
+      return fallbackGuest;
+    }
   };
 
   useEffect(() => {
