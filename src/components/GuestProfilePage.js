@@ -6,10 +6,6 @@ import {
   Box,
   Grid,
   Divider,
-  Fab,
-  Stack,
-  Tooltip,
-  ClickAwayListener,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,16 +16,13 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import AddIcon from '@mui/icons-material/Add';
+import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import UserAvatar from './common/UserAvatar';
-import TradingCard from './common/TradingCard';
+import NavFab from './timeline-v3/community/NavFab';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import { submitUserReport } from '../utils/api';
+import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -65,19 +58,14 @@ const GuestProfilePage = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Guest profile is never "own" and has no real id — FAB is always shown
-  // but sub-actions are gated below
-  const isOwnProfile = false;
-  const canShowMainProfileActions = true; // always show FAB on guest profile
-  const canReportProfile = Boolean(user) && !isOwnProfile && user?.can_post_or_report !== false;
-  const canOpenProfileSettings = false; // no settings for guest profile
+  // Logged-in real users can report; guests cannot report themselves
+  const canReportProfile = Boolean(user) && !user?.role?.includes('guest');
 
   const containerGlow =
     theme.palette.mode === 'dark'
       ? '0 8px 32px rgba(0, 0, 0, 0.3)'
       : '0 8px 32px rgba(0, 0, 0, 0.1)';
 
-  // Share link — frontend URL (no backend share endpoint for guest)
   const profileShareLink = useMemo(() => `${window.location.origin}/profile/guest`, []);
 
   const profileShareQrUrl = useMemo(
@@ -128,7 +116,6 @@ const GuestProfilePage = () => {
     setReportDialogOpen(false);
   };
 
-  // Guest profile has no real user ID — report submits a generic site report
   const handleSubmitUserReport = async () => {
     if (!reportCategory) {
       setSnackbar({ open: true, message: 'Please choose a report category', severity: 'warning' });
@@ -217,133 +204,48 @@ const GuestProfilePage = () => {
         </Paper>
       </Container>
 
-      {/* ── NavFAB — mirrors Profile.js structure ──────────────────────────── */}
-      {canShowMainProfileActions && (
-        <ClickAwayListener onClickAway={() => setFabOpen(false)}>
-          <Box
-            sx={{
-              position: 'fixed',
-              right: { xs: 16, sm: 24 },
-              bottom: { xs: 16, sm: 24 },
-              zIndex: 1100,
-            }}
-          >
-            <Box sx={{ position: 'relative' }}>
-              {/* TradingCard share panel — slides in when FAB is open */}
-              <TradingCard
-                onActivate={handleCopyProfileLink}
-                frameSx={{
-                  position: 'absolute',
-                  right: { xs: 70, sm: 82 },
-                  bottom: 0,
-                  boxShadow: fabOpen
-                    ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
-                    : '0 10px 24px rgba(15,23,42,0.18)',
-                  transform: fabOpen
-                    ? 'translateX(0) translateY(-6px) scale(1)'
-                    : 'translateX(26px) translateY(6px) scale(0.92)',
-                  opacity: fabOpen ? 1 : 0,
-                  pointerEvents: fabOpen ? 'auto' : 'none',
-                  transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
-                  transitionDelay: fabOpen ? '0.24s' : '0s',
-                  zIndex: 1090,
-                  '&:hover .guest-share-card-overlay': { opacity: 1 },
-                  '&:hover .guest-share-card-image': {
-                    filter: 'brightness(0.88) saturate(1.02)',
-                  },
-                }}
-                imageUrl={GUEST_PROFILE_USER.avatar_url}
-                imageAlt="Goblin guest profile"
-                imageClassName="guest-share-card-image"
-                imageSx={{
-                  objectFit: 'contain',
-                  filter: 'brightness(1.08) saturate(1.08)',
-                }}
-                fallbackSx={profileFallbackSx}
-                label="PROFILE"
-                title="GOBLIN"
-                qrUrl={profileShareQrUrl}
-                overlayClassName="guest-share-card-overlay"
-                overlayText="Tap to Share"
-                overlaySx={{ fontSize: '0.72rem' }}
-              />
-
-              <Stack direction="column" spacing={1.25} alignItems="flex-end">
-                {/* Settings sub-action — omitted for guest (canOpenProfileSettings = false) */}
-                {canOpenProfileSettings && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: fabOpen ? (canReportProfile ? 132 : 72) : 0,
-                      right: 0,
-                      opacity: fabOpen ? 1 : 0,
-                      pointerEvents: fabOpen ? 'auto' : 'none',
-                      transition:
-                        'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
-                      transitionDelay: fabOpen ? '0.12s' : '0s',
-                      zIndex: 1135,
-                    }}
-                  >
-                    <Tooltip title="Profile settings" placement="left">
-                      <Fab size="small" color="secondary" aria-label="Open profile settings">
-                        <SettingsOutlinedIcon fontSize="small" />
-                      </Fab>
-                    </Tooltip>
-                  </Box>
-                )}
-
-                {/* Report sub-action */}
-                {canReportProfile && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: fabOpen ? 72 : 0,
-                      right: 0,
-                      opacity: fabOpen ? 1 : 0,
-                      pointerEvents: fabOpen ? 'auto' : 'none',
-                      transition:
-                        'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
-                      transitionDelay: fabOpen ? '0.08s' : '0s',
-                      zIndex: 1130,
-                    }}
-                  >
-                    <Tooltip title="Report" placement="left">
-                      <Fab
-                        size="small"
-                        color="error"
-                        onClick={handleOpenReportDialog}
-                        aria-label="Report guest profile"
-                      >
-                        <ReportProblemOutlinedIcon fontSize="small" />
-                      </Fab>
-                    </Tooltip>
-                  </Box>
-                )}
-
-                {/* Main FAB toggle */}
-                <Tooltip
-                  title={fabOpen ? 'Close actions' : 'Profile actions'}
-                  placement="left"
-                >
-                  <Fab
-                    color="primary"
-                    onClick={() => setFabOpen((prev) => !prev)}
-                    aria-label="Profile actions"
-                    sx={{
-                      boxShadow: '0 10px 28px rgba(0,0,0,0.22)',
-                      transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.3s ease, background-color 0.2s ease',
-                      zIndex: 1140,
-                    }}
-                  >
-                    {fabOpen ? <ExpandLessIcon /> : <AddIcon />}
-                  </Fab>
-                </Tooltip>
-              </Stack>
-            </Box>
-          </Box>
-        </ClickAwayListener>
-      )}
+      {/* ── NavFAB — uses shared NavFab component ─────────────────────────── */}
+      <NavFab
+        expanded={fabOpen}
+        onToggleExpanded={() => setFabOpen((prev) => !prev)}
+        onCollapse={() => setFabOpen(false)}
+        bottom={{ xs: 16, sm: 24 }}
+        right={{ xs: 16, sm: 24 }}
+        containerZIndex={1100}
+        mainTooltipClosed="Profile actions"
+        mainTooltipOpen="Close actions"
+        showCreate={false}
+        showMembersNav={false}
+        showAdminNav={false}
+        showReport={false}
+        actions={[
+          ...(canReportProfile ? [{
+            key: 'report-guest',
+            tooltip: 'Report',
+            icon: <OutlinedFlagIcon fontSize="small" />,
+            onClick: handleOpenReportDialog,
+            step: 58,
+            accent: { dark: '#EF5350', light: '#D32F2F' },
+          }] : []),
+        ]}
+        tradingCard={{
+          onActivate: handleCopyProfileLink,
+          imageUrl: GUEST_PROFILE_USER.avatar_url,
+          imageAlt: 'Goblin guest profile',
+          imageClassName: 'guest-share-card-image',
+          overlayClassName: 'guest-share-card-overlay',
+          imageSx: {
+            objectFit: 'cover',
+            filter: 'brightness(1.08) saturate(1.08)',
+          },
+          fallbackSx: profileFallbackSx,
+          label: 'PROFILE',
+          title: 'GOBLIN',
+          qrUrl: profileShareQrUrl,
+          overlayText: 'Tap to Share',
+          overlaySx: { fontSize: '0.72rem' },
+        }}
+      />
 
       {/* ── Report dialog ─────────────────────────────────────────────────── */}
       <Dialog

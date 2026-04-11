@@ -272,7 +272,7 @@ const POPULAR_FILTERS = [
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const theme = useTheme();
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const resultsScrollRef = React.useRef(null);
@@ -2051,7 +2051,7 @@ const HomePage = () => {
   }, []);
 
   const fetchFollowedUsers = React.useCallback(async () => {
-    if (!user) {
+    if (!user || isGuest) {
       setFollowedUsers([]);
       return;
     }
@@ -2069,7 +2069,7 @@ const HomePage = () => {
   }, [user]);
 
   const fetchFollowerUsers = React.useCallback(async () => {
-    if (!user) {
+    if (!user || isGuest) {
       setFollowerUsers([]);
       return;
     }

@@ -47,7 +47,7 @@ function Navbar() {
   const location = useLocation();
   const params = useParams();
   const theme = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, isGuest } = useAuth();
   const { getBlurredEmail } = useEmailBlur();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -1352,15 +1352,40 @@ function Navbar() {
                     </Popper>
                   </>
                 )}
-                {/* Consistent hamburger menu on all pages */}
-                <IconButton
-                  color="inherit"
-                  onClick={handleHamburgerClick}
-                  sx={{ mr: 2 }}
-                  aria-label="profile menu"
-                >
-                  <MenuIcon />
-                </IconButton>
+                {/* Hamburger menu — hidden in guest mode; replaced with CTA */}
+                {isGuest ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => { logout(); navigate('/register'); }}
+                    sx={{
+                      mr: 1,
+                      borderRadius: 99,
+                      borderColor: theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.5)' : 'rgba(22,101,52,0.35)',
+                      color: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
+                      fontWeight: 700,
+                      fontSize: '0.72rem',
+                      letterSpacing: 0.6,
+                      textTransform: 'none',
+                      px: 1.5,
+                      '&:hover': {
+                        borderColor: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
+                        background: theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.08)' : 'rgba(22,101,52,0.05)',
+                      },
+                    }}
+                  >
+                    Join iTimeline
+                  </Button>
+                ) : (
+                  <IconButton
+                    color="inherit"
+                    onClick={handleHamburgerClick}
+                    sx={{ mr: 2 }}
+                    aria-label="profile menu"
+                  >
+                    <MenuIcon />
+                  </IconButton>
+                )}
                 <Drawer
                   anchor="right"
                   open={drawerOpen}
@@ -1411,7 +1436,7 @@ function Navbar() {
                 >
                   <MenuItem
                     onClick={() => {
-                      navigate('/profile');
+                      navigate(isGuest ? '/profile/guest' : '/profile');
                       handleClose();
                     }}
                     sx={{

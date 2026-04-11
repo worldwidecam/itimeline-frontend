@@ -10,10 +10,8 @@ import {
   Divider,
   Fade,
   CircularProgress,
-  Fab,
   Stack,
   Tooltip,
-  ClickAwayListener,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -28,16 +26,14 @@ import {
   Alert,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import AddIcon from '@mui/icons-material/Add';
+import SettingsIcon from '@mui/icons-material/Settings';
+import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
-import TradingCard from './common/TradingCard';
+import NavFab from './timeline-v3/community/NavFab';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import TheoryBoardModule from './theory-board/TheoryBoardModule';
 import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
@@ -1215,129 +1211,56 @@ const Profile = () => {
       )}
 
       {canShowMainProfileActions && (
-        <ClickAwayListener onClickAway={() => setFabOpen(false)}>
-          <Box
-            sx={{
-              position: 'fixed',
-              right: { xs: 16, sm: 24 },
-              bottom: { xs: 16, sm: 24 },
-              zIndex: 1100,
-            }}
-          >
-            <Box sx={{ position: 'relative' }}>
-              <TradingCard
-              onActivate={handleCopyProfileLink}
-              frameSx={{
-                position: 'absolute',
-                right: { xs: 70, sm: 82 },
-                bottom: 0,
-                boxShadow: fabOpen
-                  ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
-                  : '0 10px 24px rgba(15,23,42,0.18)',
-                transform: fabOpen
-                  ? 'translateX(0) translateY(-6px) scale(1)'
-                  : 'translateX(26px) translateY(6px) scale(0.92)',
-                opacity: fabOpen ? 1 : 0,
-                pointerEvents: fabOpen ? 'auto' : 'none',
-                transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
-                transitionDelay: fabOpen ? '0.24s' : '0s',
-                zIndex: 1090,
-                '&:hover .profile-share-card-overlay': {
-                  opacity: 1,
-                },
-                '&:hover .profile-share-card-image': {
-                  filter: 'brightness(0.88) saturate(1.02)',
-                },
-              }}
-              imageUrl={profileShareImageUrl}
-              imageAlt={`${profileUser?.username || 'User'} profile portrait`}
-              imageClassName="profile-share-card-image"
-              imageSx={{
-                objectFit: 'contain',
-                filter: 'brightness(1.08) saturate(1.08)',
-                transform: profileShareCardTransform,
-              }}
-              fallbackSx={profileFallbackSx}
-              label="PROFILE"
-              title={String(profileUser?.username || '').toUpperCase()}
-              qrUrl={profileShareQrUrl}
-              overlayClassName="profile-share-card-overlay"
-              overlayText="Tap to Share"
-              overlaySx={{ fontSize: '0.72rem' }}
-            />
-
-              <Stack direction="column" spacing={1.25} alignItems="flex-end">
-              {canOpenProfileSettings && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    bottom: fabOpen ? (canReportProfile ? 132 : 72) : 0,
-                    right: 0,
-                    opacity: fabOpen ? 1 : 0,
-                    pointerEvents: fabOpen ? 'auto' : 'none',
-                    transition: 'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
-                    transitionDelay: fabOpen ? '0.12s' : '0s',
-                    zIndex: 1135,
-                  }}
-                >
-                  <Tooltip title="Profile settings" placement="left">
-                    <Fab
-                      size="small"
-                      color="secondary"
-                      onClick={handleOpenProfileSettings}
-                      aria-label="Open profile settings"
-                    >
-                      <SettingsOutlinedIcon fontSize="small" />
-                    </Fab>
-                  </Tooltip>
-                </Box>
-              )}
-
-              {canReportProfile && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    bottom: fabOpen ? 72 : 0,
-                    right: 0,
-                    opacity: fabOpen ? 1 : 0,
-                    pointerEvents: fabOpen ? 'auto' : 'none',
-                    transition: 'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
-                    transitionDelay: fabOpen ? '0.08s' : '0s',
-                    zIndex: 1130,
-                  }}
-                >
-                  <Tooltip title="Report user" placement="left">
-                    <Fab
-                      size="small"
-                      color="error"
-                      onClick={handleOpenReportDialog}
-                      aria-label="Report user"
-                    >
-                      <ReportProblemOutlinedIcon fontSize="small" />
-                    </Fab>
-                  </Tooltip>
-                </Box>
-              )}
-
-              <Tooltip title={fabOpen ? 'Close actions' : 'Profile actions'} placement="left">
-                <Fab
-                  color="primary"
-                  onClick={() => setFabOpen((prev) => !prev)}
-                  aria-label="Profile actions"
-                  sx={{
-                    boxShadow: '0 10px 28px rgba(0,0,0,0.22)',
-                    transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.3s ease, background-color 0.2s ease',
-                    zIndex: 1140,
-                  }}
-                >
-                  {fabOpen ? <ExpandLessIcon /> : <AddIcon />}
-                </Fab>
-              </Tooltip>
-              </Stack>
-            </Box>
-          </Box>
-        </ClickAwayListener>
+        <NavFab
+          expanded={fabOpen}
+          onToggleExpanded={() => setFabOpen((prev) => !prev)}
+          onCollapse={() => setFabOpen(false)}
+          bottom={{ xs: 16, sm: 24 }}
+          right={{ xs: 16, sm: 24 }}
+          containerZIndex={1100}
+          mainTooltipClosed="Profile actions"
+          mainTooltipOpen="Close actions"
+          showCreate={false}
+          showMembersNav={false}
+          showAdminNav={false}
+          showReport={false}
+          actions={[
+            ...(canOpenProfileSettings ? [{
+              key: 'profile-settings',
+              tooltip: 'Profile settings',
+              icon: <SettingsIcon fontSize="small" />,
+              onClick: handleOpenProfileSettings,
+              step: 58,
+              accent: { dark: '#CE93D8', light: '#AB47BC' },
+            }] : []),
+            ...(canReportProfile ? [{
+              key: 'report-user',
+              tooltip: 'Report user',
+              icon: <OutlinedFlagIcon fontSize="small" />,
+              onClick: handleOpenReportDialog,
+              step: 58,
+              accent: { dark: '#EF5350', light: '#D32F2F' },
+            }] : []),
+          ]}
+          tradingCard={{
+            onActivate: handleCopyProfileLink,
+            imageUrl: profileShareImageUrl,
+            imageAlt: `${profileUser?.username || 'User'} profile portrait`,
+            imageClassName: 'profile-share-card-image',
+            overlayClassName: 'profile-share-card-overlay',
+            imageSx: {
+              objectFit: 'contain',
+              filter: 'brightness(1.08) saturate(1.08)',
+              transform: profileShareCardTransform,
+            },
+            fallbackSx: profileFallbackSx,
+            label: 'PROFILE',
+            title: String(profileUser?.username || '').toUpperCase(),
+            qrUrl: profileShareQrUrl,
+            overlayText: 'Tap to Share',
+            overlaySx: { fontSize: '0.72rem' },
+          }}
+        />
       )}
 
       {profileModulePopupEvent ? (

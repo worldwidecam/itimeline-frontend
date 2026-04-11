@@ -6,6 +6,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import EventIcon from '@mui/icons-material/Event';
 import SvgIcon from '@mui/material/SvgIcon';
+import TradingCard from '../../common/TradingCard';
 
 const TimelineMarkerIcon = (props) => (
   <SvgIcon {...props} viewBox="0 0 24 24">
@@ -41,6 +42,8 @@ const NavFab = ({
   mainFabDisabled = false,
   mainFabSx,
   enableClickAway = true,
+  // TradingCard share panel — pass a config object to enable, null to omit
+  tradingCard = null,
 }) => {
   const theme = useTheme();
 
@@ -173,6 +176,16 @@ const NavFab = ({
     transitionDelay: expanded ? `${delay.toFixed(2)}s` : '0s',
   });
 
+  // Auto-wire hover effects from class names so callers don't have to
+  const tradingCardHoverSx = tradingCard ? {
+    ...(tradingCard.imageClassName ? {
+      [`&:hover .${tradingCard.imageClassName}`]: { filter: 'brightness(0.88) saturate(1.02)' },
+    } : {}),
+    ...(tradingCard.overlayClassName ? {
+      [`&:hover .${tradingCard.overlayClassName}`]: { opacity: 1 },
+    } : {}),
+  } : {};
+
   const rootContent = (
     <Box
       sx={{
@@ -186,54 +199,95 @@ const NavFab = ({
         transition: 'bottom 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
-        {positionedItems.map((item) => (
-          <Box
-            key={item.key}
-            sx={{
+      {/* Relative wrapper — TradingCard positions itself absolutely against this */}
+      <Box sx={{ position: 'relative' }}>
+        {/* TradingCard share panel — slides left when FAB is expanded */}
+        {tradingCard && (
+          <TradingCard
+            onActivate={tradingCard.onActivate}
+            imageUrl={tradingCard.imageUrl}
+            imageAlt={tradingCard.imageAlt}
+            imageClassName={tradingCard.imageClassName}
+            imageSx={tradingCard.imageSx}
+            fallbackSx={tradingCard.fallbackSx}
+            label={tradingCard.label}
+            title={tradingCard.title}
+            qrUrl={tradingCard.qrUrl}
+            overlayClassName={tradingCard.overlayClassName}
+            overlayText={tradingCard.overlayText || 'Tap to Share'}
+            overlaySx={tradingCard.overlaySx}
+            frameSx={{
               position: 'absolute',
-              bottom: expanded ? item.bottomOffset : 0,
-              right: 0,
+              right: { xs: 70, sm: 82 },
+              bottom: 0,
+              boxShadow: expanded
+                ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
+                : '0 10px 24px rgba(15,23,42,0.18)',
+              transform: expanded
+                ? 'translateX(0) translateY(-6px) scale(1)'
+                : 'translateX(26px) translateY(6px) scale(0.92)',
               opacity: expanded ? 1 : 0,
               pointerEvents: expanded ? 'auto' : 'none',
-              transition: 'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
-              transitionDelay: expanded ? `${item.delay.toFixed(2)}s` : '0s',
-              zIndex: 1530,
+              transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
+              transitionDelay: expanded ? '0.24s' : '0s',
+              zIndex: 1090,
+              ...tradingCardHoverSx,
+              ...(tradingCard.frameSx || {}),
             }}
-          >
-            <Tooltip title={item.tooltip || ''} placement="left">
-              <Fab onClick={item.onClick} size={item.size} sx={actionFabSx(item.accent, item.delay)}>
-                {item.icon}
-              </Fab>
-            </Tooltip>
-          </Box>
-        ))}
-      </Box>
+          />
+        )}
 
-      {showMainFab ? (
-        <Tooltip title={mainFabDisabled ? mainTooltipDisabled : (expanded ? mainTooltipOpen : mainTooltipClosed)}>
-          <span>
-            <Fab
-              onClick={onToggleExpanded}
-              disabled={mainFabDisabled}
+        {/* Action item FABs — stacked upward when expanded */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
+          {positionedItems.map((item) => (
+            <Box
+              key={item.key}
               sx={{
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
-                color: 'white',
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.success.main,
-                },
-                boxShadow: 3,
-                transform: expanded ? 'rotate(45deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease, background-color 0.2s ease',
-                zIndex: 1540,
-                ...(mainFabSx || {}),
+                position: 'absolute',
+                bottom: expanded ? item.bottomOffset : 0,
+                right: 0,
+                opacity: expanded ? 1 : 0,
+                pointerEvents: expanded ? 'auto' : 'none',
+                transition: 'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
+                transitionDelay: expanded ? `${item.delay.toFixed(2)}s` : '0s',
+                zIndex: 1530,
               }}
             >
-              <AddIcon />
-            </Fab>
-          </span>
-        </Tooltip>
-      ) : null}
+              <Tooltip title={item.tooltip || ''} placement="left">
+                <Fab onClick={item.onClick} size={item.size} sx={actionFabSx(item.accent, item.delay)}>
+                  {item.icon}
+                </Fab>
+              </Tooltip>
+            </Box>
+          ))}
+        </Box>
+
+        {/* Main toggle FAB */}
+        {showMainFab ? (
+          <Tooltip title={mainFabDisabled ? mainTooltipDisabled : (expanded ? mainTooltipOpen : mainTooltipClosed)}>
+            <span>
+              <Fab
+                onClick={onToggleExpanded}
+                disabled={mainFabDisabled}
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.success.light,
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.success.main,
+                  },
+                  boxShadow: 3,
+                  transform: expanded ? 'rotate(45deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.3s ease, background-color 0.2s ease',
+                  zIndex: 1540,
+                  ...(mainFabSx || {}),
+                }}
+              >
+                <AddIcon />
+              </Fab>
+            </span>
+          </Tooltip>
+        ) : null}
+      </Box>
     </Box>
   );
 

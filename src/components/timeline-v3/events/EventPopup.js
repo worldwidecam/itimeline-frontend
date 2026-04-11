@@ -53,6 +53,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
+import { useAuth } from '../../../contexts/AuthContext';
 import api from '../../../utils/api';
 import PopupTimelineLanes from './PopupTimelineLanes';
 import { submitReport } from '../../../utils/api';
@@ -104,6 +105,7 @@ const EventPopup = ({
 }) => {
   const theme = useTheme();
   const location = useLocation();
+  const { isGuest } = useAuth();
   const [isInReview, setIsInReview] = useState(false);
   const [isSafeguarded, setIsSafeguarded] = useState(false);
   const {
@@ -465,7 +467,7 @@ const EventPopup = ({
         console.warn('Failed to load passport memberships for popup lanes', e);
       }
     };
-    if (open && passportMemberships.length === 0) {
+    if (open && !isGuest && passportMemberships.length === 0) {
       loadPassport();
     }
   }, [open, passportMemberships.length]);

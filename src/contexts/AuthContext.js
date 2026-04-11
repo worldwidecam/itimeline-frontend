@@ -7,6 +7,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const previousUserIdRef = useRef(null);
 
@@ -67,9 +68,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Set up periodic token refresh (every 3.5 hours)
+  // Set up periodic token refresh (every 3.5 hours) — skipped for guest sessions
   useEffect(() => {
-    if (user) {
+    if (user && !isGuest) {
       const refreshInterval = setInterval(async () => {
         const success = await refreshAccessToken();
         if (!success) {
@@ -80,7 +81,7 @@ export const AuthProvider = ({ children }) => {
 
       return () => clearInterval(refreshInterval);
     }
-  }, [user]);
+  }, [user, isGuest]);
 
   const login = async (email, password) => {
     try {
@@ -233,9 +234,28 @@ export const AuthProvider = ({ children }) => {
     
     // Also remove legacy non-user-specific memberships if they exist
     localStorage.removeItem('user_memberships');
+
+    // Clear guest session marker
+    localStorage.removeItem('guest_session');
     
     // Clear user data from state
     setUser(null);
+    setIsGuest(false);
+  };
+
+  const loginAsGuest = () => {
+    const guestUser = {
+      id: null,
+      username: 'Goblin',
+      avatar_url: '/images/GUEST_img.png',
+      email: null,
+      role: 'guest',
+    };
+    setUser(guestUser);
+    setIsGuest(true);
+    // Persist so a page refresh restores the guest session
+    localStorage.setItem('guest_session', 'true');
+    console.log('[Auth] Guest session started');
   };
 
   useEffect(() => {
@@ -386,6 +406,22 @@ export const AuthProvider = ({ children }) => {
           }
         }
         
+        // No valid real tokens — check for a persisted guest session
+        const guestSession = localStorage.getItem('guest_session');
+        if (guestSession === 'true') {
+          console.log('[Auth] Restoring guest session from localStorage');
+          setUser({
+            id: null,
+            username: 'Goblin',
+            avatar_url: '/images/GUEST_img.png',
+            email: null,
+            role: 'guest',
+          });
+          setIsGuest(true);
+          setLoading(false);
+          return;
+        }
+
         // If we get here, no valid tokens were found
         console.log('No valid authentication tokens found');
         setLoading(false);
@@ -424,8 +460,10 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    isGuest,
     login,
     logout,
+    loginAsGuest,
     register,
     updateProfile,
     loading,

@@ -95,7 +95,7 @@ const setState = (eventId, updater) => {
 };
 
 const subscribe = (eventId, listener) => {
-  if (!eventId) return () => {};
+  if (!eventId) return () => { };
   let listeners = listenersById.get(eventId);
   if (!listeners) {
     listeners = new Set();

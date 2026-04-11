@@ -74,14 +74,14 @@ const RemarkCard = forwardRef(({
 
   const handleMenuOpen = (e) => {
     e.stopPropagation(); // Prevent event bubbling to parent (card click)
-    
+
     // If the card is not already selected, select it first
     if (!isSelected && onEdit && typeof onEdit === 'function') {
       // We're using onEdit as a proxy to get to the parent component's onEventSelect
       // This is a bit of a hack, but it works because onEdit is passed from the same parent
       // that would handle selection
       onEdit({ type: 'select', event });
-      
+
       // Delay opening the menu slightly to allow the card to move into position
       setTimeout(() => {
         setMenuAnchorEl(e.currentTarget);
@@ -130,7 +130,7 @@ const RemarkCard = forwardRef(({
   const handleEdit = (e) => {
     if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
-    
+
     // Check if this is a special action
     if (typeof e === 'object' && e !== null && e.type === 'openPopup') {
       console.log('RemarkCard: Opening popup from handleEdit');
@@ -150,7 +150,7 @@ const RemarkCard = forwardRef(({
   const handleDetailsClick = () => {
     setPopupOpen(true);
   };
-  
+
   const handleCardClick = () => {
     if (onEdit && typeof onEdit === 'function') {
       if (isSelected) {
@@ -163,22 +163,22 @@ const RemarkCard = forwardRef(({
       }
     }
   };
-  
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     openPopup: () => setPopupOpen(true)
   }));
-  
+
   // We no longer need to listen for custom events
   // The popup will be opened directly by the handleEdit function
 
   const formatDate = (dateStr) => {
     try {
       if (!dateStr) return 'Invalid date';
-      
+
       // Parse the ISO string into a Date object
       const date = parseISO(dateStr);
-      
+
       // Format with "Published on" prefix, without seconds
       // Use explicit formatting to ensure consistency
       return `Published on ${format(date, 'MMM d, yyyy, h:mm a')}`;
@@ -191,10 +191,10 @@ const RemarkCard = forwardRef(({
   const formatEventDate = (dateStr) => {
     try {
       if (!dateStr) return 'Invalid date';
-      
+
       // Parse the ISO string into a Date object
       const date = parseISO(dateStr);
-      
+
       // Format event date without "Published on" prefix
       // Use explicit formatting to ensure consistency
       return format(date, 'MMM d, yyyy, h:mm a');
@@ -252,14 +252,14 @@ const RemarkCard = forwardRef(({
               hasError={!!voteError}
             />
           )}
-          
+
           {/* Page corner button for details */}
-          <PageCornerButton 
-            onClick={handleDetailsClick} 
+          <PageCornerButton
+            onClick={handleDetailsClick}
             tooltip="View Details"
             color={color}
           />
-          
+
           <Box
             sx={{
               mb: 1.5,
@@ -402,9 +402,9 @@ const RemarkCard = forwardRef(({
           </Box>
 
           <Box sx={{ mt: 'auto' }}>
-            <EventCardChipsRow 
-              tags={event.tags} 
-              associatedTimelines={event.associated_timelines || []} 
+            <EventCardChipsRow
+              tags={event.tags}
+              associatedTimelines={event.associated_timelines || []}
               removedTimelineIds={event.removed_timeline_ids || []}
             />
             <Box
@@ -433,7 +433,7 @@ const RemarkCard = forwardRef(({
                     to={`/profile/${event.created_by}`}
                     variant="caption"
                     color="primary"
-                    sx={{ 
+                    sx={{
                       textDecoration: 'none',
                       '&:hover': {
                         textDecoration: 'underline'
@@ -476,7 +476,7 @@ const RemarkCard = forwardRef(({
         </Box>
       </motion.div>
 
-      <EventPopup 
+      <EventPopup
         event={event}
         open={popupOpen}
         onClose={() => {
