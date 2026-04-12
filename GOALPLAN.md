@@ -4,7 +4,8 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] ANONYMOUS GUEST implementation — Ideation Phase (START)
+- [ ] DB REPOSITORY ALIGNMENT — Fixing the major issue where backend handles data internally instead of utilizing the iTimeline-DB repo.
+- [ ] ANONYMOUS GUEST implementation — Paused (Partially implemented)
 
 ## Scope / Success Criteria
 - Define Anonymous Guest product rules (capabilities, restrictions, conversion points, moderation/risk limits).
@@ -14,6 +15,12 @@
 - Fix auth handoff so post-login continues to the originally requested destination.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
+- [ ] Audit backend `app.py` and `routes/` to identify all internal model definitions that should be in `iTimeline-DB`.
+- [ ] Fully transition backend to use the `itimeline_db` package for ALL shared data structures.
+- [ ] Sync and apply "staged" changes in `iTimeline-DB` to ensure the backend is actually using the latest repository state.
+- [ ] Resolve the `db = None` initialization flaw in `iTimeline-DB` package so it can be reliably imported without fallbacks.
+- [ ] (Guest Mode) Clean up the `api/auth/validate` and `sync` routes once the model transition is stable.
+
 - [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
 - [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).
 - [ ] Phase 1B — Profile Settings controls: add Home init preference toggle/select with only `popular|home` options.
@@ -69,6 +76,8 @@
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 - [ ] Consolidate App.js and App.jsx — currently both files exist and both have been edited. The real active entry is App.js (loaded by index.js). App.jsx should be removed or merged to avoid split-brain confusion.
+- [ ] MAJOR: Fix iTimeline-DB repository utilization. Backend is currently handling data internally, causing a "split-brain" where staged DB changes in the repo are ignored.
+
 
 ## Notes / Decisions
 - Completed history/context has been migrated to README to keep GOALPLAN execution-focused.

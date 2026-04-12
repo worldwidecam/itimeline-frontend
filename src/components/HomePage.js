@@ -86,6 +86,7 @@ import {
   getGlassSquareActionButtonSx,
 } from '../utils/formStyleGuide';
 import { resolveUserIdentityColor } from '../utils/userIdentityColor';
+import GuestHubFiller from './shared/GuestHubFiller';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -4601,6 +4602,8 @@ const HomePage = () => {
                     <Typography color="text.secondary">Loading section...</Typography>
                   </Stack>
                 </Box>
+              ) : (isGuest && ['my-creations', 'your-page', 'favorite', 'friends-list'].includes(activeHubTab)) ? (
+                <GuestHubFiller tabLabel={LEFT_HUB_TABS.find(t => t.key === activeHubTab)?.label} />
               ) : activeHubTab === 'my-creations' ? (
                 <Box
                   ref={myCreationsScrollRef}
