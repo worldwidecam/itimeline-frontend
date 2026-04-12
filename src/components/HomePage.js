@@ -4219,7 +4219,15 @@ const HomePage = () => {
                   {user?.username ? `Welcome Back ${user.username}!` : 'Welcome to Timeline Forum'}
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 1, opacity: 0.88 }}>
-                  Create and explore timelines with the V3 interface.
+                  {isGuest ? (
+                    <>
+                      <strong>VIEW</strong> as much as you like! <strong>CREATE</strong> when you actually login.
+                    </>
+                  ) : (
+                    <>
+                      <strong>MAKE</strong> a post to save a moment.  <strong>CREATE</strong> a timeline to start a movement.
+                    </>
+                  )}
                 </Typography>
               </>
             ) : null}
@@ -4284,7 +4292,7 @@ const HomePage = () => {
               </>
             ) : null}
 
-            {activeHeroSlide?.type === 'welcome' && user ? (
+            {activeHeroSlide?.type === 'welcome' && user && !isGuest ? (
               <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
                 <Button

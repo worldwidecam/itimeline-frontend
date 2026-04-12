@@ -203,7 +203,7 @@ const normalizeProfileModules = (rawModules) => {
 };
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { userId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -240,7 +240,9 @@ const Profile = () => {
     zoom: 1,
   });
   
-  const isOwnProfile = !userId || (user && userId === user.id.toString());
+  const normalizedUserIdParam = String(userId || '').trim().toLowerCase();
+  const isGuestProfileRoute = normalizedUserIdParam === 'guest';
+  const isOwnProfile = isGuestProfileRoute || !userId || (Number(user?.id) > 0 && userId === user.id.toString());
   const queryAccessKey = useMemo(() => {
     const params = new URLSearchParams(location.search || '');
     return String(params.get('access_key') || '').trim();
@@ -466,9 +468,26 @@ const Profile = () => {
         if (isOwnProfile) {
           setProfileAccessVisibility('public');
           setProfileAccessMessage('');
+          const hasNumericUserId = Number(user?.id) > 0;
+
+          if (isGuestProfileRoute || isGuest || !hasNumericUserId) {
+            setProfileUser({
+              id: null,
+              username: user?.username || 'Goblin',
+              avatar_url: user?.avatar_url || '/images/GUEST_img.png',
+              email: null,
+              bio: '',
+              created_at: null,
+              role: 'guest',
+            });
+            setMusicData({});
+            setShowMusic(false);
+            return;
+          }
+
           // If viewing own profile, always fetch fresh data from API
           // This ensures all fields (including bio) are loaded from database
-          if (user) {
+          if (user && hasNumericUserId) {
             try {
               const userResponse = await api.get(`/api/users/${user.id}`);
               setProfileUser(userResponse.data);
@@ -484,15 +503,17 @@ const Profile = () => {
           }
           
           // Fetch music preferences for own profile
-          try {
-            const musicResponse = await api.get('/api/profile/music');
-            if (musicResponse.data.music_url) {
-              setMusicData(musicResponse.data);
-              // Slight delay before showing music player for a smoother experience
-              setTimeout(() => setShowMusic(true), 100);
+          if (hasNumericUserId) {
+            try {
+              const musicResponse = await api.get('/api/profile/music');
+              if (musicResponse.data.music_url) {
+                setMusicData(musicResponse.data);
+                // Slight delay before showing music player for a smoother experience
+                setTimeout(() => setShowMusic(true), 100);
+              }
+            } catch (musicError) {
+              console.error('Error fetching music preferences:', musicError);
             }
-          } catch (musicError) {
-            console.error('Error fetching music preferences:', musicError);
           }
         } else {
           const targetUserId = Number(userId || 0);

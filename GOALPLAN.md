@@ -4,22 +4,27 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus
-- [ ] DB REPOSITORY ALIGNMENT — Fixing the major issue where backend handles data internally instead of utilizing the iTimeline-DB repo.
-- [ ] ANONYMOUS GUEST implementation — Paused (Partially implemented)
+- [x] DB REPOSITORY ALIGNMENT — Canonical iTimeline-DB model integration completed and backend verified.
+- [ ] ANONYMOUS GUEST implementation — Active (Partially implemented)
 
-## Scope / Success Criteria
+## Scope / Context understanding
 - Define Anonymous Guest product rules (capabilities, restrictions, conversion points, moderation/risk limits).
 - Produce frontend-first implementation map (routes, guards, UI states, API touchpoints).
 - Lock a minimal V1 scope before coding begins.
 - Ensure public/non-private shared links are accessible without forced-login dead ends.
 - Fix auth handoff so post-login continues to the originally requested destination.
+- guest mode implementation snapshot: manual Goblin entry exists on login/register, guest token is superseded by real login, Home tabs now enforce guest limitations (popular/search allowed; blocked states for restricted hubs), guest navbar uses Join CTA in place of hamburger, and guest profile route (`/profile/guest`) is wired with Goblin avatar. Home-page guest-mode pass is considered complete; next focus moves to profile/timeline/link-entry nuance.
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] Audit backend `app.py` and `routes/` to identify all internal model definitions that should be in `iTimeline-DB`.
-- [ ] Fully transition backend to use the `itimeline_db` package for ALL shared data structures.
-- [ ] Sync and apply "staged" changes in `iTimeline-DB` to ensure the backend is actually using the latest repository state.
-- [ ] Resolve the `db = None` initialization flaw in `iTimeline-DB` package so it can be reliably imported without fallbacks.
+- [x] Audit backend `app.py` and `routes/` to identify all internal model definitions that should be in `iTimeline-DB`.
+- [x] Fully transition backend to use the `itimeline_db` package for ALL shared data structures.
+- [x] Sync and apply "staged" changes in `iTimeline-DB` to ensure the backend is actually using the latest repository state.
+- [x] Resolve the `db = None` initialization flaw in `iTimeline-DB` package so it can be reliably imported without fallbacks.
 - [ ] (Guest Mode) Clean up the `api/auth/validate` and `sync` routes once the model transition is stable.
+- [x] (Guest Mode) Home page complete implementation/limitations.
+- [ ] (Guest Mode) Guest profile complete implementation/limitations.
+- [ ] (Guest Mode) Guest mode regarding timeline pages.
+- [ ] (Guest Mode) Guest mode auto handling people visiting from links they were shared.
 
 - [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
 - [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).
@@ -55,7 +60,8 @@
 ## Current Status Snapshot
 - GOALPLAN has been slimmed to active/in-progress work only.
 - Completed implementation context and milestones have been moved into README for long-term reference.
-- Current execution window: Anonymous Guest ideation (with profile/home follow-ups remaining in queue).
+- DB alignment checkpoint complete: backend now runs against canonical `itimeline_db.flask_models`, with startup/login/community/share path verification and script-level import cleanup.
+- Current execution window: Anonymous Guest implementation (ideation complete, rollout + cleanup remaining).
 
 ## Learned / Required Systems Before Finalizing Remaining Home Tabs
 - Add a user follow system (follow/unfollow + followed-users retrieval) to power FRIENDS LIST and later YOUR PAGE.
@@ -76,7 +82,7 @@
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 - [ ] Consolidate App.js and App.jsx — currently both files exist and both have been edited. The real active entry is App.js (loaded by index.js). App.jsx should be removed or merged to avoid split-brain confusion.
-- [ ] MAJOR: Fix iTimeline-DB repository utilization. Backend is currently handling data internally, causing a "split-brain" where staged DB changes in the repo are ignored.
+- [x] MAJOR: Fix iTimeline-DB repository utilization. Backend no longer relies on local app model definitions and now uses canonical package models.
 
 
 ## Notes / Decisions

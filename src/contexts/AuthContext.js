@@ -110,6 +110,8 @@ export const AuthProvider = ({ children }) => {
       
       // Update user state
       setUser(userData);
+      setIsGuest(false);
+      localStorage.removeItem('guest_session');
       clearVoteStateCache();
       console.log('Login successful');
       
@@ -310,10 +312,22 @@ export const AuthProvider = ({ children }) => {
       });
       
       if (response.data && response.data.user) {
-        console.log('User validation successful:', response.data.user);
+        const validatedUser = response.data.user;
+        const isValidatedGuest = validatedUser?.role === 'guest'
+          || validatedUser?.is_guest === true
+          || !(Number(validatedUser?.id) > 0);
+        console.log('User validation successful:', validatedUser);
         // Store user data in localStorage for API functions to access
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(validatedUser));
+        setUser(validatedUser);
+        setIsGuest(isValidatedGuest);
+
+        if (isValidatedGuest) {
+          localStorage.setItem('guest_session', 'true');
+          return true;
+        }
+
+        localStorage.removeItem('guest_session');
         
         // Fetch and store user passport
         console.log('Fetching user passport after session validation');
@@ -374,6 +388,8 @@ export const AuthProvider = ({ children }) => {
               ...prevUser,
               ...userData
             }));
+            setIsGuest(false);
+            localStorage.removeItem('guest_session');
             console.log('User validation successful after token refresh');
             
             // Fetch and store user passport
