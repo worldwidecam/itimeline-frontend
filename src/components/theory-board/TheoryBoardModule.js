@@ -33,6 +33,7 @@ import MediaEventMarker from '../timeline-v3/events/markers/MediaEventMarker';
 import RemarkEventMarker from '../timeline-v3/events/markers/RemarkEventMarker';
 import RichContentRenderer from '../timeline-v3/events/RichContentRenderer';
 import api from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 2.1;
@@ -156,6 +157,7 @@ const toRichContentPayload = (description) => {
 
 const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventReference = null }) => {
   const theme = useTheme();
+  const { isGuest } = useAuth();
   const boardRef = useRef(null);
   const viewportRef = useRef(null);
   const dragRef = useRef({
@@ -891,6 +893,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   }, [pins]);
 
   useEffect(() => {
+    if (isGuest) return;
     if (eventReferenceIds.length === 0) return;
 
     let cancelled = false;
@@ -940,7 +943,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     return () => {
       cancelled = true;
     };
-  }, [eventPreviewCache, eventReferenceIds]);
+  }, [eventPreviewCache, eventReferenceIds, isGuest]);
 
   const handlePinPointerDown = useCallback((pin, event) => {
     event.stopPropagation();

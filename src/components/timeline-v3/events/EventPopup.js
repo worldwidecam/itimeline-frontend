@@ -125,6 +125,12 @@ const EventPopup = ({
         setIsSafeguarded(false);
         return;
       }
+
+      if (isGuest) {
+        setIsInReview(false);
+        setIsSafeguarded(false);
+        return;
+      }
       
       // First check if reviewingEventIds prop is provided (from AdminPanel)
       if (reviewingEventIds.size > 0) {
@@ -177,7 +183,7 @@ const EventPopup = ({
     };
     
     checkReportStatus();
-  }, [open, event?.id, location.pathname, reviewingEventIds]);
+  }, [open, event?.id, location.pathname, reviewingEventIds, isGuest]);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -347,6 +353,7 @@ const EventPopup = ({
   };
 
   const handleOpenReport = () => {
+    if (isGuest) return;
     setReportReason('');
     setReportCategory('');
     setReportOpen(true);
@@ -361,6 +368,7 @@ const EventPopup = ({
   };
 
   const handleActionMenuOpen = (event) => {
+    if (isGuest) return;
     event.stopPropagation();
     setActionAnchorEl(event.currentTarget);
   };
@@ -585,6 +593,7 @@ const EventPopup = ({
   const isEditLocked = Boolean(event?.edit_locked || localEventData?.edit_locked);
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
   const canEdit = Boolean(onEdit && (isSiteOwner || (isEventCreator && !isEditLocked)));
+  const canOpenActionMenu = !isGuest && (canEdit || canDelete || !isSafeguarded);
 
   // Option sources per lane
   const hashtagOptions = existingTimelines.filter((tl) => (tl.timeline_type || tl.type) === 'hashtag');
@@ -1328,7 +1337,7 @@ const EventPopup = ({
                   </Typography>
                 </Box>
               )}
-              {(canEdit || canDelete || !isSafeguarded) && (
+              {canOpenActionMenu && (
                 <>
                   <IconButton
                     size="small"

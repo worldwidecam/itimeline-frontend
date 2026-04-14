@@ -25,6 +25,13 @@
 - [ ] (Guest Mode) Guest profile complete implementation/limitations.
 - [ ] (Guest Mode) Guest mode regarding timeline pages.
 - [ ] (Guest Mode) Guest mode auto handling people visiting from links they were shared.
+- [ ] (Guest Mode / Share Pages) Define guest interpretation + route guard behavior for `/share/profile/:id` and `/share/timeline/:id` entry flows.
+- [ ] (Guest Mode / Community) Endpoint parity audit for guest + private ACL coverage across community timeline read paths.
+- [ ] (Guest Mode / Community) Standardize private-denied API response payload contract (status + code + message) without collapsing existing lock/redirect UI variants.
+- [ ] (Guest Mode / Community) Prevent private timeline metadata leaks on first paint (timeline-page access-loading buffer/guard before content render).
+- [ ] (Guest Mode / Community) Validate cross-tab/new-tab behavior for guest navigation from rich chips and deep links.
+- [ ] (Guest Mode / Community + Home) Remove guest join/follow affordances across user cards, timeline cards, and community controls.
+- [ ] (Guest Mode / Community) Define denied `~event` chip UX (what guest/non-allowed users see when event reference is blocked).
 
 - [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
 - [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).

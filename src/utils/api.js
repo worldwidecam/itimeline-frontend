@@ -479,6 +479,13 @@ export const getTimelineFollowStatus = async (timelineId) => {
     throw new Error('timelineId is required');
   }
 
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const numericUserId = Number(currentUser?.id);
+  const isGuestUser = currentUser?.role === 'guest' || !(numericUserId > 0);
+  if (isGuestUser) {
+    return { is_following: false, follow_kind: null, followed_at: null };
+  }
+
   try {
     const response = await api.get(`/api/v1/timelines/${timelineId}/follow-status`);
     return response.data;
@@ -1330,6 +1337,17 @@ export const updateTimelineDetails = async (timelineId, data) => {
  * @returns {Promise} - Promise resolving to success message or default values on error
  */
 export const requestTimelineAccess = async (timelineId, retryCount = 0) => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const numericUserId = Number(currentUser?.id);
+  const isGuestUser = currentUser?.role === 'guest' || !(numericUserId > 0);
+  if (isGuestUser) {
+    return {
+      error: true,
+      message: 'Guest accounts cannot join communities. Please log in.',
+      status: 'guest',
+    };
+  }
+
   try {
     console.log(`Requesting access to timeline ${timelineId} (attempt ${retryCount + 1})`);
     
@@ -1460,10 +1478,23 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
     // Get current user ID from localStorage
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = currentUser.id || 'guest';
+    const numericUserId = Number(userId);
+    const isGuestUser = currentUser?.role === 'guest' || !(numericUserId > 0);
+
+    // Guest users are read-only and should not hit membership status endpoints.
+    if (isGuestUser) {
+      return {
+        is_member: false,
+        is_active_member: false,
+        role: 'guest',
+        timeline_visibility: 'public',
+        is_blocked: false,
+      };
+    }
     
     try {
       // Simple check for SiteOwner status - if user ID is 1, they're always a member
-      if (userId === 1) {
+      if (numericUserId === 1) {
         console.log('User is SiteOwner (ID 1), forcing is_member to true');
         return {
           is_member: true,
@@ -1475,7 +1506,7 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
 
       // Check if user is the creator of this timeline
       const timelineData = await getTimelineDetails(timelineId);
-      if (timelineData && timelineData.created_by === userId) {
+      if (timelineData && Number(timelineData.created_by) === numericUserId) {
         console.log(`User ${userId} is creator of timeline ${timelineId}, forcing is_member to true`);
         return {
           is_member: true,

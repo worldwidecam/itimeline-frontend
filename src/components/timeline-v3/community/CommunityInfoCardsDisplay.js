@@ -25,10 +25,12 @@ import UserAvatar from '../../common/UserAvatar';
 import HashtagIcon from '../../common/HashtagIcon';
 import api, { getUserByUsername } from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../events/EventTypes';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // Rich Content Renderer Component
 const RichContentRenderer = ({ content, theme }) => {
   const navigate = useNavigate();
+  const { isGuest } = useAuth();
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
   const [eventReferenceCache, setEventReferenceCache] = React.useState({});
@@ -99,6 +101,7 @@ const RichContentRenderer = ({ content, theme }) => {
   };
 
   const resolveAndCacheEventReference = async (eventId) => {
+    if (isGuest) return null;
     const normalizedId = Number(eventId);
     if (!Number.isFinite(normalizedId) || normalizedId <= 0) return null;
 
@@ -182,6 +185,7 @@ const RichContentRenderer = ({ content, theme }) => {
         window.open(name, '_blank', 'noopener,noreferrer');
         break;
       case 'event_reference': {
+        if (isGuest) break;
         const normalizedEventId = Number(name);
         if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) break;
         const resolvedEvent = await resolveAndCacheEventReference(normalizedEventId);
@@ -338,23 +342,24 @@ const RichContentRenderer = ({ content, theme }) => {
           const cachedEvent = eventReferenceCache[normalizedEventId];
           const eventType = cachedEvent?.type || EVENT_TYPES.REMARK;
           const eventColor = getEventReferenceColor(eventType);
+          const canOpenEventReference = !isGuest;
 
           return (
-            <Tooltip key={index} title="Click to open event popup">
+            <Tooltip key={index} title={canOpenEventReference ? 'Click to open event popup' : 'Unavailable in guest mode'}>
               <Chip
                 icon={<EventOutlinedIcon fontSize="small" />}
                 label={item.text || `~${normalizedEventId}`}
                 size="small"
-                onClick={() => handleMentionClick('event_reference', normalizedEventId, null)}
+                onClick={canOpenEventReference ? () => handleMentionClick('event_reference', normalizedEventId, null) : undefined}
                 sx={{
-                  cursor: 'pointer',
+                  cursor: canOpenEventReference ? 'pointer' : 'default',
                   bgcolor: eventColor.bg,
                   color: eventColor.color,
                   border: '1px solid',
                   borderColor: eventColor.color,
-                  '&:hover': {
+                  '&:hover': canOpenEventReference ? {
                     filter: 'brightness(1.08)',
-                  }
+                  } : undefined
                 }}
               />
             </Tooltip>

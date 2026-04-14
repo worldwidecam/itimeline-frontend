@@ -31,7 +31,8 @@ import {
   Fab,
   Slider,
   ToggleButton,
-  ToggleButtonGroup
+  ToggleButtonGroup,
+  Portal
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -5742,62 +5743,64 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
           </Dialog>
 
           {/* Floating Action Button for Save Changes */}
-          <AnimatePresence>
-            {(hasUnsavedChanges || showSavedState) && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: 1, 
-                  y: showSavedState ? 10 : 0,
-                  transition: { type: 'spring', stiffness: 300, damping: 25 }
-                }}
-                exit={{ 
-                  opacity: 0, 
-                  scale: 0.8, 
-                  y: 40,
-                  transition: { duration: 0.3 }
-                }}
-                style={{
-                  position: 'fixed',
-                  bottom: '2rem',
-                  right: '2rem',
-                  zIndex: 1000,
-                }}
-              >
-                <Button
-                  variant="contained"
-                  color={showSavedState ? 'success' : 'primary'}
-                  onClick={handleSaveChanges}
-                  disabled={isSaving || showSavedState}
-                  sx={{
-                    borderRadius: '28px',
-                    padding: '12px 24px',
-                    boxShadow: showSavedState 
-                      ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
-                      : '0 8px 16px rgba(0,0,0,0.2)',
-                    '&:hover': {
+          <Portal>
+            <AnimatePresence>
+              {(hasUnsavedChanges || showSavedState) && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1, 
+                    y: showSavedState ? 10 : 0,
+                    transition: { type: 'spring', stiffness: 300, damping: 25 }
+                  }}
+                  exit={{ 
+                    opacity: 0, 
+                    scale: 0.8, 
+                    y: 40,
+                    transition: { duration: 0.3 }
+                  }}
+                  style={{
+                    position: 'fixed',
+                    bottom: '2rem',
+                    right: '2rem',
+                    zIndex: 1000,
+                  }}
+                >
+                  <Button
+                    variant="contained"
+                    color={showSavedState ? 'success' : 'primary'}
+                    onClick={handleSaveChanges}
+                    disabled={isSaving || showSavedState}
+                    sx={{
+                      borderRadius: '28px',
+                      padding: '12px 24px',
                       boxShadow: showSavedState 
                         ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
-                        : '0 12px 20px rgba(0,0,0,0.3)',
-                    },
-                    '&.Mui-disabled': {
-                      color: 'white',
-                      opacity: showSavedState ? 1 : 0.7
-                    },
-                    transition: 'all 0.3s ease'
-                  }}
-                  startIcon={
-                    showSavedState ? <CheckCircleIcon /> : 
-                    isSaving ? null : <SaveIcon />
-                  }
-                >
-                  {showSavedState ? 'SAVED!' : 
-                   isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                        : '0 8px 16px rgba(0,0,0,0.2)',
+                      '&:hover': {
+                        boxShadow: showSavedState 
+                          ? '0 8px 16px rgba(76, 175, 80, 0.3)' 
+                          : '0 12px 20px rgba(0,0,0,0.3)',
+                      },
+                      '&.Mui-disabled': {
+                        color: 'white',
+                        opacity: showSavedState ? 1 : 0.7
+                      },
+                      transition: 'all 0.3s ease'
+                    }}
+                    startIcon={
+                      showSavedState ? <CheckCircleIcon /> : 
+                      isSaving ? null : <SaveIcon />
+                    }
+                  >
+                    {showSavedState ? 'SAVED!' : 
+                     isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Portal>
           
           {/* Snackbar for notifications */}
           <Snackbar

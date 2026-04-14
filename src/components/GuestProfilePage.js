@@ -6,6 +6,7 @@ import {
   Box,
   Grid,
   Divider,
+  Switch,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -16,13 +17,16 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme as useMuiTheme, alpha } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme as useAppTheme } from '../contexts/ThemeContext';
 import UserAvatar from './common/UserAvatar';
 import NavFab from './timeline-v3/community/NavFab';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import { submitUserReport } from '../utils/api';
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -46,9 +50,12 @@ const reportCategoryOptions = [
   { value: 'unethical_boundary', label: 'Unethical or harmful boundary' },
 ];
 
+const GOBLIN_NEON_GREEN = '#39ff14';
+
 const GuestProfilePage = () => {
   const { user } = useAuth();
-  const theme = useTheme();
+  const theme = useMuiTheme();
+  const { isDarkMode, toggleTheme } = useAppTheme();
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
 
   const [fabOpen, setFabOpen] = useState(false);
@@ -63,8 +70,18 @@ const GuestProfilePage = () => {
 
   const containerGlow =
     theme.palette.mode === 'dark'
-      ? '0 8px 32px rgba(0, 0, 0, 0.3)'
-      : '0 8px 32px rgba(0, 0, 0, 0.1)';
+      ? `
+          0 0 0 1.5px ${alpha(GOBLIN_NEON_GREEN, 0.95)},
+          0 0 10px ${alpha(GOBLIN_NEON_GREEN, 0.55)},
+          0 0 24px ${alpha(GOBLIN_NEON_GREEN, 0.4)},
+          0 12px 34px rgba(0, 0, 0, 0.42)
+        `
+      : `
+          0 0 0 1.5px ${alpha(GOBLIN_NEON_GREEN, 0.95)},
+          0 0 10px ${alpha(GOBLIN_NEON_GREEN, 0.55)},
+          0 0 24px ${alpha(GOBLIN_NEON_GREEN, 0.4)},
+          0 12px 26px rgba(15, 23, 42, 0.16)
+        `;
 
   const profileShareLink = useMemo(() => `${window.location.origin}/profile/guest`, []);
 
@@ -153,6 +170,7 @@ const GuestProfilePage = () => {
       <Container maxWidth="md">
         <Paper
           sx={{
+            position: 'relative',
             p: 4,
             backgroundColor:
               theme.palette.mode === 'dark'
@@ -161,13 +179,93 @@ const GuestProfilePage = () => {
             backdropFilter: 'blur(10px)',
             borderRadius: 2,
             border: '1px solid',
-            borderColor:
-              theme.palette.mode === 'dark'
-                ? 'rgba(255,255,255,0.16)'
-                : 'rgba(15,23,42,0.18)',
+            borderColor: alpha(GOBLIN_NEON_GREEN, 0.9),
             boxShadow: containerGlow,
           }}
         >
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 14,
+              right: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1.5,
+              py: 0.75,
+              borderRadius: 999,
+              backgroundColor:
+                theme.palette.mode === 'dark'
+                  ? 'rgba(255, 255, 255, 0.05)'
+                  : 'rgba(0, 0, 0, 0.03)',
+              backdropFilter: 'blur(6px)',
+              transition: 'background-color 0.3s ease',
+            }}
+          >
+            <Switch
+              size="medium"
+              checked={isDarkMode}
+              onChange={toggleTheme}
+              sx={{
+                mr: 0.25,
+                '& .MuiSwitch-switchBase': {
+                  '&.Mui-checked': {
+                    color: '#90caf9',
+                    '& + .MuiSwitch-track': {
+                      backgroundColor: '#90caf9',
+                    },
+                  },
+                },
+                '& .MuiSwitch-thumb': {
+                  backgroundColor: isDarkMode ? '#90caf9' : '#f4b942',
+                },
+                '& .MuiSwitch-track': {
+                  backgroundColor: isDarkMode
+                    ? 'rgba(144, 202, 249, 0.5)'
+                    : 'rgba(244, 185, 66, 0.5)',
+                },
+              }}
+              inputProps={{ 'aria-label': 'Toggle light and dark theme' }}
+            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              {isDarkMode ? (
+                <DarkModeIcon
+                  sx={{
+                    fontSize: 20,
+                    color: '#90caf9',
+                    animation: 'fadeIn 0.3s ease-in',
+                    '@keyframes fadeIn': {
+                      '0%': { opacity: 0, transform: 'scale(0.8)' },
+                      '100%': { opacity: 1, transform: 'scale(1)' },
+                    },
+                  }}
+                />
+              ) : (
+                <LightModeIcon
+                  sx={{
+                    fontSize: 20,
+                    color: '#f4b942',
+                    animation: 'fadeIn 0.3s ease-in',
+                    '@keyframes fadeIn': {
+                      '0%': { opacity: 0, transform: 'scale(0.8)' },
+                      '100%': { opacity: 1, transform: 'scale(1)' },
+                    },
+                  }}
+                />
+              )}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: isDarkMode ? '#90caf9' : '#f4b942',
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                {isDarkMode ? 'Dark' : 'Light'} Mode
+              </Typography>
+            </Box>
+          </Box>
+
           <Grid container spacing={4}>
             {/* Profile header */}
             <Grid item xs={12}>

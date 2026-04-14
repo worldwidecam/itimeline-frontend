@@ -43,6 +43,7 @@ const CommunityMembershipControl = ({
   onLeaveSuccess
 }) => {
   const theme = useTheme();
+  const isGuestUser = Boolean(user) && (user?.role === 'guest' || !(Number(user?.id) > 0));
   
   // Use the centralized membership hook
   const {
@@ -105,7 +106,7 @@ const CommunityMembershipControl = ({
 
   // Handle join community button click
   const handleJoinCommunity = async () => {
-    if (!user) {
+    if (!user || isGuestUser) {
       setSnackbarMessage('Please log in to join this community');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
@@ -297,7 +298,9 @@ const CommunityMembershipControl = ({
             }
           }}
         >
-          {requiresApproval || visibility === 'private' ? 'Request to Join' : 'Join Community'}
+          {isGuestUser
+            ? 'Log in to Join'
+            : (requiresApproval || visibility === 'private' ? 'Request to Join' : 'Join Community')}
         </Button>
         <Snackbar 
           open={snackbarOpen} 

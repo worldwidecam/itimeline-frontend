@@ -1035,6 +1035,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const isPersonalTimeline = timeline_type === 'personal';
   const isCommunityTimeline = timeline_type === 'community';
   const isHashtagTimeline = timeline_type === 'hashtag';
+  const isGuestUser = Boolean(user) && (user?.role === 'guest' || !(Number(user?.id) > 0));
   const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false && !user?.must_change_username;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = (Number(user?.id) === 1) || siteRole === 'SiteOwner';
@@ -1052,7 +1053,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     isMember === true
     && canCreateOrReport
     && (!isCommunityTimeline || meetsCommunityRoleRestriction);
-  const canOpenCommunityActionFab = isMember === true && canCreateOrReport;
+  const canOpenCommunityActionFab = (isMember === true && canCreateOrReport) || isGuestUser;
   const canCreateEventAction =
     canCreateTimelineEvents
     && (!isCommunityTimeline || canCreateCommunityEvents);
@@ -2690,7 +2691,7 @@ const handleViewModeTransition = (newViewMode) => {
   
   // Handle join community button click
   const handleJoinCommunity = async () => {
-    if (!user) {
+    if (!user || isGuestUser) {
       // If user is not logged in, show a snackbar instead of trying to open a login dialog
       setJoinRequestStatus('error');
       setJoinSnackbarOpen(true);
@@ -4022,7 +4023,7 @@ const handleRecenter = () => {
             onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
             onCollapse={() => setFloatingButtonsExpanded(false)}
             onNavigate={handleCommunityNavigate}
-            showReport
+            showReport={!isGuestUser}
             onReport={handleOpenTimelineReportDialog}
             showCreate={canCreateEventAction}
             showMembersNav={isMember === true}
@@ -4123,7 +4124,7 @@ const handleRecenter = () => {
                     <CheckCircleIcon />
                   </Fab>
                 </Tooltip>
-              ) : (!isMember && !joinRequestSent && !joinLoading && !isBlocked) 
+              ) : (!isGuestUser && !isMember && !joinRequestSent && !joinLoading && !isBlocked) 
                 ? (
                     // Show Join only when verdict is "not a member" and not blocked/loading/pending
                     <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
