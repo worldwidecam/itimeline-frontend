@@ -72,6 +72,7 @@ import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBloc
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
+import EventDialog from '../events/EventDialog';
 import ErrorBoundary from '../../ErrorBoundary';
 import InfoCardsTab from './InfoCardsTab';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
@@ -1864,6 +1865,9 @@ const ManagePostsTab = ({ timelineId }) => {
   const [escalationSummary, setEscalationSummary] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [popupEvent, setPopupEvent] = useState(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editDialogEvent, setEditDialogEvent] = useState(null);
+  const [editDialogSubmitting, setEditDialogSubmitting] = useState(false);
   // Remove-from-community verdict dialog state
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeVerdict, setRemoveVerdict] = useState('');
@@ -1950,6 +1954,81 @@ const ManagePostsTab = ({ timelineId }) => {
       }
     } catch (e) {
       console.warn('[ManagePostsTab] Failed to load event for popup:', e);
+    }
+  };
+
+  const handleOpenEventEdit = async (event) => {
+    try {
+      if (!event?.id || !timelineId) return;
+      const res = await api.get(`/api/v1/timeline-v3/${timelineId}/events/${event.id}`);
+      const canonicalEvent = res?.data;
+      if (!canonicalEvent?.id) {
+        setSnackbarMessage('Unable to open editor for this event');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      if (canonicalEvent?.edit_permissions && canonicalEvent.edit_permissions.can_edit === false) {
+        setSnackbarMessage('You do not have permission to edit this event');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      setEditDialogEvent(canonicalEvent);
+      setEditDialogOpen(true);
+    } catch (e) {
+      console.warn('[ManagePostsTab] Failed to load event for edit:', e);
+      setSnackbarMessage('Failed to load event editor');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleCloseEventEdit = () => {
+    setEditDialogOpen(false);
+    setEditDialogEvent(null);
+    setEditDialogSubmitting(false);
+  };
+
+  const handleSubmitEventEdit = async (eventData) => {
+    try {
+      if (!editDialogEvent?.id || !timelineId) return;
+      setEditDialogSubmitting(true);
+
+      const patchPayload = { ...eventData };
+      if (Object.prototype.hasOwnProperty.call(patchPayload, 'tags') && !Array.isArray(patchPayload.tags)) {
+        delete patchPayload.tags;
+      }
+
+      const response = await api.patch(`/api/v1/timeline-v3/${timelineId}/events/${editDialogEvent.id}`, patchPayload);
+      const updatedEvent = response?.data;
+      if (updatedEvent?.id) {
+        setPopupEvent(updatedEvent);
+      } else {
+        await refreshPopupEventIfOpen(editDialogEvent.id);
+      }
+
+      handleCloseEventEdit();
+      await fetchReports();
+      setSnackbarMessage('Event updated successfully');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      const violations = Array.isArray(e?.response?.data?.violations)
+        ? e.response.data.violations
+        : [];
+      if (violations.length > 0) {
+        const first = violations[0];
+        const reason = first?.reason ? String(first.reason).replace(/_/g, ' ') : 'update blocked by policy';
+        setSnackbarMessage(`Edit blocked: ${reason}`);
+      } else {
+        setSnackbarMessage(e?.response?.data?.error || 'Failed to update event');
+      }
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      setEditDialogSubmitting(false);
     }
   };
   
@@ -2637,9 +2716,21 @@ const ManagePostsTab = ({ timelineId }) => {
           event={popupEvent}
           open={eventPopupOpen}
           onClose={() => setEventPopupOpen(false)}
+          onEdit={handleOpenEventEdit}
           reviewingEventIds={reviewingEventIds}
         />
       )}
+
+      <EventDialog
+        open={editDialogOpen}
+        onClose={handleCloseEventEdit}
+        onSave={handleSubmitEventEdit}
+        initialEvent={editDialogEvent}
+        timelineName={editDialogEvent?.timeline_name || editDialogEvent?.timelineName}
+        timelineType={editDialogEvent?.timeline_type || editDialogEvent?.timelineType || 'community'}
+        submitLoading={editDialogSubmitting}
+        submitDisabled={editDialogSubmitting}
+      />
 
       {/* Remove from Community Verdict Dialog */}
       <Dialog

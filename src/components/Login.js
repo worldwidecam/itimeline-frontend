@@ -22,6 +22,16 @@ import {
 } from '../utils/formStyleGuide';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 
+const AUTH_RETURN_TO_KEY = 'auth_return_to';
+
+const consumeAuthReturnTo = () => {
+  const raw = localStorage.getItem(AUTH_RETURN_TO_KEY);
+  if (!raw) return '';
+  localStorage.removeItem(AUTH_RETURN_TO_KEY);
+  if (raw === '/login' || raw === '/register') return '';
+  return raw;
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const { login, loginAsGuest } = useAuth();
@@ -36,7 +46,8 @@ const Login = () => {
     try {
       const loggedInUser = await login(formData.email, formData.password);
       setFormData({ email: '', password: '' });
-      navigate(loggedInUser?.must_change_username ? '/account/required-username-change' : '/home');
+      const returnTo = consumeAuthReturnTo();
+      navigate(loggedInUser?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to login');
     }
@@ -161,7 +172,11 @@ const Login = () => {
         <Button
           fullWidth
           variant="outlined"
-          onClick={() => { loginAsGuest(); navigate('/home'); }}
+          onClick={async () => {
+            await loginAsGuest();
+            const returnTo = consumeAuthReturnTo();
+            navigate(returnTo || '/home');
+          }}
           sx={{
             borderRadius: 99,
             textTransform: 'uppercase',

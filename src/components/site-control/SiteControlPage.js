@@ -1039,6 +1039,7 @@ const GlobalReportsTab = () => {
       const res = await api.get(`/api/timeline-v3/${post.timelineId}/events/${post.eventId}`);
       const event = res?.data;
       if (event && event.id) {
+        setSelectedPost(post);
         setPopupEvent(event);
         setEventPopupOpen(true);
       }
@@ -2417,6 +2418,7 @@ const GlobalReportsTab = () => {
           event={popupEvent}
           open={eventPopupOpen}
           onClose={() => setEventPopupOpen(false)}
+          onEdit={() => handleOpenResolveEdit(selectedPost)}
           reviewingEventIds={reviewingEventIds}
         />
       )}

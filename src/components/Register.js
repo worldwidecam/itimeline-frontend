@@ -21,6 +21,16 @@ import {
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
 
+const AUTH_RETURN_TO_KEY = 'auth_return_to';
+
+const consumeAuthReturnTo = () => {
+  const raw = localStorage.getItem(AUTH_RETURN_TO_KEY);
+  if (!raw) return '';
+  localStorage.removeItem(AUTH_RETURN_TO_KEY);
+  if (raw === '/login' || raw === '/register') return '';
+  return raw;
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const { register, loginAsGuest } = useAuth();
@@ -62,7 +72,8 @@ const Register = () => {
     try {
       const response = await register(trimmedUsername, formData.email, formData.password);
       console.log('Registration successful:', response);
-      navigate('/');
+      const returnTo = consumeAuthReturnTo();
+      navigate(response?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
     } catch (error) {
       console.error('Registration error:', error);
       setError(error?.message || 'Failed to register');
@@ -194,7 +205,11 @@ const Register = () => {
         <Button
           fullWidth
           variant="outlined"
-          onClick={() => { loginAsGuest(); navigate('/home'); }}
+          onClick={async () => {
+            await loginAsGuest();
+            const returnTo = consumeAuthReturnTo();
+            navigate(returnTo || '/home');
+          }}
           sx={{
             borderRadius: 99,
             textTransform: 'uppercase',

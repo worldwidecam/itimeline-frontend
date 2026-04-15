@@ -36,6 +36,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import TagList from './TagList';
 import EventCardChipsRow from './EventCardChipsRow';
+import EventOriginTimelineBadge from './EventOriginTimelineBadge';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import VoteControls from '../VoteControls';
@@ -489,6 +490,7 @@ const NewsCard = forwardRef(({
                 </Box>
               </Box>
             </Box>
+            <EventOriginTimelineBadge event={event} />
           </Box>
 
           {/* URL Preview Card */}

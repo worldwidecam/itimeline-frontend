@@ -128,7 +128,7 @@ const LandingPage = () => {
   const theme = useTheme();
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [badgeText, setBadgeText] = useState('Coming Soon!');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
@@ -327,15 +327,15 @@ const LandingPage = () => {
           <AnimatedTagline />
           
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
-            {user ? (
+            {user && !isGuest ? (
               <Button 
                 variant="contained" 
                 color="primary" 
                 size="large"
-                onClick={() => navigate('/timeline-v3/new')}
+                onClick={() => navigate('/home')}
                 startIcon={<TimelineIcon />}
               >
-                Create Timeline
+                Enter
               </Button>
             ) : (
               <>

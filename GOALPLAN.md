@@ -14,6 +14,14 @@
 - Ensure public/non-private shared links are accessible without forced-login dead ends.
 - Fix auth handoff so post-login continues to the originally requested destination.
 - guest mode implementation snapshot: manual Goblin entry exists on login/register, guest token is superseded by real login, Home tabs now enforce guest limitations (popular/search allowed; blocked states for restricted hubs), guest navbar uses Join CTA in place of hamburger, and guest profile route (`/profile/guest`) is wired with Goblin avatar. Home-page guest-mode pass is considered complete; next focus moves to profile/timeline/link-entry nuance.
+- Event edit-policy tangent ideation snapshot (priority raised):
+  - 3-tier edit model lock-in direction: Tier A (SiteOwner/SiteAdmin full edit parity), Tier B (community moderator/admin+ conditionals), Tier C (event creator most constrained).
+  - Tier C lock-in direction: title immutable, description append-only (use visible "Edits made" divider), event date/time immutable, event type immutable, media immutable, and tag removal disallowed.
+  - Tier B current conditionals: if event was created in that same community, community admin/mod can perform moderation-grade tag removals and date correction; description should also follow Tier C-style append-only limits.
+  - Tag creation input in EventDialog can remain hashtag-first; current tangent focus is removal governance + correctly visualizing existing non-hashtag association chips in edit mode.
+  - Tier C tag behavior remains unchanged for now (no tag-removal rights; no new tag-edit code required in this tangent).
+  - Date correction audit needs to stay lightweight (old date, new date, changed by).
+  - Keep validating private community tag counterpart behavior so private contexts do not unintentionally expand discoverability.
 
 ## Active Tangents (tasks that take temporary precedent over sub-TODOs)
 
@@ -22,6 +30,8 @@
 - [ ] (Tangent Queue / Discoverability) Decide whether to add a “shared personal timelines” surface (for example: Shared With Me list/module) or intentionally keep link-only access.
 - [ ] (Tangent Queue / Event Edit Policy) Define strict rules for post edit-mode scope and anti-misrepresentation guardrails.
 - [ ] (Tangent Queue / EventPopup Bug) Investigate broken EventPopup edit flow where clicking Edit returns no editable fields.
+- [ ] (Tangent Queue / EventDialog Tag UX) Update EventDialog edit form to recognize, visualize, and allow removal of existing community/personal association chips (form still only creates hashtag tags).
+- [ ] (Tangent Queue / Media Merge Tooling) Ideate high-tier report decision feature for duplicate/redundant media events (choose surviving event ID and merge/retain associations safely).
 - [ ] (Execution Guard) After tangent queue is complete, immediately resume Guest Mode execution starting at: `(Guest Mode) Guest mode auto handling people visiting from links they were shared.`
 
 

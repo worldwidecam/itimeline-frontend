@@ -30,6 +30,7 @@ import {
   EventOutlined as EventOutlinedIcon,
   Close as CloseIcon,
   Add as AddIcon,
+  LockOutlined as LockOutlinedIcon,
   CloudUpload as UploadIcon,
   Person as PersonIcon,
   People as CommunityIcon,
@@ -44,10 +45,19 @@ import {
   getGlassSquareActionButtonSx,
   getGlassPillActionButtonSx,
 } from '../../../utils/formStyleGuide';
+import { alpha } from '@mui/material/styles';
 
 const EVENT_TITLE_MAX_LENGTH = 120;
 
-const RichEditor = ({ value, onChange, disabled }) => {
+const RichEditor = ({
+  value,
+  onChange,
+  disabled,
+  readOnly = false,
+  label = 'Description',
+  helperText = 'Use @ # i- www. or ~123 to add mentions, links, and event references',
+  rows = 3,
+}) => {
   const [indicator, setIndicator] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const textFieldRef = React.useRef(null);
@@ -130,12 +140,13 @@ const RichEditor = ({ value, onChange, disabled }) => {
         ref={textFieldRef}
         fullWidth
         multiline
-        rows={3}
-        label="Description"
+        rows={rows}
+        label={label}
         value={value}
         onChange={handleChange}
-        helperText="Use @ # i- www. or ~123 to add mentions, links, and event references"
+        helperText={helperText}
         disabled={disabled}
+        InputProps={{ readOnly }}
       />
 
       <Popper
@@ -187,9 +198,31 @@ const EventDialog = ({
   submitDisabled = false,
 }) => {
   const theme = useTheme();
+  const isEditing = Boolean(initialEvent);
+  const editPermissions = initialEvent?.edit_permissions || null;
+  const allowedFields = Array.isArray(editPermissions?.allowed_fields)
+    ? new Set(editPermissions.allowed_fields)
+    : null;
+  const canEditField = (field) => {
+    if (!isEditing) return true;
+    if (!editPermissions || !allowedFields) return true;
+    return allowedFields.has(field);
+  };
+  const descriptionAppendOnly = isEditing && editPermissions?.description_mode === 'append_only';
+  const canEditTitle = canEditField('title');
+  const canEditDescription = canEditField('description');
+  const canEditDate = canEditField('event_date');
+  const canEditType = canEditField('type');
+  const canEditMedia = canEditField('media');
+  const canEditTags = canEditField('tags');
+  const canEditUrl = canEditField('url') || canEditField('url_metadata');
+  const isTierAEditor = isEditing && editPermissions?.tier === 'A';
+
   const [eventType, setEventType] = useState(initialType);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [descriptionAppend, setDescriptionAppend] = useState('');
+  const [existingEditsText, setExistingEditsText] = useState('');
   const [eventDate, setEventDate] = useState(new Date());
   const [url, setUrl] = useState('');
   const [urlPreview, setUrlPreview] = useState(null);
@@ -201,9 +234,20 @@ const EventDialog = ({
   const [mediaUploadError, setMediaUploadError] = useState(null);
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
+  const [associatedTimelineChips, setAssociatedTimelineChips] = useState([]);
+  const [creatorTimelineChip, setCreatorTimelineChip] = useState(null);
+  const [removeAssociationIds, setRemoveAssociationIds] = useState([]);
   const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
   const isPersonalTimeline = String(timelineType || '').toLowerCase() === 'personal'
     || (typeof timelineName === 'string' && timelineName.startsWith('My-'));
+
+  const normalizeTimelineType = (rawType) => {
+    const normalizedType = String(rawType || '').trim().toLowerCase();
+    if (normalizedType === 'community' || normalizedType === 'personal' || normalizedType === 'hashtag') {
+      return normalizedType;
+    }
+    return '';
+  };
 
   const normalizeTags = (rawTags = []) => rawTags
     .map((tag) => {
@@ -219,14 +263,96 @@ const EventDialog = ({
     if (initialEvent) {
       setEventType(initialEvent.type || EVENT_TYPES.REMARK);
       setTitle(clampTitle(initialEvent.title || ''));
-      setDescription(initialEvent.description || '');
+      const incomingDescription = String(initialEvent.description || '');
+      const marker = '\n\n---\nEdits made\n';
+      const markerIndex = incomingDescription.indexOf(marker);
+      if (descriptionAppendOnly && markerIndex >= 0) {
+        setDescription(incomingDescription.slice(0, markerIndex));
+        setExistingEditsText(incomingDescription.slice(markerIndex + marker.length).trim());
+      } else {
+        setDescription(incomingDescription);
+        setExistingEditsText('');
+      }
+      setDescriptionAppend('');
       setEventDate(initialEvent.event_date ? new Date(initialEvent.event_date) : new Date());
       setUrl(initialEvent.url || '');
       setTags(normalizeTags(initialEvent.tags || []));
-      setMediaPreview('');
+      setMediaPreview(initialEvent.media_url || '');
       setMediaFile(null);
       setMediaUploadResult(null);
       setMediaUploadError(null);
+      const sourceAssociations = [];
+      const associationTypeById = new Map();
+      const associationTypeByName = new Map();
+
+      const registerAssociationType = (item, hintType = '') => {
+        const timelineId = Number(item?.id || item?.timeline_id || 0);
+        const timelineName = String(item?.name || item?.timeline_name || '').trim();
+        const resolvedType = normalizeTimelineType(item?.type || item?.timeline_type)
+          || normalizeTimelineType(hintType);
+
+        if (!resolvedType) return;
+
+        if (timelineId && !associationTypeById.has(timelineId)) {
+          associationTypeById.set(timelineId, resolvedType);
+        }
+
+        if (timelineName) {
+          const nameKey = timelineName.toLowerCase();
+          const existing = associationTypeByName.get(nameKey);
+          if (!existing || existing === 'hashtag') {
+            associationTypeByName.set(nameKey, resolvedType);
+          }
+        }
+      };
+
+      const pushAssociations = (items, hintType = '') => {
+        if (!Array.isArray(items)) return;
+        items.forEach((item) => {
+          sourceAssociations.push({ ...item, __hintType: hintType });
+          registerAssociationType(item, hintType);
+        });
+      };
+
+      pushAssociations(initialEvent.associated_timelines);
+      pushAssociations(initialEvent.associatedTimelines);
+      pushAssociations(initialEvent.referenced_in);
+      pushAssociations(initialEvent.communities, 'community');
+      pushAssociations(initialEvent.personals, 'personal');
+
+      const resolveAssociation = (timeline) => {
+        const timelineId = Number(timeline?.id || timeline?.timeline_id || 0);
+        const timelineName = String(timeline?.name || timeline?.timeline_name || '').trim();
+        let resolvedType = normalizeTimelineType(timeline?.type || timeline?.timeline_type)
+          || normalizeTimelineType(timeline?.__hintType);
+        if (!resolvedType && timelineId) {
+          resolvedType = associationTypeById.get(timelineId) || '';
+        }
+        if (!resolvedType && timelineName) {
+          resolvedType = associationTypeByName.get(timelineName.toLowerCase()) || '';
+        }
+
+        return {
+          id: timelineId,
+          name: timelineName,
+          type: resolvedType || 'hashtag',
+        };
+      };
+
+      const ownerTimelineId = Number(initialEvent.timeline_id || 0);
+      const ownerTimeline = sourceAssociations
+        .map(resolveAssociation)
+        .find((timeline) => timeline.id === ownerTimelineId && timeline.name);
+      setCreatorTimelineChip(ownerTimeline || null);
+
+      const visibleAssociations = sourceAssociations
+        .map(resolveAssociation)
+        .filter((timeline) => timeline.id && timeline.name)
+        .filter((timeline) => timeline.id !== ownerTimelineId)
+        .filter((timeline) => timeline.type !== 'hashtag')
+        .filter((timeline, index, arr) => arr.findIndex((candidate) => candidate.id === timeline.id) === index);
+      setAssociatedTimelineChips(visibleAssociations);
+      setRemoveAssociationIds([]);
       if (initialEvent.url) {
         setUrlPreview({
           title: initialEvent.url_title || '',
@@ -284,9 +410,15 @@ const EventDialog = ({
     setTags([]);
     setCurrentTag('');
     setUrlPreview(null);
+    setDescriptionAppend('');
+    setExistingEditsText('');
+    setAssociatedTimelineChips([]);
+    setCreatorTimelineChip(null);
+    setRemoveAssociationIds([]);
   };
 
   const handleTypeChange = (event, newType) => {
+    if (!canEditType) return;
     if (newType !== null) {
       setEventType(newType);
     }
@@ -334,6 +466,7 @@ const EventDialog = ({
   }, [open, initialEvent, timelineName, timelineType]);
 
   const handleMediaChange = async (event) => {
+    if (!canEditMedia) return;
     const file = event.target.files[0];
     if (file) {
       setMediaFile(file);
@@ -394,7 +527,7 @@ const EventDialog = ({
   };
 
   const handleAddTag = () => {
-    if (isPersonalTimeline) {
+    if (isPersonalTimeline || !canEditTags) {
       setCurrentTag('');
       return;
     }
@@ -420,16 +553,25 @@ const EventDialog = ({
   };
 
   const handleRemoveTag = (tagToRemove) => {
+    if (!canEditTags) return;
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
+  const handleRemoveAssociatedTimeline = (timelineIdToRemove) => {
+    if (!canEditTags) return;
+    const targetTimeline = associatedTimelineChips.find((timeline) => timeline.id === timelineIdToRemove);
+    if (targetTimeline?.type === 'personal' && !isTierAEditor) {
+      return;
+    }
+    setAssociatedTimelineChips((prev) => prev.filter((timeline) => timeline.id !== timelineIdToRemove));
+    setRemoveAssociationIds((prev) => (prev.includes(timelineIdToRemove) ? prev : [...prev, timelineIdToRemove]));
+  };
+
   const handleSave = () => {
-    if (!title.trim()) {
+    if (!isEditing && !title.trim()) {
       // Show error or validation message
       return;
     }
-
-    const isEditing = Boolean(initialEvent);
 
     // Format the date directly from the components
     const year = eventDate.getFullYear();
@@ -453,16 +595,31 @@ const EventDialog = ({
     console.log('Created raw date string:', rawDateString);
     console.log('============================');
 
-    const eventData = {
-      title,
-      description,
-      type: eventType,
-      event_date: eventDate.toISOString(),
-      raw_event_date: rawDateString,
-      is_exact_user_time: true
-    };
+    const eventData = {};
 
-    if (eventType === EVENT_TYPES.NEWS && (urlPreview || url)) {
+    if (!isEditing || canEditTitle) {
+      eventData.title = title;
+    }
+
+    if (!isEditing || canEditType) {
+      eventData.type = eventType;
+    }
+
+    if (!isEditing || canEditDate) {
+      eventData.event_date = eventDate.toISOString();
+      eventData.raw_event_date = rawDateString;
+      eventData.is_exact_user_time = true;
+    }
+
+    if (!isEditing || canEditDescription) {
+      if (descriptionAppendOnly) {
+        eventData.description_append = descriptionAppend;
+      } else {
+        eventData.description = description;
+      }
+    }
+
+    if ((!isEditing || canEditUrl) && eventType === EVENT_TYPES.NEWS && (urlPreview || url)) {
       eventData.url = url;
       eventData.url_title = urlPreview?.title || initialEvent?.url_title || '';
       eventData.url_description = urlPreview?.description || initialEvent?.url_description || '';
@@ -470,7 +627,7 @@ const EventDialog = ({
       eventData.url_source = urlPreview?.source || initialEvent?.url_source || '';
     }
 
-    if (!isEditing && eventType === EVENT_TYPES.MEDIA && mediaUploadResult) {
+    if ((!isEditing || canEditMedia) && eventType === EVENT_TYPES.MEDIA && mediaUploadResult) {
       eventData.media_url = mediaUploadResult.url;
       eventData.media_type = mediaUploadResult.media_type;
       eventData.media_subtype = mediaUploadResult.media_subtype;
@@ -482,8 +639,11 @@ const EventDialog = ({
     }
 
     console.log('[EventDialog] Saving event with tags:', tags);
-    if (isEditing) {
+    if (isEditing && canEditTags) {
       eventData.tags = tags;
+      if (removeAssociationIds.length > 0) {
+        eventData.remove_association_ids = removeAssociationIds;
+      }
     } else if (tags.length > 0) {
       eventData.tags = tags;
     }
@@ -516,6 +676,32 @@ const EventDialog = ({
     return theme.palette.mode === 'dark' ? hoverColors.dark : hoverColors.light;
   };
 
+  const getAssociationChipTone = (associationType) => {
+    const normalizedType = String(associationType || '').toLowerCase();
+    const accent = normalizedType === 'community'
+      ? theme.palette.secondary.main
+      : (normalizedType === 'personal' ? theme.palette.primary.main : theme.palette.success.main);
+
+    return {
+      accent,
+      background: theme.palette.mode === 'dark' ? alpha(accent, 0.24) : alpha(accent, 0.12),
+      border: theme.palette.mode === 'dark' ? alpha(accent, 0.5) : alpha(accent, 0.42),
+    };
+  };
+
+  const getAssociationChipSx = (associationType) => {
+    const tone = getAssociationChipTone(associationType);
+    return {
+      bgcolor: tone.background,
+      color: tone.accent,
+      border: `1px solid ${tone.border}`,
+      '& .MuiChip-deleteIcon': {
+        color: tone.accent,
+        '&:hover': { color: tone.accent },
+      },
+    };
+  };
+
   const renderTypeSpecificFields = () => {
     switch (eventType) {
       case EVENT_TYPES.NEWS:
@@ -526,6 +712,7 @@ const EventDialog = ({
               label="Article URL"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              disabled={!canEditUrl}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -579,7 +766,7 @@ const EventDialog = ({
       case EVENT_TYPES.MEDIA:
         return (
           <Box sx={{ mt: 2 }}>
-            {initialEvent ? (
+            {isEditing && !canEditMedia ? (
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Media cannot be edited yet. Uploads are disabled during edit to avoid orphaned media.
               </Typography>
@@ -597,7 +784,7 @@ const EventDialog = ({
                 component="span"
                 variant="outlined"
                 startIcon={<UploadIcon />}
-                disabled={Boolean(initialEvent)}
+                disabled={!canEditMedia}
                 sx={{ 
                   width: '100%',
                   height: 100,
@@ -694,8 +881,8 @@ const EventDialog = ({
         <ToggleButtonGroup
           value={eventType}
           exclusive
-          onChange={initialEvent ? undefined : handleTypeChange}
-          disabled={Boolean(initialEvent)}
+          onChange={handleTypeChange}
+          disabled={!canEditType}
           aria-label="event type"
           sx={{ 
             width: '100%',
@@ -742,6 +929,7 @@ const EventDialog = ({
             onChange={(e) => setTitle(clampTitle(e.target.value))}
             helperText={`${title.length}/${EVENT_TITLE_MAX_LENGTH}`}
             inputProps={{ maxLength: EVENT_TITLE_MAX_LENGTH }}
+            disabled={!canEditTitle}
           />
 
           <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -750,6 +938,7 @@ const EventDialog = ({
               value={eventDate}
               onChange={setEventDate}
               renderInput={(params) => <TextField {...params} />}
+              disabled={!canEditDate}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
@@ -771,8 +960,43 @@ const EventDialog = ({
           <RichEditor
             value={description}
             onChange={setDescription}
-            disabled={false}
+            disabled={!canEditDescription}
+            readOnly={descriptionAppendOnly && canEditDescription}
+            label={descriptionAppendOnly ? 'Original Description' : 'Description'}
+            helperText={descriptionAppendOnly
+              ? 'Original text is locked for append-only editing.'
+              : 'Use @ # i- www. or ~123 to add mentions, links, and event references'}
           />
+
+          {descriptionAppendOnly && existingEditsText ? (
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 1.25,
+                backgroundColor: 'rgba(255,255,255,0.03)',
+              }}
+            >
+              <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
+                Edits made
+              </Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                {existingEditsText}
+              </Typography>
+            </Box>
+          ) : null}
+
+          {descriptionAppendOnly ? (
+            <RichEditor
+              value={descriptionAppend}
+              onChange={setDescriptionAppend}
+              disabled={!canEditDescription}
+              label="Add Edit"
+              rows={4}
+              helperText="Append your edit note. Existing content remains unchanged."
+            />
+          ) : null}
 
           <Box>
             <Box
@@ -795,14 +1019,14 @@ const EventDialog = ({
                       handleAddTag();
                     }
                   }}
-                  disabled={isPersonalTimeline}
+                  disabled={isPersonalTimeline || !canEditTags}
                   sx={{ flexGrow: 1 }}
                 />
                 <Tooltip title="Add Tag">
                   <span>
                     <IconButton
                       onClick={handleAddTag}
-                      disabled={isPersonalTimeline}
+                      disabled={isPersonalTimeline || !canEditTags}
                       sx={{
                         color: getTypeColor(),
                         '&:hover': { bgcolor: `${getTypeColor()}20` }
@@ -815,21 +1039,24 @@ const EventDialog = ({
               </Stack>
               {tags.length > 0 && (
                 <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {tags.map((tag) => (
-                    <Chip
-                      key={tag}
-                      label={typeof tag === 'string' ? tag : String(tag)}
-                      onDelete={() => handleRemoveTag(tag)}
-                      sx={{
-                        bgcolor: `${getTypeColor()}20`,
-                        color: getTypeColor(),
-                        '& .MuiChip-deleteIcon': {
+                  {tags.map((tag) => {
+                    const normalizedTagLabel = (typeof tag === 'string' ? tag : String(tag)).replace(/^#+/, '');
+                    return (
+                      <Chip
+                        key={tag}
+                        label={`#${normalizedTagLabel}`}
+                        onDelete={canEditTags ? () => handleRemoveTag(tag) : undefined}
+                        sx={{
+                          bgcolor: `${getTypeColor()}20`,
                           color: getTypeColor(),
-                          '&:hover': { color: getTypeColor() }
-                        }
-                      }}
-                    />
-                  ))}
+                          '& .MuiChip-deleteIcon': {
+                            color: getTypeColor(),
+                            '&:hover': { color: getTypeColor() }
+                          }
+                        }}
+                      />
+                    );
+                  })}
                 </Box>
               )}
 
@@ -846,6 +1073,42 @@ const EventDialog = ({
                 />
               ) : null}
             </Box>
+            {associatedTimelineChips.length > 0 ? (
+              <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {associatedTimelineChips.map((association) => {
+                  const prefix = association.type === 'community' ? 'i-' : (association.type === 'personal' ? 'My-' : '#');
+                  const isPersonalAssociation = association.type === 'personal';
+                  const canRemoveAssociation = canEditTags && (!isPersonalAssociation || isTierAEditor);
+                  return (
+                    <Box key={`assoc-${association.id}`} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                      <Chip
+                        label={`${prefix}${association.name}`}
+                        onDelete={canRemoveAssociation ? () => handleRemoveAssociatedTimeline(association.id) : undefined}
+                        sx={getAssociationChipSx(association.type)}
+                      />
+                      {isPersonalAssociation && !isTierAEditor ? (
+                        <Tooltip title="Personal associations are removable by Tier A editors only.">
+                          <LockOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        </Tooltip>
+                      ) : null}
+                    </Box>
+                  );
+                })}
+              </Box>
+            ) : null}
+
+            {creatorTimelineChip ? (
+              <Box sx={{ mt: 1, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                <Chip
+                  label={`${creatorTimelineChip.type === 'community' ? 'i-' : (creatorTimelineChip.type === 'personal' ? 'My-' : '#')}${creatorTimelineChip.name}`}
+                  sx={getAssociationChipSx(creatorTimelineChip.type)}
+                />
+                <Tooltip title="Creator timeline association is locked and cannot be removed.">
+                  <LockOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                </Tooltip>
+              </Box>
+            ) : null}
+
             {isPersonalTimeline ? (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                 Hashtags are disabled on personal timelines to prevent accidental public exposure.

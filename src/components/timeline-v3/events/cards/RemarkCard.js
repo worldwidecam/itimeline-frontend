@@ -25,6 +25,7 @@ import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import EventCardChipsRow from './EventCardChipsRow';
+import EventOriginTimelineBadge from './EventOriginTimelineBadge';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import VoteControls from '../VoteControls';
@@ -323,6 +324,7 @@ const RemarkCard = forwardRef(({
                   />
                 )}
               </Box>
+              <EventOriginTimelineBadge event={event} />
 
             </Box>
 

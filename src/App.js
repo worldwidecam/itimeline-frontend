@@ -63,8 +63,31 @@ const REQUIRED_USERNAME_CHANGE_ALIASES = new Set([
   REQUIRED_USERNAME_CHANGE_PATH,
   '/account/required-user-name-change',
 ]);
+const AUTH_RETURN_TO_KEY = 'auth_return_to';
 
 const isRequiredUsernameChangePath = (pathname = '') => REQUIRED_USERNAME_CHANGE_ALIASES.has(pathname);
+
+const buildReturnToUrl = (location) => `${location.pathname || ''}${location.search || ''}${location.hash || ''}`;
+
+const isGuestEligibleProtectedPath = (pathname = '') => {
+  if (pathname === '/home') return true;
+  if (pathname.startsWith('/timeline-v3/')) {
+    return !pathname.endsWith('/admin') && !pathname.endsWith('/members');
+  }
+  if (pathname === '/profile/guest') return true;
+  if (pathname.startsWith('/profile/')) {
+    return pathname !== '/profile/settings';
+  }
+  return false;
+};
+
+const persistAuthReturnTo = (location) => {
+  const returnTo = buildReturnToUrl(location);
+  if (!returnTo || returnTo === '/login' || returnTo === '/register') {
+    return;
+  }
+  localStorage.setItem(AUTH_RETURN_TO_KEY, returnTo);
+};
 
 const isForcedRenameRequired = (authUser) => {
   try {
@@ -90,11 +113,43 @@ const isForcedRenameRequired = (authUser) => {
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, loginAsGuest } = useAuth();
   const location = useLocation();
   const mustChangeUsername = isForcedRenameRequired(user);
+  const [guestBootstrapping, setGuestBootstrapping] = React.useState(false);
+  const [guestBootstrapFailed, setGuestBootstrapFailed] = React.useState(false);
+  const guestEligiblePath = isGuestEligibleProtectedPath(location.pathname);
 
-  if (loading) {
+  React.useEffect(() => {
+    let active = true;
+
+    const tryGuestBootstrap = async () => {
+      if (loading || user || !guestEligiblePath || guestBootstrapFailed) {
+        return;
+      }
+
+      persistAuthReturnTo(location);
+      setGuestBootstrapping(true);
+      try {
+        await loginAsGuest();
+      } catch (_error) {
+        if (active) {
+          setGuestBootstrapFailed(true);
+        }
+      } finally {
+        if (active) {
+          setGuestBootstrapping(false);
+        }
+      }
+    };
+
+    tryGuestBootstrap();
+    return () => {
+      active = false;
+    };
+  }, [guestBootstrapFailed, guestEligiblePath, loading, location, loginAsGuest, user]);
+
+  if (loading || guestBootstrapping) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -103,7 +158,8 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    persistAuthReturnTo(location);
+    return <Navigate to="/login" replace />;
   }
 
   if (mustChangeUsername && !isRequiredUsernameChangePath(location.pathname)) {

@@ -2339,10 +2339,12 @@ const handleViewModeTransition = (newViewMode) => {
   const handleEventSubmit = async (eventData) => {
     try {
       if (editingEvent?.id) {
-        const response = await api.patch(`/api/v1/timeline-v3/${timelineId}/events/${editingEvent.id}`, {
-          ...eventData,
-          tags: Array.isArray(eventData.tags) ? eventData.tags : []
-        });
+        const patchPayload = { ...eventData };
+        if (Object.prototype.hasOwnProperty.call(patchPayload, 'tags') && !Array.isArray(patchPayload.tags)) {
+          delete patchPayload.tags;
+        }
+
+        const response = await api.patch(`/api/v1/timeline-v3/${timelineId}/events/${editingEvent.id}`, patchPayload);
 
         const updatedEvent = response.data;
         setEvents((prev) => {
@@ -2525,7 +2527,11 @@ const handleViewModeTransition = (newViewMode) => {
       console.error('Error response:', error.response);
       console.error('Error request:', error.request);
       if (editingEvent?.id) {
-        setSnackbarMessage(error.response?.data?.message || 'Failed to update event');
+        const responseData = error.response?.data || {};
+        const violationMessage = Array.isArray(responseData.violations) && responseData.violations.length > 0
+          ? `Edit blocked: ${responseData.violations.map((v) => v?.field).filter(Boolean).join(', ')}`
+          : null;
+        setSnackbarMessage(violationMessage || responseData.message || 'Failed to update event');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
@@ -2535,7 +2541,7 @@ const handleViewModeTransition = (newViewMode) => {
     }
   };
 
-  const handleEventEdit = (event) => {
+  const handleEventEdit = async (event) => {
     // Check if this is a selection action from the menu click
     if (event && event.type === 'select' && event.event) {
       // This is a selection action, so just select the event
@@ -2549,10 +2555,37 @@ const handleViewModeTransition = (newViewMode) => {
       // The card component will handle opening its own popup
       return;
     }
-    
-    // Normal edit behavior
-    setEditingEvent(event);
-    setDialogOpen(true);
+
+    const eventId = event?.id;
+    if (!eventId || !timelineId) {
+      return;
+    }
+
+    try {
+      const response = await api.get(`/api/v1/timeline-v3/${timelineId}/events/${eventId}`);
+      const canonicalEvent = response?.data;
+      if (!canonicalEvent?.id) {
+        setSnackbarMessage('Unable to open editor for this event');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      if (canonicalEvent?.edit_permissions && canonicalEvent.edit_permissions.can_edit === false) {
+        setSnackbarMessage('You do not have permission to edit this event');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      setEditingEvent(canonicalEvent);
+      setDialogOpen(true);
+    } catch (editFetchError) {
+      console.error('Error loading event for edit:', editFetchError);
+      setSnackbarMessage('Failed to load event editor');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
   };
   
   // Add the missing handleEventDelete function

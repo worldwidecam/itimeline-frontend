@@ -592,16 +592,33 @@ const EventPopup = ({
 
   // Current user (from localStorage) for personal ownership checks
   let currentUserId = null;
+  let isSiteAdmin = false;
   try {
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     currentUserId = userData?.id || null;
+
+    const passportKey = currentUserId ? `user_passport_${currentUserId}` : null;
+    if (passportKey) {
+      const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
+      isSiteAdmin = Boolean(passport?.is_site_admin);
+    }
   } catch (_) {}
 
   const isSiteOwner = String(currentUserId) === '1';
   const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
   const isEditLocked = Boolean(event?.edit_locked || localEventData?.edit_locked);
+  const editPermissions = (localEventData?.edit_permissions || event?.edit_permissions) || null;
+  const canEditByResolvedPermissions = editPermissions ? Boolean(editPermissions.can_edit) : false;
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
-  const canEdit = Boolean(onEdit && (isSiteOwner || (isEventCreator && !isEditLocked)));
+  const canEdit = Boolean(
+    onEdit
+    && (
+      canEditByResolvedPermissions
+      || isSiteOwner
+      || isSiteAdmin
+      || (isEventCreator && !isEditLocked)
+    )
+  );
   const canOpenActionMenu = !isGuest && (canEdit || canDelete || !isSafeguarded);
 
   // Option sources per lane

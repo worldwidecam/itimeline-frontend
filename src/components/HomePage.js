@@ -6035,8 +6035,8 @@ const HomePage = () => {
             event={heroEventPopupEvent}
             open
             onClose={() => setHeroEventPopupEvent(null)}
-            onDelete={() => {}}
-            onEdit={() => {}}
+            onDelete={undefined}
+            onEdit={undefined}
             setIsPopupOpen={() => {}}
             reviewingEventIds={EMPTY_REVIEWING_EVENT_IDS}
           />

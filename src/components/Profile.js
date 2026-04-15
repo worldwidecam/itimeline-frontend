@@ -1463,8 +1463,8 @@ const Profile = () => {
           event={profileModulePopupEvent}
           open
           onClose={() => setProfileModulePopupEvent(null)}
-          onDelete={() => {}}
-          onEdit={() => {}}
+          onDelete={undefined}
+          onEdit={undefined}
           setIsPopupOpen={() => {}}
         />
       ) : null}

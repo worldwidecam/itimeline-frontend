@@ -880,7 +880,7 @@ function Navbar() {
           <Typography
             variant="h6"
             component={RouterLink}
-            to="/"
+            to={user ? '/home' : '/'}
             sx={{ textDecoration: 'none', color: 'inherit', mr: 2, flexShrink: 0 }}
           >
             Timeline Forum
