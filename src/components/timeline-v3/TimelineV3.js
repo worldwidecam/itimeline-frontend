@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar } from '@mui/material';
+import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -1036,7 +1036,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const isCommunityTimeline = timeline_type === 'community';
   const isHashtagTimeline = timeline_type === 'hashtag';
   const isGuestUser = Boolean(user) && (user?.role === 'guest' || !(Number(user?.id) > 0));
-  const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false && !user?.must_change_username;
+  const canCreateOrReport = Boolean(user) && !isGuestUser && user?.can_post_or_report !== false && !user?.must_change_username;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = (Number(user?.id) === 1) || siteRole === 'SiteOwner';
   const canCreateTimelineEvents = canCreateOrReport && (!isPersonalTimeline || isCreator || isSiteOwner);
@@ -1053,7 +1053,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     isMember === true
     && canCreateOrReport
     && (!isCommunityTimeline || meetsCommunityRoleRestriction);
-  const canOpenCommunityActionFab = (isMember === true && canCreateOrReport) || isGuestUser;
+  const canOpenCommunityActionFab = isMember === true && canCreateOrReport;
   const canCreateEventAction =
     canCreateTimelineEvents
     && (!isCommunityTimeline || canCreateCommunityEvents);
@@ -3065,13 +3065,66 @@ const handleRecenter = () => {
   }, FADE_OUT_DELAY_MS);
 };
 
-  const isPersonalRoute = !!(routeUsername && routeSlug);
+  const shouldShowInitialTimelineShell = Boolean(timelineId && timelineId !== 'new') && (joinLoading || isLoading);
+  const shouldShowEventListShell = progressiveLoadingState === 'timeline';
 
-  // For personal timeline URLs, don't render the main UI while membership/lock is still loading.
-  // This prevents a brief flash of the timeline header/Add Event button before we know if the
-  // user is allowed or locked.
-  if (isPersonalRoute && joinLoading) {
-    return <Box sx={{ minHeight: '100vh' }} />;
+  // Prevent a brief flash of privileged timeline UI while access/membership is still resolving.
+  // Mirrors the skeleton-first behavior used in members/admin surfaces.
+  if (shouldShowInitialTimelineShell) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          px: { xs: 1.5, sm: 2 },
+          py: 2,
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: '100%',
+            borderRadius: 2,
+            border: `1px solid ${timelineSurfaces.shellBorder}`,
+            background: timelineSurfaces.shell,
+            ...(timelineSurfaces.shellBlur !== 'none' ? { backdropFilter: timelineSurfaces.shellBlur } : {}),
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+            p: { xs: 1.5, sm: 2 },
+          }}
+        >
+          <Box
+            sx={{
+              height: 40,
+              width: { xs: '72%', sm: 360 },
+              borderRadius: 1,
+              mb: 2,
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.16) 45%, rgba(255,255,255,0.06) 100%)'
+                : 'linear-gradient(90deg, rgba(15,23,42,0.06) 0%, rgba(15,23,42,0.14) 45%, rgba(15,23,42,0.06) 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'timeline-shell-shimmer 1.25s linear infinite',
+              '@keyframes timeline-shell-shimmer': {
+                '0%': { backgroundPosition: '200% 0' },
+                '100%': { backgroundPosition: '-200% 0' },
+              },
+            }}
+          />
+          <Box
+            sx={{
+              minHeight: { xs: 300, sm: 360 },
+              borderRadius: 1.5,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.1)'}`,
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 100%)'
+                : 'linear-gradient(180deg, rgba(15,23,42,0.03) 0%, rgba(15,23,42,0.06) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CircularProgress size={28} />
+          </Box>
+        </Box>
+      </Box>
+    );
   }
 
   if (!joinLoading && hookStatus === 'banned') {
@@ -3250,7 +3303,7 @@ const handleRecenter = () => {
                     />
                   )
                 )
-              ) : isHashtagTimeline ? (
+              ) : (isHashtagTimeline && !isGuestUser) ? (
                 <Button
                   onClick={handleToggleHashtagFollow}
                   variant={isFollowingHashtag ? 'outlined' : 'contained'}
@@ -3921,8 +3974,55 @@ const handleRecenter = () => {
           </Box>
         )}
         
-        {/* Event List - Only show when not in timeline loading state */}
-        {progressiveLoadingState !== 'timeline' && (
+        {/* Event List shell for initial timeline stage to avoid abrupt list pop-in */}
+        {shouldShowEventListShell ? (
+          <Box
+            sx={{
+              px: { xs: 1, sm: 0.5 },
+              pb: 1,
+              transform: 'scale(0.995)',
+              transformOrigin: 'top center',
+              transition: 'transform 320ms ease, opacity 320ms ease',
+              opacity: 0.92,
+            }}
+          >
+            <Box
+              sx={{
+                mb: 1.5,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.1)'}`,
+                background: theme.palette.mode === 'dark'
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.06) 100%)'
+                  : 'linear-gradient(180deg, rgba(15,23,42,0.03) 0%, rgba(15,23,42,0.05) 100%)',
+                p: 1.5,
+              }}
+            >
+              <Skeleton variant="text" width="34%" height={26} sx={{ mb: 0.5 }} />
+              <Skeleton variant="text" width="22%" height={20} />
+            </Box>
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <Box
+                key={`event-list-shell-row-${idx}`}
+                sx={{
+                  mb: 1.2,
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.08)'}`,
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 100%)'
+                    : 'linear-gradient(180deg, rgba(15,23,42,0.025) 0%, rgba(15,23,42,0.045) 100%)',
+                  p: 1.5,
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'center' }}>
+                  <Skeleton variant="text" width="56%" height={24} />
+                  <Skeleton variant="rounded" width={86} height={22} />
+                </Box>
+                <Skeleton variant="text" width="76%" height={20} />
+                <Skeleton variant="text" width="68%" height={20} />
+              </Box>
+            ))}
+          </Box>
+        ) : (
           <EventList
             events={isSettled ? events : []}
             onEventEdit={handleEventEdit}
@@ -4119,7 +4219,7 @@ const handleRecenter = () => {
             overlayText="Tap to Share"
           />
         ) : null}
-        {timeline_type !== 'community' ? (
+        {timeline_type !== 'community' && !isGuestUser ? (
           <NavFab
             pathname={location.pathname}
             expanded={floatingButtonsExpanded}

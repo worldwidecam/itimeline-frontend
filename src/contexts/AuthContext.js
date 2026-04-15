@@ -443,15 +443,8 @@ export const AuthProvider = ({ children }) => {
         // No valid real tokens — check for a persisted guest session
         const guestSession = localStorage.getItem('guest_session');
         if (guestSession === 'true') {
-          console.log('[Auth] Restoring guest session from localStorage');
-          setUser({
-            id: null,
-            username: 'Goblin',
-            avatar_url: '/images/GUEST_img.png',
-            email: null,
-            role: 'guest',
-          });
-          setIsGuest(true);
+          console.log('[Auth] Rehydrating guest session with fresh token');
+          await loginAsGuest();
           setLoading(false);
           return;
         }
