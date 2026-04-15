@@ -3,7 +3,7 @@
 ## Main Goal
 - [ ] FULL WEBSITE IMPLEMENTATION
 
-## Current Focus
+## Current Focus / Main Parent TODO
 - [x] DB REPOSITORY ALIGNMENT — Canonical iTimeline-DB model integration completed and backend verified.
 - [ ] ANONYMOUS GUEST implementation — Active (Partially implemented)
 
@@ -14,6 +14,16 @@
 - Ensure public/non-private shared links are accessible without forced-login dead ends.
 - Fix auth handoff so post-login continues to the originally requested destination.
 - guest mode implementation snapshot: manual Goblin entry exists on login/register, guest token is superseded by real login, Home tabs now enforce guest limitations (popular/search allowed; blocked states for restricted hubs), guest navbar uses Join CTA in place of hamburger, and guest profile route (`/profile/guest`) is wired with Goblin avatar. Home-page guest-mode pass is considered complete; next focus moves to profile/timeline/link-entry nuance.
+
+## Active Tangents (tasks that take temporary precedent over sub-TODOs)
+
+- [x] (Tangent Queue / EventPopup) Fix hashtag chip navigation fallback that incorrectly opens `/timeline-v3/new?name=...` even when the hashtag timeline already exists.
+- [ ] (Tangent Queue / Privacy Policy) Decide and enforce whether non-owner viewers may add hashtag/community associations from private personal events.
+- [ ] (Tangent Queue / Discoverability) Decide whether to add a “shared personal timelines” surface (for example: Shared With Me list/module) or intentionally keep link-only access.
+- [ ] (Tangent Queue / Event Edit Policy) Define strict rules for post edit-mode scope and anti-misrepresentation guardrails.
+- [ ] (Tangent Queue / EventPopup Bug) Investigate broken EventPopup edit flow where clicking Edit returns no editable fields.
+- [ ] (Execution Guard) After tangent queue is complete, immediately resume Guest Mode execution starting at: `(Guest Mode) Guest mode auto handling people visiting from links they were shared.`
+
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [x] Audit backend `app.py` and `routes/` to identify all internal model definitions that should be in `iTimeline-DB`.
@@ -32,7 +42,6 @@
 - [ ] (Guest Mode / Community) Validate cross-tab/new-tab behavior for guest navigation from rich chips and deep links.
 - [ ] (Guest Mode / Community + Home) Remove guest join/follow affordances across user cards, timeline cards, and community controls.
 - [ ] (Guest Mode / Community) Define denied `~event` chip UX (what guest/non-allowed users see when event reference is blocked).
-
 - [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
 - [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).
 - [ ] Phase 1B — Profile Settings controls: add Home init preference toggle/select with only `popular|home` options.

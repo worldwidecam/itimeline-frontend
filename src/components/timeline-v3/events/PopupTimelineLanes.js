@@ -26,6 +26,7 @@ import {
   Person as PersonIcon
 } from '@mui/icons-material';
 import HashtagIcon from '../../common/HashtagIcon';
+import api from '../../../utils/api';
 
 const stringToColor = (str) => {
   let hash = 0;
@@ -646,8 +647,15 @@ const PopupTimelineLanes = ({
             py: 3,
           }}
         >
-          <Typography sx={{ fontWeight: 800, color: 'warning.dark' }}>
-            WARNING!: adding or tagging this post will no longer make this post Private!
+          <Typography sx={{ fontWeight: 800, color: 'warning.dark', fontSize: '0.95rem' }}>
+            Privacy Notice
+          </Typography>
+          <Typography sx={{ fontWeight: 600, color: 'warning.dark', maxWidth: 520 }}>
+            This event is currently in a private context (personal timeline or private timeline).
+          </Typography>
+          <Typography sx={{ color: 'warning.dark', maxWidth: 520 }}>
+            Adding or changing timeline associations can increase who can discover this event.
+            Continue only if you want to proceed.
           </Typography>
           <Button
             variant="contained"
@@ -655,7 +663,7 @@ const PopupTimelineLanes = ({
             onClick={onAcknowledgePrivacyWarning}
             sx={{ textTransform: 'none', fontWeight: 700 }}
           >
-            I understand
+            I understand, continue
           </Button>
         </Box>
       ) : null}

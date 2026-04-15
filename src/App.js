@@ -115,7 +115,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Auth Route component - Shows Homepage for authenticated users, LandingPage for non-authenticated
 const AuthRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isGuest } = useAuth();
   const mustChangeUsername = isForcedRenameRequired(user);
 
   if (loading) {
@@ -127,6 +127,10 @@ const AuthRoute = ({ children }) => {
   }
 
   if (!user) {
+    return children;
+  }
+
+  if (isGuest) {
     return children;
   }
 

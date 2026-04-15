@@ -214,14 +214,27 @@ const resolveHeroCtaTarget = (rawHref) => {
 
 const getTimelineHeroLandscapeImageUrl = (timeline) => String(
   timeline?.cover_landscape_image_url
+  || timeline?.coverLandscapeImageUrl
   || timeline?.cover_landscape_url
+  || timeline?.coverLandscapeUrl
   || timeline?.landscape_image_url
+  || timeline?.landscapeImageUrl
   || timeline?.banner_url
+  || timeline?.bannerUrl
   || timeline?.cover_image_url
+  || timeline?.coverImageUrl
+  || timeline?.cover_portrait_image_url
+  || timeline?.coverPortraitImageUrl
+  || timeline?.cover_portrait_url
+  || timeline?.coverPortraitUrl
   || timeline?.cover_url
+  || timeline?.coverUrl
   || timeline?.background_image_url
+  || timeline?.backgroundImageUrl
   || timeline?.image_url
+  || timeline?.imageUrl
   || timeline?.thumbnail_url
+  || timeline?.thumbnailUrl
   || '',
 ).trim();
 

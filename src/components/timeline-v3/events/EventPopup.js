@@ -569,7 +569,16 @@ const EventPopup = ({
     || currentTimelineFromCatalog?.type
     || '',
   ).toLowerCase();
+  const currentTimelineVisibility = String(
+    currentTimelineFromEvent?.visibility
+    || currentTimelineFromEvent?.timeline_visibility
+    || currentTimelineFromCatalog?.visibility
+    || currentTimelineFromCatalog?.timeline_visibility
+    || '',
+  ).toLowerCase();
   const isCurrentTimelinePersonal = currentTimelineType === 'personal';
+  const isCurrentTimelinePrivate = currentTimelineVisibility === 'private';
+  const showAssociationPrivacyWarningGate = (isCurrentTimelinePersonal || isCurrentTimelinePrivate) && !hasAcknowledgedPrivacyWarning;
   const hashtagTags = ((localEventData?.tags || event.tags) || []).map((t) => {
     if (typeof t === 'string') return t;
     return t?.name || t?.tag_name || '';
@@ -787,7 +796,7 @@ const EventPopup = ({
     error,
     success,
     currentUserId,
-    showPrivacyWarningGate: isCurrentTimelinePersonal && !hasAcknowledgedPrivacyWarning,
+    showPrivacyWarningGate: showAssociationPrivacyWarningGate,
     onAcknowledgePrivacyWarning: () => setHasAcknowledgedPrivacyWarning(true),
   };
 

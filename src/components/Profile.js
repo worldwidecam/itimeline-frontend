@@ -29,6 +29,9 @@ import { alpha, useTheme } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import LockIcon from '@mui/icons-material/Lock';
+import HomeIcon from '@mui/icons-material/Home';
+import LoginIcon from '@mui/icons-material/Login';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -466,9 +469,12 @@ const Profile = () => {
         setProfileAccessLocked(false);
         
         if (isOwnProfile) {
-          setProfileAccessVisibility('public');
           setProfileAccessMessage('');
           const hasNumericUserId = Number(user?.id) > 0;
+          const ownStoredVisibility = hasNumericUserId
+            ? String(localStorage.getItem(`profile_visibility_user_${user.id}`) || 'public').trim().toLowerCase()
+            : 'public';
+          setProfileAccessVisibility(ownStoredVisibility === 'private' ? 'private' : 'public');
 
           if (isGuestProfileRoute || isGuest || !hasNumericUserId) {
             setProfileUser({
@@ -491,6 +497,10 @@ const Profile = () => {
             try {
               const userResponse = await api.get(`/api/users/${user.id}`);
               setProfileUser(userResponse.data);
+              const ownApiVisibility = String(userResponse?.data?.profile_visibility || ownStoredVisibility || 'public').trim().toLowerCase();
+              const normalizedOwnVisibility = ownApiVisibility === 'private' ? 'private' : 'public';
+              setProfileAccessVisibility(normalizedOwnVisibility);
+              localStorage.setItem(`profile_visibility_user_${user.id}`, normalizedOwnVisibility);
             } catch (userError) {
               console.error('Error fetching own profile data:', userError);
               // Fallback to AuthContext user data if API call fails
@@ -802,6 +812,155 @@ const Profile = () => {
   }
 
   if (profileAccessLocked && !isOwnProfile) {
+    if (isGuest) {
+      return (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            overflow: 'auto',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '100vh',
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, #2a1a1a 0%, #1d2336 52%, #12212f 100%)'
+                : 'linear-gradient(135deg, #f97373 0%, #f59e0b 46%, #fb7185 100%)',
+              position: 'relative',
+              overflow: 'hidden',
+              px: 3,
+            }}
+          >
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '-12%',
+                right: '-8%',
+                width: '42%',
+                height: '42%',
+                borderRadius: '50%',
+                background: theme.palette.mode === 'dark'
+                  ? 'rgba(248, 113, 113, 0.16)'
+                  : 'rgba(255, 255, 255, 0.25)',
+                filter: 'blur(70px)',
+              }}
+            />
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: '-14%',
+                left: '-10%',
+                width: '46%',
+                height: '46%',
+                borderRadius: '50%',
+                background: theme.palette.mode === 'dark'
+                  ? 'rgba(56, 189, 248, 0.12)'
+                  : 'rgba(255, 255, 255, 0.2)',
+                filter: 'blur(76px)',
+              }}
+            />
+
+            <Stack spacing={3} sx={{ alignItems: 'center', textAlign: 'center', zIndex: 1, maxWidth: 640 }}>
+              <Box
+                sx={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.3)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 8px 32px rgba(0,0,0,0.35)'
+                    : '0 8px 32px rgba(0,0,0,0.14)',
+                }}
+              >
+                <LockIcon sx={{ fontSize: 64, color: '#fff' }} />
+              </Box>
+
+              <Typography
+                variant="h3"
+                sx={{
+                  color: '#fff',
+                  fontWeight: 800,
+                  textShadow: '0 2px 14px rgba(0,0,0,0.3)',
+                }}
+              >
+                Private Profile
+              </Typography>
+
+              <Typography
+                variant="h6"
+                sx={{
+                  color: 'rgba(255,255,255,0.95)',
+                  maxWidth: 560,
+                  lineHeight: 1.5,
+                }}
+              >
+                This profile is private. In Goblin Mode, private profiles require a real account login.
+              </Typography>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ pt: 0.5 }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<HomeIcon />}
+                  onClick={() => navigate('/home')}
+                  sx={{
+                    px: 3.5,
+                    py: 1.2,
+                    borderRadius: '50px',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    color: '#fff',
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.35)',
+                    backdropFilter: 'blur(10px)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.32)',
+                    },
+                  }}
+                >
+                  Go to Home
+                </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<LoginIcon />}
+                  onClick={() => navigate('/login', { replace: true })}
+                  sx={{
+                    px: 3.5,
+                    py: 1.2,
+                    borderRadius: '50px',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    color: '#fff',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.72)' : 'rgba(220,38,38,0.78)',
+                    border: '2px solid rgba(255,255,255,0.35)',
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(248,113,113,0.78)' : 'rgba(239,68,68,0.84)',
+                    },
+                  }}
+                >
+                  Login
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        </Box>
+      );
+    }
+
     return (
       <Box
         sx={{
@@ -946,6 +1105,7 @@ const Profile = () => {
       
       <Container maxWidth="md">
         <Paper sx={{ 
+          position: 'relative',
           p: 4, 
           backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(10px)',
@@ -954,6 +1114,20 @@ const Profile = () => {
           borderColor: profileIdentityColor ? alpha(profileIdentityColor, 0.9) : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.18)'),
           boxShadow: profileContainerGlow,
         }}>
+          {profileAccessVisibility === 'private' ? (
+            <LockIcon
+              sx={{
+                position: 'absolute',
+                top: { xs: 16, sm: 20 },
+                right: { xs: 16, sm: 20 },
+                fontSize: { xs: 70, sm: 98 },
+                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.14)',
+                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.16))',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+          ) : null}
           <Grid container spacing={4}>
             {/* Profile Header */}
             <Grid item xs={12}>
@@ -1270,7 +1444,7 @@ const Profile = () => {
             imageClassName: 'profile-share-card-image',
             overlayClassName: 'profile-share-card-overlay',
             imageSx: {
-              objectFit: 'contain',
+              objectFit: 'cover',
               filter: 'brightness(1.08) saturate(1.08)',
               transform: profileShareCardTransform,
             },

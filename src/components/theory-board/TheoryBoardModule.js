@@ -1449,6 +1449,8 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
               const isEventReference = Boolean(eventMatch);
               const eventId = isEventReference ? Number(eventMatch[1]) : null;
               const preview = eventId ? eventPreviewCache[eventId] : null;
+              const previewEvent = preview?.fullEvent || preview?.resolved || null;
+              const canOpenResolvedEventReference = Boolean(isEventReference && eventId && previewEvent?.id);
               const richPayload = isEventReference ? null : toRichContentPayload(contentText);
               const isChipOnlyContent = Boolean(richPayload?.content?.length)
                 && richPayload.content.every((item) => (
@@ -1461,10 +1463,10 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();
-                    if (!isEventReference || !eventId) return;
+                    if (!canOpenResolvedEventReference) return;
                     handleOpenEventReference({
                       eventId,
-                      resolvedEvent: preview?.fullEvent || preview?.resolved || null,
+                      resolvedEvent: previewEvent,
                     });
                   }}
                   sx={{
@@ -1492,27 +1494,76 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     p: (isChipOnlyContent || isEventReference) ? 0 : 0.8,
                     zIndex: 2,
                     transform: 'translateX(-50%)',
-                    cursor: isEventReference ? 'pointer' : 'default',
+                    cursor: canOpenResolvedEventReference ? 'pointer' : 'default',
                     overflowWrap: 'anywhere',
                     wordBreak: 'break-word',
                   }}
                 >
                   {isEventReference ? (
                     (() => {
-                      const previewEvent = preview?.fullEvent || preview?.resolved || null;
                       if (!previewEvent?.id) {
                         return (
                           <Paper
                             elevation={2}
                             sx={{
-                              px: 1,
-                              py: 0.75,
-                              borderRadius: 1,
+                              position: 'relative',
+                              px: 1.2,
+                              py: 0.95,
+                              borderRadius: 1.2,
+                              minWidth: 188,
+                              border: '1px solid rgba(255,255,255,0.34)',
+                              bgcolor: theme.palette.mode === 'dark'
+                                ? 'rgba(18, 20, 24, 0.84)'
+                                : 'rgba(250, 251, 255, 0.84)',
+                              boxShadow: theme.palette.mode === 'dark'
+                                ? '0 10px 24px rgba(0,0,0,0.36)'
+                                : '0 10px 24px rgba(15,23,42,0.16)',
+                              overflow: 'hidden',
                             }}
                           >
-                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                              {`Event ${eventId}`}
-                            </Typography>
+                            <Box
+                              sx={{
+                                filter: 'blur(2.8px)',
+                                opacity: 0.62,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.8,
+                              }}
+                            >
+                              <EventOutlinedIcon sx={{ fontSize: 18 }} />
+                              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                {`~${eventId}`}
+                              </Typography>
+                            </Box>
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backdropFilter: 'blur(3px)',
+                                background: theme.palette.mode === 'dark'
+                                  ? 'linear-gradient(145deg, rgba(146,27,27,0.38), rgba(24,24,24,0.48))'
+                                  : 'linear-gradient(145deg, rgba(146,27,27,0.28), rgba(255,255,255,0.46))',
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  px: 0.9,
+                                  py: 0.25,
+                                  borderRadius: 0.8,
+                                  fontWeight: 900,
+                                  letterSpacing: 1.05,
+                                  color: '#fff',
+                                  bgcolor: 'rgba(180, 30, 30, 0.88)',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                PRIVATE
+                              </Typography>
+                            </Box>
                           </Paper>
                         );
                       }
