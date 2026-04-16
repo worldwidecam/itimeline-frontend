@@ -1175,33 +1175,38 @@ const AudioWaveformVisualizer = forwardRef(({
     cleanupAudio();
     
     // Initialize audio element
-    if (audioRef.current) {
+    const audioEl = audioRef.current;
+    if (audioEl) {
       try {
         console.log('Setting up new audio element...');
         
         // Store the current time to restore it after reload
-        const currentTime = audioRef.current.currentTime;
+        const currentTime = Number(audioEl.currentTime) || 0;
         
         // Clear any existing sources
-        audioRef.current.pause();
-        audioRef.current.removeAttribute('src');
-        audioRef.current.load();
+        audioEl.pause();
+        audioEl.removeAttribute('src');
+        audioEl.load();
         
         // Set up new source
-        audioRef.current.src = audioUrl;
-        audioRef.current.crossOrigin = "anonymous";
-        audioRef.current.preload = "auto";
+        audioEl.src = audioUrl;
+        audioEl.crossOrigin = 'anonymous';
+        audioEl.preload = 'auto';
         
         // Set up event listeners
         const handleLoadedMetadata = () => {
-          console.log('Audio metadata loaded, duration:', audioRef.current.duration);
-          setDuration(audioRef.current.duration);
+          const loadedDuration = Number(audioEl.duration);
+          if (!Number.isFinite(loadedDuration) || loadedDuration <= 0) {
+            return;
+          }
+          console.log('Audio metadata loaded, duration:', loadedDuration);
+          setDuration(loadedDuration);
           setAudioLoaded(true);
           
           // Restore previous time if it was set
           if (currentTime > 0) {
             console.log('Restoring previous playback time:', currentTime);
-            audioRef.current.currentTime = currentTime;
+            audioEl.currentTime = currentTime;
           }
         };
         
@@ -1221,19 +1226,17 @@ const AudioWaveformVisualizer = forwardRef(({
           setCurrentTime(0);
         };
         
-        audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-        audioRef.current.addEventListener('error', handleError);
-        audioRef.current.addEventListener('ended', handleEnded);
+        audioEl.addEventListener('loadedmetadata', handleLoadedMetadata);
+        audioEl.addEventListener('error', handleError);
+        audioEl.addEventListener('ended', handleEnded);
         
         // Start loading the audio
-        audioRef.current.load();
+        audioEl.load();
         
         return () => {
-          if (audioRef.current) {
-            audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            audioRef.current.removeEventListener('error', handleError);
-            audioRef.current.removeEventListener('ended', handleEnded);
-          }
+          audioEl.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          audioEl.removeEventListener('error', handleError);
+          audioEl.removeEventListener('ended', handleEnded);
         };
       } catch (err) {
         console.error('Error initializing audio element:', err);

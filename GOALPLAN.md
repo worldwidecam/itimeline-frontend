@@ -4,8 +4,9 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus / Main Parent TODO
+- [ ] TIMELINE CARD REVAMP — Active (artistic redesign + responsive hardening)
 - [x] DB REPOSITORY ALIGNMENT — Canonical iTimeline-DB model integration completed and backend verified.
-- [ ] ANONYMOUS GUEST implementation — Active (Partially implemented)
+- [x] ANONYMOUS GUEST implementation — Active (Partially implemented)
 
 ## Scope / Context understanding
 - Define Anonymous Guest product rules (capabilities, restrictions, conversion points, moderation/risk limits).
@@ -28,9 +29,9 @@
 - [x] (Tangent Queue / EventPopup) Fix hashtag chip navigation fallback that incorrectly opens `/timeline-v3/new?name=...` even when the hashtag timeline already exists.
 - [ ] (Tangent Queue / Privacy Policy) Decide and enforce whether non-owner viewers may add hashtag/community associations from private personal events.
 - [ ] (Tangent Queue / Discoverability) Decide whether to add a “shared personal timelines” surface (for example: Shared With Me list/module) or intentionally keep link-only access.
-- [ ] (Tangent Queue / Event Edit Policy) Define strict rules for post edit-mode scope and anti-misrepresentation guardrails.
-- [ ] (Tangent Queue / EventPopup Bug) Investigate broken EventPopup edit flow where clicking Edit returns no editable fields.
-- [ ] (Tangent Queue / EventDialog Tag UX) Update EventDialog edit form to recognize, visualize, and allow removal of existing community/personal association chips (form still only creates hashtag tags).
+- [x] (Tangent Queue / Event Edit Policy) Define strict rules for post edit-mode scope and anti-misrepresentation guardrails.
+- [x] (Tangent Queue / EventPopup Bug) Investigate broken EventPopup edit flow where clicking Edit returns no editable fields.
+- [x] (Tangent Queue / EventDialog Tag UX) Update EventDialog edit form to recognize, visualize, and allow removal of existing community/personal association chips (form still only creates hashtag tags).
 - [ ] (Tangent Queue / Media Merge Tooling) Ideate high-tier report decision feature for duplicate/redundant media events (choose surviving event ID and merge/retain associations safely).
 - [ ] (Execution Guard) After tangent queue is complete, immediately resume Guest Mode execution starting at: `(Guest Mode) Guest mode auto handling people visiting from links they were shared.`
 
@@ -42,16 +43,16 @@
 - [x] Resolve the `db = None` initialization flaw in `iTimeline-DB` package so it can be reliably imported without fallbacks.
 - [ ] (Guest Mode) Clean up the `api/auth/validate` and `sync` routes once the model transition is stable.
 - [x] (Guest Mode) Home page complete implementation/limitations.
-- [ ] (Guest Mode) Guest profile complete implementation/limitations.
-- [ ] (Guest Mode) Guest mode regarding timeline pages.
-- [ ] (Guest Mode) Guest mode auto handling people visiting from links they were shared.
-- [ ] (Guest Mode / Share Pages) Define guest interpretation + route guard behavior for `/share/profile/:id` and `/share/timeline/:id` entry flows.
-- [ ] (Guest Mode / Community) Endpoint parity audit for guest + private ACL coverage across community timeline read paths.
-- [ ] (Guest Mode / Community) Standardize private-denied API response payload contract (status + code + message) without collapsing existing lock/redirect UI variants.
-- [ ] (Guest Mode / Community) Prevent private timeline metadata leaks on first paint (timeline-page access-loading buffer/guard before content render).
-- [ ] (Guest Mode / Community) Validate cross-tab/new-tab behavior for guest navigation from rich chips and deep links.
-- [ ] (Guest Mode / Community + Home) Remove guest join/follow affordances across user cards, timeline cards, and community controls.
-- [ ] (Guest Mode / Community) Define denied `~event` chip UX (what guest/non-allowed users see when event reference is blocked).
+- [x] (Guest Mode) Guest profile complete implementation/limitations.
+- [x] (Guest Mode) Guest mode regarding timeline pages.
+- [x] (Guest Mode) Guest mode auto handling people visiting from links they were shared.
+- [x] (Guest Mode / Share Pages) Define guest interpretation + route guard behavior for `/share/profile/:id` and `/share/timeline/:id` entry flows.
+- [x] (Guest Mode / Community) Endpoint parity audit for guest + private ACL coverage across community timeline read paths.
+- [x] (Guest Mode / Community) Standardize private-denied API response payload contract (status + code + message) without collapsing existing lock/redirect UI variants.
+- [x] (Guest Mode / Community) Prevent private timeline metadata leaks on first paint (timeline-page access-loading buffer/guard before content render).
+- [x] (Guest Mode / Community) Validate cross-tab/new-tab behavior for guest navigation from rich chips and deep links.
+- [x] (Guest Mode / Community + Home) Remove guest join/follow affordances across user cards, timeline cards, and community controls.
+- [x] (Guest Mode / Community) Define denied `~event` chip UX (what guest/non-allowed users see when event reference is blocked).
 - [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
 - [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).
 - [ ] Phase 1B — Profile Settings controls: add Home init preference toggle/select with only `popular|home` options.
