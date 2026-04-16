@@ -52,11 +52,21 @@ function TimelineCard({
     createdAt,
   } = cardData;
   const TypeIcon = isCommunity ? GroupsIcon : isPersonal ? PersonIcon : TagIcon;
+  const fallbackCoverGradient = isCommunity
+    ? 'linear-gradient(152deg, rgba(37,99,235,0.94) 0%, rgba(30,64,175,0.9) 55%, rgba(15,23,42,0.6) 100%)'
+    : isPersonal
+      ? 'linear-gradient(152deg, rgba(168,85,247,0.92) 0%, rgba(236,72,153,0.86) 55%, rgba(88,28,135,0.62) 100%)'
+      : 'linear-gradient(152deg, rgba(34,197,94,0.9) 0%, rgba(22,163,74,0.88) 55%, rgba(20,83,45,0.62) 100%)';
   const typeChipGradient = isCommunity
     ? 'linear-gradient(135deg, rgba(30,136,229,0.95) 0%, rgba(13,71,161,0.95) 100%)'
     : isPersonal
-      ? 'linear-gradient(135deg, rgba(0,150,136,0.95) 0%, rgba(0,105,92,0.95) 100%)'
-      : 'linear-gradient(135deg, rgba(217,119,6,0.95) 0%, rgba(180,83,9,0.95) 100%)';
+      ? 'linear-gradient(135deg, rgba(192,132,252,0.96) 0%, rgba(236,72,153,0.95) 100%)'
+      : 'linear-gradient(135deg, rgba(74,222,128,0.95) 0%, rgba(21,128,61,0.95) 100%)';
+  const titleStrokeGradient = isCommunity
+    ? 'linear-gradient(90deg, rgba(56,189,248,0.7), rgba(29,78,216,0.46))'
+    : isPersonal
+      ? 'linear-gradient(90deg, rgba(196,181,253,0.72), rgba(236,72,153,0.46))'
+      : 'linear-gradient(90deg, rgba(134,239,172,0.74), rgba(22,163,74,0.45))';
   const clampFramePosition = (value, defaultValue = 50) => {
     const numeric = Number(value);
     const safe = Number.isFinite(numeric) ? numeric : Number(defaultValue);
@@ -94,6 +104,11 @@ function TimelineCard({
       minute: '2-digit',
     });
   };
+  const TITLE_VISUAL_CHAR_LIMIT = 62;
+  const timelineTitle = (timelineName || '').trim();
+  const displayTimelineTitle = timelineTitle.length > TITLE_VISUAL_CHAR_LIMIT
+    ? `${timelineTitle.slice(0, TITLE_VISUAL_CHAR_LIMIT - 1)}…`
+    : timelineTitle;
 
   return (
     <Card
@@ -125,11 +140,7 @@ function TimelineCard({
             position: 'relative',
             overflow: 'hidden',
             pb: 1.25,
-            background: isCommunity
-              ? 'linear-gradient(140deg, rgba(30,136,229,0.85) 0%, rgba(13,71,161,0.85) 100%)'
-              : isPersonal
-                ? 'linear-gradient(140deg, rgba(0,150,136,0.82) 0%, rgba(0,105,92,0.85) 100%)'
-                : 'linear-gradient(140deg, rgba(217,119,6,0.82) 0%, rgba(180,83,9,0.86) 100%)',
+            background: fallbackCoverGradient,
           }}
         >
           {coverImageUrl ? (
@@ -198,11 +209,11 @@ function TimelineCard({
                 position: 'relative',
                 mb: 0.85,
                 px: 0.35,
-                height: 24,
+                height: { xs: 22, sm: 24 },
                 borderRadius: 1.6,
                 color: '#fff',
                 fontWeight: 700,
-                fontSize: '0.66rem',
+                fontSize: { xs: '0.62rem', sm: '0.66rem' },
                 letterSpacing: 0.28,
                 textTransform: 'uppercase',
                 background: typeChipGradient,
@@ -234,11 +245,11 @@ function TimelineCard({
                 position: 'relative',
                 display: 'inline-flex',
                 lineHeight: 1.15,
-                fontSize: { xs: '1.12rem', sm: '1.24rem', md: '1.34rem' },
+                fontSize: { xs: '1.02rem', sm: '1.2rem', md: '1.34rem' },
                 fontWeight: 900,
                 letterSpacing: 0.25,
                 pr: 0.5,
-                pb: 0.45,
+                pb: 0.4,
                 mb: 0,
                 maxWidth: '100%',
                 overflowWrap: 'anywhere',
@@ -250,17 +261,18 @@ function TimelineCard({
                   left: 0,
                   bottom: 0,
                   width: '100%',
-                  height: 8,
-                  borderRadius: 12,
-                  background: isCommunity
-                    ? 'linear-gradient(90deg, rgba(30,136,229,0.78), rgba(13,71,161,0.42))'
-                    : isPersonal
-                      ? 'linear-gradient(90deg, rgba(0,150,136,0.78), rgba(0,105,92,0.42))'
-                      : 'linear-gradient(90deg, rgba(217,119,6,0.8), rgba(180,83,9,0.44))',
+                  height: 4,
+                  borderRadius: 999,
+                  transform: 'skewX(-6deg)',
+                  filter: 'saturate(1.04)',
+                  background: titleStrokeGradient,
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 0 10px rgba(15,23,42,0.35)'
+                    : '0 0 8px rgba(148,163,184,0.2)',
                 },
               }}
             >
-              {timelineName}
+              {displayTimelineTitle}
             </Typography>
             {resolvedSections.audience ? (
               <Box
@@ -268,23 +280,36 @@ function TimelineCard({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.8,
+                  position: 'relative',
                   px: 1.15,
                   py: 0.6,
                   borderRadius: 999,
                   border: '1px solid',
                   borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.2)',
                   background: theme.palette.mode === 'dark'
-                    ? 'linear-gradient(120deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))'
-                    : 'linear-gradient(120deg, rgba(255,255,255,0.88), rgba(255,244,227,0.82))',
+                    ? 'linear-gradient(120deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))'
+                    : 'linear-gradient(120deg, rgba(255,255,255,0.9), rgba(255,244,227,0.84))',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    opacity: theme.palette.mode === 'dark' ? 0.2 : 0.14,
+                    backgroundImage: 'repeating-linear-gradient(120deg, rgba(255,255,255,0.22) 0px, rgba(255,255,255,0.22) 1px, transparent 1px, transparent 7px)',
+                  },
                 }}
               >
-                <LocalFireDepartmentIcon sx={{ fontSize: 17, color: '#d97706' }} />
+                <LocalFireDepartmentIcon sx={{ fontSize: { xs: 15, sm: 17 }, color: '#d97706', position: 'relative', zIndex: 1 }} />
                 <Typography
                   variant="body2"
                   sx={{
                     fontWeight: 900,
                     letterSpacing: 0.35,
+                    fontSize: { xs: '0.78rem', sm: '0.86rem' },
                     color: theme.palette.text.primary,
+                    position: 'relative',
+                    zIndex: 1,
                   }}
                 >
                   {audienceCount.toLocaleString()} {audienceLabel}
@@ -357,6 +382,29 @@ function TimelineCard({
           <Button
             size="small"
             variant="contained"
+            sx={{
+              minWidth: { xs: 124, sm: 136 },
+              borderRadius: 999,
+              px: { xs: 1.35, sm: 1.65 },
+              py: 0.55,
+              textTransform: 'none',
+              fontWeight: 800,
+              letterSpacing: 0.24,
+              color: theme.palette.mode === 'dark' ? '#fff' : '#0f172a',
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, rgba(37,99,235,0.86), rgba(29,78,216,0.76))'
+                : 'linear-gradient(135deg, rgba(147,197,253,0.86), rgba(96,165,250,0.86))',
+              border: '1px solid',
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.52)' : 'rgba(30,64,175,0.26)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 18px rgba(29,78,216,0.32)'
+                : '0 8px 14px rgba(59,130,246,0.24)',
+              '&:hover': {
+                background: theme.palette.mode === 'dark'
+                  ? 'linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.84))'
+                  : 'linear-gradient(135deg, rgba(96,165,250,0.9), rgba(59,130,246,0.9))',
+              },
+            }}
             onClick={() => {
               if (timelineId > 0) {
                 onOpenTimeline?.(timelineId, timeline);

@@ -141,7 +141,7 @@ const HOME_TIMELINE_CARD_SECTIONS = {
   cover: true,
   typeChip: true,
   audience: true,
-  description: true,
+  description: false,
   createdDate: true,
   favoriteToggle: true,
   openAction: true,
