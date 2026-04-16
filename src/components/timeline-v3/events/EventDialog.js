@@ -57,6 +57,7 @@ const RichEditor = ({
   label = 'Description',
   helperText = 'Use @ # i- www. or ~123 to add mentions, links, and event references',
   rows = 3,
+  inputSx,
 }) => {
   const [indicator, setIndicator] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -147,6 +148,7 @@ const RichEditor = ({
         helperText={helperText}
         disabled={disabled}
         InputProps={{ readOnly }}
+        sx={inputSx}
       />
 
       <Popper
@@ -217,6 +219,8 @@ const EventDialog = ({
   const canEditTags = canEditField('tags');
   const canEditUrl = canEditField('url') || canEditField('url_metadata');
   const isTierAEditor = isEditing && editPermissions?.tier === 'A';
+  const canAddTags = !isEditing || canEditTags;
+  const canRemoveTags = canAddTags && (!isEditing || editPermissions?.tier !== 'C');
 
   const [eventType, setEventType] = useState(initialType);
   const [title, setTitle] = useState('');
@@ -234,6 +238,7 @@ const EventDialog = ({
   const [mediaUploadError, setMediaUploadError] = useState(null);
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
+  const [initialTagKeys, setInitialTagKeys] = useState([]);
   const [associatedTimelineChips, setAssociatedTimelineChips] = useState([]);
   const [creatorTimelineChip, setCreatorTimelineChip] = useState(null);
   const [removeAssociationIds, setRemoveAssociationIds] = useState([]);
@@ -257,7 +262,21 @@ const EventDialog = ({
       }
       return '';
     })
+    .map((tag) => String(tag || '').replace(/^#+/, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim())
     .filter((tag) => Boolean(tag));
+
+  const toCanonicalTagKey = (value) => String(value || '')
+    .replace(/^#+/, '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const buildCanonicalTagKeys = (values = []) => Array.from(new Set(
+    values
+      .map((tag) => toCanonicalTagKey(tag))
+      .filter(Boolean)
+  )).sort();
 
   useEffect(() => {
     if (initialEvent) {
@@ -276,7 +295,9 @@ const EventDialog = ({
       setDescriptionAppend('');
       setEventDate(initialEvent.event_date ? new Date(initialEvent.event_date) : new Date());
       setUrl(initialEvent.url || '');
-      setTags(normalizeTags(initialEvent.tags || []));
+      const normalizedInitialTags = normalizeTags(initialEvent.tags || []);
+      setTags(normalizedInitialTags);
+      setInitialTagKeys(buildCanonicalTagKeys(normalizedInitialTags));
       setMediaPreview(initialEvent.media_url || '');
       setMediaFile(null);
       setMediaUploadResult(null);
@@ -409,6 +430,7 @@ const EventDialog = ({
     setMediaPreview('');
     setTags([]);
     setCurrentTag('');
+    setInitialTagKeys([]);
     setUrlPreview(null);
     setDescriptionAppend('');
     setExistingEditsText('');
@@ -527,38 +549,49 @@ const EventDialog = ({
   };
 
   const handleAddTag = () => {
-    if (isPersonalTimeline || !canEditTags) {
+    if (isPersonalTimeline || !canAddTags) {
+      setCurrentTag('');
+      return;
+    }
+
+    const normalizedTag = String(currentTag || '')
+      .replace(/^#+/, '')
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!normalizedTag) {
       setCurrentTag('');
       return;
     }
 
     // V3 Enhancement: Ban '-' and '#' from tag names
-    if (currentTag.includes('-') || currentTag.includes('#')) {
+    if (normalizedTag.includes('-') || normalizedTag.includes('#')) {
       alert('Tags cannot contain "-" or "#" characters.');
       return;
     }
 
     // Ban 'i-' and 'My-' style inputs from being treated as hashtags
-    const lowerTag = currentTag.toLowerCase();
+    const lowerTag = normalizedTag.toLowerCase();
     if (lowerTag.startsWith('i-') || lowerTag.startsWith('my-')) {
       alert('Tags cannot start with "i-" or "My-".');
       return;
     }
 
-    if (currentTag && !tags.includes(currentTag)) {
-      console.log('[EventDialog] Adding tag:', currentTag, 'Current tags:', tags);
-      setTags([...tags, currentTag]);
+    if (!tags.some((tag) => String(tag).toLowerCase() === normalizedTag.toLowerCase())) {
+      console.log('[EventDialog] Adding tag:', normalizedTag, 'Current tags:', tags);
+      setTags([...tags, normalizedTag]);
       setCurrentTag('');
     }
   };
 
   const handleRemoveTag = (tagToRemove) => {
-    if (!canEditTags) return;
+    if (!canRemoveTags) return;
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
   const handleRemoveAssociatedTimeline = (timelineIdToRemove) => {
-    if (!canEditTags) return;
+    if (!canRemoveTags) return;
     const targetTimeline = associatedTimelineChips.find((timeline) => timeline.id === timelineIdToRemove);
     if (targetTimeline?.type === 'personal' && !isTierAEditor) {
       return;
@@ -639,12 +672,19 @@ const EventDialog = ({
     }
 
     console.log('[EventDialog] Saving event with tags:', tags);
-    if (isEditing && canEditTags) {
-      eventData.tags = tags;
-      if (removeAssociationIds.length > 0) {
+    if (isEditing && canAddTags) {
+      const currentTagKeys = buildCanonicalTagKeys(tags);
+      const tagsChangedFromInitial = currentTagKeys.join('|') !== initialTagKeys.join('|');
+      const isTierCEditor = editPermissions?.tier === 'C';
+
+      if (!isTierCEditor || tagsChangedFromInitial) {
+        eventData.tags = tags;
+      }
+
+      if (canRemoveTags && removeAssociationIds.length > 0) {
         eventData.remove_association_ids = removeAssociationIds;
       }
-    } else if (tags.length > 0) {
+    } else if (!isEditing && tags.length > 0) {
       eventData.tags = tags;
     }
 
@@ -1019,14 +1059,14 @@ const EventDialog = ({
                       handleAddTag();
                     }
                   }}
-                  disabled={isPersonalTimeline || !canEditTags}
+                  disabled={isPersonalTimeline || !canAddTags}
                   sx={{ flexGrow: 1 }}
                 />
                 <Tooltip title="Add Tag">
                   <span>
                     <IconButton
                       onClick={handleAddTag}
-                      disabled={isPersonalTimeline || !canEditTags}
+                      disabled={isPersonalTimeline || !canAddTags}
                       sx={{
                         color: getTypeColor(),
                         '&:hover': { bgcolor: `${getTypeColor()}20` }
@@ -1045,7 +1085,7 @@ const EventDialog = ({
                       <Chip
                         key={tag}
                         label={`#${normalizedTagLabel}`}
-                        onDelete={canEditTags ? () => handleRemoveTag(tag) : undefined}
+                        onDelete={canRemoveTags ? () => handleRemoveTag(tag) : undefined}
                         sx={{
                           bgcolor: `${getTypeColor()}20`,
                           color: getTypeColor(),
@@ -1078,7 +1118,7 @@ const EventDialog = ({
                 {associatedTimelineChips.map((association) => {
                   const prefix = association.type === 'community' ? 'i-' : (association.type === 'personal' ? 'My-' : '#');
                   const isPersonalAssociation = association.type === 'personal';
-                  const canRemoveAssociation = canEditTags && (!isPersonalAssociation || isTierAEditor);
+                  const canRemoveAssociation = canRemoveTags && (!isPersonalAssociation || isTierAEditor);
                   return (
                     <Box key={`assoc-${association.id}`} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                       <Chip

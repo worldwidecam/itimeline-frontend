@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Chip, Tooltip, useTheme } from '@mui/material';
 import { People as CommunityIcon, FavoriteBorder as HeartIcon, Lock as LockIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
@@ -7,6 +8,9 @@ import HashtagIcon from '../../../common/HashtagIcon';
 
 const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isHomePage = location.pathname === '/' || location.pathname.startsWith('/home');
 
   // Normalize removed IDs into a Set for quick lookup
   const removedIdsSet = useMemo(() => new Set(removedTimelineIds || []), [removedTimelineIds]);
@@ -81,22 +85,31 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
 
   const handleTagClick = async (e, tagName) => {
     e.stopPropagation();
+    const openTimelineRoute = (route) => {
+      if (!route) return;
+      if (isHomePage) {
+        navigate(route);
+        return;
+      }
+      window.open(route, '_blank');
+    };
+
     try {
       // Strip any leading # so we resolve to the canonical hashtag timeline name
       const baseName = (tagName || '').replace(/^#+/, '');
       const timelineName = baseName.toUpperCase();
       const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
       if (response.data && response.data.id) {
-        window.open(`/timeline-v3/${response.data.id}`, '_blank');
+        openTimelineRoute(`/timeline-v3/${response.data.id}`);
       } else {
         const fallbackName = timelineName;
-        window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
+        openTimelineRoute(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`);
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);
       const baseName = (tagName || '').replace(/^#+/, '');
       const fallbackName = baseName.toUpperCase();
-      window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
+      openTimelineRoute(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`);
     }
   };
 

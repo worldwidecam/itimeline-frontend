@@ -94,6 +94,8 @@ const normalizeAssociatedTimelines = (associatedTimelines = [], removedIds = [])
   return { communities, personals };
 };
 
+const EMPTY_REVIEWING_EVENT_IDS = new Set();
+
 const EventPopup = ({
   event,
   open,
@@ -101,11 +103,15 @@ const EventPopup = ({
   onDelete,
   onEdit,
   setIsPopupOpen,
-  reviewingEventIds = new Set(),
+  reviewingEventIds,
 }) => {
   const theme = useTheme();
   const location = useLocation();
   const { isGuest } = useAuth();
+  const effectiveReviewingEventIds = React.useMemo(
+    () => (reviewingEventIds instanceof Set ? reviewingEventIds : EMPTY_REVIEWING_EVENT_IDS),
+    [reviewingEventIds]
+  );
   const [isInReview, setIsInReview] = useState(false);
   const [isSafeguarded, setIsSafeguarded] = useState(false);
   const {
@@ -133,8 +139,8 @@ const EventPopup = ({
       }
       
       // First check if reviewingEventIds prop is provided (from AdminPanel)
-      if (reviewingEventIds.size > 0) {
-        setIsInReview(reviewingEventIds.has(event.id));
+      if (effectiveReviewingEventIds.size > 0) {
+        setIsInReview(effectiveReviewingEventIds.has(event.id));
         // AdminPanel doesn't provide safeguarded IDs yet, so fetch separately
       }
       
@@ -150,9 +156,33 @@ const EventPopup = ({
           setIsSafeguarded(false);
           return;
         }
+
+        // Skip report polling for users without likely moderation access to this timeline
+        let canCheckReports = false;
+        try {
+          const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+          const currentUserId = localUser?.id || null;
+          const passportKey = currentUserId ? `user_passport_${currentUserId}` : null;
+          const passport = passportKey ? JSON.parse(localStorage.getItem(passportKey) || '{}') : {};
+          if (passport?.is_site_admin || String(currentUserId) === '1') {
+            canCheckReports = true;
+          } else {
+            const membership = (passport?.memberships || []).find((m) => Number(m?.timeline_id) === Number(currentTimelineId));
+            const role = String(membership?.member_role || membership?.role || '').toLowerCase();
+            canCheckReports = role === 'admin' || role === 'moderator';
+          }
+        } catch (_) {
+          canCheckReports = false;
+        }
+
+        if (!canCheckReports) {
+          setIsInReview(false);
+          setIsSafeguarded(false);
+          return;
+        }
         
         // Fetch reviewing reports
-        if (reviewingEventIds.size === 0) {
+        if (effectiveReviewingEventIds.size === 0) {
           const reviewingResponse = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
             params: { status: 'reviewing' }
           });
@@ -183,7 +213,7 @@ const EventPopup = ({
     };
     
     checkReportStatus();
-  }, [open, event?.id, location.pathname, reviewingEventIds, isGuest]);
+  }, [open, event?.id, location.pathname, effectiveReviewingEventIds, isGuest]);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -475,10 +505,10 @@ const EventPopup = ({
         console.warn('Failed to load passport memberships for popup lanes', e);
       }
     };
-    if (open && !isGuest && passportMemberships.length === 0) {
+    if (open && !isGuest) {
       loadPassport();
     }
-  }, [open, passportMemberships.length]);
+  }, [open, isGuest]);
 
   // Function to add the event to the selected timeline (per-lane)
   const handleAddToTimeline = async (selectedTimeline) => {
@@ -621,6 +651,25 @@ const EventPopup = ({
   );
   const canOpenActionMenu = !isGuest && (canEdit || canDelete || !isSafeguarded);
 
+  const getTimelineOwnerId = (timeline) => {
+    if (!timeline || typeof timeline !== 'object') return null;
+    const directOwnerId = timeline.owner_id ?? timeline.created_by ?? timeline.user_id;
+    if (directOwnerId) return Number(directOwnerId) || null;
+    const createdBy = timeline.created_by;
+    if (createdBy && typeof createdBy === 'object') {
+      const nestedOwnerId = createdBy.id ?? createdBy.user_id;
+      return nestedOwnerId ? Number(nestedOwnerId) || null : null;
+    }
+    return null;
+  };
+
+  const isOwnedByCurrentUser = (timeline) => {
+    const ownerId = getTimelineOwnerId(timeline);
+    if (ownerId && currentUserId) return Number(ownerId) === Number(currentUserId);
+    const fallbackName = String(timeline?.name || '');
+    return fallbackName.startsWith('My-') && Boolean(currentUserId);
+  };
+
   // Option sources per lane
   const hashtagOptions = existingTimelines.filter((tl) => (tl.timeline_type || tl.type) === 'hashtag');
 
@@ -651,14 +700,11 @@ const EventPopup = ({
     .filter((m) => {
       const isPersonal = String(m.timeline_type || m.type || '').toLowerCase() === 'personal';
       const isActive = m.is_active_member;
-      const isOwner = m.is_creator || m.is_site_owner || (!m.owner_id || Number(m.owner_id) === Number(currentUserId));
-      console.log('[EventPopup] Personal filter:', { 
-        membership: m, 
-        isPersonal, 
-        isActive, 
-        isOwner,
-        currentUserId 
-      });
+      const ownerId = Number(m.owner_id || m.created_by || 0);
+      const isOwner = Boolean(m.is_creator)
+        || Boolean(m.is_site_owner)
+        || ownerId <= 0
+        || Number(ownerId) === Number(currentUserId);
       return isPersonal && isActive && isOwner;
     })
     .map((m) => ({
@@ -666,14 +712,18 @@ const EventPopup = ({
       name: m.timeline_name || m.name,
       type: 'personal',
     }))
+    .concat(
+      existingTimelines
+        .filter((tl) => String(tl.timeline_type || tl.type || '').toLowerCase() === 'personal')
+        .filter((tl) => isOwnedByCurrentUser(tl))
+        .map((tl) => ({ id: tl.id, name: tl.name, type: 'personal' }))
+    )
     .reduce((acc, item) => {
       if (!item || !item.id) return acc;
       if (acc.find((x) => Number(x.id) === Number(item.id))) return acc;
       acc.push(item);
       return acc;
     }, []);
-  
-  console.log('[EventPopup] Personal options computed:', personalOptions);
 
   // Determine if this is an image media event
   const isImageMedia = () => {
@@ -1037,20 +1087,22 @@ const EventPopup = ({
               <Box sx={{ mb: 3 }}>
                 <Box
                   sx={event.type === EVENT_TYPES.REMARK ? {
+                    '--remark-rule-gap': '1.88rem',
+                    '--remark-rule-color': theme.palette.mode === 'dark' ? 'rgba(169,201,255,0.2)' : 'rgba(120,78,35,0.12)',
                     position: 'relative',
                     overflow: 'hidden',
                     px: { xs: 2.25, sm: 2.75 },
-                    py: { xs: 2.25, sm: 2.5 },
+                    py: { xs: 2.25, sm: 2.6 },
                     borderRadius: '4px',
-                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.24)' : 'rgba(63,43,24,0.24)'}`,
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(154,191,255,0.34)' : 'rgba(63,43,24,0.24)'}`,
                     background: theme.palette.mode === 'dark'
-                      ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)'
+                      ? 'linear-gradient(180deg, rgba(34,51,82,0.92) 0%, rgba(18,28,46,0.96) 100%)'
                       : 'linear-gradient(180deg, rgba(255,252,245,0.98) 0%, rgba(246,238,224,0.98) 100%)',
                     backgroundImage: theme.palette.mode === 'dark'
-                      ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%), repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 8px)'
-                      : 'linear-gradient(180deg, rgba(255,252,245,0.98) 0%, rgba(246,238,224,0.98) 100%), repeating-linear-gradient(0deg, rgba(120,78,35,0.035) 0px, rgba(120,78,35,0.035) 1px, transparent 1px, transparent 9px)',
+                      ? 'linear-gradient(180deg, rgba(34,51,82,0.92) 0%, rgba(18,28,46,0.96) 100%), repeating-linear-gradient(0deg, var(--remark-rule-color) 0px, var(--remark-rule-color) 1px, transparent 1px, transparent var(--remark-rule-gap))'
+                      : 'linear-gradient(180deg, rgba(255,252,245,0.98) 0%, rgba(246,238,224,0.98) 100%), repeating-linear-gradient(0deg, var(--remark-rule-color) 0px, var(--remark-rule-color) 1px, transparent 1px, transparent var(--remark-rule-gap))',
                     boxShadow: theme.palette.mode === 'dark'
-                      ? '0 14px 26px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 0 0 1px rgba(255,255,255,0.02)'
+                      ? '0 16px 30px rgba(3,7,18,0.62), inset 0 1px 0 rgba(203,225,255,0.2), inset 0 0 0 1px rgba(147,197,253,0.12)'
                       : '0 14px 28px rgba(73,46,20,0.15), inset 0 1px 0 rgba(255,255,255,0.82), inset 0 0 0 1px rgba(113,79,46,0.08)',
                     '&::before': {
                       content: '"“"',
@@ -1060,33 +1112,55 @@ const EventPopup = ({
                       fontFamily: '"Bodoni Moda", "Times New Roman", serif',
                       fontSize: '4.2rem',
                       lineHeight: 1,
-                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(107,74,39,0.2)',
+                      color: theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.24)' : 'rgba(107,74,39,0.2)',
                       pointerEvents: 'none',
                     },
                     '&::after': {
-                      content: '""',
+                      content: '"”"',
                       position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      width: 18,
-                      height: 18,
-                      background: theme.palette.mode === 'dark'
-                        ? 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.03) 70%)'
-                        : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(0,0,0,0.05) 70%)',
-                      clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
-                      borderTopRightRadius: '3px',
+                      right: 10,
+                      bottom: -16,
+                      fontFamily: '"Bodoni Moda", "Times New Roman", serif',
+                      fontSize: '4.2rem',
+                      lineHeight: 1,
+                      color: theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.24)' : 'rgba(107,74,39,0.2)',
+                      pointerEvents: 'none',
                     },
                     '& > .remark-letter-content': {
                       position: 'relative',
                       zIndex: 1,
-                      borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(118,80,43,0.18)'}`,
+                      borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.2)' : 'rgba(118,80,43,0.18)'}`,
+                      borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.2)' : 'rgba(118,80,43,0.18)'}`,
                       paddingTop: 1.2,
+                      paddingBottom: 1.2,
                     },
                   } : {}}
                 >
                   {event.content ? (
-                    <Box className="remark-letter-content" sx={{ position: 'relative', zIndex: 1 }}>
-                      <RichContentRenderer content={event.content} theme={theme} />
+                    <Box
+                      className="remark-letter-content"
+                      sx={{
+                        position: 'relative',
+                        zIndex: 1,
+                        lineHeight: 'var(--remark-rule-gap)',
+                        fontFamily: '"Cormorant Garamond", "Georgia", serif',
+                        fontSize: '1.13rem',
+                        letterSpacing: '0.01em',
+                        color: theme.palette.mode === 'dark' ? 'rgba(238,246,255,0.96)' : 'rgba(43,28,14,0.86)',
+                      }}
+                    >
+                      <RichContentRenderer
+                        content={event.content}
+                        theme={theme}
+                        ocrMetadataStamps
+                        dropcapFirstLetter
+                        textSx={{
+                          fontFamily: '"Cormorant Garamond", "Georgia", serif',
+                          fontSize: '1.13rem',
+                          letterSpacing: '0.01em',
+                          fontWeight: 500,
+                        }}
+                      />
                     </Box>
                   ) : (
                     <Typography 
@@ -1098,18 +1172,18 @@ const EventPopup = ({
                         position: 'relative',
                         zIndex: 1,
                         whiteSpace: 'pre-wrap',
-                        lineHeight: 1.82,
+                        lineHeight: 'var(--remark-rule-gap)',
                         color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.9)'
+                          ? 'rgba(238,246,255,0.96)'
                           : 'rgba(43,28,14,0.86)',
-                        borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(118,80,43,0.18)'}`,
+                        borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.2)' : 'rgba(118,80,43,0.18)'}`,
                         pt: 1.2,
                         '&::first-letter': {
                           fontFamily: '"Bodoni Moda", "Times New Roman", serif',
                           fontSize: '2.2rem',
                           lineHeight: 0.95,
                           fontWeight: 700,
-                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.85)' : 'rgba(96,61,30,0.92)',
+                          color: theme.palette.mode === 'dark' ? 'rgba(219,234,254,0.95)' : 'rgba(96,61,30,0.92)',
                           paddingRight: '0.08em',
                           float: 'left',
                           marginTop: '-0.11em',

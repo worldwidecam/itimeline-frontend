@@ -3158,17 +3158,14 @@ const HomePage = () => {
           <Button
             size="small"
             variant="contained"
-            component="a"
-            href={`/timeline-v3/${timelineId}`}
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={() => navigate(`/timeline-v3/${timelineId}`)}
           >
             Open Timeline
           </Button>
         </Box>
       </Card>
     );
-  }, [theme.palette.mode, favoriteTimelineId, handleToggleFavoriteTimeline]);
+  }, [theme.palette.mode, favoriteTimelineId, handleToggleFavoriteTimeline, navigate]);
 
   const renderSearchEventCard = React.useCallback((event) => {
     const handleMediaLoadError = async (errorPayload) => {
@@ -4371,12 +4368,7 @@ const HomePage = () => {
                     if (!target) return;
 
                     if (target.external) {
-                      const shouldOpenInNewTab = activeHeroSlide?.open_in_new_tab !== false;
-                      if (shouldOpenInNewTab) {
-                        window.open(target.href, '_blank', 'noopener,noreferrer');
-                      } else {
-                        window.location.assign(target.href);
-                      }
+                      window.location.assign(target.href);
                       return;
                     }
 
@@ -5034,10 +5026,7 @@ const HomePage = () => {
                         </Button>
                         <Button
                           variant="outlined"
-                          component="a"
-                          href={`/timeline-v3/${selectedFavoriteTimeline.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          onClick={() => navigate(`/timeline-v3/${selectedFavoriteTimeline.id}`)}
                           sx={{
                             whiteSpace: 'nowrap',
                             borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.24)',

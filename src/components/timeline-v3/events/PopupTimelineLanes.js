@@ -256,6 +256,47 @@ const PopupTimelineLanes = ({
     setPersonalListOpen(!personalListOpen);
   };
 
+  if (showPrivacyWarningGate) {
+    return (
+      <Box
+        sx={{
+          borderRadius: 1.5,
+          border: '1px solid',
+          borderColor: 'warning.main',
+          bgcolor: 'rgba(255, 244, 229, 0.92)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          gap: 1.25,
+          px: { xs: 1.5, sm: 2.5 },
+          py: { xs: 2, sm: 2.5 },
+        }}
+      >
+        <Typography sx={{ fontWeight: 800, color: 'warning.dark', fontSize: '0.95rem' }}>
+          Privacy Notice
+        </Typography>
+        <Typography sx={{ fontWeight: 600, color: 'warning.dark', maxWidth: 560, lineHeight: 1.4 }}>
+          This event is currently in a private context (personal timeline or private timeline).
+        </Typography>
+        <Typography sx={{ color: 'warning.dark', maxWidth: 560, lineHeight: 1.4 }}>
+          Adding or changing timeline associations can increase who can discover this event.
+          Continue only if you want to proceed.
+        </Typography>
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={onAcknowledgePrivacyWarning}
+          sx={{ textTransform: 'none', fontWeight: 700 }}
+        >
+          I understand, continue
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ position: 'relative' }}>
       {/* Header Row: Timeline Tags Title + Communities & Personals Buttons */}
@@ -626,47 +667,6 @@ const PopupTimelineLanes = ({
         </Box>
       )}
 
-      {showPrivacyWarningGate ? (
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 8,
-            borderRadius: 1.5,
-            border: '1px solid',
-            borderColor: 'warning.main',
-            bgcolor: 'rgba(255, 244, 229, 0.92)',
-            backdropFilter: 'blur(3px)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            gap: 1.5,
-            px: 2,
-            py: 3,
-          }}
-        >
-          <Typography sx={{ fontWeight: 800, color: 'warning.dark', fontSize: '0.95rem' }}>
-            Privacy Notice
-          </Typography>
-          <Typography sx={{ fontWeight: 600, color: 'warning.dark', maxWidth: 520 }}>
-            This event is currently in a private context (personal timeline or private timeline).
-          </Typography>
-          <Typography sx={{ color: 'warning.dark', maxWidth: 520 }}>
-            Adding or changing timeline associations can increase who can discover this event.
-            Continue only if you want to proceed.
-          </Typography>
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={onAcknowledgePrivacyWarning}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
-          >
-            I understand, continue
-          </Button>
-        </Box>
-      ) : null}
     </Box>
   );
 };

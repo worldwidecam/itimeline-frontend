@@ -2388,6 +2388,7 @@ const handleViewModeTransition = (newViewMode) => {
         // - Strip any leading # (visual prefix is handled in the chip UI)
         // - Preserve spaces (do NOT auto-convert spaces to dashes)
         normalized = normalized.replace(/^#+/, '');
+        normalized = normalized.replace(/_/g, ' ');
         normalized = normalized.replace(/\s+/g, ' ').trim();
         const key = normalized.toLowerCase();
 
@@ -2523,7 +2524,7 @@ const handleViewModeTransition = (newViewMode) => {
         navigate(currentPath, { replace: true });
       }, 10);
     } catch (error) {
-      console.error('Error creating event:', error);
+      console.error(editingEvent?.id ? 'Error updating event:' : 'Error creating event:', error);
       console.error('Error response:', error.response);
       console.error('Error request:', error.request);
       if (editingEvent?.id) {

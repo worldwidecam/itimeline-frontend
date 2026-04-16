@@ -17,6 +17,10 @@ const RichContentRenderer = ({
   solidChips = false,
   disableInteractions = false,
   inheritTextColor = false,
+  ocrMetadataStamps = false,
+  textSx = null,
+  dropcapFirstLetter = false,
+  dropcapSx = null,
 }) => {
   const navigate = useNavigate();
   const { isGuest } = useAuth();
@@ -84,6 +88,61 @@ const RichContentRenderer = ({
   };
 
   const getTimelineMentionLabel = (rawName) => String(rawName || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const isStampedEditMetadataText = (value) => {
+    const raw = String(value || '');
+    const normalized = raw.replace(/\r/g, '').trim();
+    if (!normalized) return false;
+
+    if (normalized === '---') return true;
+    if (/^edits made$/i.test(normalized)) return true;
+    if (/^-\s*\d{4}-\d{2}-\d{2}t[^\s]*\s+by$/i.test(normalized)) return true;
+
+    return false;
+  };
+
+  const firstDropcapTextIndex = React.useMemo(() => {
+    if (!dropcapFirstLetter) return -1;
+    return contentData.content.findIndex((item) => {
+      if (item?.type !== 'text') return false;
+      if (ocrMetadataStamps && isStampedEditMetadataText(item?.value)) return false;
+      return /\S/.test(String(item?.value || ''));
+    });
+  }, [content, dropcapFirstLetter, ocrMetadataStamps]);
+
+  const renderTextWithDropcap = (value) => {
+    const rawValue = String(value || '');
+    const firstVisibleCharIndex = rawValue.search(/\S/);
+    if (firstVisibleCharIndex < 0) {
+      return rawValue;
+    }
+
+    const leading = rawValue.slice(0, firstVisibleCharIndex);
+    const firstChar = rawValue.charAt(firstVisibleCharIndex);
+    const remainder = rawValue.slice(firstVisibleCharIndex + 1);
+
+    return (
+      <>
+        {leading}
+        <Box
+          component="span"
+          sx={{
+            fontSize: '2.35rem',
+            lineHeight: 0.78,
+            fontWeight: 700,
+            fontFamily: '"Lobster", "Bodoni Moda", "Times New Roman", serif',
+            color: theme.palette.mode === 'dark' ? 'rgba(219,234,254,0.95)' : 'rgba(96,61,30,0.92)',
+            pr: '0.06em',
+            verticalAlign: '-0.18em',
+            ...(dropcapSx || {}),
+          }}
+        >
+          {firstChar}
+        </Box>
+        {remainder}
+      </>
+    );
+  };
 
   React.useEffect(() => {
     const userMentions = contentData.content.filter((item) => item.type === 'user_mention');
@@ -254,6 +313,8 @@ const RichContentRenderer = ({
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
       {contentData.content.map((item, index) => {
         if (item.type === 'text') {
+          const metadataStampText = ocrMetadataStamps && isStampedEditMetadataText(item.value);
+          const dropcapEnabled = dropcapFirstLetter && !metadataStampText && index === firstDropcapTextIndex;
           return (
             <Typography
               key={index}
@@ -263,9 +324,16 @@ const RichContentRenderer = ({
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 display: 'inline',
+                ...(textSx || {}),
+                ...(metadataStampText ? {
+                  fontFamily: '"OCR A Std", "OCR A Extended", "Share Tech Mono", "Courier Prime", monospace',
+                  letterSpacing: '0.015em',
+                  fontSize: '0.95em',
+                  opacity: 0.92,
+                } : {}),
               }}
             >
-              {item.value}
+              {dropcapEnabled ? renderTextWithDropcap(item.value) : item.value}
             </Typography>
           );
         }
