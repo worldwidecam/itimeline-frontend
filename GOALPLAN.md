@@ -4,36 +4,17 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus / Main Parent TODO
-- [ ] TIMELINE CARD REVAMP — Active (artistic redesign + responsive hardening)
+- [x] TIMELINE CARD REVAMP — Completed (artistic redesign + responsive hardening accepted)
+- [ ] HASHTAG VOTING / COMMENT SYSTEM — Active
 - [x] DB REPOSITORY ALIGNMENT — Canonical iTimeline-DB model integration completed and backend verified.
 - [x] ANONYMOUS GUEST implementation — Active (Partially implemented)
 
 ## Scope / Context understanding
-- Define Anonymous Guest product rules (capabilities, restrictions, conversion points, moderation/risk limits).
-- Produce frontend-first implementation map (routes, guards, UI states, API touchpoints).
-- Lock a minimal V1 scope before coding begins.
-- Ensure public/non-private shared links are accessible without forced-login dead ends.
-- Fix auth handoff so post-login continues to the originally requested destination.
-- guest mode implementation snapshot: manual Goblin entry exists on login/register, guest token is superseded by real login, Home tabs now enforce guest limitations (popular/search allowed; blocked states for restricted hubs), guest navbar uses Join CTA in place of hamburger, and guest profile route (`/profile/guest`) is wired with Goblin avatar. Home-page guest-mode pass is considered complete; next focus moves to profile/timeline/link-entry nuance.
-- Event edit-policy tangent ideation snapshot (priority raised):
-  - 3-tier edit model lock-in direction: Tier A (SiteOwner/SiteAdmin full edit parity), Tier B (community moderator/admin+ conditionals), Tier C (event creator most constrained).
-  - Tier C lock-in direction: title immutable, description append-only (use visible "Edits made" divider), event date/time immutable, event type immutable, media immutable, and tag removal disallowed.
-  - Tier B current conditionals: if event was created in that same community, community admin/mod can perform moderation-grade tag removals and date correction; description should also follow Tier C-style append-only limits.
-  - Tag creation input in EventDialog can remain hashtag-first; current tangent focus is removal governance + correctly visualizing existing non-hashtag association chips in edit mode.
-  - Tier C tag behavior remains unchanged for now (no tag-removal rights; no new tag-edit code required in this tangent).
-  - Date correction audit needs to stay lightweight (old date, new date, changed by).
-  - Keep validating private community tag counterpart behavior so private contexts do not unintentionally expand discoverability.
+  
 
 ## Active Tangents (tasks that take temporary precedent over sub-TODOs)
 
-- [x] (Tangent Queue / EventPopup) Fix hashtag chip navigation fallback that incorrectly opens `/timeline-v3/new?name=...` even when the hashtag timeline already exists.
-- [ ] (Tangent Queue / Privacy Policy) Decide and enforce whether non-owner viewers may add hashtag/community associations from private personal events.
-- [ ] (Tangent Queue / Discoverability) Decide whether to add a “shared personal timelines” surface (for example: Shared With Me list/module) or intentionally keep link-only access.
-- [x] (Tangent Queue / Event Edit Policy) Define strict rules for post edit-mode scope and anti-misrepresentation guardrails.
-- [x] (Tangent Queue / EventPopup Bug) Investigate broken EventPopup edit flow where clicking Edit returns no editable fields.
-- [x] (Tangent Queue / EventDialog Tag UX) Update EventDialog edit form to recognize, visualize, and allow removal of existing community/personal association chips (form still only creates hashtag tags).
-- [ ] (Tangent Queue / Media Merge Tooling) Ideate high-tier report decision feature for duplicate/redundant media events (choose surviving event ID and merge/retain associations safely).
-- [ ] (Execution Guard) After tangent queue is complete, immediately resume Guest Mode execution starting at: `(Guest Mode) Guest mode auto handling people visiting from links they were shared.`
+- [x] Tangent queue cleanup complete; unresolved tangent items were moved to `Pending TODOs`.
 
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
@@ -88,7 +69,7 @@
 - GOALPLAN has been slimmed to active/in-progress work only.
 - Completed implementation context and milestones have been moved into README for long-term reference.
 - DB alignment checkpoint complete: backend now runs against canonical `itimeline_db.flask_models`, with startup/login/community/share path verification and script-level import cleanup.
-- Current execution window: Anonymous Guest implementation (ideation complete, rollout + cleanup remaining).
+- Current execution window: Hashtag Voting / Comment System implementation.
 
 ## Learned / Required Systems Before Finalizing Remaining Home Tabs
 - Add a user follow system (follow/unfollow + followed-users retrieval) to power FRIENDS LIST and later YOUR PAGE.
@@ -99,6 +80,10 @@
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] NSFW filter
+- [ ] (From Tangent Queue / Privacy Policy) Decide and enforce whether non-owner viewers may add hashtag/community associations from private personal events.
+- [ ] (From Tangent Queue / Discoverability) Decide whether to add a “shared personal timelines” surface (for example: Shared With Me list/module) or intentionally keep link-only access.
+- [ ] (From Tangent Queue / Media Merge Tooling) Ideate high-tier report decision feature for duplicate/redundant media events (choose surviving event ID and merge/retain associations safely).
+- [ ] (From Tangent Queue / Execution Guard) Resume Guest Mode execution starting at: `(Guest Mode) Guest mode auto handling people visiting from links they were shared.`
 - [ ] # hashtag chip voting system
 - [ ] make a home page submission box
 - [ ] consider timeline deletion capability (requirements + UX)
