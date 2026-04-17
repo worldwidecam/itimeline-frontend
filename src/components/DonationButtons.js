@@ -7,7 +7,7 @@ const DonationButtons = () => {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [isHoveringMain, setIsHoveringMain] = useState(false);
-  const [isHoveringKofi, setIsHoveringKofi] = useState(false);
+  const [isHoveringCashApp, setIsHoveringCashApp] = useState(false);
   const [isHoveringGofundme, setIsHoveringGofundme] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(null);
   const [showBubble, setShowBubble] = useState(false);
@@ -35,8 +35,8 @@ const DonationButtons = () => {
     pause: open || isHoveringMain
   });
   
-  // Ko-fi button animation
-  const kofiButtonAnimation = useSpring({
+  // CashApp button animation
+  const cashAppButtonAnimation = useSpring({
     opacity: open ? 1 : 0,
     transform: open ? 'translateY(-70px) scale(1)' : 'translateY(0px) scale(0.5)',
     config: { tension: 300, friction: 20 }
@@ -54,9 +54,9 @@ const DonationButtons = () => {
     setOpen(!open);
   };
   
-  // Handle clicks on the Ko-fi button
-  const handleKofiClick = () => {
-    window.open('https://ko-fi.com/brahdyssey', '_blank');
+  // Handle clicks on the CashApp button
+  const handleCashAppClick = () => {
+    window.open('https://cash.app/pools/POOL_2a1c9bb2-d3ed-49da-8484-d9b6286921e3', '_blank');
   };
   
   // Handle clicks on the GoFundMe button
@@ -315,35 +315,35 @@ const DonationButtons = () => {
   
   return (
     <>
-      {/* Ko-fi Button */}
+      {/* CashApp Button */}
       <animated.div 
         style={{ 
           position: 'fixed',
           bottom: 30,
           right: 30,
           zIndex: 1000,
-          ...kofiButtonAnimation
+          ...cashAppButtonAnimation
         }}
         onClick={(e) => {
           e.stopPropagation();
-          handleKofiClick();
+          handleCashAppClick();
         }}
         onMouseEnter={() => {
-          setIsHoveringKofi(true);
-          setTooltipVisible('kofi');
+          setIsHoveringCashApp(true);
+          setTooltipVisible('cashapp');
         }}
         onMouseLeave={() => {
-          setIsHoveringKofi(false);
+          setIsHoveringCashApp(false);
         }}
       >
-        <Tooltip visible={tooltipVisible === 'kofi'} text="Support on Ko-fi">
+        <Tooltip visible={tooltipVisible === 'cashapp'} text="Donate to Me! 😭">
           <svg 
             width="56" 
             height="56" 
             viewBox="0 0 56 56"
             style={{
               filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
-              transform: isHoveringKofi ? 'scale(1.1)' : 'scale(1)',
+              transform: isHoveringCashApp ? 'scale(1.1)' : 'scale(1)',
               transition: 'transform 0.2s ease-in-out'
             }}
           >
@@ -351,51 +351,22 @@ const DonationButtons = () => {
               cx="28" 
               cy="28" 
               r="28" 
-              fill={isHoveringKofi ? '#1a8eb8' : '#29abe0'} 
+              fill={isHoveringCashApp ? '#00b330' : '#00D639'} 
             />
             {/* 
-              Ko-fi Logo Configuration:
-              - cupOffsetX/Y: Adjust these values to move the entire cup within the circle
-              - heartOffsetX/Y: Adjust these values to move the heart within the cup
-              - scale: Adjust to change the overall size of the cup (0.7 is default)
+              CashApp Button Icon ($)
             */}
-            {/* Define positioning variables for easy adjustment */}
-            <g transform={`translate(${12 + 0} ${12 + 2}) scale(0.7)`}>
-              {/* 
-                Cup body - The main coffee cup shape
-                - Increase translateX to move right, decrease to move left
-                - Increase translateY to move down, decrease to move up
-              */}
-              <path 
-                d="M6 8C6 6.34315 7.34315 5 9 5H39C40.6569 5 42 6.34315 42 8V26C42 33.1797 36.1797 39 29 39H19C11.8203 39 6 33.1797 6 26V8Z" 
-                fill="white" 
-                stroke="black" 
-                strokeWidth="4" 
-              />
-              
-              {/* 
-                Cup handle - The handle on the right side of the cup
-                - This is positioned relative to the cup body
-              */}
-              <path 
-                d="M42 14C42 11.7909 43.7909 10 46 10C48.2091 10 50 11.7909 50 14C50 16.2091 48.2091 18 46 18C43.7909 18 42 16.2091 42 14Z" 
-                fill="white" 
-                stroke="black" 
-                strokeWidth="4" 
-              />
-              
-              {/* 
-                Heart - The heart inside the cup
-                - Adjust the first two numbers in the path to move the heart
-                - Current position: centered in cup (24, 14)
-                - Decrease first number to move left, increase to move right
-                - Decrease second number to move up, increase to move down
-              */}
-              <path 
-                d="M24 14C20.6863 14 18 16.6863 18 20C18 25.5 24 31 30 36C36 31 42 25.5 42 20C42 16.6863 39.3137 14 36 14C33.5 14 31.3 15.3 30 17.25C28.7 15.3 26.5 14 24 14Z" 
-                fill="#FF5E5B" 
-              />
-            </g>
+            <text 
+              x="28" 
+              y="39" 
+              fontSize="30" 
+              fontWeight="900" 
+              fill="white" 
+              textAnchor="middle"
+              style={{ fontFamily: '"Inter", sans-serif' }}
+            >
+              $
+            </text>
           </svg>
         </Tooltip>
       </animated.div>
@@ -421,7 +392,7 @@ const DonationButtons = () => {
           setIsHoveringGofundme(false);
         }}
       >
-        <Tooltip visible={tooltipVisible === 'gofundme'} text="Donate on GoFundMe">
+        <Tooltip visible={tooltipVisible === 'gofundme'} text="Donate for iTimeline!">
           <svg 
             width="56" 
             height="56" 
