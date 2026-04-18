@@ -47,6 +47,8 @@ import {
   Cottage as CottageIcon,
   StarBorder as StarBorderIcon,
   Refresh as RefreshIcon,
+  HowToVote as HowToVoteIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api, {
@@ -79,6 +81,8 @@ import TimelineCard from './common/TimelineCard';
 import EventDialog from './timeline-v3/events/EventDialog';
 import EventPopup from './timeline-v3/events/EventPopup';
 import UserCard from './common/UserCard';
+import NavFab, { TimelineMarkerIcon } from './timeline-v3/community/NavFab';
+import EventIcon from '@mui/icons-material/Event';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import {
   getGlassDialogPaperSx,
@@ -397,6 +401,8 @@ const HomePage = () => {
   const [popularFilter, setPopularFilter] = React.useState('posts');
   const [myCreationsFilter, setMyCreationsFilter] = React.useState('posts');
   const [yourPageFilter, setYourPageFilter] = React.useState('posts');
+  const [isFabExpanded, setIsFabExpanded] = React.useState(false);
+
   const [friendsListFilter, setFriendsListFilter] = React.useState('following');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
   const [timelineSearch, setTimelineSearch] = React.useState('');
@@ -5753,6 +5759,41 @@ const HomePage = () => {
             {userFollowSnackbarMessage}
           </Alert>
         </Snackbar>
+
+        {/* Home Page FAB (Left Side) */}
+        {!isGuest && (
+          <NavFab
+            position="left"
+            expanded={isFabExpanded}
+            onToggleExpanded={() => setIsFabExpanded(!isFabExpanded)}
+            onCollapse={() => setIsFabExpanded(false)}
+            actions={[
+              {
+                key: 'feedback',
+                tooltip: 'Submit Feedback',
+                icon: <HowToVoteIcon />,
+                onClick: () => window.open('https://forms.gle/JyKcWfLKy3a7wJgc6', '_blank'),
+                accent: { dark: '#f8fafc', light: '#f1f5f9' },
+              },
+              {
+                key: 'timeline',
+                tooltip: 'Create Your Timeline',
+                icon: <TimelineMarkerIcon />,
+                onClick: () => setDialogOpen(true),
+                accent: { dark: '#4FC3F7', light: '#039BE5' },
+              },
+              {
+                key: 'post',
+                tooltip: 'Make a Post',
+                icon: <EventIcon />,
+                onClick: handleOpenMakePostDialog,
+                accent: { dark: '#69F0AE', light: '#00CFA1' },
+              }
+            ]}
+            mainTooltipClosed="Show Options"
+            mainTooltipOpen="Hide Options"
+          />
+        )}
       </Box>
     </>
   );

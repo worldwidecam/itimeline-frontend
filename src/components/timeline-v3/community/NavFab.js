@@ -8,7 +8,7 @@ import EventIcon from '@mui/icons-material/Event';
 import SvgIcon from '@mui/material/SvgIcon';
 import TradingCard from '../../common/TradingCard';
 
-const TimelineMarkerIcon = (props) => (
+export const TimelineMarkerIcon = (props) => (
   <SvgIcon {...props} viewBox="0 0 24 24">
     <path d="M2.2 14H21.8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     <path d="M13.5 14V7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -31,6 +31,8 @@ const NavFab = ({
   canOpen = true,
   bottom = 32,
   right = 32,
+  left = null,
+  position = 'right',
   containerZIndex = 1500,
   mainTooltipClosed = 'Show Event Options',
   mainTooltipOpen = 'Hide Options',
@@ -144,6 +146,7 @@ const NavFab = ({
     .filter((item) => item && typeof item.onClick === 'function')
     .map((item, index) => {
       const step = Number(item.step) > 0 ? Number(item.step) : miniStep;
+      const tooltipPlacement = position === 'left' ? 'right' : 'left';
       cumulativeBottom += step;
       if (index === 1 && actionItems[0]?.key === 'create') {
         cumulativeBottom += createToMiniBuffer;
@@ -155,6 +158,7 @@ const NavFab = ({
         accent: item.accent || { dark: '#94A3B8', light: '#64748B' },
         bottomOffset: cumulativeBottom,
         delay: typeof item.delay === 'number' ? item.delay : (0.05 + index * 0.03),
+        tooltipPlacement,
       };
     });
 
@@ -190,7 +194,7 @@ const NavFab = ({
     <Box
       sx={{
         position: 'fixed',
-        right,
+        ...(position === 'left' ? { left: left ?? 32 } : { right: right ?? 32 }),
         bottom,
         display: 'flex',
         flexDirection: 'column',
@@ -218,14 +222,14 @@ const NavFab = ({
             overlaySx={tradingCard.overlaySx}
             frameSx={{
               position: 'absolute',
-              right: { xs: 70, sm: 82 },
+              ...(position === 'left' ? { left: { xs: 70, sm: 82 } } : { right: { xs: 70, sm: 82 } }),
               bottom: 0,
               boxShadow: expanded
                 ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
                 : '0 10px 24px rgba(15,23,42,0.18)',
               transform: expanded
                 ? 'translateX(0) translateY(-6px) scale(1)'
-                : 'translateX(26px) translateY(6px) scale(0.92)',
+                : `${position === 'left' ? 'translateX(-26px)' : 'translateX(26px)'} translateY(6px) scale(0.92)`,
               opacity: expanded ? 1 : 0,
               pointerEvents: expanded ? 'auto' : 'none',
               transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
@@ -245,7 +249,7 @@ const NavFab = ({
               sx={{
                 position: 'absolute',
                 bottom: expanded ? item.bottomOffset : 0,
-                right: 0,
+                ...(position === 'left' ? { left: 0 } : { right: 0 }),
                 opacity: expanded ? 1 : 0,
                 pointerEvents: expanded ? 'auto' : 'none',
                 transition: 'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-in-out',
@@ -253,7 +257,7 @@ const NavFab = ({
                 zIndex: 1530,
               }}
             >
-              <Tooltip title={item.tooltip || ''} placement="left">
+              <Tooltip title={item.tooltip || ''} placement={item.tooltipPlacement}>
                 <Fab onClick={item.onClick} size={item.size} sx={actionFabSx(item.accent, item.delay)}>
                   {item.icon}
                 </Fab>
@@ -264,7 +268,7 @@ const NavFab = ({
 
         {/* Main toggle FAB */}
         {showMainFab ? (
-          <Tooltip title={mainFabDisabled ? mainTooltipDisabled : (expanded ? mainTooltipOpen : mainTooltipClosed)}>
+          <Tooltip title={mainFabDisabled ? mainTooltipDisabled : (expanded ? mainTooltipOpen : mainTooltipClosed)} placement={position === 'left' ? 'right' : 'left'}>
             <span>
               <Fab
                 onClick={onToggleExpanded}
