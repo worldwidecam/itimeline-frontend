@@ -78,6 +78,7 @@ import TradingCard from './common/TradingCard';
 import TimelineCard from './common/TimelineCard';
 import EventDialog from './timeline-v3/events/EventDialog';
 import EventPopup from './timeline-v3/events/EventPopup';
+import UserCard from './common/UserCard';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import {
   getGlassDialogPaperSx,
@@ -85,7 +86,7 @@ import {
   getGlassPillActionButtonSx,
   getGlassSquareActionButtonSx,
 } from '../utils/formStyleGuide';
-import { resolveUserIdentityColor } from '../utils/userIdentityColor';
+
 import { displayUsername, usernameMatchesQuery } from '../utils/usernameDisplay';
 import GuestHubFiller from './shared/GuestHubFiller';
 
@@ -378,7 +379,6 @@ const HomePage = () => {
   const [loadingFollowerUsers, setLoadingFollowerUsers] = React.useState(false);
   const [loadingMyCreationEvents, setLoadingMyCreationEvents] = React.useState(false);
   const [followActionByUserId, setFollowActionByUserId] = React.useState({});
-  const [userActionMenu, setUserActionMenu] = React.useState({ anchorEl: null, userId: null });
   const [hasLoadedSearchEvents, setHasLoadedSearchEvents] = React.useState(false);
   const [hasLoadedMyCreationEvents, setHasLoadedMyCreationEvents] = React.useState(false);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
@@ -2704,16 +2704,7 @@ const HomePage = () => {
     }
   }, [currentUserId, fetchFollowedUsers, fetchFollowerUsers, followActionByUserId, followedUserIdSet]);
 
-  const handleOpenUserActionMenu = React.useCallback((event, profileUser) => {
-    event.stopPropagation();
-    const targetId = Number(profileUser?.id || 0);
-    if (!(targetId > 0)) return;
-    setUserActionMenu({ anchorEl: event.currentTarget, userId: targetId });
-  }, []);
 
-  const handleCloseUserActionMenu = React.useCallback(() => {
-    setUserActionMenu({ anchorEl: null, userId: null });
-  }, []);
 
   const fetchMyCreationEvents = React.useCallback(async () => {
     if (loadingMyCreationEvents || hasLoadedMyCreationEvents || !ownedTimelines.length) return;
@@ -2935,239 +2926,7 @@ const HomePage = () => {
     return <RemarkCard {...sharedProps} />;
   }, []);
 
-  const renderUserProfileCard = React.useCallback((profileUser) => {
-    const userPrimaryColor = resolveUserIdentityColor(profileUser);
-    const fallbackStartTone = theme.palette.mode === 'dark' ? '#1a2a3f' : '#fff4ea';
-    const fallbackEndTone = theme.palette.mode === 'dark' ? '#395574' : '#dcecff';
-    const userCardBackground = userPrimaryColor
-      ? `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.9)} 46%, ${alpha(userPrimaryColor, 0.9)} 100%)`
-      : `linear-gradient(90deg, ${alpha(fallbackStartTone, 0.97)} 0%, ${alpha(fallbackEndTone, 0.93)} 100%)`;
 
-    const profileUserId = Number(profileUser?.id || 0);
-    const isFollowing = followedUserIdSet.has(profileUserId);
-    const isSelf = currentUserId > 0 && profileUserId === currentUserId;
-    const followBusy = !!followActionByUserId[profileUserId];
-    const isActionMenuOpen = userActionMenu.userId === profileUserId && Boolean(userActionMenu.anchorEl);
-
-    return (
-      <Card
-        key={`user-${profileUser.id}`}
-        onClick={() => navigate(`/profile/${profileUser.id}`)}
-        aria-label={`Open profile for ${displayUsername(profileUser.username)}`}
-        sx={{
-          position: 'relative',
-          borderRadius: 3,
-          border: '2px solid',
-          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(35, 24, 24, 0.55)',
-          background: userCardBackground,
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 12px 26px rgba(0,0,0,0.4)'
-            : '0 14px 24px rgba(80, 34, 39, 0.24)',
-          overflow: 'visible',
-          pl: { xs: 12.9, sm: 16.6 },
-          minHeight: { xs: 125, sm: 133 },
-          cursor: 'pointer',
-          transition: 'transform 240ms ease, box-shadow 240ms ease',
-          '&:hover': {
-            transform: 'translateY(-2px)',
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 16px 32px rgba(0,0,0,0.5)'
-              : '0 16px 30px rgba(80, 34, 39, 0.3)',
-          },
-          '&:focus-within': {
-            outline: '2px solid rgba(56,189,248,0.55)',
-            outlineOffset: 2,
-          },
-        }}
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            left: { xs: -24, sm: -32 },
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: { xs: 120, sm: 140 },
-            height: { xs: 148, sm: 172 },
-            borderRadius: '50px',
-            border: '3px solid',
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(22,18,18,0.94)' : 'rgba(18, 14, 14, 0.92)',
-            background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(145deg, rgba(32,30,30,0.96) 0%, rgba(15,12,12,0.96) 100%)'
-              : 'linear-gradient(145deg, rgba(38,30,30,0.94) 0%, rgba(18,12,12,0.94) 100%)',
-            p: 0.55,
-            zIndex: 3,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 10px 22px rgba(0,0,0,0.48)'
-              : '0 10px 20px rgba(42,20,20,0.35)',
-          }}
-        >
-          <Avatar
-            src={profileUser.avatar_url || ''}
-            alt={displayUsername(profileUser.username) || 'User'}
-            sx={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '46px',
-              bgcolor: 'rgba(255,255,255,0.2)',
-              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.95)',
-              fontWeight: 800,
-              fontSize: '1.4rem',
-            }}
-          >
-            {String(profileUser?.username || '?').charAt(0).toUpperCase()}
-          </Avatar>
-        </Box>
-
-        <CardContent
-          sx={{
-            px: { xs: 1.75, sm: 2.2 },
-            py: { xs: 1.4, sm: 1.55 },
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 1.5,
-          }}
-        >
-          <Box
-            sx={{
-              minWidth: 0,
-              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.94)' : 'rgba(15,23,42,0.94)',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.15, mb: 0.45 }}>
-              <Box
-                sx={{
-                  width: 16,
-                  height: 2,
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.92)',
-                  position: 'relative',
-                  '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    right: -3,
-                    top: -3,
-                    width: 0,
-                    height: 0,
-                    borderTop: '4px solid transparent',
-                    borderBottom: '4px solid transparent',
-                    borderRight: theme.palette.mode === 'dark' ? '6px solid rgba(255,255,255,0.9)' : '6px solid rgba(15,23,42,0.92)',
-                  },
-                }}
-              />
-              <Typography
-                sx={{
-                  fontFamily: 'Lobster, cursive',
-                  fontSize: { xs: '1.05rem', sm: '1.22rem' },
-                  lineHeight: 1.1,
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '4px',
-                  textDecorationThickness: '2px',
-                }}
-              >
-                @{displayUsername(profileUser.username)}
-              </Typography>
-            </Box>
-
-            <Typography
-              sx={{
-                fontFamily: 'Playfair Display, Georgia, serif',
-                fontStyle: 'italic',
-                fontWeight: 700,
-                fontSize: { xs: '0.95rem', sm: '1.05rem' },
-                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.9)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {profileUser.bio ? `"${profileUser.bio}"` : '"No bio added yet."'}
-            </Typography>
-          </Box>
-
-          <Stack spacing={0.75} sx={{ alignSelf: 'flex-end' }}>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={(e) => {
-                handleOpenUserActionMenu(e, profileUser);
-              }}
-              endIcon={<ExpandMoreIcon fontSize="small" />}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 700,
-                borderRadius: 1.75,
-                px: 1.4,
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
-                boxShadow: '0 8px 16px rgba(37,99,235,0.24)',
-              }}
-            >
-              Actions
-            </Button>
-
-            <Menu
-              anchorEl={userActionMenu.anchorEl}
-              open={isActionMenuOpen}
-              onClose={handleCloseUserActionMenu}
-              onClick={(event) => event.stopPropagation()}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              PaperProps={{
-                sx: {
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 14px 24px rgba(0,0,0,0.42)'
-                    : '0 12px 20px rgba(15,23,42,0.18)',
-                },
-              }}
-            >
-              <MenuItem
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleCloseUserActionMenu();
-                  navigate(`/profile/${profileUser.id}`);
-                }}
-              >
-                View Profile
-              </MenuItem>
-
-              {!isSelf ? (
-                <MenuItem
-                  disabled={followBusy}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleCloseUserActionMenu();
-                    handleToggleUserFollow(profileUser);
-                  }}
-                  sx={{
-                    color: isFollowing
-                      ? (theme.palette.mode === 'dark' ? 'rgb(252,165,165)' : 'rgb(185,28,28)')
-                      : (theme.palette.mode === 'dark' ? 'rgb(147,197,253)' : 'rgb(30,64,175)'),
-                    fontWeight: 700,
-                  }}
-                >
-                  {followBusy ? 'Saving...' : isFollowing ? 'Unfollow' : 'Follow'}
-                </MenuItem>
-              ) : null}
-            </Menu>
-          </Stack>
-        </CardContent>
-      </Card>
-    );
-  }, [
-    theme.palette.mode,
-    currentUserId,
-    followedUserIdSet,
-    followActionByUserId,
-    userActionMenu,
-    handleOpenUserActionMenu,
-    handleCloseUserActionMenu,
-    handleToggleUserFollow,
-    navigate,
-  ]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
@@ -5328,7 +5087,16 @@ const HomePage = () => {
                     </Box>
                   ) : activeFriendsUsers.length > 0 ? (
                     <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 1.6, sm: 2.1 } }}>
-                      {activeFriendsUsers.map((profileUser) => renderUserProfileCard(profileUser))}
+                      {activeFriendsUsers.map((profileUser) => (
+                        <UserCard
+                          key={`user-${profileUser.id}`}
+                          user={profileUser}
+                          currentUserId={currentUserId}
+                          followedUserIdSet={followedUserIdSet}
+                          followActionByUserId={followActionByUserId}
+                          onToggleFollow={handleToggleUserFollow}
+                        />
+                      ))}
                     </Stack>
                   ) : (
                     <Box sx={{ py: 6, textAlign: 'center' }}>
@@ -5552,7 +5320,16 @@ const HomePage = () => {
                                   </Typography>
                                 ) : null}
                                 <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 2.4, sm: 2.9 } }}>
-                                  {visibleUsers.map((profileUser) => renderUserProfileCard(profileUser))}
+                                  {visibleUsers.map((profileUser) => (
+                                    <UserCard
+                                      key={`user-${profileUser.id}`}
+                                      user={profileUser}
+                                      currentUserId={currentUserId}
+                                      followedUserIdSet={followedUserIdSet}
+                                      followActionByUserId={followActionByUserId}
+                                      onToggleFollow={handleToggleUserFollow}
+                                    />
+                                  ))}
                                 </Stack>
                               </>
                             ) : null}
