@@ -8,6 +8,7 @@ import {
 import UserAvatar from '../../common/UserAvatar';
 import { Person as PersonIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import { displayUsername } from '../../../utils/usernameDisplay';
 
 /**
  * CreatorChip - A reusable component that displays creator information with avatar and profile link
@@ -85,7 +86,7 @@ const CreatorChip = ({ user, color }) => {
             },
           }}
         >
-          {user.username}
+          {displayUsername(user.username)}
         </Link>
       </Box>
     </Box>

@@ -4,6 +4,7 @@ import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
+import { displayUsername } from '../../utils/usernameDisplay';
 import config from '../../config';
 import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date-fns';
 import TimelineBackground from './TimelineBackground';
@@ -3266,10 +3267,10 @@ const handleRecenter = () => {
                       avatar={
                         <Avatar
                           src={creatorProfile.avatar_url || undefined}
-                          alt={creatorProfile.username}
+                          alt={displayUsername(creatorProfile.username)}
                         />
                       }
-                      label={`@${creatorProfile.username}`}
+                      label={`@${displayUsername(creatorProfile.username)}`}
                       sx={{
                         ml: 1.5,
                         px: 1.5,

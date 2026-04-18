@@ -76,6 +76,7 @@ import EventDialog from '../events/EventDialog';
 import ErrorBoundary from '../../ErrorBoundary';
 import InfoCardsTab from './InfoCardsTab';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
+import { displayUsername } from '../../../utils/usernameDisplay';
 
 // ----- Shared helpers (module scope) -----
 // Normalize role string
@@ -567,7 +568,7 @@ const AdminPanel = () => {
       //   console.warn('[AdminPanel] Passport sync failed after role change (continuing):', e);
       // }
       await reloadMembers();
-      setSnackbarMessage(`Updated role to ${newRole} for ${member?.name || 'member'}`);
+      setSnackbarMessage(`Updated role to ${newRole} for ${displayUsername(member?.username || member?.name) || 'member'}`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (e) {
@@ -670,7 +671,7 @@ const AdminPanel = () => {
       handleCloseConfirmDialog();
       
       // 6. Show success message
-      setSnackbarMessage(`${selectedMember.name} has been removed from the community`);
+      setSnackbarMessage(`${displayUsername(selectedMember?.username || selectedMember?.name)} has been removed from the community`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
       
@@ -758,7 +759,7 @@ const AdminPanel = () => {
       }
       
       // 6. Show success message
-      setSnackbarMessage(`${selectedMember.name} has been blocked from the community`);
+      setSnackbarMessage(`${displayUsername(selectedMember?.username || selectedMember?.name)} has been blocked from the community`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
       
@@ -1131,8 +1132,8 @@ const AdminPanel = () => {
                                 sx={{ mr: 2 }}
                               />
                               <Box>
-                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                  {member.username || member.name || 'Unknown User'}
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                  {displayUsername(member.username || member.name) || 'Unknown User'}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                   Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Unknown'}
@@ -1298,8 +1299,8 @@ const AdminPanel = () => {
                                 sx={{ mr: 2 }}
                               />
                               <Box>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                  {member.name}
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                  {displayUsername(member.name)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                   Requested {new Date(member.requestDate).toLocaleDateString()}
@@ -1567,7 +1568,7 @@ const AdminPanel = () => {
           aria-describedby="remove-member-dialog-description"
         >
           <DialogTitle id="remove-member-dialog-title">
-            Remove {selectedMember?.name} from community?
+            Remove {displayUsername(selectedMember?.username || selectedMember?.name)} from community?
           </DialogTitle>
           <DialogContent>
             <DialogContentText id="remove-member-dialog-description">
@@ -1599,7 +1600,7 @@ const AdminPanel = () => {
           aria-describedby="block-member-dialog-description"
         >
           <DialogTitle id="block-member-dialog-title">
-            Block {selectedMember?.name} from community?
+            Block {displayUsername(selectedMember?.username || selectedMember?.name)} from community?
           </DialogTitle>
           <DialogContent>
             <DialogContentText id="block-member-dialog-description">
@@ -1631,7 +1632,7 @@ const AdminPanel = () => {
           aria-describedby="unblock-member-dialog-description"
         >
           <DialogTitle id="unblock-member-dialog-title">
-            Unblock {selectedMember?.name}?
+            Unblock {displayUsername(selectedMember?.username || selectedMember?.name)}?
           </DialogTitle>
           <DialogContent>
             <DialogContentText id="unblock-member-dialog-description">
@@ -2562,10 +2563,10 @@ const ManagePostsTab = ({ timelineId }) => {
                             '&:hover': { textDecoration: 'underline' },
                           }}
                         >
-                          {post.reporter?.name || 'Reporter'}
+                          {displayUsername(post.reporter?.name) || 'Reporter'}
                         </Typography>
                       ) : (
-                        <Typography variant="body2">{post.reporter?.name || 'Reporter'}</Typography>
+                        <Typography variant="body2">{displayUsername(post.reporter?.name) || 'Reporter'}</Typography>
                       )}
                     </Box>
 
@@ -2580,7 +2581,7 @@ const ManagePostsTab = ({ timelineId }) => {
                             size={22}
                           />
                         )}
-                        <Typography variant="body2">{post.assignedModerator.name}</Typography>
+                        <Typography variant="body2">{displayUsername(post.assignedModerator.name)}</Typography>
                       </Box>
                     )}
                   </Box>
@@ -3222,8 +3223,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                       }}
                     />
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle1" component="div">
-                        {member.name}
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {displayUsername(member.name)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Joined {member.joinDate}
@@ -3446,8 +3447,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     }}
                   />
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="subtitle1" component="div" sx={{ opacity: 0.7 }}>
-                      {member.name}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {displayUsername(member.name)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Blocked on {member.blockedDate}

@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import UserAvatar from './common/UserAvatar';
+import { displayUsername } from '../utils/usernameDisplay';
 
 const UserProfile = () => {
   const { user } = useAuth();
@@ -25,14 +26,14 @@ const UserProfile = () => {
           mb: 4
         }}>
           <UserAvatar
-            name={user?.username}
+            name={displayUsername(user?.username)}
             avatarUrl={user?.avatar_url}
             id={user?.id}
             size={150}
             sx={{ mb: 2, fontSize: '4rem' }}
           />
           <Typography variant="h4" gutterBottom>
-            {user?.username}'s Profile
+            {displayUsername(user?.username)}'s Profile
           </Typography>
         </Box>
         

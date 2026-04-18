@@ -1,6 +1,7 @@
 import React from 'react';
 import { Avatar, Tooltip } from '@mui/material';
 import { resolveAvatarColor, getInitial } from '../../utils/avatar';
+import { displayUsername } from '../../utils/usernameDisplay';
 
 export default function UserAvatar({
   name,
@@ -11,7 +12,7 @@ export default function UserAvatar({
   sx = {},
   onClick
 }) {
-  const displayName = name || 'User';
+  const displayName = displayUsername(name || 'User');
   const initial = getInitial(displayName);
   const userForColor = { userId: id, name: displayName };
   const bg = resolveAvatarColor(userForColor);

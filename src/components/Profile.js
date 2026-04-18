@@ -49,6 +49,7 @@ import {
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
 import { getCachedUserIdentityColor, resolveUserIdentityColor } from '../utils/userIdentityColor';
+import { displayUsername } from '../utils/usernameDisplay';
 
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
@@ -299,7 +300,7 @@ const Profile = () => {
     [textsModule]
   );
   const textsEntries = useMemo(
-    () => normalizeProfileTextEntries(visibleTextsModule?.texts, profileUser?.username || 'User'),
+    () => normalizeProfileTextEntries(visibleTextsModule?.texts, displayUsername(profileUser?.username) || 'User'),
     [visibleTextsModule?.texts, profileUser?.username]
   );
   const textsOverflowMode = normalizeOverflowMode(visibleTextsModule?.overflow_mode);
@@ -1096,7 +1097,7 @@ const Profile = () => {
             }}
           >
             <Typography variant="h6" gutterBottom>
-              {isOwnProfile ? 'My Music' : `${profileUser?.username}'s Music`}
+              {isOwnProfile ? 'My Music' : `${displayUsername(profileUser?.username)}'s Music`}
             </Typography>
             <MusicPlayer url={musicData?.music_url} platform={musicData?.music_platform} />
           </Box>
@@ -1133,14 +1134,14 @@ const Profile = () => {
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <UserAvatar
-                  name={profileUser.username}
+                  name={displayUsername(profileUser.username)}
                   avatarUrl={profileUser.avatar_url}
                   id={profileUser.id}
                   size={120}
                 />
                 <Box>
                   <Typography variant="h4" gutterBottom>
-                    {profileUser.username}
+                    {displayUsername(profileUser.username)}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
                     {getBlurredEmail(profileUser.email)}
@@ -1270,7 +1271,7 @@ const Profile = () => {
                                       textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
                                     }}
                                   >
-                                    {`${entry.author_username || 'User'} Says`}
+                                    {`${displayUsername(entry.author_username) || 'User'} Says`}
                                   </Typography>
                                   {canDeleteTexts && (
                                     <Tooltip title="Delete text">
@@ -1317,7 +1318,7 @@ const Profile = () => {
                               maxRows={4}
                               value={profileTextDraft}
                               onChange={(event) => setProfileTextDraft(event.target.value)}
-                              placeholder={isOwnProfile ? 'Write a text to your profile...' : `Write a text for ${profileUser?.username || 'this user'}...`}
+                              placeholder={isOwnProfile ? 'Write a text to your profile...' : `Write a text for ${displayUsername(profileUser?.username) || 'this user'}...`}
                               inputProps={{ maxLength: 1200 }}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && !event.shiftKey) {
@@ -1440,7 +1441,7 @@ const Profile = () => {
           tradingCard={{
             onActivate: handleCopyProfileLink,
             imageUrl: profileShareImageUrl,
-            imageAlt: `${profileUser?.username || 'User'} profile portrait`,
+            imageAlt: `${displayUsername(profileUser?.username) || 'User'} profile portrait`,
             imageClassName: 'profile-share-card-image',
             overlayClassName: 'profile-share-card-overlay',
             imageSx: {
@@ -1450,7 +1451,7 @@ const Profile = () => {
             },
             fallbackSx: profileFallbackSx,
             label: 'PROFILE',
-            title: String(profileUser?.username || '').toUpperCase(),
+            title: String(displayUsername(profileUser?.username) || '').toUpperCase(),
             qrUrl: profileShareQrUrl,
             overlayText: 'Tap to Share',
             overlaySx: { fontSize: '0.72rem' },
@@ -1476,7 +1477,7 @@ const Profile = () => {
         maxWidth="sm"
         PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
       >
-        <DialogTitle>Report {profileUser?.username || 'User'}</DialogTitle>
+        <DialogTitle>Report {displayUsername(profileUser?.username) || 'User'}</DialogTitle>
         <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This report creates a moderation ticket for Site Control.

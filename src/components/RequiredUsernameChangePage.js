@@ -14,6 +14,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { motion } from 'framer-motion';
 import { completeRequiredUsernameChange } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { displayUsername } from '../utils/usernameDisplay';
 import {
   getGlassInputSx,
   getGlassPillActionButtonSx,
@@ -212,7 +213,7 @@ const RequiredUsernameChangePage = () => {
                     textAlign: 'center',
                   }}
                 >
-                  Current username: <strong>{user.username}</strong>
+                  Current username: <strong>{displayUsername(user.username)}</strong>
                 </Typography>
               )}
 

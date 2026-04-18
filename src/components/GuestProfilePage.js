@@ -24,6 +24,7 @@ import UserAvatar from './common/UserAvatar';
 import NavFab from './timeline-v3/community/NavFab';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import { submitUserReport } from '../utils/api';
+import { displayUsername } from '../utils/usernameDisplay';
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -278,7 +279,7 @@ const GuestProfilePage = () => {
                 />
                 <Box>
                   <Typography variant="h4" gutterBottom>
-                    {GUEST_PROFILE_USER.username}
+                    {displayUsername(GUEST_PROFILE_USER.username)}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
                     Guest Account

@@ -22,6 +22,7 @@ import {
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import UserAvatar from './common/UserAvatar';
+import { displayUsername } from '../utils/usernameDisplay';
 
 const UserProfileView = () => {
   const { userId } = useParams();
@@ -126,7 +127,7 @@ const UserProfileView = () => {
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <UserAvatar 
-                name={profileUser.username}
+                name={displayUsername(profileUser.username)}
                 avatarUrl={profileUser.avatar_url}
                 id={profileUser.id}
                 size={80}
@@ -134,7 +135,7 @@ const UserProfileView = () => {
               />
               <Box>
                 <Typography variant="h4" component="h1">
-                  {profileUser.username}
+                  {displayUsername(profileUser.username)}
                 </Typography>
                 {profileUser.bio && (
                   <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>

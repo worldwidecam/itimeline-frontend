@@ -18,6 +18,7 @@ import {
   StarBorder as StarBorderIcon,
 } from '@mui/icons-material';
 import { normalizeTimelineCardData } from './timelineCardModel';
+import { displayUsername } from '../../utils/usernameDisplay';
 
 function TimelineCard({
   timeline,
@@ -105,7 +106,7 @@ function TimelineCard({
     });
   };
   const TITLE_VISUAL_CHAR_LIMIT = 62;
-  const timelineTitle = (timelineName || '').trim();
+  const timelineTitle = displayUsername(timelineName || '').trim();
   const displayTimelineTitle = timelineTitle.length > TITLE_VISUAL_CHAR_LIMIT
     ? `${timelineTitle.slice(0, TITLE_VISUAL_CHAR_LIMIT - 1)}…`
     : timelineTitle;

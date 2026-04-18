@@ -75,6 +75,7 @@ import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
 import EventDialog from '../timeline-v3/events/EventDialog';
 import SiteControlLockView from './SiteControlLockView';
+import { displayUsername } from '../../utils/usernameDisplay';
 
 const getReportTypeLabel = (reportType) => {
   const type = (reportType || '').toLowerCase();
@@ -260,7 +261,7 @@ const AdminListTab = ({ canManage }) => {
                     size={36}
                   />
                   <Box>
-                    <Typography variant="subtitle1">{admin.username || `User ${admin.user_id}`}</Typography>
+                    <Typography variant="subtitle1">{displayUsername(admin.username) || `User ${admin.user_id}`}</Typography>
                     <Typography variant="body2" color="text.secondary">
                       User ID: {admin.user_id}
                     </Typography>
@@ -297,7 +298,7 @@ const AdminListTab = ({ canManage }) => {
         <DialogTitle>Remove Site Admin?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Remove {removeTarget?.username || `User ${removeTarget?.user_id}`} from site admins?
+            Remove {displayUsername(removeTarget?.username) || `User ${removeTarget?.user_id}`} from site admins?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -1491,7 +1492,7 @@ const GlobalReportsTab = () => {
 
                               {reportedUsernameAtActionTime && post.resolution === 'require_username_change' && (
                                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                                  Reported username: <strong>{reportedUsernameAtActionTime}</strong>
+                                  Reported username: <strong>{displayUsername(reportedUsernameAtActionTime)}</strong>
                                 </Typography>
                               )}
                             </>
@@ -1552,11 +1553,11 @@ const GlobalReportsTab = () => {
                                       '&:hover': { textDecoration: 'underline' },
                                     }}
                                   >
-                                    {post.reportedUser?.name || `User ${post.reportedUser.id}`}
+                                    {displayUsername(post.reportedUser?.name) || `User ${post.reportedUser.id}`}
                                   </Typography>
                                 ) : (
                                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                                    {post.reportedUser?.name || 'Unknown User'}
+                                    {displayUsername(post.reportedUser?.name) || 'Unknown User'}
                                   </Typography>
                                 )}
                                 {post.reportedUser?.id && (
@@ -1887,10 +1888,10 @@ const GlobalReportsTab = () => {
                               '&:hover': { textDecoration: 'underline' },
                             }}
                           >
-                            {post.reporter?.name || 'Reporter'}
+                            {displayUsername(post.reporter?.name) || 'Reporter'}
                           </Typography>
                         ) : (
-                          <Typography variant="body2">{post.reporter?.name || 'Reporter'}</Typography>
+                          <Typography variant="body2">{displayUsername(post.reporter?.name) || 'Reporter'}</Typography>
                         )}
                       </Box>
 

@@ -45,6 +45,7 @@ import {
   getGlassInputSx,
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
+import { displayUsername } from '../utils/usernameDisplay';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
@@ -632,16 +633,12 @@ const ProfileSettings = () => {
       return;
     }
 
-    if (/\s/.test(trimmedUsername)) {
-      setError('Username cannot contain spaces.');
-      setIsUploading(false);
-      setIsSaving(false);
-      return;
-    }
+    // Golden rule: spaces are stored as underscores, displayed as spaces
+    const normalizedUsername = trimmedUsername.replace(/\s+/g, '_');
 
     try {
       const submitData = new FormData();
-      submitData.append('username', trimmedUsername);
+      submitData.append('username', normalizedUsername);
       submitData.append('email', formData.email);
       submitData.append('bio', formData.bio);
       
@@ -948,11 +945,7 @@ const ProfileSettings = () => {
           />
         </Box>
         
-        {error && !error.includes('music') && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+        {/* Error messages are shown via Snackbar at bottom-center — see below */}
         
         <Box sx={{ mb: 3 }}>
           <Divider sx={{ my: 3 }} />
@@ -1026,8 +1019,9 @@ const ProfileSettings = () => {
                     fullWidth
                     label="Username"
                     name="username"
-                    value={formData.username}
+                    value={displayUsername(formData.username)}
                     onChange={handleInputChange}
+                    helperText="Spaces are allowed and encouraged!"
                   />
                 </Grid>
                 
@@ -1466,6 +1460,24 @@ const ProfileSettings = () => {
           </Grid>
         </Box>
 
+        {/* Error Snackbar — bottom-center, consistent with success */}
+        <Snackbar
+          open={Boolean(error) && !error.includes('music')}
+          autoHideDuration={8000}
+          onClose={() => setError('')}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            severity="error"
+            onClose={() => setError('')}
+            sx={{ width: '100%' }}
+            elevation={6}
+          >
+            {error}
+          </Alert>
+        </Snackbar>
+
+        {/* Success Snackbar — bottom-center */}
         <Snackbar
           open={Boolean(success) && !success.includes('Music')}
           autoHideDuration={6000}

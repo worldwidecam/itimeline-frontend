@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import api, { updateTimelineDetails } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
+import { displayUsername } from '../../utils/usernameDisplay';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -356,7 +357,7 @@ const PersonalAccessPanel = ({
                   />
                   <Box sx={{ flexGrow: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      @{user?.username || 'you'}
+                      @{displayUsername(user?.username) || 'you'}
                     </Typography>
                     <Typography
                       variant="caption"
@@ -397,7 +398,7 @@ const PersonalAccessPanel = ({
                       }}
                     />
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="body2">@{viewer.username}</Typography>
+                      <Typography variant="body2">@{displayUsername(viewer.username)}</Typography>
                     </Box>
                     <IconButton
                       size="small"

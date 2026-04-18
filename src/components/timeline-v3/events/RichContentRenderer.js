@@ -9,6 +9,7 @@ import HashtagIcon from '../../common/HashtagIcon';
 import api, { getUserByUsername } from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import { useAuth } from '../../../contexts/AuthContext';
+import { displayUsername } from '../../../utils/usernameDisplay';
 
 const RichContentRenderer = ({
   content,
@@ -385,7 +386,7 @@ const RichContentRenderer = ({
                     color: theme.palette.mode === 'dark' ? 'rgba(233, 244, 255, 0.96)' : 'rgba(17, 36, 57, 0.92)',
                   }}
                 >
-                  {item.username}
+                  {displayUsername(item.username)}
                 </Typography>
               </Box>
             </Tooltip>

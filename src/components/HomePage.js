@@ -86,6 +86,7 @@ import {
   getGlassSquareActionButtonSx,
 } from '../utils/formStyleGuide';
 import { resolveUserIdentityColor } from '../utils/userIdentityColor';
+import { displayUsername, usernameMatchesQuery } from '../utils/usernameDisplay';
 import GuestHubFiller from './shared/GuestHubFiller';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
@@ -943,9 +944,8 @@ const HomePage = () => {
 
     if (isUserSearchScope) {
       count += searchUsers.filter((profileUser) => {
-        const username = String(profileUser?.username || '').toLowerCase();
         const bio = String(profileUser?.bio || '').toLowerCase();
-        return username.includes(previewQuery) || bio.includes(previewQuery);
+        return usernameMatchesQuery(profileUser?.username, previewQuery) || bio.includes(previewQuery);
       }).length;
     }
 
@@ -1455,13 +1455,14 @@ const HomePage = () => {
     if (!hasSearchQuery) return [];
 
     const q = timelineSearch.trim().toLowerCase();
+    const qNormalized = q.replace(/\s+/g, '_');
     const rankTimeline = (timeline) => {
       const name = String(timeline?.name || '').toLowerCase();
       const description = String(timeline?.description || '').toLowerCase();
 
-      if (name === q) return 0;
-      if (name.startsWith(q)) return 1;
-      if (name.includes(q)) return 2;
+      if (name === qNormalized || name === q) return 0;
+      if (name.startsWith(qNormalized) || name.startsWith(q)) return 1;
+      if (name.includes(qNormalized) || name.includes(q)) return 2;
       if (description.includes(q)) return 3;
       return 999;
     };
@@ -1487,13 +1488,14 @@ const HomePage = () => {
     if (!hasSearchQuery) return [];
 
     const q = timelineSearch.trim().toLowerCase();
+    const qNormalized = q.replace(/\s+/g, '_');
     const rankEvent = (event) => {
       const title = String(event?.title || '').toLowerCase();
       const description = String(event?.description || '').toLowerCase();
 
-      if (title === q) return 0;
-      if (title.startsWith(q)) return 1;
-      if (title.includes(q)) return 2;
+      if (title === qNormalized || title === q) return 0;
+      if (title.startsWith(qNormalized) || title.startsWith(q)) return 1;
+      if (title.includes(qNormalized) || title.includes(q)) return 2;
       if (description.includes(q)) return 3;
       return 999;
     };
@@ -1519,13 +1521,17 @@ const HomePage = () => {
     if (!hasSearchQuery) return [];
 
     const q = timelineSearch.trim().toLowerCase();
+    // Golden rule: normalize query so spaces match underscores
+    const qNormalized = q.replace(/\s+/g, '_');
     const rankUser = (profileUser) => {
       const username = String(profileUser?.username || '').toLowerCase();
+      const usernameDisplay = displayUsername(username);
       const bio = String(profileUser?.bio || '').toLowerCase();
 
-      if (username === q) return 0;
-      if (username.startsWith(q)) return 1;
-      if (username.includes(q)) return 2;
+      // Match against both stored form (underscores) and display form (spaces)
+      if (username === qNormalized || usernameDisplay === q) return 0;
+      if (username.startsWith(qNormalized) || usernameDisplay.startsWith(q)) return 1;
+      if (username.includes(qNormalized) || usernameDisplay.includes(q)) return 2;
       if (bio.includes(q)) return 3;
       return 999;
     };
@@ -2672,7 +2678,7 @@ const HomePage = () => {
     if (followActionByUserId[targetId]) return;
 
     const currentlyFollowing = followedUserIdSet.has(targetId);
-    const targetLabel = profileUser?.username ? `@${profileUser.username}` : 'this user';
+    const targetLabel = profileUser?.username ? `@${displayUsername(profileUser.username)}` : 'this user';
 
     try {
       setFollowActionByUserId((prev) => ({ ...prev, [targetId]: true }));
@@ -2947,7 +2953,7 @@ const HomePage = () => {
       <Card
         key={`user-${profileUser.id}`}
         onClick={() => navigate(`/profile/${profileUser.id}`)}
-        aria-label={`Open profile for ${profileUser.username}`}
+        aria-label={`Open profile for ${displayUsername(profileUser.username)}`}
         sx={{
           position: 'relative',
           borderRadius: 3,
@@ -2997,7 +3003,7 @@ const HomePage = () => {
         >
           <Avatar
             src={profileUser.avatar_url || ''}
-            alt={profileUser.username || 'User'}
+            alt={displayUsername(profileUser.username) || 'User'}
             sx={{
               width: '100%',
               height: '100%',
@@ -3058,7 +3064,7 @@ const HomePage = () => {
                   textDecorationThickness: '2px',
                 }}
               >
-                @{profileUser.username}
+                @{displayUsername(profileUser.username)}
               </Typography>
             </Box>
 
@@ -3357,8 +3363,8 @@ const HomePage = () => {
     const response = await api.post('/api/timeline-v3', {
       name: normalizedName,
       description: desiredType === 'personal'
-        ? `${usernameBase}'s personal timeline`
-        : `${usernameBase}'s public posting timeline`,
+        ? `${displayUsername(usernameBase)}'s personal timeline`
+        : `${displayUsername(usernameBase)}'s public posting timeline`,
       timeline_type: desiredType,
       visibility: 'public',
     });
@@ -3920,7 +3926,7 @@ const HomePage = () => {
             {activeHeroSlide?.type === 'welcome' ? (
               <>
                 <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.8rem' } }}>
-                  {user?.username ? `Welcome Back ${user.username}!` : 'Welcome to Timeline Forum'}
+                  {user?.username ? `Welcome Back ${displayUsername(user.username)}!` : 'Welcome to Timeline Forum'}
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 1, opacity: 0.88 }}>
                   {isGuest ? (
@@ -5618,7 +5624,7 @@ const HomePage = () => {
                 <Box sx={{ textAlign: 'left' }}>
                   <Typography variant="button" sx={{ display: 'block', lineHeight: 1.1 }}>Public Post</Typography>
                   <Typography variant="caption" sx={{ opacity: 0.86 }}>
-                    Uses your #{String(user?.username || '').trim().toUpperCase()} timeline.
+                    Uses your #{displayUsername(String(user?.username || '').trim()).toUpperCase()} timeline.
                   </Typography>
                 </Box>
               </Button>
@@ -5632,7 +5638,7 @@ const HomePage = () => {
                 <Box sx={{ textAlign: 'left' }}>
                   <Typography variant="button" sx={{ display: 'block', lineHeight: 1.1 }}>Private Post</Typography>
                   <Typography variant="caption" sx={{ opacity: 0.86 }}>
-                    Uses your My-{String(user?.username || '').trim().toUpperCase()} personal timeline.
+                    Uses your My-{displayUsername(String(user?.username || '').trim()).toUpperCase()} personal timeline.
                   </Typography>
                 </Box>
               </Button>

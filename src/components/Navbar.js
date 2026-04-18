@@ -41,6 +41,7 @@ import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
 import ToolbarSpacer from './ToolbarSpacer';
 import api, { checkMembershipStatus, getTimelineWarningState, getTimelineStatusMessage, getTimelineActions, getLandingRotatorSettings } from '../utils/api';
 import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta } from './timeline-v3/community/timelineStatusActionUtils';
+import { displayUsername } from '../utils/usernameDisplay';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -549,7 +550,7 @@ function Navbar() {
           <ListItem sx={{ pt: 3, pb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
               <UserAvatar
-                name={user.username}
+                name={displayUsername(user.username)}
                 avatarUrl={user.avatar_url}
                 id={user.id}
                 size={60}
@@ -557,7 +558,7 @@ function Navbar() {
               />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {user.username}
+                  {displayUsername(user.username)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {getBlurredEmail(user.email)}
@@ -851,7 +852,7 @@ function Navbar() {
                 noWrap
                 sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
               >
-                {lastVisitedTimeline.name}
+                {displayUsername(lastVisitedTimeline.name)}
               </Typography>
             </ListItem>
             <Divider sx={{ my: 1 }} />
@@ -1408,7 +1409,7 @@ function Navbar() {
                 </Drawer>
                 <IconButton onClick={handleMenu} sx={{ p: 0 }}>
                   <UserAvatar
-                    name={user.username}
+                    name={displayUsername(user.username)}
                     avatarUrl={user.avatar_url}
                     id={user.id}
                     size={40}

@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { MoreVert as MoreVertIcon } from '@mui/icons-material';
 import UserAvatar from '../../common/UserAvatar';
+import { displayUsername } from '../../../utils/usernameDisplay';
 
 const TimelinePost = ({ post }) => {
   return (
@@ -23,7 +24,7 @@ const TimelinePost = ({ post }) => {
           />
           <Box ml={2} flex={1}>
             <Typography variant="subtitle1" component="div">
-              {post.author.username}
+              {displayUsername(post.author.username)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {new Date(post.timestamp).toLocaleString()}

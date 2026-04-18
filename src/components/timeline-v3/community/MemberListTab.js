@@ -36,6 +36,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getTimelineDetails, getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction, submitTimelineReport } from '../../../utils/api';
+import { displayUsername, usernameMatchesQuery } from '../../../utils/usernameDisplay';
 import { motion } from 'framer-motion';
 import NavFab from './NavFab';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -361,9 +362,9 @@ const MemberListTab = () => {
     }
 
     // search by name
-    const term = (searchTerm || '').trim().toLowerCase();
+    const term = (searchTerm || '').trim();
     if (term) {
-      list = list.filter(m => (m.name || '').toLowerCase().includes(term));
+      list = list.filter(m => usernameMatchesQuery(m.name, term));
     }
 
     // sort
@@ -2012,7 +2013,7 @@ const MemberListTab = () => {
                     />
                     <Box sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="subtitle1">{member.name}</Typography>
+                        <Typography variant="subtitle1">{displayUsername(member.name)}</Typography>
                         
                         {/* Management actions removed: MemberListTab is read-only. */}
                       </Box>
