@@ -1200,34 +1200,36 @@ const MediaCard = forwardRef(({
               columnGap: 1,
             }}>
               {/* Author with avatar */}
-              {event.created_by_username && (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
-                  <UserAvatar
-                    name={event.created_by_username}
-                    avatarUrl={event.created_by_avatar}
-                    id={event.created_by}
-                    size={24}
-                    sx={{ mr: 0.5, fontSize: '0.75rem' }}
-                  />
-                  <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                    By
-                  </Typography>
-                  <Link
-                    component={RouterLink}
-                    to={`/profile/${event.created_by}`}
-                    variant="caption"
-                    color="primary"
-                    sx={{ 
-                      textDecoration: 'none',
-                      '&:hover': {
-                        textDecoration: 'underline'
-                      }
-                    }}
-                  >
-                    {event.created_by_username}
-                  </Link>
-                </Box>
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
+                {event.created_by_username && (
+                  <>
+                    <UserAvatar
+                      name={event.created_by_username}
+                      avatarUrl={event.created_by_avatar}
+                      id={event.created_by}
+                      size={24}
+                      sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                      By
+                    </Typography>
+                    <Link
+                      component={RouterLink}
+                      to={`/profile/${event.created_by}`}
+                      variant="caption"
+                      color="primary"
+                      sx={{ 
+                        textDecoration: 'none',
+                        '&:hover': {
+                          textDecoration: 'underline'
+                        }
+                      }}
+                    >
+                      {event.created_by_username}
+                    </Link>
+                  </>
+                )}
+              </Box>
               {showInlineVoteControls && (
                 <Box sx={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
                   {/* Consensus label — hidden on 0 votes and on exact ties */}

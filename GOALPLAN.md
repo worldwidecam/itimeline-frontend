@@ -1,13 +1,15 @@
 # GOALPLAN — Template
 
 ## Main Goal
-- [ ] FULL WEBSITE IMPLEMENTATION
+- [ ] REWIRE frontend to new typescript backend
+- [ ] leave NO FEATURE behind
 
 ## Current Focus / Main Parent TODO
-- [ ] MAJOR CHANGE FROM PYTHON BACKEND TO TYPESCRIPT BACKEND.
-- [ ] getting legacy data to work IS NOT our objective. our objective is to get new data to work equally as good.
+- [ ] Home page rewiring
 
 ## Scope / Context understanding
+- getting legacy data to work IS NOT our objective. our objective is to get new data to work equally as good.
+
 - Backend direction lock: Cloudflare stack is canonical (`TypeScript` + `Wrangler` + `D1` + Cloudflare services). Do not introduce new dependencies on legacy Flask/Postgres runtime paths.
 - Migration objective: reach full feature/function parity on Cloudflare backend, then remove legacy compatibility code instead of maintaining dual behavior long-term.
 - Data ownership lock: DB remains durable source of truth; frontend storage is temporary cache/hydration only.
@@ -16,70 +18,20 @@
 - understand 
 
 ## Active Tangents (tasks that take temporary precedent over sub-TODOs)
+- [x] Timeline type field (backend now returns `timeline_type` alias for frontend)
+- [x] Event creator info (backend now returns `created_by_username` in EventDTO)
+- [x] Creator user color (backend returns `created_by_user_color`, frontend UserAvatar wired)
+- [x] Creator profile link (changed from /profile/:id to /profile/:username)
+- [ ] Timeline warning-state endpoint (frontend calls /api/v1/timelines/:id/warning-state - backend missing)
+- [ ] Membership status endpoint mismatch (frontend: /api/v1/membership/timelines/:id/status vs backend: /api/v1/timelines/:id/members/me)
+- [ ] Blocked members endpoint (frontend calls /api/v1/timelines/:id/blocked-members - backend missing)
+- [ ] Reports endpoint (frontend calls /api/v1/timelines/:id/reports?status=reviewing - backend missing)
 
-- [x] Tangent queue cleanup complete; unresolved tangent items were moved to `Pending TODOs`.
 
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [x] Audit backend `app.py` and `routes/` to identify all internal model definitions that should be in `iTimeline-DB`.
-- [x] Fully transition backend to use the `itimeline_db` package for ALL shared data structures.
-- [x] Sync and apply "staged" changes in `iTimeline-DB` to ensure the backend is actually using the latest repository state.
-- [x] Resolve the `db = None` initialization flaw in `iTimeline-DB` package so it can be reliably imported without fallbacks.
-- [ ] (Guest Mode) Clean up the `api/auth/validate` and `sync` routes once the model transition is stable.
-- [x] (Guest Mode) Home page complete implementation/limitations.
-- [x] (Guest Mode) Guest profile complete implementation/limitations.
-- [x] (Guest Mode) Guest mode regarding timeline pages.
-- [x] (Guest Mode) Guest mode auto handling people visiting from links they were shared.
-- [x] (Guest Mode / Share Pages) Define guest interpretation + route guard behavior for `/share/profile/:id` and `/share/timeline/:id` entry flows.
-- [x] (Guest Mode / Community) Endpoint parity audit for guest + private ACL coverage across community timeline read paths.
-- [x] (Guest Mode / Community) Standardize private-denied API response payload contract (status + code + message) without collapsing existing lock/redirect UI variants.
-- [x] (Guest Mode / Community) Prevent private timeline metadata leaks on first paint (timeline-page access-loading buffer/guard before content render).
-- [x] (Guest Mode / Community) Validate cross-tab/new-tab behavior for guest navigation from rich chips and deep links.
-- [x] (Guest Mode / Community + Home) Remove guest join/follow affordances across user cards, timeline cards, and community controls.
-- [x] (Guest Mode / Community) Define denied `~event` chip UX (what guest/non-allowed users see when event reference is blocked).
-- [ ] Phase 1A — Data contract: add/confirm user-preference fields for `home_initial_tab` (`popular|home`), `date_of_birth`, and `user_color` with DB persistence.
-- [ ] Phase 1A — Cache contract: mirror the same preferences in local cache for fast startup hydration (DB + cache required).
-- [ ] Phase 1B — Profile Settings controls: add Home init preference toggle/select with only `popular|home` options.
-- [ ] Phase 1B — Profile Settings controls: add birthday input (with year) and persist without rendering age publicly.
-- [ ] Phase 1B — Profile Settings controls: add native HTML color input for single user identity color preference.
-- [ ] Phase 1C — Unified image workflow: merge trading-card portrait controls into existing profile avatar uploader so one upload flow serves both outcomes.
-- [ ] Phase 1C — Preserve existing dotted-line upload UI and existing circular avatar behavior.
-- [ ] Phase 1D — Home boot behavior: initialize home tab from cached/DB-backed preference (`popular` default).
-- [ ] Phase 1D — Profile share behavior: wire profile FAB share to existing trading-card share capability.
-- [ ] Phase 1E — Color consumer rollout audit: apply user color preference to known identity surfaces (including profile avatar border and user cards) and catalog remaining gaps.
-- [ ] Phase 1F — Regression + responsive validation across profile/home surfaces.
-- [ ] Phase 1G — Privacy settings ideation: define profile privacy toggle scope (what becomes private, who can view, and route/API implications).
-- [ ] Anonymous Guest Ideation 1 — Define guest permissions matrix (view/search/follow/report/post/comment/vote).
-- [ ] Anonymous Guest Ideation 2 — Define guest session model (ephemeral ID, storage, expiry, and conversion to account).
-- [ ] Anonymous Guest Ideation 3 — Define guardrails/abuse prevention (rate limits, action gating, reporting constraints).
-- [ ] Anonymous Guest Ideation 4 — Define UI language and route-level behavior for guest state across Home/Landing/Timeline.
+- [ ] MAKE A POST button
 
-### Profile implementation pillars (new major active TODOs)
-- [ ] Profile Modules Framework follow-up: public profile module read path for non-owner viewers needs explicit API contract.
-- [ ] Mailbox / Letters: profile-level letter sending/receiving flow with moderation-safe baseline behavior.
-- [ ] Theory Board (final in this sequence): standalone profile module tool with detective corkboard identity.
-  - [ ] Architecture lock: keep Theory Board as standalone module system.
-  - [ ] Visual lock: framed corkboard shell fixed; inner corkboard remains interactive canvas.
-  - [~] Infra dependency note: backend endpoints require iTimeline-DB migration `migrations/add_theory_board_tables.py`.
-  - [~] Wheel zoom behavior validation: currently fullscreen-only by design; confirm this remains desired.
-  - [ ] Node source lock (V1): owner can add nodes via text input; frontend parses/renders rich chips (@, #, i-, www/http) from cell payload.
-  - [ ] Node rendering lock (V1): event nodes render as timeline-style event hover cards on the corkboard; card click still opens EventPopup.
-  - [ ] Ownership lock: only profile owner can add/edit/delete/reposition nodes; visitors are view-only (drag/zoom allowed).
-  - [ ] Pin mechanic lock: each node has a visual random-color tac pin at top-middle; dragging the pin moves the card.
-  - [ ] Link mechanic lock: yarn-style edges between nodes with slight weighted droop aesthetic.
-
-## Current Status Snapshot
-- GOALPLAN has been slimmed to active/in-progress work only.
-- Completed implementation context and milestones have been moved into README for long-term reference.
-- DB alignment checkpoint complete: backend now runs against canonical `itimeline_db.flask_models`, with startup/login/community/share path verification and script-level import cleanup.
-- Current execution window: Hashtag Voting / Comment System implementation.
-
-## Learned / Required Systems Before Finalizing Remaining Home Tabs
-- Add a user follow system (follow/unfollow + followed-users retrieval) to power FRIENDS LIST and later YOUR PAGE.
-- Add a hashtag-follow system to support POPULAR/YOUR PAGE personalization signals.
-- Defer new hashtag timeline UI behavior until follow-table migration is complete.
-- Treat community membership as follow-equivalent for ranking/feed logic.
-- Keep existing search visibility constraints as baseline policy (no private communities in discovery; no personal timeline content in search/popular pools).
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
 - [ ] NSFW filter

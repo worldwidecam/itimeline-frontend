@@ -10,12 +10,14 @@ export default function UserAvatar({
   alt,
   size = 48,
   sx = {},
-  onClick
+  onClick,
+  userColor
 }) {
   const displayName = displayUsername(name || 'User');
   const initial = getInitial(displayName);
   const userForColor = { userId: id, name: displayName };
-  const bg = resolveAvatarColor(userForColor);
+  // Use provided userColor if available, otherwise calculate from user id/name
+  const bg = userColor || resolveAvatarColor(userForColor);
 
   const commonProps = {
     alt: alt || displayName,

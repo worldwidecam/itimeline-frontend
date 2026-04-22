@@ -68,9 +68,33 @@ const normalizeLegacyApiRequest = (requestConfig) => {
     } else if (method === 'post') {
       normalized.url = '/api/v1/events';
       const raw = (normalized.data && typeof normalized.data === 'object') ? normalized.data : {};
+      // Map legacy fields to Cloudflare backend schema (strict mode)
+      const mediaKey = raw.media_key || raw.cloudinary_id || raw.media_url || null;
+      // Validate url format - backend requires valid URL or null
+      let validatedUrl = raw.url || null;
+      if (validatedUrl && typeof validatedUrl === 'string') {
+        try {
+          new URL(validatedUrl);
+        } catch {
+          validatedUrl = null; // Invalid URL format, strip it
+        }
+      }
       normalized.data = {
-        ...raw,
+        title: raw.title || '',
+        description: raw.description || '',
+        event_date: raw.event_date,
+        raw_event_date: raw.raw_event_date,
+        type: raw.type,
+        url: validatedUrl,
+        url_title: raw.url_title || null,
+        url_description: raw.url_description || null,
+        url_image: raw.url_image || null,
+        media_key: mediaKey,
+        media_type: raw.media_type || null,
+        media_subtype: raw.media_subtype || null,
         timeline_id: Number(raw.timeline_id || timelineId),
+        is_exact_user_time: raw.is_exact_user_time !== false,
+        tags: Array.isArray(raw.tags) ? raw.tags : [],
       };
     }
     return normalized;
@@ -94,6 +118,13 @@ const normalizeLegacyApiRequest = (requestConfig) => {
 
   if (url.startsWith('/api/users/')) {
     normalized.url = url.replace('/api/users/', '/api/v1/users/');
+    return normalized;
+  }
+
+  // Timeline detail: /api/timeline-v3/:id -> /api/v1/timelines/:id
+  const timelineDetailMatch = url.match(/^\/api\/timeline-v3\/(\d+)$/);
+  if (timelineDetailMatch && method === 'get') {
+    normalized.url = `/api/v1/timelines/${timelineDetailMatch[1]}`;
     return normalized;
   }
 
@@ -1755,10 +1786,11 @@ export const debugTimelineMembers = async (timelineId) => {
  * This contains all timeline memberships for the current user
  * @returns {Promise} - Promise resolving to an array of membership objects
  */
-export const fetchUserPassport = async () => {
+export const fetchUserPassport = async (refresh = false) => {
   try {
     console.log('Fetching user passport from server');
-    const response = await api.get('/api/v1/profile/hydrate');
+    const url = refresh ? '/api/v1/profile/hydrate?refresh=true' : '/api/v1/profile/hydrate';
+    const response = await api.get(url);
     console.log('User passport response:', response.data);
     const passportPayload = response?.data || {};
     
@@ -1925,12 +1957,13 @@ export const fetchUserPassport = async () => {
 /**
  * Sync the user's passport with the server
  * This should be called after any membership changes (join/leave community)
+ * @param {boolean} refresh - If true, bypass cache and fetch fresh data
  * @returns {Promise} - Promise resolving to the updated passport
  */
-export const syncUserPassport = async () => {
+export const syncUserPassport = async (refresh = false) => {
   try {
     console.log('Syncing user passport with server (profile hydrate fallback)');
-    return await fetchUserPassport();
+    return await fetchUserPassport(refresh);
   } catch (error) {
     console.error('Error syncing user passport:', error);
     return [];

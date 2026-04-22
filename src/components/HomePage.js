@@ -2459,7 +2459,7 @@ const HomePage = () => {
       setLoadingYourPage(true);
 
       const [syncedMembershipsResult, followedHashtagsResult] = await Promise.allSettled([
-        syncUserPassport(),
+        syncUserPassport(true), // Force refresh to get latest memberships with timeline_type
         getFollowedHashtagTimelines(),
       ]);
 
@@ -3131,7 +3131,7 @@ const HomePage = () => {
         ? `${displayUsername(usernameBase)}'s personal timeline`
         : `${displayUsername(usernameBase)}'s public posting timeline`,
       timeline_type: desiredType,
-      visibility: 'public',
+      visibility: postVisibility === 'private' ? 'private' : 'public',
     });
 
     const createdTimeline = response?.data || null;
@@ -3238,7 +3238,17 @@ const HomePage = () => {
         navigate(`/timeline-v3/${targetTimelineId}`);
       }, remainingLoadingMs);
     } catch (error) {
-      const message = error?.response?.data?.error || error?.message || 'Failed to create post.';
+      // Handle Zod validation errors from backend
+      let message = 'Failed to create post.';
+      const responseData = error?.response?.data;
+      if (responseData?.issues && Array.isArray(responseData.issues)) {
+        // Zod validation error - extract readable messages
+        message = responseData.issues.map(i => i.message || String(i.path?.join('.') || 'Field') + ' is invalid').join('; ');
+      } else if (responseData?.error) {
+        message = responseData.error;
+      } else if (error?.message) {
+        message = error.message;
+      }
       setUserFollowSnackbarMessage(message);
       setUserFollowSnackbarSeverity('error');
       setUserFollowSnackbarOpen(true);

@@ -555,6 +555,7 @@ function Navbar() {
                 id={user.id}
                 size={60}
                 sx={{ mr: 2 }}
+                userColor={user.user_color}
               />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
@@ -1413,10 +1414,11 @@ function Navbar() {
                     avatarUrl={user.avatar_url}
                     id={user.id}
                     size={40}
-                    sx={{ 
+                    sx={{
                       transition: 'transform 0.2s ease-in-out',
                       '&:hover': { transform: 'scale(1.1)' }
                     }}
+                    userColor={user.user_color}
                   />
                 </IconButton>
                 <Menu
