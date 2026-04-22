@@ -116,7 +116,61 @@ const normalizeLegacyApiRequest = (requestConfig) => {
     return normalized;
   }
 
+  // /api/v1/events/:id/resolve -> /api/v1/events/:id (get event by ID)
+  const eventResolveMatch = url.match(/^\/api\/v1\/events\/(\d+)\/resolve$/);
+  if (eventResolveMatch && method === 'get') {
+    normalized.url = `/api/v1/events/${eventResolveMatch[1]}`;
+    return normalized;
+  }
+
+  // Theory board routes: /api/v1/users/:userId/theory-board -> /api/v1/theory-board/users/:userId
+  const theoryBoardUserMatch = url.match(/^\/api\/v1\/users\/(\d+)\/theory-board$/);
+  if (theoryBoardUserMatch && method === 'get') {
+    normalized.url = `/api/v1/theory-board/users/${theoryBoardUserMatch[1]}`;
+    return normalized;
+  }
+
+  // Theory board nodes: /api/v1/users/:userId/theory-board/nodes/cell -> /api/v1/theory-board/nodes
+  const theoryBoardNodesMatch = url.match(/^\/api\/v1\/users\/(\d+)\/theory-board\/nodes\/cell$/);
+  if (theoryBoardNodesMatch && method === 'post') {
+    normalized.url = `/api/v1/theory-board/nodes`;
+    return normalized;
+  }
+
+  // Theory board node delete: /api/v1/users/:userId/theory-board/nodes/:nodeId -> /api/v1/theory-board/nodes/:nodeId
+  const theoryBoardNodeDeleteMatch = url.match(/^\/api\/v1\/users\/(\d+)\/theory-board\/nodes\/(\d+)$/);
+  if (theoryBoardNodeDeleteMatch && method === 'delete') {
+    normalized.url = `/api/v1/theory-board/nodes/${theoryBoardNodeDeleteMatch[2]}`;
+    return normalized;
+  }
+
+  // Theory board edges: /api/v1/users/:userId/theory-board/edges -> /api/v1/theory-board/edges
+  const theoryBoardEdgesMatch = url.match(/^\/api\/v1\/users\/(\d+)\/theory-board\/edges$/);
+  if (theoryBoardEdgesMatch && method === 'post') {
+    normalized.url = `/api/v1/theory-board/edges`;
+    return normalized;
+  }
+
+  // Theory board viewport: /api/v1/users/:userId/theory-board/viewport -> /api/v1/theory-board (PUT)
+  const theoryBoardViewportMatch = url.match(/^\/api\/v1\/users\/(\d+)\/theory-board\/viewport$/);
+  if (theoryBoardViewportMatch && method === 'patch') {
+    normalized.url = `/api/v1/theory-board`;
+    normalized.method = 'put';
+    return normalized;
+  }
+
+  // /api/v1/user/preferences -> /api/v1/users/preferences (singular to plural)
+  if (url === '/api/v1/user/preferences' && method === 'put') {
+    normalized.url = '/api/v1/users/preferences';
+    return normalized;
+  }
+
   if (url.startsWith('/api/users/')) {
+    // Map /api/users/lookup?username=X to /api/v1/users/search?username=X for public search
+    if (url === '/api/users/lookup' && method === 'get') {
+      normalized.url = '/api/v1/users/search';
+      return normalized;
+    }
     normalized.url = url.replace('/api/users/', '/api/v1/users/');
     return normalized;
   }

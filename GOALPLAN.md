@@ -22,10 +22,10 @@
 - [x] Event creator info (backend now returns `created_by_username` in EventDTO)
 - [x] Creator user color (backend returns `created_by_user_color`, frontend UserAvatar wired)
 - [x] Creator profile link (changed from /profile/:id to /profile/:username)
-- [ ] Timeline warning-state endpoint (frontend calls /api/v1/timelines/:id/warning-state - backend missing)
-- [ ] Membership status endpoint mismatch (frontend: /api/v1/membership/timelines/:id/status vs backend: /api/v1/timelines/:id/members/me)
-- [ ] Blocked members endpoint (frontend calls /api/v1/timelines/:id/blocked-members - backend missing)
-- [ ] Reports endpoint (frontend calls /api/v1/timelines/:id/reports?status=reviewing - backend missing)
+- [x] Timeline warning-state endpoint (exists in timelines.ts routes)
+- [x] Membership status endpoint (added /api/v1/membership/timelines/:id/status to legacy routes)
+- [x] Blocked members endpoint (added /api/v1/timelines/:id/blocked-members to legacy routes)
+- [x] Reports endpoint (added /api/v1/timelines/:id/reports to legacy routes)
 
 
 
