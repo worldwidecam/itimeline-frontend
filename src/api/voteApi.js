@@ -2,7 +2,16 @@
  * Vote API utilities for managing event votes
  */
 
-const API_BASE = 'http://localhost:5000/api/v1';
+import api from '../utils/api';
+
+const normalizeVoteStats = (payload = {}) => {
+  const totals = payload?.vote_totals || payload || {};
+  return {
+    promote_count: Number(totals?.promote_count ?? totals?.promote ?? 0) || 0,
+    demote_count: Number(totals?.demote_count ?? totals?.demote ?? 0) || 0,
+    user_vote: totals?.user_vote ?? totals?.my_vote ?? null,
+  };
+};
 
 /**
  * Cast or update a vote on an event
@@ -13,21 +22,12 @@ const API_BASE = 'http://localhost:5000/api/v1';
  */
 export const castVote = async (eventId, voteType, token) => {
   try {
-    const response = await fetch(`${API_BASE}/events/${eventId}/vote`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ vote_type: voteType })
+    await api.post(`/api/v1/events/${eventId}/votes`, {
+      vote_type: voteType,
+    }, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to cast vote');
-    }
-
-    return await response.json();
+    return await getVoteStats(eventId, token);
   } catch (error) {
     console.error('Error casting vote:', error);
     throw error;
@@ -42,25 +42,10 @@ export const castVote = async (eventId, voteType, token) => {
  */
 export const getVoteStats = async (eventId, token = null) => {
   try {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE}/events/${eventId}/votes`, {
-      method: 'GET',
-      headers
+    const response = await api.get(`/api/v1/events/${eventId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to get vote stats');
-    }
-
-    return await response.json();
+    return normalizeVoteStats(response?.data || {});
   } catch (error) {
     console.error('Error getting vote stats:', error);
     throw error;
@@ -75,20 +60,10 @@ export const getVoteStats = async (eventId, token = null) => {
  */
 export const removeVote = async (eventId, token) => {
   try {
-    const response = await fetch(`${API_BASE}/events/${eventId}/vote`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+    await api.delete(`/api/v1/events/${eventId}/votes`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to remove vote');
-    }
-
-    return await response.json();
+    return await getVoteStats(eventId, token);
   } catch (error) {
     console.error('Error removing vote:', error);
     throw error;

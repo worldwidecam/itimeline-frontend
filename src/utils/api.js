@@ -10,14 +10,100 @@ console.log('API Config:', {
 
 const api = axios.create({
   baseURL: config.API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
+const normalizeLegacyApiRequest = (requestConfig) => {
+  const normalized = requestConfig;
+  const method = String(normalized.method || 'get').toLowerCase();
+  const url = String(normalized.url || '');
+
+  if (url === '/api/v1/user/passport' || url === '/api/v1/user/passport/sync') {
+    normalized.url = '/api/v1/profile/hydrate';
+    if (method !== 'get') {
+      normalized.method = 'get';
+      delete normalized.data;
+    }
+    return normalized;
+  }
+
+  if (url === '/api/timeline-v3') {
+    normalized.url = '/api/v1/timelines';
+    if (method === 'get') {
+      normalized.__legacyResponseShape = 'timeline_list';
+    }
+    if (method === 'post' && normalized.data && typeof normalized.data === 'object') {
+      const raw = normalized.data;
+      const typeCandidate = String(raw.timeline_type || raw.type || 'hashtag').trim().toLowerCase();
+      const normalizedType = ['personal', 'community', 'hashtag'].includes(typeCandidate) ? typeCandidate : 'hashtag';
+      const visibility = raw.is_private === true
+        ? 'private'
+        : (raw.visibility === 'private' ? 'private' : 'public');
+      normalized.data = {
+        ...raw,
+        type: normalizedType,
+        visibility,
+      };
+      delete normalized.data.timeline_type;
+      delete normalized.data.is_private;
+    }
+    return normalized;
+  }
+
+  const timelineEventsByIdMatch = url.match(/^\/api\/timeline-v3\/(\d+)\/events\/(\d+)$/);
+  if (timelineEventsByIdMatch) {
+    normalized.url = `/api/v1/events/${timelineEventsByIdMatch[2]}`;
+    return normalized;
+  }
+
+  const timelineEventsMatch = url.match(/^\/api\/timeline-v3\/(\d+)\/events$/);
+  if (timelineEventsMatch) {
+    const timelineId = Number(timelineEventsMatch[1]);
+    if (method === 'get') {
+      normalized.url = `/api/v1/events/by-timeline/${timelineId}`;
+      normalized.__legacyResponseShape = 'timeline_event_list';
+    } else if (method === 'post') {
+      normalized.url = '/api/v1/events';
+      const raw = (normalized.data && typeof normalized.data === 'object') ? normalized.data : {};
+      normalized.data = {
+        ...raw,
+        timeline_id: Number(raw.timeline_id || timelineId),
+      };
+    }
+    return normalized;
+  }
+
+  const addEventMatch = url.match(/^\/api\/timeline-v3\/(\d+)\/add-event\/(\d+)$/);
+  if (addEventMatch && method === 'post') {
+    const timelineId = Number(addEventMatch[1]);
+    const eventId = Number(addEventMatch[2]);
+    normalized.url = `/api/v1/events/${eventId}/shares`;
+    normalized.data = { timeline_id: timelineId };
+    return normalized;
+  }
+
+  const eventVotesMatch = url.match(/^\/api\/v1\/events\/(\d+)\/votes$/);
+  if (eventVotesMatch && method === 'get') {
+    normalized.url = `/api/v1/events/${eventVotesMatch[1]}`;
+    normalized.__legacyResponseShape = 'event_vote_stats';
+    return normalized;
+  }
+
+  if (url.startsWith('/api/users/')) {
+    normalized.url = url.replace('/api/users/', '/api/v1/users/');
+    return normalized;
+  }
+
+  return normalized;
+};
+
 // Add request interceptor
 api.interceptors.request.use(
   (config) => {
+    normalizeLegacyApiRequest(config);
     // For all requests except login and register, add the access token
     if (!config.url.includes('/auth/login') && !config.url.includes('/auth/register')) {
       // Try to get token from both cookie and localStorage for backward compatibility
@@ -39,7 +125,26 @@ api.interceptors.request.use(
 
 // Add response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const shape = response?.config?.__legacyResponseShape;
+    if (shape === 'timeline_list') {
+      response.data = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : (Array.isArray(response?.data) ? response.data : []);
+    } else if (shape === 'timeline_event_list') {
+      response.data = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : (Array.isArray(response?.data) ? response.data : []);
+    } else if (shape === 'event_vote_stats') {
+      const totals = response?.data?.vote_totals || {};
+      response.data = {
+        promote_count: Number(totals?.promote || totals?.promote_count || 0) || 0,
+        demote_count: Number(totals?.demote || totals?.demote_count || 0) || 0,
+        user_vote: totals?.my_vote ?? totals?.user_vote ?? null,
+      };
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     
@@ -62,37 +167,27 @@ api.interceptors.response.use(
         // But bypass the interceptors to prevent infinite loops
         const instance = axios.create({
           baseURL: config.API_URL,
+          withCredentials: true,
           headers: { 'Content-Type': 'application/json' }
         });
-        
-        // Send the refresh token in the request body to match the AuthContext approach
-        const response = await instance.post('/api/auth/refresh', { refresh_token: refreshToken }, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
+
+        const refreshHeaders = {
+          'Content-Type': 'application/json'
+        };
+        if (refreshToken) {
+          refreshHeaders.Authorization = `Bearer ${refreshToken}`;
+        }
+
+        const response = await instance.post('/api/v1/auth/refresh', {}, {
+          headers: refreshHeaders
         });
 
-        // Check if we got a valid response with an access token
-        if (!response.data || !response.data.access_token) {
+        if (!response.data?.ok) {
           console.error('Invalid response from refresh endpoint:', response.data);
-          throw new Error('No access token received from refresh endpoint');
-        }
-        
-        const { access_token, refresh_token } = response.data;
-        
-        console.log('Token refresh successful, storing new tokens');
-        // Store in both cookies and localStorage for maximum compatibility
-        setCookie('access_token', access_token, 7); // 7 days expiry
-        localStorage.setItem('access_token', access_token);
-        
-        // If we also got a new refresh token, store it
-        if (refresh_token) {
-          setCookie('refresh_token', refresh_token, 30); // 30 days expiry
-          localStorage.setItem('refresh_token', refresh_token);
+          throw new Error('Refresh endpoint did not return ok=true');
         }
 
-        // Retry the original request with the new token
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
+        console.log('Token refresh successful, retrying original request');
         return api(originalRequest);
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
@@ -110,7 +205,7 @@ api.interceptors.response.use(
           // Only redirect to login for user-initiated requests, not background requests
           const isBackgroundRequest = [
             '/api/health-check',
-            '/api/auth/validate'
+            '/api/v1/auth/me'
           ].some(path => originalRequest.url.includes(path));
           
           if (!isBackgroundRequest) {
@@ -422,11 +517,23 @@ export const getUserProfile = async (userId) => {
 
 export const getFollowedUsers = async () => {
   try {
-    const response = await api.get('/api/v1/users/following');
-    const users = Array.isArray(response?.data?.users)
-      ? response.data.users
-      : (Array.isArray(response?.data) ? response.data : []);
-    return users;
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = Number(currentUser?.id || 0);
+    if (!(userId > 0)) return [];
+
+    const response = await api.get(`/api/v1/users/${userId}/following`);
+    const relations = Array.isArray(response?.data?.data) ? response.data.data : [];
+    const followedIds = relations
+      .map((row) => Number(row?.followed_id || 0))
+      .filter((id) => id > 0);
+
+    const userResponses = await Promise.allSettled(
+      followedIds.map((id) => api.get(`/api/v1/users/${id}`)),
+    );
+
+    return userResponses
+      .filter((result) => result.status === 'fulfilled' && result.value?.data?.id)
+      .map((result) => result.value.data);
   } catch (error) {
     console.error('[API] Error fetching followed users:', error);
     throw error;
@@ -435,11 +542,23 @@ export const getFollowedUsers = async () => {
 
 export const getFollowerUsers = async () => {
   try {
-    const response = await api.get('/api/v1/users/followers');
-    const users = Array.isArray(response?.data?.users)
-      ? response.data.users
-      : (Array.isArray(response?.data) ? response.data : []);
-    return users;
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = Number(currentUser?.id || 0);
+    if (!(userId > 0)) return [];
+
+    const response = await api.get(`/api/v1/users/${userId}/followers`);
+    const relations = Array.isArray(response?.data?.data) ? response.data.data : [];
+    const followerIds = relations
+      .map((row) => Number(row?.follower_id || 0))
+      .filter((id) => id > 0);
+
+    const userResponses = await Promise.allSettled(
+      followerIds.map((id) => api.get(`/api/v1/users/${id}`)),
+    );
+
+    return userResponses
+      .filter((result) => result.status === 'fulfilled' && result.value?.data?.id)
+      .map((result) => result.value.data);
   } catch (error) {
     console.error('[API] Error fetching follower users:', error);
     throw error;
@@ -497,11 +616,37 @@ export const getTimelineFollowStatus = async (timelineId) => {
 
 export const getFollowedHashtagTimelines = async () => {
   try {
-    const response = await api.get('/api/v1/timelines/following/hashtags');
-    const timelines = Array.isArray(response?.data?.timelines)
-      ? response.data.timelines
-      : (Array.isArray(response?.data) ? response.data : []);
-    return timelines;
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = Number(currentUser?.id || 0);
+    if (!(userId > 0)) return [];
+
+    const followedResponse = await api.get(`/api/v1/users/${userId}/followed-timelines`);
+    const rows = Array.isArray(followedResponse?.data?.data) ? followedResponse.data.data : [];
+    const followedByTimelineId = new Map(
+      rows
+        .map((row) => {
+          const timelineId = Number(row?.timeline_id || 0);
+          if (!(timelineId > 0)) return null;
+          return [timelineId, row?.created_at || null];
+        })
+        .filter(Boolean),
+    );
+
+    const timelineResponses = await Promise.allSettled(
+      Array.from(followedByTimelineId.keys()).map((timelineId) => api.get(`/api/v1/timelines/${timelineId}`)),
+    );
+
+    return timelineResponses
+      .filter((result) => result.status === 'fulfilled' && result.value?.data)
+      .map((result) => {
+        const timeline = result.value.data;
+        const timelineId = Number(timeline?.id || 0);
+        return {
+          ...timeline,
+          followed_at: followedByTimelineId.get(timelineId) || null,
+        };
+      })
+      .filter((timeline) => String(timeline?.type || timeline?.timeline_type || '').toLowerCase() === 'hashtag');
   } catch (error) {
     console.error('[API] Error fetching followed hashtag timelines:', error);
     throw error;
@@ -1613,8 +1758,9 @@ export const debugTimelineMembers = async (timelineId) => {
 export const fetchUserPassport = async () => {
   try {
     console.log('Fetching user passport from server');
-    const response = await api.get('/api/v1/user/passport');
+    const response = await api.get('/api/v1/profile/hydrate');
     console.log('User passport response:', response.data);
+    const passportPayload = response?.data || {};
     
     // Get current user data to make the storage key user-specific
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1627,18 +1773,18 @@ export const fetchUserPassport = async () => {
     
     // Store the passport in localStorage with a user-specific key
     const storageKey = `user_passport_${userId}`;
-    const memberships = response.data.memberships || [];
-    const siteRole = response.data.site_role || null;
-    const isSiteAdmin = Boolean(response.data.is_site_admin);
+    const memberships = Array.isArray(passportPayload?.memberships) ? passportPayload.memberships : [];
+    const siteRole = passportPayload.site_role || passportPayload.site_admin_role || null;
+    const isSiteAdmin = Boolean(passportPayload.is_site_admin);
     const currentUserRaw = localStorage.getItem('user');
     const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : {};
-    const hasMustChangeUsername = Object.prototype.hasOwnProperty.call(response.data || {}, 'must_change_username');
-    const hasIsRestricted = Object.prototype.hasOwnProperty.call(response.data || {}, 'is_restricted');
-    const hasRestrictedUntil = Object.prototype.hasOwnProperty.call(response.data || {}, 'restricted_until');
-    const mustChangeUsername = hasMustChangeUsername ? Boolean(response.data.must_change_username) : Boolean(currentUser?.must_change_username);
-    const isRestricted = hasIsRestricted ? Boolean(response.data.is_restricted) : Boolean(currentUser?.is_restricted);
-    const restrictedUntil = hasRestrictedUntil ? (response.data.restricted_until || null) : (currentUser?.restricted_until || null);
-    const preferences = response.data.preferences || {};
+    const hasMustChangeUsername = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'must_change_username');
+    const hasIsRestricted = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'is_restricted');
+    const hasRestrictedUntil = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'restricted_until');
+    const mustChangeUsername = hasMustChangeUsername ? Boolean(passportPayload.must_change_username) : Boolean(currentUser?.must_change_username);
+    const isRestricted = hasIsRestricted ? Boolean(passportPayload.is_restricted) : Boolean(currentUser?.is_restricted);
+    const restrictedUntil = hasRestrictedUntil ? (passportPayload.restricted_until || null) : (currentUser?.restricted_until || null);
+    const preferences = passportPayload.preferences || {};
     
     try {
       localStorage.setItem(storageKey, JSON.stringify({
@@ -1649,7 +1795,7 @@ export const fetchUserPassport = async () => {
         must_change_username: mustChangeUsername,
         is_restricted: isRestricted,
         restricted_until: restrictedUntil,
-        last_updated: response.data.last_updated || new Date().toISOString(),
+        last_updated: passportPayload.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
       }));
       console.log(`Stored passport for user ${userId} in localStorage`);
@@ -1783,97 +1929,8 @@ export const fetchUserPassport = async () => {
  */
 export const syncUserPassport = async () => {
   try {
-    console.log('Syncing user passport with server');
-    const response = await api.post('/api/v1/user/passport/sync');
-    console.log('User passport sync response:', response.data);
-    
-    // Get current user data to make the storage key user-specific
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    const userId = userData.id;
-    
-    if (!userId) {
-      console.warn('No user ID found, cannot store synced passport');
-      return response.data.memberships || [];
-    }
-    
-    // Store the updated passport in localStorage
-    const storageKey = `user_passport_${userId}`;
-    const memberships = response.data.memberships || [];
-    const siteRole = response.data.site_role || null;
-    const isSiteAdmin = Boolean(response.data.is_site_admin);
-    const currentUserRaw = localStorage.getItem('user');
-    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : {};
-    const hasMustChangeUsername = Object.prototype.hasOwnProperty.call(response.data || {}, 'must_change_username');
-    const hasIsRestricted = Object.prototype.hasOwnProperty.call(response.data || {}, 'is_restricted');
-    const hasRestrictedUntil = Object.prototype.hasOwnProperty.call(response.data || {}, 'restricted_until');
-    const mustChangeUsername = hasMustChangeUsername ? Boolean(response.data.must_change_username) : Boolean(currentUser?.must_change_username);
-    const isRestricted = hasIsRestricted ? Boolean(response.data.is_restricted) : Boolean(currentUser?.is_restricted);
-    const restrictedUntil = hasRestrictedUntil ? (response.data.restricted_until || null) : (currentUser?.restricted_until || null);
-    
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({
-        memberships: memberships,
-        site_role: siteRole,
-        is_site_admin: isSiteAdmin,
-        must_change_username: mustChangeUsername,
-        is_restricted: isRestricted,
-        restricted_until: restrictedUntil,
-        last_updated: response.data.last_updated || new Date().toISOString(),
-        timestamp: new Date().toISOString()
-      }));
-      console.log(`Stored synced passport for user ${userId} in localStorage`);
-
-      try {
-        localStorage.setItem('user', JSON.stringify({
-          ...currentUser,
-          must_change_username: mustChangeUsername,
-          is_restricted: isRestricted,
-          restricted_until: restrictedUntil,
-          can_post_or_report: !(mustChangeUsername || isRestricted),
-        }));
-      } catch (e) {
-        console.warn('[API] Failed to mirror moderation flags onto user object from synced passport:', e);
-      }
-      
-      // IMPORTANT: Also update the direct timeline membership data for each timeline
-      // This ensures that when a user syncs their passport, both the passport and direct timeline
-      // membership data are properly updated
-      console.log('Updating direct timeline membership data from synced passport');
-      memberships.forEach(membership => {
-        try {
-          const timelineId = membership.timeline_id;
-          if (!timelineId) return;
-          
-          // Create a consistent format for the direct timeline membership data
-          const membershipData = {
-            is_member: membership.is_active_member || false,
-            role: membership.role,
-            joined_at: membership.joined_at || new Date().toISOString(),
-            is_creator: membership.is_creator || false,
-            is_site_owner: membership.is_site_owner || false,
-            timeline_visibility: membership.visibility || 'public',
-            timestamp: new Date().toISOString()
-          };
-          
-          // Special handling for creators and site owners
-          if (membershipData.is_creator || membershipData.is_site_owner) {
-            console.log(`User is creator or site owner of timeline ${timelineId}, forcing is_member to true`);
-            membershipData.is_member = true;
-          }
-          
-          // Store the direct timeline membership data
-          const directMembershipKey = `timeline_membership_${timelineId}`;
-          localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
-          console.log(`Updated direct membership data for timeline ${timelineId} from synced passport`);
-        } catch (e) {
-          console.warn('Error updating direct timeline membership data from sync:', e);
-        }
-      });
-    } catch (e) {
-      console.warn('Error storing synced passport in localStorage:', e);
-    }
-    
-    return memberships;
+    console.log('Syncing user passport with server (profile hydrate fallback)');
+    return await fetchUserPassport();
   } catch (error) {
     console.error('Error syncing user passport:', error);
     return [];

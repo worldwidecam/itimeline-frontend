@@ -4,13 +4,16 @@
 - [ ] FULL WEBSITE IMPLEMENTATION
 
 ## Current Focus / Main Parent TODO
-- [x] TIMELINE CARD REVAMP — Completed (artistic redesign + responsive hardening accepted)
-- [ ] HASHTAG VOTING / COMMENT SYSTEM — Active
-- [x] DB REPOSITORY ALIGNMENT — Canonical iTimeline-DB model integration completed and backend verified.
-- [x] ANONYMOUS GUEST implementation — Active (Partially implemented)
+- [ ] MAJOR CHANGE FROM PYTHON BACKEND TO TYPESCRIPT BACKEND.
+- [ ] getting legacy data to work IS NOT our objective. our objective is to get new data to work equally as good.
 
 ## Scope / Context understanding
-  
+- Backend direction lock: Cloudflare stack is canonical (`TypeScript` + `Wrangler` + `D1` + Cloudflare services). Do not introduce new dependencies on legacy Flask/Postgres runtime paths.
+- Migration objective: reach full feature/function parity on Cloudflare backend, then remove legacy compatibility code instead of maintaining dual behavior long-term.
+- Data ownership lock: DB remains durable source of truth; frontend storage is temporary cache/hydration only.
+- D1 user baseline expectation: fresh local environment should generally contain only mandatory seeded SiteOwner account unless additional users were intentionally created.
+- Current debug context: landing tally investigation surfaced 2 local D1 users; user identity/audit needs to confirm which accounts are intentional before treating counts as meaningful product metrics.
+- understand 
 
 ## Active Tangents (tasks that take temporary precedent over sub-TODOs)
 

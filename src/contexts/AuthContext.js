@@ -14,14 +14,8 @@ export const AuthProvider = ({ children }) => {
   // Function to refresh the access token
   const refreshAccessToken = async () => {
     try {
-      // Try to get refresh token from cookies for backward compatibility
       const refreshToken = getCookie('refresh_token');
-      if (!refreshToken) {
-        console.warn('No refresh token available in cookies');
-        return false;
-      }
-
-      console.log('Attempting to refresh token with refresh token:', refreshToken.substring(0, 10) + '...');
+      console.log('Attempting to refresh token...');
       
       // Create a direct axios instance to avoid interceptor loops
       const axios = (await import('axios')).default;
@@ -31,35 +25,27 @@ export const AuthProvider = ({ children }) => {
         baseURL: import.meta.env.MODE === 'production' 
           ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
           : '',
+        withCredentials: true,
         headers: { 'Content-Type': 'application/json' }
       });
-      
-      // Try a simpler approach - send the refresh token in the request body
-      // This is often how refresh token endpoints are implemented
-      const response = await instance.post('/api/auth/refresh', { refresh_token: refreshToken }, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
+
+      const refreshHeaders = {
+        'Content-Type': 'application/json'
+      };
+      if (refreshToken) {
+        refreshHeaders.Authorization = `Bearer ${refreshToken}`;
+      }
+
+      const response = await instance.post('/api/v1/auth/refresh', {}, {
+        headers: refreshHeaders
       });
 
       // Check for valid response
-      if (!response.data) {
+      if (!response.data?.ok) {
         throw new Error('Invalid response from refresh endpoint');
-      }
-      
-      const { access_token, refresh_token } = response.data;
-      if (!access_token) {
-        throw new Error('No access token received');
       }
 
       console.log('Successfully refreshed access token');
-    
-    // Store tokens in cookies
-    setCookie('access_token', access_token, 7); // 7 days expiry
-    if (refresh_token) {
-      console.log('Updating refresh token');
-      setCookie('refresh_token', refresh_token, 30); // 30 days expiry
-    }
       
       return true;
     } catch (error) {
@@ -86,16 +72,20 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       console.log('Attempting login for email:', email);
-      const response = await api.post('/api/auth/login', {
+      const response = await api.post('/api/v1/auth/login', {
         email,
         password
       });
 
-      const { access_token, refresh_token, ...userData } = response.data;
-    
-      // Store tokens in cookies
-      setCookie('access_token', access_token, 7); // 7 days expiry
-      setCookie('refresh_token', refresh_token, 30); // 30 days expiry
+      if (!response?.data?.ok) {
+        throw new Error('Login failed');
+      }
+
+      const meResponse = await api.get('/api/v1/auth/me');
+      const userData = meResponse?.data?.user || null;
+      if (!userData) {
+        throw new Error('Login succeeded but no user session payload was returned');
+      }
       
       // Clear any existing membership data from localStorage
       Object.keys(localStorage).forEach(key => {
@@ -110,7 +100,7 @@ export const AuthProvider = ({ children }) => {
       
       // Update user state
       setUser(userData);
-      setIsGuest(false);
+      setIsGuest(Boolean(meResponse?.data?.is_guest));
       localStorage.removeItem('guest_session');
       clearVoteStateCache();
       console.log('Login successful');
@@ -164,20 +154,18 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password) => {
     try {
-      const response = await api.post('/api/auth/register', {
+      const response = await api.post('/api/v1/auth/register', {
         username,
         email,
         password
       });
-      
-      // If registration is successful, automatically log the user in
-      const { token } = response.data;
-      if (token) {
-        setCookie('access_token', token, 7); // 7 days expiry
-        setUser(response.data);
+
+      if (!response?.data?.ok) {
+        throw new Error('Registration failed');
       }
-      
-      return response.data;
+
+      const loggedInUser = await login(email, password);
+      return loggedInUser;
     } catch (error) {
       console.error('Registration error in AuthContext:', error);
       if (error.response?.data?.error) {
@@ -248,11 +236,19 @@ export const AuthProvider = ({ children }) => {
   const loginAsGuest = async () => {
     try {
       console.log('[Auth] Fetching guest session from backend...');
-      const response = await api.post('/api/v1/guest/session');
-      const { access_token, user: guestUser } = response.data;
+      const response = await api.post('/api/v1/auth/guest');
+      if (!response?.data?.ok) {
+        throw new Error('Guest session creation failed');
+      }
 
-      // Store guest token in cookies
-      setCookie('access_token', access_token, 1); // 24 hour expiry
+      const meResponse = await api.get('/api/v1/auth/me');
+      const guestUser = meResponse?.data?.user || {
+        id: null,
+        username: 'Goblin',
+        avatar_url: '/images/GUEST_img.png',
+        email: null,
+        role: 'guest',
+      };
 
       setUser(guestUser);
       setIsGuest(true);
@@ -289,14 +285,6 @@ export const AuthProvider = ({ children }) => {
   const fetchCurrentUser = async () => {
     try {
       console.log('Validating current user session...');
-      // Try to get token from cookies
-      const token = getCookie('access_token');
-      
-      if (!token) {
-        console.warn('No access token found in cookies or localStorage during validation');
-        setLoading(false);
-        return false;
-      }
       
       // Create a direct axios instance to avoid potential interceptor issues
       const axios = (await import('axios')).default;
@@ -304,17 +292,23 @@ export const AuthProvider = ({ children }) => {
         ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
         : ''; // Use relative URL in development
       
-      const response = await axios.post(`${baseURL}/api/auth/validate`, {}, {
+      const response = await axios.get(`${baseURL}/api/v1/auth/me`, {
+        withCredentials: true,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
-      if (response.data && response.data.user) {
+      if (response.data) {
         const validatedUser = response.data.user;
+        if (!validatedUser) {
+          setUser(null);
+          setIsGuest(false);
+          return false;
+        }
         const isValidatedGuest = validatedUser?.role === 'guest'
           || validatedUser?.is_guest === true
+          || response.data?.is_guest === true
           || !(Number(validatedUser?.id) > 0);
         console.log('User validation successful:', validatedUser);
         // Store user data in localStorage for API functions to access
@@ -362,23 +356,22 @@ export const AuthProvider = ({ children }) => {
       if (refreshSuccessful) {
         // Try to validate again with the new token
         try {
-          const token = getCookie('access_token');
           const axios = (await import('axios')).default;
           const baseURL = import.meta.env.MODE === 'production' 
             ? (import.meta.env.VITE_API_URL || 'https://api.i-timeline.com')
             : ''; // Use relative URL in development
           
-          const finalResponse = await axios.get(`${baseURL}/api/auth/me`, {
+          const finalResponse = await axios.get(`${baseURL}/api/v1/auth/me`, {
+            withCredentials: true,
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           });
           
-          if (finalResponse.data) {
+          if (finalResponse.data?.user) {
             const userData = {
-              ...finalResponse.data,
-              avatar_url: finalResponse.data.avatar_url || finalResponse.data.avatar
+              ...finalResponse.data.user,
+              avatar_url: finalResponse.data.user.avatar_url || finalResponse.data.user.avatar
             };
             
             // Store user data in localStorage for API functions to access
@@ -419,33 +412,16 @@ export const AuthProvider = ({ children }) => {
     // Function to check and restore session
     const checkAndRestoreSession = async () => {
       try {
-        // First check for access token in both cookies and localStorage
-        const token = getCookie('access_token') || localStorage.getItem('access_token');
-        console.log('Initial auth check - Access token exists:', !!token);
-        
-        if (token) {
-          // Try to use the existing access token
-          await fetchCurrentUser();
+        const hasSession = await fetchCurrentUser();
+        if (hasSession) {
           return;
         }
-        
-        // If no access token, check for refresh token in both cookies and localStorage
-        const refreshToken = getCookie('refresh_token') || localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          console.log('Access token missing but refresh token found, attempting refresh...');
-          const success = await refreshAccessToken();
-          if (success) {
-            await fetchCurrentUser();
-            return;
-          }
-        }
-        
+
         // No valid real tokens — check for a persisted guest session
         const guestSession = localStorage.getItem('guest_session');
         if (guestSession === 'true') {
           console.log('[Auth] Rehydrating guest session with fresh token');
           await loginAsGuest();
-          setLoading(false);
           return;
         }
 
