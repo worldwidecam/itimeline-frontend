@@ -41,9 +41,9 @@ systems check:
   - [x] Register
   - [x] Token refresh
   Home Page
-  Timeline Features
-  Event/Post Features
-  Profile Features
+  - [x] Timeline list loading
+  - [x] Tab navigation (MY FEED, MY CREATIONS, FAVORITE)
+  - [x] Search functionality
   Member Management
   Site Control Page (SiteOwner/SiteAdmin)
   View reports
