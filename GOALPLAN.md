@@ -35,9 +35,36 @@ Systematically modernizing the frontend by wiring all API calls from legacy rout
 - [ ] **Remove legacy backend** - Only after full verification
 
 ### Where We Currently Are
-**Frontend wiring is COMPLETE.** All active components now call modern `/api/v1/*` routes. The next phase is systematic functional testing to verify everything works, then Cloudflare provisioning for deployment.
-
----
+systems check:
+  Authentication Flow
+  Login
+  Register
+  Token refresh
+  Home Page
+  Timeline list loading
+  Tab navigation (MY FEED, MY CREATIONS, FAVORITE)
+  Search functionality
+  Timeline Features
+  Create new timeline (hashtag, personal, community)
+  View timeline details
+  Timeline settings/editing
+  Event/Post Features
+  Create event (text, media, link)
+  View event popup
+  Tag/hashtag associations
+  Profile Features
+  View own profile
+  Edit profile settings
+  Avatar upload
+  Member Management
+  Join community
+  Follow timeline
+  Member list
+  Site Control Page (SiteOwner/SiteAdmin)
+  View reports
+  Manage reported content
+  Site settings
+  Guest mode implementation and interpretation
 
 ## Current Focus / Main Parent TODO
 - [ ] Functional verification - Page-by-page testing of all features

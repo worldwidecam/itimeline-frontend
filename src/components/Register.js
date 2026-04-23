@@ -52,10 +52,6 @@ const Register = () => {
       setError('All fields are required');
       return;
     }
-    if (/\s/.test(trimmedUsername)) {
-      setError('Username cannot contain spaces.');
-      return;
-    }
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -76,7 +72,20 @@ const Register = () => {
       navigate(response?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error?.message || 'Failed to register');
+      let errorMsg = 'Failed to register';
+      const apiError = error?.response?.data?.error;
+      if (apiError) {
+        if (typeof apiError === 'string') {
+          errorMsg = apiError;
+        } else if (apiError.message) {
+          errorMsg = apiError.message;
+        } else {
+          errorMsg = JSON.stringify(apiError);
+        }
+      } else if (error?.message) {
+        errorMsg = error.message;
+      }
+      setError(errorMsg);
     }
   };
 

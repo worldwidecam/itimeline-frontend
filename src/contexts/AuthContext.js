@@ -187,9 +187,16 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Registration error in AuthContext:', error);
       if (error.response?.data?.error) {
-        throw new Error(error.response.data.error);
+        const errorMsg = typeof error.response.data.error === 'string'
+          ? error.response.data.error
+          : JSON.stringify(error.response.data.error);
+        throw new Error(errorMsg);
+      } else if (error.response?.status === 429) {
+        throw new Error('Too many registration attempts. Please wait a moment and try again.');
       } else if (error.response?.status === 400) {
         throw new Error('Invalid registration data. Please check your inputs.');
+      } else if (error.response?.status === 409) {
+        throw new Error('Username or email already taken.');
       } else if (error.response?.status === 500) {
         throw new Error('Server error. Please try again later.');
       } else {
