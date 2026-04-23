@@ -2265,7 +2265,7 @@ const HomePage = () => {
         const payload = result.value?.data;
         const events = Array.isArray(payload?.events)
           ? payload.events
-          : (Array.isArray(payload) ? payload : []);
+          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
 
         events.forEach((event) => {
           const eventId = Number(event?.id || 0);
@@ -2576,7 +2576,7 @@ const HomePage = () => {
         const payload = result.value?.data;
         const events = Array.isArray(payload?.events)
           ? payload.events
-          : (Array.isArray(payload) ? payload : []);
+          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
 
         events.forEach((event) => {
           timelineEvents.push({
@@ -2595,7 +2595,7 @@ const HomePage = () => {
         const payload = result.value?.data;
         const events = Array.isArray(payload?.events)
           ? payload.events
-          : (Array.isArray(payload) ? payload : []);
+          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
 
         events.forEach((event) => {
           const timelineId = Number(event?.timeline_id || 0);
@@ -2734,7 +2734,7 @@ const HomePage = () => {
         const payload = response?.data;
         const events = Array.isArray(payload?.events)
           ? payload.events
-          : (Array.isArray(payload) ? payload : []);
+          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
 
         merged = events
           .filter((event) => {

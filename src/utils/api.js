@@ -272,6 +272,18 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    // Normalize new backend error shapes back to legacy string format
+    if (error.response?.data?.error && typeof error.response.data.error === 'object') {
+      const errObj = error.response.data.error;
+      if (Array.isArray(errObj.issues)) {
+        // Handle Zod validation errors
+        error.response.data.error = errObj.issues.map(i => i.message).join(', ');
+      } else if (errObj.message) {
+        // Handle ApiError shape
+        error.response.data.error = errObj.message;
+      }
+    }
+
     // Check if this is an authentication error
     if (error.response?.status === 401 && !originalRequest._retry) {
       console.log('Received 401 error, attempting token refresh...');

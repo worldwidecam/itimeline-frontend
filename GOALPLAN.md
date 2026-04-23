@@ -37,29 +37,14 @@ Systematically modernizing the frontend by wiring all API calls from legacy rout
 ### Where We Currently Are
 systems check:
   Authentication Flow
-  Login
-  Register
-  Token refresh
+  - [x] Login
+  - [x] Register
+  - [x] Token refresh
   Home Page
-  Timeline list loading
-  Tab navigation (MY FEED, MY CREATIONS, FAVORITE)
-  Search functionality
   Timeline Features
-  Create new timeline (hashtag, personal, community)
-  View timeline details
-  Timeline settings/editing
   Event/Post Features
-  Create event (text, media, link)
-  View event popup
-  Tag/hashtag associations
   Profile Features
-  View own profile
-  Edit profile settings
-  Avatar upload
   Member Management
-  Join community
-  Follow timeline
-  Member list
   Site Control Page (SiteOwner/SiteAdmin)
   View reports
   Manage reported content
