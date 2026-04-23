@@ -165,6 +165,45 @@ const normalizeLegacyApiRequest = (requestConfig) => {
     return normalized;
   }
 
+  // Legacy upload routes: /api/upload and /api/upload-media -> /api/v1/uploads/media
+  if (url === '/api/upload' && method === 'post') {
+    normalized.url = '/api/v1/uploads/media';
+    // Transform upload_kind to purpose
+    if (normalized.data && typeof normalized.data === 'object') {
+      const raw = normalized.data;
+      const uploadKind = raw.upload_kind || raw.media_type || 'events';
+      // Map upload_kind values to backend purpose values
+      const purposeMap = {
+        'timeline_cover_portrait': 'covers',
+        'timeline_cover': 'covers',
+        'avatar': 'avatars',
+        'event': 'events',
+        'events': 'events',
+        'music': 'music',
+        'image': 'events',
+        'video': 'events',
+        'audio': 'music',
+      };
+      normalized.data.purpose = purposeMap[uploadKind] || 'events';
+    }
+    return normalized;
+  }
+
+  if (url === '/api/upload-media' && method === 'post') {
+    normalized.url = '/api/v1/uploads/media';
+    if (normalized.data && typeof normalized.data === 'object') {
+      const raw = normalized.data;
+      const mediaType = raw.media_type || 'events';
+      const purposeMap = {
+        'image': 'events',
+        'video': 'events',
+        'audio': 'music',
+      };
+      normalized.data.purpose = purposeMap[mediaType] || 'events';
+    }
+    return normalized;
+  }
+
   if (url.startsWith('/api/users/')) {
     // Map /api/users/lookup?username=X to /api/v1/users/search?username=X for public search
     if (url === '/api/users/lookup' && method === 'get') {
