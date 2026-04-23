@@ -579,8 +579,9 @@ export const getTimelineMemberCount = async (timelineId, retryCount = 0) => {
       }
     });
 
-    if (response?.data && typeof response.data.count === 'number') {
-      return response.data;
+    // Backend returns { member_count: number }
+    if (response?.data && typeof response.data.member_count === 'number') {
+      return { count: response.data.member_count };
     }
 
     return { count: 0 };
