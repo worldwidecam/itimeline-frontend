@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
   // Function to refresh the access token
   const refreshAccessToken = async () => {
     try {
-      const refreshToken = getCookie('refresh_token');
+      const refreshToken = getCookie('it_refresh') || getCookie('refresh_token');
       console.log('Attempting to refresh token...');
       
       // Create a direct axios instance to avoid interceptor loops
@@ -43,6 +43,12 @@ export const AuthProvider = ({ children }) => {
       // Check for valid response
       if (!response.data?.ok) {
         throw new Error('Invalid response from refresh endpoint');
+      }
+
+      // Store new access token from response
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+        console.log('Stored refreshed access token');
       }
 
       console.log('Successfully refreshed access token');
@@ -79,6 +85,12 @@ export const AuthProvider = ({ children }) => {
 
       if (!response?.data?.ok) {
         throw new Error('Login failed');
+      }
+
+      // Store access token from response for Bearer auth
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+        console.log('Stored access token from login response');
       }
 
       const meResponse = await api.get('/api/v1/auth/me');
@@ -164,6 +176,12 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Registration failed');
       }
 
+      // Store access token from response for Bearer auth
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+        console.log('Stored access token from register response');
+      }
+
       const loggedInUser = await login(email, password);
       return loggedInUser;
     } catch (error) {
@@ -182,7 +200,12 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     clearVoteStateCache();
+    // Clear tokens from localStorage
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     // Clear cookies
+    deleteCookie('it_access');
+    deleteCookie('it_refresh');
     deleteCookie('access_token');
     deleteCookie('refresh_token');
     

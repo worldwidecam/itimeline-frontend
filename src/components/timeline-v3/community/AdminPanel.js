@@ -1883,7 +1883,7 @@ const ManagePostsTab = ({ timelineId }) => {
   const refreshPopupEventIfOpen = async (eventId) => {
     try {
       if (!eventPopupOpen || !eventId || !timelineId) return;
-      const res = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      const res = await api.get(`/api/v1/events/${eventId}`);
       if (res?.data && res.data.id) {
         setPopupEvent(res.data);
       }
@@ -1945,7 +1945,7 @@ const ManagePostsTab = ({ timelineId }) => {
     try {
       if (!post?.eventId || !timelineId) return;
       // Fetch only the relevant event (optimization)
-      const res = await api.get(`/api/timeline-v3/${timelineId}/events/${post.eventId}`);
+      const res = await api.get(`/api/v1/events/${post.eventId}`);
       const ev = res?.data;
       if (ev && ev.id) {
         setPopupEvent(ev);
@@ -2051,7 +2051,7 @@ const ManagePostsTab = ({ timelineId }) => {
         // Try to fetch the event details to get the type
         if (it.event_id) {
           try {
-            const eventRes = await api.get(`/api/timeline-v3/${timelineId}/events/${it.event_id}`);
+            const eventRes = await api.get(`/api/v1/events/${it.event_id}`);
             const event = eventRes?.data;
             
             if (event) {
@@ -3784,10 +3784,9 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_kind', uploadKind);
-    formData.append('timeline_id', String(id));
+    formData.append('purpose', 'covers');
 
-    const response = await api.post('/api/upload', formData, {
+    const response = await api.post('/api/v1/uploads/media', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

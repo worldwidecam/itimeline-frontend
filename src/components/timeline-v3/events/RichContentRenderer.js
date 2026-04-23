@@ -65,19 +65,14 @@ const RichContentRenderer = ({
     const lookup = String(timelineName || '').trim();
     if (!lookup) return null;
 
-    const paths = ['/api/timeline-v3/name/', '/api/v1/timeline-v3/name/'];
-    let lastError = null;
-
-    for (const path of paths) {
-      try {
-        const response = await api.get(`${path}${encodeURIComponent(lookup)}`);
-        if (response?.data?.id) return response.data;
-      } catch (error) {
-        lastError = error;
-      }
+    // Use slug-based lookup for timeline by name
+    try {
+      const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(lookup)}`);
+      if (response?.data?.id) return response.data;
+    } catch (error) {
+      console.warn('[RichContentRenderer] Timeline not found for slug:', lookup);
     }
 
-    if (lastError) throw lastError;
     return null;
   };
 

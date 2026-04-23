@@ -11,9 +11,9 @@ const TagDebug = ({ timelineId }) => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
+        const response = await api.get(`/api/v1/events/by-timeline/${timelineId}`);
         console.log('API Response:', response.data);
-        setEventData(response.data);
+        setEventData(response.data?.data || []);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching events:', err);

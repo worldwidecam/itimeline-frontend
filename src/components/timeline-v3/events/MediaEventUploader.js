@@ -13,6 +13,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import config from '../../../config';
+import api from '../../../utils/api';
 
 /**
  * A simplified media uploader component for EventForm
@@ -86,18 +87,20 @@ const MediaEventUploader = ({ onUploadSuccess }) => {
       addLog(`Adding audio-specific parameters to preserve metadata`);
     }
 
-    addLog(`Starting upload to /api/upload-media...`);
+    addLog(`Starting upload to /api/v1/uploads/media...`);
     addLog(`File: ${fileToUpload.name} (${fileToUpload.type}, ${(fileToUpload.size / 1024).toFixed(2)} KB)`);
     addLog(`Media type: ${mediaType}`);
-    addLog(`API URL: ${config.API_URL}`);
 
     try {
+      // Add purpose field for modern upload endpoint
+      formData.append('purpose', 'events');
+      
       // Log all request details for debugging
-      addLog(`Request URL: ${config.API_URL}/api/upload-media`);
+      addLog(`Request URL: /api/v1/uploads/media`);
       addLog(`Request method: POST`);
       addLog(`Request headers: Content-Type: multipart/form-data`);
       
-      const response = await axios.post(`${config.API_URL}/api/upload-media`, formData, {
+      const response = await api.post('/api/v1/uploads/media', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },

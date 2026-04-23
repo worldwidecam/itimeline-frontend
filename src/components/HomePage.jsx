@@ -51,8 +51,8 @@ const HomePage = () => {
 
       try {
         setLoadingTimelines(true);
-        const response = await api.get('/api/timeline-v3');
-        setTimelines(response.data);
+        const response = await api.get('/api/v1/timelines');
+        setTimelines(response.data?.data || []);
       } catch (error) {
         console.error('Error fetching timelines:', error);
       } finally {
@@ -104,9 +104,10 @@ const HomePage = () => {
 
     try {
       setLoading(true);
-      const response = await api.post('/api/timeline-v3', {
+      const response = await api.post('/api/v1/timelines', {
         name: formData.name.trim().toUpperCase(),
         description: formData.description.trim(),
+        type: 'hashtag',
       });
 
       setTimelines((prev) => [response.data, ...prev]);

@@ -122,7 +122,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
     
     try {
       setIsLoadingPreview(true);
-      const response = await api.post('/api/url-preview', { url });
+      const response = await api.post('/api/v1/url-preview', { url });
       setUrlPreview(response.data);
       
       // Auto-populate title and description if they're empty

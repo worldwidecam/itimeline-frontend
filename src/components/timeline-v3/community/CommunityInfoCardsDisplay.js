@@ -145,11 +145,11 @@ const RichContentRenderer = ({ content, theme }) => {
       case 'hashtag_mention': {
         const pendingTab = openPendingNewTab();
         try {
-          const timelineName = name.toUpperCase();
-          const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
+          const slug = name.toUpperCase();
+          const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
           const route = response.data && response.data.id
             ? `/timeline-v3/${response.data.id}`
-            : `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
+            : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
           if (pendingTab) {
             pendingTab.location.href = route;
           } else {
@@ -164,7 +164,8 @@ const RichContentRenderer = ({ content, theme }) => {
       case 'community_mention': {
         const pendingTab = openPendingNewTab();
         try {
-          const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(name)}`);
+          const slug = name.toUpperCase();
+          const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
           if (response.data && response.data.id) {
             const route = `/timeline-v3/${response.data.id}`;
             if (pendingTab) {

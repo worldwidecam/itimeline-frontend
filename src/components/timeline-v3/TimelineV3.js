@@ -1735,7 +1735,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (!visibleEventIds.length) return;
 
     const token =
-      getCookie('access_token') || localStorage.getItem('access_token');
+      getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
     if (!token) {
       console.warn('[VoteDots] Missing auth token; skipping vote stats fetch.');
       return;
@@ -2220,8 +2220,8 @@ const handleViewModeTransition = (newViewMode) => {
           
           // Actually fetch the events - use api utility which handles prefixes correctly
           try {
-            const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-            setEvents(response.data);
+            const response = await api.get(`/api/v1/events/by-timeline/${timelineId}`);
+            setEvents(response.data?.data || []);
           } catch (error) {
             if (error?.response?.status === 403) {
               // Respect personal timeline ACL in this delayed path as well
@@ -2315,27 +2315,32 @@ const handleViewModeTransition = (newViewMode) => {
   // Create timeline when component mounts
   useEffect(() => {
     const createTimeline = async () => {
+      // Only run if we're on the 'new' route
+      if (routeId !== 'new') return;
+      
       try {
         // Get timeline name from URL parameters
         const params = new URLSearchParams(window.location.search);
         const timelineName = params.get('name') || 'Timeline V3';
         
         // Use api utility which handles prefixes correctly
-        const response = await api.post('/api/timeline-v3', {
+        const response = await api.post('/api/v1/timelines', {
           name: timelineName,
           description: `A new timeline created: ${timelineName}`,
-          timeline_type: 'hashtag' // Default to hashtag type
+          type: 'hashtag' // Default to hashtag type
         });
-        setTimelineId(response.data.id);
+        const newTimelineId = response.data.id;
+        setTimelineId(newTimelineId);
+        
+        // Navigate to the new timeline URL (replace history to avoid back button going to 'new')
+        navigate(`/timeline-v3/${newTimelineId}`, { replace: true });
       } catch (error) {
         console.error('Error creating timeline:', error);
       }
     };
     
-    if (!timelineId) {
-      createTimeline();
-    }
-  }, [timelineId]);
+    createTimeline();
+  }, [routeId, navigate]);
 
   const handleEventSubmit = async (eventData) => {
     try {
@@ -2471,25 +2476,22 @@ const handleViewModeTransition = (newViewMode) => {
       
       // Use the original date in the request along with the raw date string
       // Use api utility which handles prefixes correctly
-      const response = await api.post(`/api/timeline-v3/${timelineId}/events`, {
+      const response = await api.post('/api/v1/events', {
         title: eventData.title,
         description: eventData.description,
         event_date: originalDate.toISOString(), // Use original date
         raw_event_date: rawDateString, // Add raw date string
         is_exact_user_time: true, // Flag to indicate this is a user-selected time
         type: eventData.type,
-        url: eventData.url || '',
-        url_title: eventData.url_title || '',
-        url_description: eventData.url_description || '',
-        url_image: eventData.url_image || '',
-        url_source: eventData.url_source || '',
+        url: eventData.url || null,
+        url_title: eventData.url_title || null,
+        url_description: eventData.url_description || null,
+        url_image: eventData.url_image || null,
         // Media fields – only meaningful when type === 'media'.
-        // We forward what we have without forcing empty strings so the backend
-        // can enforce invariants and derive subtypes.
-        media_url: mediaUrl || '',
-        media_type: mediaType || '',
-        media_subtype: mediaSubtype || '',
-        cloudinary_id: cloudinaryId || undefined,
+        media_key: cloudinaryId || null,
+        media_type: mediaType || null,
+        media_subtype: mediaSubtype || null,
+        timeline_id: timelineId,
         tags: eventData.tags || []
       });
 

@@ -122,15 +122,18 @@ const MediaEventDialog = ({ open, onClose, onSave }) => {
     formData.append('media_type', mediaType);
 
     try {
-      addLog('Sending request to /api/upload endpoint...');
+      addLog('Sending request to /api/v1/uploads/media endpoint...');
       
       // Log the FormData contents for debugging
       addLog(`FormData contains file: ${formData.has('file')}`);
       addLog(`File size: ${file.size} bytes`);
       addLog(`File type: ${file.type}`);
       
-      // Use the /api/upload endpoint which is working instead of /api/upload-media
-      const response = await axios.post('/api/upload', formData, {
+      // Add purpose field for modern upload endpoint
+      formData.append('purpose', 'events');
+      
+      // Use the api utility which handles base URL correctly
+      const response = await api.post('/api/v1/uploads/media', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

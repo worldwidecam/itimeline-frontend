@@ -481,7 +481,7 @@ const BrokenEventsTab = () => {
 
     try {
       setBusy(`open-${eventId}`, true);
-      const response = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      const response = await api.get(`/api/v1/events/${eventId}`);
       const fetchedEvent = response?.data;
       if (!fetchedEvent?.id) {
         showSnackbar('error', 'Event payload is missing or invalid');
@@ -966,7 +966,7 @@ const GlobalReportsTab = () => {
   const handleOpenResolveEdit = async (post) => {
     try {
       if (!post?.eventId || !post?.timelineId) return;
-      const res = await api.get(`/api/timeline-v3/${post.timelineId}/events/${post.eventId}`);
+      const res = await api.get(`/api/v1/events/${post.eventId}`);
       const event = res?.data;
       if (event && event.id) {
         setSelectedPost(post);
@@ -1037,7 +1037,7 @@ const GlobalReportsTab = () => {
   const handleViewEvent = async (post) => {
     try {
       if (!post?.eventId || !post?.timelineId) return;
-      const res = await api.get(`/api/timeline-v3/${post.timelineId}/events/${post.eventId}`);
+      const res = await api.get(`/api/v1/events/${post.eventId}`);
       const event = res?.data;
       if (event && event.id) {
         setSelectedPost(post);
@@ -1062,7 +1062,7 @@ const GlobalReportsTab = () => {
         let displayType = reportType === 'user' ? 'User' : (reportType === 'timeline' ? 'Timeline' : 'Post');
         if (reportType === 'post' && it.event_id && it.timeline_id) {
           try {
-            const eventRes = await api.get(`/api/timeline-v3/${it.timeline_id}/events/${it.event_id}`);
+            const eventRes = await api.get(`/api/v1/events/${it.event_id}`);
             const event = eventRes?.data;
             if (event) {
               if (event.media_subtype) {

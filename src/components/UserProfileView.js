@@ -42,11 +42,11 @@ const UserProfileView = () => {
       try {
         setLoading(true);
         // Fetch user profile data
-        const userResponse = await api.get(`/api/users/${userId}`);
+        const userResponse = await api.get(`/api/v1/users/${userId}`);
         setProfileUser(userResponse.data);
         
         // Fetch user's events
-        const eventsResponse = await api.get(`/api/users/${userId}/events`);
+        const eventsResponse = await api.get(`/api/v1/users/${userId}/events`);
         setUserEvents(eventsResponse.data);
         
         setLoading(false);

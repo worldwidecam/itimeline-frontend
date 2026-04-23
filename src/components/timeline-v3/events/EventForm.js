@@ -407,7 +407,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         setUrlLoading(true);
         previousUrl.current = formData.url;
         
-        const response = await api.post('/api/url-preview', { url: formData.url });
+        const response = await api.post('/api/v1/url-preview', { url: formData.url });
         setUrlData(response.data);
         setUrlPreviewFetched(true);
         
@@ -689,11 +689,29 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
       console.log('Media Type:', eventData.media_type);
       console.log('Cloudinary ID:', eventData.cloudinary_id);
       console.log('Final event data being sent:', eventData);
-      console.log('API endpoint:', `/api/timeline-v3/${timelineId}/events`);
+      console.log('API endpoint:', '/api/v1/events');
       console.log('================================');
       
-      // Create the final event data for submission
-      const response = await api.post(`/api/timeline-v3/${timelineId}/events`, eventData);
+      // Create the final event data for submission with modern payload structure
+      const modernPayload = {
+        title: eventData.title,
+        description: eventData.description,
+        event_date: eventData.event_date,
+        raw_event_date: eventData.raw_event_date,
+        is_exact_user_time: eventData.is_exact_user_time ?? true,
+        type: eventData.type,
+        url: eventData.url || null,
+        url_title: eventData.url_title || null,
+        url_description: eventData.url_description || null,
+        url_image: eventData.url_image || null,
+        media_key: eventData.cloudinary_id || null,
+        media_type: eventData.media_type || null,
+        media_subtype: eventData.media_subtype || null,
+        timeline_id: timelineId,
+        tags: eventData.tags || []
+      };
+      
+      const response = await api.post('/api/v1/events', modernPayload);
       
       console.log('===== RESPONSE DEBUG =====');
       console.log('Response from server:', response.data);

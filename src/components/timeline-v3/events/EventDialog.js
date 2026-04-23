@@ -398,7 +398,7 @@ const EventDialog = ({
       
       try {
         setIsLoadingPreview(true);
-        const response = await api.post('/api/url-preview', { url });
+        const response = await api.post('/api/v1/url-preview', { url });
         setUrlPreview(response.data);
         
         // Auto-fill title if empty and URL preview has a title
@@ -523,10 +523,11 @@ const EventDialog = ({
 
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('media_type', mediaSubtype);
-      formData.append('media_subtype', mediaSubtype);
+      // Map media type to upload purpose
+      const purpose = mediaSubtype === 'audio' ? 'music' : 'events';
+      formData.append('purpose', purpose);
 
-      const response = await api.post('/api/upload-media', formData, {
+      const response = await api.post('/api/v1/uploads/media', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 30000
       });

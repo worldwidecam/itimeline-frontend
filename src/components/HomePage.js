@@ -551,10 +551,10 @@ const HomePage = () => {
       if (!user) return;
       try {
         setLoadingTimelines(true);
-        const response = await api.get('/api/timeline-v3', {
+        const response = await api.get('/api/v1/timelines', {
           params: { limit: HOME_TIMELINES_FETCH_LIMIT },
         });
-        setTimelines(response.data || []);
+        setTimelines(response.data?.data || []);
       } catch (error) {
         console.error('Error fetching timelines:', error);
       } finally {
@@ -672,7 +672,7 @@ const HomePage = () => {
 
         if (hydratedEventId > 0 && hydratedTimelineId > 0) {
           try {
-            const detailResponse = await api.get(`/api/timeline-v3/${hydratedTimelineId}/events/${hydratedEventId}`);
+            const detailResponse = await api.get(`/api/v1/events/${hydratedEventId}`);
             const detailEvent = detailResponse?.data;
             if (detailEvent?.id) {
               hydratedEvent = { ...detailEvent, ...baseEvent };
@@ -1138,7 +1138,7 @@ const HomePage = () => {
 
     try {
       setHeroEventPopupLoading(true);
-      const response = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+      const response = await api.get(`/api/v1/events/${eventId}`);
       const fetchedEvent = response?.data;
       if (fetchedEvent?.id) {
         setHeroEventPopupEvent(fetchedEvent);
@@ -1815,18 +1815,14 @@ const HomePage = () => {
     const loadFavoriteTimelineEvents = async () => {
       try {
         setLoadingFavoriteTimelineEvents(true);
-        const response = await api.get(`/api/timeline-v3/${numericFavoriteId}/events`, {
+        const response = await api.get(`/api/v1/events/by-timeline/${numericFavoriteId}`, {
           params: { limit: HOME_FAVORITE_EVENTS_FETCH_LIMIT },
         });
         if (isCancelled) return;
 
-        const payload = response?.data;
-        const events = Array.isArray(payload?.events)
-          ? payload.events
-          : (Array.isArray(payload) ? payload : []);
-
-        const timelineName = selectedFavoriteTimeline?.name || payload?.timeline_name || '';
-        const timelineType = selectedFavoriteTimeline?.timeline_type || payload?.timeline_type || 'hashtag';
+        const events = response.data?.data || [];
+        const timelineName = selectedFavoriteTimeline?.name || response.data?.timeline_name || '';
+        const timelineType = selectedFavoriteTimeline?.timeline_type || response.data?.timeline_type || 'hashtag';
         const timelineCreator = selectedFavoriteTimeline?.created_by
           || selectedFavoriteTimeline?.creator_id
           || selectedFavoriteTimeline?.owner_id
@@ -2014,7 +2010,7 @@ const HomePage = () => {
       const targetTimelines = searchableTimelines.slice(0, HOME_SEARCH_TIMELINE_SOURCE_LIMIT);
 
       const requests = targetTimelines.map((timeline) =>
-        api.get(`/api/timeline-v3/${timeline.id}/events`, {
+        api.get(`/api/v1/events/by-timeline/${timeline.id}`, {
           params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
         }),
       );
@@ -2028,8 +2024,8 @@ const HomePage = () => {
         if (result.status !== 'fulfilled') continue;
 
         const payload = result.value?.data;
-        const events = Array.isArray(payload?.events)
-          ? payload.events
+        const events = Array.isArray(payload?.data)
+          ? payload.data
           : (Array.isArray(payload) ? payload : []);
 
         events.forEach((event) => {
@@ -2071,14 +2067,12 @@ const HomePage = () => {
     try {
       setLoadingSearchUsers(true);
 
-      const response = await api.get('/api/users/lookup', {
+      const response = await api.get('/api/v1/users/search', {
         params: { username: nextQuery },
       });
       const payload = response?.data;
 
-      const users = Array.isArray(payload)
-        ? payload
-        : (payload && payload.id ? [payload] : []);
+      const users = Array.isArray(payload) ? payload : [];
 
       setSearchUsers(users.slice(0, HOME_SEARCH_USERS_RESULT_LIMIT));
     } catch (error) {
@@ -2256,7 +2250,7 @@ const HomePage = () => {
 
       const publicTimelineIds = rankedTimelines.map((timeline) => Number(timeline?.id || 0)).filter((id) => id > 0);
       const timelineEventsResults = await Promise.allSettled(
-        publicTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`, {
+        publicTimelineIds.map((timelineId) => api.get(`/api/v1/events/by-timeline/${timelineId}`, {
           params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
         })),
       );
@@ -2562,12 +2556,12 @@ const HomePage = () => {
 
       const [timelineEventResults, followedUserEventResults] = await Promise.all([
         Promise.allSettled(
-          targetTimelineIds.map((timelineId) => api.get(`/api/timeline-v3/${timelineId}/events`, {
+          targetTimelineIds.map((timelineId) => api.get(`/api/v1/events/by-timeline/${timelineId}`, {
             params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
           })),
         ),
         Promise.allSettled(
-          followedUserIds.map((followedId) => api.get(`/api/users/${followedId}/events`, {
+          followedUserIds.map((followedId) => api.get(`/api/v1/users/${followedId}/events`, {
             params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
           })),
         ),
@@ -2734,7 +2728,7 @@ const HomePage = () => {
 
       let merged = [];
       try {
-        const response = await api.get(`/api/users/${currentUserId}/events`, {
+        const response = await api.get(`/api/v1/users/${currentUserId}/events`, {
           params: { limit: HOME_MY_CREATIONS_EVENTS_RESULT_LIMIT * 2 },
         });
         const payload = response?.data;
@@ -2759,7 +2753,7 @@ const HomePage = () => {
           });
       } catch (userEventsError) {
         console.warn('[HomePage] Falling back to per-timeline fetch for My Creations events:', userEventsError);
-        const requests = sourceTimelines.map((timeline) => api.get(`/api/timeline-v3/${timeline.id}/events`, {
+        const requests = sourceTimelines.map((timeline) => api.get(`/api/v1/events/by-timeline/${timeline.id}`, {
           params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
         }));
         const results = await Promise.allSettled(requests);
@@ -3125,12 +3119,12 @@ const HomePage = () => {
       return existingTimeline;
     }
 
-    const response = await api.post('/api/timeline-v3', {
+    const response = await api.post('/api/v1/timelines', {
       name: normalizedName,
       description: desiredType === 'personal'
         ? `${displayUsername(usernameBase)}'s personal timeline`
         : `${displayUsername(usernameBase)}'s public posting timeline`,
-      timeline_type: desiredType,
+      type: desiredType,
       visibility: postVisibility === 'private' ? 'private' : 'public',
     });
 
@@ -3205,22 +3199,21 @@ const HomePage = () => {
       const targetTimelineId = Number(postTargetTimeline.id);
       const submitStartedAt = Date.now();
 
-      await api.post(`/api/timeline-v3/${targetTimelineId}/events`, {
+      await api.post('/api/v1/events', {
         title: eventData?.title || '',
-        description: eventData?.description || '',
-        type: eventData?.type,
-        event_date: eventData?.event_date,
-        raw_event_date: eventData?.raw_event_date,
+        description: eventData?.description || undefined,
+        type: eventData?.type || undefined,
+        event_date: eventData?.event_date || new Date().toISOString().slice(0, 10),
+        raw_event_date: eventData?.raw_event_date || null,
         is_exact_user_time: eventData?.is_exact_user_time !== false,
-        url: eventData?.url || '',
-        url_title: eventData?.url_title || '',
-        url_description: eventData?.url_description || '',
-        url_image: eventData?.url_image || '',
-        url_source: eventData?.url_source || '',
-        media_url: eventData?.media_url || '',
-        media_type: eventData?.media_type || '',
-        media_subtype: eventData?.media_subtype || '',
-        cloudinary_id: eventData?.cloudinary_id || undefined,
+        url: eventData?.url || null,
+        url_title: eventData?.url_title || null,
+        url_description: eventData?.url_description || null,
+        url_image: eventData?.url_image || null,
+        media_key: eventData?.media_key || eventData?.cloudinary_id || null,
+        media_type: eventData?.media_type || null,
+        media_subtype: eventData?.media_subtype || null,
+        timeline_id: targetTimelineId,
         tags: Array.isArray(eventData?.tags) ? eventData.tags : [],
       });
 
@@ -3238,14 +3231,17 @@ const HomePage = () => {
         navigate(`/timeline-v3/${targetTimelineId}`);
       }, remainingLoadingMs);
     } catch (error) {
-      // Handle Zod validation errors from backend
+      // Handle Zod validation errors from backend (Hono zValidator format)
       let message = 'Failed to create post.';
       const responseData = error?.response?.data;
-      if (responseData?.issues && Array.isArray(responseData.issues)) {
+      const zodError = responseData?.error || responseData;
+      if (zodError?.issues && Array.isArray(zodError.issues)) {
         // Zod validation error - extract readable messages
-        message = responseData.issues.map(i => i.message || String(i.path?.join('.') || 'Field') + ' is invalid').join('; ');
-      } else if (responseData?.error) {
+        message = zodError.issues.map(i => i.message || String(i.path?.join('.') || 'Field') + ' is invalid').join('; ');
+      } else if (typeof responseData?.error === 'string') {
         message = responseData.error;
+      } else if (responseData?.message) {
+        message = responseData.message;
       } else if (error?.message) {
         message = error.message;
       }
@@ -3597,10 +3593,10 @@ const HomePage = () => {
         return;
       }
 
-      const response = await api.post('/api/timeline-v3', {
+      const response = await api.post('/api/v1/timelines', {
         name: normalizedName,
         description: formData.description.trim(),
-        timeline_type: type,
+        type,
         visibility: formData.visibility,
       });
 

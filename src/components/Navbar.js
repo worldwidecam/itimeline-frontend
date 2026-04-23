@@ -497,7 +497,7 @@ function Navbar() {
     const fetchTimelineName = async () => {
       if (isTimelinePage && timelineId) {
         try {
-          const response = await api.get(`/api/timeline-v3/${timelineId}`);
+          const response = await api.get(`/api/v1/timelines/${timelineId}`);
           if (response.data && response.data.name) {
             const timelineName = response.data.name;
             setCurrentTimelineName(timelineName);

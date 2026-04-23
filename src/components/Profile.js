@@ -403,7 +403,7 @@ const Profile = () => {
     }
 
     try {
-      const response = await api.get(`/api/timeline-v3/${resolvedTimelineId}/events/${normalizedEventId}`);
+      const response = await api.get(`/api/v1/events/${normalizedEventId}`);
       const fetchedEvent = response?.data;
       if (fetchedEvent?.id) {
         setProfileModulePopupEvent(fetchedEvent);
@@ -496,7 +496,7 @@ const Profile = () => {
           // This ensures all fields (including bio) are loaded from database
           if (user && hasNumericUserId) {
             try {
-              const userResponse = await api.get(`/api/users/${user.id}`);
+              const userResponse = await api.get(`/api/v1/users/${user.id}`);
               setProfileUser(userResponse.data);
               const ownApiVisibility = String(userResponse?.data?.profile_visibility || ownStoredVisibility || 'public').trim().toLowerCase();
               const normalizedOwnVisibility = ownApiVisibility === 'private' ? 'private' : 'public';
@@ -516,7 +516,7 @@ const Profile = () => {
           // Fetch music preferences for own profile
           if (hasNumericUserId) {
             try {
-              const musicResponse = await api.get('/api/profile/music');
+              const musicResponse = await api.get('/api/v1/profile/music');
               if (musicResponse.data.music_url) {
                 setMusicData(musicResponse.data);
                 // Slight delay before showing music player for a smoother experience
@@ -586,12 +586,12 @@ const Profile = () => {
 
           // If viewing someone else's profile
           try {
-            const userResponse = await api.get(`/api/users/${userId}`);
+            const userResponse = await api.get(`/api/v1/users/${userId}`);
             setProfileUser(userResponse.data);
             
             // Optionally fetch music for other users if the API supports it
             try {
-              const musicResponse = await api.get(`/api/users/${userId}/music`);
+              const musicResponse = await api.get(`/api/v1/users/${userId}/music`);
               if (musicResponse.data.music_url) {
                 setMusicData(musicResponse.data);
                 setTimeout(() => setShowMusic(true), 100);

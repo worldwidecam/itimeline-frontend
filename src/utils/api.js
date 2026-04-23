@@ -230,8 +230,8 @@ api.interceptors.request.use(
     normalizeLegacyApiRequest(config);
     // For all requests except login and register, add the access token
     if (!config.url.includes('/auth/login') && !config.url.includes('/auth/register')) {
-      // Try to get token from both cookie and localStorage for backward compatibility
-      const token = getCookie('access_token') || localStorage.getItem('access_token');
+      // Backend sets it_access cookie, frontend checks both for compatibility
+      const token = getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
         console.log(`Adding auth token to ${config.url} request`);
@@ -278,8 +278,8 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Try to refresh the token - check both cookie and localStorage
-        const refreshToken = getCookie('refresh_token') || localStorage.getItem('refresh_token');
+        // Backend sets it_refresh cookie, frontend checks both for compatibility
+        const refreshToken = getCookie('it_refresh') || getCookie('refresh_token') || localStorage.getItem('refresh_token');
         if (!refreshToken) {
           console.error('No refresh token available in cookies or localStorage');
           throw new Error('No refresh token available');
@@ -311,6 +311,12 @@ api.interceptors.response.use(
           throw new Error('Refresh endpoint did not return ok=true');
         }
 
+        // Store new access token from refresh response
+        if (response.data.access_token) {
+          localStorage.setItem('access_token', response.data.access_token);
+          console.log('Stored refreshed access token from interceptor');
+        }
+
         console.log('Token refresh successful, retrying original request');
         return api(originalRequest);
       } catch (refreshError) {
@@ -320,7 +326,9 @@ api.interceptors.response.use(
         // Don't clear for network errors which might be temporary
         if (refreshError.response?.status >= 400) {
           console.warn('Clearing auth tokens due to authentication failure');
-          // Clear both cookies and localStorage
+          // Clear both backend and frontend cookie names
+          deleteCookie('it_access');
+          deleteCookie('it_refresh');
           deleteCookie('access_token');
           deleteCookie('refresh_token');
           localStorage.removeItem('access_token');
@@ -328,7 +336,7 @@ api.interceptors.response.use(
           
           // Only redirect to login for user-initiated requests, not background requests
           const isBackgroundRequest = [
-            '/api/health-check',
+            '/api/v1/health',
             '/api/v1/auth/me'
           ].some(path => originalRequest.url.includes(path));
           
@@ -360,7 +368,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
     const url = `${config.API_URL}/api/v1/timelines/${timelineId}/members`;
     console.log(`[API] Fetching members for timeline ${timelineId} (page ${page}, limit ${limit})`);
     console.log(`[API] Making request to: ${url}`);
-    console.log('[API] Current JWT token:', getCookie('access_token') || localStorage.getItem('access_token')); // Log the token for debugging
+    console.log('[API] Current JWT token:', getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token')); // Log the token for debugging
     
     const response = await api.get(`/api/v1/timelines/${timelineId}/members`, {
       params: { page, limit },
@@ -632,7 +640,7 @@ export const getUserProfile = async (userId) => {
   }
 
   try {
-    const response = await api.get(`/api/users/${userId}`);
+    const response = await api.get(`/api/v1/users/${userId}`);
     return response.data;
   } catch (error) {
     console.error('[API] Error fetching user profile:', error);
@@ -872,7 +880,7 @@ export const removeMember = async (timelineId, userId) => {
   try {
     console.log(`[API] Removing user ${userId} from timeline ${timelineId}`);
     console.log(`[API] Making DELETE request to: ${config.API_URL}/api/v1/timelines/${timelineId}/members/${userId}`);
-    console.log('[API] Current JWT token:', getCookie('access_token') || localStorage.getItem('access_token'));
+    console.log('[API] Current JWT token:', getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token'));
     
     const response = await api.delete(`/api/v1/timelines/${timelineId}/members/${userId}`);
     console.log(`[API] Remove member response:`, response.data);
@@ -1296,8 +1304,8 @@ export const submitTimelineReport = async (reportedTimelineId, reason = '', cate
  */
 export const getTimelineDetails = async (timelineId) => {
   try {
-    console.log(`[getTimelineDetails] Fetching timeline ${timelineId} from ${api.defaults.baseURL}/api/timeline-v3/${timelineId}`);
-    const response = await api.get(`/api/timeline-v3/${timelineId}`);
+    console.log(`[getTimelineDetails] Fetching timeline ${timelineId} from ${api.defaults.baseURL}/api/v1/timelines/${timelineId}`);
+    const response = await api.get(`/api/v1/timelines/${timelineId}`);
     console.log(`[getTimelineDetails] Success! Timeline data:`, response.data);
     return response.data;
   } catch (error) {
@@ -1372,11 +1380,7 @@ export const updateTimelineStatusMessage = async (timelineId, payload) => {
 
 /**
  * Look up a user by username.
- * Backend is expected to expose a small lookup endpoint that returns
- * a single user object with at least: { id, username, avatar_url }.
- *
- * NOTE: The exact path `/api/users/lookup` can be adjusted later to
- * match backend implementation without changing callers.
+ * Uses the public user search endpoint.
  */
 export const getUserByUsername = async (username) => {
   const trimmed = (username || '').trim();
@@ -1386,40 +1390,26 @@ export const getUserByUsername = async (username) => {
 
   try {
     console.log(`[API] Looking up user by username: ${trimmed}`);
-    const lookupPaths = ['/api/users/lookup', '/api/v1/users/lookup'];
-    let response = null;
-    let lastError = null;
+    const response = await api.get('/api/v1/users/search', {
+      params: { username: trimmed }
+    });
 
-    for (const path of lookupPaths) {
-      try {
-        response = await api.get(path, {
-          params: { username: trimmed }
-        });
-        if (response) break;
-      } catch (error) {
-        lastError = error;
-        if (error?.response?.status === 404) {
-          const apiMessage = String(error?.response?.data?.error || error?.response?.data?.message || '').toLowerCase();
-          if (apiMessage.includes('user not found')) {
-            throw error;
-          }
-          continue;
-        }
-        throw error;
-      }
+    // Search returns an array of users
+    const users = Array.isArray(response?.data) ? response.data : [];
+    if (users.length === 0) {
+      const error = new Error('User not found');
+      error.response = { status: 404, data: { error: 'User not found' } };
+      throw error;
     }
 
-    if (!response) {
-      throw lastError || new Error('User lookup endpoint unavailable');
-    }
-
-    const data = response?.data;
-    if (!data || !data.id || !data.username) {
-      console.warn('[API] Username lookup returned unexpected payload:', data);
+    // Return the first match (most relevant)
+    const user = users[0];
+    if (!user || !user.id || !user.username) {
+      console.warn('[API] Username lookup returned unexpected payload:', user);
       throw new Error('User lookup returned invalid data');
     }
 
-    return data;
+    return user;
   } catch (error) {
     if (error?.response?.status === 404) {
       console.warn('[API] Username not found:', trimmed, error?.response?.data);
@@ -1592,7 +1582,7 @@ export const denyPendingMember = async (timelineId, userId) => {
  */
 export const updateTimelineDetails = async (timelineId, data) => {
   try {
-    const response = await api.put(`/api/timeline-v3/${timelineId}`, data);
+    const response = await api.patch(`/api/v1/timelines/${timelineId}`, data);
     return response.data;
   } catch (error) {
     console.error('Error updating timeline details:', error);

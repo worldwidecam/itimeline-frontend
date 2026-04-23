@@ -12,7 +12,7 @@ const setupKeepAlive = () => {
   
   const pingServer = async () => {
     try {
-      await api.get('/api/health-check');
+      await api.get('/api/v1/health');
       console.log('Keep-alive ping sent to backend');
     } catch (error) {
       console.error('Keep-alive ping failed:', error);

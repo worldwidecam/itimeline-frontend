@@ -1,36 +1,55 @@
-# GOALPLAN — Template
+# GOALPLAN — iTimeline Frontend
 
 ## Main Goal
-- [ ] REWIRE frontend to new typescript backend
-- [ ] leave NO FEATURE behind
+Rewire frontend to new TypeScript Cloudflare backend, leaving NO FEATURE behind.
+
+---
+
+## Current Status (April 23, 2026)
+
+### What We're Doing
+Systematically modernizing the frontend by wiring all API calls from legacy routes (`/api/*`) to the new backend's modern routes (`/api/v1/*`). This ensures feature parity and makes remaining issues visible as actual bugs rather than incomplete integration.
+
+### Mindset
+- **Backend direction lock**: Cloudflare TypeScript stack is canonical
+- **Migration objective**: Reach full feature/function parity on Cloudflare backend, then remove legacy compatibility code
+- **Data ownership**: DB is durable source of truth; frontend storage is temporary cache/hydration only
+- **Legacy data is NOT the objective**: Make new data work equally well, don't chase legacy compatibility
+
+### What We've Done
+- [x] **Frontend API wiring complete** - All active components updated to `/api/v1/*` routes
+- [x] **Timeline type field** - Backend returns `timeline_type` alias
+- [x] **Event creator info** - Backend returns `created_by_username` in EventDTO
+- [x] **Creator user color** - Backend returns `created_by_user_color`, frontend UserAvatar wired
+- [x] **Creator profile link** - Changed from `/profile/:id` to `/profile/:username`
+- [x] **Timeline warning-state endpoint** - Exists in timelines.ts routes
+- [x] **Membership status endpoint** - Added `/api/v1/membership/timelines/:id/status`
+- [x] **Blocked members endpoint** - Added `/api/v1/timelines/:id/blocked-members`
+- [x] **Reports endpoint** - Added `/api/v1/timelines/:id/reports`
+- [x] **MAJOR: iTimeline-DB repository utilization** - Backend uses canonical package models
+
+### What We Have Left To Do
+- [ ] **Functional verification** - Test each feature end-to-end now that wiring is complete
+- [ ] **Cloudflare provisioning** - Create D1/R2/KV resources for deployment
+- [ ] **Clean up Cloudinary references** - Optional cleanup after verification
+- [ ] **Remove legacy backend** - Only after full verification
+
+### Where We Currently Are
+**Frontend wiring is COMPLETE.** All active components now call modern `/api/v1/*` routes. The next phase is systematic functional testing to verify everything works, then Cloudflare provisioning for deployment.
+
+---
 
 ## Current Focus / Main Parent TODO
-- [ ] Home page rewiring
-
-## Scope / Context understanding
-- getting legacy data to work IS NOT our objective. our objective is to get new data to work equally as good.
-
-- Backend direction lock: Cloudflare stack is canonical (`TypeScript` + `Wrangler` + `D1` + Cloudflare services). Do not introduce new dependencies on legacy Flask/Postgres runtime paths.
-- Migration objective: reach full feature/function parity on Cloudflare backend, then remove legacy compatibility code instead of maintaining dual behavior long-term.
-- Data ownership lock: DB remains durable source of truth; frontend storage is temporary cache/hydration only.
-- D1 user baseline expectation: fresh local environment should generally contain only mandatory seeded SiteOwner account unless additional users were intentionally created.
-- Current debug context: landing tally investigation surfaced 2 local D1 users; user identity/audit needs to confirm which accounts are intentional before treating counts as meaningful product metrics.
-- understand 
-
-## Active Tangents (tasks that take temporary precedent over sub-TODOs)
-- [x] Timeline type field (backend now returns `timeline_type` alias for frontend)
-- [x] Event creator info (backend now returns `created_by_username` in EventDTO)
-- [x] Creator user color (backend returns `created_by_user_color`, frontend UserAvatar wired)
-- [x] Creator profile link (changed from /profile/:id to /profile/:username)
-- [x] Timeline warning-state endpoint (exists in timelines.ts routes)
-- [x] Membership status endpoint (added /api/v1/membership/timelines/:id/status to legacy routes)
-- [x] Blocked members endpoint (added /api/v1/timelines/:id/blocked-members to legacy routes)
-- [x] Reports endpoint (added /api/v1/timelines/:id/reports to legacy routes)
+- [ ] Functional verification - Page-by-page testing of all features
 
 
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
-- [ ] MAKE A POST button
+- [ ] Test MAKE A POST button functionality
+- [ ] Test timeline creation flows
+- [ ] Test event posting with media uploads
+- [ ] Test member management (join/leave/approve/deny)
+- [ ] Test profile features (avatar, bio, preferences)
 
 
 ## Pending TODOs ( larger tasks that are toward completing main goal )
@@ -49,7 +68,6 @@
 - [ ] audit website , looking for any signs of possible inflation in frontend or backend that can be migrated to DB repo
 - [ ] define exact fallback-image rules for news/link events and improve image preview reliability across event cards, hover cards, and event popups
 - [ ] Consolidate App.js and App.jsx — currently both files exist and both have been edited. The real active entry is App.js (loaded by index.js). App.jsx should be removed or merged to avoid split-brain confusion.
-- [x] MAJOR: Fix iTimeline-DB repository utilization. Backend no longer relies on local app model definitions and now uses canonical package models.
 
 
 ## Notes / Decisions

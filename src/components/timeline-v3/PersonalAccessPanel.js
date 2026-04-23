@@ -120,10 +120,9 @@ const PersonalAccessPanel = ({
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_kind', 'timeline_cover_portrait');
-    formData.append('timeline_id', String(timelineId));
+    formData.append('purpose', 'covers');
 
-    const response = await api.post('/api/upload', formData, {
+    const response = await api.post('/api/v1/uploads/media', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     });

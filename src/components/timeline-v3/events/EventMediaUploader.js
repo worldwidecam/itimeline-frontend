@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import config from '../../../config';
+import api from '../../../utils/api';
 
 /**
  * A simplified version of MediaUploader specifically for the MediaEventCreator
@@ -105,7 +106,10 @@ const EventMediaUploader = ({ onUploadComplete }) => {
     addLog(`Media type: ${mediaType}`);
 
     try {
-      const response = await axios.post(`${config.API_URL}/api/upload-media`, formData, {
+      // Add purpose field for modern upload endpoint
+      formData.append('purpose', 'events');
+      
+      const response = await api.post('/api/v1/uploads/media', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },

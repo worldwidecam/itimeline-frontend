@@ -110,12 +110,12 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
     try {
       // Strip any leading # and convert to uppercase for hashtag timeline name
       const baseName = (tagName || '').replace(/^#+/, '');
-      const timelineName = baseName.toUpperCase();
-      const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
+      const slug = baseName.toUpperCase();
+      const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
       if (response.data && response.data.id) {
         window.open(`/timeline-v3/${response.data.id}`, '_blank');
       } else {
-        window.open(`/timeline-v3/new?name=${encodeURIComponent(timelineName)}`, '_blank');
+        window.open(`/timeline-v3/new?name=${encodeURIComponent(slug)}`, '_blank');
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);

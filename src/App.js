@@ -236,9 +236,9 @@ const Homepage = () => {
       
       try {
         setLoadingTimelines(true);
-        const response = await api.get('/api/timeline-v3');
+        const response = await api.get('/api/v1/timelines');
         // Sort timelines by creation date (newest first)
-        const sortedTimelines = [...response.data].sort((a, b) => 
+        const sortedTimelines = [...(response.data?.data || [])].sort((a, b) => 
           new Date(b.created_at) - new Date(a.created_at)
         );
         setTimelines(sortedTimelines);
@@ -364,10 +364,10 @@ const Homepage = () => {
       }
 
       // Convert timeline name to uppercase for consistency with backend normalization
-      const response = await api.post('/api/timeline-v3', {
+      const response = await api.post('/api/v1/timelines', {
         name: normalizedName,
         description: formData.description.trim(),
-        timeline_type: type,
+        type,
         visibility: formData.visibility
       });
 
@@ -401,7 +401,7 @@ const Homepage = () => {
     if (!timelineToDelete) return;
 
     try {
-      await api.delete(`/api/timeline-v3/${timelineToDelete.id}`);
+      await api.delete(`/api/v1/timelines/${timelineToDelete.id}`);
       
       // Remove the timeline from both lists
       const updatedTimelines = timelines.filter(t => t.id !== timelineToDelete.id);

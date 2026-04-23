@@ -38,7 +38,7 @@ export const loadVoteStatsForEvent = async (eventId, tokenOverride = null) => {
   setState(eventId, { loading: true, error: null });
 
   try {
-    const token = tokenOverride || getCookie('access_token') || localStorage.getItem('access_token');
+    const token = tokenOverride || getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
     const stats = normalizeStats(await getVoteStats(eventId, token));
     setState(eventId, {
       stats,
@@ -127,7 +127,7 @@ export const useEventVote = (eventId, options = {}) => {
     setState(eventId, { loading: true, error: null });
 
     try {
-      const token = getCookie('access_token') || localStorage.getItem('access_token');
+      const token = getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
       // Guests don't have tokens initially, and stats fetching is public
       const stats = normalizeStats(await getVoteStats(eventId, token));
       setState(eventId, {
@@ -164,7 +164,7 @@ export const useEventVote = (eventId, options = {}) => {
       });
 
       try {
-        const token = getCookie('access_token') || localStorage.getItem('access_token');
+        const token = getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
         if (!token) {
           throw new Error('Not authenticated');
         }

@@ -88,8 +88,9 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
         const timelineInfo = {};
         for (const tagName of uniqueTags) {
           try {
-            // Always query the API with uppercase tag name as that's how timelines are stored
-            const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(tagName.toUpperCase())}`);
+            // Use slug-based lookup for timeline by tag name
+            const slug = tagName.toUpperCase();
+            const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
             if (response.data && response.data.id) {
               const type = response.data.timeline_type || 'hashtag';
               // Store the timeline info using both original case and lowercase versions
@@ -128,9 +129,9 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
     e.stopPropagation(); // Prevent event bubbling to parent components
     
     try {
-      // First try to get the timeline ID by name
-      const timelineName = tagName.toUpperCase();
-      const response = await api.get(`/api/timeline-v3/name/${encodeURIComponent(timelineName)}`);
+      // First try to get the timeline ID by slug
+      const slug = tagName.toUpperCase();
+      const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
       
       if (response.data && response.data.id) {
         // If we found the timeline, open it in a new tab

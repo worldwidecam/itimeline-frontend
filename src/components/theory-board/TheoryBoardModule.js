@@ -914,7 +914,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
           const timelineId = Number(resolved.timeline_id || 0);
           if (timelineId > 0) {
             try {
-              const eventResponse = await api.get(`/api/timeline-v3/${timelineId}/events/${eventId}`);
+              const eventResponse = await api.get(`/api/v1/events/${eventId}`);
               if (eventResponse?.data?.id) {
                 fullEvent = eventResponse.data;
               }

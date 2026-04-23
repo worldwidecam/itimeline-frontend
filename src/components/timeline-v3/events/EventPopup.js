@@ -466,8 +466,8 @@ const EventPopup = ({
       setError('');
       
       // Call the API to get all existing timelines
-      const response = await api.get('/api/timeline-v3');
-      setExistingTimelines(response.data || []);
+      const response = await api.get('/api/v1/timelines');
+      setExistingTimelines(response.data?.data || []);
     } catch (error) {
       console.error('Error fetching timelines:', error);
       setError('Failed to load timelines. Please try again.');
@@ -518,9 +518,9 @@ const EventPopup = ({
       setAddingToTimeline(true);
       setError('');
       
-      // Check if the event is already in the timeline
-      const checkResponse = await api.get(`/api/timeline-v3/${selectedTimeline.id}/events`);
-      const timelineEvents = checkResponse.data || [];
+      // Check if the event is already in the timeline using modern events endpoint
+      const checkResponse = await api.get(`/api/v1/events/by-timeline/${selectedTimeline.id}`);
+      const timelineEvents = checkResponse.data?.data || [];
       
       // Check if this event already exists in the selected timeline
       const eventExists = timelineEvents.some(timelineEvent => timelineEvent.id === event.id);
@@ -531,8 +531,8 @@ const EventPopup = ({
         return;
       }
       
-      // Add the event to the timeline
-      const addResponse = await api.post(`/api/timeline-v3/${selectedTimeline.id}/add-event/${event.id}`);
+      // Share the event to the timeline using modern shares endpoint
+      const addResponse = await api.post(`/api/v1/events/${event.id}/shares`, { timeline_id: selectedTimeline.id });
       console.log('[EventPopup] Add event response:', addResponse.data);
       
       // Update the local event data to reflect new associations under V2 rules

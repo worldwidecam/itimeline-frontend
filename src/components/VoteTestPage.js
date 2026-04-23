@@ -60,8 +60,8 @@ const VoteTestPage = () => {
     try {
       setLoadingTimelines(true);
       setPageError('');
-      const response = await api.get('/api/timeline-v3');
-      const items = response.data || [];
+      const response = await api.get('/api/v1/timelines');
+      const items = response.data?.data || [];
       setTimelines(items);
       if (items.length > 0) {
         setSelectedTimelineId(String(items[0].id));
@@ -101,8 +101,8 @@ const VoteTestPage = () => {
     try {
       setLoadingEvents(true);
       setPageError('');
-      const response = await api.get(`/api/timeline-v3/${timelineId}/events`);
-      const items = response.data || [];
+      const response = await api.get(`/api/v1/events/by-timeline/${timelineId}`);
+      const items = response.data?.data || [];
       setEvents(items);
       setVisibleCount(DEFAULT_VISIBLE_COUNT);
       hydrateVoteStateForEvents(items);
@@ -126,7 +126,7 @@ const VoteTestPage = () => {
     }));
 
     try {
-      const token = getCookie('access_token') || localStorage.getItem('access_token');
+      const token = getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
       if (!token) {
         setVoteStateById((prev) => ({
           ...prev,
@@ -186,7 +186,7 @@ const VoteTestPage = () => {
       }));
 
       try {
-        const token = getCookie('access_token') || localStorage.getItem('access_token');
+        const token = getCookie('it_access') || getCookie('access_token') || localStorage.getItem('access_token');
         if (!token) {
           throw new Error('Not authenticated');
         }

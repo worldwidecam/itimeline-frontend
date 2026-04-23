@@ -25,6 +25,7 @@ const CloudinaryUploader = () => {
         
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('purpose', 'events');
         
         try {
           setLoading(true);
@@ -32,7 +33,7 @@ const CloudinaryUploader = () => {
           addLog('Starting upload to Cloudinary...');
           
           // Direct upload to Cloudinary via the backend
-          const response = await api.post('/api/upload', formData, {
+          const response = await api.post('/api/v1/uploads/media', formData, {
             headers: {
               'Content-Type': 'multipart/form-data'
             },

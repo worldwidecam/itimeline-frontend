@@ -51,7 +51,7 @@ const ApiHealthCheck = () => {
     setError(null);
     
     try {
-      const response = await api.get('/api/health');
+      const response = await api.get('/api/v1/health');
       setHealthData(response.data);
     } catch (err) {
       console.error('API Health check failed:', err);

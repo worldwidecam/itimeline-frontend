@@ -285,7 +285,7 @@ const ProfileSettings = () => {
       try {
         // Fetch music preferences
         try {
-          const musicResponse = await api.get('/api/profile/music');
+          const musicResponse = await api.get('/api/v1/profile/music');
           if (musicResponse.data?.music_url) {
             setMusicData(musicResponse.data);
           }
@@ -663,22 +663,33 @@ const ProfileSettings = () => {
         submitData.append('new_password', formData.newPassword);
       }
 
-      console.log('Submitting profile update with data:', submitData);
-      console.log('Current user:', user);
-
-      const response = await api.post(
-        '/api/profile/update',
-        submitData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
+      // Upload avatar first if selected
+      let avatarKey = null;
+      if (selectedFile) {
+        const avatarFormData = new FormData();
+        avatarFormData.append('file', selectedFile);
+        avatarFormData.append('purpose', 'avatars');
+        const uploadResponse = await api.post('/api/v1/uploads/media', avatarFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (progressEvent) => {
             const progress = (progressEvent.loaded / progressEvent.total) * 100;
             setUploadProgress(progress);
           }
-        }
-      );
+        });
+        avatarKey = uploadResponse?.data?.key || null;
+      }
+
+      // Update profile via PATCH /api/v1/users/me
+      const profilePayload = {
+        display_username: formData.displayName || undefined,
+        bio: formData.bio || undefined,
+        user_color: formData.userColor || undefined,
+        website: formData.website || undefined,
+        location: formData.location || undefined,
+      };
+      if (avatarKey) profilePayload.avatar_key = avatarKey;
+
+      const response = await api.patch('/api/v1/users/me', profilePayload);
       console.log('Profile update response:', response.data);
       const uploadedAvatarUrl = String(response?.data?.avatar_url || '').trim();
       const shouldSyncProfilePortraitFromAvatar = Boolean(selectedFile && uploadedAvatarUrl);
@@ -816,22 +827,21 @@ const ProfileSettings = () => {
     setIsUploading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('music', musicFile);
-
-      const response = await api.post(
-        '/api/profile/music',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
-          onUploadProgress: (progressEvent) => {
-            const progress = (progressEvent.loaded / progressEvent.total) * 100;
-            setUploadProgress(progress);
-          }
+      // Upload music file first
+      const musicFormData = new FormData();
+      musicFormData.append('file', musicFile);
+      musicFormData.append('purpose', 'music');
+      const uploadResponse = await api.post('/api/v1/uploads/media', musicFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const progress = (progressEvent.loaded / progressEvent.total) * 100;
+          setUploadProgress(progress);
         }
-      );
+      });
+      const musicKey = uploadResponse?.data?.key;
+
+      // Update music metadata
+      const response = await api.patch('/api/v1/users/me/music', { music_media_key: musicKey });
       console.log('Music update response:', response.data);
       setSuccess('Music updated successfully');
       setMusicData(response.data);
