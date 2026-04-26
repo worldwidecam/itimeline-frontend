@@ -44,9 +44,9 @@ systems check:
   - [x] Timeline list loading
   - [x] Tab navigation (MY FEED, MY CREATIONS, FAVORITE)
   - [x] Search functionality
-  - leaving off here. still in the middle of going over legacy code and comparing
-  
-  Member Management
+  - [x] Banning system
+  - [x] Member Management
+  - leaving off here: legacy_app_utf8.py around line 5980 (Timeline Action Cards API Endpoints)
   Site Control Page (SiteOwner/SiteAdmin)
   View reports
   Manage reported content
