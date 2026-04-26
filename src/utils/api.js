@@ -345,6 +345,7 @@ api.interceptors.response.use(
           deleteCookie('refresh_token');
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
+          localStorage.removeItem('guest_session'); // Prevent falling into guest mode on next auth check
           
           // Only redirect to login for user-initiated requests, not background requests
           const isBackgroundRequest = [

@@ -35,23 +35,135 @@ Systematically modernizing the frontend by wiring all API calls from legacy rout
 - [ ] **Remove legacy backend** - Only after full verification
 
 ### Where We Currently Are
-systems check:
-  Authentication Flow
-  - [x] Login
-  - [x] Register
-  - [x] Token refresh
-  Home Page
-  - [x] Timeline list loading
-  - [x] Tab navigation (MY FEED, MY CREATIONS, FAVORITE)
-  - [x] Search functionality
-  - [x] Banning system
-  - [x] Member Management
-  - leaving off here: legacy_app_utf8.py around line 5980 (Timeline Action Cards API Endpoints)
-  Site Control Page (SiteOwner/SiteAdmin)
-  View reports
-  Manage reported content
-  Site settings
-  Guest mode implementation and interpretation
+systems check (DEEP AUDIT - line-by-line verification):
+
+## Authentication & Session (6 endpoints)
+- [ ] POST /api/v1/auth/register
+- [ ] POST /api/v1/auth/login
+- [ ] POST /api/v1/auth/refresh
+- [ ] POST /api/v1/auth/logout
+- [ ] POST /api/v1/auth/validate
+- [ ] POST /api/v1/guest/session
+- [ ] POST /api/v1/auth/required-username-change
+
+## Profile & User Management (10 endpoints)
+- [ ] POST /api/v1/profile/update (multipart form with avatar upload)
+- [ ] GET /api/v1/profile/music
+- [ ] POST /api/v1/profile/music
+- [ ] DELETE /api/v1/profile/music
+- [ ] GET /api/v1/users/:id
+- [ ] GET /api/v1/users/:id/music
+- [ ] GET /api/v1/users/:id/profile-access
+- [ ] POST /api/v1/users/:id/profile-access
+- [ ] GET /api/v1/users/lookup
+- [ ] GET /api/v1/users/:id/profile-texts (just added - needs deep audit)
+
+## Follow System (8 endpoints)
+- [ ] GET /api/v1/users/following
+- [ ] GET /api/v1/users/followers
+- [ ] POST /api/v1/users/:id/follow
+- [ ] DELETE /api/v1/users/:id/follow
+- [ ] GET /api/v1/timelines/following/hashtags
+- [ ] POST /api/v1/timelines/:id/follow
+- [ ] DELETE /api/v1/timelines/:id/follow
+- [ ] GET /api/v1/timelines/:id/follow-status
+
+## Timeline CRUD (8 endpoints)
+- [ ] GET /api/v1/timeline-v3 (list timelines)
+- [ ] POST /api/v1/timeline-v3 (create timeline)
+- [ ] GET /api/v1/timeline-v3/:id
+- [ ] PUT /api/v1/timeline-v3/:id
+- [ ] DELETE /api/v1/timeline-v3/:id
+- [ ] GET /api/v1/timeline-v3/name/:name
+- [ ] POST /api/v1/timelines/merge
+- [ ] DELETE /api/v1/timelines/:id
+
+## Timeline Events (8 endpoints)
+- [ ] GET /api/v1/timeline-v3/:id/events
+- [ ] POST /api/v1/timeline-v3/:id/events
+- [ ] GET /api/v1/timeline-v3/:id/events/:eventId
+- [ ] PATCH /api/v1/timeline-v3/:id/events/:eventId
+- [ ] DELETE /api/v1/timeline-v3/:id/events/:eventId
+- [ ] POST /api/v1/timeline-v3/:id/add-event/:eventId
+- [ ] GET /api/v1/events/:id/resolve
+- [ ] POST /api/v1/timeline/:id/check-promotions (legacy promotion system)
+
+## Event Voting (4 endpoints)
+- [ ] POST /api/v1/events/:id/vote
+- [ ] DELETE /api/v1/events/:id/vote
+- [ ] GET /api/v1/events/:id/votes
+- [ ] GET /api/v1/events/spotlight/top-voted-today
+
+## Membership System (6 endpoints)
+- [ ] GET /api/v1/timelines/:id/members
+- [ ] GET /api/v1/membership/timelines/:id/members
+- [ ] POST /api/v1/membership/timelines/:id/join
+- [ ] GET /api/v1/membership/timelines/:id/status
+- [ ] POST /api/v1/timelines/:id/members/:userId/approve
+- [ ] POST /api/v1/timelines/:id/members/:userId/deny
+- [ ] DELETE /api/v1/timelines/:id/members/:userId/remove
+
+## Action Cards (6 endpoints)
+- [ ] GET /api/v1/timelines/:id/actions
+- [ ] POST /api/v1/timelines/:id/actions (stub - use PUT)
+- [ ] PUT /api/v1/timelines/:id/actions (upsert by type)
+- [ ] PUT /api/v1/timelines/:id/actions/:actionId
+- [ ] DELETE /api/v1/timelines/:id/actions/:actionId
+- [ ] GET /api/v1/timelines/:id/actions/:type
+- [ ] POST /api/v1/timelines/:id/actions/:type/vote
+
+## Info Cards (5 endpoints)
+- [ ] GET /api/v1/timelines/:id/info-cards
+- [ ] POST /api/v1/timelines/:id/info-cards
+- [ ] GET /api/v1/timelines/:id/info-cards/:cardId
+- [ ] PUT /api/v1/timelines/:id/info-cards/:cardId
+- [ ] DELETE /api/v1/timelines/:id/info-cards/:cardId
+- [ ] PATCH /api/v1/timelines/:id/info-cards/reorder
+
+## Personal Timelines (4 endpoints)
+- [ ] POST /api/v1/timelines/personal
+- [ ] GET /api/v1/timelines/personal/mine
+- [ ] GET /api/v1/personal-timelines/resolve
+- [ ] GET /api/v1/timelines/:id/viewers
+- [ ] POST /api/v1/timelines/:id/viewers
+- [ ] DELETE /api/v1/timelines/:id/viewers/:userId
+
+## Timeline Quote (2 endpoints)
+- [ ] GET /api/v1/timelines/:id/quote
+- [ ] PUT /api/v1/timelines/:id/quote
+
+## Passport & Preferences (4 endpoints)
+- [ ] GET /api/v1/user/passport
+- [ ] POST /api/v1/user/passport/sync
+- [ ] PUT /api/v1/user/preferences
+- [ ] POST /api/v1/users/:id/profile-texts (just added)
+- [ ] DELETE /api/v1/users/:id/profile-texts/:textId (just added)
+
+## Share Pages (2 endpoints) - **CRITICAL: VISUAL INTEGRITY LOSS FOUND**
+- [ ] GET /share/timeline/:id - **NEEDS REBUILD** (rich trading card visual vs bare HTML)
+- [ ] GET /share/profile/:id - **NEEDS REBUILD** (rich trading card visual vs bare HTML)
+
+## Uploads & Media (3 endpoints)
+- [ ] POST /api/v1/upload
+- [ ] GET /uploads/:path (static file serving)
+- [ ] GET /static/uploads/:path (static file serving alias)
+
+## URL Preview (1 endpoint)
+- [ ] POST /api/v1/url-preview
+
+## Site Stats & Health (3 endpoints)
+- [ ] GET /api/v1/site-stats/user-count
+- [ ] GET /api/health
+- [ ] GET /api/health-check
+
+## Legacy/Deprecated (may not need migration)
+- [ ] GET /api/timeline/:id (old timeline endpoint)
+- [ ] GET /api/timeline/:id/posts (old posts endpoint)
+- [ ] POST /api/timeline/:id/posts (old post creation)
+- [ ] GET /api/posts (old all posts list)
+- [ ] POST /api/posts (old post creation without timeline)
+- [ ] POST /api/post/:id/promote-vote (old voting system)
+- [ ] GET /api/users/:id/events (old user events endpoint)
 
 ## Current Focus / Main Parent TODO
 - [ ] Functional verification - Page-by-page testing of all features
