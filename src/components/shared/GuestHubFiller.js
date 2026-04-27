@@ -23,8 +23,8 @@ const GuestHubFiller = ({ tabLabel }) => {
 
   const isDark = theme.palette.mode === 'dark';
   
-  const handleJoin = () => {
-    logout();
+  const handleJoin = async () => {
+    await logout();
     navigate('/register');
   };
 

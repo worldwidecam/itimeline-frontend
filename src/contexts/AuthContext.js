@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
         const success = await refreshAccessToken();
         if (!success) {
           // If refresh fails, log out the user
-          logout();
+          await logout();
         }
       }, 3.5 * 60 * 60 * 1000); // 3.5 hours in milliseconds
 
@@ -205,21 +205,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     clearVoteStateCache();
+
+    // Check if there's actually a session to logout from
+    const hasAccessToken = localStorage.getItem('access_token') || getCookie('it_access');
+    const hasRefreshToken = localStorage.getItem('refresh_token') || getCookie('it_refresh');
+
+    // Call backend logout to clear HTTP-only cookies (only if we had a session)
+    // This is critical - JS cannot delete HttpOnly cookies directly
+    if (hasAccessToken || hasRefreshToken) {
+      try {
+        await api.post('/api/v1/auth/logout');
+        console.log('[Auth] Backend logout successful, HTTP-only cookies cleared');
+      } catch (error) {
+        // 401 is expected if tokens already expired/invalid - still proceed with local cleanup
+        if (error?.response?.status !== 401) {
+          console.warn('[Auth] Backend logout failed:', error?.message);
+        }
+      }
+    } else {
+      console.log('[Auth] No session to logout from, skipping backend call');
+    }
+
     // Clear tokens from localStorage
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    // Clear cookies
+    // Clear cookies (these are non-HttpOnly fallbacks, if any)
     deleteCookie('it_access');
     deleteCookie('it_refresh');
     deleteCookie('access_token');
     deleteCookie('refresh_token');
-    
+
     // Clear user-specific membership data from localStorage
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = currentUser.id || 'guest';
-    
+
     if (userId) {
       // Find and remove all membership-related items for this user
       Object.keys(localStorage).forEach(key => {
@@ -228,19 +249,19 @@ export const AuthProvider = ({ children }) => {
           console.log(`Clearing old format membership data: ${key}`);
           localStorage.removeItem(key);
         }
-        
+
         // Clear new format timeline membership data (without userId)
         if (key.startsWith('timeline_membership_')) {
           console.log(`Clearing new format timeline membership data: ${key}`);
           localStorage.removeItem(key);
         }
-        
+
         // Clear user-specific memberships
         if (key === `user_memberships_${userId}`) {
           console.log(`Clearing user-specific memberships for user ${userId}`);
           localStorage.removeItem(key);
         }
-        
+
         // Clear user passport
         if (key === `user_passport_${userId}`) {
           console.log(`Clearing user passport for user ${userId}`);
@@ -248,16 +269,16 @@ export const AuthProvider = ({ children }) => {
         }
       });
     }
-    
+
     // Remove user data from localStorage
     localStorage.removeItem('user');
-    
+
     // Also remove legacy non-user-specific memberships if they exist
     localStorage.removeItem('user_memberships');
 
     // Clear guest session marker
     localStorage.removeItem('guest_session');
-    
+
     // Clear user data from state
     setUser(null);
     setIsGuest(false);
@@ -431,7 +452,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.warn('All authentication attempts failed, logging out');
-      logout();
+      await logout();
       return false;
     } finally {
       setLoading(false);

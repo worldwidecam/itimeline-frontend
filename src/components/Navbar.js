@@ -226,8 +226,8 @@ function Navbar() {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     handleClose();
     navigate('/');
   };
@@ -1359,7 +1359,7 @@ function Navbar() {
                   <Button
                     variant="outlined"
                     size="small"
-                    onClick={() => { logout(); navigate('/register'); }}
+                    onClick={async () => { await logout(); navigate('/register'); }}
                     sx={{
                       mr: 1,
                       borderRadius: 99,

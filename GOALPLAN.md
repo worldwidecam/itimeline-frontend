@@ -8,7 +8,7 @@ Rewire frontend to new TypeScript Cloudflare backend, leaving NO FEATURE behind.
 ## Current Status (April 23, 2026)
 
 ### What We're Doing
-Systematically modernizing the frontend by wiring all API calls from legacy routes (`/api/*`) to the new backend's modern routes (`/api/v1/*`). This ensures feature parity and makes remaining issues visible as actual bugs rather than incomplete integration.
+currently going over each page , starting with landing page. making sure all meaningful function is updated to this new backend. no loss of context and logic.
 
 ### Mindset
 - **Backend direction lock**: Cloudflare TypeScript stack is canonical
@@ -185,9 +185,38 @@ systems check (DEEP AUDIT - line-by-line verification):
 ## Current Focus / Main Parent TODO
 - [ ] Functional verification - Page-by-page testing of all features
 
+## Landing Page Audit - Fixes Applied ✅
+### Bug 1: Logout Token Persistence
+- **Issue**: HTTP-only cookies not cleared on logout → refresh re-authenticates user
+- **Root Cause**: Frontend `logout()` didn't call backend endpoint (JS can't delete HTTP-only cookies)
+- **Fix**: Added `await api.post('/api/v1/auth/logout')` before local cleanup
+- **Files**: `AuthContext.js`, `Navbar.js`, `GuestHubFiller.js`
 
+### Bug 2: Landing Badge Settings Not Saving
+- **Issue**: Badge text/enabled settings not persisted from Site Control page
+- **Root Cause**: Backend `/site-settings/landing-rotator` used strict schema rejecting all fields except `items`
+- **Fix**: Expanded endpoint to handle all landing settings (badge_text, badge_enabled, home_hero, toolbar_led, etc.)
+- **Files**: `itimeline-backend/src/routes/site-settings.ts`
+- **Note**: Default `badge_enabled` is now `false` (user must explicitly enable)
+
+## Auth Parity Bug (Found During Audit) ✅ FIXED
+- **Issue**: Frontend had hardcoded `Number(user.id) === 1` as SiteAdmin/SiteOwner fallback
+- **Locations**: `Navbar.js:295`, `SiteControlPage.js:3265,3275`, `TimelineV3.js:1155`
+- **Backend**: No such fallback - only checked `site_admins` table
+- **Result**: User ID 1 could view/access Site Control but could not save (403)
+- **Fix Applied**: Added bootstrap SiteOwner fallback in backend:
+  - `authz.ts` - `requireSiteAdmin` and `requireTimelineRole` middlewares
+  - `passport.ts` - `hydrate` function returns bootstrap role
+  - `auth.ts` - `/auth/me` endpoint returns bootstrap role
+  - `legacy.ts` - `/api/v1/admins/site` includes bootstrap SiteOwner in admin list
+- **Security**: Only User ID 1 with email `brahdyssey@gmail.com` gets auto-SiteOwner
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
+- [x] Fix logout token persistence
+- [x] Fix landing badge settings saving
+- [x] Fix auth parity: Backend bootstrap SiteOwner for User ID 1 + email check
+- [x] Bootstrap SiteOwner appears in admin list on Site Control page
+- [ ] Verify redirect pages (non-admin → locked view, guest → appropriate page)
 - [ ] Test MAKE A POST button functionality
 - [ ] Test timeline creation flows
 - [ ] Test event posting with media uploads
