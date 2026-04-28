@@ -460,6 +460,9 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
       // Determine avatar URL
       const avatar = userData.avatar_url || member.avatar_url || member.avatar || null;
       
+      // Determine user color
+      const user_color = userData.user_color || member.user_color || null;
+      
       // Format join date
       let joinDate = 'Unknown';
       const joinedAt = member.joined_at || member.joinDate;
@@ -480,6 +483,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
         memberId: member.id || userId,
         name: name,
         avatar: avatar,
+        user_color: user_color,
         role: member.role || 'member',
         joinDate: joinDate,
         is_active_member: member.is_active_member !== false // Default to true unless explicitly false
@@ -2372,7 +2376,8 @@ export const createTimelineAction = async (timelineId, actionData) => {
   try {
     console.log(`[API] Creating/updating ${actionData.action_type} action for timeline ${timelineId}`);
     
-    const response = await api.post(`/api/v1/timelines/${timelineId}/actions`, actionData);
+    // Use PUT for upsert - backend expects PUT /api/v1/timelines/:id/actions
+    const response = await api.put(`/api/v1/timelines/${timelineId}/actions`, actionData);
     
     if (response.data) {
       console.log(`[API] Successfully created/updated action: ${response.data.message}`);

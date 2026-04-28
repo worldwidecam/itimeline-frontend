@@ -192,28 +192,28 @@ systems check (DEEP AUDIT - line-by-line verification):
 - [x] **Register Page** (`/register`) - Password policy fixed, redundant login removed, guest mode guards added
 
 ### 🔲 Pages to Audit
-- [ ] **Required Username Change** (`/account/required-username-change`) - Forced username update flow
+- [x] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - endpoint added ✅
 - [x] **Home Page** (`/home`) - Feed loading, timeline lanes, FAB, MAKE A POST
-- [ ] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions
-- [ ] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access
-- [ ] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave
-- [ ] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports
-- [ ] **Profile (Self)** (`/profile`) - Own profile display, editing
-- [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view
-- [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks
-- [ ] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music
-- [ ] **Site Control** (`/site-control`) - Admin list, reports, site settings
-- [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards
+- [ ] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified ✅
+- [ ] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified ✅
+- [ ] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave - user_color fix applied ✅
+- [ ] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports - user_color + action cards fix ✅
+- [ ] **Profile (Self)** (`/profile`) - Own profile display, editing - user_color already in UserSelfDTO ✅
+- [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view - uses same Profile component ✅
+- [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks - user_color in UserDTO ✅
+- [ ] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music - user_color save verified ✅
+- [ ] **Site Control** (`/site-control`) - Admin list, reports, site settings - user_color added to site-admins ✅
+- [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅
 
-### � Redirect/Lock Pages to Audit
-- [ ] **SiteControlLockView** - Non-admin access to Site Control
-- [ ] **PrivateTimelineLock** - Non-member access to private community
-- [ ] **BlockedFromCommunity** - Blocked user access to community
-- [ ] **BannedTimelineLock** - Banned user access to timeline
-- [ ] **CommunityLockView** - Generic community restriction
-- [ ] **MembershipGuard** - Role-based access guard for admin/members pages
+### Redirect/Lock Pages - Verified
+- [x] **SiteControlLockView** - Non-admin access to Site Control - UI only, no API calls 
+- [x] **PrivateTimelineLock** - Non-member access to private community - UI only 
+- [x] **BlockedFromCommunity** - Blocked user access to community - UI only 
+- [x] **BannedTimelineLock** - Banned user access to timeline - UI only 
+- [x] **CommunityLockView** - Generic community restriction - UI only 
+- [x] **MembershipGuard** - Role-based access guard for admin/members pages - Route guard 
 
-### �� Mobile UX Observations (Not Audit-Critical)
+### Mobile UX Observations (Not Audit-Critical)
 - Horizontal scroll bleed on landing page (grey space visible)
 - Timeline carousel not swipeable on mobile
 - Landing badge bubble/tail connection not seamless on mobile

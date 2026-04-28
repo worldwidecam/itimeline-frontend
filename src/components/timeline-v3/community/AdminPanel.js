@@ -294,6 +294,7 @@ const AdminPanel = () => {
       const formatted = list.map((item) => {
         const user = item.user || {};
         const avatar = user.avatar_url || item.avatar_url || null;
+        const user_color = user.user_color || item.user_color || null;
         const blockedAt = item.blocked_at || item.blockedDate;
         let blockedDate = 'Unknown';
         try {
@@ -306,6 +307,7 @@ const AdminPanel = () => {
           id: item.user_id || item.id,
           name: user.username || item.username || `User ${item.user_id || item.id}`,
           avatar,
+          user_color,
           blockedDate,
           reason: item.blocked_reason || item.reason || ''
         };
@@ -376,6 +378,7 @@ const AdminPanel = () => {
           const user = item.user || {};
           // prefer backend-provided fields; no mock fallback
           const avatar = user.avatar_url || item.avatar_url || null;
+          const user_color = user.user_color || item.user_color || null;
           const blockedAt = item.blocked_at || item.blockedDate;
           let blockedDate = 'Unknown';
           try {
@@ -388,6 +391,7 @@ const AdminPanel = () => {
             id: item.user_id || item.id,
             name: user.username || item.username || `User ${item.user_id || item.id}`,
             avatar,
+            user_color,
             blockedDate,
             reason: item.blocked_reason || item.reason || ''
           };
@@ -2833,6 +2837,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         const formattedBlocked = blockedList.map((item) => {
           const user = item.user || {};
           const avatar = user.avatar_url || item.avatar_url || null;
+          const user_color = user.user_color || item.user_color || null;
           const blockedAt = item.blocked_at || item.blockedDate;
           let blockedDate = 'Unknown';
           try {
@@ -2845,6 +2850,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
             id: item.user_id || item.id,
             name: user.username || item.username || `User ${item.user_id || item.id}`,
             avatar,
+            user_color,
             blockedDate,
             reason: item.blocked_reason || item.reason || ''
           };
@@ -2883,7 +2889,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         name: member.username || `User ${member.user_id}`,
         role: member.role,
         joinDate: member.requested_at ? new Date(member.requested_at).toISOString().split('T')[0] : 'Unknown',
-        avatar: member.avatar_url || null  // Use null instead of pravatar fallback
+        avatar: member.avatar_url || null,  // Use null instead of pravatar fallback
+        user_color: member.user_color || null
       }));
       
       console.log('[AdminPanel] Formatted pending members:', formattedPending);
