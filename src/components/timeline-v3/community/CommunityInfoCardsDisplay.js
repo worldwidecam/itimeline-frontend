@@ -26,6 +26,57 @@ import HashtagIcon from '../../common/HashtagIcon';
 import api, { getUserByUsername } from '../../../utils/api';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../events/EventTypes';
 import { useAuth } from '../../../contexts/AuthContext';
+import EventPopup from '../events/EventPopup';
+
+
+const toRichContentPayload = (description) => {
+  const raw = String(description || '');
+  if (!raw.trim()) return null;
+
+  const pattern = /(@[a-zA-Z0-9_]+)|(#[a-zA-Z0-9_]+)|(i-[a-zA-Z0-9_]+)|(~[0-9]+)|(www\.[^\s]+)|(https?:\/\/[^\s]+)/g;
+  const contentItems = [];
+  let lastEnd = 0;
+
+  raw.replace(pattern, (matched, _u, _h, _c, _e, _www, _http, offset) => {
+    if (offset > lastEnd) {
+      const textBefore = raw.slice(lastEnd, offset);
+      if (textBefore) {
+        contentItems.push({ type: 'text', value: textBefore });
+      }
+    }
+
+    if (matched.startsWith('@')) {
+      contentItems.push({ type: 'user_mention', username: matched.slice(1), text: matched });
+    } else if (matched.startsWith('#')) {
+      contentItems.push({ type: 'hashtag_mention', name: matched.slice(1), text: matched });
+    } else if (matched.startsWith('i-')) {
+      contentItems.push({ type: 'community_mention', name: matched.slice(2), text: matched });
+    } else if (matched.startsWith('~')) {
+      const eventId = Number(matched.slice(1));
+      if (Number.isFinite(eventId) && eventId > 0) {
+        contentItems.push({ type: 'event_reference', event_id: eventId, text: matched });
+      } else {
+        contentItems.push({ type: 'text', value: matched });
+      }
+    } else if (matched.startsWith('www.')) {
+      contentItems.push({ type: 'link', url: `https://${matched}`, text: matched });
+    } else if (matched.startsWith('http')) {
+      contentItems.push({ type: 'link', url: matched, text: matched });
+    }
+
+    lastEnd = offset + matched.length;
+    return matched;
+  });
+
+  if (lastEnd < raw.length) {
+    contentItems.push({ type: 'text', value: raw.slice(lastEnd) });
+  }
+
+  if (contentItems.length === 0) {
+    return { content: [{ type: 'text', value: raw }] };
+  }
+  return { content: contentItems };
+};
 
 // Rich Content Renderer Component
 const RichContentRenderer = ({ content, theme }) => {
@@ -34,20 +85,21 @@ const RichContentRenderer = ({ content, theme }) => {
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
   const [eventReferenceCache, setEventReferenceCache] = React.useState({});
+  const [localEventForPopup, setLocalEventForPopup] = React.useState(null);
+
 
   if (!content) {
     return null;
   }
 
-  // Parse content if it's a string
   let contentData;
   try {
     contentData = typeof content === 'string' ? JSON.parse(content) : content;
   } catch (e) {
-    return null;
+    contentData = toRichContentPayload(content);
   }
 
-  if (!contentData.content || !Array.isArray(contentData.content)) {
+  if (!contentData || !contentData.content || !Array.isArray(contentData.content)) {
     return null;
   }
 
@@ -109,7 +161,7 @@ const RichContentRenderer = ({ content, theme }) => {
     if (existing) return existing;
 
     try {
-      const response = await api.get(`/api/v1/events/${normalizedId}/resolve`);
+      const response = await api.get(`/api/v1/events/${normalizedId}`);
       const payload = response?.data;
       if (!payload?.id) return null;
       setEventReferenceCache((prev) => ({ ...prev, [normalizedId]: payload }));
@@ -120,64 +172,48 @@ const RichContentRenderer = ({ content, theme }) => {
   };
 
   const handleMentionClick = async (type, name, username) => {
+    const toAbsoluteRoute = (route) => {
+      if (!route) return '';
+      if (/^https?:\/\//i.test(route)) return route;
+      return `${window.location.origin}${route.startsWith('/') ? route : `/${route}`}`;
+    };
+    
     const openRouteInNewTab = (route) => {
       if (!route) return;
-      window.open(route, '_blank', 'noopener,noreferrer');
+      window.open(toAbsoluteRoute(route), '_blank', 'noopener,noreferrer');
     };
     const openPendingNewTab = () => window.open('about:blank', '_blank', 'noopener,noreferrer');
 
     switch (type) {
       case 'user_mention': {
-        const pendingTab = openPendingNewTab();
         const userData = await fetchUserData(username);
         if (userData && userData.id) {
-          const route = `/profile/${userData.id}`;
-          if (pendingTab) {
-            pendingTab.location.href = route;
-          } else {
-            openRouteInNewTab(route);
-          }
-        } else if (pendingTab) {
-          pendingTab.close();
+          navigate(`/profile/${userData.id}`);
         }
         break;
       }
       case 'hashtag_mention': {
-        const pendingTab = openPendingNewTab();
         try {
           const slug = name.toUpperCase();
           const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
-          const route = response.data && response.data.id
-            ? `/timeline-v3/${response.data.id}`
-            : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
-          if (pendingTab) {
-            pendingTab.location.href = route;
+          if (response.data && response.data.id) {
+            navigate(`/timeline-v3/${response.data.id}`);
           } else {
-            openRouteInNewTab(route);
+            navigate(`/timeline-v3/new?name=${encodeURIComponent(slug)}`);
           }
         } catch (error) {
-          if (pendingTab) pendingTab.close();
           console.error('Error fetching hashtag timeline:', error);
         }
         break;
       }
       case 'community_mention': {
-        const pendingTab = openPendingNewTab();
         try {
           const slug = name.toUpperCase();
           const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
           if (response.data && response.data.id) {
-            const route = `/timeline-v3/${response.data.id}`;
-            if (pendingTab) {
-              pendingTab.location.href = route;
-            } else {
-              openRouteInNewTab(route);
-            }
-          } else if (pendingTab) {
-            pendingTab.close();
+            navigate(`/timeline-v3/${response.data.id}`);
           }
         } catch (error) {
-          if (pendingTab) pendingTab.close();
           console.error('Error fetching community timeline:', error);
         }
         break;
@@ -190,10 +226,9 @@ const RichContentRenderer = ({ content, theme }) => {
         const normalizedEventId = Number(name);
         if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) break;
         const resolvedEvent = await resolveAndCacheEventReference(normalizedEventId);
-        if (!resolvedEvent?.timeline_id) break;
+        if (!resolvedEvent?.id) break;
 
-        localStorage.setItem('timeline_pending_open_event_id', String(normalizedEventId));
-        navigate(`/timeline-v3/${resolvedEvent.timeline_id}?openEvent=${normalizedEventId}`);
+        setLocalEventForPopup(resolvedEvent);
         break;
       }
       default:
@@ -369,6 +404,13 @@ const RichContentRenderer = ({ content, theme }) => {
 
         return null;
       })}
+      {localEventForPopup && (
+        <EventPopup
+          event={localEventForPopup}
+          open={Boolean(localEventForPopup)}
+          onClose={() => setLocalEventForPopup(null)}
+        />
+      )}
     </Box>
   );
 };
@@ -500,21 +542,9 @@ const CommunityInfoCardsDisplay = ({ timelineId }) => {
                   {card.title}
                 </Typography>
                 <Divider sx={{ mb: 1.5 }} />
-                {card.content ? (
-                  <RichContentRenderer content={card.content} theme={theme} />
-                ) : (
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: 'text.secondary',
-                      lineHeight: 1.6
-                    }}
-                  >
-                    {card.description}
-                  </Typography>
-                )}
+                {card.content || card.description ? (
+                  <RichContentRenderer content={card.content || card.description} theme={theme} />
+                ) : null}
               </CardContent>
             </Card>
           </motion.div>

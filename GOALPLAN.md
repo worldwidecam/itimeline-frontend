@@ -192,7 +192,7 @@ systems check (DEEP AUDIT - line-by-line verification):
 - [x] **Register Page** (`/register`) - Password policy fixed, redundant login removed, guest mode guards added
 
 ### 🔲 Pages to Audit
-- [x] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - endpoint added ✅
+- [ ] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - endpoint added ✅
 - [x] **Home Page** (`/home`) - Feed loading, timeline lanes, FAB, MAKE A POST
 - [ ] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified ✅
 - [ ] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified ✅

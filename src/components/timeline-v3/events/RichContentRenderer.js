@@ -11,6 +11,58 @@ import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
 import { useAuth } from '../../../contexts/AuthContext';
 import { displayUsername } from '../../../utils/usernameDisplay';
 
+const EventPopup = React.lazy(() => import('./EventPopup'));
+
+
+const toRichContentPayload = (description) => {
+  const raw = String(description || '');
+  if (!raw.trim()) return null;
+
+  const pattern = /(@[a-zA-Z0-9_]+)|(#[a-zA-Z0-9_]+)|(i-[a-zA-Z0-9_]+)|(~[0-9]+)|(www\.[^\s]+)|(https?:\/\/[^\s]+)/g;
+  const contentItems = [];
+  let lastEnd = 0;
+
+  raw.replace(pattern, (matched, _u, _h, _c, _e, _www, _http, offset) => {
+    if (offset > lastEnd) {
+      const textBefore = raw.slice(lastEnd, offset);
+      if (textBefore) {
+        contentItems.push({ type: 'text', value: textBefore });
+      }
+    }
+
+    if (matched.startsWith('@')) {
+      contentItems.push({ type: 'user_mention', username: matched.slice(1), text: matched });
+    } else if (matched.startsWith('#')) {
+      contentItems.push({ type: 'hashtag_mention', name: matched.slice(1), text: matched });
+    } else if (matched.startsWith('i-')) {
+      contentItems.push({ type: 'community_mention', name: matched.slice(2), text: matched });
+    } else if (matched.startsWith('~')) {
+      const eventId = Number(matched.slice(1));
+      if (Number.isFinite(eventId) && eventId > 0) {
+        contentItems.push({ type: 'event_reference', event_id: eventId, text: matched });
+      } else {
+        contentItems.push({ type: 'text', value: matched });
+      }
+    } else if (matched.startsWith('www.')) {
+      contentItems.push({ type: 'link', url: `https://${matched}`, text: matched });
+    } else if (matched.startsWith('http')) {
+      contentItems.push({ type: 'link', url: matched, text: matched });
+    }
+
+    lastEnd = offset + matched.length;
+    return matched;
+  });
+
+  if (lastEnd < raw.length) {
+    contentItems.push({ type: 'text', value: raw.slice(lastEnd) });
+  }
+
+  if (contentItems.length === 0) {
+    return { content: [{ type: 'text', value: raw }] };
+  }
+  return { content: contentItems };
+};
+
 const RichContentRenderer = ({
   content,
   theme,
@@ -28,6 +80,8 @@ const RichContentRenderer = ({
   const [userCache, setUserCache] = React.useState({});
   const [userDataMap, setUserDataMap] = React.useState({});
   const [eventReferenceCache, setEventReferenceCache] = React.useState({});
+  const [localEventForPopup, setLocalEventForPopup] = React.useState(null);
+
 
   if (!content) {
     return null;
@@ -37,10 +91,10 @@ const RichContentRenderer = ({
   try {
     contentData = typeof content === 'string' ? JSON.parse(content) : content;
   } catch (e) {
-    return null;
+    contentData = toRichContentPayload(content);
   }
 
-  if (!contentData.content || !Array.isArray(contentData.content)) {
+  if (!contentData || !contentData.content || !Array.isArray(contentData.content)) {
     return null;
   }
 
@@ -173,7 +227,7 @@ const RichContentRenderer = ({
     if (existing) return existing;
 
     try {
-      const response = await api.get(`/api/v1/events/${normalizedId}/resolve`);
+      const response = await api.get(`/api/v1/events/${normalizedId}`);
       const payload = response?.data;
       if (!payload?.id) return null;
       setEventReferenceCache((prev) => ({ ...prev, [normalizedId]: payload }));
@@ -221,57 +275,34 @@ const RichContentRenderer = ({
     if (disableInteractions) return;
     switch (type) {
       case 'user_mention': {
-        const pendingTab = openPendingNewTab();
         const userData = await fetchUserData(username);
         if (userData && userData.id) {
-          const route = `/profile/${userData.id}`;
-          if (pendingTab) {
-            pendingTab.location.href = toAbsoluteRoute(route);
-          } else {
-            openRouteInNewTab(route);
-          }
-        } else if (pendingTab) {
-          pendingTab.close();
+          navigate(`/profile/${userData.id}`);
         }
         break;
       }
       case 'hashtag_mention': {
-        const pendingTab = openPendingNewTab();
         try {
           const timelineName = name.toUpperCase();
           const timeline = await resolveTimelineByName(timelineName);
           const route = timeline?.id
             ? `/timeline-v3/${timeline.id}`
             : `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
-          if (pendingTab) {
-            pendingTab.location.href = toAbsoluteRoute(route);
-          } else {
-            openRouteInNewTab(route);
-          }
+          navigate(route);
         } catch (error) {
-          if (pendingTab) pendingTab.close();
           console.error('Error fetching hashtag timeline:', error);
         }
         break;
       }
       case 'community_mention': {
-        const pendingTab = openPendingNewTab();
         try {
           const baseName = String(name || '').trim();
           const timeline = await resolveTimelineByName(baseName)
             || await resolveTimelineByName(`i-${baseName}`);
           if (timeline?.id) {
-            const route = `/timeline-v3/${timeline.id}`;
-            if (pendingTab) {
-              pendingTab.location.href = toAbsoluteRoute(route);
-            } else {
-              openRouteInNewTab(route);
-            }
-          } else if (pendingTab) {
-            pendingTab.close();
+            navigate(`/timeline-v3/${timeline.id}`);
           }
         } catch (error) {
-          if (pendingTab) pendingTab.close();
           console.error('Error fetching community timeline:', error);
         }
         break;
@@ -295,9 +326,7 @@ const RichContentRenderer = ({
           break;
         }
 
-        if (!resolvedEvent?.timeline_id) break;
-        localStorage.setItem('timeline_pending_open_event_id', String(normalizedEventId));
-        navigate(`/timeline-v3/${resolvedEvent.timeline_id}?openEvent=${normalizedEventId}`);
+        setLocalEventForPopup(resolvedEvent);
         break;
       }
       default:
@@ -513,6 +542,16 @@ const RichContentRenderer = ({
 
         return null;
       })}
+      
+      <React.Suspense fallback={null}>
+        {localEventForPopup && (
+          <EventPopup
+            event={localEventForPopup}
+            open={Boolean(localEventForPopup)}
+            onClose={() => setLocalEventForPopup(null)}
+          />
+        )}
+      </React.Suspense>
     </Box>
   );
 };
