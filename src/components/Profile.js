@@ -1138,6 +1138,7 @@ const Profile = () => {
                   avatarUrl={profileUser.avatar_url}
                   id={profileUser.id}
                   size={120}
+                  userColor={profileUser.user_color}
                 />
                 <Box>
                   <Typography variant="h4" gutterBottom>

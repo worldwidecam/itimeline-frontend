@@ -81,6 +81,7 @@ const RemarkEventMarker = ({ event, onDelete, onEdit, avatarSide = 'left' }) => 
             avatarUrl={event?.created_by_avatar}
             id={event?.created_by}
             size={36}
+            userColor={event?.created_by_user_color}
             sx={{
               flexShrink: 0,
               border: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.24)' : 'rgba(31,31,31,0.25)'}`,

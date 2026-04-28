@@ -44,12 +44,13 @@ const CreatorChip = ({ user, color }) => {
         boxShadow: theme.shadows[1]
       }
     }}>
-      <UserAvatar 
+      <UserAvatar
         name={user.username}
         avatarUrl={user.avatar}
         id={user.id}
         size={44}
-        sx={{ 
+        userColor={user.user_color}
+        sx={{
           mr: 2,
           border: `2px solid ${chipColor}`,
         }}

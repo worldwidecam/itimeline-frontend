@@ -259,6 +259,7 @@ const AdminListTab = ({ canManage }) => {
                     avatarUrl={admin.avatar_url}
                     id={admin.user_id}
                     size={36}
+                    userColor={admin.user_color}
                   />
                   <Box>
                     <Typography variant="subtitle1">{displayUsername(admin.username) || `User ${admin.user_id}`}</Typography>
@@ -1533,6 +1534,7 @@ const GlobalReportsTab = () => {
                                 avatarUrl={post.reportedUser?.avatar}
                                 id={post.reportedUser?.id}
                                 size={54}
+                                userColor={post.reportedUser?.user_color}
                               />
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="overline" sx={{ color: '#0D47A1', fontWeight: 700, letterSpacing: 0.8 }}>
@@ -1872,6 +1874,7 @@ const GlobalReportsTab = () => {
                             avatarUrl={post.reporter?.avatar}
                             id={post.reporter?.id}
                             size={22}
+                            userColor={post.reporter?.user_color}
                           />
                         )}
                         {post.reporter?.id ? (
@@ -1904,6 +1907,7 @@ const GlobalReportsTab = () => {
                               avatarUrl={post.assignedModerator.avatar}
                               id={post.assignedModerator.id}
                               size={22}
+                              userColor={post.assignedModerator.user_color}
                             />
                           )}
                           <Typography variant="body2">{post.assignedModerator.name}</Typography>

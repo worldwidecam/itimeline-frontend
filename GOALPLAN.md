@@ -185,6 +185,40 @@ systems check (DEEP AUDIT - line-by-line verification):
 ## Current Focus / Main Parent TODO
 - [ ] Functional verification - Page-by-page testing of all features
 
+## Page Audit Checklist
+### ✅ Completed Pages
+- [x] **Landing Page** (`/`) - Logout, badge settings, auth parity fixed
+- [x] **Login Page** (`/login`) - Auth flow verified, Goblin mode working, UX redesigned for share-positive
+- [x] **Register Page** (`/register`) - Password policy fixed, redundant login removed, guest mode guards added
+
+### 🔲 Pages to Audit
+- [ ] **Required Username Change** (`/account/required-username-change`) - Forced username update flow
+- [x] **Home Page** (`/home`) - Feed loading, timeline lanes, FAB, MAKE A POST
+- [ ] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions
+- [ ] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access
+- [ ] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave
+- [ ] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports
+- [ ] **Profile (Self)** (`/profile`) - Own profile display, editing
+- [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view
+- [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks
+- [ ] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music
+- [ ] **Site Control** (`/site-control`) - Admin list, reports, site settings
+- [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards
+
+### � Redirect/Lock Pages to Audit
+- [ ] **SiteControlLockView** - Non-admin access to Site Control
+- [ ] **PrivateTimelineLock** - Non-member access to private community
+- [ ] **BlockedFromCommunity** - Blocked user access to community
+- [ ] **BannedTimelineLock** - Banned user access to timeline
+- [ ] **CommunityLockView** - Generic community restriction
+- [ ] **MembershipGuard** - Role-based access guard for admin/members pages
+
+### �� Mobile UX Observations (Not Audit-Critical)
+- Horizontal scroll bleed on landing page (grey space visible)
+- Timeline carousel not swipeable on mobile
+- Landing badge bubble/tail connection not seamless on mobile
+- navFAB z-index needs to be highest
+
 ## Landing Page Audit - Fixes Applied ✅
 ### Bug 1: Logout Token Persistence
 - **Issue**: HTTP-only cookies not cleared on logout → refresh re-authenticates user
@@ -210,6 +244,28 @@ systems check (DEEP AUDIT - line-by-line verification):
   - `auth.ts` - `/auth/me` endpoint returns bootstrap role
   - `legacy.ts` - `/api/v1/admins/site` includes bootstrap SiteOwner in admin list
 - **Security**: Only User ID 1 with email `brahdyssey@gmail.com` gets auto-SiteOwner
+
+## Login/Register Audit - Fixes Applied ✅
+- **Issue 1**: Password policy mismatch
+  - Frontend required 6 chars, backend (prod) requires 12 chars
+  - **Fix**: `Register.js:63` now requires 12 chars minimum
+  - **Note**: Existing accounts unaffected - policy only enforced at registration
+- **Issue 2**: Redundant double-login on register
+  - `AuthContext.register()` called `login()` after successful register
+  - Backend already sets cookies and returns access_token
+  - **Fix**: Now just calls `/auth/me` to fetch user data (saves 1 API roundtrip)
+- **Issue 3**: Guest mode passport fetch errors
+  - `HomePage.fetchYourPageData()` called `syncUserPassport()` for guests
+  - Backend `/profile/hydrate` returns 403 for guests (correct)
+  - **Fix**: Added `isGuest` guard to prevent passport calls for guests
+- **Issue 4**: Login page UX not share-positive
+  - Old design: Big login form first, small guest option below
+  - Implied "you must login" rather than "you can view as guest"
+  - **Fix**: Redesigned Login page with equal-weighted options:
+    - Header: "Choose Your Path"
+    - Login card (collapsible): "Login First" → expands to show form
+    - Prominent "OR" divider
+    - Goblin Mode card (unchanged): "view-only as a guest"
 
 ## Active sub-TODOs ( smaller tasks that are toward completing current focus )
 - [x] Fix logout token persistence

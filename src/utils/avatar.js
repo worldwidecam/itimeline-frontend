@@ -67,10 +67,14 @@ export function setLocalAvatarColorPreference(user, color) {
   }
 }
 
-// Resolve color with preference -> seed fallback
+// Resolve color with user_color -> preference -> seed fallback
 export function resolveAvatarColor(user, palette = AVATAR_PALETTE) {
+  // First check if user has a user_color field (from backend UserDTO)
+  if (user?.user_color) return user.user_color;
+  // Then check localStorage preference
   const pref = getLocalAvatarColorPreference(user);
   if (pref) return pref;
+  // Finally fall back to hash-based color from palette
   const seed = getAvatarSeed(user);
   return getAvatarColorFromSeed(seed, palette);
 }

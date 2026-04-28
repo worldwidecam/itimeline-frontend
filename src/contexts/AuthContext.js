@@ -182,8 +182,38 @@ export const AuthProvider = ({ children }) => {
         console.log('Stored access token from register response');
       }
 
-      const loggedInUser = await login(email, password);
-      return loggedInUser;
+      // Backend already set HTTP-only cookies - just fetch user data
+      const meResponse = await api.get('/api/v1/auth/me');
+      const userData = meResponse?.data?.user || null;
+      if (!userData) {
+        throw new Error('Registration succeeded but no user session payload was returned');
+      }
+
+      // Clear any existing membership data from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('timeline_membership_')) {
+          console.log(`Clearing previous membership data: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
+
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      setIsGuest(Boolean(meResponse?.data?.is_guest));
+      localStorage.removeItem('guest_session');
+      clearVoteStateCache();
+      console.log('Registration successful');
+
+      // Fetch and store user passport
+      console.log('Fetching user passport after registration');
+      try {
+        await fetchUserPassport();
+        await syncUserPassport();
+      } catch (err) {
+        console.error('Error fetching passport after registration:', err);
+      }
+
+      return userData;
     } catch (error) {
       console.error('Registration error in AuthContext:', error);
       if (error.response?.data?.error) {

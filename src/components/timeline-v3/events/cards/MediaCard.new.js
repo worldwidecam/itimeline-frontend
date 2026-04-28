@@ -495,6 +495,7 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
                     avatarUrl={event.created_by_avatar}
                     id={event.created_by}
                     size={24}
+                    userColor={event.created_by_user_color}
                     sx={{ mr: 0.5, fontSize: '0.75rem' }}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>

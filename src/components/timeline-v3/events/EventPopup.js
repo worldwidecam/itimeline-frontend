@@ -291,14 +291,16 @@ const EventPopup = ({
       return {
         id: event.created_by.id || event.created_by_id || event.created_by,
         username: event.created_by.username || event.created_by_username || 'Unknown User',
-        avatar: event.created_by.avatar_url || event.created_by_avatar || null
+        avatar: event.created_by.avatar_url || event.created_by_avatar || null,
+        user_color: event.created_by.user_color || event.created_by_user_color || null
       };
     }
     // Then try direct properties (flattened)
     return {
       id: event.created_by || event.created_by_id || 'unknown',
       username: event.created_by_username || 'Unknown User',
-      avatar: event.created_by_avatar || null
+      avatar: event.created_by_avatar || null,
+      user_color: event.created_by_user_color || null
     };
   };
   

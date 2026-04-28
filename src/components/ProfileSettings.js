@@ -316,21 +316,23 @@ const ProfileSettings = () => {
           : [];
 
         try {
-          const passportResponse = await api.get('/api/v1/user/passport');
+          const passportResponse = await api.get('/api/v1/profile/hydrate');
+          const passportUser = passportResponse?.data?.user || {};
           const passportPrefs = passportResponse?.data?.preferences || {};
-          const hasPassportDateOfBirth = Object.prototype.hasOwnProperty.call(passportPrefs, 'date_of_birth');
-          const hasPassportUserColor = Object.prototype.hasOwnProperty.call(passportPrefs, 'user_color');
+          // user_color comes from user object (toUserSelfDTO), not preferences
+          const hasPassportUserColor = Object.prototype.hasOwnProperty.call(passportUser, 'user_color');
+          const passportUserColor = passportUser?.user_color ? String(passportUser.user_color).trim() : '';
+          const hasPassportDateOfBirth = Object.prototype.hasOwnProperty.call(passportUser, 'date_of_birth');
+          const passportDateOfBirth = passportUser?.date_of_birth ? String(passportUser.date_of_birth).trim() : '';
           const hasPassportProfilePortraitUrl = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_image_url');
           const hasPassportProfilePortraitX = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_x');
           const hasPassportProfilePortraitY = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_y');
           const hasPassportProfilePortraitZoom = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_zoom');
           const hasPassportProfileModules = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_modules');
-          const hasPassportProfileVisibility = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_visibility');
-          const hasPassportProfileAccessKey = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_access_key');
-          const passportDateOfBirth = passportPrefs?.date_of_birth ? String(passportPrefs.date_of_birth).trim() : '';
-          const passportUserColor = passportPrefs?.user_color ? String(passportPrefs.user_color).trim() : '';
-          const passportProfileVisibility = String(passportPrefs?.profile_visibility || 'public').trim().toLowerCase();
-          const passportProfileAccessKey = String(passportPrefs?.profile_access_key || '').trim();
+          const hasPassportProfileVisibility = Object.prototype.hasOwnProperty.call(passportUser, 'profile_visibility');
+          const hasPassportProfileAccessKey = Object.prototype.hasOwnProperty.call(passportUser, 'profile_access_key');
+          const passportProfileVisibility = String(passportUser?.profile_visibility || 'public').trim().toLowerCase();
+          const passportProfileAccessKey = String(passportUser?.profile_access_key || '').trim();
 
           if (hasPassportDateOfBirth) {
             resolvedDateOfBirth = passportDateOfBirth;
@@ -680,12 +682,21 @@ const ProfileSettings = () => {
       }
 
       // Update profile via PATCH /api/v1/users/me
+      // Note: user_color must be 6-digit hex (#RRGGBB) - convert 3-digit to 6-digit if needed
+      let normalizedUserColor = formData.userColor;
+      if (normalizedUserColor && /^#[0-9a-fA-F]{3}$/.test(normalizedUserColor)) {
+        // Convert 3-digit hex to 6-digit: #RGB -> #RRGGBB
+        normalizedUserColor = '#' + normalizedUserColor[1] + normalizedUserColor[1] + normalizedUserColor[2] + normalizedUserColor[2] + normalizedUserColor[3] + normalizedUserColor[3];
+      }
       const profilePayload = {
         display_username: formData.displayName || undefined,
         bio: formData.bio || undefined,
-        user_color: formData.userColor || undefined,
-        website: formData.website || undefined,
-        location: formData.location || undefined,
+        user_color: normalizedUserColor || undefined,
+        date_of_birth: formData.dateOfBirth || undefined,
+        profile_visibility: formData.profileVisibility || undefined,
+        profile_access_key: formData.profileVisibility === 'private'
+          ? (String(formData.profileAccessKey || '').trim() || undefined)
+          : undefined,
       };
       if (avatarKey) profilePayload.avatar_key = avatarKey;
 
@@ -710,24 +721,30 @@ const ProfileSettings = () => {
           titleBase: theoryBoardTitle,
         });
 
-        const preferencePayload = {
-          date_of_birth: formData.dateOfBirth || null,
-          user_color: formData.userColor || null,
-          profile_visibility: formData.profileVisibility === 'private' ? 'private' : 'public',
-          profile_access_key: formData.profileVisibility === 'private'
-            ? (String(formData.profileAccessKey || '').trim() || null)
-            : null,
-          profile_modules: nextProfileModules,
-        };
-        if (shouldSyncProfilePortraitFromAvatar) {
-          preferencePayload.profile_portrait_image_url = uploadedAvatarUrl;
-          preferencePayload.profile_portrait_x = 50;
-          preferencePayload.profile_portrait_y = 50;
-          preferencePayload.profile_portrait_zoom = 1;
+        // Profile modules go to a separate endpoint
+        // PUT /api/v1/profile/modules accepts one module at a time
+        // For now, we skip this if it fails - the main profile update already succeeded
+        try {
+          // Sync each module individually
+          for (const mod of nextProfileModules) {
+            await api.put('/api/v1/profile/modules', {
+              module_key: mod.module_key || mod.id,
+              position: mod.position,
+              enabled: mod.enabled,
+              config: mod.config,
+            });
+          }
+        } catch (moduleError) {
+          console.warn('Failed to sync profile modules:', moduleError);
         }
-        await updateUserPreferences(preferencePayload);
+
+        // Only send valid preference fields to /api/v1/profile/preferences
+        // date_of_birth, user_color, profile_visibility, profile_access_key are handled by /api/v1/users/me
+        const preferencePayload = {};
+        // Note: portrait settings are not currently supported by backend preferences
+        // Keeping localStorage in sync for now
         if (user?.id) {
-          localStorage.setItem(`user_color_pref_user_${user.id}`, formData.userColor || '#4f7cff');
+          localStorage.setItem(`user_color_pref_user_${user.id}`, normalizedUserColor || '#4f7cff');
           if (formData.dateOfBirth) {
             localStorage.setItem(`date_of_birth_user_${user.id}`, formData.dateOfBirth);
           } else {
@@ -996,7 +1013,8 @@ const ProfileSettings = () => {
                     avatarUrl={previewUrl || user?.avatar_url || ''}
                     id={user?.id}
                     size={100}
-                    sx={{ 
+                    userColor={formData.userColor}
+                    sx={{
                       transition: 'transform 0.2s ease',
                       '&:hover': { transform: 'scale(1.05)' }
                     }}

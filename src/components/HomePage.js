@@ -2437,7 +2437,7 @@ const HomePage = () => {
   }, [user?.id, getYourPageCacheKey, clearYourPageCache]);
 
   const fetchYourPageData = React.useCallback(async () => {
-    if (!user) {
+    if (!user || isGuest) {
       setYourPageTimelines([]);
       setYourPageEvents([]);
       setHasLoadedYourPage(true);
@@ -2640,9 +2640,10 @@ const HomePage = () => {
     if (activeHubTab !== 'your-page') return;
     if (isHubPhaseOneLoading) return;
     if (hasLoadedYourPage || loadingYourPage) return;
+    if (isGuest) return; // Guests don't have passport data
 
     fetchYourPageData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData, hasBootstrappedYourPageCache]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -3562,7 +3563,9 @@ const HomePage = () => {
   const handleCreateTimeline = async () => {
     const rawName = formData.name.trim();
     if (!rawName) {
-      alert('Please enter a timeline name');
+      setUserFollowSnackbarMessage('Please enter a timeline name');
+      setUserFollowSnackbarSeverity('warning');
+      setUserFollowSnackbarOpen(true);
       return;
     }
 
@@ -3589,6 +3592,9 @@ const HomePage = () => {
 
       if (existingTimeline) {
         handleDialogClose();
+        setUserFollowSnackbarMessage(`Timeline "${existingTimeline.name || normalizedName}" already exists. Taking you there now.`);
+        setUserFollowSnackbarSeverity('info');
+        setUserFollowSnackbarOpen(true);
         navigate(`/timeline-v3/${existingTimeline.id}`);
         return;
       }
@@ -3605,7 +3611,10 @@ const HomePage = () => {
       navigate(`/timeline-v3/${response.data.id}`);
     } catch (error) {
       console.error('Error creating timeline:', error);
-      alert(error.response?.data?.error || 'Failed to create timeline. Please try again.');
+      const message = error?.response?.data?.error || error?.message || 'Failed to create timeline. Please try again.';
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
     } finally {
       setLoading(false);
     }
@@ -5779,7 +5788,7 @@ const HomePage = () => {
                 tooltip: 'Submit Feedback',
                 icon: <HowToVoteIcon />,
                 onClick: () => window.open('https://forms.gle/JyKcWfLKy3a7wJgc6', '_blank'),
-                accent: { dark: '#f8fafc', light: '#f1f5f9' },
+                accent: { dark: '#94A3B8', light: '#A5B4FC' },
               },
               {
                 key: 'timeline',

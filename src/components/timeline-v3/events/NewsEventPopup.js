@@ -46,6 +46,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
+import { useAuth } from '../../../contexts/AuthContext';
 import PopupTimelineLanes from './PopupTimelineLanes';
 import UserAvatar from '../../common/UserAvatar';
 import VoteControls from './VoteControls';
@@ -91,6 +92,7 @@ const NewsEventPopup = ({
 }) => {
   const theme = useTheme();
   const location = useLocation();
+  const { isGuest } = useAuth();
   const [reportOpen, setReportOpen] = React.useState(false);
   const [reportReason, setReportReason] = React.useState('');
   const [reportSubmitting, setReportSubmitting] = React.useState(false);
@@ -148,14 +150,16 @@ const NewsEventPopup = ({
       return {
         id: event.created_by.id || event.created_by_id || event.created_by,
         username: event.created_by.username || event.created_by_username || 'Unknown User',
-        avatar: event.created_by.avatar_url || event.created_by_avatar || null
+        avatar: event.created_by.avatar_url || event.created_by_avatar || null,
+        user_color: event.created_by.user_color || event.created_by_user_color || null
       };
     }
     // Then try direct properties (flattened)
     return {
       id: event.created_by || event.created_by_id || 'unknown',
       username: event.created_by_username || 'Unknown User',
-      avatar: event.created_by_avatar || null
+      avatar: event.created_by_avatar || null,
+      user_color: event.created_by_user_color || null
     };
   };
 
@@ -323,11 +327,12 @@ const NewsEventPopup = ({
           boxShadow: theme.shadows[1]
         }
       }}>
-        <UserAvatar 
+        <UserAvatar
           name={user.username}
           avatarUrl={user.avatar}
           id={user.id}
           size={44}
+          userColor={user.user_color}
           sx={{ mr: 2, border: `2px solid ${color}` }}
         />
         <Box>
@@ -941,7 +946,7 @@ const NewsEventPopup = ({
                 </Typography>
               </Box>
             )}
-            {(canEdit || canDelete || !isSafeguarded) && (
+            {(!isGuest && (canEdit || canDelete || !isSafeguarded)) && (
               <>
                 <IconButton
                   size="small"

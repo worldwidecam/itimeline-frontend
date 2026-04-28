@@ -348,6 +348,7 @@ const PersonalAccessPanel = ({
                     avatarUrl={user?.avatar_url}
                     id={user?.id}
                     size={32}
+                    userColor={user?.user_color}
                     sx={{
                       bgcolor: theme.palette.mode === 'dark'
                         ? 'rgba(255,255,255,0.12)'
@@ -390,6 +391,7 @@ const PersonalAccessPanel = ({
                       avatarUrl={viewer.avatarUrl}
                       id={viewer.id}
                       size={28}
+                      userColor={viewer.user_color}
                       sx={{
                         bgcolor: theme.palette.mode === 'dark'
                           ? 'rgba(255,255,255,0.08)'

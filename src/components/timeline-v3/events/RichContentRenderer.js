@@ -370,6 +370,7 @@ const RichContentRenderer = ({
                   avatarUrl={userData?.avatar_url}
                   id={userData?.id}
                   size={24}
+                  userColor={userData?.user_color}
                   sx={{
                     border: `1px solid ${theme.palette.primary.main}`,
                   }}

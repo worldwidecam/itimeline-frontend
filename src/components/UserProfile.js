@@ -30,6 +30,7 @@ const UserProfile = () => {
             avatarUrl={user?.avatar_url}
             id={user?.id}
             size={150}
+            userColor={user?.user_color}
             sx={{ mb: 2, fontSize: '4rem' }}
           />
           <Typography variant="h4" gutterBottom>

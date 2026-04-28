@@ -1914,6 +1914,7 @@ export const fetchUserPassport = async (refresh = false) => {
     const isRestricted = hasIsRestricted ? Boolean(passportPayload.is_restricted) : Boolean(currentUser?.is_restricted);
     const restrictedUntil = hasRestrictedUntil ? (passportPayload.restricted_until || null) : (currentUser?.restricted_until || null);
     const preferences = passportPayload.preferences || {};
+    const passportUser = passportPayload.user || {};
     
     try {
       localStorage.setItem(storageKey, JSON.stringify({
@@ -1930,8 +1931,13 @@ export const fetchUserPassport = async (refresh = false) => {
       console.log(`Stored passport for user ${userId} in localStorage`);
 
       try {
+        // Merge user_color from passport user object (toUserSelfDTO returns user_color)
+        // Also check preferences as fallback for legacy clients
+        const userColorFromPassport = passportUser.user_color || preferences.user_color || currentUser?.user_color;
         localStorage.setItem('user', JSON.stringify({
           ...currentUser,
+          ...passportUser,
+          user_color: userColorFromPassport,
           must_change_username: mustChangeUsername,
           is_restricted: isRestricted,
           restricted_until: restrictedUntil,

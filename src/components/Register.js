@@ -60,8 +60,8 @@ const Register = () => {
       setError('Please enter a valid email address');
       return;
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (formData.password.length < 12) {
+      setError('Password must be at least 12 characters long');
       return;
     }
 

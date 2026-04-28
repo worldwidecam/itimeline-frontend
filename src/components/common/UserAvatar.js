@@ -2,6 +2,7 @@ import React from 'react';
 import { Avatar, Tooltip } from '@mui/material';
 import { resolveAvatarColor, getInitial } from '../../utils/avatar';
 import { displayUsername } from '../../utils/usernameDisplay';
+import { getCachedUserIdentityColor } from '../../utils/userIdentityColor';
 
 export default function UserAvatar({
   name,
@@ -16,8 +17,9 @@ export default function UserAvatar({
   const displayName = displayUsername(name || 'User');
   const initial = getInitial(displayName);
   const userForColor = { userId: id, name: displayName };
-  // Use provided userColor if available, otherwise calculate from user id/name
-  const bg = userColor || resolveAvatarColor(userForColor);
+  // Use provided userColor if available, then check localStorage cache, then calculate from user id/name
+  const cachedColor = getCachedUserIdentityColor(id);
+  const bg = userColor || cachedColor || resolveAvatarColor(userForColor);
 
   const commonProps = {
     alt: alt || displayName,

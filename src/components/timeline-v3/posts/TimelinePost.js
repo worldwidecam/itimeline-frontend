@@ -21,6 +21,7 @@ const TimelinePost = ({ post }) => {
             avatarUrl={post.author.avatar || post.author.avatar_url}
             id={post.author.id}
             size={40}
+            userColor={post.author.user_color}
           />
           <Box ml={2} flex={1}>
             <Typography variant="subtitle1" component="div">

@@ -1129,6 +1129,7 @@ const AdminPanel = () => {
                                 avatarUrl={member.avatar_url || member.avatar}
                                 id={member.user_id || member.userId}
                                 size={48}
+                                userColor={member.user_color}
                                 sx={{ mr: 2 }}
                               />
                               <Box>
@@ -1291,11 +1292,12 @@ const AdminPanel = () => {
                             }}
                           >
                             <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                              <UserAvatar 
+                              <UserAvatar
                                 name={member.name}
                                 avatarUrl={member.avatar}
                                 id={member.userId || member.id}
                                 size={48}
+                                userColor={member.user_color}
                                 sx={{ mr: 2 }}
                               />
                               <Box>
@@ -1371,12 +1373,13 @@ const AdminPanel = () => {
                             transition: 'background-color 0.2s ease'
                           }}
                         >
-                          <UserAvatar 
+                          <UserAvatar
                             name={member.name}
                             avatarUrl={member.avatar}
                             id={member.userId || member.id}
                             size={48}
-                            sx={{ 
+                            userColor={member.user_color}
+                            sx={{
                               mr: 2,
                               filter: 'grayscale(100%)',
                               opacity: 0.7,
@@ -2547,6 +2550,7 @@ const ManagePostsTab = ({ timelineId }) => {
                           avatarUrl={post.reporter?.avatar}
                           id={post.reporter?.id}
                           size={22}
+                          userColor={post.reporter?.user_color}
                         />
                       )}
                       {post.reporter?.id ? (
@@ -2579,6 +2583,7 @@ const ManagePostsTab = ({ timelineId }) => {
                             avatarUrl={post.assignedModerator.avatar}
                             id={post.assignedModerator.id}
                             size={22}
+                            userColor={post.assignedModerator.user_color}
                           />
                         )}
                         <Typography variant="body2">{displayUsername(post.assignedModerator.name)}</Typography>
@@ -3209,12 +3214,13 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                       transition: 'background-color 0.2s ease'
                     }}
                   >
-                    <UserAvatar 
+                    <UserAvatar
                       name={member.name}
                       avatarUrl={member.avatar}
                       id={member.userId}
                       size={48}
-                      sx={{ 
+                      userColor={member.user_color}
+                      sx={{
                         mr: 2,
                         boxShadow: '0 0 0 2px ' + roleColor.bg,
                         cursor: 'pointer',
@@ -3366,11 +3372,12 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     transition: 'background-color 0.2s ease'
                   }}
                 >
-                  <UserAvatar 
+                  <UserAvatar
                     name={member.name}
                     avatarUrl={member.avatar}
                     id={member.userId || member.id}
                     size={48}
+                    userColor={member.user_color}
                     sx={{ mr: 2 }}
                   />
                   <Box sx={{ flexGrow: 1 }}>
@@ -3435,12 +3442,13 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     transition: 'background-color 0.2s ease'
                   }}
                 >
-                  <UserAvatar 
+                  <UserAvatar
                     name={member.name}
                     avatarUrl={member.avatar}
                     id={member.userId || member.id}
                     size={48}
-                    sx={{ 
+                    userColor={member.user_color}
+                    sx={{
                       mr: 2,
                       filter: 'grayscale(100%)',
                       opacity: 0.7

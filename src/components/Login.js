@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
-  Container,
   Paper,
   TextField,
   Button,
@@ -13,6 +12,7 @@ import {
   Alert,
   useTheme,
   GlobalStyles,
+  Collapse,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -39,6 +39,7 @@ const Login = () => {
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [loginExpanded, setLoginExpanded] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,10 +75,92 @@ const Login = () => {
         pb: 6,
         px: 3,
         zIndex: 0,
+        gap: 3,
       }}
     >
-      {/* ── Login card ──────────────────────────────────────────────────── */}
-      <Container maxWidth="sm">
+      {/* ── Page Header ──────────────────────────────────────────────────── */}
+      <Typography
+        variant="h4"
+        component="h1"
+        align="center"
+        sx={{
+          fontWeight: 600,
+          letterSpacing: 0.5,
+        }}
+      >
+        Choose Your Path
+      </Typography>
+
+      {/* ── Login card (collapsible) ──────────────────────────────────────── */}
+      <Box
+        sx={{
+          width: 190,
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor:
+            theme.palette.mode === 'dark'
+              ? 'rgba(147,197,253,0.25)'
+              : 'rgba(30,64,175,0.18)',
+          background:
+            theme.palette.mode === 'dark'
+              ? 'rgba(30,58,138,0.35)'
+              : 'rgba(219,234,254,0.45)',
+          backdropFilter: 'blur(8px)',
+          p: 2.5,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 1.5,
+        }}
+      >
+        <Avatar
+          sx={{
+            width: 86,
+            height: 86,
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.2)' : 'rgba(30,64,175,0.1)',
+            color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
+            fontSize: 40,
+            border: '2px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.35)' : 'rgba(30,64,175,0.25)',
+          }}
+        >
+          👤
+        </Avatar>
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => setLoginExpanded(!loginExpanded)}
+          sx={{
+            borderRadius: 99,
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            letterSpacing: 1.5,
+            borderColor:
+              theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.4)' : 'rgba(30,64,175,0.3)',
+            color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
+            '&:hover': {
+              borderColor: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
+              background:
+                theme.palette.mode === 'dark'
+                  ? 'rgba(147,197,253,0.08)'
+                  : 'rgba(30,64,175,0.05)',
+            },
+          }}
+        >
+          Login First
+        </Button>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          align="center"
+          sx={{ lineHeight: 1.45 }}
+        >
+          for full access & posting
+        </Typography>
+      </Box>
+
+      {/* ── Login form (expandable) ────────────────────────────────────────── */}
+      <Collapse in={loginExpanded} sx={{ width: '100%', maxWidth: 'sm' }}>
         <Paper
           elevation={3}
           sx={{
@@ -91,10 +174,6 @@ const Login = () => {
             zIndex: 1,
           }}
         >
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            Login
-          </Typography>
-
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
@@ -126,20 +205,22 @@ const Login = () => {
             </Typography>
           </Box>
         </Paper>
-      </Container>
+      </Collapse>
 
-      {/* ── "or" divider ────────────────────────────────────────────────── */}
+      {/* ── "OR" divider (prominent) ──────────────────────────────────────── */}
       <Divider
         sx={{
           width: '100%',
           maxWidth: 'sm',
-          mt: 3,
-          mb: 2,
-          fontSize: '0.75rem',
-          color: 'text.disabled',
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'text.secondary',
+          '&::before, &::after': {
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+          },
         }}
       >
-        or
+        OR
       </Divider>
 
       {/* ── Goblin Mode portrait card ────────────────────────────────────── */}
@@ -202,7 +283,7 @@ const Login = () => {
           align="center"
           sx={{ lineHeight: 1.45 }}
         >
-          choose to login as a Guest with viewing-only
+          view-only as a guest
         </Typography>
       </Box>
     </Box>

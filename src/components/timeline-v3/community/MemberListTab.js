@@ -2002,7 +2002,8 @@ const MemberListTab = () => {
                       avatarUrl={member.avatar}
                       id={member.userId}
                       size={48}
-                      sx={{ 
+                      userColor={member.user_color}
+                      sx={{
                         mr: 2,
                         boxShadow: '0 0 0 2px ' + roleColor.bg,
                         cursor: 'pointer',
