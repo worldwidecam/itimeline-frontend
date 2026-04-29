@@ -166,13 +166,13 @@ export default function UserCard({
                 '&::after': {
                   content: '""',
                   position: 'absolute',
-                  right: -3,
+                  right: -6,
                   top: -3,
                   width: 0,
                   height: 0,
                   borderTop: '4px solid transparent',
                   borderBottom: '4px solid transparent',
-                  borderRight: identityColor || (theme.palette.mode === 'dark' ? '6px solid rgba(255,255,255,0.9)' : '6px solid rgba(15,23,42,0.92)'),
+                  borderLeft: `6px solid ${identityColor || (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.92)')}`,
                 },
               }}
             />
@@ -184,12 +184,12 @@ export default function UserCard({
                 textDecoration: identityColor ? 'none' : 'underline',
                 textUnderlineOffset: '4px',
                 textDecorationThickness: '2px',
-                color: identityColor || 'inherit',
-                fontWeight: identityColor ? 700 : 400,
-                textShadow: identityColor ? `0 0 12px ${alpha(identityColor, 0.3)}` : 'none',
+                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.95)',
+                fontWeight: 700,
+                textShadow: 'none',
               }}
             >
-              @{displayUsername(username)}
+              @{displayUsername(username).charAt(0).toUpperCase() + displayUsername(username).slice(1)}
             </Typography>
           </Box>
 
@@ -223,6 +223,7 @@ export default function UserCard({
               fontWeight: 700,
               borderRadius: 1.75,
               px: 1.4,
+              textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
               background: identityColor 
                 ? `linear-gradient(135deg, ${identityColor} 0%, ${alpha(identityColor, 0.8)} 100%)`
                 : 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',

@@ -196,6 +196,14 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           if (typeof timelineData.created_by !== 'undefined' && timelineData.created_by !== null) {
             setCreatedBy(timelineData.created_by);
           }
+          if (timelineData.creator_username) {
+            setCreatorProfile({
+              id: timelineData.created_by_id || timelineData.created_by,
+              username: timelineData.creator_username,
+              avatar_url: timelineData.creator_avatar_url,
+              user_color: timelineData.creator_user_color,
+            });
+          }
           setRequiresApproval(timelineData.requires_approval || false);
           setCoverPortraitUrl(String(timelineData.cover_portrait_image_url || '').trim());
           setCoverPortraitPosition({
@@ -3276,7 +3284,15 @@ const handleRecenter = () => {
                         <Avatar
                           src={creatorProfile.avatar_url || undefined}
                           alt={displayUsername(creatorProfile.username)}
-                        />
+                          sx={{
+                            bgcolor: creatorProfile.avatar_url ? undefined : (creatorProfile.user_color || '#888'),
+                            color: creatorProfile.avatar_url ? undefined : '#111',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          {!creatorProfile.avatar_url ? displayUsername(creatorProfile.username || 'U')[0]?.toUpperCase() : null}
+                        </Avatar>
                       }
                       label={`@${displayUsername(creatorProfile.username)}`}
                       sx={{
