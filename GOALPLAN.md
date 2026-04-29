@@ -204,6 +204,9 @@ systems check (DEEP AUDIT - line-by-line verification):
   - *Note regarding User Access Lock*: When clicking a reporter link directing to a user profile, access was incorrectly blocked by a generic, unstyled private lock page stating that an access key is needed. This user account was public. Further, attempting to modify account access parameters within the user settings panel did not write to the backend properly.
 - [ ] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music - user_color save verified ✅
 - [ ] **Site Control** (`/site-control`) - Admin list, reports, site settings - user_color added to site-admins ✅
+  - *Intricacies regarding Report Duplicate Locking*: 
+    - Active State (Pending/Reviewing): If a ticket matching the timeline ID, user ID, or event ID is active, prevent all subsequent reports across ALL users. Display a specific snackbar stating that a report is already in progress.
+    - Resolved State (Safeguard Tag): If a ticket was resolved using the "Safeguard" action, block subsequent reports on that ID for the specified duration.
 - [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅
 
 ### Redirect/Lock Pages - Verified

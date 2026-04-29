@@ -793,7 +793,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to submit timeline report';
+      const msg = e?.response?.data?.error?.message || e?.response?.data?.error || e?.message || 'Failed to submit timeline report';
       setSnackbarMessage(msg);
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
