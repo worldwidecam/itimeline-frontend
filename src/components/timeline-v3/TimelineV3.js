@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Container, useTheme, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton } from '@mui/material';
+import { Box, Container, useTheme, alpha, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -28,6 +28,12 @@ import NavFab from './community/NavFab';
 import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
 import CommunityMembershipControl from './community/CommunityMembershipControl.js';
 import useJoinStatus from '../../hooks/useJoinStatus';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../utils/formStyleGuide';
 import { getVoteStats } from '../../api/voteApi';
 import { getCookie } from '../../utils/cookies';
 import TradingCard from '../common/TradingCard';
@@ -4093,9 +4099,15 @@ const handleRecenter = () => {
         timelineName={timelineName}
       />
 
-      <Dialog open={timelineReportDialogOpen} onClose={handleCloseTimelineReportDialog} fullWidth maxWidth="sm">
+      <Dialog
+        open={timelineReportDialogOpen}
+        onClose={handleCloseTimelineReportDialog}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+      >
         <DialogTitle>Report Timeline</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This report creates a moderation ticket for Site Control.
           </Typography>
@@ -4121,15 +4133,42 @@ const handleRecenter = () => {
             value={timelineReportReason}
             onChange={(e) => setTimelineReportReason(e.target.value)}
             placeholder="Add context for moderators"
+            sx={{ mt: 1.5 }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseTimelineReportDialog} disabled={timelineReportSubmitting}>Cancel</Button>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={handleCloseTimelineReportDialog}
+            disabled={timelineReportSubmitting}
+            variant="contained"
+            sx={{
+              ...getGlassSquareActionButtonSx(theme),
+              width: 'auto',
+              minWidth: 84,
+              px: 2,
+              borderRadius: 1.4,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.06)',
+              color: theme.palette.text.primary,
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.12)',
+              }
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={handleSubmitTimelineReport}
-            variant="contained"
-            color="error"
+            variant="outlined"
             disabled={timelineReportSubmitting || !timelineReportCategory}
+            sx={{
+              ...getGlassPillActionButtonSx(theme),
+              borderColor: 'error.main',
+              color: 'error.main',
+              '&:hover': {
+                borderColor: 'error.dark',
+                bgcolor: alpha('#ef4444', 0.1),
+              }
+            }}
           >
             {timelineReportSubmitting ? 'Submitting...' : 'Submit Report'}
           </Button>

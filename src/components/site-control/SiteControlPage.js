@@ -1651,6 +1651,13 @@ const GlobalReportsTab = () => {
                                     <Chip
                                       label={getTimelineTypeLabel(post.timelineType)}
                                       size="small"
+                                      icon={
+                                        post.timelineType === 'hashtag' 
+                                          ? <TagIcon fontSize="small" style={{ color: '#1E40AF' }} /> 
+                                          : (post.timelineType === 'personal'
+                                            ? <PersonIcon fontSize="small" style={{ color: '#1E40AF' }} />
+                                            : <ForumIcon fontSize="small" style={{ color: '#1E40AF' }} />)
+                                      }
                                       sx={{
                                         bgcolor: '#E8F1FF',
                                         color: '#1E40AF',
@@ -1754,6 +1761,13 @@ const GlobalReportsTab = () => {
                                     <Chip
                                       label={timelineTargetType}
                                       size="small"
+                                      icon={
+                                        (post.reportedTimeline?.type || post.timelineType) === 'hashtag' 
+                                          ? <TagIcon fontSize="small" style={{ color: '#1B5E20' }} /> 
+                                          : ((post.reportedTimeline?.type || post.timelineType) === 'personal'
+                                            ? <PersonIcon fontSize="small" style={{ color: '#1B5E20' }} />
+                                            : <ForumIcon fontSize="small" style={{ color: '#1B5E20' }} />)
+                                      }
                                       sx={{
                                         bgcolor: '#E8F5E9',
                                         color: '#1B5E20',

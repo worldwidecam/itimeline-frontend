@@ -201,6 +201,7 @@ systems check (DEEP AUDIT - line-by-line verification):
 - [ ] **Profile (Self)** (`/profile`) - Own profile display, editing - user_color already in UserSelfDTO ✅
 - [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view - uses same Profile component ✅
 - [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks - user_color in UserDTO ✅
+  - *Note regarding User Access Lock*: When clicking a reporter link directing to a user profile, access was incorrectly blocked by a generic, unstyled private lock page stating that an access key is needed. This user account was public. Further, attempting to modify account access parameters within the user settings panel did not write to the backend properly.
 - [ ] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music - user_color save verified ✅
 - [ ] **Site Control** (`/site-control`) - Admin list, reports, site settings - user_color added to site-admins ✅
 - [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅

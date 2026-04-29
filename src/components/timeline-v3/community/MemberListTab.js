@@ -46,6 +46,12 @@ import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import CommunityInfoCardsDisplay from './CommunityInfoCardsDisplay';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../../utils/formStyleGuide';
 
 // Helper function to safely format dates
 const formatActionDate = (dateValue) => {
@@ -2094,20 +2100,27 @@ const MemberListTab = () => {
         mainTooltipOpen="Hide Options"
       />
 
-      <Dialog open={timelineReportDialogOpen} onClose={handleCloseTimelineReportDialog} fullWidth maxWidth="sm">
+      <Dialog
+        open={timelineReportDialogOpen}
+        onClose={handleCloseTimelineReportDialog}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+      >
         <DialogTitle>Report Timeline</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Help us understand the issue with this timeline.
           </Typography>
           <TextField
             select
             fullWidth
+            margin="dense"
             label="Category"
             value={timelineReportCategory}
             onChange={(e) => setTimelineReportCategory(e.target.value)}
-            sx={{ mb: 2 }}
           >
+            <MenuItem value="">Select a category</MenuItem>
             <MenuItem value="spam">Spam</MenuItem>
             <MenuItem value="harassment">Harassment</MenuItem>
             <MenuItem value="hate">Hate speech</MenuItem>
@@ -2116,18 +2129,51 @@ const MemberListTab = () => {
           </TextField>
           <TextField
             fullWidth
+            margin="dense"
             multiline
             minRows={4}
             label="Reason"
             value={timelineReportReason}
             onChange={(e) => setTimelineReportReason(e.target.value)}
             placeholder="Add optional details"
+            sx={{ mt: 1.5 }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseTimelineReportDialog} disabled={timelineReportSubmitting}>Cancel</Button>
-          <Button onClick={handleSubmitTimelineReport} variant="contained" disabled={timelineReportSubmitting || !timelineReportCategory}>
-            {timelineReportSubmitting ? 'Submitting...' : 'Submit report'}
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={handleCloseTimelineReportDialog}
+            disabled={timelineReportSubmitting}
+            variant="contained"
+            sx={{
+              ...getGlassSquareActionButtonSx(theme),
+              width: 'auto',
+              minWidth: 84,
+              px: 2,
+              borderRadius: 1.4,
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.06)',
+              color: theme.palette.text.primary,
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.12)',
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitTimelineReport}
+            variant="outlined"
+            disabled={timelineReportSubmitting || !timelineReportCategory}
+            sx={{
+              ...getGlassPillActionButtonSx(theme),
+              borderColor: 'error.main',
+              color: 'error.main',
+              '&:hover': {
+                borderColor: 'error.dark',
+                bgcolor: alpha('#ef4444', 0.1),
+              }
+            }}
+          >
+            {timelineReportSubmitting ? 'Submitting...' : 'Submit Report'}
           </Button>
         </DialogActions>
       </Dialog>
