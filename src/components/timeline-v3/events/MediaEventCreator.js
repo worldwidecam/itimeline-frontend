@@ -136,7 +136,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
 
     // Prefer values from uploadResult
     const fileUrl = uploadResult.secure_url || uploadResult.url;
-    const cloudinaryId = uploadResult.cloudinary_id || uploadResult.public_id || '';
+    const cloudinaryId = uploadResult.key || uploadResult.cloudinary_id || uploadResult.public_id || '';
     // Normalize type/subtype
     let fileType = 'image';
     if (uploadResult.category) {

@@ -139,9 +139,15 @@ const VideoEventPopup = ({
       (event.media_type && event.media_type.includes('cloudinary'))
     );
     
+    // Check if it's an R2 URL
+    const isR2Url = mediaSource && (
+      mediaSource.includes('r2.dev') || 
+      mediaSource.includes('itimeline-media')
+    );
+    
     let fullUrl = mediaSource;
     
-    if (isCloudinaryUrl) {
+    if (isCloudinaryUrl || isR2Url) {
       fullUrl = mediaSource;
     }
     else if (mediaSource && mediaSource.startsWith('/')) {
@@ -157,14 +163,18 @@ const VideoEventPopup = ({
       videoSources.push(`http://localhost:5000${mediaSource}`);
     }
     
-    if (event.cloudinary_id && !isCloudinaryUrl) {
+    // Only try Cloudinary fallback if it's likely a Cloudinary ID
+    // (Cloudinary IDs in this project are typically 20 chars without slashes)
+    const looksLikeCloudinaryId = event.cloudinary_id && 
+                                !event.cloudinary_id.includes('/') && 
+                                !event.cloudinary_id.includes('.');
+
+    if (looksLikeCloudinaryId && !isCloudinaryUrl && !isR2Url) {
       const cloudName = 'dnjwvuxn7';
-      // For videos, use video/upload path and try common video extensions
       const baseUrl = `https://res.cloudinary.com/${cloudName}/video/upload/${event.cloudinary_id}`;
       videoSources.push(`${baseUrl}.mp4`);
       videoSources.push(`${baseUrl}.webm`);
       videoSources.push(`${baseUrl}.mov`);
-      // Also try without extension in case Cloudinary auto-detects
       videoSources.push(baseUrl);
     }
     
@@ -209,18 +219,41 @@ const VideoEventPopup = ({
   
   const userData = getUserData();
 
-  // Current user (from localStorage) for delete permissions
+  // Current user (from localStorage) for personal ownership checks
   let currentUserId = null;
+  let isSiteAdmin = false;
+  let currentTimelineRole = null;
+
+  const pathMatch = location.pathname.match(/timeline(?:-v3)?\/(\d+)/);
+  const currentTimelineIdFromUrl = pathMatch ? pathMatch[1] : null;
+
   try {
-    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    currentUserId = storedUser?.id || null;
+    const userDataStore = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUserId = userDataStore?.id || null;
+
+    const passportKey = currentUserId ? `user_passport_${currentUserId}` : null;
+    if (passportKey) {
+      const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
+      isSiteAdmin = Boolean(passport?.is_site_admin);
+
+      if (currentTimelineIdFromUrl) {
+        const membership = (passport?.memberships || []).find((m) => Number(m?.timeline_id) === Number(currentTimelineIdFromUrl));
+        currentTimelineRole = String(membership?.member_role || membership?.role || '').toLowerCase();
+      }
+    }
   } catch (_) {}
 
   const isSiteOwner = String(currentUserId) === '1';
   const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
+  const isCommunityModerator = currentTimelineRole === 'admin' || currentTimelineRole === 'moderator';
   const isEditLocked = Boolean(event?.edit_locked || localEventData?.edit_locked);
-  const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
-  const canEdit = Boolean(onEdit && (isSiteOwner || (isEventCreator && !isEditLocked)));
+  
+  // Community moderators can only delete events that were CREATED on this timeline, not just tagged
+  const isEventCreatedOnCurrentTimeline = Number(event?.timeline_id) === Number(currentTimelineIdFromUrl);
+  const canDeleteAsModerator = isCommunityModerator && isEventCreatedOnCurrentTimeline;
+  
+  const canDelete = Boolean(onDelete && (isSiteOwner || isSiteAdmin || isEventCreator || canDeleteAsModerator));
+  const canEdit = Boolean(onEdit && (isSiteOwner || isSiteAdmin || (isEventCreator && !isEditLocked)));
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {

@@ -137,18 +137,41 @@ const ImageEventPopup = ({
   
   const userData = getUserData();
 
-  // Current user (from localStorage) for delete permissions
+  // Current user (from localStorage) for personal ownership checks
   let currentUserId = null;
+  let isSiteAdmin = false;
+  let currentTimelineRole = null;
+
+  const pathMatch = location.pathname.match(/timeline(?:-v3)?\/(\d+)/);
+  const currentTimelineIdFromUrl = pathMatch ? pathMatch[1] : null;
+
   try {
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     currentUserId = userData?.id || null;
+
+    const passportKey = currentUserId ? `user_passport_${currentUserId}` : null;
+    if (passportKey) {
+      const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
+      isSiteAdmin = Boolean(passport?.is_site_admin);
+
+      if (currentTimelineIdFromUrl) {
+        const membership = (passport?.memberships || []).find((m) => Number(m?.timeline_id) === Number(currentTimelineIdFromUrl));
+        currentTimelineRole = String(membership?.member_role || membership?.role || '').toLowerCase();
+      }
+    }
   } catch (_) {}
 
   const isSiteOwner = String(currentUserId) === '1';
   const isEventCreator = currentUserId && String(currentUserId) === String(userData?.id);
+  const isCommunityModerator = currentTimelineRole === 'admin' || currentTimelineRole === 'moderator';
   const isEditLocked = Boolean(event?.edit_locked || localEventData?.edit_locked);
-  const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
-  const canEdit = Boolean(onEdit && (isSiteOwner || (isEventCreator && !isEditLocked)));
+  
+  // Community moderators can only delete events that were CREATED on this timeline, not just tagged
+  const isEventCreatedOnCurrentTimeline = Number(event?.timeline_id) === Number(currentTimelineIdFromUrl);
+  const canDeleteAsModerator = isCommunityModerator && isEventCreatedOnCurrentTimeline;
+  
+  const canDelete = Boolean(onDelete && (isSiteOwner || isSiteAdmin || isEventCreator || canDeleteAsModerator));
+  const canEdit = Boolean(onEdit && (isSiteOwner || isSiteAdmin || (isEventCreator && !isEditLocked)));
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {

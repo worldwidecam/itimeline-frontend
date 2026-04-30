@@ -32,6 +32,7 @@ import VoteControls from '../VoteControls';
 import VoteOverlay from '../VoteOverlay';
 import UserAvatar from '../../../common/UserAvatar';
 import { useEventVote } from '../../../../hooks/useEventVote';
+import { displayUsername } from '../../../../utils/usernameDisplay';
 
 const RemarkCard = forwardRef(({
   event,
@@ -348,9 +349,11 @@ const RemarkCard = forwardRef(({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {event?.created_by_username
-                  ? `${event.created_by_username}'s Thoughts`
-                  : 'Author Thoughts'}
+                {event?.created_by_display_username
+                  ? `${displayUsername(event.created_by_display_username)}'s Thoughts`
+                  : (event?.created_by_username
+                    ? `${displayUsername(event.created_by_username)}'s Thoughts`
+                    : 'Author Thoughts')}
               </Typography>
               <Box sx={{ flex: 1, height: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.2)' }} />
             </Box>
@@ -428,7 +431,7 @@ const RemarkCard = forwardRef(({
                 {event.created_by_username && (
                   <>
                     <UserAvatar
-                      name={event.created_by_username}
+                      name={event.created_by_display_username || event.created_by_username}
                       avatarUrl={event.created_by_avatar}
                       id={event.created_by}
                       size={24}
@@ -450,7 +453,7 @@ const RemarkCard = forwardRef(({
                         }
                       }}
                     >
-                      {event.created_by_username}
+                      {displayUsername(event.created_by_display_username || event.created_by_username)}
                     </Link>
                   </>
                 )}

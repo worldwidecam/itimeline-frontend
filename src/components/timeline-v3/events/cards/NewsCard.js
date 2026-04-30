@@ -43,6 +43,7 @@ import VoteControls from '../VoteControls';
 import VoteOverlay from '../VoteOverlay';
 import { alpha } from '@mui/material/styles';
 import UserAvatar from '../../../common/UserAvatar';
+import { displayUsername } from '../../../../utils/usernameDisplay';
 import { useEventVote } from '../../../../hooks/useEventVote';
 
 const NewsCard = forwardRef(({
@@ -647,7 +648,7 @@ const NewsCard = forwardRef(({
                 {event.created_by_username && (
                   <>
                     <UserAvatar
-                      name={event.created_by_username}
+                      name={event.created_by_display_username || event.created_by_username}
                       avatarUrl={event.created_by_avatar}
                       id={event.created_by}
                       size={24}
@@ -659,17 +660,17 @@ const NewsCard = forwardRef(({
                     </Typography>
                     <Link
                       component={RouterLink}
-                      to={`/profile/${event.created_by}`}
+                      to={`/profile/${event.created_by_username}`}
                       variant="caption"
                       color="primary"
-                      sx={{ 
+                      sx={{
                         textDecoration: 'none',
                         '&:hover': {
                           textDecoration: 'underline'
                         }
                       }}
                     >
-                      {event.created_by_username}
+                      {displayUsername(event.created_by_display_username || event.created_by_username)}
                     </Link>
                   </>
                 )}

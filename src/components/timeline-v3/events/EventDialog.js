@@ -1195,25 +1195,31 @@ const EventDialog = ({
             ...getGlassPillActionButtonSx(theme),
             bgcolor: getTypeColor(),
             color: '#fff',
-            textShadow: '0 0 1px #000',
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
             border: '1px solid',
-            borderColor: `${getTypeColor()}66`,
+            borderColor: `${getTypeColor()}88`,
             // Mechanical feel: Raised by default, drops down on hover
-            transform: 'translateY(-2px)',
+            transform: 'translateY(-4px)',
             boxShadow: theme.palette.mode === 'dark'
-              ? `0 6px 12px ${alpha(getTypeColor(), 0.4)}`
-              : `0 6px 12px ${alpha(getTypeColor(), 0.3)}`,
+              ? `0 8px 16px ${alpha('#000', 0.6)}, 0 4px 0 ${alpha(getTypeColor(), 0.8)}`
+              : `0 8px 16px ${alpha('#000', 0.25)}, 0 4px 0 ${alpha(getTypeColor(), 0.6)}`,
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               bgcolor: getHoverColor(),
               color: '#fff',
               transform: 'translateY(0)',
+              boxShadow: `0 2px 4px ${alpha('#000', 0.3)}`,
+            },
+            '&:active': {
+              transform: 'translateY(2px)',
               boxShadow: 'none',
             },
             '&.Mui-disabled': {
-              bgcolor: alpha(getTypeColor(), 0.15),
-              color: alpha('#fff', 0.2),
-              border: '1px solid transparent',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              color: 'rgba(255,255,255,0.35)',
+              border: '1px solid rgba(255,255,255,0.1)',
               textShadow: 'none',
+              WebkitTextStroke: '0.4px rgba(0,0,0,0.5)',
               transform: 'none',
               boxShadow: 'none',
             }

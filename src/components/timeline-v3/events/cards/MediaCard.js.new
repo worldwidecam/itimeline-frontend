@@ -30,6 +30,7 @@ import TagList from './TagList';
 import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import config from '../../../../config';  // Import config to get API_URL
+import { displayUsername } from '../../../../utils/usernameDisplay';
 
 const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
@@ -524,7 +525,7 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.875rem' }} />
                   <Typography variant="caption" color="text.secondary">
-                    By {event.created_by_username || `User #${event.created_by}`}
+                    By {displayUsername(event.created_by_display_username || event.created_by_username) || `User #${event.created_by}`}
                   </Typography>
                 </Box>
               )}

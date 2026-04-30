@@ -217,6 +217,34 @@ systems check (DEEP AUDIT - line-by-line verification):
 - [x] **CommunityLockView** - Generic community restriction - UI only 
 - [x] **MembershipGuard** - Role-based access guard for admin/members pages - Route guard 
 
+## Community Timeline Audit - Issues Found 🔍
+*Current auditor: Testing as a moderator of a community timeline*
+
+### Issue 1: Delete Button on Tagged Events (Not Created on Timeline)
+- **Problem**: Mod sees delete option in ellipsis menu for events that were only TAGGED to the timeline, not created on it
+- **Expected**: Should only see delete option for events actually created on this timeline
+- **Location**: Event card ellipsis menu / Event popup
+
+### Issue 2: Missing Creator Timeline Tag on Timeline Page Event Cards
+- **Problem**: Event cards on timeline page don't show creator timeline tag in top-right corner (unlike home page cards)
+- **Expected**: Event cards should be standardized - show creator timeline tag consistently
+- **Location**: Timeline page event cards (RemarkCard, NewsCard, MediaCard)
+
+### Issue 3: Mod Can Promote/Demote Other Members
+- **Problem**: As a mod, can see promote/demote buttons for active members in Manage Members tab
+- **Expected**: Only Admins (not Mods) should be able to promote/demote members
+- **Location**: Admin Panel > Manage Members > Active Members tab
+
+### Issue 4: "Block from Community" Button Visible on SiteOwner
+- **Problem**: Can see "Block from Community" button on SiteOwner's member listing
+- **Expected**: SiteOwner should be unblockable - button should be hidden or disabled
+- **Location**: Admin Panel > Manage Members > Active Members (SiteOwner row)
+
+### Issue 5: Settings Sub-Tab Needs "Admin Access Only" State
+- **Problem**: Settings sub-tab in admin page is accessible to mods
+- **Expected**: Settings should be "Admin Access Only" - block mods from entering this sub-tab
+- **Location**: Admin Panel > Settings tab
+
 ### Mobile UX Observations (Not Audit-Critical)
 - Horizontal scroll bleed on landing page (grey space visible)
 - Timeline carousel not swipeable on mobile

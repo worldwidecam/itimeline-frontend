@@ -40,6 +40,7 @@ import AudioWaveformVisualizer from '../../../../components/AudioWaveformVisuali
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
 import { useEventVote } from '../../../../hooks/useEventVote';
+import { displayUsername } from '../../../../utils/usernameDisplay';
 
 const MediaCard = forwardRef(({
   event,
@@ -355,23 +356,33 @@ const MediaCard = forwardRef(({
       )) ||
       (event.media_type && event.media_type.includes('cloudinary'))
     );
+
+    const isR2Url = mediaSource && (
+      mediaSource.includes('r2.dev') || 
+      mediaSource.includes('itimeline-media')
+    );
     
     let fullUrl = mediaSource;
     
-    if (isCloudinaryUrl) {
+    if (isCloudinaryUrl || isR2Url) {
       fullUrl = mediaSource;
     }
     else if (mediaSource.startsWith('/')) {
       fullUrl = `${config.API_URL}${mediaSource}`;
     }
     
-    // If media_url is already a complete Cloudinary URL, use it directly
-    if (isCloudinaryUrl && fullUrl) {
+    // If media_url is already a complete Cloudinary or R2 URL, use it directly
+    if ((isCloudinaryUrl || isR2Url) && fullUrl) {
       mediaSources.push(fullUrl);
     }
     
-    // Only try to construct URLs from cloudinary_id if we don't already have a valid Cloudinary URL
-    if (event.cloudinary_id && !isCloudinaryUrl) {
+    // Only try to construct URLs from cloudinary_id if we don't already have a valid Cloudinary/R2 URL
+    // and if the ID doesn't look like an R2 key (which contains slashes or extensions)
+    const looksLikeCloudinaryId = event.cloudinary_id && 
+                                !event.cloudinary_id.includes('/') && 
+                                !event.cloudinary_id.includes('.');
+
+    if (looksLikeCloudinaryId && !isCloudinaryUrl && !isR2Url) {
       const cloudName = 'dnjwvuxn7';
       const publicId = normalizeCloudinaryPublicId(event.cloudinary_id);
       if (!publicId) {
@@ -570,9 +581,14 @@ const MediaCard = forwardRef(({
       }
 
       // If we have a Cloudinary public_id (direct or derived), prefer Cloudinary Player for consistent playback
+      // BUT if it's an R2 URL, skip the Cloudinary logic
       const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
       const cloudinaryPublicId = normalizeCloudinaryPublicId((event && event.cloudinary_id) || derivedPublicId);
-      if (cloudinaryPublicId) {
+      
+      const isR2Url = (mediaSource && (mediaSource.includes('r2.dev') || mediaSource.includes('itimeline-media'))) ||
+                     (event.media_url && (event.media_url.includes('r2.dev') || event.media_url.includes('itimeline-media')));
+
+      if (cloudinaryPublicId && !isR2Url) {
         const base = `https://res.cloudinary.com/dnjwvuxn7/video/upload/${cloudinaryPublicId}`;
         const srcMp4 = `${base}.mp4`;
         const srcWebm = `${base}.webm`;
@@ -1204,7 +1220,7 @@ const MediaCard = forwardRef(({
                 {event.created_by_username && (
                   <>
                     <UserAvatar
-                      name={event.created_by_username}
+                      name={event.created_by_display_username || event.created_by_username}
                       avatarUrl={event.created_by_avatar}
                       id={event.created_by}
                       size={24}
@@ -1216,17 +1232,17 @@ const MediaCard = forwardRef(({
                     </Typography>
                     <Link
                       component={RouterLink}
-                      to={`/profile/${event.created_by}`}
+                      to={`/profile/${event.created_by_username}`}
                       variant="caption"
                       color="primary"
-                      sx={{ 
+                      sx={{
                         textDecoration: 'none',
                         '&:hover': {
                           textDecoration: 'underline'
                         }
                       }}
                     >
-                      {event.created_by_username}
+                      {displayUsername(event.created_by_display_username || event.created_by_username)}
                     </Link>
                   </>
                 )}

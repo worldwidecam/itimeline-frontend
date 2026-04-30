@@ -28,6 +28,7 @@ import EventPopup from '../EventPopup';
 import PageCornerButton from '../PageCornerButton';
 import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
+import { displayUsername } from '../../../../utils/usernameDisplay';
 
 const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
   const theme = useTheme();
@@ -491,7 +492,7 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
               {event.created_by_username && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <UserAvatar
-                    name={event.created_by_username}
+                    name={event.created_by_display_username || event.created_by_username}
                     avatarUrl={event.created_by_avatar}
                     id={event.created_by}
                     size={24}
@@ -503,17 +504,17 @@ const MediaCard = ({ event, onEdit, onDelete, isSelected }) => {
                   </Typography>
                   <Link
                     component={RouterLink}
-                    to={`/profile/${event.created_by}`}
+                    to={`/profile/${event.created_by_username}`}
                     variant="caption"
                     color="primary"
-                    sx={{ 
+                    sx={{
                       textDecoration: 'none',
                       '&:hover': {
                         textDecoration: 'underline'
                       }
                     }}
                   >
-                    {event.created_by_username}
+                    {displayUsername(event.created_by_display_username || event.created_by_username)}
                   </Link>
                 </Box>
               )}
