@@ -395,12 +395,12 @@ const EventDialog = ({
   useEffect(() => {
     const fetchUrlPreview = async () => {
       if (!url || eventType !== EVENT_TYPES.NEWS) return;
-      
+
       try {
         setIsLoadingPreview(true);
         const response = await api.post('/api/v1/url-preview', { url });
         setUrlPreview(response.data);
-        
+
         // Auto-fill title if empty and URL preview has a title
         if (!title && response.data.title) {
           setTitle(clampTitle(response.data.title));
@@ -411,12 +411,12 @@ const EventDialog = ({
         setIsLoadingPreview(false);
       }
     };
-    
+
     // Add a small delay to prevent excessive API calls while typing
     const timeoutId = setTimeout(() => {
       fetchUrlPreview();
     }, 500);
-    
+
     return () => clearTimeout(timeoutId);
   }, [url, eventType, title]);
 
@@ -493,7 +493,7 @@ const EventDialog = ({
     if (file) {
       setMediaFile(file);
       setMediaUploadError(null);
-      
+
       // Create preview for UI
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -537,9 +537,9 @@ const EventDialog = ({
       // Store upload result with all metadata
       setMediaUploadResult({
         url: response.data.url,
-        cloudinary_id: response.data.cloudinary_id || response.data.public_id,
-        media_type: file.type,
-        media_subtype: mediaSubtype
+        cloudinary_id: response.data.key, // Map R2 key to expected cloudinary_id field
+        media_type: mediaSubtype === 'other' ? null : mediaSubtype,
+        media_subtype: file.type
       });
     } catch (error) {
       console.error('EventDialog: Media upload failed:', error);
@@ -613,17 +613,17 @@ const EventDialog = ({
     const day = eventDate.getDate();
     const hours = eventDate.getHours();
     const minutes = eventDate.getMinutes();
-    
+
     // Determine AM/PM
     const ampm = hours >= 12 ? 'PM' : 'AM';
-    
+
     // Convert to 12-hour format for display
     const displayHours = hours % 12;
     const displayHoursFormatted = displayHours ? displayHours : 12; // Convert 0 to 12
-    
+
     // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
     const rawDateString = `${month}.${day}.${year}.${displayHoursFormatted}.${String(minutes).padStart(2, '0')}.${ampm}`;
-    
+
     console.log('===== EVENT SAVE DEBUG =====');
     console.log('Event date object:', eventDate);
     console.log('Created raw date string:', rawDateString);
@@ -694,26 +694,26 @@ const EventDialog = ({
 
   const getTypeColor = () => {
     // Make sure we have a valid event type
-    const safeEventType = eventType && Object.values(EVENT_TYPES).includes(eventType) 
-      ? eventType 
+    const safeEventType = eventType && Object.values(EVENT_TYPES).includes(eventType)
+      ? eventType
       : EVENT_TYPES.REMARK;
-    
+
     // Get colors with fallback
     const colors = EVENT_TYPE_COLORS[safeEventType] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
     return theme.palette.mode === 'dark' ? colors.dark : colors.light;
   };
-  
+
   // Safely get hover color
   const getHoverColor = () => {
     // Make sure we have a valid event type
-    const safeEventType = eventType && Object.values(EVENT_TYPES).includes(eventType) 
-      ? eventType 
+    const safeEventType = eventType && Object.values(EVENT_TYPES).includes(eventType)
+      ? eventType
       : EVENT_TYPES.REMARK;
-    
+
     // Get colors with fallback
     const colors = EVENT_TYPE_COLORS[safeEventType] || EVENT_TYPE_COLORS[EVENT_TYPES.REMARK];
     const hoverColors = colors.hover || { light: colors.light, dark: colors.dark };
-    
+
     return theme.palette.mode === 'dark' ? hoverColors.dark : hoverColors.light;
   };
 
@@ -768,16 +768,16 @@ const EventDialog = ({
                 Loading preview...
               </Typography>
             ) : urlPreview && (
-              <Box 
-                sx={{ 
-                  border: 1, 
+              <Box
+                sx={{
+                  border: 1,
                   borderColor: 'divider',
                   borderRadius: 1,
                   overflow: 'hidden',
                 }}
               >
                 {urlPreview.image && (
-                  <Box 
+                  <Box
                     component="img"
                     src={urlPreview.image}
                     alt={urlPreview.title}
@@ -812,13 +812,13 @@ const EventDialog = ({
                 Media cannot be edited yet. Uploads are disabled during edit to avoid orphaned media.
               </Typography>
             ) : (
-            <input
-              type="file"
-              accept="image/*,video/*,audio/*"
-              style={{ display: 'none' }}
-              id="media-upload"
-              onChange={handleMediaChange}
-            />
+              <input
+                type="file"
+                accept="image/*,video/*,audio/*"
+                style={{ display: 'none' }}
+                id="media-upload"
+                onChange={handleMediaChange}
+              />
             )}
             <label htmlFor="media-upload">
               <Button
@@ -826,7 +826,7 @@ const EventDialog = ({
                 variant="outlined"
                 startIcon={<UploadIcon />}
                 disabled={!canEditMedia}
-                sx={{ 
+                sx={{
                   width: '100%',
                   height: 100,
                   borderStyle: 'dashed',
@@ -843,7 +843,7 @@ const EventDialog = ({
                   <img
                     src={mediaPreview}
                     alt="Preview"
-                    style={{ 
+                    style={{
                       width: '100%',
                       maxHeight: 200,
                       objectFit: 'cover',
@@ -854,7 +854,7 @@ const EventDialog = ({
                   <video
                     src={mediaPreview}
                     controls
-                    style={{ 
+                    style={{
                       width: '100%',
                       maxHeight: 200,
                       borderRadius: 8,
@@ -893,8 +893,8 @@ const EventDialog = ({
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={onClose}
       maxWidth="sm"
       fullWidth
@@ -925,7 +925,7 @@ const EventDialog = ({
           onChange={handleTypeChange}
           disabled={!canEditType}
           aria-label="event type"
-          sx={{ 
+          sx={{
             width: '100%',
             mb: 3,
             '& .MuiToggleButton-root': {
@@ -1195,11 +1195,27 @@ const EventDialog = ({
             ...getGlassPillActionButtonSx(theme),
             bgcolor: getTypeColor(),
             color: '#fff',
+            textShadow: '0 0 1px #000',
             border: '1px solid',
             borderColor: `${getTypeColor()}66`,
+            // Mechanical feel: Raised by default, drops down on hover
+            transform: 'translateY(-2px)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? `0 6px 12px ${alpha(getTypeColor(), 0.4)}`
+              : `0 6px 12px ${alpha(getTypeColor(), 0.3)}`,
             '&:hover': {
               bgcolor: getHoverColor(),
               color: '#fff',
+              transform: 'translateY(0)',
+              boxShadow: 'none',
+            },
+            '&.Mui-disabled': {
+              bgcolor: alpha(getTypeColor(), 0.15),
+              color: alpha('#fff', 0.2),
+              border: '1px solid transparent',
+              textShadow: 'none',
+              transform: 'none',
+              boxShadow: 'none',
             }
           }}
         >
