@@ -1161,15 +1161,18 @@ const AdminPanel = () => {
                               
 
                               {/* Role management buttons: Promote / Demote (one-step, no jumping) */}
+                              {/* Only Admins (and above) can promote/demote; Moderators cannot */}
                               {(() => {
                                 const uid = member.userId ?? member.user_id ?? member.id;
                                 const isSelf = currentUserId && Number(currentUserId) === Number(uid);
                                 const isSiteOwner = Number(uid) === 1 || (member.role || '').toLowerCase() === 'siteowner';
                                 const nextRole = getNextRole(member.role);
                                 const prevRole = getPrevRole(member.role);
+                                const normalizedUserRole = (userRole || '').toLowerCase();
+                                const canChangeRoles = ['admin', 'creator', 'siteowner'].includes(normalizedUserRole);
                                 return (
                                   <>
-                                    {!isSelf && !isSiteOwner && nextRole && (
+                                    {canChangeRoles && !isSelf && !isSiteOwner && nextRole && (
                                       <IconButton
                                         size="small"
                                         onClick={() => performRoleChange(member, 'promote')}
@@ -1179,7 +1182,7 @@ const AdminPanel = () => {
                                         <ModeratorIcon fontSize="small" />
                                       </IconButton>
                                     )}
-                                    {!isSelf && !isSiteOwner && prevRole && (
+                                    {canChangeRoles && !isSelf && !isSiteOwner && prevRole && (
                                       <IconButton
                                         size="small"
                                         onClick={() => performRoleChange(member, 'demote')}
@@ -1206,8 +1209,13 @@ const AdminPanel = () => {
                                     </IconButton>
                                   )}
 
-                                  {/* Block button: hide for self; use red crossed circle icon */}
-                                  {!(currentUserId && Number(currentUserId) === Number(member.userId ?? member.user_id ?? member.id)) && (
+                                  {/* Block button: hide for self and SiteOwner; use red crossed circle icon */}
+                                  {(() => {
+                                    const uid = member.userId ?? member.user_id ?? member.id;
+                                    const isSelf = currentUserId && Number(currentUserId) === Number(uid);
+                                    const isSiteOwner = Number(uid) === 1 || (member.role || '').toLowerCase() === 'siteowner';
+                                    return !isSelf && !isSiteOwner;
+                                  })() && (
                                     <IconButton
                                       size="small"
                                       onClick={() => handleOpenConfirmDialog(member, 'block')}
@@ -1727,18 +1735,21 @@ const AdminPanel = () => {
                 }
               }}
             />
-            <Tab 
-              label="Settings" 
-              icon={<SettingsIcon />} 
-              iconPosition="start"
-              sx={{ 
-                transition: 'all 0.3s ease',
-                minHeight: 48,
-                '&.Mui-selected': {
-                  fontWeight: 'bold'
-                }
-              }}
-            />
+            {/* Settings tab: Admin-only access */}
+            {['admin', 'creator', 'siteowner'].includes((userRole || '').toLowerCase()) && (
+              <Tab
+                label="Settings"
+                icon={<SettingsIcon />}
+                iconPosition="start"
+                sx={{
+                  transition: 'all 0.3s ease',
+                  minHeight: 48,
+                  '&.Mui-selected': {
+                    fontWeight: 'bold'
+                  }
+                }}
+              />
+            )}
           </Tabs>
           
           <Box sx={{ p: 1 }}>
@@ -1761,7 +1772,7 @@ const AdminPanel = () => {
                   onSettingsSaveFabVisibilityChange={setSettingsSaveFabVisible}
                 />
               )}
-              {tabValue === 3 && (
+              {tabValue === 3 && ['admin', 'creator', 'siteowner'].includes((userRole || '').toLowerCase()) && (
                 <SettingsTab
                   key="settings"
                   id={id}
@@ -1769,6 +1780,17 @@ const AdminPanel = () => {
                   onTimelineUpdated={handleTimelineUpdated}
                   onSaveFabVisibilityChange={setSettingsSaveFabVisible}
                 />
+              )}
+              {tabValue === 3 && !['admin', 'creator', 'siteowner'].includes((userRole || '').toLowerCase()) && (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <SecurityIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    Admin Access Required
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Only timeline administrators can access Settings.
+                  </Typography>
+                </Box>
               )}
             </AnimatePresence>
           </Box>
@@ -3258,17 +3280,19 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                         const isSiteOwner = Number(uid) === 1 || roleLower === 'siteowner';
                         const nextRole = getNextRole(member.role);
                         const prevRole = getPrevRole(member.role);
+                        const normalizedUserRole = (userRole || '').toLowerCase();
+                        const canChangeRoles = ['admin', 'creator', 'siteowner'].includes(normalizedUserRole);
                         return (
                           <>
-                            {!isSelf && !isSiteOwner && nextRole && (
+                            {canChangeRoles && !isSelf && !isSiteOwner && nextRole && (
                               <Chip
                                 label="Promote"
                                 size="small"
                                 color="primary"
                                 variant="outlined"
                                 onClick={() => performRoleChange(member, 'promote')}
-                                sx={{ 
-                                  mr: 1, 
+                                sx={{
+                                  mr: 1,
                                   fontSize: '0.7rem',
                                   height: 24,
                                   '&:hover': {
@@ -3277,15 +3301,15 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                                 }}
                               />
                             )}
-                            {!isSelf && !isSiteOwner && prevRole && (
+                            {canChangeRoles && !isSelf && !isSiteOwner && prevRole && (
                               <Chip
                                 label="Demote"
                                 size="small"
                                 color="default"
                                 variant="outlined"
                                 onClick={() => performRoleChange(member, 'demote')}
-                                sx={{ 
-                                  mr: 1, 
+                                sx={{
+                                  mr: 1,
                                   fontSize: '0.7rem',
                                   height: 24,
                                   '&:hover': {
@@ -3308,13 +3332,17 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                                 <PersonRemoveIcon />
                               </IconButton>
                             )}
-                            {!(currentUserId && Number(currentUserId) === Number(uid)) && (
-                              <IconButton 
-                                size="small" 
+                            {(() => {
+                              const isSelf = currentUserId && Number(currentUserId) === Number(uid);
+                              const isTargetSiteOwner = Number(uid) === 1 || roleLower === 'siteowner';
+                              return !isSelf && !isTargetSiteOwner;
+                            })() && (
+                              <IconButton
+                                size="small"
                                 color="error"
                                 onClick={() => handleOpenConfirmDialog(member, 'block')}
                                 title="Block from community"
-                                sx={{ 
+                                sx={{
                                   '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.1)' }
                                 }}
                               >

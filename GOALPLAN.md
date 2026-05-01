@@ -220,30 +220,35 @@ systems check (DEEP AUDIT - line-by-line verification):
 ## Community Timeline Audit - Issues Found 🔍
 *Current auditor: Testing as a moderator of a community timeline*
 
-### Issue 1: Delete Button on Tagged Events (Not Created on Timeline)
+### Issue 1: Delete Button on Tagged Events (Not Created on Timeline) ✅ FIXED
 - **Problem**: Mod sees delete option in ellipsis menu for events that were only TAGGED to the timeline, not created on it
 - **Expected**: Should only see delete option for events actually created on this timeline
 - **Location**: Event card ellipsis menu / Event popup
+- **Fix**: Added `isEventCreatedOnCurrentTimeline` check - mods can only delete events created on their timeline
 
-### Issue 2: Missing Creator Timeline Tag on Timeline Page Event Cards
+### Issue 2: Missing Creator Timeline Tag on Timeline Page Event Cards ✅ FIXED
 - **Problem**: Event cards on timeline page don't show creator timeline tag in top-right corner (unlike home page cards)
 - **Expected**: Event cards should be standardized - show creator timeline tag consistently
 - **Location**: Timeline page event cards (RemarkCard, NewsCard, MediaCard)
+- **Fix**: Backend `EventDTO` now includes `timeline_name`, `timeline_type`, and `timeline_slug`. `toEventDTO` fetches origin timeline data. Frontend `EventOriginTimelineBadge` already used these fields and will now display correctly.
 
-### Issue 3: Mod Can Promote/Demote Other Members
+### Issue 3: Mod Can Promote/Demote Other Members ✅ FIXED
 - **Problem**: As a mod, can see promote/demote buttons for active members in Manage Members tab
 - **Expected**: Only Admins (not Mods) should be able to promote/demote members
 - **Location**: Admin Panel > Manage Members > Active Members tab
+- **Fix**: Added `canChangeRoles` check requiring role to be 'admin', 'creator', or 'siteowner'
 
-### Issue 4: "Block from Community" Button Visible on SiteOwner
+### Issue 4: "Block from Community" Button Visible on SiteOwner ✅ FIXED
 - **Problem**: Can see "Block from Community" button on SiteOwner's member listing
 - **Expected**: SiteOwner should be unblockable - button should be hidden or disabled
 - **Location**: Admin Panel > Manage Members > Active Members (SiteOwner row)
+- **Fix**: Added `isSiteOwner` check to block button visibility logic
 
-### Issue 5: Settings Sub-Tab Needs "Admin Access Only" State
+### Issue 5: Settings Sub-Tab Needs "Admin Access Only" State ✅ FIXED
 - **Problem**: Settings sub-tab in admin page is accessible to mods
 - **Expected**: Settings should be "Admin Access Only" - block mods from entering this sub-tab
 - **Location**: Admin Panel > Settings tab
+- **Fix**: Settings tab now hidden for non-admins; fallback lock message shown if accessed directly
 
 ### Mobile UX Observations (Not Audit-Critical)
 - Horizontal scroll bleed on landing page (grey space visible)
