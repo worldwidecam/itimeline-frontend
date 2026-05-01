@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Stack, CircularProgress, Snackbar, Alert, useTheme, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Button, Stack, CircularProgress, Snackbar, Alert, useTheme, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Tooltip } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import PeopleIcon from '@mui/icons-material/People';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import useJoinStatus from '../../../hooks/useJoinStatus';
-import { requestTimelineAccess, getTimelineMemberCount, leaveCommunity } from '../../../utils/api';
+import { requestTimelineAccess, getTimelineMemberCount, leaveCommunity, getTimelineMembers } from '../../../utils/api';
 
 /**
  * Format large numbers with K/M suffixes
@@ -52,6 +52,7 @@ const CommunityMembershipControl = ({
     isPending: hookIsPending,
     role: hookRole,
     loading: joinLoading,
+    join: joinFromHook,
     refresh: refreshMembership,
   } = useJoinStatus(timelineId, { user });
 
@@ -63,11 +64,17 @@ const CommunityMembershipControl = ({
   const [memberCount, setMemberCount] = useState(0);
   const [loadingMemberCount, setLoadingMemberCount] = useState(true);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [adminCount, setAdminCount] = useState(0);
 
   // Sync hook state to local state
   const [isMember, setIsMember] = useState(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isPending, setIsPending] = useState(false);
+
+  // Check if user can leave (not SiteOwner, not only admin)
+  const isSiteOwner = user?.id === 1 || hookRole === 'siteowner';
+  const isOnlyAdmin = hookRole === 'admin' && adminCount <= 1;
+  const canLeave = isMember && !isSiteOwner && !isOnlyAdmin;
 
   useEffect(() => {
     if (typeof hookIsMember !== 'undefined' && hookIsMember !== null) {
@@ -104,6 +111,26 @@ const CommunityMembershipControl = ({
     fetchMemberCount();
   }, [timelineId, isMember]);
 
+  // Fetch admin count to check if user is the only admin
+  useEffect(() => {
+    const fetchAdminCount = async () => {
+      if (!timelineId || !isMember) return;
+      
+      try {
+        // Fetch members and count admins
+        const response = await getTimelineMembers(timelineId, 1, 100);
+        const members = Array.isArray(response) ? response : (response?.data || []);
+        const admins = members.filter(m => m.role === 'admin');
+        setAdminCount(admins.length);
+      } catch (error) {
+        console.error('[CommunityMembershipControl] Error fetching admin count:', error);
+        setAdminCount(0);
+      }
+    };
+
+    fetchAdminCount();
+  }, [timelineId, isMember]);
+
   // Handle join community button click
   const handleJoinCommunity = async () => {
     if (!user || isGuestUser) {
@@ -113,52 +140,40 @@ const CommunityMembershipControl = ({
       return;
     }
 
-    setJoinRequestSent(true);
+    // Use the hook's join function which has optimistic updates and BroadcastChannel sync
+    const result = await joinFromHook();
 
-    try {
-      const response = await requestTimelineAccess(timelineId);
-      console.log('[CommunityMembershipControl] Join request response:', response);
-
-      if (response.error) {
-        console.warn('[CommunityMembershipControl] Join request returned an error:', response);
-        setSnackbarMessage('Failed to join community. Please try again.');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-        setJoinRequestSent(false);
-        return;
-      }
-
-      // Success
-      const memberRole = response.role || 'member';
-      const isPendingApproval = memberRole === 'pending';
-
-      if (isPendingApproval) {
-        setSnackbarMessage('Your request has been submitted for approval');
-        setIsPending(true);
-        setIsMember(false);
-      } else {
-        setSnackbarMessage('Successfully joined the community!');
-        setIsPending(false);
-        setIsMember(true);
-      }
-      
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-
-      // Refresh membership status
-      await refreshMembership();
-
-      // Notify parent component
-      if (onJoinSuccess) {
-        onJoinSuccess({ role: memberRole, isPending: isPendingApproval });
-      }
-
-    } catch (error) {
-      console.error('[CommunityMembershipControl] Error joining community:', error);
+    if (!result || result.success === false) {
+      console.warn('[CommunityMembershipControl] Join request failed:', result);
       setSnackbarMessage('Failed to join community. Please try again.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
       setJoinRequestSent(false);
+      return;
+    }
+
+    // The hook's join function already set optimistic state and broadcast to other components
+    // Just update local snackbar/message state based on the result
+    const memberRole = result.role || 'member';
+    const memberStatus = result.status || 'active';
+    const isPendingApproval = memberStatus === 'pending';
+
+    if (isPendingApproval) {
+      setSnackbarMessage('Your request has been submitted for approval');
+      setIsPending(true);
+      setIsMember(false);
+    } else {
+      setSnackbarMessage('Successfully joined the community!');
+      setIsPending(false);
+      setIsMember(true);
+    }
+    
+    setSnackbarSeverity('success');
+    setSnackbarOpen(true);
+
+    // Notify parent component
+    if (onJoinSuccess) {
+      onJoinSuccess({ role: memberRole, isPending: isPendingApproval });
     }
   };
 
@@ -349,27 +364,69 @@ const CommunityMembershipControl = ({
           {loadingMemberCount ? '...' : `${formatMemberCount(memberCount)} Member${memberCount !== 1 ? 's' : ''}`}
         </Button>
 
-        {/* Leave Community Button */}
-        <Button
-          onClick={handleLeaveCommunity}
-          variant="outlined"
-          size="small"
-          startIcon={<ExitToAppIcon />}
-          sx={{
-            fontSize: '0.8rem',
-            py: 0.5,
-            px: 1.5,
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
-            color: theme.palette.text.secondary,
-            '&:hover': {
-              borderColor: theme.palette.error.main,
-              color: theme.palette.error.main,
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.1)' : 'rgba(211,47,47,0.05)'
-            }
-          }}
-        >
-          Leave
-        </Button>
+        {/* Leave Community Button - Hidden for SiteOwner and only admin */}
+        {canLeave ? (
+          <Button
+            onClick={handleLeaveCommunity}
+            variant="outlined"
+            size="small"
+            startIcon={<ExitToAppIcon />}
+            sx={{
+              fontSize: '0.8rem',
+              py: 0.5,
+              px: 1.5,
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                borderColor: theme.palette.error.main,
+                color: theme.palette.error.main,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.1)' : 'rgba(211,47,47,0.05)'
+              }
+            }}
+          >
+            Leave
+          </Button>
+        ) : isSiteOwner ? (
+          <Tooltip title="SiteOwner cannot leave communities">
+            <span>
+              <Button
+                disabled
+                variant="outlined"
+                size="small"
+                startIcon={<ExitToAppIcon />}
+                sx={{
+                  fontSize: '0.8rem',
+                  py: 0.5,
+                  px: 1.5,
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                  color: theme.palette.text.disabled,
+                }}
+              >
+                Leave
+              </Button>
+            </span>
+          </Tooltip>
+        ) : isOnlyAdmin ? (
+          <Tooltip title="Promote another member to admin before leaving">
+            <span>
+              <Button
+                disabled
+                variant="outlined"
+                size="small"
+                startIcon={<ExitToAppIcon />}
+                sx={{
+                  fontSize: '0.8rem',
+                  py: 0.5,
+                  px: 1.5,
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                  color: theme.palette.text.disabled,
+                }}
+              >
+                Leave
+              </Button>
+            </span>
+          </Tooltip>
+        ) : null}
       </Stack>
 
       <Snackbar 

@@ -1808,7 +1808,13 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
             if (diffMinutes < 30) {
               console.log(`Using cached membership data for timeline ${timelineId} (${Math.round(diffMinutes)} minutes old)`);
               // Ensure is_blocked is present in cached returns (backward compatible)
-              const cached = { ...parsedData, is_blocked: !!parsedData.is_blocked };
+              const cached = { 
+                ...parsedData, 
+                is_blocked: !!parsedData.is_blocked,
+                // Backward compatibility: derive is_pending from status if not explicitly stored
+                is_pending: parsedData.is_pending === true || parsedData.status === 'pending',
+                status: parsedData.status || (parsedData.is_pending ? 'pending' : null)
+              };
               // If blocked is true, do not consider them a member
               if (cached.is_blocked === true) {
                 cached.is_member = false;
@@ -1844,6 +1850,8 @@ export const checkMembershipStatus = async (timelineId, retryCount = 0, forceRef
           ...processedResponse,
           // Ensure is_blocked is stored for future cached reads
           is_blocked: processedResponse.is_blocked === true,
+          // Store pending status explicitly for cached reads
+          is_pending: processedResponse.status === 'pending' || processedResponse.is_pending === true,
           timestamp: new Date().toISOString()
         }));
         console.log(`Saved membership status to localStorage for timeline ${timelineId}`);

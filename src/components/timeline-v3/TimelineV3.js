@@ -2670,7 +2670,7 @@ const handleViewModeTransition = (newViewMode) => {
       // Update state based on membership status
       if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
         // Check if user has a pending request
-        const hasPendingRequest = membershipStatus.role === 'pending';
+        const hasPendingRequest = membershipStatus.status === 'pending';
         setIsPendingApproval(hasPendingRequest);
         
         // Set isMember based on active membership (not pending)
@@ -2765,80 +2765,63 @@ const handleViewModeTransition = (newViewMode) => {
       console.warn('Error checking previous membership status:', checkError);
     }
     
-    // Show loading state while request is being processed
-    setJoinRequestSent(true);
+    // Use the hook's join function which has optimistic updates and BroadcastChannel sync
+    const result = await joinFromHook();
     
-    try {
-      // Call API to request access to the timeline using our updated function
-      const response = await requestTimelineAccess(timelineId);
-      
-      // Check if we got an error response (our API utility now returns objects with error:true instead of throwing)
-      if (response.error) {
-        console.warn('Join request returned an error response:', response);
-        setJoinRequestStatus('error');
-        setJoinSnackbarOpen(true);
-        
-        // Revert UI state on error
-        setIsMember(false);
-        setJoinRequestSent(false);
-        setIsPendingApproval(false);
-        return;
-      }
-      
-      // Update UI state for success
-      setJoinRequestStatus('success');
-      setJoinSnackbarOpen(true);
-      
-      // Get the role from the response or default to 'member'
-      const memberRole = response.role || 'member';
-      const isPending = memberRole === 'pending';
-      
-      // Update pending state
-      if (isPending) {
-        setIsPendingApproval(true);
-        setIsMember(false); // Not a full member yet
-      } else {
-        setIsPendingApproval(false);
-        setIsMember(true); // Full member
-      }
-      
-      // IMPORTANT: Store in the direct timeline membership key format
-      // This ensures the checkMembershipFromUserData function finds it immediately
-      try {
-        const directMembershipKey = `timeline_membership_${timelineId}`;
-        const membershipData = {
-          is_member: isPending ? false : true,
-          is_pending: isPending,
-          role: memberRole,
-          timeline_visibility: visibility
-        };
-        
-        localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
-      } catch (e) {
-        console.warn('Error storing direct membership data after join:', e);
-      }
-      
-      // Note: Passport sync endpoint not implemented yet
-      // The membership data is already stored in localStorage above
-      
-      // Force refresh membership status from server after a short delay
-      // This ensures backend and frontend are in sync
-      setTimeout(() => {
-        checkMembershipStatus(timelineId, 0, true)
-          .then(status => {
-          })
-          .catch(err => {
-            console.error('Failed to refresh membership status:', err);
-          });
-      }, 1000);
-      
-      // Force log the current state for debugging
-    } catch (error) {
-      // This catch block should rarely be hit now that our API utility handles errors
-      console.error('Unexpected error joining community:', error);
+    if (!result || result.success === false) {
+      console.warn('Join request failed:', result);
       setJoinRequestStatus('error');
       setJoinSnackbarOpen(true);
+      return;
     }
+    
+    // Update UI state for success
+    setJoinRequestStatus('success');
+    setJoinSnackbarOpen(true);
+    
+    // The hook's join function already refreshed and broadcast state
+    // Just update local snackbar/message state based on the result
+    const memberStatus = result.status || 'active';
+    const isPending = memberStatus === 'pending';
+    
+    // Update pending state
+    if (isPending) {
+      setIsPendingApproval(true);
+      setIsMember(false); // Not a full member yet
+    } else {
+      setIsPendingApproval(false);
+      setIsMember(true); // Full member
+    }
+    
+    // IMPORTANT: Store in the direct timeline membership key format
+    // This ensures the checkMembershipFromUserData function finds it immediately
+    try {
+      const directMembershipKey = `timeline_membership_${timelineId}`;
+      const membershipData = {
+        is_member: isPending ? false : true,
+        is_pending: isPending,
+        role: result.role || 'member',
+        timeline_visibility: visibility
+      };
+      
+      localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
+    } catch (e) {
+      console.warn('Error storing direct membership data after join:', e);
+    }
+    
+    // Note: Passport sync endpoint not implemented yet
+    // The membership data is already stored in localStorage above
+    
+    // Force refresh membership status from server after a short delay
+    // This ensures backend and frontend are in sync
+    setTimeout(() => {
+      checkMembershipStatus(timelineId, 0, true)
+        .then(status => {
+        })
+        .catch(err => {
+          console.error('Failed to refresh membership status:', err);
+        });
+    }, 1000);
   };
   
   const smoothScroll = (direction, amount = 100) => {
@@ -4300,21 +4283,23 @@ const handleRecenter = () => {
               isPendingApproval ? (
                 // Show "Request Sent!" FAB for pending members
                 <Tooltip title="Request Pending Approval">
-                  <Fab
-                    disabled
-                    sx={{
-                      bgcolor: theme.palette.warning.light,
-                      color: theme.palette.warning.contrastText,
-                      '&.Mui-disabled': {
+                  <span>
+                    <Fab
+                      disabled
+                      sx={{
                         bgcolor: theme.palette.warning.light,
                         color: theme.palette.warning.contrastText,
-                      },
-                      boxShadow: 3,
-                      zIndex: 1540
-                    }}
-                  >
-                    <CheckCircleIcon />
-                  </Fab>
+                        '&.Mui-disabled': {
+                          bgcolor: theme.palette.warning.light,
+                          color: theme.palette.warning.contrastText,
+                        },
+                        boxShadow: 3,
+                        zIndex: 1540
+                      }}
+                    >
+                      <CheckCircleIcon />
+                    </Fab>
+                  </span>
                 </Tooltip>
               ) : (!isGuestUser && !isMember && !joinRequestSent && !joinLoading && !isBlocked) 
                 ? (

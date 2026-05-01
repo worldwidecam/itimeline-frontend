@@ -71,9 +71,7 @@ import api, {
 } from '../utils/api';
 import config from '../config';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
-import RemarkCard from './timeline-v3/events/cards/RemarkCard';
-import NewsCard from './timeline-v3/events/cards/NewsCard';
-import MediaCard from './timeline-v3/events/cards/MediaCard';
+import EventCard from './timeline-v3/events/cards/EventCard';
 import QuoteDisplay from './timeline-v3/community/QuoteDisplay';
 import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta, canVoteForAction } from './timeline-v3/community/timelineStatusActionUtils';
 import TradingCard from './common/TradingCard';
@@ -2905,26 +2903,15 @@ const HomePage = () => {
       }
     };
 
-    const eventType = String(event?.type || EVENT_TYPES.REMARK).toLowerCase();
-    const sharedProps = {
-      event,
-      onEdit: () => {},
-      onDelete: () => {},
-      isSelected: true,
-      setIsPopupOpen: () => {},
-      reviewingEventIds: EMPTY_REVIEWING_EVENT_IDS,
-      showInlineVoteControls: true,
-      showVoteOverlay: false,
-      onMediaLoadError: handleMediaLoadError,
-    };
-
-    if (eventType === EVENT_TYPES.NEWS) {
-      return <NewsCard {...sharedProps} />;
-    }
-    if (eventType === EVENT_TYPES.MEDIA) {
-      return <MediaCard {...sharedProps} />;
-    }
-    return <RemarkCard {...sharedProps} />;
+    return (
+      <EventCard
+        event={event}
+        variant="home"
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onMediaLoadError={handleMediaLoadError}
+      />
+    );
   }, []);
 
 

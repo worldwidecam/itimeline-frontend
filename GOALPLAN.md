@@ -250,6 +250,155 @@ systems check (DEEP AUDIT - line-by-line verification):
 - **Location**: Admin Panel > Settings tab
 - **Fix**: Settings tab now hidden for non-admins; fallback lock message shown if accessed directly
 
+### Issue 6: Moderator Cannot Remove Regular Members ✅ FIXED
+- **Problem**: As a mod, trying to remove a regular member from community fails with 403 "Insufficient timeline role"
+- **Expected**: Moderators should be able to remove regular members (not admins/mods)
+- **Location**: Backend `src/routes/members.ts` - DELETE endpoint required `admin` role
+- **Fix**: Changed requirement from `admin` to `moderator`, added check that mods can only remove regular members (not other mods/admins)
+- **Files**: `itimeline-backend/src/routes/members.ts`
+
+### Issue 7: Settings Tab Save Fails with 400 Bad Request ✅ FIXED
+- **Problem**: Toggling "Require membership approval" and saving settings fails with 400 Bad Request
+- **Expected**: Settings should save successfully
+- **Location**: Frontend `AdminPanel.js` settings save + Backend `timelines.ts` PATCH endpoint
+- **Root Cause**: Frontend sent `cover_portrait_image_url` but backend schema expects `cover_portrait_key`; strict schema rejected unknown fields
+- **Fix**: Frontend now sends correct field names (`cover_portrait_key`, `cover_landscape_key`) using new `extractKeyFromUrl()` helper; only includes fields with values
+- **Files**: `itimeline-frontend/src/components/timeline-v3/community/AdminPanel.js`
+
+### Issue 8: Status Message Save Fails with 400 Bad Request ✅ FIXED
+- **Problem**: Saving settings triggers second error: `PUT /status-message 400 Bad Request`
+- **Expected**: Status message should save if provided
+- **Location**: Frontend `AdminPanel.js` status message save + Backend `actions.ts` PUT endpoint
+- **Root Cause**: Frontend sent `status_header` and `status_body` but backend expects `header` and `body`; strict schema rejected unknown fields
+- **Fix**: Updated field names to match backend schema (`header`, `body`, `is_active`); added guard to only send if header has content (backend requires min 1 char)
+- **Files**: `itimeline-frontend/src/components/timeline-v3/community/AdminPanel.js`
+
+### Issue 9: Action Cards Save Fails with 400 Bad Request ✅ FIXED
+- **Problem**: Saving settings triggers third error: `PUT /actions 400 Bad Request`
+- **Expected**: Action cards should save, including cleared/inactive ones
+- **Location**: Frontend `api.js` + Backend `actions.ts` PUT endpoint
+- **Root Cause**: Backend schema required `title: z.string().min(1)` but frontend sends empty title `''` when clearing an action (with `is_active: false`)
+- **Fix**: Backend now allows empty titles (`z.string().max(200)`) to support cleared/inactive actions; also added `reset_votes` to schema
+- **Files**: `itimeline-backend/src/routes/actions.ts`
+
+### Issue 10: Pending Membership Flow Broken - Field Name Mismatch ✅ FIXED
+- **Problem**: User clicks "Request to Join" on timeline with membership approval ON; gets "Successfully joined" message but should get "Your request has been submitted for approval"; UI doesn't show pending state; after refresh, back to join state
+- **Expected**: 
+  - User should see "Request pending approval" message
+  - UI should switch to pending state (button changes to pending)
+  - User should appear in admin "Pending Requests" tab
+  - After refresh, user should still see pending state (not need to request again)
+- **Location**: Multiple frontend files + backend API + cache layers
+- **Root Cause**: MULTIPLE ISSUES:
+  1. **Frontend bug**: Checked `role === 'pending'` but backend returns `role: 'member'`, `status: 'pending'`. The `role` is permission level (member/moderator/admin), while `status` is membership state (active/pending/blocked).
+  2. **Backend bug**: `/api/v1/membership/timelines/:id/status` endpoint did NOT return `status` field at all!
+  3. **Cache bug**: localStorage cache didn't persist or restore `is_pending`/`status` fields
+- **Files Fixed**:
+  - `itimeline-frontend/src/components/timeline-v3/community/CommunityMembershipControl.js` (line 134)
+  - `itimeline-frontend/src/hooks/useJoinStatus.js` (lines 56, 155, persist fn)
+  - `itimeline-frontend/src/components/timeline-v3/TimelineV3.js` (lines 2673, 2795, 4303 MUI tooltip)
+  - `itimeline-frontend/src/utils/api.js` (checkMembershipStatus cache read/write)
+  - `itimeline-backend/src/routes/legacy.ts` (membership status endpoint - added status field)
+
+### Issue 11: Members List Shows Pending Users as Members ✅ FIXED
+- **Problem**: Members page shows pending user as member; timeline page shows count as 2 but members page shows 3 (includes pending user); admin members tab also shows pending user as member; admin pending tab is empty
+- **Expected**: Members list should only show active members by default; pending users should only appear in pending tab
+- **Location**: Backend `members.ts` GET /timelines/:id/members endpoint
+- **Root Cause**: API endpoint defaulted `status` to `null` (returns ALL members including pending/blocked) instead of defaulting to `'active'` only
+- **Fix**: Changed default status from `null` to `'active'` so public members list only shows active members
+- **Files**: `itimeline-backend/src/routes/members.ts`
+
+### Issue 12: Header Button and navFAB Not Synchronized ✅ FIXED
+- **Problem**: When user clicks join in header button, navFAB doesn't update to pending immediately; only after refresh do they sync
+- **Expected**: Clicking join in either location should immediately update both buttons to pending state
+- **Location**: `useJoinStatus` hook - used by both components but instances don't communicate
+- **Root Cause**: Join action waited for API response + refresh before broadcasting state; no immediate optimistic update
+- **Fix**: 
+  - Added BroadcastChannel for cross-component sync (base infrastructure)
+  - Added **optimistic pending state**: immediately set `isPending=true` and broadcast BEFORE API call
+  - Other components receive broadcast instantly and update their UI
+  - After API confirms, refresh and broadcast confirmed state
+  - On error, revert optimistic state and broadcast revert
+- **Files**: `itimeline-frontend/src/hooks/useJoinStatus.js`
+
+### Issue 14: Join Button Sync Asymmetry (navFAB → Header Not Working) ✅ FIXED
+- **Problem**: When clicking navFAB join, header button didn't update; but header → navFAB worked. Asymmetric sync.
+- **Expected**: Both directions should sync immediately regardless of which button is clicked
+- **Location**: `TimelineV3.js` and `CommunityMembershipControl.js` 
+- **Root Cause**: Both components had their own `handleJoinCommunity` functions that directly called API instead of using `useJoinStatus` hook's `join` function. The hook's `join` has optimistic updates + BroadcastChannel, but components weren't using it.
+- **Fix**: 
+  - `TimelineV3.js`: Changed `handleJoinCommunity` to use `joinFromHook()` instead of direct API call
+  - `CommunityMembershipControl.js`: Extracted `join: joinFromHook` from hook and used it instead of direct API call
+  - Both components now benefit from optimistic updates and immediate cross-component sync
+- **Files**: 
+  - `itimeline-frontend/src/components/timeline-v3/TimelineV3.js`
+  - `itimeline-frontend/src/components/timeline-v3/community/CommunityMembershipControl.js`
+
+### Issue 15: Blocked Members Tab Verification ✅ VERIFIED WORKING
+- **Location**: Admin Panel "Blocked Members" tab
+- **Backend**: `GET /api/v1/timelines/:id/blocked-members` returns `{ data: [...] }` ✓
+- **Frontend**: `AdminPanel.js` correctly handles `response?.data` format ✓
+- **API**: `getBlockedMembers()` in `api.js` calls correct endpoint ✓
+- **Status**: Wiring correct. User confirmed: "it seems to be working based off my tests so far"
+
+### Issue 16: Leave Button Lacks Role Protections ✅ FIXED
+- **Problem**: Any member could leave, including SiteOwner, community creator, or sole admin - leaving community orphaned
+- **Expected**: 
+  - SiteOwner cannot leave any community (emergency access)
+  - SiteAdmin cannot leave any community (site-level access)
+  - Last admin cannot leave without promoting another admin first
+- **Root Cause**: Backend `leave()` function had zero role checks
+- **Fix**:
+  - Backend: Added `countActiveAdmins()` repo function to count active admins
+  - Backend `leave()` now checks:
+    1. If userId === 1 (SiteOwner) → Forbidden
+    2. If user is SiteAdmin → Forbidden  
+    3. If user is admin and adminCount <= 1 → Forbidden
+  - Frontend: Added `adminCount` state and `canLeave` logic
+  - Frontend: Leave button hidden for SiteOwner with tooltip "SiteOwner cannot leave communities"
+  - Frontend: Leave button disabled for only-admin with tooltip "Promote another member to admin before leaving"
+- **Files**:
+  - `itimeline-backend/src/repos/membership.ts` (countActiveAdmins)
+  - `itimeline-backend/src/services/members.ts` (leave function protections)
+  - `itimeline-frontend/src/components/timeline-v3/community/CommunityMembershipControl.js`
+
+### Issue 17: SiteAdmin Role Chip Not Implemented ✅ FIXED
+- **Problem**: SiteAdmin users don't get a superseding role chip like SiteOwner does; they appear as regular admin/moderator/member
+- **Expected**: SiteAdmin should have their own chip (deep blue) below SiteOwner (green) in hierarchy
+- **Root Cause**: 
+  - Backend `toMembershipDTO` only checked for `userId === 1` (SiteOwner)
+  - Membership status endpoint didn't return siteadmin role
+  - Frontend role color functions didn't handle 'siteadmin'
+  - MemberRole enum was missing 'siteadmin' value
+- **Fix**:
+  - Added 'siteadmin' to MemberRole enum (hierarchy: member < moderator < admin < siteadmin < siteowner)
+  - Updated ROLE_RANK in members.ts and events.ts
+  - Updated membership status endpoint to return 'siteadmin' role for SiteAdmin users
+  - Updated `toMembershipDTO` (via status endpoint logic)
+  - Added siteadmin case to all frontend `getRoleColor` functions (deep blue #1565c0)
+  - SiteOwner: Forest green (#2e7d32), SiteAdmin: Deep blue (#1565c0)
+- **Files**:
+  - `itimeline-backend/src/shared/enums.ts` (MemberRole)
+  - `itimeline-backend/src/services/members.ts` (ROLE_RANK)
+  - `itimeline-backend/src/services/events.ts` (ROLE_RANK)
+  - `itimeline-backend/src/routes/legacy.ts` (membership status endpoint)
+  - `itimeline-frontend/src/components/timeline-v3/community/AdminPanel.js`
+  - `itimeline-frontend/src/components/timeline-v3/community/MemberListTab.js`
+
+### Issue 13: Pending Members Not Showing in Admin Panel ✅ FIXED
+- **Problem**: User stuck in limbo: pending on timeline page, but admin "Pending Requests" tab shows empty; user can't re-request join (buttons disabled), admin can't approve/deny
+- **Expected**: Pending users should appear in admin "Pending Requests" tab with approve/deny buttons
+- **Location**: Backend/Frontend response format mismatch
+- **Root Cause**: TWO ISSUES:
+  1. Backend returns `{ data: [...] }` but AdminPanel checked for `response.pending_members` (wrong key)
+  2. Backend `toMembershipDTO` didn't include `requested_at` field that frontend expects for pending members display
+- **Fix**: 
+  - AdminPanel now checks `response.data` first (correct key from backend)
+  - Backend `toMembershipDTO` now includes `requested_at: row.joinedAt` for pending member timestamps
+- **Files**: 
+  - `itimeline-frontend/src/components/timeline-v3/community/AdminPanel.js` (line 2932)
+  - `itimeline-backend/src/services/members.ts` (toMembershipDTO function)
+
 ### Mobile UX Observations (Not Audit-Critical)
 - Horizontal scroll bleed on landing page (grey space visible)
 - Timeline carousel not swipeable on mobile

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getTimelineDetails,
   checkMembershipStatus,
@@ -7,10 +7,19 @@ import {
   requestTimelineAccess,
 } from '../utils/api';
 
+// Global broadcast channel for cross-component membership sync
+const getBroadcastChannel = () => {
+  if (typeof BroadcastChannel !== 'undefined') {
+    return new BroadcastChannel('membership_sync');
+  }
+  return null;
+};
+
 /**
  * Headless hook that encapsulates Join/blocked membership logic for community timelines.
  * - No UI changes; purely provides state + actions
  * - Mirrors existing logic from TimelineV3 (SiteOwner/creator short-circuit, fallbacks, cache writes)
+ * - Syncs state across component instances via BroadcastChannel
  */
 export default function useJoinStatus(timelineId, { user } = {}) {
   // Initialize as null so consumers can distinguish "unknown/loading" from a real boolean
@@ -23,6 +32,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
   const [visibility, setVisibility] = useState('public');
   const [creatorId, setCreatorId] = useState(null);
   const [timelineType, setTimelineType] = useState(null);
+  const broadcastRef = useRef(null);
 
   // Persist to localStorage in the same format as existing code
   const persistMembershipStatus = (timelineIdArg, membership) => {
@@ -31,7 +41,9 @@ export default function useJoinStatus(timelineId, { user } = {}) {
       const payload = {
         is_member: !!membership.is_member,
         is_active_member: membership.is_active_member !== false,
+        is_pending: membership.status === 'pending' || membership.is_pending === true,
         role: membership.role || 'member',
+        status: membership.status || null,
         timeline_visibility: membership.timeline_visibility || visibility,
         joined_at: membership.joined_at || new Date().toISOString(),
         is_blocked: membership.is_blocked === true,
@@ -53,7 +65,7 @@ export default function useJoinStatus(timelineId, { user } = {}) {
       };
       
       // Check if user has a pending request
-      const hasPendingRequest = resp.role === 'pending';
+      const hasPendingRequest = resp.status === 'pending';
       
       processed.is_member = (resp.is_active_member !== false) && (resp.is_member === true) && (processed.is_blocked !== true);
       setIsMember(!!processed.is_member);
@@ -72,15 +84,97 @@ export default function useJoinStatus(timelineId, { user } = {}) {
   const join = async () => {
     if (!timelineId) return { success: false };
     try {
+      // Set optimistic pending state immediately for instant UI feedback
+      setIsPending(true);
+      setIsMember(false);
+      setStatus('pending');
+      
+      // Broadcast optimistic state immediately so other components sync right away
+      broadcastStateChange(timelineId, {
+        is_member: false,
+        is_pending: true,
+        status: 'pending',
+        role: role,
+        is_blocked: false,
+      });
+      
       const result = await requestTimelineAccess(timelineId);
       // After join, force refresh to reconcile with server
-      await refresh();
+      const refreshed = await refresh();
+      // Broadcast confirmed state after refresh
+      broadcastStateChange(timelineId, refreshed);
       return result;
     } catch (e) {
       console.error('[useJoinStatus] join failed:', e);
+      // Revert optimistic state on error
+      setIsPending(false);
+      setStatus(null);
+      broadcastStateChange(timelineId, {
+        is_member: false,
+        is_pending: false,
+        status: null,
+        role: null,
+        is_blocked: false,
+      });
       return { success: false };
     }
   };
+
+  // Broadcast state change to other component instances
+  const broadcastStateChange = useCallback((tid, state) => {
+    try {
+      const bc = getBroadcastChannel();
+      if (bc && tid) {
+        bc.postMessage({
+          type: 'MEMBERSHIP_UPDATE',
+          timelineId: tid,
+          state: {
+            is_member: state?.is_member,
+            is_pending: state?.status === 'pending' || state?.is_pending,
+            status: state?.status,
+            role: state?.role,
+            is_blocked: state?.is_blocked,
+            timestamp: new Date().toISOString(),
+          },
+        });
+        bc.close();
+      }
+    } catch (e) {
+      // BroadcastChannel not supported or error - silently fail
+    }
+  }, []);
+
+  // Listen for state changes from other components
+  useEffect(() => {
+    if (!timelineId) return;
+    
+    try {
+      const bc = getBroadcastChannel();
+      if (!bc) return;
+      
+      broadcastRef.current = bc;
+      
+      bc.onmessage = (event) => {
+        const { type, timelineId: msgTimelineId, state } = event.data || {};
+        if (type === 'MEMBERSHIP_UPDATE' && msgTimelineId === timelineId) {
+          console.log('[useJoinStatus] Received broadcast update:', state);
+          // Update local state to match broadcast
+          if (state.is_member !== undefined) setIsMember(!!state.is_member);
+          if (state.is_pending !== undefined) setIsPending(!!state.is_pending);
+          if (state.status !== undefined) setStatus(state.status);
+          if (state.role !== undefined) setRole(state.role);
+          if (state.is_blocked !== undefined) setIsBlocked(!!state.is_blocked);
+        }
+      };
+      
+      return () => {
+        bc.close();
+        broadcastRef.current = null;
+      };
+    } catch (e) {
+      // BroadcastChannel not supported - silently fail
+    }
+  }, [timelineId]);
 
   useEffect(() => {
     let mounted = true;
@@ -152,8 +246,8 @@ export default function useJoinStatus(timelineId, { user } = {}) {
         };
         
         // Check if user has a pending request
-        const hasPendingRequest = resp?.role === 'pending';
-        console.log('[useJoinStatus] hasPendingRequest:', hasPendingRequest, 'role:', resp?.role);
+        const hasPendingRequest = resp?.status === 'pending';
+        console.log('[useJoinStatus] hasPendingRequest:', hasPendingRequest, 'status:', resp?.status);
         
         processed.is_member = (resp?.is_active_member !== false) && (resp?.is_member === true) && (processed.is_blocked !== true);
 

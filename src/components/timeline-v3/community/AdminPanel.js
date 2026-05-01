@@ -137,6 +137,34 @@ const formatDateForAPI = (date) => {
   return `${year}-${month}-${day}T12:00:00`; // Use noon to avoid timezone edge cases
 };
 
+// Helper to extract storage key from R2/Cloudinary URL for backend
+const extractKeyFromUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  
+  // If already a key (no protocol), return as-is
+  if (!url.startsWith('http')) {
+    return url;
+  }
+  
+  try {
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
+    
+    // R2 path format: /timelines/{id}/{filename}
+    // Extract the part after the bucket domain
+    const match = path.match(/\/timelines\/[^/]+\/(.+)$/);
+    if (match) {
+      return `timelines/${match[1]}`;
+    }
+    
+    // Fallback: return full path without leading slash
+    return path.startsWith('/') ? path.slice(1) : path;
+  } catch (e) {
+    // If URL parsing fails, return original
+    return url;
+  }
+};
+
 const AdminPanel = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -870,7 +898,12 @@ const AdminPanel = () => {
   
   // Get role color styling
   const getRoleColor = (role) => {
-    switch(role) {
+    const roleLower = (role || '').toLowerCase();
+    switch(roleLower) {
+      case 'siteowner':
+        return { bg: '#2e7d32', text: '#fff' }; // Forest green for SiteOwner
+      case 'siteadmin':
+        return { bg: '#1565c0', text: '#fff' }; // Deep blue for SiteAdmin
       case 'admin':
         return { bg: theme.palette.error.main, text: '#fff' };
       case 'moderator':
@@ -2901,9 +2934,12 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
       const response = await getPendingMembers(timelineId);
       console.log('[AdminPanel] Pending members response:', response);
       
-      const pendingList = Array.isArray(response?.pending_members) 
-        ? response.pending_members 
-        : (Array.isArray(response) ? response : []);
+      // Backend returns { data: [...] }, legacy format was { pending_members: [...] }
+      const pendingList = Array.isArray(response?.data) 
+        ? response.data 
+        : (Array.isArray(response?.pending_members) 
+          ? response.pending_members 
+          : (Array.isArray(response) ? response : []));
       
       const formattedPending = pendingList.map((member) => ({
         id: member.user_id,
@@ -3154,12 +3190,23 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
   
   // Get color based on role
   const getRoleColor = (role) => {
-    if (role === 'admin') {
+    const roleLower = (role || '').toLowerCase();
+    if (roleLower === 'siteowner') {
+      return {
+        text: '#fff',
+        bg: '#2e7d32' // Forest green for SiteOwner
+      };
+    } else if (roleLower === 'siteadmin') {
+      return {
+        text: '#fff',
+        bg: '#1565c0' // Deep blue for SiteAdmin
+      };
+    } else if (roleLower === 'admin') {
       return {
         text: '#D97706',
         bg: '#FEF3C7'
       };
-    } else if (role === 'moderator') {
+    } else if (roleLower === 'moderator') {
       return {
         text: '#2563EB',
         bg: '#DBEAFE'
@@ -4320,23 +4367,39 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       // Save timeline description and requires_approval to backend
       try {
         console.log(`[SettingsTab] Updating timeline settings (description, requires_approval)...`);
+        // Build update data matching backend schema (snake_case, _key not _url)
         const updateData = {
           requires_approval: requireMembershipApproval,
           posting_restriction_enabled: postingRestrictionEnabled,
           posting_min_role: postingMinRole,
-          cover_image_url: null,
-          cover_portrait_image_url: resolvedPortraitUrl,
-          cover_landscape_image_url: resolvedLandscapeUrl,
-          cover_portrait_x: clampFramePosition(portraitPosition.x),
-          cover_portrait_y: clampFramePosition(portraitPosition.y),
-          cover_landscape_x: clampFramePosition(landscapePosition.x),
-          cover_landscape_y: clampFramePosition(landscapePosition.y),
-          cover_portrait_zoom: clampZoom(portraitZoom),
-          cover_landscape_zoom: clampZoom(landscapeZoom),
         };
 
-        if (canManageImagePrivilege) {
-          updateData.cover_upload_enabled = Boolean(resolvedCoverUploadEnabled);
+        // Only include cover fields if they have values (backend uses _key not _url)
+        if (resolvedPortraitUrl) {
+          updateData.cover_portrait_key = extractKeyFromUrl(resolvedPortraitUrl);
+        }
+        if (resolvedLandscapeUrl) {
+          updateData.cover_landscape_key = extractKeyFromUrl(resolvedLandscapeUrl);
+        }
+        
+        // Position and zoom fields
+        if (portraitPosition.x !== undefined) {
+          updateData.cover_portrait_x = clampFramePosition(portraitPosition.x);
+        }
+        if (portraitPosition.y !== undefined) {
+          updateData.cover_portrait_y = clampFramePosition(portraitPosition.y);
+        }
+        if (landscapePosition.x !== undefined) {
+          updateData.cover_landscape_x = clampFramePosition(landscapePosition.x);
+        }
+        if (landscapePosition.y !== undefined) {
+          updateData.cover_landscape_y = clampFramePosition(landscapePosition.y);
+        }
+        if (portraitZoom !== undefined) {
+          updateData.cover_portrait_zoom = clampZoom(portraitZoom);
+        }
+        if (landscapeZoom !== undefined) {
+          updateData.cover_landscape_zoom = clampZoom(landscapeZoom);
         }
         
         // Only include description if it exists
@@ -4392,11 +4455,15 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       }
 
       try {
-        await updateTimelineStatusMessage(id, {
-          status_type: statusType || null,
-          status_header: statusHeader,
-          status_body: statusBody
-        });
+        // Only save if we have a valid status message (backend requires header min 1 char)
+        if (statusHeader && statusHeader.trim()) {
+          await updateTimelineStatusMessage(id, {
+            status_type: statusType || 'good',
+            header: statusHeader.trim(),
+            body: statusBody?.trim() || null,
+            is_active: true
+          });
+        }
       } catch (statusError) {
         console.error('[SettingsTab] Error updating status message:', statusError);
         throw statusError;

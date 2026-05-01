@@ -30,9 +30,7 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
-import RemarkCard from './cards/RemarkCard';
-import NewsCard from './cards/NewsCard';
-import MediaCard from './cards/MediaCard';
+import EventCard from './cards/EventCard';
 import EventCounter from './EventCounter';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
 import { 
@@ -191,40 +189,18 @@ const EventList = ({
     // Create refs for each card type to access their methods
     const cardRef = React.createRef();
     
-    const card = (() => {
-      // Make sure event exists and has a type property
-      if (!event) {
-        console.error('Attempted to render card for undefined event');
-        return null;
-      }
+    // Make sure event exists and has a type property
+    if (!event) {
+      console.error('Attempted to render card for undefined event');
+      return null;
+    }
 
-      const eventType = event.type?.toLowerCase() || '';
-      const { key, ...cardProps } = commonProps; // Extract key from commonProps
-      
-      // Store the ref in the eventRefs object with a type-specific key
-      const cardRefKey = `${eventType}-card-${event.id}`;
-      eventRefs.current[cardRefKey] = cardRef;
-      
-      // Create the card props without the key
-      const finalCardProps = {
-        ...cardProps,
-        ref: cardRef,
-        setIsPopupOpen, // Pass the setIsPopupOpen function to card components
-        reviewingEventIds, // Pass the set of reviewing event IDs
-        showInlineVoteControls: true,
-        showVoteOverlay: false,
-      };
-      
-      // Return the appropriate card component with key as a direct prop
-      switch (eventType) {
-        case EVENT_TYPES.NEWS:
-          return <NewsCard key={key} {...finalCardProps} />;
-        case EVENT_TYPES.MEDIA:
-          return <MediaCard key={key} {...finalCardProps} />;
-        default:
-          return <RemarkCard key={key} {...finalCardProps} />;
-      }
-    })();
+    const eventType = event.type?.toLowerCase() || '';
+    const { key } = commonProps; // Extract key from commonProps
+    
+    // Store the ref in the eventRefs object with a type-specific key
+    const cardRefKey = `${eventType}-card-${event.id}`;
+    eventRefs.current[cardRefKey] = cardRef;
 
     // Get the appropriate color based on event type
     const getEventColor = () => {
@@ -316,7 +292,17 @@ const EventList = ({
         }}
         ref={el => eventRefs.current[event.id] = el}
       >
-        {card}
+        <EventCard
+          key={key}
+          ref={cardRef}
+          event={event}
+          variant="timeline"
+          onEdit={onEventEdit}
+          onDelete={onEventDelete}
+          isSelected={isSelected}
+          setIsPopupOpen={setIsPopupOpen}
+          reviewingEventIds={reviewingEventIds}
+        />
       </motion.div>
     );
   };

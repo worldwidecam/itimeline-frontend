@@ -772,6 +772,8 @@ const MemberListTab = () => {
     switch ((role || '').toLowerCase()) {
       case 'siteowner':
         return { bg: theme.palette.mode === 'dark' ? '#2e7d32' : '#4caf50', text: '#fff' }; // Forest green for site owner
+      case 'siteadmin':
+        return { bg: '#1565c0', text: '#fff' }; // Deep blue for SiteAdmin
       case 'admin':
         return { bg: theme.palette.error.main, text: '#fff' }; // Red for admin
       case 'moderator':
