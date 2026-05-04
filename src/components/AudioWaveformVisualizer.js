@@ -935,10 +935,6 @@ const AudioWaveformVisualizer = forwardRef(({
       }
     }
     
-    // Continue animation if playing
-    if (isPlaying) {
-      animationRef.current = requestAnimationFrame(drawWaveform);
-    }
   }, [isPlaying, config, baseColor]);
 
   // Start the animation loop
@@ -1352,15 +1348,15 @@ const AudioWaveformVisualizer = forwardRef(({
     return cleanupAudio;
   }, [cleanupAudio]);
 
+  // Ensure audio is muted in preview mode
+  useEffect(() => {
+    if (previewMode && audioRef.current) {
+      audioRef.current.muted = true;
+    }
+  }, [previewMode]);
+
   // Render the preview mode (minimal UI)
   if (previewMode) {
-    // For preview mode, ensure audio is always muted
-    useEffect(() => {
-      if (audioRef.current) {
-        audioRef.current.muted = true;
-      }
-    }, [audioRef.current]);
-    
     return (
       <Box 
         sx={{ 
@@ -1549,6 +1545,19 @@ const AudioWaveformVisualizer = forwardRef(({
         
         {/* Playback controls */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: compactMode ? 0.5 : 1 }}>
+          <IconButton
+            onClick={handlePlayPause}
+            disabled={!audioLoaded}
+            sx={{
+              color: 'white',
+              bgcolor: 'rgba(255,255,255,0.15)',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' },
+              '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' },
+              mr: 1,
+            }}
+          >
+            {isPlaying ? <Pause /> : <PlayArrow />}
+          </IconButton>
           <IconButton 
             onClick={handleMuteToggle}
             disabled={!audioLoaded}

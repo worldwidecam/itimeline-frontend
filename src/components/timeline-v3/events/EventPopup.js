@@ -808,30 +808,6 @@ const EventPopup = ({
             (mimeType && mimeType.startsWith('audio/')));
   };
   
-  // Add a separate audio element for playback to avoid Web Audio API conflicts
-  const [audioElement] = useState(() => {
-    if (isAudioMedia() && typeof window !== 'undefined') {
-      const audio = new Audio();
-      audio.src = event.media_url || event.mediaUrl || event.url;
-      audio.volume = 0.75;
-      return audio;
-    }
-    return null;
-  });
-  
-  // Handle audio playback separately from the visualizer
-  const toggleAudio = () => {
-    if (!audioElement) return;
-    
-    if (audioElement.paused) {
-      audioElement.play().catch(err => {
-        console.error('Error playing audio:', err);
-      });
-    } else {
-      audioElement.pause();
-    }
-  };
-  
   // Get the media source URL
   const getMediaSource = () => {
     let mediaSource = event.media_url || event.mediaUrl || event.url;
@@ -848,12 +824,6 @@ const EventPopup = ({
         ? `${baseUrl}${mediaSource}`
         : `${baseUrl}/${mediaSource}`;
     }
-    
-    // Force reload the media to bypass cache (add timestamp)
-    const timestamp = new Date().getTime();
-    mediaSource = mediaSource.includes('?') 
-      ? `${mediaSource}&t=${timestamp}` 
-      : `${mediaSource}?t=${timestamp}`;
     
     return mediaSource;
   };
