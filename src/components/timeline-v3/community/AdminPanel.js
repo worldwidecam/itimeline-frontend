@@ -898,18 +898,21 @@ const AdminPanel = () => {
   
   // Get role color styling
   const getRoleColor = (role) => {
-    const roleLower = (role || '').toLowerCase();
-    switch(roleLower) {
+    switch ((role || '').toLowerCase()) {
       case 'siteowner':
-        return { bg: '#2e7d32', text: '#fff' }; // Forest green for SiteOwner
+        return { bg: theme.palette.mode === 'dark' ? '#2e7d32' : '#4caf50', text: '#fff' }; // Forest green for site owner
       case 'siteadmin':
         return { bg: '#1565c0', text: '#fff' }; // Deep blue for SiteAdmin
       case 'admin':
-        return { bg: theme.palette.error.main, text: '#fff' };
+        return { bg: theme.palette.error.main, text: '#fff' }; // Red for admin
       case 'moderator':
-        return { bg: theme.palette.warning.main, text: '#000' };
-      default:
-        return { bg: theme.palette.primary.main, text: '#fff' };
+        return { bg: theme.palette.warning.main, text: '#000' }; // Yellow/orange for moderator
+      case 'member':
+        return { bg: theme.palette.primary.main, text: '#fff' }; // Blue for regular member
+      case 'pending':
+        return { bg: theme.palette.grey[500], text: '#fff' }; // Grey for pending members
+      default: // fallback for any other role
+        return { bg: theme.palette.primary.main, text: '#fff' }; // Blue for any other role
     }
   };
 
@@ -1923,7 +1926,7 @@ const ManagePostsTab = ({ timelineId }) => {
   const [postActionType, setPostActionType] = useState(''); // 'escalate' or 'safeguard'
   // Mandatory verdict text for safeguard
   const [actionVerdict, setActionVerdict] = useState('');
-  // ... rest of the code remains the same ...
+  const [safeguardDays, setSafeguardDays] = useState('7');
   const [escalationType, setEscalationType] = useState('edit');
   const [escalationSummary, setEscalationSummary] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
@@ -1973,6 +1976,7 @@ const ManagePostsTab = ({ timelineId }) => {
     setSelectedPost(post);
     setPostActionType(action);
     setActionVerdict('');
+    setSafeguardDays('7');
     setEscalationType('edit');
     setEscalationSummary('');
     setConfirmPostActionDialogOpen(true);
@@ -1991,6 +1995,7 @@ const ManagePostsTab = ({ timelineId }) => {
     setSelectedPost(null);
     setPostActionType('');
     setActionVerdict('');
+    setSafeguardDays('7');
     setEscalationType('edit');
     setEscalationSummary('');
   };
@@ -2095,6 +2100,17 @@ const ManagePostsTab = ({ timelineId }) => {
     }
   };
   
+  // Fetch counts for all tabs (called on mount to show proper tab badges)
+  const fetchReportCounts = React.useCallback(async () => {
+    if (!timelineId) return;
+    try {
+      const data = await listReports(timelineId, { status: 'all', page: 1, page_size: 1 });
+      setCounts(data?.counts || { all: 0, pending: 0, reviewing: 0, resolved: 0 });
+    } catch (e) {
+      console.warn('[ManagePostsTab] fetchReportCounts failed:', e);
+    }
+  }, [timelineId]);
+
   // Extracted: Load reports from backend; callable from actions
   const fetchReports = React.useCallback(async () => {
     if (!timelineId) return;
@@ -2117,9 +2133,13 @@ const ManagePostsTab = ({ timelineId }) => {
             const event = eventRes?.data;
             
             if (event) {
-              // Check media_subtype first
-              if (event.media_subtype) {
-                displayType = event.media_subtype.charAt(0).toUpperCase() + event.media_subtype.slice(1);
+              // Check media_type first for image/video/audio icons
+              if (event.media_type) {
+                const mediaType = String(event.media_type).toLowerCase();
+                if (mediaType === 'image') displayType = 'Image';
+                else if (mediaType === 'video') displayType = 'Video';
+                else if (mediaType === 'audio') displayType = 'Audio';
+                else displayType = mediaType.charAt(0).toUpperCase() + mediaType.slice(1);
               } else if (event.type) {
                 const type = String(event.type).toLowerCase();
                 if (type === 'remark') displayType = 'Remark';
@@ -2152,6 +2172,7 @@ const ManagePostsTab = ({ timelineId }) => {
           } : null,
           resolution: it.resolution || null,
           verdict: it.verdict || '',
+          safeUntil: it.safe_until || null,
           reportId: it.id || it.report_id
         };
       });
@@ -2183,12 +2204,18 @@ const ManagePostsTab = ({ timelineId }) => {
     fetchReports();
   }, [fetchReports]);
 
+  // Fetch counts for all tabs on mount (for tab badges)
+  useEffect(() => {
+    fetchReportCounts();
+  }, [fetchReportCounts]);
+
   // Handle accepting a report for review
   const handleAcceptReport = async (post) => {
     try {
       await acceptReport(timelineId, post.reportId || post.id);
       // Re-fetch reports directly for correctness
       await fetchReports();
+      await fetchReportCounts();
       setSnackbarMessage('Report accepted for review');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -2208,6 +2235,7 @@ const ManagePostsTab = ({ timelineId }) => {
       await escalateReport(timelineId, reportId, escalationType, escalationSummary.trim());
       setConfirmPostActionDialogOpen(false);
       await fetchReports();
+      await fetchReportCounts();
       setSnackbarMessage('The report ticket was sent to administration');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -2223,9 +2251,10 @@ const ManagePostsTab = ({ timelineId }) => {
   const handleSafeguardPost = async () => {
     try {
       if (!actionVerdict.trim()) return;
-      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'safeguard', actionVerdict.trim());
+      await resolveReport(timelineId, selectedPost?.reportId || selectedPost?.id, 'safeguard', actionVerdict.trim(), { safeguard_days: Number(safeguardDays || 7) });
       setConfirmPostActionDialogOpen(false);
       await fetchReports();
+      await fetchReportCounts();
       setSnackbarMessage('Resolved: action=safeguard');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -2247,6 +2276,7 @@ const ManagePostsTab = ({ timelineId }) => {
       setRemoveDialogOpen(false);
       // Refresh the list of reports immediately
       await fetchReports();
+      await fetchReportCounts();
       setSnackbarMessage('Resolved: action=remove');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -2596,6 +2626,11 @@ const ManagePostsTab = ({ timelineId }) => {
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                           {post.verdict}
                         </Typography>
+                        {post.resolution === 'safeguard' && post.safeUntil && (
+                          <Typography variant="body2" sx={{ mt: 0.75, color: '#0B8A4A', fontWeight: 700 }}>
+                            Safe Until: {new Date(post.safeUntil).toLocaleString()}
+                          </Typography>
+                        )}
                       </Box>
                     )}
                   </Box>
@@ -2747,17 +2782,32 @@ const ManagePostsTab = ({ timelineId }) => {
               />
             </Box>
           ) : (
-            <TextField
-              autoFocus
-              fullWidth
-              multiline
-              minRows={3}
-              label="Verdict (required)"
-              placeholder="Write your findings and rationale"
-              value={actionVerdict}
-              onChange={(e) => setActionVerdict(e.target.value)}
-              sx={{ mt: 2 }}
-            />
+            <>
+              <TextField
+                autoFocus
+                fullWidth
+                multiline
+                minRows={3}
+                label="Verdict (required)"
+                placeholder="Write your findings and rationale"
+                value={actionVerdict}
+                onChange={(e) => setActionVerdict(e.target.value)}
+                sx={{ mt: 2 }}
+              />
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel id="safeguard-days-label">Cooldown Duration</InputLabel>
+                <Select
+                  labelId="safeguard-days-label"
+                  label="Cooldown Duration"
+                  value={safeguardDays}
+                  onChange={(e) => setSafeguardDays(String(e.target.value))}
+                >
+                  <MenuItem value="3">3 Days</MenuItem>
+                  <MenuItem value="7">7 Days</MenuItem>
+                  <MenuItem value="10">10 Days</MenuItem>
+                </Select>
+              </FormControl>
+            </>
           )}
         </DialogContent>
         <DialogActions>
@@ -3253,24 +3303,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
           ) : (
             <Box>
               {members.map((member) => {
-                // Determine role color
-                let roleColor = {
-                  text: '#6B7280',
-                  bg: '#F3F4F6'
-                };
-                
                 const roleLower = (member.role || '').toLowerCase();
-                if (roleLower === 'admin') {
-                  roleColor = {
-                    text: '#B91C1C',
-                    bg: '#FEE2E2'
-                  };
-                } else if (roleLower === 'moderator') {
-                  roleColor = {
-                    text: '#2563EB',
-                    bg: '#DBEAFE'
-                  };
-                }
+                const roleColor = getRoleColor(member.role);
                 
                 return (
                   <Box 

@@ -1091,7 +1091,7 @@ export const escalateReport = async (timelineId, reportId, escalationType, summa
  * @param {'delete'|'safeguard'|'remove'} action
  * @param {string} [verdict] - required when action === 'remove'
  */
-export const resolveReport = async (timelineId, reportId, action, verdict = '') => {
+export const resolveReport = async (timelineId, reportId, action, verdict = '', extraPayload = {}) => {
   try {
     const allowed = ['delete', 'safeguard', 'remove'];
     if (!allowed.includes(action)) {
@@ -1101,9 +1101,16 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '') 
     if (!verdict || !String(verdict).trim()) {
       throw new Error('A non-empty verdict is required');
     }
+    // Map frontend action names to backend enum values
+    const actionMap = {
+      'delete': 'delete_event',
+      'safeguard': 'safeguard',
+      'remove': 'remove_event'
+    };
     const payload = { 
-      action,
-      verdict: verdict.trim()
+      action: actionMap[action] || action,
+      verdict: verdict.trim(),
+      ...extraPayload,
     };
     console.log(`[API] Resolving report ${reportId} on timeline ${timelineId} with action '${action}'`);
     const response = await api.post(`/api/v1/timelines/${timelineId}/reports/${reportId}/resolve`, payload);

@@ -1020,7 +1020,7 @@ const NewsEventPopup = ({
                       <ListItemText primary="Delete" />
                     </MenuItem>
                   )}
-                  {!isSafeguarded && (
+                  {!isSafeguarded && !isInReview && (
                     <MenuItem
                       onClick={() => {
                         handleActionMenuClose();

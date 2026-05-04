@@ -1066,8 +1066,13 @@ const GlobalReportsTab = () => {
             const eventRes = await api.get(`/api/v1/events/${it.event_id}`);
             const event = eventRes?.data;
             if (event) {
-              if (event.media_subtype) {
-                displayType = event.media_subtype.charAt(0).toUpperCase() + event.media_subtype.slice(1);
+              // Check media_type first for image/video/audio icons
+              if (event.media_type) {
+                const mediaType = String(event.media_type).toLowerCase();
+                if (mediaType === 'image') displayType = 'Image';
+                else if (mediaType === 'video') displayType = 'Video';
+                else if (mediaType === 'audio') displayType = 'Audio';
+                else displayType = mediaType.charAt(0).toUpperCase() + mediaType.slice(1);
               } else if (event.type) {
                 const type = String(event.type).toLowerCase();
                 if (type === 'remark') displayType = 'Remark';

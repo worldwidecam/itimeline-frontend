@@ -199,8 +199,14 @@ const EventPopup = ({
           params: { status: 'resolved' }
         });
         
+        const now = new Date();
         const safeguardedIds = (resolvedResponse.data?.items || [])
-          .filter(report => report.resolution === 'safeguard')
+          .filter(report => {
+            if (report.resolution !== 'safeguard') return false;
+            // Only active if safe_until is in the future (or not set — no expiry)
+            if (report.safe_until) return new Date(report.safe_until) > now;
+            return true;
+          })
           .map(report => report.event_id)
           .filter(Boolean);
         
@@ -1529,7 +1535,7 @@ const EventPopup = ({
                         <ListItemText primary="Delete" />
                       </MenuItem>
                     )}
-                    {!isSafeguarded && (
+                    {!isSafeguarded && !isInReview && (
                       <MenuItem
                         onClick={() => {
                           handleActionMenuClose();

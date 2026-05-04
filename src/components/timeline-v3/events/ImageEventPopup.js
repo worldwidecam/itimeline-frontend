@@ -822,7 +822,7 @@ const ImageEventPopup = ({
                         <ListItemText primary="Delete" />
                       </MenuItem>
                     )}
-                    {!isSafeguarded && (
+                    {!isSafeguarded && !isInReview && (
                       <MenuItem
                         onClick={() => {
                           handleActionMenuClose();
