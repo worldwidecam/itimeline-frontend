@@ -2027,8 +2027,9 @@ const ManagePostsTab = ({ timelineId }) => {
 
   const handleOpenEventEdit = async (event) => {
     try {
-      if (!event?.id || !timelineId) return;
-      const res = await api.get(`/api/v1/timeline-v3/${timelineId}/events/${event.id}`);
+      if (!event?.id) return;
+      // Use direct event endpoint (not timeline-scoped) to support editing tagged events from foreign timelines
+      const res = await api.get(`/api/v1/events/${event.id}`);
       const canonicalEvent = res?.data;
       if (!canonicalEvent?.id) {
         setSnackbarMessage('Unable to open editor for this event');
@@ -2065,12 +2066,20 @@ const ManagePostsTab = ({ timelineId }) => {
       if (!editDialogEvent?.id || !timelineId) return;
       setEditDialogSubmitting(true);
 
-      const patchPayload = { ...eventData };
-      if (Object.prototype.hasOwnProperty.call(patchPayload, 'tags') && !Array.isArray(patchPayload.tags)) {
-        delete patchPayload.tags;
+      // Filter to only fields accepted by backend patchSchema
+      const allowedFields = [
+        'title', 'description', 'content_json', 'event_date', 'raw_event_date',
+        'url', 'url_title', 'url_description', 'url_image',
+        'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked'
+      ];
+      const patchPayload = {};
+      for (const key of allowedFields) {
+        if (Object.prototype.hasOwnProperty.call(eventData, key)) {
+          patchPayload[key] = eventData[key];
+        }
       }
 
-      const response = await api.patch(`/api/v1/timeline-v3/${timelineId}/events/${editDialogEvent.id}`, patchPayload);
+      const response = await api.patch(`/api/v1/events/${editDialogEvent.id}`, patchPayload);
       const updatedEvent = response?.data;
       if (updatedEvent?.id) {
         setPopupEvent(updatedEvent);
@@ -2286,8 +2295,8 @@ const ManagePostsTab = ({ timelineId }) => {
       console.warn('[ManagePostsTab] resolveReport(remove) failed:', e);
       setRemoveDialogOpen(false);
       const msg = e?.response?.status === 409
-        ? (e?.response?.data?.message || 'Remove blocked: event exists only on this timeline. Use Delete instead.')
-        : (e?.response?.data?.error || 'Failed to resolve (remove)');
+        ? (e?.response?.data?.error?.message || e?.response?.data?.message || 'This event was created on this community timeline. Use Delete instead of Remove.')
+        : (e?.response?.data?.error?.message || e?.response?.data?.error || 'Failed to resolve (remove)');
       setSnackbarMessage(msg);
       setSnackbarSeverity('warning');
       setSnackbarOpen(true);

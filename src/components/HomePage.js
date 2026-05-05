@@ -446,6 +446,9 @@ const HomePage = () => {
   const [prefetchedSpotlightEvent, setPrefetchedSpotlightEvent] = React.useState(null);
   const [postTypeDialogOpen, setPostTypeDialogOpen] = React.useState(false);
   const [postEventDialogOpen, setPostEventDialogOpen] = React.useState(false);
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [editingEvent, setEditingEvent] = React.useState(null);
+  const [editSubmitLoading, setEditSubmitLoading] = React.useState(false);
   const [postFlowLoading, setPostFlowLoading] = React.useState(false);
   const [postSubmitLoading, setPostSubmitLoading] = React.useState(false);
   const [postTargetTimeline, setPostTargetTimeline] = React.useState(null);
@@ -2857,6 +2860,94 @@ const HomePage = () => {
     }
   }, [favoriteTimelineId]);
 
+  // Edit event handlers (defined early to avoid temporal dead zone in renderSearchEventCard)
+  const handleEdit = React.useCallback(async (event) => {
+    if (!event?.id) return;
+    try {
+      const response = await api.get(`/api/v1/events/${event.id}`);
+      const canonicalEvent = response?.data;
+      if (!canonicalEvent?.id) {
+        setUserFollowSnackbarMessage('Unable to load event for editing');
+        setUserFollowSnackbarSeverity('error');
+        setUserFollowSnackbarOpen(true);
+        return;
+      }
+      if (canonicalEvent?.edit_permissions && canonicalEvent.edit_permissions.can_edit === false) {
+        setUserFollowSnackbarMessage('You do not have permission to edit this event');
+        setUserFollowSnackbarSeverity('error');
+        setUserFollowSnackbarOpen(true);
+        return;
+      }
+      setEditingEvent(canonicalEvent);
+      setEditDialogOpen(true);
+    } catch (error) {
+      console.warn('[HomePage] Failed to load event for edit:', error);
+      setUserFollowSnackbarMessage('Failed to load event editor');
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    }
+  }, []);
+
+  const handleCloseEditDialog = React.useCallback(() => {
+    if (editSubmitLoading) return;
+    setEditDialogOpen(false);
+    setEditingEvent(null);
+  }, [editSubmitLoading]);
+
+  const handleSubmitEdit = React.useCallback(async (eventData) => {
+    if (!editingEvent?.id || !editingEvent?.timeline_id) {
+      setUserFollowSnackbarMessage('Missing event data for update');
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+      return;
+    }
+    try {
+      setEditSubmitLoading(true);
+      // Filter to only fields accepted by backend patchSchema
+      const allowedFields = [
+        'title', 'description', 'content_json', 'event_date', 'raw_event_date',
+        'url', 'url_title', 'url_description', 'url_image',
+        'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked'
+      ];
+      const patchPayload = {};
+      for (const key of allowedFields) {
+        if (Object.prototype.hasOwnProperty.call(eventData, key)) {
+          patchPayload[key] = eventData[key];
+        }
+      }
+      await api.patch(`/api/v1/events/${editingEvent.id}`, patchPayload);
+      setUserFollowSnackbarMessage('Event updated successfully');
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+      setEditDialogOpen(false);
+      setEditingEvent(null);
+      // Refresh hero popup event if it's the same one
+      if (heroEventPopupEvent?.id === editingEvent?.id) {
+        const refreshed = await api.get(`/api/v1/events/${editingEvent.id}`);
+        if (refreshed?.data?.id) {
+          setHeroEventPopupEvent(refreshed.data);
+        }
+      }
+    } catch (error) {
+      let message = 'Failed to update event.';
+      const responseData = error?.response?.data;
+      if (responseData?.error?.message) {
+        message = responseData.error.message;
+      } else if (typeof responseData?.error === 'string') {
+        message = responseData.error;
+      } else if (responseData?.message) {
+        message = responseData.message;
+      } else if (error?.message) {
+        message = error.message;
+      }
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    } finally {
+      setEditSubmitLoading(false);
+    }
+  }, [editingEvent, heroEventPopupEvent?.id]);
+
   const renderSearchEventCard = React.useCallback((event) => {
     const handleMediaLoadError = async (errorPayload) => {
       try {
@@ -2907,12 +2998,12 @@ const HomePage = () => {
       <EventCard
         event={event}
         variant="home"
-        onEdit={() => {}}
+        onEdit={handleEdit}
         onDelete={() => {}}
         onMediaLoadError={handleMediaLoadError}
       />
     );
-  }, []);
+  }, [handleEdit]);
 
 
 
@@ -5548,11 +5639,26 @@ const HomePage = () => {
             open
             onClose={() => setHeroEventPopupEvent(null)}
             onDelete={undefined}
-            onEdit={undefined}
+            onEdit={handleEdit}
             setIsPopupOpen={() => {}}
             reviewingEventIds={EMPTY_REVIEWING_EVENT_IDS}
           />
         ) : null}
+
+        {/* Edit Event Dialog */}
+        <EventDialog
+          open={editDialogOpen}
+          onClose={handleCloseEditDialog}
+          onSave={handleSubmitEdit}
+          initialEvent={editingEvent}
+          timelineName={editingEvent?.timeline_name || ''}
+          timelineType={editingEvent?.timeline_type || 'hashtag'}
+          timelineVisibility={editingEvent?.visibility || 'public'}
+          mode="edit"
+          submitLabel="Save Changes"
+          submitLoading={editSubmitLoading}
+          submitDisabled={editSubmitLoading}
+        />
 
         <Dialog
           open={dialogOpen}

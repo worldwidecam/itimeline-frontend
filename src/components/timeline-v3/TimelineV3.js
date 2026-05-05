@@ -2359,12 +2359,20 @@ const handleViewModeTransition = (newViewMode) => {
   const handleEventSubmit = async (eventData) => {
     try {
       if (editingEvent?.id) {
-        const patchPayload = { ...eventData };
-        if (Object.prototype.hasOwnProperty.call(patchPayload, 'tags') && !Array.isArray(patchPayload.tags)) {
-          delete patchPayload.tags;
+        // Filter to only fields accepted by backend patchSchema
+        const allowedFields = [
+          'title', 'description', 'content_json', 'event_date', 'raw_event_date',
+          'url', 'url_title', 'url_description', 'url_image',
+          'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked'
+        ];
+        const patchPayload = {};
+        for (const key of allowedFields) {
+          if (Object.prototype.hasOwnProperty.call(eventData, key)) {
+            patchPayload[key] = eventData[key];
+          }
         }
 
-        const response = await api.patch(`/api/v1/timeline-v3/${timelineId}/events/${editingEvent.id}`, patchPayload);
+        const response = await api.patch(`/api/v1/events/${editingEvent.id}`, patchPayload);
 
         const updatedEvent = response.data;
         setEvents((prev) => {
@@ -2575,12 +2583,13 @@ const handleViewModeTransition = (newViewMode) => {
     }
 
     const eventId = event?.id;
-    if (!eventId || !timelineId) {
+    if (!eventId) {
       return;
     }
 
     try {
-      const response = await api.get(`/api/v1/timeline-v3/${timelineId}/events/${eventId}`);
+      // Use direct event endpoint (not timeline-scoped) to support editing tagged events from foreign timelines
+      const response = await api.get(`/api/v1/events/${eventId}`);
       const canonicalEvent = response?.data;
       if (!canonicalEvent?.id) {
         setSnackbarMessage('Unable to open editor for this event');
