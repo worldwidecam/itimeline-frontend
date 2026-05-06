@@ -202,9 +202,11 @@ const EventDialog = ({
   const theme = useTheme();
   const isEditing = Boolean(initialEvent);
   const editPermissions = initialEvent?.edit_permissions || null;
+  console.log('[EventDialog] initialEvent?.edit_permissions:', initialEvent?.edit_permissions);
   const allowedFields = Array.isArray(editPermissions?.allowed_fields)
     ? new Set(editPermissions.allowed_fields)
     : null;
+  console.log('[EventDialog] allowedFields:', allowedFields);
   const canEditField = (field) => {
     if (!isEditing) return true;
     if (!editPermissions || !allowedFields) return true;
@@ -630,6 +632,7 @@ const EventDialog = ({
     console.log('============================');
 
     const eventData = {};
+    console.log('[EventDialog] Building eventData:', { isEditing, canEditDescription, canEditType, canEditDate, descriptionAppendOnly, descriptionAppend: descriptionAppend?.substring(0, 50) });
 
     if (!isEditing || canEditTitle) {
       eventData.title = title;
@@ -646,8 +649,10 @@ const EventDialog = ({
     }
 
     if (!isEditing || canEditDescription) {
+      console.log('[EventDialog] Adding description field, descriptionAppendOnly:', descriptionAppendOnly);
       if (descriptionAppendOnly) {
         eventData.description_append = descriptionAppend;
+        console.log('[EventDialog] Set description_append:', descriptionAppend?.substring(0, 50));
       } else {
         eventData.description = description;
       }
@@ -689,6 +694,7 @@ const EventDialog = ({
       eventData.tags = tags;
     }
 
+    console.log('[EventDialog] Final eventData:', eventData);
     onSave(eventData);
   };
 

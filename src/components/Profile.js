@@ -50,6 +50,7 @@ import {
 } from '../utils/formStyleGuide';
 import { getCachedUserIdentityColor, resolveUserIdentityColor } from '../utils/userIdentityColor';
 import { displayUsername } from '../utils/usernameDisplay';
+import { toRichContentPayload } from '../utils/richContent';
 
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
@@ -109,65 +110,6 @@ const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
       };
     })
     .filter(Boolean);
-};
-
-const safeParseJson = (rawValue, fallback) => {
-  if (!rawValue || typeof rawValue !== 'string') return fallback;
-  try {
-    const parsed = JSON.parse(rawValue);
-    return parsed ?? fallback;
-  } catch (_) {
-    return fallback;
-  }
-};
-
-const toRichContentPayload = (description) => {
-  const raw = String(description || '');
-  if (!raw.trim()) return null;
-
-  const pattern = /(@[a-zA-Z0-9_]+)|(#[a-zA-Z0-9_]+)|(i-[a-zA-Z0-9_]+)|(~[0-9]+)|(www\.[^\s]+)|(https?:\/\/[^\s]+)/g;
-  const contentItems = [];
-  let lastEnd = 0;
-
-  raw.replace(pattern, (matched, _u, _h, _c, _e, _www, _http, offset) => {
-    if (offset > lastEnd) {
-      const textBefore = raw.slice(lastEnd, offset);
-      if (textBefore) {
-        contentItems.push({ type: 'text', value: textBefore });
-      }
-    }
-
-    if (matched.startsWith('@')) {
-      contentItems.push({ type: 'user_mention', username: matched.slice(1), text: matched });
-    } else if (matched.startsWith('#')) {
-      contentItems.push({ type: 'hashtag_mention', name: matched.slice(1), text: matched });
-    } else if (matched.startsWith('i-')) {
-      contentItems.push({ type: 'community_mention', name: matched.slice(2), text: matched });
-    } else if (matched.startsWith('~')) {
-      const eventId = Number(matched.slice(1));
-      if (Number.isFinite(eventId) && eventId > 0) {
-        contentItems.push({ type: 'event_reference', event_id: eventId, text: matched });
-      } else {
-        contentItems.push({ type: 'text', value: matched });
-      }
-    } else if (matched.startsWith('www.')) {
-      contentItems.push({ type: 'link', url: `https://${matched}`, text: matched });
-    } else if (matched.startsWith('http')) {
-      contentItems.push({ type: 'link', url: matched, text: matched });
-    }
-
-    lastEnd = offset + matched.length;
-    return matched;
-  });
-
-  if (lastEnd < raw.length) {
-    contentItems.push({ type: 'text', value: raw.slice(lastEnd) });
-  }
-
-  if (contentItems.length === 0) {
-    return { content: [{ type: 'text', value: raw }] };
-  }
-  return { content: contentItems };
 };
 
 const normalizeProfileModules = (rawModules) => {

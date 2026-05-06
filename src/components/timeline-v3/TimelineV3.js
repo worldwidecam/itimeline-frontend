@@ -2363,7 +2363,11 @@ const handleViewModeTransition = (newViewMode) => {
         const allowedFields = [
           'title', 'description', 'content_json', 'event_date', 'raw_event_date',
           'url', 'url_title', 'url_description', 'url_image',
-          'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked'
+          'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked',
+          // Allow description_append for tier B/C append-only edits
+          'description_append',
+          // Allow tags for tier C edits
+          'tags', 'remove_association_ids'
         ];
         const patchPayload = {};
         for (const key of allowedFields) {
@@ -2374,7 +2378,7 @@ const handleViewModeTransition = (newViewMode) => {
 
         const response = await api.patch(`/api/v1/events/${editingEvent.id}`, patchPayload);
 
-        const updatedEvent = response.data;
+        const updatedEvent = response.data?.event || response.data;
         setEvents((prev) => {
           const updatedEvents = prev.map((evt) => (evt.id === updatedEvent.id ? updatedEvent : evt));
           const updatedIndex = updatedEvents.findIndex((evt) => evt.id === updatedEvent.id);

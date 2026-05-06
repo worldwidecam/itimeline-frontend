@@ -8,6 +8,7 @@ import AudiotrackIcon from '@mui/icons-material/Audiotrack';
 import LinkIcon from '@mui/icons-material/Link';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EventIcon from '@mui/icons-material/Event';
+import RichContentRenderer from './RichContentRenderer';
 
 const TimelineEvent = ({ event, position = 'left', onDelete }) => {
   const theme = useTheme();
@@ -354,16 +355,14 @@ const TimelineEvent = ({ event, position = 'left', onDelete }) => {
             )}
           </Box>
 
-          <Typography
-            variant="body1"
-            sx={{
-              color: theme.palette.text.secondary,
-              lineHeight: 1.6,
-              mb: 2,
-            }}
-          >
-            {event.description}
-          </Typography>
+          {event.description && (
+            <Box sx={{ mb: 2 }}>
+              <RichContentRenderer
+                content={event.content || event.description}
+                theme={theme}
+              />
+            </Box>
+          )}
 
           {/* URL Preview Section */}
           {event.url && (

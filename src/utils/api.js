@@ -989,7 +989,8 @@ export const listReports = async (timelineId, params = {}) => {
       ...(typeof params.page_size === 'number' ? { page_size: params.page_size } : {}),
     };
     console.log(`[API] Listing reports for timeline ${timelineId}`, query);
-    const response = await api.get(`/api/v1/timelines/${timelineId}/reports`, { params: query });
+    // Use v3 endpoint instead of legacy
+    const response = await api.get(`/api/v1/timelines/${timelineId}/reported-events`, { params: query });
     console.log('[API] listReports response:', response.data);
     return response.data;
   } catch (error) {
