@@ -1532,7 +1532,7 @@ export const removePersonalTimelineViewer = async (timelineId, userId) => {
  */
 export const updateTimelineVisibility = async (timelineId, visibility) => {
   try {
-    const response = await api.put(`/api/v1/timelines/${timelineId}/visibility`, { visibility });
+    const response = await api.patch(`/api/v1/timelines/${timelineId}/visibility`, { visibility });
     return response.data;
   } catch (error) {
     console.error('Error updating timeline visibility:', error);
@@ -2295,10 +2295,13 @@ export const updateTimelineQuote = async (timelineId, quoteData) => {
       text: quoteData.text || '',
       author: quoteData.author || ''
     });
+    // Backend returns { ok: true } on success
     return {
-      success: true,
-      quote: response.data.quote,
-      message: response.data.message
+      success: response.data.ok === true,
+      quote: {
+        text: quoteData.text || '',
+        author: quoteData.author || ''
+      }
     };
   } catch (error) {
     console.error('Error updating timeline quote:', error);
@@ -2307,6 +2310,15 @@ export const updateTimelineQuote = async (timelineId, quoteData) => {
       error: error.response?.data?.error || 'Failed to update quote'
     };
   }
+};
+
+/**
+ * Clear the custom quote for a timeline (sets to empty)
+ * @param {string|number} timelineId - Timeline ID
+ * @returns {Promise<Object>} - Promise resolving to result
+ */
+export const clearTimelineQuote = async (timelineId) => {
+  return updateTimelineQuote(timelineId, { text: '', author: '' });
 };
 
 // =============================================================================
@@ -2405,25 +2417,26 @@ export const voteTimelineAction = async (timelineId, actionType) => {
 export const createTimelineAction = async (timelineId, actionData) => {
   try {
     console.log(`[API] Creating/updating ${actionData.action_type} action for timeline ${timelineId}`);
-    
+
     // Use PUT for upsert - backend expects PUT /api/v1/timelines/:id/actions
     const response = await api.put(`/api/v1/timelines/${timelineId}/actions`, actionData);
-    
-    if (response.data) {
-      console.log(`[API] Successfully created/updated action: ${response.data.message}`);
+
+    // Backend returns { id: number } on success
+    if (response.data && response.data.id) {
+      console.log(`[API] Successfully created/updated action with id: ${response.data.id}`);
       return {
         success: true,
-        action: response.data.action,
-        message: response.data.message
+        id: response.data.id,
+        action_type: actionData.action_type
       };
     }
-    
+
     return { success: false, error: 'No response data' };
   } catch (error) {
     console.error(`[API] Error creating timeline action:`, error);
-    return { 
-      success: false, 
-      error: error.response?.data?.error || error.message 
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
     };
   }
 };
@@ -2461,31 +2474,32 @@ export const updateTimelineAction = async (timelineId, actionId, updateData) => 
 };
 
 /**
- * Delete an action card
+ * Delete an action card by type
  * @param {string|number} timelineId - Timeline ID
- * @param {string|number} actionId - Action ID
+ * @param {string} actionType - Action type ('bronze', 'silver', 'gold')
  * @returns {Promise<Object>} - Promise resolving to deletion result
  */
-export const deleteTimelineAction = async (timelineId, actionId) => {
+export const deleteTimelineAction = async (timelineId, actionType) => {
   try {
-    console.log(`[API] Deleting action ${actionId} for timeline ${timelineId}`);
-    
-    const response = await api.delete(`/api/v1/timelines/${timelineId}/actions/${actionId}`);
-    
-    if (response.data) {
-      console.log(`[API] Successfully deleted action: ${response.data.message}`);
+    console.log(`[API] Deleting ${actionType} action for timeline ${timelineId}`);
+
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/actions/${actionType}`);
+
+    // Backend returns { ok: true }
+    if (response.data && response.data.ok) {
+      console.log(`[API] Successfully deleted ${actionType} action`);
       return {
         success: true,
-        message: response.data.message
+        action_type: actionType
       };
     }
-    
+
     return { success: false, error: 'No response data' };
   } catch (error) {
     console.error(`[API] Error deleting timeline action:`, error);
-    return { 
-      success: false, 
-      error: error.response?.data?.error || error.message 
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
     };
   }
 };
@@ -2521,9 +2535,9 @@ export const saveTimelineActions = async (timelineId, actionsData) => {
         };
         
         const result = await createTimelineAction(timelineId, actionData);
-        
+
         if (result.success) {
-          results.saved.push({ type: actionType, action: result.action });
+          results.saved.push({ type: actionType, id: result.id });
         } else {
           results.errors.push({ type: actionType, error: result.error });
           results.success = false;

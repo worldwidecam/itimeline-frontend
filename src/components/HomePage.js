@@ -4414,6 +4414,9 @@ const HomePage = () => {
                               key={`popular-timeline-${timeline?.id || timeline?.name || index}`}
                               timeline={timeline}
                               sections={HOME_TIMELINE_CARD_SECTIONS}
+                              allowFavoriteToggle
+                              isFavoriteTimeline={Number(timeline?.id || 0) > 0 && favoriteTimelineId === Number(timeline?.id || 0)}
+                              onToggleFavorite={handleToggleFavoriteTimeline}
                               onOpenTimeline={handleOpenTimelineCard}
                               formatDate={formatDate}
                             />
@@ -5386,6 +5389,9 @@ const HomePage = () => {
                                       key={`search-timeline-${timeline?.id || timeline?.name || index}`}
                                       timeline={timeline}
                                       sections={HOME_TIMELINE_CARD_SECTIONS}
+                                      allowFavoriteToggle
+                                      isFavoriteTimeline={Number(timeline?.id || 0) > 0 && favoriteTimelineId === Number(timeline?.id || 0)}
+                                      onToggleFavorite={handleToggleFavoriteTimeline}
                                       onOpenTimeline={handleOpenTimelineCard}
                                       formatDate={formatDate}
                                     />

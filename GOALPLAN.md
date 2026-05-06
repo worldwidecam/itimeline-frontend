@@ -185,6 +185,15 @@ systems check (DEEP AUDIT - line-by-line verification):
 ## Current Focus / Main Parent TODO
 - [ ] Functional verification - Page-by-page testing of all features
 
+### Audit Methodology
+When auditing each feature/endpoint:
+1. **Frontend calls** → reveal the "contract" that was working
+2. **New backend** → may have invented different names/structures
+3. **Case-by-case decision**:
+   - Update frontend to new backend naming, OR
+   - Keep frontend naming, adapt backend to match
+4. **Goal**: Find the path of least resistance for each integration point
+
 ## Page Audit Checklist
 ### ✅ Completed Pages
 - [x] **Landing Page** (`/`) - Logout, badge settings, auth parity fixed
@@ -198,7 +207,15 @@ systems check (DEEP AUDIT - line-by-line verification):
 - [x] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified ✅
 - [x] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave - user_color fix applied ✅
 - [ ] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports - user_color + action cards fix ✅
-  - [ ] **Settings Tab** - Timeline info, privacy, membership approval, posting restrictions, cover image
+  - [x] **Settings Tab** - Timeline info, privacy, membership approval, posting restrictions, cover image ✅
+    - **Fixes Applied**:
+      - HTTP method: `PUT` → `PATCH` for visibility endpoint
+      - Backend returns `privacy_changed_at` for cooldown tracking
+      - Cooldown aligned: 7 → 10 days (frontend was source of truth)
+      - Cooldown error now shows specific "X days left" message to user
+      - Event list endpoint now checks timeline visibility (private events protected)
+      - Share event now checks source timeline visibility (prevents leaking private content)
+    - **Currently Testing**: Private timeline toggle (on/off), cooldown enforcement, visibility propagation
   - [ ] **Manage Members Tab** - Active/pending/blocked members, promote/demote, block/unblock
   - [x] **Manage Posts Tab** - Pending/reviewing/resolved reports, accept, resolve, escalate ✅
   - [ ] **Cards Tab**:

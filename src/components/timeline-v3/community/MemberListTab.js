@@ -723,7 +723,7 @@ const MemberListTab = () => {
       if (!active) return;
       if (response?.quote?.text) {
         setCustomQuote({
-          text: response.quote.text,
+          text: response.quote.text || '',
           author: response.quote.author || 'Unknown'
         });
       } else {

@@ -4329,8 +4329,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
           const quoteResponse = await getTimelineQuote(id);
           if (quoteResponse.success) {
             setCommunityQuote({
-              text: quoteResponse.quote.text,
-              author: quoteResponse.quote.author
+              text: quoteResponse.quote.text || '',
+              author: quoteResponse.quote.author || ''
             });
           }
         } catch (quoteError) {
@@ -4545,6 +4545,17 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
           }
         } catch (visibilityError) {
           console.error('[SettingsTab] Error saving visibility:', visibilityError);
+          // Check for cooldown conflict error (409)
+          const errorData = visibilityError?.response?.data || {};
+          const retryDays = errorData?.details?.retry_after_days || errorData?.retry_after_days;
+          if (visibilityError?.response?.status === 409 && retryDays) {
+            setSnackbarMessage(`Cannot change visibility: ${retryDays} days left in cooldown period.`);
+            setSnackbarSeverity('warning');
+            setSnackbarOpen(true);
+            setIsSaving(false);
+            setShowSavedState(false);
+            return; // Don't throw, just show message and exit
+          }
           throw visibilityError;
         } finally {
           setIsChangingVisibility(false);
@@ -5573,8 +5584,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                   mb: 4, 
                   p: 3, 
                   borderRadius: 2,
+                  background: timelineSurfaces.panel,
                   border: '1px solid',
-                  borderColor: 'divider',
+                  borderColor: timelineSurfaces.panelBorder,
+                  backdropFilter: timelineSurfaces.panelBlur,
                   position: 'relative',
                   overflow: 'hidden',
                   '&::before': {
@@ -5742,8 +5755,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                   mb: 4, 
                   p: 3, 
                   borderRadius: 2,
+                  background: timelineSurfaces.panel,
                   border: '1px solid',
-                  borderColor: 'divider',
+                  borderColor: timelineSurfaces.panelBorder,
+                  backdropFilter: timelineSurfaces.panelBlur,
                   position: 'relative',
                   overflow: 'hidden',
                   '&::before': {
@@ -5910,8 +5925,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                   mb: 4, 
                   p: 3, 
                   borderRadius: 2,
+                  background: timelineSurfaces.panel,
                   border: '1px solid',
-                  borderColor: 'divider',
+                  borderColor: timelineSurfaces.panelBorder,
+                  backdropFilter: timelineSurfaces.panelBlur,
                   position: 'relative',
                   overflow: 'hidden',
                   '&::before': {
