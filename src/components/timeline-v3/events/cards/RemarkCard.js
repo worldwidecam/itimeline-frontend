@@ -43,6 +43,7 @@ const RemarkCard = forwardRef(({
   reviewingEventIds = new Set(),
   showInlineVoteControls = true,
   showVoteOverlay = false,
+  timelineType = 'hashtag',
 }, ref) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
@@ -536,6 +537,7 @@ const RemarkCard = forwardRef(({
         onEdit={onEdit}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
+        timelineType={timelineType}
       />
     </>
   );

@@ -65,7 +65,8 @@ const EventList = ({
   goToNext, // Function to navigate to next event
   currentEventIndex, // Current event index for carousel navigation
   reviewingEventIds = new Set(), // Set of event IDs that are "in review" on this timeline
-  eventRefs: externalEventRefs // Optional shared refs for TimelineV3 integration
+  eventRefs: externalEventRefs, // Optional shared refs for TimelineV3 integration
+  timelineType = 'hashtag' // Timeline type for report court routing
 }) => {
   const theme = useTheme();
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
@@ -302,6 +303,7 @@ const EventList = ({
           isSelected={isSelected}
           setIsPopupOpen={setIsPopupOpen}
           reviewingEventIds={reviewingEventIds}
+          timelineType={timelineType}
         />
       </motion.div>
     );

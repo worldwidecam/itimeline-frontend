@@ -2297,19 +2297,21 @@ const handleViewModeTransition = (newViewMode) => {
     fetchEvents();
   }, [timelineId, userInteracted, accessDenied, hookStatus]);
 
-  // Fetch reviewing reports to show "In Review" icon on event popups
+  // Fetch pending and reviewing reports to show "In Review" icon on event popups
   useEffect(() => {
     const fetchReviewingReports = async () => {
       if (!timelineId || timelineId === 'new' || !isAuthenticated) return;
       
       try {
-        const response = await listReports(timelineId, { status: 'reviewing' });
-        // Extract event IDs from the reports
-        const eventIds = new Set(
-          (response.items || []).map(report => {
-            return report.event_id;
-          }).filter(Boolean)
-        );
+        // Fetch both pending and reviewing statuses
+        const [pendingResponse, reviewingResponse] = await Promise.all([
+          listReports(timelineId, { status: 'pending' }),
+          listReports(timelineId, { status: 'reviewing' })
+        ]);
+        // Extract event IDs from both pending and reviewing reports
+        const pendingIds = (pendingResponse.items || []).map(report => report.event_id).filter(Boolean);
+        const reviewingIds = (reviewingResponse.items || []).map(report => report.event_id).filter(Boolean);
+        const eventIds = new Set([...pendingIds, ...reviewingIds]);
         setReviewingEventIds(eventIds);
       } catch (error) {
         // Silently fail - user might not have permission to view reports (non-moderator)
@@ -4064,6 +4066,7 @@ const handleRecenter = () => {
             eventRefs={eventRefs}
             reviewingEventIds={reviewingEventIds}
             motionDissipate={!isSettled}
+            timelineType={timeline_type}
           />
         )}
       </Box>

@@ -104,6 +104,8 @@ const EventPopup = ({
   onEdit,
   setIsPopupOpen,
   reviewingEventIds,
+  timelineType = 'hashtag',
+  hideActionMenu = false, // Hide ellipsis menu (for admin page view)
 }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -138,88 +140,31 @@ const EventPopup = ({
         return;
       }
       
-      // First check if reviewingEventIds prop is provided (from AdminPanel)
+      // First check if reviewingEventIds prop is provided (from TimelineV3 for mods)
       if (effectiveReviewingEventIds.size > 0) {
         setIsInReview(effectiveReviewingEventIds.has(event.id));
-        // AdminPanel doesn't provide safeguarded IDs yet, so fetch separately
       }
       
-      // Fetch from API (for timeline page or to get safeguarded status)
-      // We need to get the current timeline ID from the URL, not from the event
+      // Use public endpoint to check report status (works for all authenticated users)
       try {
-        // Extract timeline ID from current URL path
-        const pathMatch = location.pathname.match(/timeline(?:-v3)?\/(\d+)/);
-        const currentTimelineId = pathMatch ? pathMatch[1] : null;
+        const response = await api.get(`/api/v1/events/${event.id}/report-status`);
+        const data = response.data;
         
-        if (!currentTimelineId) {
-          setIsInReview(false);
-          setIsSafeguarded(false);
-          return;
-        }
-
-        // Skip report polling for users without likely moderation access to this timeline
-        let canCheckReports = false;
-        try {
-          const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const currentUserId = localUser?.id || null;
-          const passportKey = currentUserId ? `user_passport_${currentUserId}` : null;
-          const passport = passportKey ? JSON.parse(localStorage.getItem(passportKey) || '{}') : {};
-          if (passport?.is_site_admin || String(currentUserId) === '1') {
-            canCheckReports = true;
-          } else {
-            const membership = (passport?.memberships || []).find((m) => Number(m?.timeline_id) === Number(currentTimelineId));
-            const role = String(membership?.member_role || membership?.role || '').toLowerCase();
-            canCheckReports = role === 'admin' || role === 'moderator';
-          }
-        } catch (_) {
-          canCheckReports = false;
-        }
-
-        if (!canCheckReports) {
-          setIsInReview(false);
-          setIsSafeguarded(false);
-          return;
-        }
-        
-        // Fetch reviewing reports
-        if (effectiveReviewingEventIds.size === 0) {
-          const reviewingResponse = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
-            params: { status: 'reviewing' }
-          });
-          
-          const reviewingIds = (reviewingResponse.data?.items || [])
-            .map(report => report.event_id)
-            .filter(Boolean);
-          
-          setIsInReview(reviewingIds.includes(event.id));
-        }
-        
-        // Fetch resolved reports with safeguard resolution
-        const resolvedResponse = await api.get(`/api/v1/timelines/${currentTimelineId}/reports`, {
-          params: { status: 'resolved' }
-        });
-        
-        const now = new Date();
-        const safeguardedIds = (resolvedResponse.data?.items || [])
-          .filter(report => {
-            if (report.resolution !== 'safeguard') return false;
-            // Only active if safe_until is in the future (or not set — no expiry)
-            if (report.safe_until) return new Date(report.safe_until) > now;
-            return true;
-          })
-          .map(report => report.event_id)
-          .filter(Boolean);
-        
-        setIsSafeguarded(safeguardedIds.includes(event.id));
+        // Set status from public endpoint
+        setIsInReview(data.in_review || false);
+        setIsSafeguarded(data.safeguarded || false);
       } catch (error) {
-        // Silently fail - user might not have permission
-        setIsInReview(false);
+        // Silently fail - endpoint might not exist yet or user not authenticated
+        // Keep isInReview from reviewingEventIds prop if available
+        if (effectiveReviewingEventIds.size === 0) {
+          setIsInReview(false);
+        }
         setIsSafeguarded(false);
       }
     };
     
     checkReportStatus();
-  }, [open, event?.id, location.pathname, effectiveReviewingEventIds, isGuest]);
+  }, [open, event?.id, effectiveReviewingEventIds, isGuest]);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -673,7 +618,7 @@ const EventPopup = ({
       || (isEventCreator && !isEditLocked)
     )
   );
-  const canOpenActionMenu = !isGuest && (canEdit || canDelete || !isSafeguarded);
+  const canOpenActionMenu = !isGuest && !hideActionMenu && (canEdit || canDelete || !isSafeguarded);
 
   const getTimelineOwnerId = (timeline) => {
     if (!timeline || typeof timeline !== 'object') return null;

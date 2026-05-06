@@ -691,6 +691,7 @@ const BrokenEventsTab = () => {
             setPopupEvent(null);
           }}
           reviewingEventIds={new Set()}
+          hideActionMenu={true}
         />
       ) : null}
     </Box>
@@ -1088,10 +1089,12 @@ const GlobalReportsTab = () => {
 
         const statusRaw = (it.status || 'pending').toLowerCase();
         const normalizedStatus = statusRaw === 'escalated' ? 'pending' : statusRaw;
+        const isEscalated = statusRaw === 'escalated';
         return {
           id: it.id || it.report_id || String(Math.random()),
           eventType: displayType,
           status: normalizedStatus,
+          isEscalated,
           reportDate: it.reported_at || it.created_at || '',
           eventId: it.event_id,
           timelineId: it.timeline_id,
@@ -1449,6 +1452,14 @@ const GlobalReportsTab = () => {
                             icon={statusColor.icon}
                             sx={{ bgcolor: statusColor.bg, color: statusColor.text, fontWeight: 500 }}
                           />
+                          {post.isEscalated && (
+                            <Chip
+                              label="Escalated"
+                              size="small"
+                              color="error"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          )}
                         </Box>
                         <Stack spacing={0.4} alignItems={{ xs: 'flex-start', sm: 'flex-end' }}>
                           <Typography variant="body2" color="text.secondary">
@@ -2444,6 +2455,7 @@ const GlobalReportsTab = () => {
           onClose={() => setEventPopupOpen(false)}
           onEdit={() => handleOpenResolveEdit(selectedPost)}
           reviewingEventIds={reviewingEventIds}
+          hideActionMenu={true}
         />
       )}
 

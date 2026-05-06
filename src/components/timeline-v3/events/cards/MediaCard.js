@@ -52,6 +52,7 @@ const MediaCard = forwardRef(({
   showInlineVoteControls = true,
   showVoteOverlay = false,
   onMediaLoadError,
+  timelineType = 'hashtag',
 }, ref) => {
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
@@ -1329,6 +1330,7 @@ const MediaCard = forwardRef(({
         onEdit={onEdit}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
+        timelineType={timelineType}
       />
     </>
   );

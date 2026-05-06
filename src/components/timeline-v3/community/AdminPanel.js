@@ -2165,7 +2165,8 @@ const ManagePostsTab = ({ timelineId }) => {
         return {
           id: it.id || it.report_id || String(Math.random()),
           eventType: displayType,
-          status: it.status || 'pending',
+          status: it.status === 'escalated' ? 'pending' : (it.status || 'pending'),
+          isEscalated: it.status === 'escalated',
           reportDate: it.reported_at || it.created_at || it.reportDate || '',
           eventId: it.event_id,
           reporter: it.reporter || {
@@ -2511,6 +2512,14 @@ const ManagePostsTab = ({ timelineId }) => {
                           fontWeight: 500
                         }}
                       />
+                      {post.isEscalated && (
+                        <Chip
+                          label="Escalated"
+                          size="small"
+                          color="error"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      )}
                     </Box>
 
                     <Stack spacing={0.4} alignItems={{ xs: 'flex-start', sm: 'flex-end' }}>
@@ -2842,6 +2851,7 @@ const ManagePostsTab = ({ timelineId }) => {
           onClose={() => setEventPopupOpen(false)}
           onEdit={handleOpenEventEdit}
           reviewingEventIds={reviewingEventIds}
+          hideActionMenu={true}
         />
       )}
 

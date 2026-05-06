@@ -55,6 +55,7 @@ const NewsCard = forwardRef(({
   reviewingEventIds = new Set(),
   showInlineVoteControls = true,
   showVoteOverlay = false,
+  timelineType = 'hashtag',
 }, ref) => {
   const NEWS_LINK_FALLBACK_IMAGE = '/images/fallbacks/news-link-fallback.jpg';
   const theme = useTheme();
@@ -752,6 +753,7 @@ const NewsCard = forwardRef(({
         onEdit={onEdit}
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
+        timelineType={timelineType}
       />
     </>
   );
