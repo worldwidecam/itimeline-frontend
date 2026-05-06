@@ -3,6 +3,12 @@ import { Box, Typography, Chip, Tooltip } from '@mui/material';
 import { Link as LinkIcon } from '@mui/icons-material';
 import { People as CommunityIcon } from '@mui/icons-material';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import CommentIcon from '@mui/icons-material/Comment';
+import MovieIcon from '@mui/icons-material/Movie';
+import ImageIcon from '@mui/icons-material/Image';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import AudiotrackIcon from '@mui/icons-material/Audiotrack';
+import NewspaperIcon from '@mui/icons-material/Newspaper';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../../common/UserAvatar';
 import HashtagIcon from '../../common/HashtagIcon';
@@ -14,10 +20,35 @@ import { parseRichContent } from '../../../utils/richContent';
 
 const EventPopup = React.lazy(() => import('./EventPopup'));
 
+// Helper to get event type icon and color for event reference chips
+const getEventTypeDisplay = (eventType) => {
+  const type = (eventType || '').toLowerCase();
+  switch (type) {
+    case 'remark':
+      return { icon: CommentIcon, color: '#2196f3', label: 'POST' };
+    case 'media':
+      return { icon: MovieIcon, color: '#7b1fa2', label: 'POST' };
+    case 'media_image':
+    case 'image':
+      return { icon: ImageIcon, color: '#009688', label: 'POST' };
+    case 'media_video':
+    case 'video':
+      return { icon: VideocamIcon, color: '#4a148c', label: 'POST' };
+    case 'media_audio':
+    case 'audio':
+      return { icon: AudiotrackIcon, color: '#e65100', label: 'POST' };
+    case 'news':
+      return { icon: NewspaperIcon, color: '#e53935', label: 'POST' };
+    default:
+      return { icon: CommentIcon, color: '#757575', label: 'POST' };
+  }
+};
+
 const RichContentRenderer = ({
   content,
   theme,
   onOpenEventReference,
+  onChipClick,
   solidChips = false,
   disableInteractions = false,
   inheritTextColor = false,
@@ -219,6 +250,9 @@ const RichContentRenderer = ({
 
   const handleMentionClick = async (type, name, username) => {
     if (disableInteractions) return;
+    if (typeof onChipClick === 'function') {
+      onChipClick(type, name, username);
+    }
     switch (type) {
       case 'user_mention': {
         const userData = await fetchUserData(username);
@@ -462,13 +496,15 @@ const RichContentRenderer = ({
           const cachedEvent = eventReferenceCache[normalizedEventId];
           const eventType = cachedEvent?.type || EVENT_TYPES.REMARK;
           const eventColor = getEventReferenceColor(eventType);
+          const eventTypeDisplay = getEventTypeDisplay(eventType);
+          const EventTypeIcon = eventTypeDisplay.icon;
           const canOpenEventReference = !disableInteractions && !isGuest;
 
           return (
             <Tooltip key={index} title={canOpenEventReference ? 'Click to open event popup' : 'Unavailable in guest mode'}>
               <Chip
-                icon={<EventOutlinedIcon fontSize="small" />}
-                label={item.text || `~${normalizedEventId}`}
+                icon={<EventTypeIcon fontSize="small" />}
+                label={eventTypeDisplay.label}
                 size="small"
                 onClick={canOpenEventReference ? () => handleMentionClick('event_reference', normalizedEventId, null) : undefined}
                 sx={{

@@ -42,6 +42,8 @@ import ToolbarSpacer from './ToolbarSpacer';
 import api, { checkMembershipStatus, getTimelineWarningState, getTimelineStatusMessage, getTimelineActions, getLandingRotatorSettings } from '../utils/api';
 import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta } from './timeline-v3/community/timelineStatusActionUtils';
 import { displayUsername } from '../utils/usernameDisplay';
+import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
+const EventPopup = React.lazy(() => import('./timeline-v3/events/EventPopup'));
 
 function Navbar() {
   const navigate = useNavigate();
@@ -63,6 +65,8 @@ function Navbar() {
   const [showStatusAttention, setShowStatusAttention] = useState(false);
   const [statusActionCard, setStatusActionCard] = useState(null);
   const [isStatusViewerMember, setIsStatusViewerMember] = useState(true);
+  const [statusEventPopup, setStatusEventPopup] = useState(null);
+  const [statusEventPopupOpen, setStatusEventPopupOpen] = useState(false);
   const [toolbarLedMessage, setToolbarLedMessage] = useState('');
   const [toolbarLedEnabled, setToolbarLedEnabled] = useState(false);
   const [toolbarLedRandomStart, setToolbarLedRandomStart] = useState(true);
@@ -267,6 +271,17 @@ function Navbar() {
 
   const handleStatusClose = () => {
     setStatusAnchorEl(null);
+  };
+
+  const handleStatusEventPopupOpen = ({ eventId, resolvedEvent }) => {
+    setStatusEventPopup(resolvedEvent);
+    setStatusEventPopupOpen(true);
+    handleStatusClose(); // Close the dropdown so it doesn't block the popup
+  };
+
+  const handleStatusEventPopupClose = () => {
+    setStatusEventPopupOpen(false);
+    setStatusEventPopup(null);
   };
   
   // Load last visited timeline from localStorage on component mount
@@ -1162,9 +1177,13 @@ function Navbar() {
                                                 {timelineStatusMessage.status_header}
                                               </Typography>
                                             )}
-                                            <Typography variant="body2" sx={{ opacity: 0.92, mt: 1, lineHeight: 1.6 }}>
-                                              {timelineStatusMessage?.status_body || ''}
-                                            </Typography>
+                                            <Box sx={{ mt: 1, lineHeight: 1.6 }}>
+                                              <RichContentRenderer
+                                                content={timelineStatusMessage?.status_body || ''}
+                                                theme={theme}
+                                                inheritTextColor
+                                              />
+                                            </Box>
                                           </Box>
                                         </Box>
 
@@ -1219,9 +1238,15 @@ function Navbar() {
                                             {timelineStatusMessage.status_header}
                                           </Typography>
                                         )}
-                                        <Typography variant="body2" sx={{ opacity: 0.9, mt: 1, lineHeight: 1.6 }}>
-                                          {timelineStatusMessage?.status_body || ''}
-                                        </Typography>
+                                        <Box sx={{ mt: 1, lineHeight: 1.6 }}>
+                                          <RichContentRenderer
+                                            content={timelineStatusMessage?.status_body || ''}
+                                            theme={theme}
+                                            inheritTextColor
+                                            onChipClick={handleStatusClose}
+                                            onOpenEventReference={handleStatusEventPopupOpen}
+                                          />
+                                        </Box>
                                       </>
                                     )}
                                   </Box>
@@ -1480,6 +1505,18 @@ function Navbar() {
         </Toolbar>
       </AppBar>
       <ToolbarSpacer />
+
+      {/* Event popup from status dropdown - rendered here so it persists after dropdown closes */}
+      <React.Suspense fallback={null}>
+        {statusEventPopup && (
+          <EventPopup
+            open={statusEventPopupOpen}
+            onClose={handleStatusEventPopupClose}
+            event={statusEventPopup}
+            theme={theme}
+          />
+        )}
+      </React.Suspense>
     </>
   );
 }

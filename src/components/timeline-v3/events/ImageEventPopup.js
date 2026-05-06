@@ -367,7 +367,8 @@ const ImageEventPopup = ({
               onError={(e) => {
                 console.error('Error loading image:', e);
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+                // Use local fallback image
+                e.target.src = '/images/fallbacks/news-link-fallback.jpg';
               }}
             />
             

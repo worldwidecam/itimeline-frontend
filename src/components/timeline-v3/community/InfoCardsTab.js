@@ -377,10 +377,7 @@ const InfoCardsTab = ({ timelineId }) => {
       await api.patch(
         `/api/v1/timelines/${timelineId}/info-cards/reorder`,
         {
-          cards: reorderedCards.map(card => ({
-            id: card.id,
-            order: card.card_order
-          }))
+          ordered_ids: reorderedCards.map(card => card.id)
         }
       );
 

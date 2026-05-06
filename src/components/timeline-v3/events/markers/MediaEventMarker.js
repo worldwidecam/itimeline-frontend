@@ -271,7 +271,8 @@ const MediaEventMarker = ({ event, onDelete, onEdit }) => {
             onError={(e) => {
               // Fallback to a placeholder if image fails to load
               e.target.onerror = null;
-              e.target.src = 'https://via.placeholder.com/300x150?text=Image+Not+Available';
+              // Use local fallback image
+              e.target.src = '/images/fallbacks/news-link-fallback.jpg';
             }}
             sx={{
               width: '100%',

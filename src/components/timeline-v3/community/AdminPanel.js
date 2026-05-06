@@ -32,7 +32,9 @@ import {
   Slider,
   ToggleButton,
   ToggleButtonGroup,
-  Portal
+  Portal,
+  Tooltip,
+  Popper
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -63,13 +65,17 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import InfoIcon from '@mui/icons-material/Info';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
 import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
+import PersonIcon from '@mui/icons-material/Person';
+import LinkIcon from '@mui/icons-material/Link';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavFab from './NavFab';
 import api from '../../../utils/api';
-import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage } from '../../../utils/api';
+import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage, deleteTimelineStatusMessage } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
+import HashtagIcon from '../../common/HashtagIcon';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
 import EventDialog from '../events/EventDialog';
@@ -163,6 +169,132 @@ const extractKeyFromUrl = (url) => {
     // If URL parsing fails, return original
     return url;
   }
+};
+
+// Rich Editor Component for Status Cards
+const StatusRichEditor = ({ value, onChange, disabled, placeholder }) => {
+  const [cursorPos, setCursorPos] = useState(0);
+  const [indicator, setIndicator] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const textFieldRef = useRef(null);
+
+  const detectMention = (text, pos) => {
+    const beforeCursor = text.substring(0, pos);
+    
+    const atMatch = beforeCursor.match(/@([a-zA-Z0-9_]*)$/);
+    if (atMatch) {
+      return { type: 'user', label: 'Tagging', partial: atMatch[1], color: 'rgba(33, 150, 243, 0.15)' };
+    }
+    
+    const hashMatch = beforeCursor.match(/#([a-zA-Z0-9_]*)$/);
+    if (hashMatch) {
+      return { type: 'hashtag', label: 'Hashtag', partial: hashMatch[1], color: 'rgba(76, 175, 80, 0.15)' };
+    }
+    
+    const commMatch = beforeCursor.match(/i-([a-zA-Z0-9_]*)$/);
+    if (commMatch) {
+      return { type: 'community', label: 'Community', partial: commMatch[1], color: 'rgba(156, 39, 176, 0.15)' };
+    }
+    
+    const wwwMatch = beforeCursor.match(/www\.([a-zA-Z0-9._-]*)$/);
+    if (wwwMatch) {
+      return { type: 'url', label: 'URL', partial: wwwMatch[1], color: 'rgba(255, 152, 0, 0.15)' };
+    }
+
+    const eventRefMatch = beforeCursor.match(/~([0-9]*)$/);
+    if (eventRefMatch) {
+      return { type: 'event', label: 'Event', partial: eventRefMatch[1], color: 'rgba(103, 58, 183, 0.15)' };
+    }
+    
+    return null;
+  };
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    const newCursorPos = e.target.selectionStart;
+    
+    onChange(newValue);
+    setCursorPos(newCursorPos);
+    
+    const mention = detectMention(newValue, newCursorPos);
+    if (mention) {
+      setIndicator(mention);
+      setAnchorEl(textFieldRef.current);
+    } else {
+      setIndicator(null);
+      setAnchorEl(null);
+    }
+  };
+
+  const getIndicatorIcon = () => {
+    if (!indicator) return null;
+    switch (indicator.type) {
+      case 'user':
+        return <PersonIcon fontSize="small" />;
+      case 'hashtag':
+        return <HashtagIcon fontSize="small" />;
+      case 'community':
+        return <PeopleIcon fontSize="small" />;
+      case 'link':
+      case 'url':
+        return <LinkIcon fontSize="small" />;
+      case 'event':
+        return <EventOutlinedIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+
+  const getIndicatorText = () => {
+    if (!indicator) return '';
+    const text = indicator.partial ? ` ${indicator.partial}` : '';
+    return `${indicator.label}${text}`;
+  };
+
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <TextField
+        ref={textFieldRef}
+        label="Status message body"
+        fullWidth
+        multiline
+        rows={3}
+        value={value}
+        onChange={handleChange}
+        placeholder={placeholder || "Write a short update for your community"}
+        disabled={disabled}
+        helperText={`${value.length}/320 chars • Use @ # i- www. or ~123 for mentions`}
+        error={value.length > 320}
+      />
+      
+      <Popper
+        open={Boolean(indicator && anchorEl)}
+        anchorEl={anchorEl}
+        placement="bottom-start"
+        style={{ zIndex: 1300 }}
+      >
+        <Paper
+          sx={{
+            mt: 1,
+            px: 2,
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            bgcolor: indicator?.color,
+            border: '1px solid',
+            borderColor: 'divider',
+            pointerEvents: 'none'
+          }}
+        >
+          {getIndicatorIcon()}
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            {getIndicatorText()}
+          </Typography>
+        </Paper>
+      </Popper>
+    </Box>
+  );
 };
 
 const AdminPanel = () => {
@@ -3712,6 +3844,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
   const [statusType, setStatusType] = useState('');
   const [statusHeader, setStatusHeader] = useState('');
   const [statusBody, setStatusBody] = useState('');
+  const [statusShouldDelete, setStatusShouldDelete] = useState(false);
   
   // Timeline data loaded from backend
   const [timelineData, setTimelineData] = useState(null);
@@ -4296,6 +4429,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
     setStatusType('');
     setStatusHeader('');
     setStatusBody('');
+    setStatusShouldDelete(true);
     setHasUnsavedChanges(true);
   };
 
@@ -4508,8 +4642,11 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       }
 
       try {
-        // Only save if we have a valid status message (backend requires header min 1 char)
-        if (statusHeader && statusHeader.trim()) {
+        // Handle status message: delete if reset, otherwise save if has content
+        if (statusShouldDelete) {
+          await deleteTimelineStatusMessage(id);
+          setStatusShouldDelete(false);
+        } else if (statusHeader && statusHeader.trim()) {
           await updateTimelineStatusMessage(id, {
             status_type: statusType || 'good',
             header: statusHeader.trim(),
@@ -5274,6 +5411,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                     exclusive
                     onChange={(_event, newValue) => {
                       setStatusType(newValue || '');
+                      setStatusShouldDelete(false);
                       setHasUnsavedChanges(true);
                     }}
                     sx={{ mb: 2, flexWrap: 'wrap' }}
@@ -5286,24 +5424,36 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                       <ThumbDownAltRoundedIcon fontSize="small" />
                       Bad News
                     </ToggleButton>
-                    <ToggleButton value="bronze_action" sx={{ textTransform: 'none', gap: 1 }}>
-                      <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
-                        🥉
-                      </Box>
-                      Bronze Action
-                    </ToggleButton>
-                    <ToggleButton value="silver_action" sx={{ textTransform: 'none', gap: 1 }}>
-                      <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
-                        🥈
-                      </Box>
-                      Silver Action
-                    </ToggleButton>
-                    <ToggleButton value="gold_action" sx={{ textTransform: 'none', gap: 1 }}>
-                      <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
-                        🥇
-                      </Box>
-                      Gold Action
-                    </ToggleButton>
+                    <Tooltip title={!bronzeActionTitle ? 'Create a Bronze Action card first' : ''} placement="top">
+                      <span>
+                        <ToggleButton value="bronze_action" sx={{ textTransform: 'none', gap: 1 }} disabled={!bronzeActionTitle}>
+                          <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                            🥉
+                          </Box>
+                          Bronze Action
+                        </ToggleButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={!silverActionTitle ? 'Create a Silver Action card first' : ''} placement="top">
+                      <span>
+                        <ToggleButton value="silver_action" sx={{ textTransform: 'none', gap: 1 }} disabled={!silverActionTitle}>
+                          <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                            🥈
+                          </Box>
+                          Silver Action
+                        </ToggleButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={!goldActionTitle ? 'Create a Gold Action card first' : ''} placement="top">
+                      <span>
+                        <ToggleButton value="gold_action" sx={{ textTransform: 'none', gap: 1 }} disabled={!goldActionTitle}>
+                          <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                            🥇
+                          </Box>
+                          Gold Action
+                        </ToggleButton>
+                      </span>
+                    </Tooltip>
                   </ToggleButtonGroup>
                   <TextField
                     fullWidth
@@ -5313,26 +5463,21 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                     value={statusHeader}
                     onChange={(e) => {
                       setStatusHeader(e.target.value);
+                      setStatusShouldDelete(false);
                       setHasUnsavedChanges(true);
                     }}
                     helperText={`${(statusHeader.trim() ? statusHeader.trim().split(/\s+/).length : 0)} / 4 words • ${statusHeader.length}/120 chars`}
                     error={(statusHeader.trim() ? statusHeader.trim().split(/\s+/).length : 0) > 4 || statusHeader.length > 120}
                     sx={{ mb: 2 }}
                   />
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={3}
-                    label="Status message body"
-                    placeholder="Write a short update for your community"
-                    variant="outlined"
+                  <StatusRichEditor
                     value={statusBody}
-                    onChange={(e) => {
-                      setStatusBody(e.target.value);
+                    onChange={(value) => {
+                      setStatusBody(value);
+                      setStatusShouldDelete(false);
                       setHasUnsavedChanges(true);
                     }}
-                    helperText={`${statusBody.length}/320 chars`}
-                    error={statusBody.length > 320}
+                    disabled={false}
                   />
                 </Box>
               </Paper>

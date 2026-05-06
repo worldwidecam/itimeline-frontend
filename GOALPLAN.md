@@ -194,10 +194,18 @@ systems check (DEEP AUDIT - line-by-line verification):
 ### 🔲 Pages to Audit
 - [ ] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - endpoint added ✅
 - [x] **Home Page** (`/home`) - Feed loading, timeline lanes, FAB, MAKE A POST
-- [ ] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified ✅
-- [ ] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified ✅
-- [ ] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave - user_color fix applied ✅
+- [x] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified ✅
+- [x] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified ✅
+- [x] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave - user_color fix applied ✅
 - [ ] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports - user_color + action cards fix ✅
+  - [ ] **Settings Tab** - Timeline info, privacy, membership approval, posting restrictions, cover image
+  - [ ] **Manage Members Tab** - Active/pending/blocked members, promote/demote, block/unblock
+  - [x] **Manage Posts Tab** - Pending/reviewing/resolved reports, accept, resolve, escalate ✅
+  - [ ] **Cards Tab**:
+    - [x] **Info Cards** - CRUD for info cards with rich text editor, drag-to-reorder ✅
+    - [ ] **Status Cards** - Status message type toggle (Good/Bad News, Bronze/Silver/Gold Action), header/body text
+    - [ ] **Quote Card** - Inspiration quote text and author fields
+    - [ ] **Action Cards** - Gold/Silver/Bronze actions with title, description, due date, threshold requirements
 - [ ] **Profile (Self)** (`/profile`) - Own profile display, editing - user_color already in UserSelfDTO ✅
 - [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view - uses same Profile component ✅
 - [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks - user_color in UserDTO ✅

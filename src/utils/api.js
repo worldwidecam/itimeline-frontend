@@ -1404,6 +1404,20 @@ export const updateTimelineStatusMessage = async (timelineId, payload) => {
 };
 
 /**
+ * Delete a timeline's status message.
+ * @param {number|string} timelineId
+ */
+export const deleteTimelineStatusMessage = async (timelineId) => {
+  try {
+    const response = await api.delete(`/api/v1/timelines/${timelineId}/status-message`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error deleting timeline status message:', error);
+    throw error;
+  }
+};
+
+/**
  * Look up a user by username.
  * Uses the public user search endpoint.
  */

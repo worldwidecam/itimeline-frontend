@@ -52,6 +52,16 @@ import { getCachedUserIdentityColor, resolveUserIdentityColor } from '../utils/u
 import { displayUsername } from '../utils/usernameDisplay';
 import { toRichContentPayload } from '../utils/richContent';
 
+const safeParseJson = (rawValue, fallback) => {
+  if (!rawValue || typeof rawValue !== 'string') return fallback;
+  try {
+    const parsed = JSON.parse(rawValue);
+    return parsed !== null && parsed !== undefined ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
 const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
