@@ -53,6 +53,9 @@ import Settings from '@mui/icons-material/Settings';
 import Visibility from '@mui/icons-material/Visibility';
 import Security from '@mui/icons-material/Security';
 import OutlinedFlag from '@mui/icons-material/OutlinedFlag';
+import Groups from '@mui/icons-material/Groups';
+import Tag from '@mui/icons-material/Tag';
+import Person from '@mui/icons-material/Person';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -68,6 +71,9 @@ const CheckCircleIcon = CheckCircle;
 const VisibilityIcon = Visibility;
 const SecurityIcon = Security;
 const OutlinedFlagIcon = OutlinedFlag;
+const GroupsIcon = Groups;
+const TagIcon = Tag;
+const PersonIcon = Person;
 const BannedTimelineLock = React.lazy(() => import('./community/BannedTimelineLock'));
 const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
 const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCommunity'));
@@ -2283,12 +2289,12 @@ const handleViewModeTransition = (newViewMode) => {
               });
             }, 100);
             
-            // Complete the loading after a delay
+            // Complete the loading after a longer delay to ensure the UI settles
             setTimeout(() => {
               clearInterval(markerLoadingInterval);
               setLoadingProgress(100);
               setProgressiveLoadingState('complete');
-            }, 1000); // Longer delay for markers to be visually distinct
+            }, 2500); // Increased delay for markers and list to settle visually
           }, markerLoadDelay); // Longer delay between events and markers
           
           return () => {
@@ -3102,7 +3108,7 @@ const handleRecenter = () => {
 };
 
   const shouldShowInitialTimelineShell = Boolean(timelineId && timelineId !== 'new') && (joinLoading || isLoading);
-  const shouldShowEventListShell = progressiveLoadingState === 'timeline';
+  const shouldShowEventListShell = progressiveLoadingState === 'timeline' || progressiveLoadingState === 'events';
 
   // Prevent a brief flash of privileged timeline UI while access/membership is still resolving.
   // Mirrors the skeleton-first behavior used in members/admin surfaces.
@@ -4001,7 +4007,7 @@ const handleRecenter = () => {
               }}
             />
             {!isLoading && (
-              <Box sx={{ position: 'relative', zIndex: 1, width: '100%' }}>
+              <Box sx={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', px: { xs: 2.5, md: 4 }, pb: 2.5 }}>
                 <Typography
                   variant="caption"
                   sx={{
@@ -4016,8 +4022,18 @@ const handleRecenter = () => {
                     letterSpacing: '0.15em',
                   }}
                 >
-                  COMMUNITY TIMELINE
+                  {String(timeline_type || 'community').toUpperCase()} TIMELINE
                 </Typography>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {timeline_type === 'community' ? (
+                    <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 24, md: 32 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                  ) : timeline_type === 'personal' ? (
+                    <PersonIcon sx={{ color: '#fff', fontSize: { xs: 24, md: 32 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                  ) : (
+                    <TagIcon sx={{ color: '#fff', fontSize: { xs: 24, md: 32 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                  )}
+                </Box>
               </Box>
             )}
           </Box>

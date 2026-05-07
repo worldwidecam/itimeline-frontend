@@ -427,7 +427,7 @@ const HomePage = () => {
   const [loadingYourPage, setLoadingYourPage] = React.useState(false);
   const [hasLoadedYourPage, setHasLoadedYourPage] = React.useState(false);
   const [hasBootstrappedYourPageCache, setHasBootstrappedYourPageCache] = React.useState(false);
-  const [favoriteTimelineId, setFavoriteTimelineId] = React.useState(null);
+  const [favoriteTimelineId, setFavoriteTimelineId] = React.useState(undefined);
   const lastSyncedFavoriteTimelineIdRef = React.useRef(undefined);
   const [favoriteTimelineDetails, setFavoriteTimelineDetails] = React.useState(null);
   const [loadingFavoriteTimelineDetails, setLoadingFavoriteTimelineDetails] = React.useState(false);
@@ -529,12 +529,12 @@ const HomePage = () => {
   }, [user?.id, getFavoriteTimelineKey]);
 
   React.useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || favoriteTimelineId === undefined) return;
     try {
       const key = getFavoriteTimelineKey(user.id);
       if (favoriteTimelineId && favoriteTimelineId > 0) {
         window.localStorage.setItem(key, String(favoriteTimelineId));
-      } else {
+      } else if (favoriteTimelineId === null) {
         window.localStorage.removeItem(key);
       }
     } catch (error) {
@@ -4675,7 +4675,12 @@ const HomePage = () => {
                         x: Number(selectedFavoriteTimeline?.cover_portrait_x ?? 50),
                         y: Number(selectedFavoriteTimeline?.cover_portrait_y ?? 50),
                       };
+                      const coverLandscapePosition = {
+                        x: Number(selectedFavoriteTimeline?.cover_landscape_x ?? 50),
+                        y: Number(selectedFavoriteTimeline?.cover_landscape_y ?? 50),
+                      };
                       const coverPortraitZoom = Number(selectedFavoriteTimeline?.cover_portrait_zoom ?? 1);
+                      const coverLandscapeZoom = Number(selectedFavoriteTimeline?.cover_landscape_zoom ?? 1);
                       const coverUploadEnabled = selectedFavoriteTimeline?.cover_upload_enabled !== false;
                       const clampFramePosition = (value, fallback = 50) => {
                         const numeric = Number(value);
@@ -4685,6 +4690,7 @@ const HomePage = () => {
                       const clampZoom = (value) => Math.max(1, Math.min(4.875, Number(value) || 1));
                       const getCoverTranslate = (value) => (clampFramePosition(value, 50) - 50) * 0.9;
                       const coverPortraitTransform = `translate(${getCoverTranslate(coverPortraitPosition?.x)}%, ${getCoverTranslate(coverPortraitPosition?.y)}%) scale(${coverUploadEnabled ? clampZoom(coverPortraitZoom) : (clampZoom(coverPortraitZoom) + 0.08)})`;
+                      const coverLandscapeTransform = `translate(${getCoverTranslate(coverLandscapePosition?.x)}%, ${getCoverTranslate(coverLandscapePosition?.y)}%) scale(${coverUploadEnabled ? clampZoom(coverLandscapeZoom) : (clampZoom(coverLandscapeZoom) + 0.08)})`;
                       const fallbackGradient = theme.palette.mode === 'dark'
                         ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
                         : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)';
@@ -4747,16 +4753,43 @@ const HomePage = () => {
                                   inset: 0,
                                   width: '100%',
                                   height: '100%',
-                                  objectFit: 'cover',
+                                  objectFit: 'contain',
+                                  objectPosition: '50% 50%',
+                                  filter: coverUploadEnabled
+                                    ? 'brightness(1.06) saturate(1.04)'
+                                    : 'blur(18px) saturate(0.45)',
+                                  transform: coverLandscapeTransform,
                                 }}
                               />
                             ) : null}
                             <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.06) 0%, rgba(2,6,23,0.42) 100%)' }} />
-                            <Box sx={{ position: 'absolute', left: 14, bottom: 10, zIndex: 1 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>
-                                <Box component="span" sx={{ color: '#ffe082' }}>{titlePrefix || ''}</Box>
-                                <Box component="span" sx={{ color: '#f8fafc' }}>{timelineName.toUpperCase()}</Box>
+                            <Box sx={{ position: 'absolute', left: { xs: 12, md: 16 }, right: { xs: 12, md: 16 }, bottom: { xs: 8, md: 12 }, zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: 'rgba(248,250,252,0.95)',
+                                  textShadow: `
+                                    0 2px 4px rgba(2,6,23,0.8), 
+                                    0 4px 12px rgba(2,6,23,0.6), 
+                                    0 0 20px rgba(2,6,23,0.4)
+                                  `,
+                                  fontWeight: 800,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.15em',
+                                }}
+                              >
+                                {timelineType.toUpperCase()} TIMELINE
                               </Typography>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                {timelineType === 'community' ? (
+                                  <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                                ) : timelineType === 'personal' ? (
+                                  <PersonIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                                ) : (
+                                  <TagIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+                                )}
+                              </Box>
                             </Box>
                           </Box>
 

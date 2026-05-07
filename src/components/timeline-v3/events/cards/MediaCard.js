@@ -25,6 +25,7 @@ import {
 import MovieIcon from '@mui/icons-material/Movie';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
@@ -56,6 +57,7 @@ const MediaCard = forwardRef(({
 }, ref) => {
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   
   // Reset error state when event changes
   useEffect(() => {
@@ -597,6 +599,11 @@ const MediaCard = forwardRef(({
         const sourceCandidates = srcOriginal
           ? [srcOriginal]
           : [srcMp4, srcWebm, base];
+        // Construct poster URL for Cloudinary if applicable - use so_auto to find a representative frame
+        const posterUrl = sourceCandidates[0].includes('cloudinary') 
+          ? sourceCandidates[0].replace(/\/video\/upload\//, '/video/upload/so_auto/').replace(/\.[^.]+$/, '.jpg') 
+          : undefined;
+
         return (
           <Box 
             sx={{ 
@@ -607,50 +614,43 @@ const MediaCard = forwardRef(({
               bottom: 0,
               overflow: 'hidden',
               zIndex: 1,
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+              backgroundColor: 'black',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              cursor: 'pointer'
             }}
+            onClick={handleDetailsClick}
           >
-            <Box sx={{ width: '100%', height: '100%' }}>
-              <video
+            <Box sx={{ 
+              width: '100%', 
+              height: '100%', 
+              position: 'relative',
+              backgroundColor: color, // Fade in from the type color
+              transition: 'background-color 1s ease'
+            }}>
+              <motion.video
                 ref={videoRef}
-                controls={isSelected}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: videoLoaded ? 1 : 0 }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+                onLoadedData={() => setVideoLoaded(true)}
+                poster={posterUrl}
+                autoPlay
+                loop
+                muted
                 playsInline
                 preload="metadata"
-                muted={!isSelected}
                 style={{
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
                   objectPosition: 'center',
-                  background: 'black',
                   display: 'block'
                 }}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
-                onError={(e) => {
-                  // Try a sequence of fallbacks
-                  const current = e.target.currentSrc || e.target.src;
-                  const candidates = Array.from(new Set([
-                    ...sourceCandidates,
-                    mediaSource,
-                  ].filter(Boolean)));
-                  const idx = candidates.findIndex(u => current && current.startsWith(u));
-                  const next = idx >= 0 && idx < candidates.length - 1 ? candidates[idx + 1] : null;
-                  if (next) {
-                    e.target.src = next;
-                  } else {
-                    reportMediaLoadError({
-                      mediaKind: 'video',
-                      mediaUrl: current,
-                      stage: 'video_all_sources_failed',
-                      browserMessage: 'Video failed to load from all available sources',
-                    });
-                  }
-                }}
               >
                 {sourceCandidates.filter(Boolean).map((src, i) => {
                   const ext = src.split('.').pop();
@@ -659,7 +659,7 @@ const MediaCard = forwardRef(({
                     <source key={i} src={src} {...(type ? { type } : {})} />
                   );
                 })}
-              </video>
+              </motion.video>
             </Box>
             <PageCornerButton 
               position="top-right" 
@@ -717,77 +717,54 @@ const MediaCard = forwardRef(({
           >
             {hasValidSource ? (
               <>
-                <video
-                  ref={videoRef}
-                  controls={isSelected}
-                  width="100%"
-                  height="100%"
-                  style={{ 
-                    objectFit: 'cover',
-                    opacity: isSelected ? 0.99 : 1,
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    backgroundColor: 'transparent'
-                  }}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onEnded={() => setIsPlaying(false)}
-                  onError={(e) => {
-                    try {
-                      const currentSrc = e.target.src;
-                      const currentIndex = validMediaSources.indexOf(currentSrc);
-                      setIsPlaying(false);
-                      
-                      if (currentIndex >= 0 && currentIndex < validMediaSources.length - 1) {
-                        // Try the next source
-                        e.target.src = validMediaSources[currentIndex + 1];
-                      } else {
-                        reportMediaLoadError({
-                          mediaKind: 'video',
-                          mediaUrl: currentSrc,
-                          stage: 'video_all_sources_failed',
-                          browserMessage: 'Video failed to load from all available sources',
-                        });
-                        // No more sources to try, show error state
-                        throw new Error('Failed to load video from all sources');
-                      }
-                    } catch (error) {
-                      console.error('Error handling video error:', error);
-                      throw error; // Let the error boundary handle it
-                    }
-                  }}
-                  preload="metadata"
-                  playsInline
-                  muted={!isSelected}
-                >
-                  {validMediaSources.map((src, index) => {
-                    const ext = (typeof src === 'string' && src.includes('.')) ? src.split('.').pop().toLowerCase() : '';
-                    const typeMap = {
-                      mp4: 'video/mp4',
-                      webm: 'video/webm',
-                      mov: 'video/quicktime',
-                      m4v: 'video/x-m4v',
-                      ogg: 'video/ogg'
-                    };
-                    const mime = typeMap[ext];
-                    return (
-                      <source key={index} src={src} {...(mime ? { type: mime } : {})} />
-                    );
-                  })}
-                  Your browser does not support the video tag.
-                </video>
                 <Box 
-                  sx={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-                    zIndex: 2,
-                    pointerEvents: 'none'
+                  sx={{ 
+                    position: 'relative', 
+                    width: '100%', 
+                    height: '100%', 
+                    cursor: 'pointer',
+                    backgroundColor: color // Fade in from type color
                   }}
-                />
+                  onClick={handleDetailsClick}
+                >
+                  <motion.video
+                    ref={videoRef}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: videoLoaded ? 1 : 0 }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
+                    onLoadedData={() => setVideoLoaded(true)}
+                    poster={validMediaSources[0].includes('cloudinary') ? validMediaSources[0].replace(/\/video\/upload\//, '/video/upload/so_auto/').replace(/\.[^.]+$/, '.jpg') : undefined}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
+                  >
+                    {validMediaSources.map((src, index) => {
+                      const ext = (typeof src === 'string' && src.includes('.')) ? src.split('.').pop().toLowerCase() : '';
+                      const typeMap = {
+                        mp4: 'video/mp4',
+                        webm: 'video/webm',
+                        mov: 'video/quicktime',
+                        m4v: 'video/x-m4v',
+                        ogg: 'video/ogg'
+                      };
+                      const mime = typeMap[ext];
+                      return (
+                        <source key={index} src={src} {...(mime ? { type: mime } : {})} />
+                      );
+                    })}
+                  </motion.video>
+                </Box>
                 <PageCornerButton 
                   position="top-right" 
                   onClick={handleDetailsClick}

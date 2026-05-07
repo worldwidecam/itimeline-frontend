@@ -8,7 +8,7 @@ Rewire frontend to new TypeScript Cloudflare backend, leaving NO FEATURE behind.
 ## Current Status (April 23, 2026)
 
 ### What We're Doing
-currently going over each page , starting with landing page. making sure all meaningful function is updated to this new backend. no loss of context and logic.
+currently moving into the **Profile System Audit** after fully standardizing the Timeline experience (Banner branding, video previews, and favorites persistence). Making sure all meaningful function is updated to this new backend. no loss of context and logic.
 
 ### Mindset
 - **Backend direction lock**: Cloudflare TypeScript stack is canonical
@@ -203,11 +203,11 @@ When auditing each feature/endpoint:
 ### 🔲 Pages to Audit
 - [ ] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - endpoint added ✅
 - [x] **Home Page** (`/home`) - Feed loading, timeline lanes, FAB, MAKE A POST
-- [x] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified ✅
-- [x] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified ✅
-- [x] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave - user_color fix applied ✅
-- [ ] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports - user_color + action cards fix ✅
-  - [x] **Settings Tab** - Timeline info, privacy, membership approval, posting restrictions, cover image ✅
+- [x] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified. Banner branding standardized with dynamic icons. ✅
+- [x] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified. ✅
+- [x] **Timeline Members** (`/timeline-v3/:id/members`) - Member list, join/leave - Banner branding + user_color fix applied. ✅
+- [x] **Timeline Admin Panel** (`/timeline-v3/:id/admin`) - Settings, moderation, reports - Banner branding + action cards fix. ✅
+  - [x] **Settings Tab** - Timeline info, privacy, membership approval, posting restrictions, cover image. ✅
     - **Fixes Applied**:
       - HTTP method: `PUT` → `PATCH` for visibility endpoint
       - Backend returns `privacy_changed_at` for cooldown tracking
@@ -216,13 +216,13 @@ When auditing each feature/endpoint:
       - Event list endpoint now checks timeline visibility (private events protected)
       - Share event now checks source timeline visibility (prevents leaking private content)
     - **Currently Testing**: Private timeline toggle (on/off), cooldown enforcement, visibility propagation
-  - [ ] **Manage Members Tab** - Active/pending/blocked members, promote/demote, block/unblock
+  - [x] **Manage Members Tab** - Active/pending/blocked members, promote/demote, block/unblock ✅
   - [x] **Manage Posts Tab** - Pending/reviewing/resolved reports, accept, resolve, escalate ✅
-  - [ ] **Cards Tab**:
+  - [x] **Cards Tab**:
     - [x] **Info Cards** - CRUD for info cards with rich text editor, drag-to-reorder ✅
-    - [ ] **Status Cards** - Status message type toggle (Good/Bad News, Bronze/Silver/Gold Action), header/body text
-    - [ ] **Quote Card** - Inspiration quote text and author fields
-    - [ ] **Action Cards** - Gold/Silver/Bronze actions with title, description, due date, threshold requirements
+    - [x] **Status Cards** - Status message type toggle (Good/Bad News, Bronze/Silver/Gold Action), header/body text ✅
+    - [x] **Quote Card** - Inspiration quote text and author fields ✅
+    - [x] **Action Cards** - Gold/Silver/Bronze actions with title, description, due date, threshold requirements ✅
 - [ ] **Profile (Self)** (`/profile`) - Own profile display, editing - user_color already in UserSelfDTO ✅
 - [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view - uses same Profile component ✅
 - [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks - user_color in UserDTO ✅

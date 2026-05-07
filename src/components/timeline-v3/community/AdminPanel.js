@@ -61,6 +61,7 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import AudiotrackIcon from '@mui/icons-material/Audiotrack';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import LockIcon from '@mui/icons-material/Lock';
+import GroupsIcon from '@mui/icons-material/Groups';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import InfoIcon from '@mui/icons-material/Info';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
@@ -1731,21 +1732,28 @@ const AdminPanel = () => {
               background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
             }}
           />
-          <Typography
-            variant="h5"
-            component="h1"
-            sx={{
-              position: 'relative',
-              zIndex: 1,
-              fontWeight: 700,
-              color: '#fff',
-              textShadow: '0 2px 10px rgba(0,0,0,0.32)',
-            }}
-          >
-            <Box component="span" sx={{ fontFamily: 'Lobster, cursive', color: '#ffe082' }}>i</Box>
-            <Box component="span" sx={{ color: '#ffe082', ml: '0.16em', mr: 0.5 }}>-</Box>
-            {timelineData.name}
-          </Typography>
+          <Box sx={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'rgba(248,250,252,0.95)',
+                textShadow: `
+                  0 2px 4px rgba(2,6,23,0.8), 
+                  0 4px 12px rgba(2,6,23,0.6), 
+                  0 0 20px rgba(2,6,23,0.4)
+                `,
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.15em',
+              }}
+            >
+              COMMUNITY TIMELINE
+            </Typography>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 24, md: 32 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+            </Box>
+          </Box>
         </Box>
       )}
       
