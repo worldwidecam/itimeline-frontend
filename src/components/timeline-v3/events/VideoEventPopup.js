@@ -151,7 +151,7 @@ const VideoEventPopup = ({
       fullUrl = mediaSource;
     }
     else if (mediaSource && mediaSource.startsWith('/')) {
-      fullUrl = `http://localhost:5000${mediaSource}`;
+      fullUrl = `${config.API_URL}${mediaSource}`;
     }
     
     // Add all possible URLs to try
@@ -576,13 +576,27 @@ const VideoEventPopup = ({
                       }
                     }}
                   >
-                    {videoSources.map((src, index) => (
-                      <source 
-                        key={index} 
-                        src={src} 
-                        type={event.media_type || 'video/mp4'} 
-                      />
-                    ))}
+                    {videoSources.map((src, index) => {
+                      const ext = (typeof src === 'string' && src.includes('.')) 
+                        ? src.split('.').pop().toLowerCase() 
+                        : '';
+                      const typeMap = {
+                        mp4: 'video/mp4',
+                        webm: 'video/webm',
+                        mov: 'video/quicktime',
+                        m4v: 'video/x-m4v',
+                        ogg: 'video/ogg'
+                      };
+                      const mime = typeMap[ext] || (event.media_type === 'video' ? 'video/mp4' : undefined);
+                      
+                      return (
+                        <source 
+                          key={index} 
+                          src={src} 
+                          {...(mime ? { type: mime } : {})} 
+                        />
+                      );
+                    })}
                     Your browser does not support the video tag.
                   </video>
                 );

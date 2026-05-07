@@ -88,6 +88,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [coverPortraitUrl, setCoverPortraitUrl] = useState('');
   const [coverPortraitPosition, setCoverPortraitPosition] = useState({ x: 50, y: 50 });
   const [coverPortraitZoom, setCoverPortraitZoom] = useState(1);
+  const [coverLandscapeUrl, setCoverLandscapeUrl] = useState('');
+  const [coverLandscapePosition, setCoverLandscapePosition] = useState({ x: 50, y: 50 });
+  const [coverLandscapeZoom, setCoverLandscapeZoom] = useState(1);
   const [coverUploadEnabled, setCoverUploadEnabled] = useState(true);
   const [timeline_type, setTimelineType] = useState('hashtag');
   const [visibility, setVisibility] = useState('public');
@@ -211,6 +214,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             y: Number(timelineData.cover_portrait_y ?? 50),
           });
           setCoverPortraitZoom(Number(timelineData.cover_portrait_zoom ?? 1));
+          setCoverLandscapeUrl(String(timelineData.cover_landscape_image_url || '').trim());
+          setCoverLandscapePosition({
+            x: Number(timelineData.cover_landscape_x ?? 50),
+            y: Number(timelineData.cover_landscape_y ?? 50),
+          });
+          setCoverLandscapeZoom(Number(timelineData.cover_landscape_zoom ?? 1));
           setCoverUploadEnabled(timelineData.cover_upload_enabled !== false);
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
@@ -894,10 +903,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     return Math.max(-40, Math.min(140, safe));
   }, []);
   const clampCoverZoom = useCallback((value) => Math.max(1, Math.min(4.875, Number(value) || 1)), []);
+
   const getCoverTranslate = useCallback((value) => {
     const centered = clampCoverFramePosition(value, 50) - 50;
     return centered * 0.9;
   }, [clampCoverFramePosition]);
+
   const buildCoverPortraitTransform = useCallback((position, zoomValue, isPrivilegeEnabled = true) => {
     const tx = getCoverTranslate(position?.x);
     const ty = getCoverTranslate(position?.y);
@@ -906,7 +917,16 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     return `translate(${tx}%, ${ty}%) scale(${finalZoom})`;
   }, [getCoverTranslate, clampCoverZoom]);
 
+  const buildCoverLandscapeTransform = useCallback((position, zoomValue, isPrivilegeEnabled = true) => {
+    const tx = getCoverTranslate(position?.x);
+    const ty = getCoverTranslate(position?.y);
+    const safeZoom = clampCoverZoom(zoomValue);
+    const finalZoom = isPrivilegeEnabled ? safeZoom : (safeZoom + 0.08);
+    return `translate(${tx}%, ${ty}%) scale(${finalZoom})`;
+  }, [getCoverTranslate, clampCoverZoom]);
+
   const showShareTradingCard = timeline_type === 'community' || timeline_type === 'personal' || timeline_type === 'hashtag';
+
   const shareCardLabel = timeline_type === 'community'
     ? 'COMMUNITY'
     : (timeline_type === 'personal' ? 'PERSONAL' : 'HASHTAG');
@@ -3191,6 +3211,7 @@ const handleRecenter = () => {
       mb: 3
     }}>
       <Container maxWidth={false}>
+
         <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Box sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
@@ -3924,6 +3945,84 @@ const handleRecenter = () => {
           </Button>
         </Box>
       </Container>
+
+      {/* Community Hero Banner - Positioned below visualization and above EventList */}
+      {timeline_type === 'community' && (
+        <Container maxWidth={false}>
+          <Box
+            sx={{
+              mb: 3,
+              mt: 2,
+              minHeight: { xs: 96, md: 120 },
+              aspectRatio: '8 / 1',
+              borderRadius: 2.25,
+              border: '1px solid',
+              borderColor: timelineSurfaces.shellBorder,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
+                : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
+              overflow: 'hidden',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'flex-end',
+              px: { xs: 2, md: 3 },
+              pb: { xs: 1.5, md: 2 },
+              background: coverLandscapeUrl
+                ? 'transparent'
+                : (theme.palette.mode === 'dark'
+                  ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+                  : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)'),
+            }}
+          >
+            {!isLoading && coverLandscapeUrl ? (
+              <Box
+                component="img"
+                src={coverLandscapeUrl}
+                alt={`${timelineName || 'Community'} cover`}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  objectPosition: '50% 50%',
+                  filter: coverUploadEnabled
+                    ? 'brightness(1.05) saturate(1.04)'
+                    : 'blur(18px) saturate(0.42)',
+                  transform: `translate(${(Number(coverLandscapePosition.x ?? 50) - 50) * 0.9}%, ${(Number(coverLandscapePosition.y ?? 50) - 50) * 0.9}%) scale(${coverUploadEnabled ? (coverLandscapeZoom || 1) : ((coverLandscapeZoom || 1) + 0.08)})`,
+                }}
+              />
+            ) : null}
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
+              }}
+            />
+            {!isLoading && (
+              <Box sx={{ position: 'relative', zIndex: 1, width: '100%' }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'rgba(248,250,252,0.95)',
+                    textShadow: `
+                      0 2px 4px rgba(2,6,23,0.8), 
+                      0 4px 12px rgba(2,6,23,0.6), 
+                      0 0 20px rgba(2,6,23,0.4)
+                    `,
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.15em',
+                  }}
+                >
+                  COMMUNITY TIMELINE
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Container>
+      )}
 
       {/* Visual Separator */}
       <Box sx={{ height: 24 }} />

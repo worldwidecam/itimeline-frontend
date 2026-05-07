@@ -214,7 +214,7 @@ const MediaEventMarker = ({ event, onDelete, onEdit }) => {
   // Get the media source and thumbnail URL
   const mediaSource = getMediaSource();
   const preparedMediaSource = prepareMediaSource(mediaSource);
-  const thumbnailUrl = getVideoThumbnail(mediaSource);
+  const thumbnailUrl = prepareMediaSource(getVideoThumbnail(mediaSource));
 
   // Determine media type
   const getMediaType = () => {

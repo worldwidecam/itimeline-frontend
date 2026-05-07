@@ -147,23 +147,34 @@ const formatDateForAPI = (date) => {
 const extractKeyFromUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
   
-  // If already a key (no protocol), return as-is
-  if (!url.startsWith('http')) {
+  // If already a key (no protocol and doesn't start with /), return as-is
+  if (!url.startsWith('http') && !url.startsWith('/')) {
     return url;
   }
   
   try {
-    const urlObj = new URL(url);
-    const path = urlObj.pathname;
+    const urlObj = url.startsWith('http') ? new URL(url) : null;
+    const path = urlObj ? urlObj.pathname : url;
     
-    // R2 path format: /timelines/{id}/{filename}
-    // Extract the part after the bucket domain
-    const match = path.match(/\/timelines\/[^/]+\/(.+)$/);
-    if (match) {
-      return `timelines/${match[1]}`;
+    // R2 path format: /media/{purpose}/{filename}
+    const mediaMatch = path.match(/\/media\/(avatars|covers|events|music)\/(.+)$/);
+    if (mediaMatch) {
+      return `${mediaMatch[1]}/${mediaMatch[2]}`;
+    }
+
+    // Fallback for root-level purposes
+    const purposeMatch = path.match(/\/(avatars|covers|events|music)\/(.+)$/);
+    if (purposeMatch) {
+      return `${purposeMatch[1]}/${purposeMatch[2]}`;
+    }
+
+    // Legacy path format: /timelines/{id}/{filename}
+    const legacyMatch = path.match(/\/timelines\/[^/]+\/(.+)$/);
+    if (legacyMatch) {
+      return `timelines/${legacyMatch[1]}`;
     }
     
-    // Fallback: return full path without leading slash
+    // Fallback: return path without leading slash
     return path.startsWith('/') ? path.slice(1) : path;
   } catch (e) {
     // If URL parsing fails, return original
@@ -4570,16 +4581,21 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
           requires_approval: requireMembershipApproval,
           posting_restriction_enabled: postingRestrictionEnabled,
           posting_min_role: postingMinRole,
+          cover_upload_enabled: coverUploadEnabled,
         };
 
         // Only include cover fields if they have values (backend uses _key not _url)
         if (resolvedPortraitUrl) {
           updateData.cover_portrait_key = extractKeyFromUrl(resolvedPortraitUrl);
+        } else {
+          updateData.cover_portrait_key = null;
         }
+
         if (resolvedLandscapeUrl) {
           updateData.cover_landscape_key = extractKeyFromUrl(resolvedLandscapeUrl);
+        } else {
+          updateData.cover_landscape_key = null;
         }
-        
         // Position and zoom fields
         if (portraitPosition.x !== undefined) {
           updateData.cover_portrait_x = clampFramePosition(portraitPosition.x);
@@ -4632,6 +4648,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
             coverLandscapeX: updatedLandscapeX,
             coverLandscapeY: updatedLandscapeY,
             coverZoom: updatedLandscapeZoom,
+            coverPortraitZoom: updatedPortraitZoom,
+            coverLandscapeZoom: updatedLandscapeZoom,
           }));
 
           setCoverImageUrl('');
