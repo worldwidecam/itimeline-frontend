@@ -195,20 +195,21 @@ const Profile = () => {
     y: 50,
     zoom: 1,
   });
+  const [resolvedTargetUserId, setResolvedTargetUserId] = useState(null);
   
   const normalizedUserIdParam = String(userId || '').trim().toLowerCase();
   const isGuestProfileRoute = normalizedUserIdParam === 'guest';
-  const isOwnProfile = isGuestProfileRoute || !userId || (Number(user?.id) > 0 && userId === user.id.toString());
+  const isOwnProfile = isGuestProfileRoute || !userId || (Number(user?.id) > 0 && (userId === user.id.toString() || normalizedUserIdParam === String(user?.username || '').trim().toLowerCase()));
   const queryAccessKey = useMemo(() => {
     const params = new URLSearchParams(location.search || '');
     return String(params.get('access_key') || '').trim();
   }, [location.search]);
   const profileAccessStorageKey = useMemo(() => {
     const currentUserId = Number(user?.id || 0);
-    const targetUserId = Number(userId || user?.id || 0);
+    const targetUserId = resolvedTargetUserId || Number(userId || user?.id || 0);
     if (!(currentUserId > 0) || !(targetUserId > 0) || currentUserId === targetUserId) return '';
     return `profile_private_access_${currentUserId}_${targetUserId}`;
-  }, [user?.id, userId]);
+  }, [user?.id, userId, resolvedTargetUserId]);
   const cachedOwnUserColor = React.useMemo(() => {
     return isOwnProfile ? getCachedUserIdentityColor(user?.id) : null;
   }, [isOwnProfile, user?.id]);
@@ -427,7 +428,7 @@ const Profile = () => {
           const ownStoredVisibility = hasNumericUserId
             ? String(localStorage.getItem(`profile_visibility_user_${user.id}`) || 'public').trim().toLowerCase()
             : 'public';
-          setProfileAccessVisibility(ownStoredVisibility === 'private' ? 'private' : 'public');
+          setProfileAccessVisibility(['private', 'key-gated'].includes(ownStoredVisibility) ? 'private' : 'public');
 
           if (isGuestProfileRoute || isGuest || !hasNumericUserId) {
             setProfileUser({
@@ -451,7 +452,7 @@ const Profile = () => {
               const userResponse = await api.get(`/api/v1/users/${user.id}`);
               setProfileUser(userResponse.data);
               const ownApiVisibility = String(userResponse?.data?.profile_visibility || ownStoredVisibility || 'public').trim().toLowerCase();
-              const normalizedOwnVisibility = ownApiVisibility === 'private' ? 'private' : 'public';
+              const normalizedOwnVisibility = ['private', 'key-gated'].includes(ownApiVisibility) ? 'private' : 'public';
               setProfileAccessVisibility(normalizedOwnVisibility);
               localStorage.setItem(`profile_visibility_user_${user.id}`, normalizedOwnVisibility);
             } catch (userError) {
@@ -479,11 +480,26 @@ const Profile = () => {
             }
           }
         } else {
-          const targetUserId = Number(userId || 0);
+          let targetUserId = Number(userId || 0);
           if (!(targetUserId > 0)) {
-            setError('User profile not found');
-            return;
+            try {
+              const usernameResponse = await api.get(`/api/v1/users/search`, { params: { username: userId } });
+              const users = Array.isArray(usernameResponse?.data) ? usernameResponse.data : [];
+              if (users.length > 0 && users[0].id) {
+                targetUserId = users[0].id;
+              } else {
+                setError('User profile not found');
+                setLoading(false);
+                return;
+              }
+            } catch (err) {
+              console.error('Error finding user by username:', err);
+              setError('User profile not found');
+              setLoading(false);
+              return;
+            }
           }
+          setResolvedTargetUserId(targetUserId);
 
           let accessDecision = null;
           try {
@@ -496,7 +512,7 @@ const Profile = () => {
           }
 
           const visibility = String(accessDecision?.visibility || 'public').toLowerCase();
-          setProfileAccessVisibility(visibility === 'private' ? 'private' : 'public');
+          setProfileAccessVisibility(['private', 'key-gated'].includes(visibility) ? 'private' : 'public');
 
           if (!accessDecision?.allowed) {
             let candidateKey = queryAccessKey;
@@ -538,12 +554,12 @@ const Profile = () => {
 
           // If viewing someone else's profile
           try {
-            const userResponse = await api.get(`/api/v1/users/${userId}`);
+            const userResponse = await api.get(`/api/v1/users/${targetUserId}`);
             setProfileUser(userResponse.data);
             
             // Optionally fetch music for other users if the API supports it
             try {
-              const musicResponse = await api.get(`/api/v1/users/${userId}/music`);
+              const musicResponse = await api.get(`/api/v1/users/${targetUserId}/music`);
               if (musicResponse.data.music_url) {
                 setMusicData(musicResponse.data);
                 setTimeout(() => setShowMusic(true), 100);
@@ -573,7 +589,7 @@ const Profile = () => {
   }, [userId, user, isOwnProfile, profileAccessRefreshNonce, profileAccessStorageKey, queryAccessKey]);
 
   const handleSubmitProfileAccessKey = useCallback(async () => {
-    const targetUserId = Number(userId || 0);
+    const targetUserId = resolvedTargetUserId || Number(userId || 0);
     const accessKey = String(profileAccessKeyDraft || '').trim();
     if (!(targetUserId > 0) || !accessKey || profileAccessSubmitting) return;
 

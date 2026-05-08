@@ -341,7 +341,7 @@ const ProfileSettings = () => {
             resolvedUserColor = isValidHexColor(passportUserColor) ? passportUserColor.toLowerCase() : '';
           }
           if (hasPassportProfileVisibility) {
-            resolvedProfileVisibility = passportProfileVisibility === 'private' ? 'private' : 'public';
+            resolvedProfileVisibility = ['private', 'key-gated'].includes(passportProfileVisibility) ? 'private' : 'public';
           }
           if (hasPassportProfileAccessKey) {
             resolvedProfileAccessKey = passportProfileAccessKey;
@@ -681,6 +681,11 @@ const ProfileSettings = () => {
         avatarKey = uploadResponse?.data?.key || null;
       }
 
+      // If the actual username handle changed, update it first
+      if (normalizedUsername !== user.username) {
+        await api.patch('/api/v1/users/me/username', { username: normalizedUsername });
+      }
+
       // Update profile via PATCH /api/v1/users/me
       // Note: user_color must be 6-digit hex (#RRGGBB) - convert 3-digit to 6-digit if needed
       let normalizedUserColor = formData.userColor;
@@ -689,8 +694,8 @@ const ProfileSettings = () => {
         normalizedUserColor = '#' + normalizedUserColor[1] + normalizedUserColor[1] + normalizedUserColor[2] + normalizedUserColor[2] + normalizedUserColor[3] + normalizedUserColor[3];
       }
       const profilePayload = {
-        display_username: formData.displayName || undefined,
-        bio: formData.bio || undefined,
+        display_username: formData.username !== undefined ? formData.username : undefined,
+        bio: formData.bio !== undefined ? formData.bio : undefined,
         user_color: normalizedUserColor || undefined,
         date_of_birth: formData.dateOfBirth || undefined,
         profile_visibility: formData.profileVisibility || undefined,
