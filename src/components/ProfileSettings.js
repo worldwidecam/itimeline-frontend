@@ -286,7 +286,7 @@ const ProfileSettings = () => {
         // Fetch music preferences
         try {
           const musicResponse = await api.get('/api/v1/profile/music');
-          if (musicResponse.data?.music_url) {
+          if (musicResponse.data?.music_url || musicResponse.data?.music_media_url) {
             setMusicData(musicResponse.data);
           }
         } catch (musicError) {
@@ -655,14 +655,20 @@ const ProfileSettings = () => {
         submitData.append('avatar', selectedFile);
       }
 
-      if (formData.currentPassword && formData.newPassword) {
-        if (formData.newPassword !== formData.confirmPassword) {
-          setError('New passwords do not match');
+      // Password change validation (will be sent to separate endpoint)
+      let passwordChangeError = null;
+      if (formData.currentPassword || formData.newPassword) {
+        if (!formData.currentPassword || !formData.newPassword) {
+          passwordChangeError = 'Both current and new password are required';
+        } else if (formData.newPassword !== formData.confirmPassword) {
+          passwordChangeError = 'New passwords do not match';
+        }
+        if (passwordChangeError) {
+          setError(passwordChangeError);
           setIsUploading(false);
+          setIsSaving(false);
           return;
         }
-        submitData.append('current_password', formData.currentPassword);
-        submitData.append('new_password', formData.newPassword);
       }
 
       // Upload avatar first if selected
@@ -703,9 +709,64 @@ const ProfileSettings = () => {
           ? (String(formData.profileAccessKey || '').trim() || undefined)
           : undefined,
       };
-      if (avatarKey) profilePayload.avatar_key = avatarKey;
 
-      const response = await api.patch('/api/v1/users/me', profilePayload);
+      let response = await api.patch('/api/v1/users/me', profilePayload);
+
+      // Change password via dedicated endpoint if provided
+      if (formData.currentPassword && formData.newPassword) {
+        try {
+          await api.post('/api/v1/auth/change-password', {
+            current_password: formData.currentPassword,
+            new_password: formData.newPassword,
+          });
+          // Clear password fields on success
+          setFormData(prev => ({
+            ...prev,
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          }));
+        } catch (pwdError) {
+          console.error('Password change error:', pwdError);
+          const pwdMsg = pwdError?.response?.data?.error || 'Failed to change password';
+          setError(pwdMsg);
+          setIsUploading(false);
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Change email via dedicated endpoint if it changed
+      if (formData.email && formData.email !== user?.email) {
+        try {
+          const emailResponse = await api.post('/api/v1/auth/change-email', {
+            new_email: formData.email,
+          });
+          // Update local user state with new email
+          if (emailResponse.data?.user) {
+            await updateProfile(emailResponse.data.user);
+          }
+        } catch (emailError) {
+          console.error('Email change error:', emailError);
+          const emailMsg = emailError?.response?.data?.error || 'Failed to change email';
+          setError(emailMsg);
+          setIsUploading(false);
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Update avatar separately via POST /users/me/avatar (not in PATCH /users/me schema)
+      if (avatarKey) {
+        try {
+          await api.post('/api/v1/users/me/avatar', { avatar_key: avatarKey });
+          // Refetch user to get updated avatar_url
+          const meResponse = await api.get('/api/v1/users/me');
+          response = meResponse;
+        } catch (avatarError) {
+          console.warn('Failed to update avatar:', avatarError);
+        }
+      }
       console.log('Profile update response:', response.data);
       const uploadedAvatarUrl = String(response?.data?.avatar_url || '').trim();
       const shouldSyncProfilePortraitFromAvatar = Boolean(selectedFile && uploadedAvatarUrl);
@@ -1193,9 +1254,9 @@ const ProfileSettings = () => {
                 </Box>
               </Box>
               
-              {(musicPreview || musicData?.music_url) && (
+              {(musicPreview || musicData?.music_url || musicData?.music_media_url) && (
                 <Box sx={{ mt: 2 }}>
-                  <MusicPlayer url={musicPreview || musicData?.music_url} />
+                  <MusicPlayer url={musicPreview || musicData?.music_url || musicData?.music_media_url} />
                 </Box>
               )}
               

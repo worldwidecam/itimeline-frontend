@@ -18,6 +18,8 @@ import {
   DialogActions,
   TextField,
   MenuItem,
+  useMediaQuery,
+  useTheme as useMuiTheme,
   Button,
   Card,
   CardContent,
@@ -164,6 +166,8 @@ const Profile = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const muiTheme = useMuiTheme();
+  const isNarrowViewport = useMediaQuery(muiTheme.breakpoints.down('md'));
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const { blurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
   const [profileUser, setProfileUser] = useState(null);
@@ -470,7 +474,7 @@ const Profile = () => {
           if (hasNumericUserId) {
             try {
               const musicResponse = await api.get('/api/v1/profile/music');
-              if (musicResponse.data.music_url) {
+              if (musicResponse.data.music_url || musicResponse.data.music_media_url) {
                 setMusicData(musicResponse.data);
                 // Slight delay before showing music player for a smoother experience
                 setTimeout(() => setShowMusic(true), 100);
@@ -560,7 +564,7 @@ const Profile = () => {
             // Optionally fetch music for other users if the API supports it
             try {
               const musicResponse = await api.get(`/api/v1/users/${targetUserId}/music`);
-              if (musicResponse.data.music_url) {
+              if (musicResponse.data.music_url || musicResponse.data.music_media_url) {
                 setMusicData(musicResponse.data);
                 setTimeout(() => setShowMusic(true), 100);
               }
@@ -1046,28 +1050,62 @@ const Profile = () => {
       {/* Music Player - show for any profile that has music data */}
       {showMusic && musicData && (
         <Fade in={showMusic} timeout={800}>
-          <Box 
-            sx={{ 
-              position: 'fixed', 
-              top: '80px', 
-              left: '20px', 
+          <Box
+            className="profile-music-player"
+            sx={{
+              position: 'fixed',
+              top: '80px',
+              left: '20px',
+              maxWidth: 'min(400px, calc(100vw - 40px))',
               zIndex: 1000,
-              width: '300px',
               backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
               backdropFilter: 'blur(10px)',
               borderRadius: 2,
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 32px rgba(0, 0, 0, 0.3)'
                 : '0 8px 32px rgba(0, 0, 0, 0.1)',
               p: 2,
               opacity: showMusic ? 1 : 0,
-              transition: 'opacity 0.8s ease-in-out'
+              transition: 'all 0.3s ease-in-out',
+              boxSizing: 'border-box',
+              // CSS media queries respond in real-time to viewport changes
+              '@media (max-width: 1100px)': {
+                top: 'auto',
+                bottom: '20px',
+                left: '10px',
+                right: '10px',
+                maxWidth: 'none',
+                p: 1.5,
+              },
             }}
           >
-            <Typography variant="h6" gutterBottom>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                fontSize: '1.25rem',
+                '@media (max-width: 1100px)': { fontSize: '0.875rem' }
+              }}
+            >
               {isOwnProfile ? 'My Music' : `${displayUsername(profileUser?.username)}'s Music`}
             </Typography>
-            <MusicPlayer url={musicData?.music_url} platform={musicData?.music_platform} />
+            <Box sx={{
+              display: 'block',
+              '@media (max-width: 1100px)': {
+                '& > div': {
+                  flexDirection: 'column !important',
+                  alignItems: 'center !important',
+                  gap: '8px !important',
+                  padding: '12px !important',
+                },
+              },
+            }}>
+              <MusicPlayer
+                url={musicData?.music_url || musicData?.music_media_url}
+                platform={musicData?.music_platform}
+                compact={isNarrowViewport}
+              />
+            </Box>
           </Box>
         </Fade>
       )}

@@ -6,7 +6,7 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import LoopIcon from '@mui/icons-material/Loop';
 
-const MusicPlayer = ({ url, platform }) => {
+const MusicPlayer = ({ url, platform, compact = false }) => {
   const audioRef = useRef(null);
   const fadeInterval = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -150,6 +150,73 @@ const MusicPlayer = ({ url, platform }) => {
 
   if (!url) return null;
 
+  // Compact vertical layout for narrow viewports
+  if (compact) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1,
+        p: 1.5,
+        borderRadius: 1,
+        bgcolor: 'background.paper',
+        width: '100%',
+        boxShadow: 1,
+        position: 'relative',
+        overflow: 'hidden',
+        boxSizing: 'border-box'
+      }}>
+        <audio
+          ref={audioRef}
+          src={url}
+          onEnded={handleAudioEnded}
+          onError={() => setError('Unable to play audio. Please check the URL.')}
+          loop={isLooping}
+        />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton
+            onClick={handlePlayPause}
+            size="medium"
+            color="primary"
+          >
+            {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+          </IconButton>
+
+          <IconButton onClick={handleVolumeToggle} size="small">
+            {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+          </IconButton>
+
+          <Tooltip title={isLooping ? "Disable loop" : "Enable loop"}>
+            <IconButton
+              onClick={handleLoopToggle}
+              size="small"
+              color={isLooping ? "primary" : "default"}
+            >
+              <LoopIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        <Slider
+          size="small"
+          value={isMuted ? 0 : volume * 100}
+          onChange={handleVolumeChange}
+          aria-label="Volume"
+          sx={{ width: '100%', maxWidth: 120 }}
+        />
+
+        {error && (
+          <Typography variant="caption" color="error">
+            {error}
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+
+  // Default horizontal layout
   return (
     <Box sx={{
       display: 'flex',
@@ -158,11 +225,11 @@ const MusicPlayer = ({ url, platform }) => {
       p: 2,
       borderRadius: 1,
       bgcolor: 'background.paper',
-      maxWidth: '400px',
-      margin: '0 auto',
+      width: '100%',
       boxShadow: 1,
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      boxSizing: 'border-box'
     }}>
       <audio
         ref={audioRef}
@@ -171,8 +238,8 @@ const MusicPlayer = ({ url, platform }) => {
         onError={() => setError('Unable to play audio. Please check the URL.')}
         loop={isLooping}
       />
-      
-      <IconButton 
+
+      <IconButton
         onClick={handlePlayPause}
         size="large"
         color="primary"
@@ -180,25 +247,25 @@ const MusicPlayer = ({ url, platform }) => {
         {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
       </IconButton>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, maxWidth: 'calc(100% - 48px)' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
           <IconButton onClick={handleVolumeToggle} size="small">
             {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
           </IconButton>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
           <Slider
             size="small"
             value={isMuted ? 0 : volume * 100}
             onChange={handleVolumeChange}
             aria-label="Volume"
-            sx={{ flex: 1, minWidth: 50, maxWidth: 100 }}
+            sx={{ flex: 1, minWidth: 60 }}
           />
-          
+
           <Tooltip title={isLooping ? "Disable loop" : "Enable loop"}>
-            <IconButton 
-              onClick={handleLoopToggle} 
+            <IconButton
+              onClick={handleLoopToggle}
               size="small"
               color={isLooping ? "primary" : "default"}
             >

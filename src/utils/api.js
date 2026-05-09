@@ -852,10 +852,15 @@ export const completeRequiredUsernameChange = async (username) => {
  */
 export const submitUserReport = async (reportedUserId, timelineId, reason = '', category) => {
   try {
-    console.log(`[API] Submitting user report for user ${reportedUserId} (timeline anchor: ${timelineId})`);
-    const payload = { timeline_id: timelineId, reason: reason || '' };
-    if (category) payload.category = category;
-    const response = await api.post(`/api/v1/reports/users/${reportedUserId}`, payload);
+    console.log(`[API] Submitting user report for user ${reportedUserId}`);
+    // Backend expects: POST /reports { subject_type, subject_id, reason, details }
+    const payload = {
+      subject_type: 'user',
+      subject_id: reportedUserId,
+      reason: reason || 'User report',
+      details: category || null,
+    };
+    const response = await api.post(`/api/v1/reports`, payload);
     console.log('[API] submitUserReport response:', response.data);
     return response.data;
   } catch (error) {
@@ -2735,7 +2740,7 @@ export const updateUserPreferences = async (prefs = {}) => {
     if (Object.keys(payload).length === 0) {
       return { message: 'No valid preference fields provided' };
     }
-    const response = await api.put('/api/v1/user/preferences', payload);
+    const response = await api.put('/api/v1/users/preferences', payload);
     const mergedPreferences = response?.data?.preferences;
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = Number(userData?.id || 0);

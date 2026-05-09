@@ -7,13 +7,6 @@ import {
   Grid,
   Divider,
   Switch,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  Button,
   Snackbar,
   Alert,
 } from '@mui/material';
@@ -23,17 +16,10 @@ import { useTheme as useAppTheme } from '../contexts/ThemeContext';
 import UserAvatar from './common/UserAvatar';
 import NavFab from './timeline-v3/community/NavFab';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
-import { submitUserReport } from '../utils/api';
 import { displayUsername } from '../utils/usernameDisplay';
-import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
-import {
-  getGlassDialogPaperSx,
-  getGlassInputSx,
-  getGlassSquareActionButtonSx,
-  getGlassPillActionButtonSx,
-} from '../utils/formStyleGuide';
+// Report dialog imports removed - guest profile has no actual user to report
 
 // ── Hardcoded guest identity — no DB row, no API call ──────────────────────
 const GUEST_PROFILE_USER = {
@@ -45,11 +31,6 @@ const GUEST_PROFILE_USER = {
   avatar_url: '/images/GUEST_img.png',
 };
 
-const reportCategoryOptions = [
-  { value: 'website_policy', label: 'Website policy violation' },
-  { value: 'government_policy', label: 'Government policy / legal concern' },
-  { value: 'unethical_boundary', label: 'Unethical or harmful boundary' },
-];
 
 const GOBLIN_NEON_GREEN = '#39ff14';
 
@@ -60,14 +41,7 @@ const GuestProfilePage = () => {
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
 
   const [fabOpen, setFabOpen] = useState(false);
-  const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reportCategory, setReportCategory] = useState('');
-  const [reportSubmitting, setReportSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-
-  // Logged-in real users can report; guests cannot report themselves
-  const canReportProfile = Boolean(user) && !user?.role?.includes('guest');
 
   const containerGlow =
     theme.palette.mode === 'dark'
@@ -122,35 +96,6 @@ const GuestProfilePage = () => {
     setFabOpen(false);
   };
 
-  const handleOpenReportDialog = () => {
-    setReportCategory('');
-    setReportReason('');
-    setReportDialogOpen(true);
-    setFabOpen(false);
-  };
-
-  const handleCloseReportDialog = () => {
-    if (reportSubmitting) return;
-    setReportDialogOpen(false);
-  };
-
-  const handleSubmitUserReport = async () => {
-    if (!reportCategory) {
-      setSnackbar({ open: true, message: 'Please choose a report category', severity: 'warning' });
-      return;
-    }
-    try {
-      setReportSubmitting(true);
-      await submitUserReport(null, null, reportReason || '', reportCategory);
-      setReportDialogOpen(false);
-      setSnackbar({ open: true, message: 'Report submitted', severity: 'success' });
-    } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to submit report';
-      setSnackbar({ open: true, message: msg, severity: 'error' });
-    } finally {
-      setReportSubmitting(false);
-    }
-  };
 
   return (
     <Box
@@ -317,16 +262,7 @@ const GuestProfilePage = () => {
         showMembersNav={false}
         showAdminNav={false}
         showReport={false}
-        actions={[
-          ...(canReportProfile ? [{
-            key: 'report-guest',
-            tooltip: 'Report',
-            icon: <OutlinedFlagIcon fontSize="small" />,
-            onClick: handleOpenReportDialog,
-            step: 58,
-            accent: { dark: '#EF5350', light: '#D32F2F' },
-          }] : []),
-        ]}
+        actions={[]}
         tradingCard={{
           onActivate: handleCopyProfileLink,
           imageUrl: GUEST_PROFILE_USER.avatar_url,
@@ -346,82 +282,7 @@ const GuestProfilePage = () => {
         }}
       />
 
-      {/* ── Report dialog ─────────────────────────────────────────────────── */}
-      <Dialog
-        open={reportDialogOpen}
-        onClose={handleCloseReportDialog}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
-      >
-        <DialogTitle>Report Guest Profile</DialogTitle>
-        <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            This report creates a moderation ticket for Site Control.
-          </Typography>
-          <TextField
-            select
-            fullWidth
-            margin="dense"
-            label="Category"
-            value={reportCategory}
-            onChange={(e) => setReportCategory(e.target.value)}
-          >
-            {reportCategoryOptions.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            fullWidth
-            margin="dense"
-            multiline
-            minRows={3}
-            label="Reason (optional details)"
-            value={reportReason}
-            onChange={(e) => setReportReason(e.target.value)}
-            placeholder="Add context for moderators"
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={handleCloseReportDialog}
-            disabled={reportSubmitting}
-            variant="contained"
-            sx={{
-              ...getGlassSquareActionButtonSx(theme),
-              width: 'auto',
-              minWidth: 84,
-              px: 2,
-              borderRadius: 1.4,
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmitUserReport}
-            variant="contained"
-            disabled={reportSubmitting}
-            sx={{
-              ...getGlassPillActionButtonSx(theme),
-              bgcolor: theme.palette.error.main,
-              color: '#fff',
-              border: '1px solid',
-              borderColor:
-                theme.palette.mode === 'dark'
-                  ? 'rgba(248,113,113,0.65)'
-                  : 'rgba(220,38,38,0.55)',
-              '&:hover': {
-                bgcolor: theme.palette.error.dark,
-                color: '#fff',
-              },
-            }}
-          >
-            {reportSubmitting ? 'Submitting...' : 'Submit Report'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Report dialog removed - guest profile has no actual user to report */}
 
       {/* ── Snackbar ──────────────────────────────────────────────────────── */}
       <Snackbar

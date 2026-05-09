@@ -223,8 +223,8 @@ When auditing each feature/endpoint:
     - [x] **Status Cards** - Status message type toggle (Good/Bad News, Bronze/Silver/Gold Action), header/body text ✅
     - [x] **Quote Card** - Inspiration quote text and author fields ✅
     - [x] **Action Cards** - Gold/Silver/Bronze actions with title, description, due date, threshold requirements ✅
-- [ ] **Profile (Self)** (`/profile`) - Own profile display, editing - user_color already in UserSelfDTO ✅
-- [ ] **Profile (Guest)** (`/profile/guest`) - Guest profile view - uses same Profile component ✅
+- [x] **Profile (Self)** (`/profile`) - Own profile display, editing - user_color already in UserSelfDTO ✅
+- [x] **Profile (Guest)** (`/profile/guest`) - Guest profile view - report functionality removed (no user to report) ✅
 - [ ] **Profile (User)** (`/profile/:userId`) - Other user profiles, visibility checks - user_color in UserDTO ✅
   - *Note regarding User Access Lock*: When clicking a reporter link directing to a user profile, access was incorrectly blocked by a generic, unstyled private lock page stating that an access key is needed. This user account was public. Further, attempting to modify account access parameters within the user settings panel did not write to the backend properly.
 - [ ] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music - user_color save verified ✅
@@ -235,12 +235,44 @@ When auditing each feature/endpoint:
 - [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅
 
 ### Redirect/Lock Pages - Verified
-- [x] **SiteControlLockView** - Non-admin access to Site Control - UI only, no API calls 
-- [x] **PrivateTimelineLock** - Non-member access to private community - UI only 
-- [x] **BlockedFromCommunity** - Blocked user access to community - UI only 
-- [x] **BannedTimelineLock** - Banned user access to timeline - UI only 
-- [x] **CommunityLockView** - Generic community restriction - UI only 
-- [x] **MembershipGuard** - Role-based access guard for admin/members pages - Route guard 
+- [x] **SiteControlLockView** - Non-admin access to Site Control - UI only, no API calls
+- [x] **PrivateTimelineLock** - Non-member access to private community - UI only
+- [x] **BlockedFromCommunity** - Blocked user access to community - UI only
+- [x] **BannedTimelineLock** - Banned user access to timeline - UI only
+- [x] **CommunityLockView** - Generic community restriction - UI only
+- [x] **MembershipGuard** - Role-based access guard for admin/members pages - Route guard
+
+## Profile Page Audit - Fixes Applied ✅
+### Fix 1: User Report Endpoint Mismatch
+- **Problem**: Frontend called non-existent `POST /api/v1/reports/users/:id` with wrong payload
+- **Expected**: Backend uses `POST /api/v1/reports` with `{ subject_type, subject_id, reason, details }`
+- **Fix**: Updated `submitUserReport()` in `api.js` to use correct endpoint and payload structure
+- **Files**: `itimeline-frontend/src/utils/api.js:853-871`
+
+### Fix 2: Guest Profile Report Button
+- **Problem**: Guest profile page showed "Report" button for logged-in users, but there's no actual user to report (guest is hardcoded)
+- **Expected**: No report functionality on guest profile page
+- **Fix**: Removed report button, dialog, and all related state/handlers from `GuestProfilePage.js`
+- **Files**: `itimeline-frontend/src/components/GuestProfilePage.js`
+
+### All Profile Endpoints Verified ✅
+| Feature | Endpoint | Status |
+|---------|----------|--------|
+| Get user profile | `GET /users/:id` | ✅ |
+| User search | `GET /users/search` | ✅ |
+| Profile access check | `GET /users/:id/profile-access` | ✅ |
+| Profile access with key | `POST /users/:id/profile-access` | ✅ |
+| Get user music | `GET /users/:id/music` | ✅ |
+| Profile texts (guestbook) | `GET/POST/DELETE /users/:id/profile-texts` | ✅ |
+| Own profile hydrate | `GET /profile/hydrate` | ✅ |
+| Own music | `GET /profile/music` | ✅ |
+| Update profile | `PATCH /users/me` | ✅ |
+| Update username | `PATCH /users/me/username` | ✅ |
+| Update music | `PATCH /users/me/music` | ✅ |
+| Profile modules | `PUT /profile/modules` | ✅ |
+| Event report | `POST /timelines/:id/reports` | ✅ |
+| Timeline report | `POST /reports/timelines/:id` | ✅ |
+| User report | `POST /reports` | ✅ Fixed |
 
 ## Community Timeline Audit - Issues Found 🔍
 *Current auditor: Testing as a moderator of a community timeline*
