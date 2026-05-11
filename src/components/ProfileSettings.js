@@ -22,6 +22,7 @@ import {
   CardContent,
   Chip,
   Portal,
+  IconButton,
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -32,6 +33,7 @@ import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InfoIcon from '@mui/icons-material/Info';
 import SaveIcon from '@mui/icons-material/Save';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
@@ -48,7 +50,7 @@ import {
 import { displayUsername } from '../utils/usernameDisplay';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25MB
 const PROFILE_MODULE_TYPE_INFO_CARD = 'info_card';
 const PROFILE_MODULE_TYPE_TEXTS = 'texts';
 const PROFILE_MODULE_TYPE_THEORY_BOARD = 'theory_board';
@@ -262,6 +264,7 @@ const ProfileSettings = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [dragState, setDragState] = useState({ avatar: false, music: false });
   const [fileInfo, setFileInfo] = useState({ avatar: null, music: null });
+  const [musicRemoved, setMusicRemoved] = useState(false);
 
   // FAB save button states
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -585,10 +588,18 @@ const ProfileSettings = () => {
       }
       setMusicFile(file);
       setMusicPreview(URL.createObjectURL(file));
+      setMusicRemoved(false);
       // Track unsaved changes
       markUnsavedChanges();
     }
   }, [markUnsavedChanges]);
+
+  const handleMusicRemove = () => {
+    setMusicFile(null);
+    setMusicPreview(null);
+    setMusicRemoved(true);
+    markUnsavedChanges();
+  };
 
   const { getRootProps: getAvatarRootProps, getInputProps: getAvatarInputProps } = useDropzone({
     onDrop: (files) => onDrop(files, 'avatar'),
@@ -599,6 +610,11 @@ const ProfileSettings = () => {
     onDragEnter: () => setDragState(prev => ({ ...prev, avatar: true })),
     onDragLeave: () => setDragState(prev => ({ ...prev, avatar: false })),
     onDropAccepted: () => setDragState(prev => ({ ...prev, avatar: false })),
+    onDropRejected: (fileRejections) => {
+      setDragState(prev => ({ ...prev, avatar: false }));
+      const error = fileRejections[0]?.errors[0]?.message || 'Invalid image file';
+      setError(`Avatar rejected: ${error}`);
+    }
   });
 
   const { getRootProps: getMusicRootProps, getInputProps: getMusicInputProps } = useDropzone({
@@ -610,6 +626,11 @@ const ProfileSettings = () => {
     onDragEnter: () => setDragState(prev => ({ ...prev, music: true })),
     onDragLeave: () => setDragState(prev => ({ ...prev, music: false })),
     onDropAccepted: () => setDragState(prev => ({ ...prev, music: false })),
+    onDropRejected: (fileRejections) => {
+      setDragState(prev => ({ ...prev, music: false }));
+      const error = fileRejections[0]?.errors[0]?.message || 'Invalid audio file';
+      setError(`Music rejected: ${error}. Max size 25MB.`);
+    }
   });
 
   const handleMusicChange = (e) => {
@@ -802,6 +823,40 @@ const ProfileSettings = () => {
           }
         } catch (moduleError) {
           console.warn('Failed to sync profile modules:', moduleError);
+        }
+
+        // Handle Music Upload/Removal if changed
+        if (musicFile) {
+          try {
+            const musicFormData = new FormData();
+            musicFormData.append('file', musicFile);
+            musicFormData.append('purpose', 'music');
+            const musicUploadResponse = await api.post('/api/v1/uploads/media', musicFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              onUploadProgress: (progressEvent) => {
+                const progress = (progressEvent.loaded / progressEvent.total) * 100;
+                setUploadProgress(progress);
+              }
+            });
+            const musicKey = musicUploadResponse?.data?.key;
+            const mResponse = await api.patch('/api/v1/users/me/music', { music_media_key: musicKey });
+            setMusicData(mResponse.data);
+            setMusicFile(null);
+            setMusicPreview(null);
+            setFileInfo(prev => ({ ...prev, music: null }));
+          } catch (musicErr) {
+            console.error('Music upload during save error:', musicErr);
+            setError('Profile saved, but music upload failed: ' + (musicErr.response?.data?.error || musicErr.message));
+          }
+        } else if (musicRemoved) {
+          try {
+            const mResponse = await api.patch('/api/v1/users/me/music', { music_media_key: null });
+            setMusicData(mResponse.data);
+            setMusicRemoved(false);
+          } catch (musicErr) {
+            console.error('Music removal during save error:', musicErr);
+            setError('Profile saved, but failed to remove music: ' + (musicErr.response?.data?.error || musicErr.message));
+          }
         }
 
         // Only send valid preference fields to /api/v1/profile/preferences
@@ -1254,21 +1309,32 @@ const ProfileSettings = () => {
                 </Box>
               </Box>
               
-              {(musicPreview || musicData?.music_url || musicData?.music_media_url) && (
-                <Box sx={{ mt: 2 }}>
+              {(musicPreview || (!musicRemoved && (musicData?.music_url || musicData?.music_media_url))) && (
+                <Box sx={{ mt: 2, position: 'relative' }}>
                   <MusicPlayer url={musicPreview || musicData?.music_url || musicData?.music_media_url} />
+                  <IconButton
+                    size="small"
+                    onClick={handleMusicRemove}
+                    sx={{
+                      position: 'absolute',
+                      top: -10,
+                      right: -10,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      backdropFilter: 'blur(8px)',
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                      color: theme.palette.error.main,
+                      '&:hover': {
+                        bgcolor: theme.palette.error.main,
+                        color: '#fff',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease',
+                      zIndex: 2
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
                 </Box>
-              )}
-              
-              {/* Music-specific success message */}
-              {success && success.includes('Music') && (
-                <Alert 
-                  severity="success" 
-                  sx={{ mt: 2, mb: 2 }}
-                  onClose={() => setSuccess('')}
-                >
-                  {success}
-                </Alert>
               )}
             </Grid>
 
@@ -1292,17 +1358,6 @@ const ProfileSettings = () => {
                 </Box>
               </Grid>
             )}
-
-            <Grid item xs={12}>
-              <Button
-                variant="outlined"
-                onClick={handleMusicSubmit}
-                disabled={!musicFile}
-                sx={getGlassPillActionButtonSx(theme)}
-              >
-                Update Music
-              </Button>
-            </Grid>
 
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />
@@ -1593,7 +1648,7 @@ const ProfileSettings = () => {
     {/* Floating Action Button for Save Changes - Outside main container for proper fixed positioning */}
     <Portal>
       <AnimatePresence>
-        {(hasUnsavedChanges || showSavedState) && (
+        {(hasUnsavedChanges || showSavedState || !!selectedFile || !!musicFile || musicRemoved) && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{

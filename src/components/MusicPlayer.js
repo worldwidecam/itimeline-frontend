@@ -35,6 +35,7 @@ const MusicPlayer = ({ url, platform, compact = false }) => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      audioRef.current.load(); // Force reload the new source
     }
 
     return () => {
