@@ -1,3 +1,4 @@
+import { getGlassDialogPaperSx, getGlassInputSx, getGlassSquareActionButtonSx, getGlassPillActionButtonSx } from '../../../utils/formStyleGuide';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import ImageEventPopup from './ImageEventPopup';
@@ -1493,46 +1494,65 @@ const EventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10,10,20,0.9)' : 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(20px)'
-            }
-          }}
+          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
-          <DialogContent sx={{ pt: 1, overflow: 'visible' }}>
-            <FormControl fullWidth required sx={{ mb: 2 }}>
-              <InputLabel id="report-category-label">Violation Type</InputLabel>
-              <Select
-                labelId="report-category-label"
-                id="report-category"
-                label="Violation Type"
-                value={reportCategory}
-                onChange={(e) => setReportCategory(e.target.value)}
-              >
-                <MenuItem value={''} disabled>Select a category</MenuItem>
-                <MenuItem value={'website_policy'}>Website Policy</MenuItem>
-                <MenuItem value={'government_policy'}>Government Policy</MenuItem>
-                <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
-              </Select>
-              {!reportCategory && (
-                <FormHelperText error>Required</FormHelperText>
-              )}
-            </FormControl>
+          <DialogContent sx={{ pt: 1, overflow: 'visible', '& .MuiTextField-root': getGlassInputSx(theme) }}>
             <TextField
-              autoFocus
+              select
               fullWidth
+              required
+              margin="dense"
+              label="Violation Type"
+              value={reportCategory}
+              onChange={(e) => setReportCategory(e.target.value)}
+              error={!reportCategory}
+              helperText={!reportCategory ? "Required" : ""}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value={''} disabled>Select a category</MenuItem>
+              <MenuItem value={'website_policy'}>Website Policy</MenuItem>
+              <MenuItem value={'government_policy'}>Government Policy</MenuItem>
+              <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              margin="dense"
               label="Reason (optional)"
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
               multiline
               minRows={3}
             />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-              <Button onClick={handleCloseReport} disabled={reportSubmitting}>Cancel</Button>
-              <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting || !reportCategory}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
+              <Button 
+                onClick={handleCloseReport} 
+                disabled={reportSubmitting}
+                variant="contained"
+                sx={{
+                  ...getGlassSquareActionButtonSx(theme),
+                  width: 'auto',
+                  minWidth: 84,
+                  px: 2,
+                  borderRadius: 1.4,
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="contained" 
+                onClick={handleSubmitReport} 
+                disabled={reportSubmitting || !reportCategory}
+                sx={{
+                  ...getGlassPillActionButtonSx(theme),
+                  bgcolor: theme.palette.error.main,
+                  color: '#fff',
+                  border: '1px solid ' + theme.palette.error.main + '88',
+                  '&:hover': {
+                    bgcolor: theme.palette.error.dark,
+                  }
+                }}
+              >
                 {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
               </Button>
             </Box>
