@@ -23,6 +23,8 @@ import {
   Chip,
   Portal,
   IconButton,
+  alpha,
+  Slider,
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -34,11 +36,17 @@ import InfoIcon from '@mui/icons-material/Info';
 import SaveIcon from '@mui/icons-material/Save';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CloseIcon from '@mui/icons-material/Close';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CakeIcon from '@mui/icons-material/Cake';
+import PaletteIcon from '@mui/icons-material/Palette';
+import LockIcon from '@mui/icons-material/Lock';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
+import TradingCard from './common/TradingCard';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -277,6 +285,9 @@ const ProfileSettings = () => {
   const [textsOverflowMode, setTextsOverflowMode] = useState('manual');
   const [theoryBoardModuleEnabled, setTheoryBoardModuleEnabled] = useState(false);
   const [theoryBoardTitle, setTheoryBoardTitle] = useState('Theory');
+  const [portraitX, setPortraitX] = useState(50);
+  const [portraitY, setPortraitY] = useState(50);
+  const [portraitZoom, setPortraitZoom] = useState(1);
 
   const markUnsavedChanges = useCallback(() => {
     setHasUnsavedChanges(true);
@@ -359,16 +370,25 @@ const ProfileSettings = () => {
               }
             }
             if (hasPassportProfilePortraitX) {
-              const portraitX = Number(passportPrefs?.profile_portrait_x);
-              if (Number.isFinite(portraitX)) localStorage.setItem(`profile_portrait_x_user_${userId}`, String(portraitX));
+              const pX = Number(passportPrefs?.profile_portrait_x);
+              if (Number.isFinite(pX)) {
+                localStorage.setItem(`profile_portrait_x_user_${userId}`, String(pX));
+                setPortraitX(pX);
+              }
             }
             if (hasPassportProfilePortraitY) {
-              const portraitY = Number(passportPrefs?.profile_portrait_y);
-              if (Number.isFinite(portraitY)) localStorage.setItem(`profile_portrait_y_user_${userId}`, String(portraitY));
+              const pY = Number(passportPrefs?.profile_portrait_y);
+              if (Number.isFinite(pY)) {
+                localStorage.setItem(`profile_portrait_y_user_${userId}`, String(pY));
+                setPortraitY(pY);
+              }
             }
             if (hasPassportProfilePortraitZoom) {
-              const portraitZoom = Number(passportPrefs?.profile_portrait_zoom);
-              if (Number.isFinite(portraitZoom)) localStorage.setItem(`profile_portrait_zoom_user_${userId}`, String(portraitZoom));
+              const pZoom = Number(passportPrefs?.profile_portrait_zoom);
+              if (Number.isFinite(pZoom)) {
+                localStorage.setItem(`profile_portrait_zoom_user_${userId}`, String(pZoom));
+                setPortraitZoom(pZoom);
+              }
             }
             if (hasPassportProfileModules) {
               resolvedProfileModules = Array.isArray(passportPrefs?.profile_modules) ? passportPrefs.profile_modules : [];
@@ -594,6 +614,21 @@ const ProfileSettings = () => {
     }
   }, [markUnsavedChanges]);
 
+  const handlePortraitXChange = (event, newValue) => {
+    setPortraitX(newValue);
+    markUnsavedChanges();
+  };
+
+  const handlePortraitYChange = (event, newValue) => {
+    setPortraitY(newValue);
+    markUnsavedChanges();
+  };
+
+  const handlePortraitZoomChange = (event, newValue) => {
+    setPortraitZoom(newValue);
+    markUnsavedChanges();
+  };
+
   const handleMusicRemove = () => {
     setMusicFile(null);
     setMusicPreview(null);
@@ -651,6 +686,14 @@ const ProfileSettings = () => {
 
     if (!trimmedUsername) {
       setError('Username is required');
+      setIsUploading(false);
+      setIsSaving(false);
+      return;
+    }
+
+    // Prevent submission if private access key is too short
+    if (formData.profileVisibility === 'private' && formData.profileAccessKey && formData.profileAccessKey.length < 4) {
+      setError('Profile access key must be at least 4 characters long.');
       setIsUploading(false);
       setIsSaving(false);
       return;
@@ -725,10 +768,15 @@ const ProfileSettings = () => {
         bio: formData.bio !== undefined ? formData.bio : undefined,
         user_color: normalizedUserColor || undefined,
         date_of_birth: formData.dateOfBirth || undefined,
-        profile_visibility: formData.profileVisibility || undefined,
+        profile_visibility: formData.profileVisibility === 'private' 
+          ? (formData.profileAccessKey ? 'key-gated' : 'private')
+          : (formData.profileVisibility || undefined),
         profile_access_key: formData.profileVisibility === 'private'
           ? (String(formData.profileAccessKey || '').trim() || undefined)
           : undefined,
+        profile_portrait_x: portraitX,
+        profile_portrait_y: portraitY,
+        profile_portrait_zoom: String(portraitZoom),
       };
 
       let response = await api.patch('/api/v1/users/me', profilePayload);
@@ -945,7 +993,26 @@ const ProfileSettings = () => {
       }));
     } catch (err) {
       console.error('Profile update error:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to update profile');
+      
+      // Attempt to extract the most descriptive error message possible
+      let errorMessage = 'Failed to update profile';
+      
+      if (err.response?.data) {
+        const data = err.response.data;
+        // Check for common error structures (error, message, or Zod issues)
+        if (data.error) {
+          errorMessage = data.error;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (Array.isArray(data.issues)) {
+          // Handle Zod validation issues specifically
+          errorMessage = data.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsUploading(false);
       setIsSaving(false);
@@ -1108,59 +1175,127 @@ const ProfileSettings = () => {
         >
           <Grid container spacing={3}>
             <Grid item xs={12} sm={4} md={3}>
-              <Tooltip title={`Max size: ${formatFileSize(MAX_FILE_SIZE)}`} placement="top">
-                <Box {...getAvatarRootProps()} 
-                  sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    gap: 2,
-                    border: '2px dashed',
-                    borderColor: dragState.avatar ? 'primary.main' : 'grey.300',
-                    borderRadius: 2,
-                    p: 2,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    transform: dragState.avatar ? 'scale(1.02)' : 'scale(1)',
-                    bgcolor: dragState.avatar ? 'action.hover' : 'transparent',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      bgcolor: 'action.hover'
-                    }
-                  }}>
-                  <input {...getAvatarInputProps()} />
-                  <UserAvatar
-                    name={formData.username}
-                    avatarUrl={previewUrl || user?.avatar_url || ''}
-                    id={user?.id}
-                    size={100}
-                    userColor={formData.userColor}
-                    sx={{
-                      transition: 'transform 0.2s ease',
-                      '&:hover': { transform: 'scale(1.05)' }
-                    }}
-                  />
-                  <Box sx={{ textAlign: 'center' }}>
-                    <CloudUploadIcon color="primary" sx={{ mb: 1 }} />
-                    <Typography variant="body2" color="textSecondary">
-                      Drag & drop or click to upload avatar
-                    </Typography>
-                    {fileInfo.avatar && (
-                      <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                        {fileInfo.avatar.name} ({fileInfo.avatar.size})
+              <Stack spacing={2} sx={{ alignItems: 'center' }}>
+                <Tooltip title={`Max size: ${formatFileSize(MAX_FILE_SIZE)}`} placement="top">
+                  <Box {...getAvatarRootProps()} 
+                    sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center', 
+                      gap: 2,
+                      border: '2px dashed',
+                      borderColor: dragState.avatar ? 'primary.main' : 'grey.300',
+                      borderRadius: 2,
+                      p: 2,
+                      width: '100%',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      transform: dragState.avatar ? 'scale(1.02)' : 'scale(1)',
+                      bgcolor: dragState.avatar ? 'action.hover' : 'transparent',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        bgcolor: 'action.hover'
+                      }
+                    }}>
+                    <input {...getAvatarInputProps()} />
+                    <UserAvatar
+                      name={formData.username}
+                      avatarUrl={previewUrl || user?.avatar_url || ''}
+                      id={user?.id}
+                      size={100}
+                      userColor={formData.userColor}
+                      sx={{
+                        transition: 'transform 0.2s ease',
+                        '&:hover': { transform: 'scale(1.05)' }
+                      }}
+                    />
+                    <Box sx={{ textAlign: 'center' }}>
+                      <CloudUploadIcon color="primary" sx={{ mb: 1 }} />
+                      <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
+                        Change Avatar
                       </Typography>
-                    )}
+                    </Box>
+                  </Box>
+                </Tooltip>
+
+                <Box sx={{ width: '100%', mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, opacity: 0.8 }}>
+                    Trading Card Preview
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', scale: '0.85', transformOrigin: 'top center' }}>
+                    <TradingCard
+                      imageUrl={previewUrl || user?.avatar_url || ''}
+                      imageAlt={displayUsername(formData.username)}
+                      label="PROFILE"
+                      title={String(displayUsername(formData.username) || '').toUpperCase()}
+                      imageSx={{
+                        objectFit: 'cover',
+                        transform: `translate(${(portraitX - 50) * 0.9}%, ${(portraitY - 50) * 0.9}%) scale(${portraitZoom})`,
+                      }}
+                    />
                   </Box>
                 </Box>
-              </Tooltip>
+              </Stack>
             </Grid>
 
             <Grid item xs={12} sm={8} md={9}>
               <Grid container spacing={3}>
                 <Grid item xs={12}>
-                  <Typography variant="h6" gutterBottom>
-                    Profile Information
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" gutterBottom>
+                      Profile Information
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                {/* Portrait Adjustment Sliders */}
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+                  }}>
+                    <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: 'primary.main' }}>
+                      Trading Card Portrait Adjustment
+                    </Typography>
+                    <Grid container spacing={4}>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="caption" color="textSecondary">Horizontal Position (X)</Typography>
+                        <Slider
+                          value={portraitX}
+                          onChange={handlePortraitXChange}
+                          min={-40}
+                          max={140}
+                          valueLabelDisplay="auto"
+                          size="small"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="caption" color="textSecondary">Vertical Position (Y)</Typography>
+                        <Slider
+                          value={portraitY}
+                          onChange={handlePortraitYChange}
+                          min={-40}
+                          max={140}
+                          valueLabelDisplay="auto"
+                          size="small"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="caption" color="textSecondary">Zoom Level</Typography>
+                        <Slider
+                          value={portraitZoom}
+                          onChange={handlePortraitZoomChange}
+                          min={1}
+                          max={4.8}
+                          step={0.1}
+                          valueLabelDisplay="auto"
+                          size="small"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
                 </Grid>
                 
                 <Grid item xs={12} sm={6}>
@@ -1361,246 +1496,388 @@ const ProfileSettings = () => {
 
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />
-            </Grid>
-
-            {/* Preferences Section */}
+            </Grid>            {/* Preferences Section */}
             <Grid item xs={12}>
-              <Paper sx={{ 
-                p: 3, 
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.7)' : 'rgba(250, 250, 250, 0.9)',
-                borderRadius: 2,
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                  : '0 4px 20px rgba(0, 0, 0, 0.05)'
-              }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, width: '100%', mb: 3 }}>
-                  Preferences
+              <Box sx={getGlassDialogPaperSx(theme)}>
+                <Typography variant="h6" sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1.5, 
+                  mb: 3, 
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)'
+                }}>
+                  <InfoIcon color="primary" /> Preferences
                 </Typography>
                 
-                <Box sx={{ width: '100%' }}>
-                  {/* Preference toggle rows - descriptions on left, toggles on right */}
+                <Stack spacing={3}>
+                  {/* Email Blur */}
                   <Box sx={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    mb: 2,
-                    pb: 2,
-                    borderBottom: 1,
-                    borderColor: 'divider'
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                    }
                   }}>
-                    <Typography variant="body1">
-                      Email Blur
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <VisibilityOffIcon sx={{ color: theme.palette.primary.main, opacity: 0.8 }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>Email Blur</Typography>
+                        <Typography variant="caption" color="textSecondary">Hides your email address from casual view</Typography>
+                      </Box>
+                    </Box>
                     <Switch 
                       checked={blurEmail}
                       onChange={handleBlurEmailChange}
                       color="primary"
                     />
                   </Box>
-                  
-                  <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
-                    <Typography variant="body1" sx={{ mb: 1 }}>
-                      Date of Birth
-                    </Typography>
-                    {!showDobInput && formData.dateOfBirth ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          {formatDobForDisplay(formData.dateOfBirth)} • Age {calculateAgeFromDob(formData.dateOfBirth) ?? 'N/A'}
-                        </Typography>
-                        <Button variant="text" size="small" onClick={handleDobReset}>
-                          Reset
+
+                  {/* Date of Birth */}
+                  <Box sx={{ 
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    transition: 'all 0.2s ease',
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <CakeIcon sx={{ color: theme.palette.primary.main, opacity: 0.8 }} />
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>Date of Birth</Typography>
+                      </Box>
+                      {!showDobInput && formData.dateOfBirth && (
+                        <Button 
+                          variant="text" 
+                          size="small" 
+                          onClick={handleDobReset}
+                          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        >
+                          Change
                         </Button>
+                      )}
+                    </Box>
+                    
+                    {!showDobInput && formData.dateOfBirth ? (
+                      <Box sx={{ ml: 6 }}>
+                        <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+                          {formatDobForDisplay(formData.dateOfBirth)} 
+                          <Typography component="span" variant="caption" sx={{ ml: 1.5, opacity: 0.7, fontWeight: 400 }}>
+                            • {calculateAgeFromDob(formData.dateOfBirth) ?? 'N/A'} years old
+                          </Typography>
+                        </Typography>
                       </Box>
                     ) : (
-                      <TextField
-                        type="date"
-                        value={formData.dateOfBirth || ''}
-                        onChange={handleDateOfBirthChange}
-                        inputProps={{ max: new Date().toISOString().split('T')[0] }}
-                        size="small"
-                      />
+                      <Box sx={{ ml: 6 }}>
+                        <TextField
+                          type="date"
+                          fullWidth
+                          value={formData.dateOfBirth || ''}
+                          onChange={handleDateOfBirthChange}
+                          inputProps={{ max: new Date().toISOString().split('T')[0] }}
+                          sx={getGlassInputSx(theme)}
+                        />
+                      </Box>
                     )}
                   </Box>
 
-                  <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
-                    <Typography variant="body1" sx={{ mb: 1 }}>
-                      Identity Color
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <input
-                        type="color"
-                        value={formData.userColor || '#4f7cff'}
-                        onChange={handleUserColorChange}
-                        aria-label="Choose identity color"
-                        style={{
-                          width: 44,
-                          height: 32,
-                          border: 'none',
-                          borderRadius: 8,
-                          background: 'transparent',
+                  {/* Identity Color */}
+                  <Box sx={{ 
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                      <PaletteIcon sx={{ color: theme.palette.primary.main, opacity: 0.8 }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>Identity Color</Typography>
+                        <Typography variant="caption" color="textSecondary">Used for your name and highlights across the site</Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ ml: 6, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Box 
+                        sx={{ 
+                          position: 'relative',
+                          width: 50,
+                          height: 50,
+                          borderRadius: '16px',
+                          bgcolor: formData.userColor || '#4f7cff',
+                          boxShadow: `0 8px 20px ${(formData.userColor || '#4f7cff')}44`,
                           cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                          border: '3px solid rgba(255,255,255,0.2)',
+                          '&:hover': { transform: 'scale(1.1) rotate(5deg)' }
                         }}
-                      />
-                      <Typography variant="body2" color="text.secondary">
-                        {formData.userColor || '#4f7cff'}
-                      </Typography>
+                        onClick={() => document.getElementById('identity-color-picker').click()}
+                      >
+                         <input
+                          id="identity-color-picker"
+                          type="color"
+                          value={formData.userColor || '#4f7cff'}
+                          onChange={handleUserColorChange}
+                          style={{
+                            opacity: 0,
+                            position: 'absolute',
+                            width: '100%',
+                            height: '100%',
+                            cursor: 'pointer',
+                          }}
+                        />
+                      </Box>
+                      <Box>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 800, 
+                          letterSpacing: '0.1em',
+                          fontFamily: 'monospace',
+                          opacity: 0.9
+                        }}>
+                          {String(formData.userColor || '#4f7cff').toUpperCase()}
+                        </Typography>
+                      </Box>
                     </Box>
                   </Box>
 
-                  <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.7 }}>
-                      <Typography variant="body1">
-                        Private Profile
-                      </Typography>
+                  {/* Privacy Section */}
+                  <Box sx={{ 
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <LockIcon sx={{ color: theme.palette.primary.main, opacity: 0.8 }} />
+                        <Box>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>Private Profile</Typography>
+                          <Typography variant="caption" color="textSecondary">Limit visibility and require an access key</Typography>
+                        </Box>
+                      </Box>
                       <Switch
                         checked={formData.profileVisibility === 'private'}
                         onChange={handleProfileVisibilityChange}
                         color="primary"
                       />
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                      Private mode allows you and users you follow. Others need your access key.
-                    </Typography>
 
-                    {formData.profileVisibility === 'private' && (
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="password"
-                        label="Profile Access Key"
-                        value={formData.profileAccessKey || ''}
-                        onChange={handleProfileAccessKeyChange}
-                        inputProps={{ maxLength: 120 }}
-                        sx={{ mt: 1.35, ...getGlassInputSx(theme) }}
-                        helperText="Share this key with viewers you want to temporarily allow."
-                      />
-                    )}
+                    <AnimatePresence>
+                      {formData.profileVisibility === 'private' && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                          animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                          exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          <Box sx={{ ml: 6, pt: 1 }}>
+                            <TextField
+                              fullWidth
+                              type="password"
+                              label="Profile Access Key"
+                              placeholder="Create a key for viewers..."
+                              value={formData.profileAccessKey || ''}
+                              onChange={handleProfileAccessKeyChange}
+                              error={formData.profileVisibility === 'private' && !!formData.profileAccessKey && formData.profileAccessKey.length < 4}
+                              helperText={
+                                (formData.profileVisibility === 'private' && !!formData.profileAccessKey && formData.profileAccessKey.length < 4)
+                                  ? "Access key must be at least 4 characters long."
+                                  : "Share this key with viewers you want to temporarily allow."
+                              }
+                              inputProps={{ maxLength: 120 }}
+                              sx={getGlassInputSx(theme)}
+                            />
+                          </Box>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </Box>
-                  
+
+                  {/* Dark Mode */}
                   <Box sx={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    mb: 2
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   }}>
-                    <Typography variant="body1">
-                      Dark mode
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <DarkModeIcon sx={{ color: theme.palette.primary.main, opacity: 0.8 }} />
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>Dark Theme</Typography>
+                    </Box>
                     <Switch 
                       checked={isDarkMode}
                       onChange={handleThemeChange}
                       color="primary"
                     />
                   </Box>
-                </Box>
-              </Paper>
+                </Stack>
+              </Box>
             </Grid>
-
             <Grid item xs={12}>
-              <Paper sx={{
-                p: 3,
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.7)' : 'rgba(250, 250, 250, 0.9)',
-                borderRadius: 2,
-                boxShadow: theme.palette.mode === 'dark'
-                  ? '0 4px 20px rgba(0, 0, 0, 0.2)'
-                  : '0 4px 20px rgba(0, 0, 0, 0.05)'
-              }}>
-                <Typography variant="h6" gutterBottom>
-                  Profile Modules
+              <Box sx={getGlassDialogPaperSx(theme)}>
+                <Typography variant="h6" sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1.5, 
+                  mb: 2, 
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)'
+                }}>
+                  <DashboardIcon color="primary" /> Profile Modules
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 4, ml: 5 }}>
                   Configure module visibility for your profile.
                 </Typography>
 
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.2 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        Module List
-                      </Typography>
+                <Stack spacing={3}>
+                  <Box sx={{ 
+                    p: 2.5,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    border: '1px solid',
+                    borderColor: theoryBoardModuleEnabled 
+                      ? alpha(theme.palette.success.main, 0.2) 
+                      : 'transparent',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ 
+                          p: 1, 
+                          borderRadius: 1.5, 
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: theme.palette.primary.main
+                        }}>
+                          <DashboardIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Theory Board</Typography>
+                          <Typography variant="caption" color="textSecondary">Share your latest theories and insights</Typography>
+                        </Box>
+                      </Box>
+                      <Chip
+                        size="small"
+                        color={theoryBoardModuleEnabled ? 'success' : 'default'}
+                        label={theoryBoardModuleEnabled ? 'ACTIVE' : 'INACTIVE'}
+                        sx={{ fontWeight: 800, borderRadius: 1.5, height: 24, fontSize: '0.65rem' }}
+                      />
                     </Box>
-                    <Stack spacing={1.2}>
-                      <Card variant="outlined">
-                        <CardContent sx={{ pb: 1.2 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              Theory Board Module
-                            </Typography>
-                            <Chip
-                              size="small"
-                              color={theoryBoardModuleEnabled ? 'success' : 'default'}
-                              label={theoryBoardModuleEnabled ? 'ACTIVE' : 'INACTIVE'}
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </Box>
-                          <FormControlLabel
-                            control={(
-                              <Switch
-                                checked={theoryBoardModuleEnabled}
-                                onChange={handleTheoryBoardModuleEnabledChange}
-                              />
-                            )}
-                            label="Show Theory Board module on your profile"
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 3 }}>
+                      <FormControlLabel
+                        control={(
+                          <Switch
+                            checked={theoryBoardModuleEnabled}
+                            onChange={handleTheoryBoardModuleEnabledChange}
+                            color="primary"
                           />
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Board Name"
-                            value={theoryBoardTitle}
-                            onChange={handleTheoryBoardTitleChange}
-                            inputProps={{ maxLength: THEORY_BOARD_TITLE_MAX_LENGTH }}
-                            sx={getGlassInputSx(theme)}
-                            helperText={`Displays as: ${formatTheoryBoardTitle(theoryBoardTitle)}`}
-                          />
-                        </CardContent>
-                      </Card>
-
-                      <Card variant="outlined">
-                        <CardContent sx={{ pb: 1.2 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              Texts Module
-                            </Typography>
-                            <Chip
-                              size="small"
-                              color={textsModuleEnabled ? 'success' : 'default'}
-                              label={textsModuleEnabled ? 'ACTIVE' : 'INACTIVE'}
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </Box>
-                          <FormControlLabel
-                            control={(
-                              <Switch
-                                checked={textsModuleEnabled}
-                                onChange={handleTextsModuleEnabledChange}
-                              />
-                            )}
-                            label="Show Texts module on your profile"
-                            sx={{ mb: 1.1 }}
-                          />
-
-                          <TextField
-                            select
-                            fullWidth
-                            size="small"
-                            label="At 10 texts"
-                            value={textsOverflowMode}
-                            onChange={handleTextsOverflowModeChange}
-                            disabled={!textsModuleEnabled}
-                            sx={getGlassInputSx(theme)}
-                            helperText={textsOverflowMode === 'fifo'
-                              ? 'FIFO: oldest text is removed automatically when a new one is sent.'
-                              : 'Manual: add button is hidden at 10 until you delete one.'}
+                        )}
+                        label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Visible on profile</Typography>}
+                        sx={{ ml: 0 }}
+                      />
+                      
+                      <AnimatePresence>
+                        {theoryBoardModuleEnabled && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
                           >
-                            <MenuItem value="manual">Manual delete only</MenuItem>
-                            <MenuItem value="fifo">Auto-delete oldest (FIFO)</MenuItem>
-                          </TextField>
-                        </CardContent>
-                      </Card>
-                    </Stack>
-                  </Grid>
-                </Grid>
-              </Paper>
+                            <TextField
+                              fullWidth
+                              label="Board Custom Name"
+                              placeholder="e.g. Conspiracy, Ideas, Research"
+                              value={theoryBoardTitle}
+                              onChange={handleTheoryBoardTitleChange}
+                              sx={getGlassInputSx(theme)}
+                              helperText="The suffix 'Board' will be added automatically."
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Box>
+                  </Box>
+
+                  {/* Texts Module Toggle */}
+                  <Box sx={{ 
+                    p: 2.5,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    border: '1px solid',
+                    borderColor: textsModuleEnabled 
+                      ? alpha(theme.palette.success.main, 0.2) 
+                      : 'transparent',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ 
+                          p: 1, 
+                          borderRadius: 1.5, 
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: theme.palette.primary.main
+                        }}>
+                          <InfoIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Texts & Notes</Typography>
+                          <Typography variant="caption" color="textSecondary">General profile text content and notes</Typography>
+                        </Box>
+                      </Box>
+                      <Chip
+                        size="small"
+                        color={textsModuleEnabled ? 'success' : 'default'}
+                        label={textsModuleEnabled ? 'ACTIVE' : 'INACTIVE'}
+                        sx={{ fontWeight: 800, borderRadius: 1.5, height: 24, fontSize: '0.65rem' }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 3 }}>
+                      <FormControlLabel
+                        control={(
+                          <Switch
+                            checked={textsModuleEnabled}
+                            onChange={handleTextsModuleEnabledChange}
+                            color="primary"
+                          />
+                        )}
+                        label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Visible on profile</Typography>}
+                        sx={{ ml: 0 }}
+                      />
+
+                      <AnimatePresence>
+                        {textsModuleEnabled && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                          >
+                            <TextField
+                              select
+                              fullWidth
+                              label="Text Overflow Mode"
+                              value={textsOverflowMode}
+                              onChange={handleTextsOverflowModeChange}
+                              sx={getGlassInputSx(theme)}
+                              helperText="Manual: You pick which texts show. FIFO: Oldest are hidden automatically."
+                            >
+                              <MenuItem value="manual">Manual Selection</MenuItem>
+                              <MenuItem value="fifo">Automatic (FIFO)</MenuItem>
+                            </TextField>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Box>
+                  </Box>
+                </Stack>
+              </Box>
             </Grid>
             
             <Grid item xs={12}>

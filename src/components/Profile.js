@@ -34,6 +34,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LockIcon from '@mui/icons-material/Lock';
 import HomeIcon from '@mui/icons-material/Home';
 import LoginIcon from '@mui/icons-material/Login';
+import InfoIcon from '@mui/icons-material/Info';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -161,7 +162,7 @@ const normalizeProfileModules = (rawModules) => {
 };
 
 const Profile = () => {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, loading: authLoading } = useAuth();
   const { userId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -420,6 +421,8 @@ const Profile = () => {
   ];
 
   useEffect(() => {
+    if (authLoading) return;
+    let active = true;
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
@@ -435,6 +438,7 @@ const Profile = () => {
           setProfileAccessVisibility(['private', 'key-gated'].includes(ownStoredVisibility) ? 'private' : 'public');
 
           if (isGuestProfileRoute || isGuest || !hasNumericUserId) {
+            if (!active) return;
             setProfileUser({
               id: null,
               username: user?.username || 'Goblin',
@@ -450,18 +454,20 @@ const Profile = () => {
           }
 
           // If viewing own profile, always fetch fresh data from API
-          // This ensures all fields (including bio) are loaded from database
           if (user && hasNumericUserId) {
             try {
-              const userResponse = await api.get(`/api/v1/users/${user.id}`);
+              const userResponse = await api.get(`/api/v1/users/${user.id}`, {
+                params: { access_key: queryAccessKey }
+              });
+              if (!active) return;
               setProfileUser(userResponse.data);
               const ownApiVisibility = String(userResponse?.data?.profile_visibility || ownStoredVisibility || 'public').trim().toLowerCase();
               const normalizedOwnVisibility = ['private', 'key-gated'].includes(ownApiVisibility) ? 'private' : 'public';
               setProfileAccessVisibility(normalizedOwnVisibility);
               localStorage.setItem(`profile_visibility_user_${user.id}`, normalizedOwnVisibility);
             } catch (userError) {
+              if (!active) return;
               console.error('Error fetching own profile data:', userError);
-              // Fallback to AuthContext user data if API call fails
               const formattedUser = {
                 ...user,
                 created_at: user.created_at && typeof user.created_at === 'string' ? user.created_at : null
@@ -470,14 +476,15 @@ const Profile = () => {
             }
           }
           
-          // Fetch music preferences for own profile
           if (hasNumericUserId) {
             try {
               const musicResponse = await api.get('/api/v1/profile/music');
+              if (!active) return;
               if (musicResponse.data.music_url || musicResponse.data.music_media_url) {
                 setMusicData(musicResponse.data);
-                // Slight delay before showing music player for a smoother experience
-                setTimeout(() => setShowMusic(true), 100);
+                setTimeout(() => {
+                  if (active) setShowMusic(true);
+                }, 100);
               }
             } catch (musicError) {
               console.error('Error fetching music preferences:', musicError);
@@ -488,6 +495,7 @@ const Profile = () => {
           if (!(targetUserId > 0)) {
             try {
               const usernameResponse = await api.get(`/api/v1/users/search`, { params: { username: userId } });
+              if (!active) return;
               const users = Array.isArray(usernameResponse?.data) ? usernameResponse.data : [];
               if (users.length > 0 && users[0].id) {
                 targetUserId = users[0].id;
@@ -497,24 +505,30 @@ const Profile = () => {
                 return;
               }
             } catch (err) {
+              if (!active) return;
               console.error('Error finding user by username:', err);
-              setError('User profile not found');
+              const errMsg = err.response?.data?.error || err.response?.data?.message || 'User profile not found';
+              setError(errMsg);
               setLoading(false);
               return;
             }
           }
+          if (!active) return;
           setResolvedTargetUserId(targetUserId);
 
           let accessDecision = null;
           try {
             const accessResponse = await api.get(`/api/v1/users/${targetUserId}/profile-access`);
+            if (!active) return;
             accessDecision = accessResponse?.data || null;
           } catch (accessError) {
+            if (!active) return;
             console.error('Error fetching profile access state:', accessError);
             setError('Failed to resolve profile access');
             return;
           }
 
+          if (!active) return;
           const visibility = String(accessDecision?.visibility || 'public').toLowerCase();
           setProfileAccessVisibility(['private', 'key-gated'].includes(visibility) ? 'private' : 'public');
 
@@ -529,6 +543,7 @@ const Profile = () => {
                 const verifyResponse = await api.post(`/api/v1/users/${targetUserId}/profile-access`, {
                   access_key: candidateKey,
                 });
+                if (!active) return;
                 const verifyDecision = verifyResponse?.data || {};
                 if (!verifyDecision?.allowed) {
                   throw new Error('Access denied');
@@ -537,6 +552,7 @@ const Profile = () => {
                   localStorage.setItem(profileAccessStorageKey, candidateKey);
                 }
               } catch (verifyError) {
+                if (!active) return;
                 if (profileAccessStorageKey) {
                   localStorage.removeItem(profileAccessStorageKey);
                 }
@@ -546,6 +562,7 @@ const Profile = () => {
                 return;
               }
             } else {
+              if (!active) return;
               setProfileAccessLocked(true);
               setProfileAccessMessage('This profile is private. Enter access key to continue.');
               setShowProfileAccessInput(false);
@@ -553,44 +570,64 @@ const Profile = () => {
             }
           }
 
+          if (!active) return;
           setProfileAccessLocked(false);
           setProfileAccessMessage('');
 
-          // If viewing someone else's profile
           try {
-            const userResponse = await api.get(`/api/v1/users/${targetUserId}`);
+            const userResponse = await api.get(`/api/v1/users/${targetUserId}`, {
+              params: { access_key: queryAccessKey }
+            });
+            if (!active) return;
             setProfileUser(userResponse.data);
             
-            // Optionally fetch music for other users if the API supports it
             try {
               const musicResponse = await api.get(`/api/v1/users/${targetUserId}/music`);
+              if (!active) return;
               if (musicResponse.data.music_url || musicResponse.data.music_media_url) {
                 setMusicData(musicResponse.data);
-                setTimeout(() => setShowMusic(true), 100);
+                setTimeout(() => {
+                  if (active) setShowMusic(true);
+                }, 100);
               }
             } catch (musicError) {
-              // It's okay if we can't get music data for other users
               console.log('No music data available for this user');
             }
           } catch (userError) {
+            if (!active) return;
             console.error('Error fetching user profile:', userError);
-            setError('User profile not found');
+            const userErrMsg = userError.response?.data?.error || userError.response?.data?.message || 'User profile not found';
+            setError(userErrMsg);
           }
         }
       } catch (error) {
+        if (!active) return;
         console.error('Error in profile loading:', error);
         setError('Error loading profile');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchUserProfile();
 
     return () => {
+      active = false;
       setShowMusic(false);
     };
-  }, [userId, user, isOwnProfile, profileAccessRefreshNonce, profileAccessStorageKey, queryAccessKey]);
+  }, [userId, user, isOwnProfile, profileAccessRefreshNonce, profileAccessStorageKey, queryAccessKey, authLoading]);
+
+  // Redirect owner to canonical /profile if they land on /profile/:id
+  useEffect(() => {
+    if (authLoading) return;
+    if (userId && isOwnProfile && !isGuestProfileRoute) {
+      console.log(`[Profile] Redirecting owner from /profile/${userId} to canonical /profile`);
+      navigate({
+        pathname: '/profile',
+        search: location.search
+      }, { replace: true });
+    }
+  }, [userId, isOwnProfile, isGuestProfileRoute, navigate, location.search, authLoading]);
 
   const handleSubmitProfileAccessKey = useCallback(async () => {
     const targetUserId = resolvedTargetUserId || Number(userId || 0);
@@ -629,10 +666,14 @@ const Profile = () => {
     if (!profileUser?.id) return;
 
     const storageUserId = Number(profileUser.id);
+    const apiPortraitX = profileUser.profile_portrait_x;
+    const apiPortraitY = profileUser.profile_portrait_y;
+    const apiPortraitZoom = profileUser.profile_portrait_zoom;
+
     const localPortraitUrl = String(localStorage.getItem(`profile_portrait_url_user_${storageUserId}`) || '').trim();
-    const localPortraitX = clampPortraitFrameValue(localStorage.getItem(`profile_portrait_x_user_${storageUserId}`), 50);
-    const localPortraitY = clampPortraitFrameValue(localStorage.getItem(`profile_portrait_y_user_${storageUserId}`), 50);
-    const localPortraitZoom = clampPortraitZoom(localStorage.getItem(`profile_portrait_zoom_user_${storageUserId}`), 1);
+    const localPortraitX = clampPortraitFrameValue(apiPortraitX ?? localStorage.getItem(`profile_portrait_x_user_${storageUserId}`), 50);
+    const localPortraitY = clampPortraitFrameValue(apiPortraitY ?? localStorage.getItem(`profile_portrait_y_user_${storageUserId}`), 50);
+    const localPortraitZoom = clampPortraitZoom(apiPortraitZoom ?? localStorage.getItem(`profile_portrait_zoom_user_${storageUserId}`), 1);
 
     setProfilePortraitMeta({
       imageUrl: localPortraitUrl || String(profileUser?.avatar_url || '').trim(),
@@ -1058,17 +1099,11 @@ const Profile = () => {
               left: '20px',
               maxWidth: 'min(400px, calc(100vw - 40px))',
               zIndex: 1000,
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: 2,
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0, 0, 0, 0.3)'
-                : '0 8px 32px rgba(0, 0, 0, 0.1)',
+              ...getGlassDialogPaperSx(theme),
               p: 2,
               opacity: showMusic ? 1 : 0,
               transition: 'all 0.3s ease-in-out',
               boxSizing: 'border-box',
-              // CSS media queries respond in real-time to viewport changes
               '@media (max-width: 1100px)': {
                 top: 'auto',
                 bottom: '20px',
@@ -1081,12 +1116,17 @@ const Profile = () => {
           >
             <Typography
               variant="h6"
-              gutterBottom
               sx={{
-                fontSize: '1.25rem',
+                fontSize: '1.1rem',
+                fontWeight: 800,
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
                 '@media (max-width: 1100px)': { fontSize: '0.875rem' }
               }}
             >
+              <InfoIcon color="primary" sx={{ fontSize: 20 }} />
               {isOwnProfile ? 'My Music' : `${displayUsername(profileUser?.username)}'s Music`}
             </Typography>
             <Box sx={{
@@ -1111,14 +1151,11 @@ const Profile = () => {
       )}
       
       <Container maxWidth="md">
-        <Paper sx={{ 
+        <Box sx={{ 
           position: 'relative',
-          p: 4, 
-          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: profileIdentityColor ? alpha(profileIdentityColor, 0.9) : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.18)'),
+          p: { xs: 3, sm: 4 }, 
+          ...getGlassDialogPaperSx(theme),
+          borderRadius: 4,
           boxShadow: profileContainerGlow,
         }}>
           {profileAccessVisibility === 'private' ? (
@@ -1127,56 +1164,110 @@ const Profile = () => {
                 position: 'absolute',
                 top: { xs: 16, sm: 20 },
                 right: { xs: 16, sm: 20 },
-                fontSize: { xs: 70, sm: 98 },
-                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.14)',
+                fontSize: { xs: 60, sm: 80 },
+                color: theme.palette.primary.main,
+                opacity: 0.08,
                 filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.16))',
                 pointerEvents: 'none',
                 zIndex: 0,
               }}
             />
           ) : null}
+          
           <Grid container spacing={4}>
             {/* Profile Header */}
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <UserAvatar
-                  name={displayUsername(profileUser.username)}
-                  avatarUrl={profileUser.avatar_url}
-                  id={profileUser.id}
-                  size={120}
-                  userColor={profileUser.user_color}
-                />
-                <Box>
-                  <Typography variant="h4" gutterBottom>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'center', sm: 'flex-start' }, 
+                gap: 4,
+                textAlign: { xs: 'center', sm: 'left' }
+              }}>
+                <Box sx={{ position: 'relative' }}>
+                  <UserAvatar
+                    name={displayUsername(profileUser.username)}
+                    avatarUrl={profileUser.avatar_url}
+                    id={profileUser.id}
+                    size={isNarrowViewport ? 100 : 140}
+                    userColor={profileUser.user_color}
+                  />
+                  {profileAccessVisibility === 'private' && (
+                    <Box sx={{ 
+                      position: 'absolute', 
+                      bottom: -4, 
+                      right: -4, 
+                      bgcolor: theme.palette.primary.main,
+                      color: '#fff',
+                      borderRadius: '50%',
+                      p: 0.5,
+                      display: 'flex',
+                      border: `3px solid ${theme.palette.background.paper}`
+                    }}>
+                      <LockIcon sx={{ fontSize: 16 }} />
+                    </Box>
+                  )}
+                </Box>
+                
+                <Box sx={{ flex: 1, pt: { sm: 1.5 } }}>
+                  <Typography variant={isNarrowViewport ? "h4" : "h3"} sx={{ 
+                    fontWeight: 900, 
+                    mb: 1,
+                    letterSpacing: '-0.02em',
+                    color: '#fff',
+                    textShadow: profileIdentityColor 
+                      ? `0 0 20px ${alpha(profileIdentityColor, 0.8)}, 0 2px 4px rgba(0,0,0,0.5)` 
+                      : '0 2px 4px rgba(0,0,0,0.3)',
+                  }}>
                     {displayUsername(profileUser.username)}
                   </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    {getBlurredEmail(profileUser.email)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {profileUser.created_at ? 
-                      `Joined ${new Date(profileUser.created_at).toLocaleDateString()}` : 
-                      'Join date unavailable'}
-                  </Typography>
+                  
+                  <Stack direction="row" spacing={2} sx={{ mb: 2, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <LoginIcon sx={{ fontSize: 16, opacity: 0.6 }} />
+                      {profileUser.created_at ? 
+                        `Joined ${new Date(profileUser.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` : 
+                        'Join date unavailable'}
+                    </Typography>
+                    {profileUser.email && (
+                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                         {getBlurredEmail(profileUser.email)}
+                      </Typography>
+                    )}
+                  </Stack>
                 </Box>
               </Box>
             </Grid>
 
             <Grid item xs={12}>
-              <Divider />
+              <Box sx={{ 
+                p: 3, 
+                borderRadius: 3, 
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)',
+              }}>
+                <Typography variant="subtitle2" sx={{ 
+                  fontWeight: 800, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.1em',
+                  mb: 1.5,
+                  color: theme.palette.primary.main,
+                  opacity: 0.8
+                }}>
+                  Biography
+                </Typography>
+                <Typography variant="body1" sx={{ 
+                  lineHeight: 1.7,
+                  color: theme.palette.text.primary,
+                  opacity: 0.9,
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {profileUser.bio || 'This user hasn\'t shared their story yet.'}
+                </Typography>
+              </Box>
             </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Bio
-              </Typography>
-              <Typography variant="body1">
-                {profileUser.bio || 'No bio available.'}
-              </Typography>
-            </Grid>
-
           </Grid>
-        </Paper>
+        </Box>
       </Container>
 
       {(visibleProfileModules.length > 0 || isOwnProfile) && (
@@ -1223,11 +1314,10 @@ const Profile = () => {
                   })()}
                   <Box
                     sx={{
-                      borderRadius: 2.5,
-                      p: 1.25,
-                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(8, 16, 44, 0.58)' : 'rgba(240, 244, 255, 0.75)',
-                      border: '1px solid',
-                      borderColor: theme.palette.mode === 'dark' ? 'rgba(130, 177, 255, 0.22)' : 'rgba(25, 118, 210, 0.2)',
+                      borderRadius: 3.5,
+                      p: 1.5,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+                      border: '1px solid rgba(255,255,255,0.05)',
                     }}
                   >
                     {normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_TEXTS ? (
