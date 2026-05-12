@@ -260,6 +260,7 @@ const AudioMediaPopup = ({
       onClose={onClose}
       maxWidth="lg"
       fullWidth
+      container={document.fullscreenElement || document.body}
       PaperProps={{
         component: motion.div,
         initial: { opacity: 0, y: 20, scale: 0.98 },
@@ -778,6 +779,7 @@ const AudioMediaPopup = ({
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDelete}
+        container={document.fullscreenElement || document.body}
       >
         <DialogTitle>Delete Event</DialogTitle>
         <DialogContent>
@@ -806,6 +808,7 @@ const AudioMediaPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
+          container={document.fullscreenElement || document.body}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

@@ -466,6 +466,7 @@ const VideoEventPopup = ({
           </Alert>
         </Snackbar>
         <Dialog
+          container={document.fullscreenElement || document.body}
           open={open}
           onClose={handleClose}
           maxWidth="lg" // Larger dialog for the two-container layout
@@ -1075,6 +1076,7 @@ const VideoEventPopup = ({
           </Snackbar>
         </Dialog>
         <Dialog
+          container={document.fullscreenElement || document.body}
           open={deleteDialogOpen}
           onClose={handleCloseDelete}
         >
@@ -1089,10 +1091,12 @@ const VideoEventPopup = ({
         </Dialog>
         {/* Level 1 Report Overlay */}
         <Dialog
+          container={document.fullscreenElement || document.body}
           open={reportOpen}
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
+          container={document.fullscreenElement || document.body}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

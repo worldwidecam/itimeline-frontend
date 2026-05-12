@@ -369,7 +369,12 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
 
   const handlePointerDown = useCallback((event) => {
     if (event.button !== 0) return;
+    
+    // Deselect any active pin when clicking/dragging empty space
+    setSelectedPinId(null);
+
     if (isOwner && interactionMode !== 'default') return;
+    
     const nextDrag = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -1447,32 +1452,48 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                   sx={{
                     position: 'absolute',
                     left: pin.screenX,
-                    top: pin.screenY + 10,
+                    top: pin.screenY + 14,
                     width: isEventReference ? 'auto' : 'max-content',
-                    minWidth: (!isEventReference && !isChipOnlyContent) ? 180 : undefined,
+                    minWidth: (!isEventReference && !isChipOnlyContent) ? 140 : undefined,
                     maxWidth: isEventReference
                       ? Math.min(520, Math.max(250, window.innerWidth * 0.72))
                       : Math.min(560, Math.max(230, window.innerWidth * 0.68)),
                     marginRight: -2000,
                     maxHeight: 'none',
                     overflow: 'visible',
-                    borderRadius: 1,
+                    borderRadius: (isChipOnlyContent || isEventReference) ? 1 : '2px 3px 18px 2px',
                     border: (isChipOnlyContent || isEventReference) ? 'none' : '1px solid',
                     borderColor: isChipOnlyContent
                       ? 'transparent'
                       : isEventReference
-                      ? 'rgba(61, 32, 18, 0.55)'
-                      : 'rgba(67, 38, 23, 0.34)',
+                      ? 'rgba(61, 32, 18, 0.45)'
+                      : 'rgba(67, 38, 23, 0.18)',
                     bgcolor: (isChipOnlyContent || isEventReference)
                       ? 'transparent'
-                      : (theme.palette.mode === 'dark' ? 'rgba(19, 18, 17, 0.72)' : 'rgba(255, 252, 246, 0.86)'),
-                    boxShadow: (isChipOnlyContent || isEventReference) ? 'none' : '0 6px 14px rgba(20, 10, 6, 0.24)',
-                    p: (isChipOnlyContent || isEventReference) ? 0 : 0.8,
+                      : (() => {
+                        const hash = String(pin.id).split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
+                        const colors = theme.palette.mode === 'dark' 
+                          ? ['#3e3b12', '#4a1a2c', '#1a4a32', '#1a324a', '#321a4a']
+                          : ['#ffff88', '#ff80ab', '#80f0ff', '#b2ff59', '#ffd180', '#ea80fc'];
+                        return colors[Math.abs(hash) % colors.length];
+                      })(),
+                    backgroundImage: (isChipOnlyContent || isEventReference)
+                      ? 'none'
+                      : 'linear-gradient(165deg, rgba(255,255,255,0.24) 0%, rgba(0,0,0,0.06) 100%)',
+                    boxShadow: (isChipOnlyContent || isEventReference)
+                      ? 'none'
+                      : '2px 6px 12px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.12)',
+                    p: (isChipOnlyContent || isEventReference) ? 0 : 1.2,
                     zIndex: 2,
-                    transform: 'translateX(-50%)',
+                    transform: `translateX(-50%) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
                     cursor: canOpenResolvedEventReference ? 'pointer' : 'default',
                     overflowWrap: 'anywhere',
                     wordBreak: 'break-word',
+                    transition: 'transform 0.2s ease',
+                    '&:hover': {
+                      transform: `translateX(-50%) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg) scale(1.02)`,
+                      zIndex: 10,
+                    }
                   }}
                 >
                   {isEventReference ? (

@@ -304,6 +304,7 @@ const ImageEventPopup = ({
           onClose={handleClose}
           maxWidth="lg" // Larger dialog for the two-container layout
           fullWidth
+          container={document.fullscreenElement || document.body}
           closeAfterTransition
           disableEscapeKeyDown={false}
           PaperComponent={motion.div}
@@ -863,6 +864,7 @@ const ImageEventPopup = ({
           <Dialog
             open={deleteDialogOpen}
             onClose={handleCloseDelete}
+            container={document.fullscreenElement || document.body}
           >
             <DialogTitle>Delete Event</DialogTitle>
             <DialogContent>
@@ -891,6 +893,7 @@ const ImageEventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
+          container={document.fullscreenElement || document.body}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

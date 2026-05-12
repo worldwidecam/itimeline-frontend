@@ -947,6 +947,7 @@ const EventPopup = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
+      container={document.fullscreenElement || document.body}
       PaperProps={{
         sx: {
           borderRadius: 3,
@@ -1494,6 +1495,7 @@ const EventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
+          container={document.fullscreenElement || document.body}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
@@ -1561,6 +1563,7 @@ const EventPopup = ({
         <Dialog
           open={deleteDialogOpen}
           onClose={handleCloseDelete}
+          container={document.fullscreenElement || document.body}
         >
           <DialogTitle>Delete Event</DialogTitle>
           <DialogContent>

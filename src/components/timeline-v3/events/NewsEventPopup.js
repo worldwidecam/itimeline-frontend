@@ -383,6 +383,7 @@ const NewsEventPopup = ({
           onClose={handleClose}
           maxWidth="lg" // Larger dialog for the two-container layout
           fullWidth
+          container={document.fullscreenElement || document.body}
           PaperProps={{
             component: motion.div,
             initial: { opacity: 0, y: 20, scale: 0.98 },
@@ -1054,6 +1055,7 @@ const NewsEventPopup = ({
           <Dialog
             open={deleteDialogOpen}
             onClose={handleCloseDelete}
+            container={document.fullscreenElement || document.body}
           >
             <DialogTitle>Delete Event</DialogTitle>
             <DialogContent>
@@ -1082,6 +1084,7 @@ const NewsEventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
+          container={document.fullscreenElement || document.body}
           closeAfterTransition
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
