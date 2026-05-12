@@ -154,25 +154,44 @@ const normalizeProfileModules = (rawModules) => {
   if (!Array.isArray(rawModules)) return [];
   return rawModules
     .map((module, index) => {
-      const moduleType = normalizeProfileModuleType(module?.type);
-      const title = String(module?.title || '').trim().slice(0, 120);
-      const description = String(module?.description || '').trim().slice(0, 1200);
-      const texts = normalizeProfileTextEntries(module?.texts, title || 'User');
+      // Handle both new backend format (module_key) and legacy format (type/id)
+      const moduleKey = module?.module_key || module?.type || module?.id || '';
+      const moduleType = normalizeProfileModuleType(moduleKey);
+      
+      // Handle new backend format (config object) or flat legacy format
+      const config = module?.config || {};
+      const title = String(module?.title || config?.title || '').trim().slice(0, 120);
+      const description = String(module?.description || config?.description || '').trim().slice(0, 1200);
+      const texts = normalizeProfileTextEntries(module?.texts || config?.texts, title || 'User');
+      
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
       if (!hasTheoryBoardPayload && !title && !description && texts.length === 0) return null;
-      const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
-      const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items) || TEXTS_MODULE_MAX_ITEMS));
-      const overflowMode = normalizeOverflowMode(module?.overflow_mode);
+      
+      const moduleOrder = Number.isFinite(Number(module?.position)) 
+        ? Number(module.position) 
+        : (Number.isFinite(Number(module?.order)) ? Number(module.order) : index);
+        
+      const isVisible = module?.enabled !== undefined 
+        ? Boolean(module.enabled) 
+        : (module?.is_visible !== undefined ? Boolean(module.is_visible) : true);
+
+      const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items || config?.max_items) || TEXTS_MODULE_MAX_ITEMS));
+      const overflowMode = normalizeOverflowMode(module?.overflow_mode || config?.overflow_mode);
+
       return {
-        id: String(module?.id || `profile-module-${index + 1}`),
+        id: moduleKey,
+        module_key: moduleKey,
         type: moduleType,
         title,
         description,
         order: moduleOrder,
-        is_visible: module?.is_visible !== false,
+        position: moduleOrder,
+        is_visible: isVisible,
+        enabled: isVisible,
         max_items: maxItems,
         overflow_mode: overflowMode,
         texts,
+        config: config
       };
     })
     .filter(Boolean)
@@ -180,57 +199,65 @@ const normalizeProfileModules = (rawModules) => {
     .map((module, index) => ({
       ...module,
       order: index,
+      position: index,
     }));
 };
 
 const getTextsModuleFromModules = (modules) => (
-  normalizeProfileModules(modules).find((module) => normalizeProfileModuleType(module.type) === PROFILE_MODULE_TYPE_TEXTS) || null
+  normalizeProfileModules(modules).find((module) => module.type === PROFILE_MODULE_TYPE_TEXTS) || null
 );
 
 const getTheoryBoardModuleFromModules = (modules) => (
-  normalizeProfileModules(modules).find((module) => normalizeProfileModuleType(module.type) === PROFILE_MODULE_TYPE_THEORY_BOARD) || null
+  normalizeProfileModules(modules).find((module) => module.type === PROFILE_MODULE_TYPE_THEORY_BOARD) || null
 );
 
 const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User' }) => {
   const normalizedModules = normalizeProfileModules(modules);
   const nextOverflowMode = normalizeOverflowMode(overflowMode);
   const existingTextsModule = getTextsModuleFromModules(normalizedModules);
-  const fallbackTexts = existingTextsModule?.texts || [];
-  const nextTextsModule = {
-    id: existingTextsModule?.id || 'profile-module-texts-main',
-    type: PROFILE_MODULE_TYPE_TEXTS,
+  
+  const config = {
     title: existingTextsModule?.title || `${ownerLabel} Says`,
     description: existingTextsModule?.description || '',
-    order: 0,
-    is_visible: Boolean(enabled),
     max_items: TEXTS_MODULE_MAX_ITEMS,
     overflow_mode: nextOverflowMode,
-    texts: normalizeProfileTextEntries(fallbackTexts, ownerLabel),
+    texts: existingTextsModule?.texts || []
   };
 
-  const withoutTexts = normalizedModules.filter((module) => normalizeProfileModuleType(module.type) !== PROFILE_MODULE_TYPE_TEXTS);
-  return [nextTextsModule, ...withoutTexts].map((module, index) => ({ ...module, order: index }));
+  const nextTextsModule = {
+    module_key: PROFILE_MODULE_TYPE_TEXTS,
+    enabled: Boolean(enabled),
+    position: 0,
+    config: config
+  };
+
+  const withoutTexts = normalizedModules.filter((module) => module.type !== PROFILE_MODULE_TYPE_TEXTS);
+  return [nextTextsModule, ...withoutTexts].map((module, index) => ({ ...module, position: index }));
 };
 
 const upsertTheoryBoardModule = ({ modules, enabled, titleBase }) => {
   const normalizedModules = normalizeProfileModules(modules);
   const existingTheoryBoardModule = getTheoryBoardModuleFromModules(normalizedModules);
-  const nextTheoryBoardModule = {
-    id: existingTheoryBoardModule?.id || 'profile-module-theory-board-main',
-    type: PROFILE_MODULE_TYPE_THEORY_BOARD,
+  
+  const config = {
     title: formatTheoryBoardTitle(titleBase || existingTheoryBoardModule?.title || 'Theory'),
     description: existingTheoryBoardModule?.description || '',
-    order: 0,
-    is_visible: Boolean(enabled),
     max_items: 100,
     overflow_mode: 'manual',
-    texts: [],
+    texts: []
+  };
+
+  const nextTheoryBoardModule = {
+    module_key: PROFILE_MODULE_TYPE_THEORY_BOARD,
+    enabled: Boolean(enabled),
+    position: 1, // Default position 1
+    config: config
   };
 
   const withoutTheoryBoard = normalizedModules.filter(
-    (module) => normalizeProfileModuleType(module.type) !== PROFILE_MODULE_TYPE_THEORY_BOARD
+    (module) => module.type !== PROFILE_MODULE_TYPE_THEORY_BOARD
   );
-  return [...withoutTheoryBoard, nextTheoryBoardModule].map((module, index) => ({ ...module, order: index }));
+  return [...withoutTheoryBoard, nextTheoryBoardModule].map((module, index) => ({ ...module, position: index }));
 };
 
 const ProfileSettings = () => {
@@ -390,8 +417,8 @@ const ProfileSettings = () => {
                 setPortraitZoom(pZoom);
               }
             }
-            if (hasPassportProfileModules) {
-              resolvedProfileModules = Array.isArray(passportPrefs?.profile_modules) ? passportPrefs.profile_modules : [];
+            if (passportResponse?.data?.profile_modules) {
+              resolvedProfileModules = Array.isArray(passportResponse.data.profile_modules) ? passportResponse.data.profile_modules : [];
               localStorage.setItem(`profile_modules_user_${userId}`, JSON.stringify(resolvedProfileModules));
             }
             localStorage.setItem(`profile_visibility_user_${userId}`, resolvedProfileVisibility === 'private' ? 'private' : 'public');

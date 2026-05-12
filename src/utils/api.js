@@ -156,6 +156,14 @@ const normalizeLegacyApiRequest = (requestConfig) => {
   if (theoryBoardViewportMatch && method === 'patch') {
     normalized.url = `/api/v1/theory-board`;
     normalized.method = 'put';
+    if (normalized.data && typeof normalized.data === 'object') {
+      const raw = normalized.data;
+      normalized.data = {
+        viewport_x: Number.isFinite(raw.x) ? Math.round(raw.x) : undefined,
+        viewport_y: Number.isFinite(raw.y) ? Math.round(raw.y) : undefined,
+        zoom_level: Number.isFinite(raw.zoom) ? Math.round(raw.zoom) : undefined,
+      };
+    }
     return normalized;
   }
 

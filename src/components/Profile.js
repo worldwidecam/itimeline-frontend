@@ -130,27 +130,44 @@ const normalizeProfileModules = (rawModules) => {
 
   return rawModules
     .map((module, index) => {
-      const moduleType = normalizeProfileModuleType(module?.type);
-      const title = String(module?.title || '').trim().slice(0, 120);
-      const description = String(module?.description || '').trim().slice(0, 1200);
-      const texts = normalizeProfileTextEntries(module?.texts, title || 'User');
+      // Handle both new backend format (module_key) and legacy format (type/id)
+      const moduleKey = module?.module_key || module?.type || module?.id || '';
+      const moduleType = normalizeProfileModuleType(moduleKey);
+      
+      // Handle new backend format (config object) or flat legacy format
+      const config = module?.config || {};
+      const title = String(module?.title || config?.title || '').trim().slice(0, 120);
+      const description = String(module?.description || config?.description || '').trim().slice(0, 1200);
+      const texts = normalizeProfileTextEntries(module?.texts || config?.texts, title || 'User');
+      
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
       if (!hasTheoryBoardPayload && !title && !description && texts.length === 0) return null;
-      const moduleId = String(module?.id || `profile-module-${index + 1}`);
-      const moduleOrder = Number.isFinite(Number(module?.order)) ? Number(module.order) : index;
-      const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items) || TEXTS_MODULE_MAX_ITEMS));
-      const overflowMode = normalizeOverflowMode(module?.overflow_mode);
+      
+      const moduleOrder = Number.isFinite(Number(module?.position)) 
+        ? Number(module.position) 
+        : (Number.isFinite(Number(module?.order)) ? Number(module.order) : index);
+        
+      const isVisible = module?.enabled !== undefined 
+        ? Boolean(module.enabled) 
+        : (module?.is_visible !== undefined ? Boolean(module.is_visible) : true);
+
+      const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items || config?.max_items) || TEXTS_MODULE_MAX_ITEMS));
+      const overflowMode = normalizeOverflowMode(module?.overflow_mode || config?.overflow_mode);
 
       return {
-        id: moduleId,
+        id: moduleKey,
+        module_key: moduleKey,
         type: moduleType,
         title,
         description,
         order: moduleOrder,
-        is_visible: module?.is_visible !== false,
+        position: moduleOrder,
+        is_visible: isVisible,
+        enabled: isVisible,
         max_items: maxItems,
         overflow_mode: overflowMode,
         texts,
+        config: config
       };
     })
     .filter(Boolean)
@@ -158,6 +175,7 @@ const normalizeProfileModules = (rawModules) => {
     .map((module, index) => ({
       ...module,
       order: index,
+      position: index,
     }));
 };
 
@@ -689,6 +707,22 @@ const Profile = () => {
       setProfileModules(cachedModules);
     }
 
+    const fetchProfileModulesFromServer = async (tid) => {
+      try {
+        const response = await api.get(`/api/v1/users/${tid}/profile-modules`, {
+          params: { access_key: queryAccessKey }
+        });
+        const normalized = normalizeProfileModules(response.data?.modules);
+        setProfileModules(normalized);
+        if (profileModulesStorageKey) {
+          localStorage.setItem(profileModulesStorageKey, JSON.stringify(normalized));
+        }
+      } catch (err) {
+        console.warn('[Profile] Failed to fetch profile modules:', err.message);
+      }
+    };
+
+    fetchProfileModulesFromServer(storageUserId);
     fetchProfileTextsModule(storageUserId);
 
     if (!isOwnProfile) return;
@@ -696,7 +730,7 @@ const Profile = () => {
     let canceled = false;
     const hydrateOwnPortraitFromPassport = async () => {
       try {
-        const passportResponse = await api.get('/api/v1/user/passport');
+        const passportResponse = await api.get('/api/v1/profile/hydrate');
         const prefs = passportResponse?.data?.preferences || {};
         const passportPortraitUrl = String(prefs?.profile_portrait_image_url || '').trim();
         const nextPortrait = {
@@ -709,7 +743,7 @@ const Profile = () => {
         if (canceled) return;
         setProfilePortraitMeta(nextPortrait);
 
-        const normalizedProfileModules = normalizeProfileModules(prefs?.profile_modules);
+        const normalizedProfileModules = normalizeProfileModules(passportResponse?.data?.profile_modules);
         setProfileModules(normalizedProfileModules);
 
         localStorage.setItem(`profile_portrait_url_user_${storageUserId}`, nextPortrait.imageUrl);

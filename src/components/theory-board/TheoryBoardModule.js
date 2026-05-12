@@ -32,6 +32,7 @@ import NewsEventMarker from '../timeline-v3/events/markers/NewsEventMarker';
 import MediaEventMarker from '../timeline-v3/events/markers/MediaEventMarker';
 import RemarkEventMarker from '../timeline-v3/events/markers/RemarkEventMarker';
 import RichContentRenderer from '../timeline-v3/events/RichContentRenderer';
+import { useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { toRichContentPayload } from '../../utils/richContent';
@@ -111,6 +112,9 @@ const detectMentionAtCursor = (text, cursorPos) => {
 
 const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventReference = null }) => {
   const theme = useTheme();
+  const location = useLocation();
+  const useQuery = () => new URLSearchParams(location.search);
+  const queryAccessKey = useQuery().get('access_key') || '';
   const { isGuest } = useAuth();
   const boardRef = useRef(null);
   const viewportRef = useRef(null);
@@ -210,10 +214,9 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
         return acc;
       }, []);
 
-    const viewport = normalizedBoard?.viewport || {};
-    const nextPanX = Number(viewport?.x || 0);
-    const nextPanY = Number(viewport?.y || 0);
-    const nextZoom = clamp((Number(viewport?.zoom || 100) || 100) / 100, ABS_MIN_ZOOM, MAX_ZOOM);
+    const nextPanX = Number(normalizedBoard?.viewportX ?? normalizedBoard?.viewport?.x ?? 0);
+    const nextPanY = Number(normalizedBoard?.viewportY ?? normalizedBoard?.viewport?.y ?? 0);
+    const nextZoom = clamp((Number(normalizedBoard?.zoomLevel ?? normalizedBoard?.zoom_level ?? normalizedBoard?.viewport?.zoom ?? 100) || 100) / 100, ABS_MIN_ZOOM, MAX_ZOOM);
 
     suppressDirtyTrackingRef.current = true;
     setPins(hydratedPins);
@@ -271,7 +274,9 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       setSaveFeedback('');
       setSaveFeedbackTone('muted');
       try {
-        const response = await api.get(`/api/v1/users/${targetUserId}/theory-board`);
+        const response = await api.get(`/api/v1/users/${targetUserId}/theory-board`, {
+          params: { access_key: queryAccessKey }
+        });
         if (cancelled) return;
         setBoardStorageUnavailable(false);
         applyBoardSnapshot(response?.data?.board || null);
@@ -745,9 +750,13 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
 
     const normalizedPins = pins.map((pin) => ({
       localId: pin.id,
-      cell_content: String(pin?.content || '').trim().slice(0, 1200),
+      cell_content: String(pin?.content || '').trim().slice(0, 4000),
       grid_col: toCellCoord(Number(pin?.worldX || 0)),
       grid_row: toCellCoord(Number(pin?.worldY || 0)),
+      offset_x: Math.round(((pin.worldX || 0) % 1) * 100),
+      offset_y: Math.round(((pin.worldY || 0) % 1) * 100),
+      pin_color: pin.color || 'red',
+      z_index: 0,
     }));
 
     const occupiedCells = new Set();
@@ -767,7 +776,9 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     setSaveFeedbackTone('muted');
 
     try {
-      const existingResponse = await api.get(`/api/v1/users/${targetUserId}/theory-board`);
+      const existingResponse = await api.get(`/api/v1/users/${targetUserId}/theory-board`, {
+        params: { access_key: queryAccessKey }
+      });
       setBoardStorageUnavailable(false);
       const existingBoard = existingResponse?.data?.board || {};
       const existingNodes = Array.isArray(existingBoard?.nodes) ? existingBoard.nodes : [];
@@ -785,15 +796,23 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
           cell_content: pin.cell_content,
           grid_col: pin.grid_col,
           grid_row: pin.grid_row,
+          offset_x: pin.offset_x,
+          offset_y: pin.offset_y,
+          pin_color: pin.pin_color,
+          z_index: pin.z_index,
         });
-        const createdBoard = createResponse?.data?.board || {};
-        const createdNodes = Array.isArray(createdBoard?.nodes) ? createdBoard.nodes : [];
-        const createdNode = createdNodes.find((node) => (
-          Number(node?.grid_col) === pin.grid_col
-          && Number(node?.grid_row) === pin.grid_row
-          && String(node?.cell_content || '') === pin.cell_content
-        ));
+
+        // The backend returns either the direct node object or { board: { nodes: [...] } }
+        const createdData = createResponse?.data || {};
+        const createdNodeFromBoard = (Array.isArray(createdData.board?.nodes) ? createdData.board.nodes : [])
+          .find((node) => (
+            Number(node?.grid_col) === pin.grid_col
+            && Number(node?.grid_row) === pin.grid_row
+          ));
+        
+        const createdNode = createdNodeFromBoard || createdData;
         const createdNodeId = Number(createdNode?.id || 0);
+
         if (!Number.isFinite(createdNodeId) || createdNodeId <= 0) {
           throw new Error('Unable to map saved node id');
         }
@@ -817,7 +836,9 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
         zoom: Math.round(clamp(Number(zoom || 1), ABS_MIN_ZOOM, MAX_ZOOM) * 100),
       });
 
-      const latestResponse = await api.get(`/api/v1/users/${targetUserId}/theory-board`);
+      const latestResponse = await api.get(`/api/v1/users/${targetUserId}/theory-board`, {
+        params: { access_key: queryAccessKey }
+      });
       applyBoardSnapshot(latestResponse?.data?.board || null);
       setHasUnsavedChanges(false);
       setSaveFeedback('Board saved.');
@@ -832,7 +853,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     } finally {
       setIsSaving(false);
     }
-  }, [applyBoardSnapshot, boardStorageUnavailable, isOwner, isSaving, pan?.x, pan?.y, pins, profileUserId, yarnLinks, zoom]);
+  }, [applyBoardSnapshot, boardStorageUnavailable, isOwner, isSaving, pan?.x, pan?.y, pins, profileUserId, queryAccessKey, yarnLinks, zoom]);
 
   const eventReferenceIds = useMemo(() => {
     const ids = [];
@@ -1427,11 +1448,12 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     position: 'absolute',
                     left: pin.screenX,
                     top: pin.screenY + 10,
-                    width: isEventReference ? 'auto' : (isChipOnlyContent ? 'auto' : 'fit-content'),
+                    width: isEventReference ? 'auto' : 'max-content',
                     minWidth: (!isEventReference && !isChipOnlyContent) ? 180 : undefined,
                     maxWidth: isEventReference
-                      ? Math.min(520, Math.max(250, viewportSize.width * 0.72))
-                      : Math.min(560, Math.max(230, viewportSize.width * 0.68)),
+                      ? Math.min(520, Math.max(250, window.innerWidth * 0.72))
+                      : Math.min(560, Math.max(230, window.innerWidth * 0.68)),
+                    marginRight: -2000,
                     maxHeight: 'none',
                     overflow: 'visible',
                     borderRadius: 1,
