@@ -36,6 +36,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import HomeIcon from '@mui/icons-material/Home';
 import LoginIcon from '@mui/icons-material/Login';
 import InfoIcon from '@mui/icons-material/Info';
+import KeyboardDoubleArrowDownRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowDownRounded';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -71,7 +72,7 @@ const PROFILE_MODULE_TYPE_TEXTS = 'texts';
 const PROFILE_MODULE_TYPE_MAILBOX = 'mailbox';
 const PROFILE_MODULE_TYPE_THEORY_BOARD = 'theory_board';
 const PROFILE_MODULE_TYPE_CONSPIRACY_BOARD = 'conspiracy_board';
-const TEXTS_MODULE_MAX_ITEMS = 10;
+const TEXTS_MODULE_MAX_ITEMS = 50;
 
 const PROFILE_MODULE_TYPE_META = {
   [PROFILE_MODULE_TYPE_TEXTS]: { label: 'Texts' },
@@ -135,22 +136,23 @@ const normalizeProfileModules = (rawModules) => {
       // Handle both new backend format (module_key) and legacy format (type/id)
       const moduleKey = module?.module_key || module?.type || module?.id || '';
       const moduleType = normalizeProfileModuleType(moduleKey);
-      
+
       // Handle new backend format (config object) or flat legacy format
       const config = module?.config || {};
       const title = String(module?.title || config?.title || '').trim().slice(0, 120);
       const description = String(module?.description || config?.description || '').trim().slice(0, 1200);
       const texts = normalizeProfileTextEntries(module?.texts || config?.texts, title || 'User');
-      
+
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
-      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0) return null;
-      
-      const moduleOrder = Number.isFinite(Number(module?.position)) 
-        ? Number(module.position) 
+      // Never hide the texts module if it's empty, so the owner/visitor can always see the input
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return null;
+
+      const moduleOrder = Number.isFinite(Number(module?.position))
+        ? Number(module.position)
         : (Number.isFinite(Number(module?.order)) ? Number(module.order) : index);
-        
-      const isVisible = module?.enabled !== undefined 
-        ? Boolean(module.enabled) 
+
+      const isVisible = module?.enabled !== undefined
+        ? Boolean(module.enabled)
         : (module?.is_visible !== undefined ? Boolean(module.is_visible) : true);
 
       const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items || config?.max_items) || TEXTS_MODULE_MAX_ITEMS));
@@ -184,13 +186,21 @@ const normalizeProfileModules = (rawModules) => {
 const mergeProfileModules = (newModules, existingModules) => {
   const normalizedNew = normalizeProfileModules(newModules);
   const normalizedExisting = normalizeProfileModules(existingModules);
-  
+
+  if (normalizedNew.length === 0) return normalizedExisting;
+
   return normalizedNew.map(newMod => {
     const existing = normalizedExisting.find(p => p.module_key === newMod.module_key);
-    // If we already have texts content but the new payload doesn't, preserve the content
-    if (existing && existing.texts && existing.texts.length > 0 && (!newMod.texts || newMod.texts.length === 0)) {
-      return { ...newMod, texts: existing.texts };
+
+    // Reconciliation: If the new module has no texts but the existing one does, 
+    // we preserve the existing texts to avoid a "flash" of empty content.
+    const newTexts = newMod.texts || [];
+    const existingTexts = existing?.texts || [];
+
+    if (existingTexts.length > 0 && newTexts.length === 0) {
+      return { ...newMod, texts: existingTexts };
     }
+
     return newMod;
   });
 };
@@ -220,6 +230,12 @@ const Profile = () => {
   const [profileTextDraft, setProfileTextDraft] = useState('');
   const [profileTextSubmitting, setProfileTextSubmitting] = useState(false);
   const [profileTextDeletingId, setProfileTextDeletingId] = useState('');
+  const [textsEntries, setTextsEntries] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [visibleTextsCount, setVisibleTextsCount] = useState(10);
+  const textsContainerRef = React.useRef(null);
+  const [isTextsScrolledUp, setIsTextsScrolledUp] = useState(false);
+  const [hasNewTexts, setHasNewTexts] = useState(false);
   const [profileModulePopupEvent, setProfileModulePopupEvent] = useState(null);
   const [profileAccessLocked, setProfileAccessLocked] = useState(false);
   const [profileAccessVisibility, setProfileAccessVisibility] = useState('public');
@@ -235,7 +251,7 @@ const Profile = () => {
     zoom: 1,
   });
   const [resolvedTargetUserId, setResolvedTargetUserId] = useState(null);
-  
+
   const normalizedUserIdParam = String(userId || '').trim().toLowerCase();
   const isGuestProfileRoute = normalizedUserIdParam === 'guest';
   const isOwnProfile = isGuestProfileRoute || !userId || (Number(user?.id) > 0 && (userId === user.id.toString() || normalizedUserIdParam === String(user?.username || '').trim().toLowerCase()));
@@ -291,10 +307,6 @@ const Profile = () => {
     () => (textsModule && textsModule.is_visible !== false ? textsModule : null),
     [textsModule]
   );
-  const textsEntries = useMemo(
-    () => normalizeProfileTextEntries(visibleTextsModule?.texts, displayUsername(profileUser?.username) || 'User'),
-    [visibleTextsModule?.texts, profileUser?.username]
-  );
   const textsOverflowMode = normalizeOverflowMode(visibleTextsModule?.overflow_mode);
   const textsMaxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(visibleTextsModule?.max_items) || TEXTS_MODULE_MAX_ITEMS));
   const canWriteToTexts = Boolean(user?.id) && Boolean(visibleTextsModule);
@@ -338,11 +350,14 @@ const Profile = () => {
     if (!targetUserId) return;
     try {
       const response = await api.get(`/api/v1/users/${targetUserId}/profile-texts`);
+      if (response?.data?.module?.texts) {
+        setTextsEntries(normalizeProfileTextEntries(response.data.module.texts, displayUsername(profileUser?.username) || 'User'));
+      }
       applyTextsModuleUpdate(response?.data?.module || null);
     } catch (fetchError) {
       console.warn('[Profile] Failed to fetch profile texts module:', fetchError?.response?.data || fetchError?.message || fetchError);
     }
-  }, [applyTextsModuleUpdate]);
+  }, [applyTextsModuleUpdate, profileUser?.username]);
   const handleSubmitProfileText = useCallback(async () => {
     const targetUserId = Number(profileUser?.id || 0);
     const textValue = String(profileTextDraft || '').trim();
@@ -351,6 +366,9 @@ const Profile = () => {
     try {
       setProfileTextSubmitting(true);
       const response = await api.post(`/api/v1/users/${targetUserId}/profile-texts`, { text: textValue });
+      if (response?.data?.module?.texts) {
+        setTextsEntries(normalizeProfileTextEntries(response.data.module.texts, displayUsername(profileUser?.username) || 'User'));
+      }
       applyTextsModuleUpdate(response?.data?.module || null);
       setProfileTextDraft('');
       setSnackbar({ open: true, message: 'Text sent', severity: 'success' });
@@ -371,6 +389,9 @@ const Profile = () => {
     try {
       setProfileTextDeletingId(String(textId));
       const response = await api.delete(`/api/v1/users/${targetUserId}/profile-texts/${encodeURIComponent(String(textId))}`);
+      if (response?.data?.module?.texts) {
+        setTextsEntries(normalizeProfileTextEntries(response.data.module.texts, displayUsername(profileUser?.username) || 'User'));
+      }
       applyTextsModuleUpdate(response?.data?.module || null);
       setSnackbar({ open: true, message: 'Text deleted', severity: 'success' });
     } catch (deleteError) {
@@ -379,7 +400,39 @@ const Profile = () => {
     } finally {
       setProfileTextDeletingId('');
     }
-  }, [applyTextsModuleUpdate, canDeleteTexts, profileTextDeletingId, profileUser?.id]);
+  }, [applyTextsModuleUpdate, canDeleteTexts, profileTextDeletingId, profileUser?.id, profileUser?.username]);
+
+  const handleTextsScroll = useCallback(() => {
+    if (!textsContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = textsContainerRef.current;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 50;
+    setIsTextsScrolledUp(isScrolledUp);
+    if (!isScrolledUp) {
+      setHasNewTexts(false);
+    }
+  }, []);
+
+  const scrollToTextsBottom = useCallback(() => {
+    if (textsContainerRef.current) {
+      textsContainerRef.current.scrollTo({
+        top: textsContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+      setHasNewTexts(false);
+    }
+  }, []);
+
+  // Auto-scroll to bottom or notify when texts arrive
+  useEffect(() => {
+    if (textsContainerRef.current) {
+      if (!isTextsScrolledUp) {
+        textsContainerRef.current.scrollTop = textsContainerRef.current.scrollHeight;
+      } else {
+        setHasNewTexts(true);
+      }
+    }
+  }, [textsEntries.length, isTextsScrolledUp]);
+
   const handleOpenProfileModuleEventReference = React.useCallback(async ({ eventId, resolvedEvent }) => {
     const normalizedEventId = Number(eventId || resolvedEvent?.id);
     if (!Number.isFinite(normalizedEventId) || normalizedEventId <= 0) return;
@@ -432,19 +485,19 @@ const Profile = () => {
   const profileFallbackSx = useMemo(() => (
     theme.palette.mode === 'dark'
       ? {
-          backgroundImage: [
-            'radial-gradient(circle at 22% 18%, rgba(125,211,252,0.34) 0%, rgba(125,211,252,0) 36%)',
-            'radial-gradient(circle at 78% 84%, rgba(251,191,36,0.26) 0%, rgba(251,191,36,0) 34%)',
-            'linear-gradient(145deg, rgba(13,36,63,0.96) 0%, rgba(20,48,92,0.94) 44%, rgba(65,34,106,0.9) 100%)',
-          ].join(', '),
-        }
+        backgroundImage: [
+          'radial-gradient(circle at 22% 18%, rgba(125,211,252,0.34) 0%, rgba(125,211,252,0) 36%)',
+          'radial-gradient(circle at 78% 84%, rgba(251,191,36,0.26) 0%, rgba(251,191,36,0) 34%)',
+          'linear-gradient(145deg, rgba(13,36,63,0.96) 0%, rgba(20,48,92,0.94) 44%, rgba(65,34,106,0.9) 100%)',
+        ].join(', '),
+      }
       : {
-          backgroundImage: [
-            'radial-gradient(circle at 20% 20%, rgba(56,189,248,0.28) 0%, rgba(56,189,248,0) 36%)',
-            'radial-gradient(circle at 82% 80%, rgba(251,146,60,0.2) 0%, rgba(251,146,60,0) 34%)',
-            'linear-gradient(145deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)',
-          ].join(', '),
-        }
+        backgroundImage: [
+          'radial-gradient(circle at 20% 20%, rgba(56,189,248,0.28) 0%, rgba(56,189,248,0) 36%)',
+          'radial-gradient(circle at 82% 80%, rgba(251,146,60,0.2) 0%, rgba(251,146,60,0) 34%)',
+          'linear-gradient(145deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)',
+        ].join(', '),
+      }
   ), [theme.palette.mode]);
   const profileShareImageUrl = String(profilePortraitMeta.imageUrl || profileUser?.avatar_url || '').trim();
 
@@ -462,7 +515,7 @@ const Profile = () => {
         setLoading(true);
         setError(null);
         setProfileAccessLocked(false);
-        
+
         if (isOwnProfile) {
           setProfileAccessMessage('');
           const hasNumericUserId = Number(user?.id) > 0;
@@ -509,7 +562,7 @@ const Profile = () => {
               setProfileUser(formattedUser);
             }
           }
-          
+
           if (hasNumericUserId) {
             try {
               const musicResponse = await api.get('/api/v1/profile/music');
@@ -614,7 +667,7 @@ const Profile = () => {
             });
             if (!active) return;
             setProfileUser(userResponse.data);
-            
+
             try {
               const musicResponse = await api.get(`/api/v1/users/${targetUserId}/music`);
               if (!active) return;
@@ -650,6 +703,17 @@ const Profile = () => {
       setShowMusic(false);
     };
   }, [userId, user, isOwnProfile, profileAccessRefreshNonce, profileAccessStorageKey, queryAccessKey, authLoading]);
+
+  // Live polling for profile texts
+  useEffect(() => {
+    if (profileUser?.id) {
+      fetchProfileTextsModule(profileUser.id);
+      const pollInterval = setInterval(() => {
+        fetchProfileTextsModule(profileUser.id);
+      }, 15000);
+      return () => clearInterval(pollInterval);
+    }
+  }, [profileUser?.id, fetchProfileTextsModule]);
 
   // Redirect owner to canonical /profile if they land on /profile/:id
   useEffect(() => {
@@ -728,7 +792,7 @@ const Profile = () => {
         const response = await api.get(`/api/v1/users/${tid}/profile-modules`, {
           params: { access_key: queryAccessKey }
         });
-        
+
         // Use functional update to avoid wiping out data from parallel fetchProfileTextsModule
         setProfileModules((prev) => mergeProfileModules(response.data?.modules, prev));
 
@@ -842,13 +906,13 @@ const Profile = () => {
         }}
       >
         <Container maxWidth="md">
-          <Paper sx={{ 
-            p: 4, 
+          <Paper sx={{
+            p: 4,
             backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(10px)',
             borderRadius: 2,
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)'
               : '0 8px 32px rgba(0, 0, 0, 0.1)'
           }}>
             <Typography variant="h5">Please log in to view your profile</Typography>
@@ -1108,13 +1172,13 @@ const Profile = () => {
         }}
       >
         <Container maxWidth="md">
-          <Paper sx={{ 
-            p: 4, 
+          <Paper sx={{
+            p: 4,
             backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(10px)',
             borderRadius: 2,
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)'
               : '0 8px 32px rgba(0, 0, 0, 0.1)'
           }}>
             <Typography variant="h5" color="error">{error || 'User not found'}</Typography>
@@ -1200,11 +1264,11 @@ const Profile = () => {
           </Box>
         </Fade>
       )}
-      
+
       <Container maxWidth="md">
-        <Box sx={{ 
+        <Box sx={{
           position: 'relative',
-          p: { xs: 3, sm: 4 }, 
+          p: { xs: 3, sm: 4 },
           ...getGlassDialogPaperSx(theme),
           borderRadius: 4,
           boxShadow: profileContainerGlow,
@@ -1224,14 +1288,14 @@ const Profile = () => {
               }}
             />
           ) : null}
-          
+
           <Grid container spacing={4}>
             {/* Profile Header */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
+              <Box sx={{
+                display: 'flex',
                 flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'center', sm: 'flex-start' }, 
+                alignItems: { xs: 'center', sm: 'flex-start' },
                 gap: 4,
                 textAlign: { xs: 'center', sm: 'left' }
               }}>
@@ -1244,10 +1308,10 @@ const Profile = () => {
                     userColor={profileUser.user_color}
                   />
                   {profileAccessVisibility === 'private' && (
-                    <Box sx={{ 
-                      position: 'absolute', 
-                      bottom: -4, 
-                      right: -4, 
+                    <Box sx={{
+                      position: 'absolute',
+                      bottom: -4,
+                      right: -4,
                       bgcolor: theme.palette.primary.main,
                       color: '#fff',
                       borderRadius: '50%',
@@ -1259,30 +1323,30 @@ const Profile = () => {
                     </Box>
                   )}
                 </Box>
-                
+
                 <Box sx={{ flex: 1, pt: { sm: 1.5 } }}>
-                  <Typography variant={isNarrowViewport ? "h4" : "h3"} sx={{ 
-                    fontWeight: 900, 
+                  <Typography variant={isNarrowViewport ? "h4" : "h3"} sx={{
+                    fontWeight: 900,
                     mb: 1,
                     letterSpacing: '-0.02em',
                     color: '#fff',
-                    textShadow: profileIdentityColor 
-                      ? `0 0 20px ${alpha(profileIdentityColor, 0.8)}, 0 2px 4px rgba(0,0,0,0.5)` 
+                    textShadow: profileIdentityColor
+                      ? `0 0 20px ${alpha(profileIdentityColor, 0.8)}, 0 2px 4px rgba(0,0,0,0.5)`
                       : '0 2px 4px rgba(0,0,0,0.3)',
                   }}>
                     {displayUsername(profileUser.username)}
                   </Typography>
-                  
+
                   <Stack direction="row" spacing={2} sx={{ mb: 2, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                     <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <LoginIcon sx={{ fontSize: 16, opacity: 0.6 }} />
-                      {profileUser.created_at ? 
-                        `Joined ${new Date(profileUser.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` : 
+                      {profileUser.created_at ?
+                        `Joined ${new Date(profileUser.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` :
                         'Join date unavailable'}
                     </Typography>
                     {profileUser.email && (
                       <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                         {getBlurredEmail(profileUser.email)}
+                        {getBlurredEmail(profileUser.email)}
                       </Typography>
                     )}
                   </Stack>
@@ -1291,15 +1355,15 @@ const Profile = () => {
             </Grid>
 
             <Grid item xs={12}>
-              <Box sx={{ 
-                p: 3, 
-                borderRadius: 3, 
+              <Box sx={{
+                p: 3,
+                borderRadius: 3,
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                 border: '1px solid rgba(255,255,255,0.05)',
               }}>
-                <Typography variant="subtitle2" sx={{ 
-                  fontWeight: 800, 
-                  textTransform: 'uppercase', 
+                <Typography variant="subtitle2" sx={{
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
                   letterSpacing: '0.1em',
                   mb: 1.5,
                   color: theme.palette.primary.main,
@@ -1307,7 +1371,7 @@ const Profile = () => {
                 }}>
                   Biography
                 </Typography>
-                <Typography variant="body1" sx={{ 
+                <Typography variant="body1" sx={{
                   lineHeight: 1.7,
                   color: theme.palette.text.primary,
                   opacity: 0.9,
@@ -1372,122 +1436,200 @@ const Profile = () => {
                     }}
                   >
                     {normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_TEXTS ? (
-                      <Stack spacing={1.2}>
-                        {textsEntries.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary">
-                            No texts yet.
-                          </Typography>
-                        ) : textsEntries.map((entry) => {
-                          const isOwnerEntry = Number(entry.author_id) === Number(profileUser?.id);
-                          const isLeftBubble = isOwnerEntry;
-                          const textModuleBackground = isLeftBubble
-                            ? (theme.palette.mode === 'dark'
-                              ? 'linear-gradient(145deg, rgba(246, 244, 236, 0.94) 0%, rgba(232, 228, 216, 0.92) 100%)'
-                              : 'linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.94) 100%)')
-                            : (theme.palette.mode === 'dark'
-                              ? 'linear-gradient(145deg, rgba(69, 116, 202, 0.82) 0%, rgba(58, 101, 188, 0.72) 100%)'
-                              : 'linear-gradient(145deg, rgba(236, 245, 255, 0.98) 0%, rgba(223, 238, 255, 0.95) 100%)');
-                          const textModuleBodyColor = isLeftBubble
-                            ? (theme.palette.mode === 'dark' ? 'rgba(28, 24, 18, 0.96)' : 'text.secondary')
-                            : 'text.secondary';
-
-                          return (
-                            <Box
-                              key={entry.id}
-                              sx={{
-                                display: 'flex',
-                                flexDirection: isLeftBubble ? 'row' : 'row-reverse',
-                                alignItems: 'flex-end',
-                                gap: 1.5,
-                                alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
-                                width: { xs: '98%', sm: '90%' },
-                              }}
+                      <Box>
+                        {textsEntries.length > visibleTextsCount && (
+                          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+                            <Button
+                              onClick={() => setVisibleTextsCount(prev => prev + 10)}
+                              sx={getGlassPillActionButtonSx(theme)}
+                              size="small"
                             >
-                              <UserAvatar
-                                id={entry.author_id}
-                                name={entry.author_username}
-                                avatarUrl={entry.author_avatar_url}
-                                size={32}
-                                sx={{ mb: 0.5, flexShrink: 0 }}
-                              />
-                              <Card
-                                sx={{
-                                  position: 'relative',
-                                  flex: 1,
-                                  borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
-                                  background: textModuleBackground,
-                                  border: '1px solid',
-                                  borderColor: isLeftBubble
-                                    ? (theme.palette.mode === 'dark' ? 'rgba(78, 60, 36, 0.42)' : 'rgba(33, 150, 243, 0.28)')
-                                    : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
-                                  boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
-                                }}
-                              >
-                                <CardContent sx={{ pb: 1.4 }}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                                      <Typography
-                                        variant="subtitle2"
-                                        sx={{
-                                          fontWeight: 800,
-                                          mb: 0.45,
-                                          letterSpacing: 0.15,
-                                          textTransform: 'capitalize',
-                                          color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.96)' : undefined,
-                                          textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
-                                        }}
-                                      >
-                                        {displayUsername(entry.author_username)}
-                                      </Typography>
-                                      {entry.created_at && (
-                                        <Typography 
-                                          variant="caption" 
-                                          sx={{ 
-                                            opacity: 0.5, 
-                                            fontSize: '0.65rem',
-                                            color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.6)' : 'text.secondary'
-                                          }}
-                                        >
-                                          {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
-                                        </Typography>
-                                      )}
-                                    </Box>
-                                    {canDeleteTexts && (
-                                      <Tooltip title="Delete text">
-                                        <span>
-                                          <IconButton
-                                            size="small"
-                                            color="error"
-                                            onClick={() => handleDeleteProfileText(entry.id)}
-                                            disabled={Boolean(profileTextDeletingId) || profileTextSubmitting}
-                                          >
-                                            <DeleteOutlineIcon fontSize="small" />
-                                          </IconButton>
-                                        </span>
-                                      </Tooltip>
-                                    )}
-                                  </Box>
-                                  <Box
+                              Load Older History
+                            </Button>
+                          </Box>
+                        )}
+
+                        <Box
+                          ref={textsContainerRef}
+                          onScroll={handleTextsScroll}
+                          sx={{
+                            maxHeight: 500,
+                            overflowY: 'auto',
+                            pr: 1,
+                            mr: -0.5,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.2,
+                            // Standard glass scrollbar
+                            '&::-webkit-scrollbar': {
+                              width: '5px',
+                            },
+                            '&::-webkit-scrollbar-track': {
+                              background: 'transparent',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                              background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                              borderRadius: '10px',
+                            },
+                          }}
+                        >
+                          {textsEntries.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary">
+                              No texts yet.
+                            </Typography>
+                          ) : (
+                            textsEntries.slice(-visibleTextsCount).map((entry) => {
+                              const isOwnerEntry = Number(entry.author_id) === Number(profileUser?.id);
+                              const isLeftBubble = isOwnerEntry;
+                              const textModuleBackground = isLeftBubble
+                                ? (theme.palette.mode === 'dark'
+                                  ? 'linear-gradient(145deg, rgba(246, 244, 236, 0.94) 0%, rgba(232, 228, 216, 0.92) 100%)'
+                                  : 'linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.94) 100%)')
+                                : (theme.palette.mode === 'dark'
+                                  ? 'linear-gradient(145deg, rgba(69, 116, 202, 0.82) 0%, rgba(58, 101, 188, 0.72) 100%)'
+                                  : 'linear-gradient(145deg, rgba(236, 245, 255, 0.98) 0%, rgba(223, 238, 255, 0.95) 100%)');
+                              const textModuleBodyColor = isLeftBubble
+                                ? (theme.palette.mode === 'dark' ? 'rgba(28, 24, 18, 0.96)' : 'text.secondary')
+                                : 'text.secondary';
+
+                              return (
+                                <Box
+                                  key={entry.id}
+                                  sx={{
+                                    display: 'flex',
+                                    flexDirection: isLeftBubble ? 'row' : 'row-reverse',
+                                    alignItems: 'flex-end',
+                                    gap: 1.5,
+                                    alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
+                                    width: { xs: '98%', sm: '90%' },
+                                  }}
+                                >
+                                  <UserAvatar
+                                    id={entry.author_id}
+                                    name={entry.author_username}
+                                    avatarUrl={entry.author_avatar_url}
+                                    size={32}
+                                    sx={{ mb: 0.5, flexShrink: 0 }}
+                                  />
+                                  <Card
                                     sx={{
-                                      color: textModuleBodyColor,
-                                      lineHeight: 1.45,
-                                      textShadow: isLeftBubble && theme.palette.mode === 'dark'
-                                        ? '0 0 0.42px rgba(0, 0, 0, 0.74)'
-                                        : 'none',
+                                      position: 'relative',
+                                      flex: 1,
+                                      borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
+                                      background: textModuleBackground,
+                                      border: '1px solid',
+                                      borderColor: isLeftBubble
+                                        ? (theme.palette.mode === 'dark' ? 'rgba(78, 60, 36, 0.42)' : 'rgba(33, 150, 243, 0.28)')
+                                        : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
+                                      boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
                                     }}
                                   >
-                                    <RichContentRenderer
-                                      content={toRichContentPayload(entry.text)}
-                                      theme={theme}
-                                      onOpenEventReference={handleOpenProfileModuleEventReference}
-                                      inheritTextColor
-                                    />
-                                  </Box>
-                                </CardContent>
-                              </Card>
+                                    <CardContent sx={{ pb: 1.4 }}>
+                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                          <Typography
+                                            variant="subtitle2"
+                                            sx={{
+                                              fontWeight: 800,
+                                              mb: 0.45,
+                                              letterSpacing: 0.15,
+                                              textTransform: 'capitalize',
+                                              color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.96)' : undefined,
+                                              textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
+                                            }}
+                                          >
+                                            {displayUsername(entry.author_username)}
+                                          </Typography>
+                                          {entry.created_at && (
+                                            <Typography
+                                              variant="caption"
+                                              sx={{
+                                                opacity: 0.5,
+                                                fontSize: '0.65rem',
+                                                color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.6)' : 'text.secondary'
+                                              }}
+                                            >
+                                              {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                        {canDeleteTexts && (
+                                          <Tooltip title="Delete text">
+                                            <span>
+                                              <IconButton
+                                                size="small"
+                                                color="error"
+                                                onClick={() => handleDeleteProfileText(entry.id)}
+                                                disabled={Boolean(profileTextDeletingId) || profileTextSubmitting}
+                                              >
+                                                <DeleteOutlineIcon fontSize="small" />
+                                              </IconButton>
+                                            </span>
+                                          </Tooltip>
+                                        )}
+                                      </Box>
+                                      <Box
+                                        sx={{
+                                          color: textModuleBodyColor,
+                                          lineHeight: 1.45,
+                                          textShadow: isLeftBubble && theme.palette.mode === 'dark'
+                                            ? '0 0 0.42px rgba(0, 0, 0, 0.74)'
+                                            : 'none',
+                                        }}
+                                      >
+                                        <RichContentRenderer
+                                          content={toRichContentPayload(entry.text)}
+                                          theme={theme}
+                                          onOpenEventReference={handleOpenProfileModuleEventReference}
+                                          inheritTextColor
+                                        />
+                                      </Box>
+                                    </CardContent>
+                                  </Card>
+                                </Box>
+                              );
+                            })
+                          )}
+                          {isTyping && (
+                            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', ml: 1, mt: 1 }}>
+                              <Box
+                                sx={{
+                                  p: '10px 18px',
+                                  borderRadius: '20px 20px 20px 4px',
+                                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.6,
+                                  boxShadow: '0 4px 10px rgba(0,0,0,0.03)',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    gap: 0.5,
+                                    '& > div': {
+                                      width: 5,
+                                      height: 5,
+                                      borderRadius: '50%',
+                                      background: theme.palette.text.secondary,
+                                      animation: 'typingDot 1.4s infinite ease-in-out',
+                                      '&:nth-of-type(2)': { animationDelay: '0.2s' },
+                                      '&:nth-of-type(3)': { animationDelay: '0.4s' },
+                                    },
+                                    '@keyframes typingDot': {
+                                      '0%, 80%, 100%': { transform: 'translateY(0)', opacity: 0.3 },
+                                      '40%': { transform: 'translateY(-4px)', opacity: 1 },
+                                    },
+                                  }}
+                                >
+                                  <div />
+                                  <div />
+                                  <div />
+                                </Box>
+                              </Box>
                             </Box>
-                          );
-                        })}
+                          )}
+                        </Box>
 
                         {canWriteToTexts && !isManualModeAtCap && (
                           <Box sx={{ mt: 0.5 }}>
@@ -1514,14 +1656,46 @@ const Profile = () => {
                                   ? `Auto-rollover enabled (${textsEntries.length}/${textsMaxItems})`
                                   : `Manual mode (${textsEntries.length}/${textsMaxItems})`}
                               </Typography>
-                              <Button
-                                variant="contained"
-                                onClick={handleSubmitProfileText}
-                                disabled={profileTextSubmitting || !String(profileTextDraft || '').trim()}
-                                sx={getGlassPillActionButtonSx(theme)}
-                              >
-                                {profileTextSubmitting ? 'Sending...' : 'Send'}
-                              </Button>
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                {(isTextsScrolledUp || hasNewTexts) && (
+                                  <Button
+                                    onClick={scrollToTextsBottom}
+                                    sx={{
+                                      ...getGlassSquareActionButtonSx(theme),
+                                      minWidth: '38px',
+                                      width: '38px',
+                                      height: '38px',
+                                      p: 0,
+                                      borderRadius: '12px',
+                                      boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                                      animation: hasNewTexts ? 'jiggleBounce 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite alternate' : 'none',
+                                      '@keyframes jiggleBounce': {
+                                        '0%': { transform: 'translateY(0) scale(1)' },
+                                        '100%': { transform: 'translateY(5px) scale(1.05)' },
+                                      }
+                                    }}
+                                  >
+                                    <KeyboardDoubleArrowDownRoundedIcon 
+                                      sx={{ 
+                                        fontSize: '1.35rem',
+                                        color: hasNewTexts ? (theme.palette.mode === 'dark' ? '#90caf9' : '#1976d2') : theme.palette.text.secondary,
+                                        filter: hasNewTexts ? `drop-shadow(0px 2px 4px rgba(25, 118, 210, 0.4))` : 'none'
+                                      }} 
+                                    />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => {
+                                    handleSubmitProfileText();
+                                    setTimeout(scrollToTextsBottom, 100);
+                                  }}
+                                  disabled={profileTextSubmitting || !String(profileTextDraft || '').trim()}
+                                  sx={getGlassPillActionButtonSx(theme)}
+                                >
+                                  {profileTextSubmitting ? 'Sending...' : 'Send'}
+                                </Button>
+                              </Box>
                             </Box>
                           </Box>
                         )}
@@ -1531,7 +1705,7 @@ const Profile = () => {
                             Texts module is full (manual mode). Owner must delete one before new texts can be sent.
                           </Typography>
                         )}
-                      </Stack>
+                      </Box>
                     ) : normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_THEORY_BOARD ? (
                       <TheoryBoardModule
                         profileUserId={Number(profileUser?.id || 0)}
@@ -1646,7 +1820,7 @@ const Profile = () => {
           onClose={() => setProfileModulePopupEvent(null)}
           onDelete={undefined}
           onEdit={undefined}
-          setIsPopupOpen={() => {}}
+          setIsPopupOpen={() => { }}
         />
       ) : null}
 
