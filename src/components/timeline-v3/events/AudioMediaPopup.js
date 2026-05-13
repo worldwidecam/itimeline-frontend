@@ -581,7 +581,7 @@ const AudioMediaPopup = ({
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              {isInReview && (
+              {(isInReview && !isSafeguarded) && (
                 <Box
                   sx={{
                     display: 'flex',

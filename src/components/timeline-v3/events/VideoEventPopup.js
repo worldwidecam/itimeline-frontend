@@ -871,7 +871,7 @@ const VideoEventPopup = ({
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              {isInReview && (
+              {(isInReview && !isSafeguarded) && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -1096,7 +1096,6 @@ const VideoEventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          container={document.fullscreenElement || document.body}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

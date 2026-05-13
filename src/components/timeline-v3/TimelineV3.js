@@ -227,6 +227,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           });
           setCoverLandscapeZoom(Number(timelineData.cover_landscape_zoom ?? 1));
           setCoverUploadEnabled(timelineData.cover_upload_enabled !== false);
+          setTimelineIsSafeguarded(Boolean(timelineData.is_safeguarded));
         } else {
           console.error('Timeline data is missing or incomplete:', response.data);
         }
@@ -721,6 +722,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [timelineReportCategory, setTimelineReportCategory] = useState('');
   const [timelineReportSubmitting, setTimelineReportSubmitting] = useState(false);
   const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
+  const [timelineIsSafeguarded, setTimelineIsSafeguarded] = useState(false);
   const [addEventAnchorEl, setAddEventAnchorEl] = useState(null);
   const [quickAddMenuAnchorEl, setQuickAddMenuAnchorEl] = useState(null);
   const [floatingButtonsExpanded, setFloatingButtonsExpanded] = useState(false);
@@ -1122,18 +1124,20 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       });
     }
 
-    actions.push({
-      key: 'report',
-      tooltip: 'Report Timeline',
-      icon: <OutlinedFlagIcon />,
-      onClick: handleOpenTimelineReportDialog,
-      size: 'medium',
-      step: 56,
-      accent: {
-        dark: '#EF5350',
-        light: '#D32F2F',
-      },
-    });
+    if (canCreateOrReport && !timelineIsSafeguarded) {
+      actions.push({
+        key: 'report',
+        tooltip: 'Report Timeline',
+        icon: <OutlinedFlagIcon />,
+        onClick: handleOpenTimelineReportDialog,
+        size: 'medium',
+        step: 56,
+        accent: {
+          dark: '#EF5350',
+          light: '#D32F2F',
+        },
+      });
+    }
 
     if (canManageHashtagSettings) {
       actions.push({
@@ -1168,11 +1172,13 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     return actions;
   }, [
     canCreateEventAction,
+    canCreateOrReport,
     canManageHashtagSettings,
     canManagePersonalAccessPanel,
     handleOpenAccessPanel,
     handleOpenHashtagSettings,
     handleOpenTimelineReportDialog,
+    timelineIsSafeguarded,
   ]);
   const [isFollowingHashtag, setIsFollowingHashtag] = useState(false);
   const [hashtagFollowKind, setHashtagFollowKind] = useState('watch');
@@ -4329,7 +4335,7 @@ const handleRecenter = () => {
             onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
             onCollapse={() => setFloatingButtonsExpanded(false)}
             onNavigate={handleCommunityNavigate}
-            showReport={!isGuestUser}
+            showReport={!isGuestUser && !timelineIsSafeguarded}
             onReport={handleOpenTimelineReportDialog}
             showCreate={canCreateEventAction}
             showMembersNav={isMember === true}

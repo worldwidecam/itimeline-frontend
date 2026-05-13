@@ -116,7 +116,7 @@ const EventPopup = ({
     [reviewingEventIds]
   );
   const [isInReview, setIsInReview] = useState(false);
-  const [isSafeguarded, setIsSafeguarded] = useState(false);
+  const [isSafeguarded, setIsSafeguarded] = useState(Boolean(event?.is_safeguarded));
   const {
     value: voteValue,
     totalVotes,
@@ -1294,7 +1294,7 @@ const EventPopup = ({
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {(isInReview || isSafeguarded) && (
+              {(isInReview && !isSafeguarded) && (
                 <Box
                   sx={{
                     display: 'flex',

@@ -77,6 +77,12 @@ import EventPopup from '../timeline-v3/events/EventPopup';
 import EventDialog from '../timeline-v3/events/EventDialog';
 import SiteControlLockView from './SiteControlLockView';
 import { displayUsername } from '../../utils/usernameDisplay';
+import {
+  getGlassDialogPaperSx,
+  getGlassInputSx,
+  getGlassSquareActionButtonSx,
+  getGlassPillActionButtonSx,
+} from '../../utils/formStyleGuide';
 
 const getReportTypeLabel = (reportType) => {
   const type = (reportType || '').toLowerCase();
@@ -2340,7 +2346,7 @@ const GlobalReportsTab = () => {
                         </Button>
                       )}
 
-                      {!isPostTicket && post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
+                      {post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
                         <Button
                           onClick={() => handleViewEvent(post)}
                           variant="text"
@@ -2365,6 +2371,7 @@ const GlobalReportsTab = () => {
         onClose={handleClosePostActionDialog}
         aria-labelledby="post-action-dialog-title"
         aria-describedby="post-action-dialog-description"
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
       >
         <DialogTitle id="post-action-dialog-title">
           {actionDialogTitle}
@@ -2382,17 +2389,18 @@ const GlobalReportsTab = () => {
             placeholder="Write your findings and rationale"
             value={actionVerdict}
             onChange={(e) => setActionVerdict(e.target.value)}
-            sx={{ mt: 2 }}
+            sx={{ mt: 2, ...getGlassInputSx(theme) }}
           />
           {postActionType === 'safeguard' && (
             <>
-              <FormControl fullWidth sx={{ mt: 2 }}>
+              <FormControl fullWidth sx={{ mt: 2, ...getGlassInputSx(theme), opacity: safeguardUseCustomUntil ? 0.45 : 1 }}>
                 <InputLabel id="site-safeguard-days-label">Cooldown Duration</InputLabel>
                 <Select
                   labelId="site-safeguard-days-label"
                   label="Cooldown Duration"
                   value={safeguardDays}
                   onChange={(e) => setSafeguardDays(String(e.target.value))}
+                  disabled={safeguardUseCustomUntil}
                 >
                   <MenuItem value="3">3 Days</MenuItem>
                   <MenuItem value="7">7 Days</MenuItem>
@@ -2419,7 +2427,7 @@ const GlobalReportsTab = () => {
                       value={safeguardCustomUntil}
                       onChange={(e) => setSafeguardCustomUntil(e.target.value)}
                       InputLabelProps={{ shrink: true }}
-                      sx={{ mt: 1 }}
+                      sx={{ mt: 1, ...getGlassInputSx(theme) }}
                     />
                   )}
                 </>
@@ -2482,18 +2490,42 @@ const GlobalReportsTab = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClosePostActionDialog} color="primary">
+          <Button
+            onClick={handleClosePostActionDialog}
+            variant="contained"
+            sx={{ ...getGlassSquareActionButtonSx(theme), width: 'auto', minWidth: 84, px: 2 }}
+          >
             Cancel
           </Button>
           <Button
             onClick={postActionType === 'delete' ? handleDeletePost : handleSubmitPostAction}
-            color={postActionType === 'delete' || postActionType === 'ban_timeline' ? 'error' : postActionType === 'issue_warning' ? 'warning' : 'success'}
             variant="contained"
             startIcon={postActionType === 'delete' || postActionType === 'ban_timeline' ? <CancelIcon /> : <CheckCircleIcon />}
             disabled={
               !actionVerdict.trim()
               || (postActionType === 'safeguard' && isSiteOwner && safeguardUseCustomUntil && !safeguardCustomUntil)
             }
+            sx={(() => {
+              const actionColor = postActionType === 'delete' || postActionType === 'ban_timeline'
+                ? { base: '#ef4444', hover: '#dc2626' }
+                : postActionType === 'issue_warning'
+                  ? { base: '#f59e0b', hover: '#d97706' }
+                  : { base: '#22c55e', hover: '#16a34a' };
+              const pill = getGlassPillActionButtonSx(theme);
+              return {
+                ...pill,
+                color: '#fff',
+                background: actionColor.base,
+                '&:hover': {
+                  ...pill['&:hover'],
+                  background: actionColor.hover,
+                },
+                '&.Mui-disabled': {
+                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                  color: 'rgba(255,255,255,0.35)',
+                },
+              };
+            })()}
           >
             {postActionType === 'delete'
               ? 'Delete Post'
