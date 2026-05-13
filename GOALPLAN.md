@@ -201,7 +201,7 @@ When auditing each feature/endpoint:
 - [x] **Register Page** (`/register`) - Password policy fixed, redundant login removed, guest mode guards added
 
 ### 🔲 Pages to Audit
-- [ ] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - endpoint added ✅
+- [x] **Required Username Change** (`/account/required-username-change`) - Forced username update flow - frontend migration completed ✅
 - [x] **Home Page** (`/home`) - Feed loading, timeline lanes, FAB, MAKE A POST
 - [x] **Timeline View** (`/timeline-v3/:id`) - Event display, voting, posting, interactions - All 3 timeline types verified. Banner branding standardized with dynamic icons. ✅
 - [x] **Personal Timeline** (`/timeline-v3/:username/:slug`) - Private timeline access - Resolve + viewer access verified. ✅

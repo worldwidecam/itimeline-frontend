@@ -843,8 +843,12 @@ export const unfollowTimeline = async (timelineId) => {
 
 export const completeRequiredUsernameChange = async (username) => {
   try {
-    const response = await api.post('/api/v1/auth/required-username-change', { username });
-    return response.data;
+    // 1. Submit the patch to update the username and clear moderation flags
+    await api.patch('/api/v1/users/me/username', { username });
+    
+    // 2. Fetch the newly updated user state
+    const meResponse = await api.get('/api/v1/auth/me');
+    return meResponse.data.user;
   } catch (error) {
     console.error('[API] Error completing required username change:', error);
     throw error;
