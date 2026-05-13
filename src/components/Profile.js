@@ -281,7 +281,7 @@ const Profile = () => {
       : '0 8px 32px rgba(0, 0, 0, 0.1)');
   const canCreateOrReport = Boolean(user) && user?.can_post_or_report !== false;
   const canShowMainProfileActions = Boolean(profileUser?.id);
-  const canReportProfile = Boolean(profileUser?.id) && !isOwnProfile && canCreateOrReport && !isGuest;
+  const canReportProfile = Boolean(profileUser?.id) && !isOwnProfile && canCreateOrReport && !isGuest && !profileUser?.is_safeguarded;
   const canOpenProfileSettings = Boolean(profileUser?.id) && isOwnProfile;
   const profileModulesStorageKey = useMemo(() => {
     if (!profileUser?.id) return '';

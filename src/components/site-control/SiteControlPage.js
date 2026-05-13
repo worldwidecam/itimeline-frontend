@@ -70,6 +70,7 @@ import api, {
   addBrokenEventQueueItem,
   removeBrokenEventQueueItem,
   deleteBrokenEventById,
+  listBanList,
 } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
@@ -325,6 +326,7 @@ const AdminListTab = ({ canManage }) => {
 
 const LOGS_SECTIONS = [
   { key: 'broken-events', label: 'Broken Events' },
+  { key: 'ban-list', label: 'Ban List' },
 ];
 
 const LogsTab = () => {
@@ -375,6 +377,7 @@ const LogsTab = () => {
 
         <Box>
           {logsSection === 'broken-events' ? <BrokenEventsTab /> : null}
+          {logsSection === 'ban-list' ? <BanListTab /> : null}
         </Box>
       </Box>
     </Box>
@@ -694,6 +697,188 @@ const BrokenEventsTab = () => {
           hideActionMenu={true}
         />
       ) : null}
+    </Box>
+  );
+};
+
+const BanListTab = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addInput, setAddInput] = useState('');
+  const [addReason, setAddReason] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('info');
+
+  const showSnack = (msg, severity = 'info') => {
+    setSnackbarMessage(msg);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const fetchBanList = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [usernameData, timelineData] = await Promise.allSettled([
+        api.get('/api/v1/moderation', { params: { subject_type: 'username', is_active: true, limit: 500 } }),
+        api.get('/api/v1/moderation', { params: { subject_type: 'timeline_name', is_active: true, limit: 500 } }),
+      ]);
+      const usernameRows = usernameData.status === 'fulfilled' ? (usernameData.value?.data?.data || []) : [];
+      const timelineRows = timelineData.status === 'fulfilled' ? (timelineData.value?.data?.data || []) : [];
+      const allRows = [...usernameRows, ...timelineRows].filter((r) => r.action === 'block_name');
+      allRows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setItems(allRows);
+    } catch (e) {
+      showSnack('Failed to load ban list', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBanList();
+  }, [fetchBanList]);
+
+  const handleAddBan = async () => {
+    const name = addInput.trim().toLowerCase();
+    if (!name) return;
+    try {
+      setAddLoading(true);
+      await api.post('/api/v1/moderation', {
+        subject_type: 'username',
+        subject_id: null,
+        subject_value: name,
+        action: 'block_name',
+        reason_public: addReason.trim() || null,
+      });
+      setAddInput('');
+      setAddReason('');
+      showSnack(`"${name}" added to ban list`, 'success');
+      fetchBanList();
+    } catch (e) {
+      showSnack(e?.response?.data?.error || 'Failed to add ban', 'error');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const handleRemoveBan = async (id) => {
+    try {
+      await api.patch(`/api/v1/moderation/${id}`, { is_active: false });
+      showSnack('Ban removed', 'success');
+      fetchBanList();
+    } catch (e) {
+      showSnack('Failed to remove ban', 'error');
+    }
+  };
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Paper sx={{ p: 3 }} elevation={2}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
+          <Box>
+            <Typography variant="h6">Ban List</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+              Blocked names. These cannot be used as usernames or community timeline names.
+            </Typography>
+          </Box>
+          <Button variant="outlined" onClick={fetchBanList} disabled={loading}>
+            Refresh
+          </Button>
+        </Stack>
+
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mt: 2.25 }}>
+          <TextField
+            label="Name to ban"
+            value={addInput}
+            onChange={(e) => setAddInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddBan(); }}
+            placeholder="e.g. badusername"
+            sx={{ maxWidth: { xs: '100%', md: 240 } }}
+            size="small"
+          />
+          <TextField
+            label="Reason (optional)"
+            value={addReason}
+            onChange={(e) => setAddReason(e.target.value)}
+            placeholder="Why is this name banned?"
+            fullWidth
+            size="small"
+          />
+          <Button
+            variant="contained"
+            onClick={handleAddBan}
+            disabled={addLoading || !addInput.trim()}
+            sx={{ minWidth: 120 }}
+          >
+            Add Ban
+          </Button>
+        </Stack>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2.5 }}>
+            No banned names in the list.
+          </Typography>
+        ) : (
+          <Table size="small" sx={{ mt: 2 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Banned Name</TableCell>
+                <TableCell>Reason</TableCell>
+                <TableCell>Date Added</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>
+                      {item.subject_value}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.reason_public || '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button
+                      size="small"
+                      variant="text"
+                      color="error"
+                      onClick={() => handleRemoveBan(item.id)}
+                    >
+                      Remove
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3500}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbarSeverity} onClose={() => setSnackbarOpen(false)}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
@@ -1125,7 +1310,8 @@ const GlobalReportsTab = () => {
             avatar: it.assigned_to_avatar_url || null,
           } : null,
           resolution: it.resolution || null,
-          verdict: it.verdict || '',
+          verdict: it.verdict || it.resolution_notes || '',
+          moderation_action: it.moderation_action || null,
           safeguardSafeUntil: it.safeguard_safe_until || null,
           warningScope: it.warning_scope || null,
           warningUntil: it.warning_until || null,
@@ -1165,6 +1351,20 @@ const GlobalReportsTab = () => {
       setSnackbarOpen(true);
     } catch (e) {
       setSnackbarMessage(e?.response?.data?.error || 'Failed to accept report');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleDismissReport = async (post) => {
+    try {
+      await resolveSiteReport(post.reportId || post.id, 'dismiss', 'Report dismissed - not worthy of review', false);
+      await fetchReports();
+      setSnackbarMessage('Report dismissed');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to dismiss report');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
@@ -1507,9 +1707,9 @@ const GlobalReportsTab = () => {
                                 </Typography>
                               )}
 
-                              {reportedUsernameAtActionTime && post.resolution === 'require_username_change' && (
+                              {(reportedUsernameAtActionTime || post.moderation_action?.subject_value) && post.resolution === 'require_username_change' && (
                                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                                  Reported username: <strong>{displayUsername(reportedUsernameAtActionTime)}</strong>
+                                  Reported username: <strong>{displayUsername(reportedUsernameAtActionTime || post.moderation_action?.subject_value)}</strong>
                                 </Typography>
                               )}
                             </>
@@ -1524,7 +1724,7 @@ const GlobalReportsTab = () => {
                         display: 'grid',
                         gridTemplateColumns: {
                           xs: '1fr',
-                          md: post.status === 'resolved' && verdictText ? 'minmax(0, 1fr) minmax(0, 2fr)' : '1fr',
+                          md: post.status === 'resolved' ? 'minmax(0, 1fr) minmax(0, 2fr)' : '1fr',
                         },
                         gap: 2,
                         alignItems: 'start',
@@ -1581,6 +1781,11 @@ const GlobalReportsTab = () => {
                                 {post.reportedUser?.id && (
                                   <Typography variant="body2" color="text.secondary">
                                     Profile: /profile/{post.reportedUser.id}
+                                  </Typography>
+                                )}
+                                {(reportedUsernameAtActionTime || post.moderation_action?.subject_value) && (
+                                  <Typography variant="body2" sx={{ color: '#D32F2F', fontWeight: 600, mt: 0.5 }}>
+                                    Reported username: {displayUsername(reportedUsernameAtActionTime || post.moderation_action?.subject_value)}
                                   </Typography>
                                 )}
                               </Box>
@@ -1872,25 +2077,31 @@ const GlobalReportsTab = () => {
                         </Stack>
                       </Box>
 
-                      {post.status === 'resolved' && verdictText && (
+                      {post.status === 'resolved' && (
                         <Box
                           sx={{
                             p: 1.4,
                             borderRadius: 1.5,
                             border: '1px solid',
-                            borderColor: 'divider',
+                            borderColor: verdictText ? 'primary.main' : 'divider',
                             backgroundColor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.02)'
-                              : 'rgba(15,23,42,0.02)',
+                              ? 'rgba(255,255,255,0.03)'
+                              : 'rgba(15,23,42,0.03)',
                             minHeight: '100%',
                           }}
                         >
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.35, fontWeight: 600 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.35, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                             Verdict
                           </Typography>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                            {verdictText}
-                          </Typography>
+                          {verdictText ? (
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                              {verdictText}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                              No verdict recorded
+                            </Typography>
+                          )}
                         </Box>
                       )}
                     </Box>
@@ -1947,16 +2158,27 @@ const GlobalReportsTab = () => {
 
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, flexWrap: 'wrap' }}>
                       {post.status === 'pending' && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color="primary"
-                          startIcon={<ShieldIcon />}
-                          onClick={() => handleAcceptReport(post)}
-                          sx={{ mr: 1, mb: 1 }}
-                        >
-                          Accept for Review
-                        </Button>
+                        <>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="primary"
+                            startIcon={<ShieldIcon />}
+                            onClick={() => handleAcceptReport(post)}
+                            sx={{ mr: 1, mb: 1 }}
+                          >
+                            Accept for Review
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="success"
+                            onClick={() => handleDismissReport(post)}
+                            sx={{ mr: 1, mb: 1 }}
+                          >
+                            Dismiss
+                          </Button>
+                        </>
                       )}
 
                       {post.status === 'resolved' && post.reportType === 'timeline' && post.resolution === 'issue_warning' && (post.warningIsActive !== false) && (

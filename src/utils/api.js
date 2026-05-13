@@ -848,7 +848,20 @@ export const completeRequiredUsernameChange = async (username) => {
     
     // 2. Fetch the newly updated user state
     const meResponse = await api.get('/api/v1/auth/me');
-    return meResponse.data.user;
+    const updatedUser = meResponse.data.user;
+    
+    // 3. Clear passport cache so isForcedRenameRequired checks fresh data
+    try {
+      const userId = updatedUser?.id;
+      if (userId) {
+        localStorage.removeItem(`user_passport_${userId}`);
+        console.log(`[API] Cleared passport cache for user ${userId} after username change`);
+      }
+    } catch (e) {
+      console.warn('[API] Failed to clear passport cache:', e);
+    }
+    
+    return updatedUser;
   } catch (error) {
     console.error('[API] Error completing required username change:', error);
     throw error;
@@ -1148,7 +1161,7 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '', 
  */
 export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit = false, actionPayload = {}) => {
   try {
-    const allowed = ['delete', 'safeguard', 'remove', 'edit', 'require_username_change', 'restrict_user', 'suspend_user', 'issue_warning', 'ban_timeline'];
+    const allowed = ['delete', 'safeguard', 'remove', 'edit', 'dismiss', 'require_username_change', 'restrict_user', 'suspend_user', 'issue_warning', 'ban_timeline'];
     if (!allowed.includes(action)) {
       throw new Error(`Invalid resolve action: ${action}`);
     }
@@ -2776,6 +2789,24 @@ export const updateUserPreferences = async (prefs = {}) => {
     return response.data;
   } catch (error) {
     console.error('[API] Failed to update user preferences:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * List blocked/banned names (username and timeline_name blocklist)
+ * @returns {Promise} - Promise resolving to list of moderation actions
+ */
+export const listBanList = async () => {
+  try {
+    console.log('[API] Fetching ban list');
+    const response = await api.get('/api/v1/moderation', {
+      params: { subject_type: 'username', is_active: true }
+    });
+    console.log('[API] Ban list response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching ban list:', error);
     throw error;
   }
 };

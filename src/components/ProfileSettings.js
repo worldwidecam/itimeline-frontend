@@ -1111,9 +1111,14 @@ const ProfileSettings = () => {
           ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
           : '0 8px 32px rgba(0, 0, 0, 0.1)'
       }}>
-        <Typography variant="h4" gutterBottom>
-          Profile Settings
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h4">
+            Profile Settings
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            User ID: {user?.id}
+          </Typography>
+        </Box>
 
         <Box sx={{ 
           display: 'flex', 

@@ -219,19 +219,20 @@ export default function UserCard({
             onClick={handleOpenMenu}
             endIcon={<ExpandMoreIcon fontSize="small" />}
             sx={{
-              textTransform: 'none',
               fontWeight: 700,
+              fontSize: '0.8rem',
               borderRadius: 1.75,
               px: 1.4,
+              color: '#fff',
               textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
-              background: identityColor 
+              background: identityColor
                 ? `linear-gradient(135deg, ${identityColor} 0%, ${alpha(identityColor, 0.8)} 100%)`
                 : 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
-              boxShadow: identityColor 
+              boxShadow: identityColor
                 ? `0 8px 16px ${alpha(identityColor, 0.2)}`
                 : '0 8px 16px rgba(37,99,235,0.24)',
               '&:hover': {
-                background: identityColor 
+                background: identityColor
                   ? `linear-gradient(135deg, ${alpha(identityColor, 0.9)} 0%, ${identityColor} 100%)`
                   : undefined,
               }

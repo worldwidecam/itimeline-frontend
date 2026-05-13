@@ -91,19 +91,19 @@ const persistAuthReturnTo = (location) => {
 
 const isForcedRenameRequired = (authUser) => {
   try {
-    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const userId = authUser?.id || storedUser?.id;
-
-    const userFlag = Boolean(authUser?.must_change_username) || Boolean(storedUser?.must_change_username);
-    if (userFlag) {
-      return true;
-    }
-
-    if (!userId) {
+    // Only check for username change if user is authenticated
+    // Don't check stale localStorage data for unauthenticated users
+    if (!authUser?.id) {
       return false;
     }
 
-    const passportRaw = localStorage.getItem(`user_passport_${userId}`);
+    // Check auth context first (fresh data from API)
+    if (authUser?.must_change_username) {
+      return true;
+    }
+
+    // Check passport cache as fallback
+    const passportRaw = localStorage.getItem(`user_passport_${authUser.id}`);
     const passport = passportRaw ? JSON.parse(passportRaw) : null;
     return Boolean(passport?.must_change_username);
   } catch (_e) {
