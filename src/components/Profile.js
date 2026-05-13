@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import api, { submitUserReport } from '../utils/api';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Container,
   Paper,
@@ -119,6 +120,7 @@ const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
         text,
         author_id: Number.isInteger(authorId) && authorId > 0 ? authorId : null,
         author_username: String(entry?.author_username || fallbackAuthor).trim().slice(0, 80),
+        author_avatar_url: entry?.author_avatar_url || null,
         created_at: String(entry?.created_at || '').trim() || null,
       };
     })
@@ -177,6 +179,20 @@ const normalizeProfileModules = (rawModules) => {
       order: index,
       position: index,
     }));
+};
+
+const mergeProfileModules = (newModules, existingModules) => {
+  const normalizedNew = normalizeProfileModules(newModules);
+  const normalizedExisting = normalizeProfileModules(existingModules);
+  
+  return normalizedNew.map(newMod => {
+    const existing = normalizedExisting.find(p => p.module_key === newMod.module_key);
+    // If we already have texts content but the new payload doesn't, preserve the content
+    if (existing && existing.texts && existing.texts.length > 0 && (!newMod.texts || newMod.texts.length === 0)) {
+      return { ...newMod, texts: existing.texts };
+    }
+    return newMod;
+  });
 };
 
 const Profile = () => {
@@ -712,10 +728,12 @@ const Profile = () => {
         const response = await api.get(`/api/v1/users/${tid}/profile-modules`, {
           params: { access_key: queryAccessKey }
         });
-        const normalized = normalizeProfileModules(response.data?.modules);
-        setProfileModules(normalized);
+        
+        // Use functional update to avoid wiping out data from parallel fetchProfileTextsModule
+        setProfileModules((prev) => mergeProfileModules(response.data?.modules, prev));
+
         if (profileModulesStorageKey) {
-          localStorage.setItem(profileModulesStorageKey, JSON.stringify(normalized));
+          localStorage.setItem(profileModulesStorageKey, JSON.stringify(normalizeProfileModules(response.data?.modules)));
         }
       } catch (err) {
         console.warn('[Profile] Failed to fetch profile modules:', err.message);
@@ -743,8 +761,7 @@ const Profile = () => {
         if (canceled) return;
         setProfilePortraitMeta(nextPortrait);
 
-        const normalizedProfileModules = normalizeProfileModules(passportResponse?.data?.profile_modules);
-        setProfileModules(normalizedProfileModules);
+        setProfileModules((prev) => mergeProfileModules(passportResponse?.data?.profile_modules, prev));
 
         localStorage.setItem(`profile_portrait_url_user_${storageUserId}`, nextPortrait.imageUrl);
         localStorage.setItem(`profile_portrait_x_user_${storageUserId}`, String(nextPortrait.x));
@@ -1375,68 +1392,100 @@ const Profile = () => {
                             : 'text.secondary';
 
                           return (
-                            <Card
+                            <Box
                               key={entry.id}
                               sx={{
-                                position: 'relative',
+                                display: 'flex',
+                                flexDirection: isLeftBubble ? 'row' : 'row-reverse',
+                                alignItems: 'flex-end',
+                                gap: 1.5,
                                 alignSelf: isLeftBubble ? 'flex-start' : 'flex-end',
-                                width: { xs: '96%', sm: '85%' },
-                                borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
-                                background: textModuleBackground,
-                                border: '1px solid',
-                                borderColor: isLeftBubble
-                                  ? (theme.palette.mode === 'dark' ? 'rgba(78, 60, 36, 0.42)' : 'rgba(33, 150, 243, 0.28)')
-                                  : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
-                                boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
+                                width: { xs: '98%', sm: '90%' },
                               }}
                             >
-                              <CardContent sx={{ pb: 1.4 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                                  <Typography
-                                    variant="subtitle2"
+                              <UserAvatar
+                                id={entry.author_id}
+                                name={entry.author_username}
+                                avatarUrl={entry.author_avatar_url}
+                                size={32}
+                                sx={{ mb: 0.5, flexShrink: 0 }}
+                              />
+                              <Card
+                                sx={{
+                                  position: 'relative',
+                                  flex: 1,
+                                  borderRadius: isLeftBubble ? '18px 18px 18px 6px' : '18px 18px 6px 18px',
+                                  background: textModuleBackground,
+                                  border: '1px solid',
+                                  borderColor: isLeftBubble
+                                    ? (theme.palette.mode === 'dark' ? 'rgba(78, 60, 36, 0.42)' : 'rgba(33, 150, 243, 0.28)')
+                                    : (theme.palette.mode === 'dark' ? 'rgba(188, 218, 255, 0.45)' : 'rgba(13, 71, 161, 0.18)'),
+                                  boxShadow: '0 8px 20px rgba(9, 18, 40, 0.22)',
+                                }}
+                              >
+                                <CardContent sx={{ pb: 1.4 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                      <Typography
+                                        variant="subtitle2"
+                                        sx={{
+                                          fontWeight: 800,
+                                          mb: 0.45,
+                                          letterSpacing: 0.15,
+                                          textTransform: 'capitalize',
+                                          color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.96)' : undefined,
+                                          textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
+                                        }}
+                                      >
+                                        {displayUsername(entry.author_username)}
+                                      </Typography>
+                                      {entry.created_at && (
+                                        <Typography 
+                                          variant="caption" 
+                                          sx={{ 
+                                            opacity: 0.5, 
+                                            fontSize: '0.65rem',
+                                            color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.6)' : 'text.secondary'
+                                          }}
+                                        >
+                                          {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                    {canDeleteTexts && (
+                                      <Tooltip title="Delete text">
+                                        <span>
+                                          <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={() => handleDeleteProfileText(entry.id)}
+                                            disabled={Boolean(profileTextDeletingId) || profileTextSubmitting}
+                                          >
+                                            <DeleteOutlineIcon fontSize="small" />
+                                          </IconButton>
+                                        </span>
+                                      </Tooltip>
+                                    )}
+                                  </Box>
+                                  <Box
                                     sx={{
-                                      fontWeight: 800,
-                                      mb: 0.45,
-                                      letterSpacing: 0.15,
-                                      color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.96)' : undefined,
-                                      textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
+                                      color: textModuleBodyColor,
+                                      lineHeight: 1.45,
+                                      textShadow: isLeftBubble && theme.palette.mode === 'dark'
+                                        ? '0 0 0.42px rgba(0, 0, 0, 0.74)'
+                                        : 'none',
                                     }}
                                   >
-                                    {`${displayUsername(entry.author_username) || 'User'} Says`}
-                                  </Typography>
-                                  {canDeleteTexts && (
-                                    <Tooltip title="Delete text">
-                                      <span>
-                                        <IconButton
-                                          size="small"
-                                          color="error"
-                                          onClick={() => handleDeleteProfileText(entry.id)}
-                                          disabled={Boolean(profileTextDeletingId) || profileTextSubmitting}
-                                        >
-                                          <DeleteOutlineIcon fontSize="small" />
-                                        </IconButton>
-                                      </span>
-                                    </Tooltip>
-                                  )}
-                                </Box>
-                                <Box
-                                  sx={{
-                                    color: textModuleBodyColor,
-                                    lineHeight: 1.45,
-                                    textShadow: isLeftBubble && theme.palette.mode === 'dark'
-                                      ? '0 0 0.42px rgba(0, 0, 0, 0.74)'
-                                      : 'none',
-                                  }}
-                                >
-                                  <RichContentRenderer
-                                    content={toRichContentPayload(entry.text)}
-                                    theme={theme}
-                                    onOpenEventReference={handleOpenProfileModuleEventReference}
-                                    inheritTextColor
-                                  />
-                                </Box>
-                              </CardContent>
-                            </Card>
+                                    <RichContentRenderer
+                                      content={toRichContentPayload(entry.text)}
+                                      theme={theme}
+                                      onOpenEventReference={handleOpenProfileModuleEventReference}
+                                      inheritTextColor
+                                    />
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Box>
                           );
                         })}
 
