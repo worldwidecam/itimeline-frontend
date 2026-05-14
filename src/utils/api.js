@@ -283,6 +283,10 @@ api.interceptors.response.use(
     // Normalize new backend error shapes back to legacy string format
     if (error.response?.data?.error && typeof error.response.data.error === 'object') {
       const errObj = error.response.data.error;
+      // Preserve the structured error code before flattening to a string
+      if (errObj.code) {
+        error.response.data.error_code = errObj.code;
+      }
       if (Array.isArray(errObj.issues)) {
         // Handle Zod validation errors
         error.response.data.error = errObj.issues.map(i => i.message).join(', ');
@@ -1173,7 +1177,7 @@ export const resolveSiteReport = async (reportId, action, verdict = '', lockEdit
     if (!verdict || !String(verdict).trim()) {
       throw new Error('A non-empty verdict is required');
     }
-    const payload = { action, verdict: verdict.trim(), lock_edit: Boolean(lockEdit) };
+    const payload = { action, verdict: verdict.trim(), reason_public: verdict.trim(), lock_edit: Boolean(lockEdit) };
     if (actionPayload && typeof actionPayload === 'object') {
       Object.assign(payload, actionPayload);
     }
@@ -1389,7 +1393,7 @@ export const getTimelineDetails = async (timelineId) => {
       cover_upload_enabled: true,
       error: true,
       errorMessage: responseData?.error || error.message,
-      errorCode: responseData?.error_code || null,
+      errorCode: responseData?.error?.code || responseData?.error_code || null,
       statusCode: error?.response?.status || null
     };
   }

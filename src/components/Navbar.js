@@ -63,6 +63,7 @@ function Navbar() {
   const [timelineStatusMessage, setTimelineStatusMessage] = useState({ active: false });
   const [statusAnchorEl, setStatusAnchorEl] = useState(null);
   const [showStatusAttention, setShowStatusAttention] = useState(false);
+  const [showWarningAttention, setShowWarningAttention] = useState(false);
   const [statusActionCard, setStatusActionCard] = useState(null);
   const [isStatusViewerMember, setIsStatusViewerMember] = useState(true);
   const [statusEventPopup, setStatusEventPopup] = useState(null);
@@ -222,6 +223,18 @@ function Navbar() {
     setShowStatusAttention(false);
   }, [getStatusInspectionKey]);
 
+  const getWarningInspectionKey = useCallback(() => {
+    if (!timelineId || !timelineWarningState?.active) return null;
+    return `timeline-warning-inspected:${timelineId}`;
+  }, [timelineId, timelineWarningState?.active]);
+
+  const markWarningInspected = useCallback(() => {
+    const key = getWarningInspectionKey();
+    if (!key) return;
+    localStorage.setItem(key, '1');
+    setShowWarningAttention(false);
+  }, [getWarningInspectionKey]);
+
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -253,6 +266,7 @@ function Navbar() {
       setWarningAnchorEl(null);
       return;
     }
+    markWarningInspected();
     setWarningAnchorEl(event.currentTarget);
   };
 
@@ -413,6 +427,26 @@ function Navbar() {
     statusType,
     timelineWarningState?.active,
     getStatusInspectionKey,
+  ]);
+
+  useEffect(() => {
+    if (!isTimelinePage || !timelineId || !timelineWarningState?.active) {
+      setShowWarningAttention(false);
+      return;
+    }
+
+    const key = getWarningInspectionKey();
+    if (!key) {
+      setShowWarningAttention(false);
+      return;
+    }
+
+    setShowWarningAttention(localStorage.getItem(key) !== '1');
+  }, [
+    isTimelinePage,
+    timelineId,
+    timelineWarningState?.active,
+    getWarningInspectionKey,
   ]);
 
   useEffect(() => {
@@ -1298,6 +1332,44 @@ function Navbar() {
                           mr: 1,
                           color: 'warning.main',
                           '&:hover': { color: 'warning.dark' },
+                          position: 'relative',
+                          width: 42,
+                          height: 42,
+                          ...(showWarningAttention ? {
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              inset: -4,
+                              borderRadius: '50%',
+                              border: '1px solid rgba(244, 206, 90, 0.7)',
+                              boxShadow: '0 0 16px rgba(244, 206, 90, 0.45)',
+                              animation: 'status-icon-pulse-ring 2.1s ease-out infinite',
+                              pointerEvents: 'none',
+                            },
+                            '&::after': {
+                              content: '""',
+                              position: 'absolute',
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              top: -1,
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: 'radial-gradient(circle, rgba(255,231,155,0.95) 0%, rgba(255,231,155,0.3) 68%, rgba(255,231,155,0) 100%)',
+                              boxShadow: '0 0 9px rgba(255,215,120,0.8)',
+                              animation: 'status-icon-particle-orbit 2.6s linear infinite',
+                              pointerEvents: 'none',
+                            },
+                            '@keyframes status-icon-pulse-ring': {
+                              '0%': { transform: 'scale(0.94)', opacity: 0.8 },
+                              '70%': { transform: 'scale(1.18)', opacity: 0.25 },
+                              '100%': { transform: 'scale(1.22)', opacity: 0 },
+                            },
+                            '@keyframes status-icon-particle-orbit': {
+                              '0%': { transform: 'translate(-50%, 0) rotate(0deg) translateX(12px)' },
+                              '100%': { transform: 'translate(-50%, 0) rotate(360deg) translateX(12px)' },
+                            },
+                          } : {}),
                         }}
                         aria-label="warning status"
                       >
@@ -1358,18 +1430,19 @@ function Navbar() {
                                     <CloseIcon fontSize="small" />
                                   </IconButton>
                                 </Box>
-                                <Box sx={{ px: 2.5, pt: 2, pb: 3 }}>
-                                  <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.3 }}>
-                                    Status
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ opacity: 0.85, mb: 1.5 }}>
-                                    {warningUntilLabel ? `Until ${warningUntilLabel}` : 'Active warning'}
-                                  </Typography>
-                                  {timelineWarningState?.warning_reason_public && (
-                                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                <Box sx={{ px: 2.5, pt: 2, pb: 3, display: 'flex', flexDirection: 'column', minHeight: 200 }}>
+                                  {timelineWarningState?.warning_reason_public ? (
+                                    <Typography variant="body2" sx={{ lineHeight: 1.6, flex: 1 }}>
                                       {timelineWarningState.warning_reason_public}
                                     </Typography>
+                                  ) : (
+                                    <Typography variant="body2" sx={{ opacity: 0.6, fontStyle: 'italic', flex: 1 }}>
+                                      No details provided.
+                                    </Typography>
                                   )}
+                                  <Typography variant="caption" sx={{ mt: 2, display: 'block', opacity: 0.75, fontWeight: 600 }}>
+                                    {warningUntilLabel ? `Active until ${warningUntilLabel}` : 'Active warning'}
+                                  </Typography>
                                 </Box>
                               </Box>
                             </ClickAwayListener>

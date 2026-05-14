@@ -2709,7 +2709,7 @@ const HomePage = () => {
 
 
   const fetchMyCreationEvents = React.useCallback(async () => {
-    if (loadingMyCreationEvents || hasLoadedMyCreationEvents || !ownedTimelines.length) return;
+    if (loadingMyCreationEvents || hasLoadedMyCreationEvents) return;
     if (!(currentUserId > 0)) {
       setMyCreationEvents([]);
       setHasLoadedMyCreationEvents(true);
@@ -2718,15 +2718,6 @@ const HomePage = () => {
 
     try {
       setLoadingMyCreationEvents(true);
-
-      const sourceTimelines = ownedTimelines.slice(0, HOME_MY_CREATIONS_TIMELINE_SOURCE_LIMIT);
-
-      const sourceTimelineMap = new Map(
-        sourceTimelines.map((timeline) => [Number(timeline?.id || 0), timeline]),
-      );
-      const sourceTimelineIds = new Set(
-        sourceTimelines.map((timeline) => Number(timeline?.id || 0)).filter((id) => id > 0),
-      );
 
       let merged = [];
       try {
@@ -2738,50 +2729,14 @@ const HomePage = () => {
           ? payload.events
           : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
 
-        merged = events
-          .filter((event) => {
-            const timelineId = Number(event?.timeline_id || 0);
-            return timelineId > 0 && sourceTimelineIds.has(timelineId);
-          })
-          .map((event) => {
-            const timelineId = Number(event?.timeline_id || 0);
-            const timelineMeta = sourceTimelineMap.get(timelineId) || null;
-            return {
-              ...event,
-              timeline_id: timelineId,
-              timeline_name: event?.timeline_name || timelineMeta?.name || '',
-              timeline_type: event?.timeline_type || timelineMeta?.timeline_type || 'hashtag',
-            };
-          });
-      } catch (userEventsError) {
-        console.warn('[HomePage] Falling back to per-timeline fetch for My Creations events:', userEventsError);
-        const requests = sourceTimelines.map((timeline) => api.get(`/api/v1/events/by-timeline/${timeline.id}`, {
-          params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
+        merged = events.map((event) => ({
+          ...event,
+          timeline_id: Number(event?.timeline_id || 0),
+          timeline_name: event?.timeline_name || '',
+          timeline_type: event?.timeline_type || 'hashtag',
         }));
-        const results = await Promise.allSettled(requests);
-
-        for (let i = 0; i < results.length; i += 1) {
-          const result = results[i];
-          const timeline = sourceTimelines[i];
-          if (result.status !== 'fulfilled') continue;
-
-          const payload = result.value?.data;
-          const events = Array.isArray(payload?.events)
-            ? payload.events
-            : (Array.isArray(payload) ? payload : []);
-
-          events.forEach((event) => {
-            const authorId = Number(event?.created_by || event?.creator_id || event?.user_id || 0);
-            if (!(authorId > 0 && authorId === currentUserId)) return;
-
-            merged.push({
-              ...event,
-              timeline_id: event?.timeline_id || timeline?.id,
-              timeline_name: timeline?.name || event?.timeline_name || '',
-              timeline_type: timeline?.timeline_type || event?.timeline_type || 'hashtag',
-            });
-          });
-        }
+      } catch (userEventsError) {
+        console.warn('[HomePage] /users/:id/events failed for My Creations:', userEventsError);
       }
 
       const dedupedById = [];
@@ -2802,17 +2757,11 @@ const HomePage = () => {
     } finally {
       setLoadingMyCreationEvents(false);
     }
-  }, [loadingMyCreationEvents, hasLoadedMyCreationEvents, ownedTimelines, currentUserId]);
+  }, [loadingMyCreationEvents, hasLoadedMyCreationEvents, currentUserId]);
 
   React.useEffect(() => {
     if (activeHubTab !== 'my-creations') return;
     if (isHubPhaseOneLoading) return;
-
-    if (!ownedTimelines.length) {
-      setHasLoadedMyCreationEvents(true);
-      setMyCreationEvents([]);
-      return;
-    }
 
     if (hasLoadedMyCreationEvents || loadingMyCreationEvents) return;
 
@@ -2832,7 +2781,6 @@ const HomePage = () => {
   }, [
     activeHubTab,
     isHubPhaseOneLoading,
-    ownedTimelines.length,
     hasLoadedMyCreationEvents,
     loadingMyCreationEvents,
     fetchMyCreationEvents,
@@ -3198,16 +3146,32 @@ const HomePage = () => {
       return existingTimeline;
     }
 
-    const response = await api.post('/api/v1/timelines', {
-      name: normalizedName,
-      description: desiredType === 'personal'
-        ? `${displayUsername(usernameBase)}'s personal timeline`
-        : `${displayUsername(usernameBase)}'s public posting timeline`,
-      type: desiredType,
-      visibility: postVisibility === 'private' ? 'private' : 'public',
-    });
+    let createdTimeline = null;
+    try {
+      const response = await api.post('/api/v1/timelines', {
+        name: normalizedName,
+        description: desiredType === 'personal'
+          ? `${displayUsername(usernameBase)}'s personal timeline`
+          : `${displayUsername(usernameBase)}'s public posting timeline`,
+        type: desiredType,
+        visibility: postVisibility === 'private' ? 'private' : 'public',
+      });
+      createdTimeline = response?.data || null;
+    } catch (createErr) {
+      const errCode = createErr?.response?.data?.error?.code || '';
+      const status = createErr?.response?.status;
+      if (desiredType === 'hashtag' && (status === 409 || errCode === 'CONFLICT' || errCode === 'NAME_BLOCKED')) {
+        const slug = usernameBase.toLowerCase();
+        const slugResp = await api.get(`/api/v1/timelines/by-slug/${slug}`);
+        const found = slugResp?.data;
+        if (found?.id) {
+          setTimelines((prev) => prev.some((t) => t.id === found.id) ? prev : [found, ...prev]);
+          return found;
+        }
+      }
+      throw createErr;
+    }
 
-    const createdTimeline = response?.data || null;
     if (createdTimeline?.id) {
       setTimelines((prev) => [createdTimeline, ...prev]);
       return createdTimeline;
@@ -4185,7 +4149,7 @@ const HomePage = () => {
                     My Creations
                   </Typography>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
-                    Your created timelines and your authored posts. No search and no ALL-filter mode here.
+                    Your created timelines and your authored posts.
                   </Typography>
 
                   <Box

@@ -232,6 +232,18 @@ When auditing each feature/endpoint:
   - *Intricacies regarding Report Duplicate Locking*: 
     - Active State (Pending/Reviewing): If a ticket matching the timeline ID, user ID, or event ID is active, prevent all subsequent reports across ALL users. Display a specific snackbar stating that a report is already in progress.
     - Resolved State (Safeguard Tag): If a ticket was resolved using the "Safeguard" action, block subsequent reports on that ID for the specified duration.
+  - **Timeline Report Buttons Audit**:
+    - [x] **Ban Timeline** — ✅ CONFIRMED WORKING (May 14, 2026)
+      - Fixes required to get here:
+        1. Axios response interceptor was flattening `{code, message}` error objects to just the message string, destroying `error_code`. Fixed by preserving `error_code` as sibling field before flattening.
+        2. `BannedTimelineLock` render was blocked by loading skeleton — moved banned/locked checks above `shouldShowInitialTimelineShell` gate.
+        3. Personal timeline ACL: `requireReadableTimeline` only checked `visibility === 'private'` — older personal timelines had `visibility: 'public'`. Fixed to treat all `type === 'personal'` as access-controlled.
+        4. Resolve endpoint checked user profile visibility instead of timeline ACL. Fixed to use `requireReadableTimeline`.
+    - [ ] **Unban Timeline** — Next to audit
+    - [ ] **Ban Lifted badge** — Renders when `banIsActive === false`; needs verification
+    - [ ] **Issue Warning** — Needs audit
+    - [ ] **Lift Warning** — Needs audit (renders on resolved warning tickets)
+    - [ ] **Safeguard Timeline** — Needs audit
 - [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅
 
 ### Redirect/Lock Pages - Verified

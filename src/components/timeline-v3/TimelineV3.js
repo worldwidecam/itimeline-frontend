@@ -175,7 +175,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Fetch timeline details when component mounts or timelineId changes (membership handled by useJoinStatus)
   useEffect(() => {
     const fetchTimelineDetails = async () => {
-      if (hookStatus === 'locked' || hookStatus === 'banned' || !timelineId || timelineId === 'new') return;
+      if (hookStatus === 'locked' || hookStatus === 'banned' || !timelineId || timelineId === 'new') {
+        setIsLoading(false);
+        return;
+      }
       
       try {
         setIsLoading(true);
@@ -3113,6 +3116,23 @@ const handleRecenter = () => {
   }, FADE_OUT_DELAY_MS);
 };
 
+  // Banned/locked checks take priority over loading skeleton — once useJoinStatus has
+  // resolved with a definitive status, show the lock page immediately.
+  if (!joinLoading && hookStatus === 'banned') {
+    return (
+      <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
+        <BannedTimelineLock timelineName={timelineName || 'This Timeline'} />
+      </React.Suspense>
+    );
+  }
+
+  // Personal timeline lock behavior should mirror the community lock pattern.
+  // useJoinStatus marks locked timelines with status === 'locked' when getTimelineDetails
+  // returns a 403 for the current user. Treat that as the single source of truth.
+  if (!joinLoading && hookStatus === 'locked') {
+    return <PersonalTimelineLock username={routeUsername} slug={routeSlug} />;
+  }
+
   const shouldShowInitialTimelineShell = Boolean(timelineId && timelineId !== 'new') && (joinLoading || isLoading);
   const shouldShowEventListShell = progressiveLoadingState === 'timeline' || progressiveLoadingState === 'events';
 
@@ -3173,21 +3193,6 @@ const handleRecenter = () => {
         </Box>
       </Box>
     );
-  }
-
-  if (!joinLoading && hookStatus === 'banned') {
-    return (
-      <React.Suspense fallback={<Box sx={{ minHeight: '100vh' }} />}>
-        <BannedTimelineLock timelineName={timelineName || 'This Timeline'} />
-      </React.Suspense>
-    );
-  }
-
-  // Personal timeline lock behavior should mirror the community lock pattern.
-  // useJoinStatus marks locked timelines with status === 'locked' when getTimelineDetails
-  // returns a 403 for the current user. Treat that as the single source of truth.
-  if (!joinLoading && hookStatus === 'locked') {
-    return <PersonalTimelineLock username={routeUsername} slug={routeSlug} />;
   }
 
   // Check if this is a private community timeline and user is not a member

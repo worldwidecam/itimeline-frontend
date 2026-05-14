@@ -1347,6 +1347,7 @@ const GlobalReportsTab = () => {
           warningScope: it.warning_scope || null,
           warningUntil: it.warning_until || null,
           warningIsActive: typeof it.warning_is_active === 'boolean' ? it.warning_is_active : null,
+          banIsActive: typeof it.ban_is_active === 'boolean' ? it.ban_is_active : null,
           reportId: it.id || it.report_id,
         };
       });
@@ -2359,16 +2360,25 @@ const GlobalReportsTab = () => {
                         </Button>
                       )}
 
-                      {post.status === 'resolved' && post.reportType === 'timeline' && post.resolution === 'ban_timeline' && isSiteOwner && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color="info"
-                          onClick={() => handleUnbanTimeline(post)}
-                          sx={{ ml: 1, mb: 1 }}
-                        >
-                          Unban Timeline (SiteOwner)
-                        </Button>
+                      {post.status === 'resolved' && post.reportType === 'timeline' && post.resolution === 'ban_timeline' && (
+                        post.banIsActive === false ? (
+                          <Chip
+                            label="Ban Lifted"
+                            size="small"
+                            color="success"
+                            sx={{ ml: 1, mb: 1, fontWeight: 600 }}
+                          />
+                        ) : isSiteOwner ? (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="info"
+                            onClick={() => handleUnbanTimeline(post)}
+                            sx={{ ml: 1, mb: 1 }}
+                          >
+                            Unban Timeline (SiteOwner)
+                          </Button>
+                        ) : null
                       )}
 
                       {post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
