@@ -136,6 +136,25 @@ export default function UserCard({
         >
           {String(username || '?').charAt(0).toUpperCase()}
         </Avatar>
+        
+        {/* Restricted Overlay */}
+        {(cardData.isRestricted || cardData.isSuspended) && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '3px',
+              left: '3px',
+              right: '3px',
+              bottom: '3px',
+              backgroundImage: 'url(/images/RESTRICTED_img.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              zIndex: 10,
+              borderRadius: '46px',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
       </Box>
 
       <CardContent

@@ -1236,6 +1236,7 @@ const ProfileSettings = () => {
                       id={user?.id}
                       size={100}
                       userColor={formData.userColor}
+                      isRestricted={user?.is_restricted || user?.is_suspended}
                       sx={{
                         transition: 'transform 0.2s ease',
                         '&:hover': { transform: 'scale(1.05)' }
@@ -1260,6 +1261,7 @@ const ProfileSettings = () => {
                       imageAlt={displayUsername(formData.username)}
                       label="PROFILE"
                       title={String(displayUsername(formData.username) || '').toUpperCase()}
+                      isRestricted={user?.is_restricted || user?.is_suspended}
                       imageSx={{
                         objectFit: 'cover',
                         transform: `translate(${(portraitX - 50) * 0.9}%, ${(portraitY - 50) * 0.9}%) scale(${portraitZoom})`,

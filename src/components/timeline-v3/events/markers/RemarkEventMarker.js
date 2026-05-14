@@ -82,6 +82,7 @@ const RemarkEventMarker = ({ event, onDelete, onEdit, avatarSide = 'left' }) => 
             id={event?.created_by}
             size={36}
             userColor={event?.created_by_user_color}
+            isRestricted={event?.created_by_is_restricted || event?.created_by_is_suspended || event?.created_by?.is_restricted || event?.created_by?.is_suspended}
             sx={{
               flexShrink: 0,
               border: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.24)' : 'rgba(31,31,31,0.25)'}`,

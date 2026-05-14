@@ -349,6 +349,7 @@ const PersonalAccessPanel = ({
                     id={user?.id}
                     size={32}
                     userColor={user?.user_color}
+                    isRestricted={user?.is_restricted || user?.isRestricted}
                     sx={{
                       bgcolor: theme.palette.mode === 'dark'
                         ? 'rgba(255,255,255,0.12)'
@@ -388,10 +389,11 @@ const PersonalAccessPanel = ({
                   >
                     <UserAvatar
                       name={viewer.username || 'User'}
-                      avatarUrl={viewer.avatarUrl}
+                      avatarUrl={viewer.avatarUrl || viewer.avatar_url}
                       id={viewer.id}
                       size={28}
                       userColor={viewer.user_color}
+                      isRestricted={viewer.isRestricted || viewer.is_restricted}
                       sx={{
                         bgcolor: theme.palette.mode === 'dark'
                           ? 'rgba(255,255,255,0.08)'

@@ -279,6 +279,7 @@ const GuestProfilePage = () => {
           qrUrl: profileShareQrUrl,
           overlayText: 'Tap to Share',
           overlaySx: { fontSize: '0.72rem' },
+          isRestricted: false,
         }}
       />
 

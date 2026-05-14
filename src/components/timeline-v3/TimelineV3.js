@@ -214,6 +214,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
               username: timelineData.creator_username,
               avatar_url: timelineData.creator_avatar_url,
               user_color: timelineData.creator_user_color,
+              is_restricted: timelineData.creator_is_restricted,
+              is_suspended: timelineData.creator_is_suspended,
             });
           }
           setRequiresApproval(timelineData.requires_approval || false);
@@ -4401,6 +4403,7 @@ const handleRecenter = () => {
             qrUrl={shareQrUrl}
             overlayClassName="share-card-overlay"
             overlayText="Tap to Share"
+            isRestricted={timeline_type === 'personal' && (creatorProfile?.is_restricted || creatorProfile?.is_suspended)}
           />
         ) : null}
         {timeline_type !== 'community' && !isGuestUser ? (

@@ -206,7 +206,8 @@ const VideoEventPopup = ({
         id: event.created_by.id || event.created_by_id || event.created_by,
         username: event.created_by.username || event.created_by_username || 'Unknown User',
         avatar: event.created_by.avatar_url || event.created_by_avatar || null,
-        user_color: event.created_by.user_color || event.created_by_user_color || null
+        user_color: event.created_by.user_color || event.created_by_user_color || null,
+        created_by_is_restricted: event.created_by.is_restricted || event.created_by_is_restricted || false
       };
     }
     // Then try direct properties (flattened)
@@ -214,7 +215,8 @@ const VideoEventPopup = ({
       id: event.created_by || event.created_by_id || 'unknown',
       username: event.created_by_username || 'Unknown User',
       avatar: event.created_by_avatar || null,
-      user_color: event.created_by_user_color || null
+      user_color: event.created_by_user_color || null,
+      created_by_is_restricted: event.created_by_is_restricted || false
     };
   };
   

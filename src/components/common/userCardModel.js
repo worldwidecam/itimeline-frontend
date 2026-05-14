@@ -11,8 +11,10 @@ export function normalizeUserCardData(user) {
   const id = Number(user.id || user.userId || 0);
   const username = String(user.username || user.name || 'User');
   const bio = String(user.bio || '');
-  const avatarUrl = user.is_restricted ? '/images/RESTRICTED_img.png' : (user.avatar_url || user.avatar || '');
+  const avatarUrl = user.avatar_url || user.avatar || '';
   const identityColor = resolveUserIdentityColor(user);
+  const isRestricted = !!user.is_restricted;
+  const isSuspended = !!user.is_suspended;
 
   return {
     id,
@@ -20,6 +22,8 @@ export function normalizeUserCardData(user) {
     bio,
     avatarUrl,
     identityColor,
+    isRestricted,
+    isSuspended,
     raw: user,
   };
 }

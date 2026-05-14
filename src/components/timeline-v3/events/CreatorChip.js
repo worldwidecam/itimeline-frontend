@@ -50,6 +50,7 @@ const CreatorChip = ({ user, color }) => {
         id={user.id}
         size={44}
         userColor={user.user_color}
+        isRestricted={user.is_restricted || user.created_by_is_restricted || user.is_suspended || user.created_by_is_suspended}
         sx={{
           mr: 2,
           border: `2px solid ${chipColor}`,

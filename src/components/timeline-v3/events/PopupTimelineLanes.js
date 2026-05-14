@@ -235,6 +235,7 @@ const PopupTimelineLanes = ({
   currentUserId,
   showPrivacyWarningGate = false,
   onAcknowledgePrivacyWarning,
+  isRestricted = false,
 }) => {
   const theme = useTheme();
   const [hashtagDropdownOpen, setHashtagDropdownOpen] = React.useState(false);
@@ -373,20 +374,22 @@ const PopupTimelineLanes = ({
           <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             Hashtags
           </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setHashtagDropdownOpen(!hashtagDropdownOpen)}
-            sx={{
-              padding: '2px',
-              color: alpha(theme.palette.primary.main, 0.7),
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                color: theme.palette.primary.main,
-              },
-            }}
-          >
-            <AddIcon sx={{ fontSize: 16 }} />
-          </IconButton>
+          {!isRestricted && (
+            <IconButton
+              size="small"
+              onClick={() => setHashtagDropdownOpen(!hashtagDropdownOpen)}
+              sx={{
+                padding: '2px',
+                color: alpha(theme.palette.primary.main, 0.7),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  color: theme.palette.primary.main,
+                },
+              }}
+            >
+              <AddIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          )}
         </Box>
         
         {/* Hashtag Add Dropdown */}
@@ -464,48 +467,50 @@ const PopupTimelineLanes = ({
           </Typography>
           
           {/* Add Community Section */}
-          <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Autocomplete
-              size="small"
-              options={communityOptions}
-              getOptionLabel={(opt) => opt.name || ''}
-              value={selectedCommunity}
-              loading={loadingTimelines}
-              onChange={(e, newVal) => setSelectedCommunity(newVal)}
-              isOptionEqualToValue={(option, value) => option?.id === value?.id}
-              filterOptions={(options, state) => {
-                // If no input, show only first 10 options
-                if (!state.inputValue || state.inputValue.trim() === '') {
-                  return options.slice(0, 10);
-                }
-                // Otherwise use default filtering
-                return options.filter(option =>
-                  option.name.toLowerCase().includes(state.inputValue.toLowerCase())
-                );
-              }}
-              renderInput={(params) => (
-                <TextField {...params} placeholder="Search communities..." variant="outlined" size="small" />
-              )}
-              sx={{ flex: 1 }}
-            />
-            <Button
-              variant="contained"
-              size="small"
-              disabled={!selectedCommunity || addingToTimeline}
-              onClick={() => onAddToTimeline(selectedCommunity)}
-              sx={{
-                minWidth: 'auto',
-                px: 1.5,
-                textTransform: 'none',
-                backgroundColor: theme.palette.secondary.main,
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.secondary.main, 0.9),
-                },
-              }}
-            >
-              {addingToTimeline ? '...' : 'Add'}
-            </Button>
-          </Box>
+          {!isRestricted && (
+            <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Autocomplete
+                size="small"
+                options={communityOptions}
+                getOptionLabel={(opt) => opt.name || ''}
+                value={selectedCommunity}
+                loading={loadingTimelines}
+                onChange={(e, newVal) => setSelectedCommunity(newVal)}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                filterOptions={(options, state) => {
+                  // If no input, show only first 10 options
+                  if (!state.inputValue || state.inputValue.trim() === '') {
+                    return options.slice(0, 10);
+                  }
+                  // Otherwise use default filtering
+                  return options.filter(option =>
+                    option.name.toLowerCase().includes(state.inputValue.toLowerCase())
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder="Search communities..." variant="outlined" size="small" />
+                )}
+                sx={{ flex: 1 }}
+              />
+              <Button
+                variant="contained"
+                size="small"
+                disabled={!selectedCommunity || addingToTimeline}
+                onClick={() => onAddToTimeline(selectedCommunity)}
+                sx={{
+                  minWidth: 'auto',
+                  px: 1.5,
+                  textTransform: 'none',
+                  backgroundColor: theme.palette.secondary.main,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.secondary.main, 0.9),
+                  },
+                }}
+              >
+                {addingToTimeline ? '...' : 'Add'}
+              </Button>
+            </Box>
+          )}
           
           {/* Communities List */}
           {communities.length > 0 ? (
@@ -560,48 +565,50 @@ const PopupTimelineLanes = ({
           </Typography>
           
           {/* Add Personal Section */}
-          <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Autocomplete
-              size="small"
-              options={personalOptions}
-              getOptionLabel={(opt) => opt.name || ''}
-              value={selectedPersonal}
-              loading={loadingTimelines}
-              onChange={(e, newVal) => setSelectedPersonal(newVal)}
-              isOptionEqualToValue={(option, value) => option?.id === value?.id}
-              filterOptions={(options, state) => {
-                // If no input, show only first 10 options
-                if (!state.inputValue || state.inputValue.trim() === '') {
-                  return options.slice(0, 10);
-                }
-                // Otherwise use default filtering
-                return options.filter(option =>
-                  option.name.toLowerCase().includes(state.inputValue.toLowerCase())
-                );
-              }}
-              renderInput={(params) => (
-                <TextField {...params} placeholder="Search personals..." variant="outlined" size="small" />
-              )}
-              sx={{ flex: 1 }}
-            />
-            <Button
-              variant="contained"
-              size="small"
-              disabled={!selectedPersonal || addingToTimeline}
-              onClick={() => onAddToTimeline(selectedPersonal)}
-              sx={{
-                minWidth: 'auto',
-                px: 1.5,
-                textTransform: 'none',
-                backgroundColor: theme.palette.primary.main,
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.9),
-                },
-              }}
-            >
-              {addingToTimeline ? '...' : 'Add'}
-            </Button>
-          </Box>
+          {!isRestricted && (
+            <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Autocomplete
+                size="small"
+                options={personalOptions}
+                getOptionLabel={(opt) => opt.name || ''}
+                value={selectedPersonal}
+                loading={loadingTimelines}
+                onChange={(e, newVal) => setSelectedPersonal(newVal)}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                filterOptions={(options, state) => {
+                  // If no input, show only first 10 options
+                  if (!state.inputValue || state.inputValue.trim() === '') {
+                    return options.slice(0, 10);
+                  }
+                  // Otherwise use default filtering
+                  return options.filter(option =>
+                    option.name.toLowerCase().includes(state.inputValue.toLowerCase())
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder="Search personals..." variant="outlined" size="small" />
+                )}
+                sx={{ flex: 1 }}
+              />
+              <Button
+                variant="contained"
+                size="small"
+                disabled={!selectedPersonal || addingToTimeline}
+                onClick={() => onAddToTimeline(selectedPersonal)}
+                sx={{
+                  minWidth: 'auto',
+                  px: 1.5,
+                  textTransform: 'none',
+                  backgroundColor: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.9),
+                  },
+                }}
+              >
+                {addingToTimeline ? '...' : 'Add'}
+              </Button>
+            </Box>
+          )}
           
           {/* Personals List */}
           {personals.length > 0 ? (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, Tooltip } from '@mui/material';
+import { Avatar, Tooltip, Box } from '@mui/material';
 import { resolveAvatarColor, getInitial } from '../../utils/avatar';
 import { displayUsername } from '../../utils/usernameDisplay';
 import { getCachedUserIdentityColor } from '../../utils/userIdentityColor';
@@ -12,7 +12,9 @@ export default function UserAvatar({
   size = 48,
   sx = {},
   onClick,
-  userColor
+  userColor,
+  isRestricted,
+  isSuspended
 }) {
   const displayName = displayUsername(name || 'User');
   const initial = getInitial(displayName);
@@ -24,22 +26,53 @@ export default function UserAvatar({
   const commonProps = {
     alt: alt || displayName,
     sx: {
-      width: size,
-      height: size,
+      width: '100%',
+      height: '100%',
       // Scale initials proportionally to avatar size
       fontSize: Math.max(12, Math.round(size * 0.42)),
       fontWeight: 600,
       bgcolor: avatarUrl ? undefined : bg,
       color: avatarUrl ? undefined : '#111',
-      ...sx
-    },
-    onClick
+    }
   };
 
+  const overlay = (isRestricted || isSuspended) ? (
+    <Box
+      sx={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundImage: 'url(/images/RESTRICTED_img.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        zIndex: 1,
+        borderRadius: '50%',
+        pointerEvents: 'none',
+      }}
+    />
+  ) : null;
+
   const avatar = (
-    <Avatar src={avatarUrl || undefined} {...commonProps}>
-      {!avatarUrl ? initial : null}
-    </Avatar>
+    <Box 
+      onClick={onClick} 
+      sx={{ 
+        position: 'relative', 
+        display: 'inline-flex', 
+        width: size, 
+        height: size, 
+        borderRadius: '50%', 
+        flexShrink: 0, 
+        cursor: onClick ? 'pointer' : 'inherit',
+        ...sx 
+      }}
+    >
+      <Avatar src={avatarUrl || undefined} {...commonProps}>
+        {!avatarUrl ? initial : null}
+      </Avatar>
+      {overlay}
+    </Box>
   );
 
   // Wrap in tooltip for better UX

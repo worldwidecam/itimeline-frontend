@@ -1402,6 +1402,10 @@ const GlobalReportsTab = () => {
           warningUntil: it.warning_until || null,
           warningIsActive: typeof it.warning_is_active === 'boolean' ? it.warning_is_active : null,
           banIsActive: typeof it.ban_is_active === 'boolean' ? it.ban_is_active : null,
+          restriction_is_active: typeof it.restriction_is_active === 'boolean' ? it.restriction_is_active : null,
+          suspension_is_active: typeof it.suspension_is_active === 'boolean' ? it.suspension_is_active : null,
+          restriction_until: it.restriction_until || null,
+          suspension_until: it.suspension_until || null,
           reportId: it.id || it.report_id,
         };
       });
@@ -1795,6 +1799,30 @@ const GlobalReportsTab = () => {
                                   Warning Until: {new Date(post.warningUntil).toLocaleString()}
                                 </Typography>
                               )}
+                              {post.resolution === 'restrict_user' && post.restriction_until && (
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textAlign: { xs: 'left', sm: 'right' },
+                                    color: '#1E40AF',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Restriction Until: {new Date(post.restriction_until).toLocaleString()}
+                                </Typography>
+                              )}
+                              {post.resolution === 'suspend_user' && post.suspension_until && (
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textAlign: { xs: 'left', sm: 'right' },
+                                    color: '#991B1B',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Suspension Until: {new Date(post.suspension_until).toLocaleString()}
+                                </Typography>
+                              )}
                               {post.resolution === 'issue_warning' && post.warningIsActive === false && (
                                 <Chip
                                   label="Warning Lifted"
@@ -1867,6 +1895,7 @@ const GlobalReportsTab = () => {
                                 id={post.reportedUser?.id}
                                 size={54}
                                 userColor={post.reportedUser?.user_color}
+                                isRestricted={post.reported_user_is_restricted || post.reportedUser?.is_restricted}
                               />
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="overline" sx={{ color: '#0D47A1', fontWeight: 700, letterSpacing: 0.8 }}>
@@ -2232,6 +2261,7 @@ const GlobalReportsTab = () => {
                             id={post.reporter?.id}
                             size={22}
                             userColor={post.reporter?.user_color}
+                            isRestricted={post.reporter_is_restricted || post.reporter?.is_restricted}
                           />
                         )}
                         {post.reporter?.id ? (
@@ -2265,6 +2295,7 @@ const GlobalReportsTab = () => {
                               id={post.assignedModerator.id}
                               size={22}
                               userColor={post.assignedModerator.user_color}
+                              isRestricted={post.assigned_to_is_restricted || post.assignedModerator.is_restricted}
                             />
                           )}
                           <Typography variant="body2">{post.assignedModerator.name}</Typography>

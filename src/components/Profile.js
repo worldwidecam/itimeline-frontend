@@ -499,7 +499,10 @@ const Profile = () => {
         ].join(', '),
       }
   ), [theme.palette.mode]);
-  const profileShareImageUrl = String(profilePortraitMeta.imageUrl || profileUser?.avatar_url || '').trim();
+  const isProfileRestricted = Boolean(profileUser?.is_restricted || profileUser?.is_suspended);
+  const profileShareImageUrl = isProfileRestricted
+    ? '/images/RESTRICTED_img.png'
+    : String(profilePortraitMeta.imageUrl || profileUser?.avatar_url || '').trim();
 
   const reportCategoryOptions = [
     { value: 'website_policy', label: 'Website policy violation' },
@@ -1310,6 +1313,7 @@ const Profile = () => {
                     id={profileUser.id}
                     size={isNarrowViewport ? 100 : 140}
                     userColor={profileUser.user_color}
+                    isRestricted={profileUser.is_restricted}
                   />
                   {profileAccessVisibility === 'private' && (
                     <Box sx={{
@@ -1513,6 +1517,7 @@ const Profile = () => {
                                     name={entry.author_username}
                                     avatarUrl={entry.author_avatar_url}
                                     size={32}
+                                    isRestricted={entry.author_is_restricted}
                                     sx={{ mb: 0.5, flexShrink: 0 }}
                                   />
                                   <Card
@@ -1813,6 +1818,7 @@ const Profile = () => {
             qrUrl: profileShareQrUrl,
             overlayText: 'Tap to Share',
             overlaySx: { fontSize: '0.72rem' },
+            isRestricted: Boolean(profileUser?.is_restricted || profileUser?.is_suspended),
           }}
         />
       )}

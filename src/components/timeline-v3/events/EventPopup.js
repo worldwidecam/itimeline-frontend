@@ -110,7 +110,7 @@ const EventPopup = ({
 }) => {
   const theme = useTheme();
   const location = useLocation();
-  const { isGuest } = useAuth();
+  const { user, isGuest } = useAuth();
   const effectiveReviewingEventIds = React.useMemo(
     () => (reviewingEventIds instanceof Set ? reviewingEventIds : EMPTY_REVIEWING_EVENT_IDS),
     [reviewingEventIds]
@@ -244,7 +244,8 @@ const EventPopup = ({
         id: event.created_by.id || event.created_by_id || event.created_by,
         username: event.created_by.username || event.created_by_username || 'Unknown User',
         avatar: event.created_by.avatar_url || event.created_by_avatar || null,
-        user_color: event.created_by.user_color || event.created_by_user_color || null
+        user_color: event.created_by.user_color || event.created_by_user_color || null,
+        created_by_is_restricted: event.created_by.is_restricted || event.created_by_is_restricted || false
       };
     }
     // Then try direct properties (flattened)
@@ -252,7 +253,8 @@ const EventPopup = ({
       id: event.created_by || event.created_by_id || 'unknown',
       username: event.created_by_username || 'Unknown User',
       avatar: event.created_by_avatar || null,
-      user_color: event.created_by_user_color || null
+      user_color: event.created_by_user_color || null,
+      created_by_is_restricted: event.created_by_is_restricted || false
     };
   };
   
@@ -619,7 +621,7 @@ const EventPopup = ({
       || (isEventCreator && !isEditLocked)
     )
   );
-  const canOpenActionMenu = !isGuest && !hideActionMenu && (canEdit || canDelete || !isSafeguarded);
+  const canOpenActionMenu = !isGuest && !user?.is_restricted && !hideActionMenu && (canEdit || canDelete || !isSafeguarded);
 
   const getTimelineOwnerId = (timeline) => {
     if (!timeline || typeof timeline !== 'object') return null;
@@ -803,6 +805,7 @@ const EventPopup = ({
     error,
     success,
     currentUserId,
+    isRestricted: user?.is_restricted,
     showPrivacyWarningGate: showAssociationPrivacyWarningGate,
     onAcknowledgePrivacyWarning: () => setHasAcknowledgedPrivacyWarning(true),
   };

@@ -438,6 +438,8 @@ const RemarkCard = forwardRef(({
                       size={24}
                       sx={{ mr: 0.5, fontSize: '0.75rem' }}
                       userColor={event.created_by_user_color}
+                      isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
+                      isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
                     />
                     <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
                       By

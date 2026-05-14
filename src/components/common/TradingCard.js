@@ -25,6 +25,7 @@ const TradingCard = ({
   overlayClassName,
   overlayText = 'Tap to Share',
   overlaySx = {},
+  isRestricted = false,
 }) => {
   const [imageLoadFailed, setImageLoadFailed] = React.useState(false);
 
@@ -105,6 +106,23 @@ const TradingCard = ({
               position: 'absolute',
               inset: 0,
               ...fallbackSx,
+            }}
+          />
+        )}
+
+        {isRestricted && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              backgroundImage: 'url(/images/RESTRICTED_img.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              zIndex: 1, // Above the image but below the gradient
+              pointerEvents: 'none',
             }}
           />
         )}

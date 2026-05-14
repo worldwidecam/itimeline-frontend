@@ -31,6 +31,7 @@ const UserProfile = () => {
             id={user?.id}
             size={150}
             userColor={user?.user_color}
+            isRestricted={user?.is_restricted || user?.is_suspended}
             sx={{ mb: 2, fontSize: '4rem' }}
           />
           <Typography variant="h4" gutterBottom>

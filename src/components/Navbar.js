@@ -605,6 +605,7 @@ function Navbar() {
                 size={60}
                 sx={{ mr: 2 }}
                 userColor={user.user_color}
+                isRestricted={user?.is_restricted || user?.is_suspended}
               />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
@@ -1512,6 +1513,7 @@ function Navbar() {
                     avatarUrl={user.avatar_url}
                     id={user.id}
                     size={40}
+                    isRestricted={user?.is_restricted || user?.is_suspended}
                     sx={{
                       transition: 'transform 0.2s ease-in-out',
                       '&:hover': { transform: 'scale(1.1)' }

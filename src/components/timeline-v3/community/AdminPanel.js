@@ -1314,6 +1314,7 @@ const AdminPanel = () => {
                                 id={member.user_id || member.userId}
                                 size={48}
                                 userColor={member.user_color}
+                                isRestricted={member.isRestricted || member.is_restricted}
                                 sx={{ mr: 2 }}
                               />
                               <Box>
@@ -1490,6 +1491,7 @@ const AdminPanel = () => {
                                 id={member.userId || member.id}
                                 size={48}
                                 userColor={member.user_color}
+                                isRestricted={member.isRestricted || member.is_restricted}
                                 sx={{ mr: 2 }}
                               />
                               <Box>
@@ -1571,6 +1573,7 @@ const AdminPanel = () => {
                             id={member.userId || member.id}
                             size={48}
                             userColor={member.user_color}
+                            isRestricted={member.isRestricted || member.is_restricted}
                             sx={{
                               mr: 2,
                               filter: 'grayscale(100%)',
@@ -2840,6 +2843,7 @@ const ManagePostsTab = ({ timelineId }) => {
                           id={post.reporter?.id}
                           size={22}
                           userColor={post.reporter?.user_color}
+                          isRestricted={post.reporter_is_restricted || post.reporter?.is_restricted}
                         />
                       )}
                       {post.reporter?.id ? (
@@ -2873,6 +2877,7 @@ const ManagePostsTab = ({ timelineId }) => {
                             id={post.assignedModerator.id}
                             size={22}
                             userColor={post.assignedModerator.user_color}
+                            isRestricted={post.assigned_to_is_restricted || post.assignedModerator.is_restricted}
                           />
                         )}
                         <Typography variant="body2">{displayUsername(post.assignedModerator.name)}</Typography>
@@ -3526,6 +3531,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                       id={member.userId}
                       size={48}
                       userColor={member.user_color}
+                      isRestricted={member.isRestricted || member.is_restricted}
                       sx={{
                         mr: 2,
                         boxShadow: '0 0 0 2px ' + roleColor.bg,
@@ -3690,6 +3696,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     id={member.userId || member.id}
                     size={48}
                     userColor={member.user_color}
+                    isRestricted={member.isRestricted || member.is_restricted}
                     sx={{ mr: 2 }}
                   />
                   <Box sx={{ flexGrow: 1 }}>
@@ -3760,6 +3767,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     id={member.userId || member.id}
                     size={48}
                     userColor={member.user_color}
+                    isRestricted={member.isRestricted || member.is_restricted}
                     sx={{
                       mr: 2,
                       filter: 'grayscale(100%)',
