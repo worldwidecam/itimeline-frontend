@@ -1153,6 +1153,11 @@ export const resolveReport = async (timelineId, reportId, action, verdict = '', 
   }
 };
 
+export const getEventPlacements = async (eventId) => {
+  const response = await api.get(`/api/v1/events/${eventId}/placements`);
+  return response.data;
+};
+
 /**
  * Resolve a site-wide report by action
  * @param {number|string} reportId

@@ -62,6 +62,7 @@ import api, {
   listSiteReports,
   acceptSiteReport,
   resolveSiteReport,
+  getEventPlacements,
   unbanTimelineFromReport,
   liftTimelineWarningFromReport,
   getLandingRotatorSettings,
@@ -1001,6 +1002,9 @@ const GlobalReportsTab = () => {
   const [removeVerdict, setRemoveVerdict] = useState('');
   const [removeSubmitting, setRemoveSubmitting] = useState(false);
   const [lockEditOnRemove, setLockEditOnRemove] = useState(false);
+  const [removePlacements, setRemovePlacements] = useState([]);
+  const [removeLoadingPlacements, setRemoveLoadingPlacements] = useState(false);
+  const [removeTargetTimelineId, setRemoveTargetTimelineId] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDialogEvent, setEditDialogEvent] = useState(null);
   const [editDialogVerdict, setEditDialogVerdict] = useState('');
@@ -1141,11 +1145,27 @@ const GlobalReportsTab = () => {
     setUserModerationSubmitting(false);
   };
 
-  const handleOpenRemoveDialog = (post) => {
+  const handleOpenRemoveDialog = async (post) => {
     setSelectedPost(post);
     setRemoveVerdict('');
     setLockEditOnRemove(false);
+    setRemovePlacements([]);
+    setRemoveTargetTimelineId(null);
     setRemoveDialogOpen(true);
+    if (post?.eventId) {
+      setRemoveLoadingPlacements(true);
+      try {
+        const data = await getEventPlacements(post.eventId);
+        setRemovePlacements(data?.placements ?? []);
+        if (data?.placements?.length === 1) {
+          setRemoveTargetTimelineId(data.placements[0].id);
+        }
+      } catch (e) {
+        console.warn('[SiteControl] Failed to load placements:', e);
+      } finally {
+        setRemoveLoadingPlacements(false);
+      }
+    }
   };
 
   const handleCloseRemoveDialog = () => {
@@ -1154,6 +1174,9 @@ const GlobalReportsTab = () => {
     setRemoveVerdict('');
     setRemoveSubmitting(false);
     setLockEditOnRemove(false);
+    setRemovePlacements([]);
+    setRemoveTargetTimelineId(null);
+    setRemoveLoadingPlacements(false);
   };
 
   const handleOpenResolveEdit = async (post) => {
@@ -1180,9 +1203,11 @@ const GlobalReportsTab = () => {
       if (!selectedPost?.timelineId || !selectedPost?.eventId) return;
       if (!editDialogVerdict.trim()) return;
       setEditDialogSubmitting(true);
-      await api.patch(`/api/v1/timeline-v3/${selectedPost.timelineId}/events/${selectedPost.eventId}`, {
-        ...eventData,
+      const { type: _type, url_source: _url_source, media_url: _media_url, cloudinary_id: _cloudinary_id, ...patchableData } = eventData;
+      await api.patch(`/api/v1/events/${selectedPost.eventId}`, {
+        ...patchableData,
         tags: Array.isArray(eventData.tags) ? eventData.tags : [],
+        edit_locked: true,
       });
       await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'edit', editDialogVerdict.trim(), true);
       handleCloseResolveEdit();
@@ -1414,7 +1439,7 @@ const GlobalReportsTab = () => {
     try {
       if (!removeVerdict || !String(removeVerdict).trim()) return;
       setRemoveSubmitting(true);
-      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'remove', removeVerdict.trim(), lockEditOnRemove);
+      await resolveSiteReport(selectedPost?.reportId || selectedPost?.id, 'remove', removeVerdict.trim(), lockEditOnRemove, removeTargetTimelineId ? { reportingTimelineId: removeTargetTimelineId } : {});
       setRemoveDialogOpen(false);
       await fetchReports();
       setSnackbarMessage('Resolved: action=remove');
@@ -2542,6 +2567,7 @@ const GlobalReportsTab = () => {
         open={userModerationDialogOpen}
         onClose={handleCloseUserModerationDialog}
         aria-labelledby="user-moderation-dialog-title"
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
       >
         <DialogTitle id="user-moderation-dialog-title">
           {userModerationAction === 'require_username_change'
@@ -2580,7 +2606,7 @@ const GlobalReportsTab = () => {
               value={restrictionUntil}
               onChange={(e) => setRestrictionUntil(e.target.value)}
               InputLabelProps={{ shrink: true }}
-              sx={{ mb: 2 }}
+              sx={{ mb: 2, ...getGlassInputSx(theme) }}
             />
           )}
 
@@ -2606,7 +2632,7 @@ const GlobalReportsTab = () => {
                   value={suspendUntil}
                   onChange={(e) => setSuspendUntil(e.target.value)}
                   InputLabelProps={{ shrink: true }}
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 2, ...getGlassInputSx(theme) }}
                 />
               )}
             </>
@@ -2620,10 +2646,11 @@ const GlobalReportsTab = () => {
             placeholder="Write your findings and rationale"
             value={userModerationVerdict}
             onChange={(e) => setUserModerationVerdict(e.target.value)}
+            sx={getGlassInputSx(theme)}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseUserModerationDialog}>Cancel</Button>
+          <Button onClick={handleCloseUserModerationDialog} sx={{ ...getGlassSquareActionButtonSx(theme), width: 'auto', minWidth: 84, px: 2 }}>Cancel</Button>
           <Button
             onClick={handleSubmitUserModeration}
             variant="contained"
@@ -2634,6 +2661,7 @@ const GlobalReportsTab = () => {
               || (userModerationAction === 'restrict_user' && !restrictionUntil)
               || (userModerationAction === 'suspend_user' && suspendType === 'temporary' && !suspendUntil)
             }
+            sx={getGlassPillActionButtonSx(theme)}
           >
             {userModerationSubmitting ? 'Applying…' : 'Resolve Ticket'}
           </Button>
@@ -2658,15 +2686,42 @@ const GlobalReportsTab = () => {
         open={removeDialogOpen}
         onClose={handleCloseRemoveDialog}
         aria-labelledby="remove-dialog-title"
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
       >
         <DialogTitle id="remove-dialog-title">Remove from Timeline</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            This removes the event from the current timeline only. It is allowed only when the event still has another placement (another timeline or qualifying tag context). If this is the only remaining placement, removal is blocked and you should use Delete Ticket for full removal.
-          </DialogContentText>
-          <DialogContentText sx={{ mb: 2 }}>
-            Please enter your moderation verdict. This verdict will be saved on the ticket.
-          </DialogContentText>
+          {removeLoadingPlacements ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <CircularProgress size={16} />
+              <Typography variant="body2" color="text.secondary">Loading placements…</Typography>
+            </Box>
+          ) : removePlacements.length === 0 ? (
+            <DialogContentText sx={{ mb: 2, color: 'warning.main' }}>
+              This event has no removable placements — it only exists on its origin timeline. Use <strong>Delete Ticket</strong> for full removal.
+            </DialogContentText>
+          ) : (
+            <>
+              <DialogContentText sx={{ mb: 1 }}>
+                Select which timeline to remove this event from:
+              </DialogContentText>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="remove-target-label">Timeline</InputLabel>
+                <Select
+                  labelId="remove-target-label"
+                  label="Timeline"
+                  value={removeTargetTimelineId ?? ''}
+                  onChange={(e) => setRemoveTargetTimelineId(e.target.value)}
+                  sx={getGlassInputSx(theme)}
+                >
+                  {removePlacements.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.name}{p.type ? ` (${p.type})` : ''}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
           <TextField
             autoFocus
             fullWidth
@@ -2676,6 +2731,7 @@ const GlobalReportsTab = () => {
             placeholder="Write your findings and rationale"
             value={removeVerdict}
             onChange={(e) => setRemoveVerdict(e.target.value)}
+            sx={getGlassInputSx(theme)}
           />
           <FormControlLabel
             sx={{ mt: 1 }}
@@ -2689,13 +2745,14 @@ const GlobalReportsTab = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRemoveDialog}>Cancel</Button>
+          <Button onClick={handleCloseRemoveDialog} sx={{ ...getGlassSquareActionButtonSx(theme), width: 'auto', minWidth: 84, px: 2 }}>Cancel</Button>
           <Button
             onClick={handleConfirmRemoveFromTimeline}
             variant="contained"
             color="warning"
-            disabled={!removeVerdict.trim() || removeSubmitting}
+            disabled={!removeVerdict.trim() || removeSubmitting || removePlacements.length === 0 || !removeTargetTimelineId}
             startIcon={<PersonRemoveIcon />}
+            sx={getGlassPillActionButtonSx(theme)}
           >
             {removeSubmitting ? 'Removing…' : 'Remove from Timeline'}
           </Button>
