@@ -3755,6 +3755,10 @@ const HomePage = () => {
                     <>
                       <strong>VIEW</strong> as much as you like! <strong>CREATE</strong> when you actually login.
                     </>
+                  ) : user?.is_restricted ? (
+                    <>
+                      Your account is currently <strong>RESTRICTED</strong>. You can still browse, but posting is disabled.
+                    </>
                   ) : (
                     <>
                       <strong>MAKE</strong> a post to save a moment.  <strong>CREATE</strong> a timeline to start a movement.
@@ -3824,7 +3828,7 @@ const HomePage = () => {
               </>
             ) : null}
 
-            {activeHeroSlide?.type === 'welcome' && user && !isGuest ? (
+            {activeHeroSlide?.type === 'welcome' && user && !isGuest && !user?.is_restricted ? (
               <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} sx={{ mt: 2, justifyContent: 'center' }}>
                 <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
                 <Button
@@ -5886,21 +5890,21 @@ const HomePage = () => {
                 onClick: () => window.open('https://forms.gle/JyKcWfLKy3a7wJgc6', '_blank'),
                 accent: { dark: '#94A3B8', light: '#A5B4FC' },
               },
-              {
-                key: 'timeline',
+              !isGuest && !user?.is_restricted && {
+                key: 'create-timeline',
                 tooltip: 'Create Your Timeline',
                 icon: <TimelineMarkerIcon />,
                 onClick: () => setDialogOpen(true),
                 accent: { dark: '#4FC3F7', light: '#039BE5' },
               },
-              {
-                key: 'post',
+              !isGuest && !user?.is_restricted && {
+                key: 'make-post',
                 tooltip: 'Make a Post',
-                icon: <EventIcon />,
+                icon: <AddIcon />,
                 onClick: handleOpenMakePostDialog,
                 accent: { dark: '#69F0AE', light: '#00CFA1' },
-              }
-            ]}
+              },
+            ].filter(Boolean)}
             mainTooltipClosed="Show Options"
             mainTooltipOpen="Hide Options"
           />

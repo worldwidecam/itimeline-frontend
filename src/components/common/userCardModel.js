@@ -11,7 +11,7 @@ export function normalizeUserCardData(user) {
   const id = Number(user.id || user.userId || 0);
   const username = String(user.username || user.name || 'User');
   const bio = String(user.bio || '');
-  const avatarUrl = user.avatar_url || user.avatar || '';
+  const avatarUrl = user.is_restricted ? '/images/RESTRICTED_img.png' : (user.avatar_url || user.avatar || '');
   const identityColor = resolveUserIdentityColor(user);
 
   return {

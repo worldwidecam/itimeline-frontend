@@ -1082,7 +1082,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const isCommunityTimeline = timeline_type === 'community';
   const isHashtagTimeline = timeline_type === 'hashtag';
   const isGuestUser = Boolean(user) && (user?.role === 'guest' || !(Number(user?.id) > 0));
-  const canCreateOrReport = Boolean(user) && !isGuestUser && user?.can_post_or_report !== false && !user?.must_change_username;
+  const canCreateOrReport = Boolean(user) && !isGuestUser && user?.can_post_or_report !== false && !user?.must_change_username && !user?.is_restricted;
   const isCreator = user && createdBy !== null && Number(user.id) === Number(createdBy);
   const isSiteOwner = (Number(user?.id) === 1) || siteRole === 'SiteOwner';
   const canCreateTimelineEvents = canCreateOrReport && (!isPersonalTimeline || isCreator || isSiteOwner);

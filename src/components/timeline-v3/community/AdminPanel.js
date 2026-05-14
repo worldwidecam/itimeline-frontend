@@ -2326,6 +2326,7 @@ const ManagePostsTab = ({ timelineId }) => {
             avatar: it.reporter_avatar_url || null,
           },
           reason: it.reason || '',
+          category: it.details || null,
           assignedModerator: it.assigned_to ? { 
             id: it.assigned_to, 
             name: it.assigned_to_username || it.assigned_to_name || 'Moderator', 
@@ -2493,26 +2494,51 @@ const ManagePostsTab = ({ timelineId }) => {
   };
 
   // Helper to parse category from reason like "[website_policy] text" and return { chipLabel, chipColor, chipStyle, cleaned }
-  const parseReasonCategory = (reasonRaw) => {
+  const parseReasonCategory = (reasonRaw, detailsRaw) => {
     const out = { chipLabel: null, chipColor: null, chipStyle: {}, cleaned: reasonRaw || '' };
-    if (!reasonRaw || typeof reasonRaw !== 'string') return out;
-    const m = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
-    if (!m) return out;
-    const key = (m[1] || '').toLowerCase();
-    out.cleaned = m[2] || '';
-    if (key === 'website_policy') {
+    
+    // 1. Check brackets in reason (legacy compatibility)
+    if (reasonRaw && typeof reasonRaw === 'string') {
+      const match = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
+      if (match) {
+        const key = (match[1] || '').toLowerCase();
+        out.cleaned = match[2] || '';
+        
+        if (key === 'website_policy') {
+          out.chipLabel = 'Website Policy';
+          out.chipColor = 'primary';
+          out.chipStyle = { bgcolor: '#1976d2', color: '#fff' }; // Blue
+          return out;
+        } else if (key === 'government_policy') {
+          out.chipLabel = 'Government Policy';
+          out.chipColor = 'warning';
+          out.chipStyle = { bgcolor: '#ed6c02', color: '#fff' }; // Orange
+          return out;
+        } else if (key === 'unethical_boundary') {
+          out.chipLabel = 'Unethical Boundary';
+          out.chipColor = 'error';
+          out.chipStyle = { bgcolor: '#d32f2f', color: '#fff' }; // Red
+          return out;
+        }
+      }
+    }
+
+    // 2. Check details field (modern implementation)
+    const categoryKey = (detailsRaw || '').toLowerCase();
+    if (categoryKey === 'website_policy') {
       out.chipLabel = 'Website Policy';
       out.chipColor = 'primary';
       out.chipStyle = { bgcolor: '#1976d2', color: '#fff' }; // Blue
-    } else if (key === 'government_policy') {
+    } else if (categoryKey === 'government_policy') {
       out.chipLabel = 'Government Policy';
       out.chipColor = 'warning';
       out.chipStyle = { bgcolor: '#ed6c02', color: '#fff' }; // Orange
-    } else if (key === 'unethical_boundary') {
+    } else if (categoryKey === 'unethical_boundary') {
       out.chipLabel = 'Unethical Boundary';
       out.chipColor = 'error';
       out.chipStyle = { bgcolor: '#d32f2f', color: '#fff' }; // Red
     }
+
     return out;
   };
 
@@ -2592,7 +2618,7 @@ const ManagePostsTab = ({ timelineId }) => {
         ) : (
           <Box>
             {filteredPosts.map((post) => {
-              const { chipLabel, chipColor, chipStyle, cleaned } = parseReasonCategory(post.reason);
+              const { chipLabel, chipColor, chipStyle, cleaned } = parseReasonCategory(post.reason, post.category);
               const eventTypeDisplay = getEventTypeDisplay(post.eventType);
               const EventTypeIcon = eventTypeDisplay.icon;
               

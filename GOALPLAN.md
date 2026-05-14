@@ -239,11 +239,20 @@ When auditing each feature/endpoint:
         2. `BannedTimelineLock` render was blocked by loading skeleton — moved banned/locked checks above `shouldShowInitialTimelineShell` gate.
         3. Personal timeline ACL: `requireReadableTimeline` only checked `visibility === 'private'` — older personal timelines had `visibility: 'public'`. Fixed to treat all `type === 'personal'` as access-controlled.
         4. Resolve endpoint checked user profile visibility instead of timeline ACL. Fixed to use `requireReadableTimeline`.
-    - [ ] **Unban Timeline** — Next to audit
+    - [x] **Unban Timeline** — ✅ CONFIRMED WORKING (May 14, 2026)
+    - [x] **Report Category Visibility** — ✅ FIXED (May 14, 2026). Parsed from `details` field + legacy reason brackets.
     - [ ] **Ban Lifted badge** — Renders when `banIsActive === false`; needs verification
-    - [ ] **Issue Warning** — Needs audit
+    - [x] **Issue Warning** — ✅ CONFIRMED WORKING (May 14, 2026)
     - [ ] **Lift Warning** — Needs audit (renders on resolved warning tickets)
-    - [ ] **Safeguard Timeline** — Needs audit
+    - [x] **Safeguard Timeline** — ✅ CONFIRMED WORKING (May 14, 2026)
+  - **Post Report Tickets Audit**:
+    - [x] Verify "Remove from Community" vs "Delete Post" logic parity. — ✅ CONFIRMED WORKING (May 14, 2026)
+    - [x] Confirm "Safeguard Post" cooldown enforcement on frontend. — ✅ CONFIRMED WORKING (May 14, 2026)
+  - **User Report Tickets Audit**:
+    - [ ] Verify "Require Username Change" flow and "Reported Username" display.
+    - [ ] Audit "Suspend/Restrict User" logic parity.
+    - [x] Separate User vs Post safeguards — ✅ FIXED (May 14, 2026). Safeguarding a post no longer safeguards the author.
+    - [x] Safeguard transparency — ✅ CONFIRMED. Error messages and Site Control now show linked report IDs.
 - [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅
 
 ### Redirect/Lock Pages - Verified

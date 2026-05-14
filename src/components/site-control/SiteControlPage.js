@@ -65,6 +65,8 @@ import api, {
   getEventPlacements,
   unbanTimelineFromReport,
   liftTimelineWarningFromReport,
+  liftUserRestrictionFromReport,
+  liftUserUnbanFromReport,
   getLandingRotatorSettings,
   updateLandingRotatorSettings,
   listBrokenEventQueue,
@@ -947,23 +949,45 @@ const getEventTypeDisplay = (eventType, reportType, timelineType) => {
   }
 };
 
-const parseReasonCategory = (reasonRaw) => {
+const parseReasonCategory = (reasonRaw, detailsRaw) => {
   const out = { chipLabel: null, chipStyle: {}, cleaned: reasonRaw || '' };
-  if (!reasonRaw || typeof reasonRaw !== 'string') return out;
-  const match = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
-  if (!match) return out;
-  const key = (match[1] || '').toLowerCase();
-  out.cleaned = match[2] || '';
-  if (key === 'website_policy') {
+  
+  // 1. Check brackets in reason (legacy compatibility)
+  if (reasonRaw && typeof reasonRaw === 'string') {
+    const match = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
+    if (match) {
+      const key = (match[1] || '').toLowerCase();
+      out.cleaned = match[2] || '';
+      
+      if (key === 'website_policy') {
+        out.chipLabel = 'Website Policy';
+        out.chipStyle = { bgcolor: '#1976d2', color: '#fff' };
+        return out;
+      } else if (key === 'government_policy') {
+        out.chipLabel = 'Government Policy';
+        out.chipStyle = { bgcolor: '#ed6c02', color: '#fff' };
+        return out;
+      } else if (key === 'unethical_boundary') {
+        out.chipLabel = 'Unethical Boundary';
+        out.chipStyle = { bgcolor: '#d32f2f', color: '#fff' };
+        return out;
+      }
+    }
+  }
+
+  // 2. Check details/category field (modern implementation)
+  const categoryKey = (detailsRaw || '').toLowerCase();
+  if (categoryKey === 'website_policy') {
     out.chipLabel = 'Website Policy';
     out.chipStyle = { bgcolor: '#1976d2', color: '#fff' };
-  } else if (key === 'government_policy') {
+  } else if (categoryKey === 'government_policy') {
     out.chipLabel = 'Government Policy';
     out.chipStyle = { bgcolor: '#ed6c02', color: '#fff' };
-  } else if (key === 'unethical_boundary') {
+  } else if (categoryKey === 'unethical_boundary') {
     out.chipLabel = 'Unethical Boundary';
     out.chipStyle = { bgcolor: '#d32f2f', color: '#fff' };
   }
+
   return out;
 };
 
@@ -1111,12 +1135,40 @@ const GlobalReportsTab = () => {
   const handleLiftTimelineWarning = async (post) => {
     try {
       await liftTimelineWarningFromReport(post?.reportId || post?.id);
-      await fetchReports();
-      setSnackbarMessage('Timeline warning lifted');
+      setSnackbarMessage('Timeline warning lifted successfully');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+      await fetchReports();
     } catch (e) {
       setSnackbarMessage(e?.response?.data?.error || 'Failed to lift timeline warning');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleLiftUserRestriction = async (post) => {
+    try {
+      await liftUserRestrictionFromReport(post?.reportId || post?.id);
+      setSnackbarMessage('User restriction lifted successfully');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      await fetchReports();
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to lift user restriction');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleLiftUserUnban = async (post) => {
+    try {
+      await liftUserUnbanFromReport(post?.reportId || post?.id);
+      setSnackbarMessage('User ban lifted successfully');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      await fetchReports();
+    } catch (e) {
+      setSnackbarMessage(e?.response?.data?.error || 'Failed to lift user ban');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
@@ -1333,6 +1385,7 @@ const GlobalReportsTab = () => {
             type: it.reported_timeline_type || null,
           },
           reason: it.reason || '',
+          category: it.details || null,
           escalationType: it.escalation_type || null,
           escalationSummary: it.escalation_summary || '',
           assignedModerator: it.assigned_to ? {
@@ -1343,6 +1396,7 @@ const GlobalReportsTab = () => {
           resolution: it.resolution || null,
           verdict: it.verdict || it.resolution_notes || '',
           moderation_action: it.moderation_action || null,
+          moderation_actions: it.moderation_actions || [],
           safeguardSafeUntil: it.safeguard_safe_until || null,
           warningScope: it.warning_scope || null,
           warningUntil: it.warning_until || null,
@@ -1601,7 +1655,7 @@ const GlobalReportsTab = () => {
           ) : (
             <Box>
               {filteredPosts.map((post) => {
-                const { chipLabel, chipStyle, cleaned } = parseReasonCategory(post.reason);
+                const { chipLabel, chipStyle, cleaned } = parseReasonCategory(post.reason, post.category);
                 const { verdictText, reportedUsernameAtActionTime } = parseVerdictDetails(post.verdict);
                 const eventTypeDisplay = getEventTypeDisplay(post.eventType, post.reportType, post.reportedTimeline?.type || post.timelineType);
                 const EventTypeIcon = eventTypeDisplay.icon;
@@ -1714,6 +1768,21 @@ const GlobalReportsTab = () => {
                                   Safe Until: {new Date(post.safeguardSafeUntil).toLocaleString()}
                                 </Typography>
                               )}
+                              {/* Side-effects: e.g. User safeguarded by a post report */}
+                              {post.moderation_actions?.filter(a => a.is_active && a.action === 'cooldown' && a.subject_type === 'user' && a.subject_id !== post.reportedUser?.id).map((action, idx) => (
+                                <Typography
+                                  key={idx}
+                                  variant="body2"
+                                  sx={{
+                                    textAlign: { xs: 'left', sm: 'right' },
+                                    color: '#1E40AF',
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                  }}
+                                >
+                                  + Author Safeguarded (ID: {action.subject_id})
+                                </Typography>
+                              ))}
                               {post.resolution === 'issue_warning' && post.warningUntil && (
                                 <Typography
                                   variant="body2"
@@ -1727,16 +1796,31 @@ const GlobalReportsTab = () => {
                                 </Typography>
                               )}
                               {post.resolution === 'issue_warning' && post.warningIsActive === false && (
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    textAlign: { xs: 'left', sm: 'right' },
-                                    color: '#0B8A4A',
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  Warning Lifted
-                                </Typography>
+                                <Chip
+                                  label="Warning Lifted"
+                                  size="small"
+                                  color="success"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 700 }}
+                                />
+                              )}
+                              {post.resolution === 'restrict_user' && post.restriction_is_active === false && (
+                                <Chip
+                                  label="Restriction Lifted"
+                                  size="small"
+                                  color="success"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 700 }}
+                                />
+                              )}
+                              {post.resolution === 'suspend_user' && post.suspension_is_active === false && (
+                                <Chip
+                                  label="Ban Lifted"
+                                  size="small"
+                                  color="success"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 700 }}
+                                />
                               )}
 
                               {(reportedUsernameAtActionTime || post.moderation_action?.subject_value) && post.resolution === 'require_username_change' && (
@@ -2222,6 +2306,30 @@ const GlobalReportsTab = () => {
                           sx={{ ml: 1, mb: 1 }}
                         >
                           Lift Warning
+                        </Button>
+                      )}
+
+                      {post.status === 'resolved' && post.reportType === 'user' && post.resolution === 'restrict_user' && (post.restriction_is_active !== false) && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="primary"
+                          onClick={() => handleLiftUserRestriction(post)}
+                          sx={{ ml: 1, mb: 1 }}
+                        >
+                          Lift Restriction
+                        </Button>
+                      )}
+
+                      {post.status === 'resolved' && post.reportType === 'user' && post.resolution === 'suspend_user' && (post.suspension_is_active !== false) && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="error"
+                          onClick={() => handleLiftUserUnban(post)}
+                          sx={{ ml: 1, mb: 1 }}
+                        >
+                          Lift Ban
                         </Button>
                       )}
 

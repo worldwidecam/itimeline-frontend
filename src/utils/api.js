@@ -637,12 +637,36 @@ export const getTimelineMemberCount = async (timelineId, retryCount = 0) => {
  */
 export const liftTimelineWarningFromReport = async (reportId) => {
   try {
-    console.log(`[API] Lifting timeline warning from report ${reportId}`);
-    const response = await api.post(`/api/v1/reports/${reportId}/timeline-warning-lift`, {});
+    console.log(`[API] Lifting timeline warning for report ${reportId}`);
+    const response = await api.post(`/api/v1/reports/${reportId}/lift-warning`);
     console.log('[API] liftTimelineWarningFromReport response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[API] Error lifting timeline warning from report:', error);
+    console.error('[API] Error lifting timeline warning:', error);
+    throw error;
+  }
+};
+
+export const liftUserRestrictionFromReport = async (reportId) => {
+  try {
+    console.log(`[API] Lifting user restriction for report ${reportId}`);
+    const response = await api.post(`/api/v1/reports/${reportId}/lift-restriction`);
+    console.log('[API] liftUserRestrictionFromReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error lifting user restriction:', error);
+    throw error;
+  }
+};
+
+export const liftUserUnbanFromReport = async (reportId) => {
+  try {
+    console.log(`[API] Lifting user ban for report ${reportId}`);
+    const response = await api.post(`/api/v1/reports/${reportId}/lift-unban`);
+    console.log('[API] liftUserUnbanFromReport response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error lifting user ban:', error);
     throw error;
   }
 };

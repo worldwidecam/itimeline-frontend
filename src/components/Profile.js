@@ -884,7 +884,11 @@ const Profile = () => {
       setReportDialogOpen(false);
       setSnackbar({ open: true, message: 'User report submitted', severity: 'success' });
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to submit report';
+      const data = e?.response?.data;
+      let msg = data?.error || e?.message || 'Failed to submit report';
+      if (e?.response?.status === 409 && data?.source_report_id) {
+        msg = `${msg} (Report #${data.source_report_id})`;
+      }
       setSnackbar({ open: true, message: msg, severity: 'error' });
     } finally {
       setReportSubmitting(false);
