@@ -48,9 +48,28 @@ const Login = () => {
       const loggedInUser = await login(formData.email, formData.password);
       setFormData({ email: '', password: '' });
       const returnTo = consumeAuthReturnTo();
-      navigate(loggedInUser?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
+      if (loggedInUser?.is_suspended) {
+        navigate('/suspended', { replace: true });
+      } else {
+        navigate(loggedInUser?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
+      }
     } catch (error) {
-      setError(error.response?.data?.error || 'Failed to login');
+      const errorData = error.response?.data?.error;
+      const errorCode = typeof errorData === 'string' ? errorData : errorData?.code;
+      const errorMessage = typeof errorData === 'string' ? errorData : (errorData?.message || '');
+      const status = error.response?.status;
+      
+      const isSuspended = 
+        errorCode === 'SUSPENDED' || 
+        status === 403 || 
+        errorMessage.toLowerCase().includes('suspended') ||
+        (typeof errorData === 'string' && errorData.toLowerCase().includes('suspended'));
+      
+      if (isSuspended) {
+        navigate('/suspended');
+      } else {
+        setError(errorMessage || 'Failed to login');
+      }
     }
   };
 

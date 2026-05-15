@@ -21,6 +21,7 @@ import VoteTestPage from './components/VoteTestPage';
 import MemberListTab from './components/timeline-v3/community/MemberListTab';
 import AdminPanel from './components/timeline-v3/community/AdminPanel';
 import SiteControlPage from './components/site-control/SiteControlPage';
+import SuspendedPage from './components/SuspendedPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -166,6 +167,10 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />;
   }
 
+  if (user?.is_suspended && location.pathname !== '/suspended') {
+    return <Navigate to="/suspended" replace />;
+  }
+
   return children;
 };
 
@@ -192,6 +197,10 @@ const AuthRoute = ({ children }) => {
 
   if (mustChangeUsername) {
     return <Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />;
+  }
+
+  if (user?.is_suspended) {
+    return <Navigate to="/suspended" replace />;
   }
 
   return <Navigate to="/home" />;
@@ -1170,6 +1179,7 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="/account/required-user-name-change" element={<Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />} />
+                <Route path="/suspended" element={<SuspendedPage />} />
                 
                 {/* Protected routes */}
                 <Route path="/home" element={

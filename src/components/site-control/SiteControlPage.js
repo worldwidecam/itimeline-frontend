@@ -1843,7 +1843,7 @@ const GlobalReportsTab = () => {
                               )}
                               {post.resolution === 'suspend_user' && post.suspension_is_active === false && (
                                 <Chip
-                                  label="Ban Lifted"
+                                  label="Ban is lifted"
                                   size="small"
                                   color="success"
                                   variant="outlined"
@@ -2502,7 +2502,7 @@ const GlobalReportsTab = () => {
                       {post.status === 'resolved' && post.reportType === 'timeline' && post.resolution === 'ban_timeline' && (
                         post.banIsActive === false ? (
                           <Chip
-                            label="Ban Lifted"
+                            label="Ban is lifted"
                             size="small"
                             color="success"
                             sx={{ ml: 1, mb: 1, fontWeight: 600 }}

@@ -152,14 +152,19 @@ export const AuthProvider = ({ children }) => {
       return userData;
     } catch (error) {
       console.error('Login error:', error);
+      // Re-throw the original error if it has a response (so Login.js can check codes)
+      if (error.response) {
+        throw error;
+      }
+      
       if (error.response?.data?.error) {
-        throw new Error(error.response.data.error);
+        throw new Error(typeof error.response.data.error === 'string' ? error.response.data.error : (error.response.data.error.message || 'Login failed'));
       } else if (error.response?.status === 401) {
         throw new Error('Invalid email or password');
       } else if (error.response?.status === 400) {
         throw new Error('Please provide both email and password');
       } else {
-        throw new Error('Failed to login. Please try again.');
+        throw new Error(error.message || 'Failed to login. Please try again.');
       }
     }
   };
