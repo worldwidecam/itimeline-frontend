@@ -308,6 +308,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         media_url: '',
         media_type: '',
         media_subtype: '',
+        media_size: 0,
         cloudinary_id: '',
         tags: []
       });
@@ -707,6 +708,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         media_key: eventData.cloudinary_id || null,
         media_type: eventData.media_type || null,
         media_subtype: eventData.media_subtype || null,
+        media_size: eventData.media_size || 0,
         timeline_id: timelineId,
         tags: eventData.tags || []
       };
@@ -747,6 +749,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         url_image: '',
         media_url: '',
         media_type: '',
+        media_size: 0,
         tags: []
       });
       
@@ -1418,6 +1421,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                           media_url: uploadResult.url,
                           media_type: uploadResult.type,
                           media_subtype: uploadResult.media_subtype || prev.media_subtype || '',
+                          media_size: uploadResult.size || 0,
                           url: uploadResult.url, // Also set URL for backward compatibility
                           cloudinary_id: uploadResult.cloudinary_id || prev.cloudinary_id || ''
                         }));
@@ -1430,6 +1434,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
                           media_url: '',
                           media_type: '',
                           media_subtype: '',
+                          media_size: 0,
                           cloudinary_id: ''
                         }));
                       }

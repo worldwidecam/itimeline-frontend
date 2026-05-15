@@ -71,9 +71,9 @@ import api, {
   updateLandingRotatorSettings,
   listBrokenEventQueue,
   addBrokenEventQueueItem,
-  removeBrokenEventQueueItem,
   deleteBrokenEventById,
   listBanList,
+  listWebsiteUsers,
 } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
@@ -449,7 +449,179 @@ const AdminListTab = ({ canManage }) => {
 const LOGS_SECTIONS = [
   { key: 'broken-events', label: 'Broken Events' },
   { key: 'ban-list', label: 'Ban List' },
+  { key: 'user-list', label: 'User List' },
 ];
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+const UserListTab = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
+  const fetchUsers = useCallback(async (pageNum = 1) => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await listWebsiteUsers(pageNum, 50);
+      
+      if (pageNum === 1) {
+        setUsers(response?.data || []);
+      } else {
+        setUsers(prev => [...prev, ...(response?.data || [])]);
+      }
+      
+      setHasMore(Boolean(response?.next_cursor));
+      setPage(pageNum);
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to load user list');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers(1);
+  }, [fetchUsers]);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>Website Users</Typography>
+        <Button 
+          variant="outlined" 
+          startIcon={<RefreshIcon />}
+          onClick={() => fetchUsers(1)}
+          disabled={loading}
+          size="small"
+          sx={{ borderRadius: 2 }}
+        >
+          Refresh
+        </Button>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>
+      )}
+
+      <Paper 
+        sx={{ 
+          borderRadius: 3, 
+          overflow: 'hidden',
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }} 
+        elevation={0}
+      >
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="medium">
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'rgba(0,0,0,0.2)' }}>
+                <TableCell sx={{ fontWeight: 800, width: '10%' }}>User ID</TableCell>
+                <TableCell sx={{ fontWeight: 800, width: '40%' }}>User Info</TableCell>
+                <TableCell sx={{ fontWeight: 800, width: '25%' }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 800, width: '25%', textAlign: 'right' }}>Storage Usage</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id} hover sx={{ '&:last-child td': { border: 0 } }}>
+                  <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600, opacity: 0.7 }}>
+                    #{u.id}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <UserAvatar
+                        name={u.username}
+                        avatarUrl={u.avatar_url}
+                        id={u.id}
+                        size={36}
+                        userColor={u.user_color}
+                      />
+                      <Box>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            '&:hover': { color: 'primary.main', textDecoration: 'underline' }
+                          }}
+                          onClick={() => window.open(`/profile/${u.id}`, '_blank')}
+                        >
+                          {displayUsername(u.username)}
+                        </Typography>
+                        {u.display_username && u.display_username !== u.username && (
+                          <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                            @{u.username}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                      {u.email}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ textAlign: 'right' }}>
+                    <Chip 
+                      label={formatBytes(u.total_storage_bytes)} 
+                      size="small"
+                      color={u.total_storage_bytes > 50 * 1024 * 1024 ? "warning" : "default"} // Warn > 50MB
+                      variant={u.total_storage_bytes > 0 ? "filled" : "outlined"}
+                      sx={{ 
+                        fontWeight: 700, 
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.5px'
+                      }}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+              
+              {!loading && users.length === 0 && !error && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6, opacity: 0.5 }}>
+                    <Typography variant="body1">No users found.</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              
+              {loading && users.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} />
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+      </Paper>
+      
+      {hasMore && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 2, pb: 4 }}>
+          <Button 
+            variant="outlined" 
+            onClick={() => fetchUsers(page + 1)}
+            disabled={loading}
+            sx={{ borderRadius: 8, px: 4 }}
+          >
+            {loading ? 'Loading...' : 'Load More'}
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+};
 
 const LogsTab = () => {
   const [logsSection, setLogsSection] = useState('broken-events');
@@ -524,6 +696,7 @@ const LogsTab = () => {
         <Box>
           {logsSection === 'broken-events' ? <BrokenEventsTab /> : null}
           {logsSection === 'ban-list' ? <BanListTab /> : null}
+          {logsSection === 'user-list' ? <UserListTab /> : null}
         </Box>
       </Box>
     </Box>

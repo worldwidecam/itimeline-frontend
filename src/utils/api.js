@@ -1428,6 +1428,25 @@ export const getTimelineDetails = async (timelineId) => {
 };
 
 /**
+ * Fetch a list of all website users with their storage sizes (SiteAdmin only)
+ * @param {number} page
+ * @param {number} limit
+ * @returns {Promise}
+ */
+export const listWebsiteUsers = async (page = 1, limit = 20) => {
+  try {
+    const cursor = (page - 1) * limit;
+    const response = await api.get('/api/v1/admin/user-list', {
+      params: { limit, cursor }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching website users:', error);
+    throw error;
+  }
+};
+
+/**
  * Public warning state for timeline-level warning enforcement UX.
  * @param {number|string} timelineId
  */

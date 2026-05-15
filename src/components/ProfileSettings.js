@@ -877,7 +877,10 @@ const ProfileSettings = () => {
       // Update avatar separately via POST /users/me/avatar (not in PATCH /users/me schema)
       if (avatarKey) {
         try {
-          await api.post('/api/v1/users/me/avatar', { avatar_key: avatarKey });
+          await api.post('/api/v1/users/me/avatar', { 
+            avatar_key: avatarKey,
+            avatar_size: selectedFile.size
+          });
           // Refetch user to get updated avatar_url
           const meResponse = await api.get('/api/v1/users/me');
           response = meResponse;
@@ -936,7 +939,10 @@ const ProfileSettings = () => {
               }
             });
             const musicKey = musicUploadResponse?.data?.key;
-            const mResponse = await api.patch('/api/v1/users/me/music', { music_media_key: musicKey });
+            const mResponse = await api.patch('/api/v1/users/me/music', { 
+              music_media_key: musicKey,
+              music_size: musicFile.size
+            });
             setMusicData(mResponse.data);
             setMusicFile(null);
             setMusicPreview(null);
@@ -1103,7 +1109,10 @@ const ProfileSettings = () => {
       const musicKey = uploadResponse?.data?.key;
 
       // Update music metadata
-      const response = await api.patch('/api/v1/users/me/music', { music_media_key: musicKey });
+      const response = await api.patch('/api/v1/users/me/music', { 
+        music_media_key: musicKey,
+        music_size: musicFile.size
+      });
       console.log('Music update response:', response.data);
       setSuccess('Music updated successfully');
       setMusicData(response.data);

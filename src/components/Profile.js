@@ -4,7 +4,10 @@ import api, {
   submitUserReport, 
   createModerationAction, 
   updateModerationAction, 
-  listModerationActions 
+  listModerationActions,
+  getFollowedUsers,
+  followUser,
+  unfollowUser
 } from '../utils/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -44,6 +47,8 @@ import HomeIcon from '@mui/icons-material/Home';
 import LoginIcon from '@mui/icons-material/Login';
 import InfoIcon from '@mui/icons-material/Info';
 import KeyboardDoubleArrowDownRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowDownRounded';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -262,6 +267,8 @@ const Profile = () => {
     zoom: 1,
   });
   const [resolvedTargetUserId, setResolvedTargetUserId] = useState(null);
+  const [followedUserIdSet, setFollowedUserIdSet] = useState(new Set());
+  const [followActionLoading, setFollowActionLoading] = useState(false);
 
   const normalizedUserIdParam = String(userId || '').trim().toLowerCase();
   const isGuestProfileRoute = normalizedUserIdParam === 'guest';
@@ -412,6 +419,58 @@ const Profile = () => {
       setProfileTextDeletingId('');
     }
   }, [applyTextsModuleUpdate, canDeleteTexts, profileTextDeletingId, profileUser?.id, profileUser?.username]);
+
+  const fetchFollowedUsers = useCallback(async () => {
+    if (!user?.id || isGuest) return;
+    try {
+      const followed = await getFollowedUsers();
+      setFollowedUserIdSet(new Set(followed.map(u => u.id)));
+    } catch (err) {
+      console.error('[Profile] Failed to fetch followed users:', err);
+    }
+  }, [user?.id, isGuest]);
+
+  useEffect(() => {
+    fetchFollowedUsers();
+  }, [fetchFollowedUsers]);
+
+  const handleToggleFollow = useCallback(async () => {
+    const profileId = Number(profileUser?.id || 0);
+    if (!profileId || !user?.id || isGuest || followActionLoading) return;
+
+    try {
+      setFollowActionLoading(true);
+      const currentlyFollowing = followedUserIdSet.has(profileId);
+      
+      if (currentlyFollowing) {
+        await unfollowUser(profileId);
+        setSnackbar({ 
+          open: true, 
+          message: `Unfollowed ${displayUsername(profileUser.username)}`, 
+          severity: 'success' 
+        });
+      } else {
+        await followUser(profileId);
+        setSnackbar({ 
+          open: true, 
+          message: `Following ${displayUsername(profileUser.username)}`, 
+          severity: 'success' 
+        });
+      }
+      
+      // Refresh followed list
+      await fetchFollowedUsers();
+    } catch (err) {
+      console.error('[Profile] Follow toggle error:', err);
+      setSnackbar({ 
+        open: true, 
+        message: 'Failed to update follow status', 
+        severity: 'error' 
+      });
+    } finally {
+      setFollowActionLoading(false);
+    }
+  }, [profileUser, user?.id, isGuest, followedUserIdSet, followActionLoading, fetchFollowedUsers]);
 
   const handleTextsScroll = useCallback(() => {
     if (!textsContainerRef.current) return;
@@ -1890,6 +1949,16 @@ const Profile = () => {
               onClick: handleOpenReportDialog,
               step: 58,
               accent: { dark: '#EF5350', light: '#D32F2F' },
+            }] : []),
+            ...(!isOwnProfile && !isGuest && profileUser?.id ? [{
+              key: 'follow-user',
+              tooltip: followedUserIdSet.has(Number(profileUser.id)) ? 'Unfollow user' : 'Follow user',
+              icon: followedUserIdSet.has(Number(profileUser.id)) ? <PersonRemoveIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />,
+              onClick: handleToggleFollow,
+              step: 58,
+              accent: followedUserIdSet.has(Number(profileUser.id)) 
+                ? { dark: '#EF5350', light: '#D32F2F' } 
+                : { dark: '#4FC3F7', light: '#039BE5' },
             }] : []),
           ]}
           tradingCard={{

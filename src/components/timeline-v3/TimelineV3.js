@@ -2402,7 +2402,7 @@ const handleViewModeTransition = (newViewMode) => {
         const allowedFields = [
           'title', 'description', 'content_json', 'event_date', 'raw_event_date',
           'url', 'url_title', 'url_description', 'url_image',
-          'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked',
+          'media_key', 'media_type', 'media_subtype', 'media_size', 'is_exact_user_time', 'edit_locked',
           // Allow description_append for tier B/C append-only edits
           'description_append',
           // Allow tags for tier C edits
@@ -2556,6 +2556,7 @@ const handleViewModeTransition = (newViewMode) => {
         media_key: cloudinaryId || null,
         media_type: mediaType || null,
         media_subtype: mediaSubtype || null,
+        media_size: eventData.media_size || 0,
         timeline_id: timelineId,
         tags: eventData.tags || []
       });

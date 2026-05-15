@@ -4649,11 +4649,14 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       let resolvedPortraitUrl = String(coverPortraitImageUrl || '').trim();
       let resolvedLandscapeUrl = String(coverLandscapeImageUrl || '').trim();
       let resolvedCoverUploadEnabled = coverUploadEnabled;
+      let newPortraitSize = null;
+      let newLandscapeSize = null;
 
       if (pendingCoverPortraitFile) {
         try {
           const uploadedUrl = await uploadCoverFile(pendingCoverPortraitFile, 'timeline_cover_portrait');
           resolvedPortraitUrl = uploadedUrl;
+          newPortraitSize = pendingCoverPortraitFile.size;
           setCoverPortraitImageUrl(uploadedUrl);
           setPendingCoverPortraitFile(null);
           if (pendingCoverPortraitPreviewUrl && pendingCoverPortraitPreviewUrl.startsWith('blob:')) {
@@ -4670,6 +4673,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
         try {
           const uploadedUrl = await uploadCoverFile(pendingCoverLandscapeFile, 'timeline_cover_landscape');
           resolvedLandscapeUrl = uploadedUrl;
+          newLandscapeSize = pendingCoverLandscapeFile.size;
           setCoverLandscapeImageUrl(uploadedUrl);
           setPendingCoverLandscapeFile(null);
           if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
@@ -4742,12 +4746,14 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
         // Only include cover fields if they have values (backend uses _key not _url)
         if (resolvedPortraitUrl) {
           updateData.cover_portrait_key = extractKeyFromUrl(resolvedPortraitUrl);
+          if (newPortraitSize !== null) updateData.cover_portrait_size = newPortraitSize;
         } else {
           updateData.cover_portrait_key = null;
         }
 
         if (resolvedLandscapeUrl) {
           updateData.cover_landscape_key = extractKeyFromUrl(resolvedLandscapeUrl);
+          if (newLandscapeSize !== null) updateData.cover_landscape_size = newLandscapeSize;
         } else {
           updateData.cover_landscape_key = null;
         }
