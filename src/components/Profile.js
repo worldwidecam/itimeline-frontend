@@ -61,6 +61,7 @@ import {
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
 import { getCachedUserIdentityColor, resolveUserIdentityColor } from '../utils/userIdentityColor';
+import { countries, getFlagUrl } from '../utils/countries';
 import { displayUsername } from '../utils/usernameDisplay';
 import { toRichContentPayload } from '../utils/richContent';
 
@@ -1353,8 +1354,22 @@ const Profile = () => {
                     textShadow: profileIdentityColor
                       ? `0 0 20px ${alpha(profileIdentityColor, 0.8)}, 0 2px 4px rgba(0,0,0,0.5)`
                       : '0 2px 4px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
                   }}>
                     {displayUsername(profileUser.username)}
+                    {profileUser?.country && (
+                      <Tooltip title={countries.find(c => c.code === profileUser.country)?.label || ''} arrow>
+                        <Box 
+                          component="img"
+                          loading="lazy"
+                          src={getFlagUrl(profileUser.country)}
+                          alt=""
+                          sx={{ width: 32, height: 'auto', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', cursor: 'help' }}
+                        />
+                      </Tooltip>
+                    )}
                   </Typography>
 
                   {/* Site Admin Controls */}

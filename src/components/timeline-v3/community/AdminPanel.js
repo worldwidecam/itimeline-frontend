@@ -84,6 +84,7 @@ import ErrorBoundary from '../../ErrorBoundary';
 import InfoCardsTab from './InfoCardsTab';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
 import { displayUsername } from '../../../utils/usernameDisplay';
+import { getFlagUrl } from '../../../utils/countries';
 
 // ----- Shared helpers (module scope) -----
 // Normalize role string
@@ -447,7 +448,8 @@ const AdminPanel = () => {
           name: userData.username || member.username || `User ${member.user_id}`,
           role: member.role,
           joinDate,
-          avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+          avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`,
+          country: userData.country || member.country || null
         };
       });
       setMembers(formatted);
@@ -481,7 +483,8 @@ const AdminPanel = () => {
           avatar,
           user_color,
           blockedDate,
-          reason: item.blocked_reason || item.reason || ''
+          reason: item.blocked_reason || item.reason || '',
+          country: user.country || item.country || null
         };
       });
       console.log('[AdminPanel] reloadBlockedMembers formatted:', formatted);
@@ -524,7 +527,8 @@ const AdminPanel = () => {
             name: userData.username || member.username || `User ${member.user_id}`,
             role: member.role,
             joinDate,
-            avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`
+            avatar: userData.avatar_url || member.avatar_url || `https://i.pravatar.cc/150?img=${(member.user_id % 70) + 1}`,
+            country: userData.country || member.country || null
           };
         });
         
@@ -565,7 +569,8 @@ const AdminPanel = () => {
             avatar,
             user_color,
             blockedDate,
-            reason: item.blocked_reason || item.reason || ''
+            reason: item.blocked_reason || item.reason || '',
+            country: user.country || item.country || null
           };
         });
         setBlockedMembers(formatted);
@@ -1320,9 +1325,26 @@ const AdminPanel = () => {
                                 sx={{ mr: 2 }}
                               />
                               <Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                  {displayUsername(member.username || member.name) || 'Unknown User'}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                    {displayUsername(member.username || member.name) || 'Unknown User'}
+                                  </Typography>
+                                  {member.country && (
+                                    <Box 
+                                      component="img"
+                                      src={getFlagUrl(member.country)}
+                                      alt={member.country}
+                                      sx={{ 
+                                        width: 20, 
+                                        height: 14, 
+                                        borderRadius: '2px',
+                                        objectFit: 'cover',
+                                        boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                                        flexShrink: 0
+                                      }}
+                                    />
+                                  )}
+                                </Box>
                                 <Typography variant="body2" color="text.secondary">
                                   Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Unknown'}
                                 </Typography>
@@ -1499,9 +1521,26 @@ const AdminPanel = () => {
                                 sx={{ mr: 2 }}
                               />
                               <Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                  {displayUsername(member.name)}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                    {displayUsername(member.name)}
+                                  </Typography>
+                                  {member.country && (
+                                    <Box 
+                                      component="img"
+                                      src={getFlagUrl(member.country)}
+                                      alt={member.country}
+                                      sx={{ 
+                                        width: 20, 
+                                        height: 14, 
+                                        borderRadius: '2px',
+                                        objectFit: 'cover',
+                                        boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                                        flexShrink: 0
+                                      }}
+                                    />
+                                  )}
+                                </Box>
                                 <Typography variant="caption" color="text.secondary">
                                   Requested {new Date(member.requestDate).toLocaleDateString()}
                                 </Typography>
@@ -1594,6 +1633,22 @@ const AdminPanel = () => {
                               color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
                             }}>
                               {member.name}
+                              {member.country && (
+                                <Box 
+                                  component="img"
+                                  src={getFlagUrl(member.country)}
+                                  alt={member.country}
+                                  sx={{ 
+                                    width: 20, 
+                                    height: 14, 
+                                    borderRadius: '2px',
+                                    objectFit: 'cover',
+                                    boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                                    flexShrink: 0,
+                                    ml: 1
+                                  }}
+                                />
+                              )}
                               <Chip 
                                 label="Blocked"
                                 size="small"
@@ -3163,7 +3218,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
             avatar,
             user_color,
             blockedDate,
-            reason: item.blocked_reason || item.reason || ''
+            reason: item.blocked_reason || item.reason || '',
+            country: user.country || item.country || null
           };
         });
         console.log('[AdminPanel] Formatted blocked members:', formattedBlocked);
@@ -3204,7 +3260,8 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
         role: member.role,
         joinDate: member.requested_at ? new Date(member.requested_at).toISOString().split('T')[0] : 'Unknown',
         avatar: member.avatar_url || null,  // Use null instead of pravatar fallback
-        user_color: member.user_color || null
+        user_color: member.user_color || null,
+        country: member.country || null
       }));
       
       console.log('[AdminPanel] Formatted pending members:', formattedPending);
@@ -3546,9 +3603,26 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                       }}
                     />
                     <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        {displayUsername(member.name)}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {displayUsername(member.name)}
+                        </Typography>
+                        {member.country && (
+                          <Box 
+                            component="img"
+                            src={getFlagUrl(member.country)}
+                            alt={member.country}
+                            sx={{ 
+                              width: 20, 
+                              height: 14, 
+                              borderRadius: '2px',
+                              objectFit: 'cover',
+                              boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                              flexShrink: 0
+                            }}
+                          />
+                        )}
+                      </Box>
                       <Typography variant="body2" color="text.secondary">
                         Joined {member.joinDate}
                       </Typography>
@@ -3705,9 +3779,26 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     sx={{ mr: 2 }}
                   />
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="subtitle1" component="div">
-                      {member.name}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="subtitle1" component="div">
+                        {displayUsername(member.name)}
+                      </Typography>
+                      {member.country && (
+                        <Box 
+                          component="img"
+                          src={getFlagUrl(member.country)}
+                          alt={member.country}
+                          sx={{ 
+                            width: 20, 
+                            height: 14, 
+                            borderRadius: '2px',
+                            objectFit: 'cover',
+                            boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                            flexShrink: 0
+                          }}
+                        />
+                      )}
+                    </Box>
                     <Typography variant="body2" color="text.secondary">
                       Requested {member.joinDate}
                     </Typography>
@@ -3780,9 +3871,26 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     }}
                   />
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {displayUsername(member.name)}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {displayUsername(member.name)}
+                      </Typography>
+                      {member.country && (
+                        <Box 
+                          component="img"
+                          src={getFlagUrl(member.country)}
+                          alt={member.country}
+                          sx={{ 
+                            width: 20, 
+                            height: 14, 
+                            borderRadius: '2px',
+                            objectFit: 'cover',
+                            boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                            flexShrink: 0
+                          }}
+                        />
+                      )}
+                    </Box>
                     <Typography variant="body2" color="text.secondary">
                       Blocked on {member.blockedDate}
                     </Typography>

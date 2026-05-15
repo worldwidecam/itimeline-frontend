@@ -25,7 +25,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  alpha
+  alpha,
+  Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -38,6 +39,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getTimelineDetails, getTimelineMembers, getTimelineMemberCount, checkMembershipStatus, getTimelineActions, getTimelineQuote, getTimelineWarningState, voteTimelineAction, submitTimelineReport } from '../../../utils/api';
 import { displayUsername, usernameMatchesQuery } from '../../../utils/usernameDisplay';
+import { countries, getFlagUrl } from '../../../utils/countries';
 import { motion } from 'framer-motion';
 import NavFab from './NavFab';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -2036,7 +2038,27 @@ const MemberListTab = () => {
                     />
                     <Box sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="subtitle1">{displayUsername(member.name)}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="subtitle1">{displayUsername(member.name)}</Typography>
+                          {member.country && (
+                            <Tooltip title={countries.find(c => c.code === member.country)?.label || ''} arrow>
+                              <Box 
+                                component="img"
+                                loading="lazy"
+                                src={getFlagUrl(member.country)}
+                                alt=""
+                                sx={{ 
+                                  width: 24, 
+                                  height: 'auto', 
+                                  borderRadius: '2px', 
+                                  boxShadow: '0 0 2px rgba(0,0,0,0.2)', 
+                                  cursor: 'help',
+                                  flexShrink: 0
+                                }}
+                              />
+                            </Tooltip>
+                          )}
+                        </Box>
                         
                         {/* Management actions removed: MemberListTab is read-only. */}
                       </Box>

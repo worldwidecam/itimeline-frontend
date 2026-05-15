@@ -498,6 +498,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
         user_color: user_color,
         role: member.role || 'member',
         joinDate: joinDate,
+        country: userData.country || member.country || null,
         is_active_member: member.is_active_member !== false, // Default to true unless explicitly false
         isRestricted: member.is_restricted || member.isRestricted || false,
         isSuspended: member.is_suspended || member.isSuspended || false,

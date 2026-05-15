@@ -55,18 +55,6 @@
   animation: error-glow 1s ease-in-out infinite;
 }
 
-/* Global MUI Error Shake - Applies to ANY TextField/Input in error state site-wide */
-.Mui-error.MuiOutlinedInput-root,
-.Mui-error .MuiOutlinedInput-root,
-.Mui-error.MuiInputBase-root {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both !important;
-  border-color: #ff4757 !important;
-}
-
-.Mui-error.MuiFormLabel-root {
-  color: #ff4757 !important;
-}
-
 /* Global styles */
 body {
   margin: 0;

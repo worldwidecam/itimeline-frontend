@@ -16,6 +16,8 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { displayUsername } from '../../utils/usernameDisplay';
+import { countries, getFlagUrl } from '../../utils/countries';
+import { Tooltip } from '@mui/material';
 import { normalizeUserCardData, resolveUserCardGradient } from './userCardModel';
 
 /**
@@ -214,6 +216,24 @@ export default function UserCard({
             >
               @{displayUsername(username).charAt(0).toUpperCase() + displayUsername(username).slice(1)}
             </Typography>
+            {cardData.country && (
+              <Tooltip title={countries.find(c => c.code === cardData.country)?.label || ''} arrow>
+                <Box 
+                  component="img"
+                  loading="lazy"
+                  src={getFlagUrl(cardData.country)}
+                  alt=""
+                  sx={{ 
+                    width: 24, 
+                    height: 'auto', 
+                    borderRadius: '2px', 
+                    boxShadow: '0 0 2px rgba(0,0,0,0.2)', 
+                    cursor: 'help',
+                    flexShrink: 0
+                  }}
+                />
+              </Tooltip>
+            )}
           </Box>
 
           <Typography

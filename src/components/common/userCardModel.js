@@ -26,6 +26,7 @@ export function normalizeUserCardData(user) {
     isRestricted,
     isSuspended,
     isAvatarBlurred,
+    country: user.country || null,
     raw: user,
   };
 }

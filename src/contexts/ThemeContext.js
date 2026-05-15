@@ -144,6 +144,24 @@ export const CustomThemeProvider = ({ children }) => {
           },
         },
       },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            '&.Mui-error': {
+              animation: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            },
+          },
+        },
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            '&.Mui-error': {
+              animation: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            },
+          },
+        },
+      },
     },
   });
 
@@ -232,6 +250,24 @@ export const CustomThemeProvider = ({ children }) => {
           root: {
             backgroundColor: '#ffffff',
             color: 'rgba(0, 0, 0, 0.87)',
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            '&.Mui-error': {
+              animation: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            },
+          },
+        },
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            '&.Mui-error': {
+              animation: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            },
           },
         },
       },

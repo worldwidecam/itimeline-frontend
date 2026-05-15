@@ -25,6 +25,8 @@ import {
   IconButton,
   alpha,
   Slider,
+  Autocomplete,
+  InputAdornment,
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -41,6 +43,7 @@ import CakeIcon from '@mui/icons-material/Cake';
 import PaletteIcon from '@mui/icons-material/Palette';
 import LockIcon from '@mui/icons-material/Lock';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import LanguageIcon from '@mui/icons-material/Language';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
@@ -55,6 +58,7 @@ import {
   getGlassInputSx,
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
+import { countries, getFlagUrl } from '../utils/countries';
 import { displayUsername } from '../utils/usernameDisplay';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -282,6 +286,7 @@ const ProfileSettings = () => {
     userColor: '#4f7cff',
     profileVisibility: 'public',
     profileAccessKey: '',
+    country: user?.country || '',
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || '');
@@ -356,6 +361,7 @@ const ProfileSettings = () => {
         let resolvedProfileModules = userId > 0
           ? safeParseJson(localStorage.getItem(`profile_modules_user_${userId}`), [])
           : [];
+        let resolvedCountry = userId > 0 ? (user?.country || '') : '';
 
         try {
           const passportResponse = await api.get('/api/v1/profile/hydrate');
@@ -387,6 +393,9 @@ const ProfileSettings = () => {
           }
           if (hasPassportProfileAccessKey) {
             resolvedProfileAccessKey = passportProfileAccessKey;
+          }
+          if (passportUser?.country !== undefined) {
+            resolvedCountry = passportUser.country || '';
           }
           if (userId > 0) {
             if (hasPassportProfilePortraitUrl) {
@@ -450,6 +459,7 @@ const ProfileSettings = () => {
             userColor: isValidHexColor(resolvedUserColor) ? resolvedUserColor.toLowerCase() : '#4f7cff',
             profileVisibility: resolvedProfileVisibility === 'private' ? 'private' : 'public',
             profileAccessKey: resolvedProfileAccessKey,
+            country: resolvedCountry,
           }));
         } else {
           setFormData(prev => ({
@@ -458,6 +468,7 @@ const ProfileSettings = () => {
             userColor: isValidHexColor(resolvedUserColor) ? resolvedUserColor.toLowerCase() : '#4f7cff',
             profileVisibility: resolvedProfileVisibility === 'private' ? 'private' : 'public',
             profileAccessKey: resolvedProfileAccessKey,
+            country: resolvedCountry,
           }));
         }
         setShowDobInput(!Boolean(resolvedDateOfBirth));
@@ -500,6 +511,7 @@ const ProfileSettings = () => {
         userColor: '#4f7cff',
         profileVisibility: 'public',
         profileAccessKey: '',
+        country: user.country || '',
       };
       setFormData(userData);
       setInitialFormData({ ...userData });
@@ -591,6 +603,14 @@ const ProfileSettings = () => {
     setFormData((prev) => ({
       ...prev,
       profileAccessKey: value,
+    }));
+    markUnsavedChanges();
+  };
+
+  const handleCountryChange = (event, newValue) => {
+    setFormData((prev) => ({
+      ...prev,
+      country: newValue ? newValue.code : '',
     }));
     markUnsavedChanges();
   };
@@ -805,6 +825,7 @@ const ProfileSettings = () => {
         profile_portrait_x: portraitX,
         profile_portrait_y: portraitY,
         profile_portrait_zoom: String(portraitZoom),
+        country: formData.country || null,
       };
 
       let response = await api.patch('/api/v1/users/me', profilePayload);
@@ -1587,6 +1608,101 @@ const ProfileSettings = () => {
                       onChange={handleBlurEmailChange}
                       color="primary"
                     />
+                  </Box>
+
+                  {/* Home Country */}
+                  <Box sx={{ 
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                    }
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                      <LanguageIcon sx={{ color: theme.palette.primary.main, opacity: 0.8 }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>Home Country</Typography>
+                        <Typography variant="caption" color="textSecondary">Represent where you live on your public profile</Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ ml: 6 }}>
+                      <Autocomplete
+                        options={countries}
+                        getOptionLabel={(option) => option.label}
+                        value={countries.find(c => c.code === formData.country) || null}
+                        onChange={handleCountryChange}
+                        renderOption={(props, option) => {
+                          const { key, ...optionProps } = props;
+                          return (
+                            <Box 
+                              key={key} 
+                              component="li" 
+                              sx={{ py: '10px !important', px: '16px !important', fontSize: '0.95rem' }} 
+                              {...optionProps}
+                            >
+                              <Box 
+                                component="img"
+                                loading="lazy"
+                                src={getFlagUrl(option.code)}
+                                alt=""
+                                sx={{ 
+                                  width: 24, 
+                                  height: 'auto', 
+                                  mr: 2, 
+                                  borderRadius: '2px', 
+                                  boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                                  flexShrink: 0
+                                }}
+                              />
+                              {option.label} ({option.code})
+                            </Box>
+                          );
+                        }}
+                        renderInput={(params) => {
+                          const selectedCountry = countries.find(c => c.code === formData.country);
+                          return (
+                            <TextField
+                              {...params}
+                              placeholder="Choose where you live"
+                              sx={getGlassInputSx(theme)}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <>
+                                    {params.InputProps.startAdornment}
+                                    {selectedCountry && (
+                                      <InputAdornment position="start" sx={{ pl: 1, mr: -0.5 }}>
+                                        <Box 
+                                          component="img"
+                                          loading="lazy"
+                                          src={getFlagUrl(selectedCountry.code)}
+                                          alt=""
+                                          sx={{ 
+                                            width: 24, 
+                                            height: 'auto', 
+                                            borderRadius: '2px', 
+                                            boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                                            display: 'block'
+                                          }}
+                                        />
+                                      </InputAdornment>
+                                    )}
+                                  </>
+                                ),
+                              }}
+                            />
+                          );
+                        }}
+                        sx={{
+                          '& .MuiAutocomplete-paper': {
+                            ...getGlassDialogPaperSx(theme),
+                            mt: 1
+                          }
+                        }}
+                      />
+                    </Box>
                   </Box>
 
                   {/* Date of Birth */}
