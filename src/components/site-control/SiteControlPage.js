@@ -464,7 +464,17 @@ const LogsTab = () => {
           alignItems: 'start',
         }}
       >
-        <Paper sx={{ p: 1.25, height: 'fit-content' }} elevation={2}>
+        <Paper 
+          sx={{ 
+            p: 1.5, 
+            height: 'fit-content',
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.03)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }} 
+          elevation={0}
+        >
           <Tabs
             value={logsSection}
             onChange={(_event, nextValue) => setLogsSection(nextValue)}
@@ -474,9 +484,21 @@ const LogsTab = () => {
               '& .MuiTabs-indicator': {
                 left: 0,
                 right: 'auto',
-                width: 3,
+                width: 4,
                 borderRadius: 2,
+                bgcolor: 'primary.main',
               },
+              '& .MuiTab-root': {
+                borderRadius: 1.5,
+                mb: 0.5,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(33, 150, 243, 0.1)',
+                }
+              }
             }}
           >
             {LOGS_SECTIONS.map((section) => (
@@ -488,9 +510,11 @@ const LogsTab = () => {
                   alignItems: 'flex-start',
                   textAlign: 'left',
                   textTransform: 'none',
-                  fontWeight: logsSection === section.key ? 700 : 500,
-                  minHeight: 40,
-                  py: 0.65,
+                  fontSize: '0.9rem',
+                  fontWeight: logsSection === section.key ? 800 : 500,
+                  minHeight: 44,
+                  py: 1,
+                  px: 2,
                 }}
               />
             ))}
@@ -625,11 +649,20 @@ const BrokenEventsTab = () => {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Paper sx={{ p: 3 }} elevation={2}>
+      <Paper 
+        sx={{ 
+          p: 4, 
+          borderRadius: 4,
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }} 
+        elevation={0}
+      >
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
           <Box>
-            <Typography variant="h6">Broken Events Queue</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>Broken Events Queue</Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.7 }}>
               Queue suspicious/broken event IDs. Open their timeline, delete if needed, or remove from queue.
             </Typography>
           </Box>
@@ -638,13 +671,16 @@ const BrokenEventsTab = () => {
           </Button>
         </Stack>
 
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mt: 2.25 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
           <TextField
             label="Event ID"
             value={eventIdInput}
             onChange={(event) => setEventIdInput(event.target.value.replace(/[^0-9]/g, ''))}
             placeholder="e.g. 12345"
-            sx={{ maxWidth: { xs: '100%', md: 220 } }}
+            sx={{ 
+              maxWidth: { xs: '100%', md: 180 },
+              '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2 }
+            }}
           />
           <TextField
             label="Note (optional)"
@@ -652,13 +688,19 @@ const BrokenEventsTab = () => {
             onChange={(event) => setNoteInput(event.target.value)}
             placeholder="Reason this event is suspected broken"
             fullWidth
+            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2 } }}
           />
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleAddQueueItem}
             disabled={!!actionLoadingByKey.add}
-            sx={{ minWidth: 160 }}
+            sx={{ 
+              minWidth: 160, 
+              borderRadius: 2, 
+              fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+            }}
           >
             Queue Event
           </Button>
@@ -832,6 +874,7 @@ const BanListTab = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
+  const [hasError, setHasError] = useState(false);
 
   const showSnack = (msg, severity = 'info') => {
     setSnackbarMessage(msg);
@@ -879,6 +922,8 @@ const BanListTab = () => {
       showSnack(`"${name}" added to ban list`, 'success');
       fetchBanList();
     } catch (e) {
+      setHasError(true);
+      setTimeout(() => setHasError(false), 1000);
       showSnack(e?.response?.data?.error || 'Failed to add ban', 'error');
     } finally {
       setAddLoading(false);
@@ -897,11 +942,20 @@ const BanListTab = () => {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Paper sx={{ p: 3 }} elevation={2}>
+      <Paper 
+        sx={{ 
+          p: 4, 
+          borderRadius: 4,
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }} 
+        elevation={0}
+      >
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
           <Box>
-            <Typography variant="h6">Ban List</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>Ban List</Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.7 }}>
               Blocked names. These cannot be used as usernames or community timeline names.
             </Typography>
           </Box>
@@ -910,15 +964,28 @@ const BanListTab = () => {
           </Button>
         </Stack>
 
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mt: 2.25 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
           <TextField
             label="Name to ban"
             value={addInput}
             onChange={(e) => setAddInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAddBan(); }}
             placeholder="e.g. badusername"
-            sx={{ maxWidth: { xs: '100%', md: 240 } }}
-            size="small"
+            className={hasError ? 'animate-shake' : ''}
+            sx={{ 
+              maxWidth: { xs: '100%', md: 240 },
+              '& .MuiOutlinedInput-root': { 
+                bgcolor: 'rgba(0,0,0,0.1)', 
+                borderRadius: 2,
+                transition: 'all 0.3s ease',
+                ...(hasError && {
+                  borderColor: '#ff4757',
+                  boxShadow: '0 0 15px rgba(255, 71, 87, 0.4)',
+                  borderWidth: '2px'
+                })
+              }
+            }}
+            size="medium"
           />
           <TextField
             label="Reason (optional)"
@@ -926,13 +993,19 @@ const BanListTab = () => {
             onChange={(e) => setAddReason(e.target.value)}
             placeholder="Why is this name banned?"
             fullWidth
-            size="small"
+            size="medium"
+            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2 } }}
           />
           <Button
             variant="contained"
             onClick={handleAddBan}
             disabled={addLoading || !addInput.trim()}
-            sx={{ minWidth: 120 }}
+            sx={{ 
+              minWidth: 140,
+              borderRadius: 2,
+              fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+            }}
           >
             Add Ban
           </Button>

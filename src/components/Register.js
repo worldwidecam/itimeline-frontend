@@ -42,6 +42,7 @@ const Register = () => {
     confirmPassword: '',
   });
   const [error, setError] = useState('');
+  const [errorField, setErrorField] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -86,6 +87,13 @@ const Register = () => {
         errorMsg = error.message;
       }
       setError(errorMsg);
+      
+      // Map error message to field for shake animation
+      if (errorMsg.toLowerCase().includes('username')) setErrorField('username');
+      else if (errorMsg.toLowerCase().includes('email')) setErrorField('email');
+      else if (errorMsg.toLowerCase().includes('password')) setErrorField('password');
+      
+      setTimeout(() => setErrorField(''), 1000);
     }
   };
 
@@ -144,10 +152,10 @@ const Register = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-            <TextField fullWidth label="Username" name="username" value={formData.username} onChange={handleChange} margin="normal" required />
-            <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" required />
-            <TextField fullWidth label="Password" name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required />
-            <TextField fullWidth label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="normal" required />
+            <TextField fullWidth label="Username" name="username" value={formData.username} onChange={handleChange} margin="normal" required error={errorField === 'username'} />
+            <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" required error={errorField === 'email'} />
+            <TextField fullWidth label="Password" name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required error={errorField === 'password'} />
+            <TextField fullWidth label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="normal" required error={errorField === 'password'} />
             <Button
               type="submit" fullWidth variant="outlined"
               sx={{ ...getGlassPillActionButtonSx(theme), mt: 3, mb: 2 }}

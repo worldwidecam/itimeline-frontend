@@ -286,6 +286,7 @@ const ProfileSettings = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || '');
   const [error, setError] = useState('');
+  const [errorField, setErrorField] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [musicData, setMusicData] = useState({
@@ -1040,6 +1041,14 @@ const ProfileSettings = () => {
       }
       
       setError(errorMessage);
+      
+      // Map error message to field for shake animation
+      if (errorMessage.toLowerCase().includes('username')) setErrorField('username');
+      else if (errorMessage.toLowerCase().includes('email')) setErrorField('email');
+      else if (errorMessage.toLowerCase().includes('password')) setErrorField('password');
+      else setErrorField('general');
+      
+      setTimeout(() => setErrorField(''), 1000);
     } finally {
       setIsUploading(false);
       setIsSaving(false);
@@ -1339,7 +1348,8 @@ const ProfileSettings = () => {
                     name="username"
                     value={displayUsername(formData.username)}
                     onChange={handleInputChange}
-                    helperText="Spaces are allowed and encouraged!"
+                    error={errorField === 'username'}
+                    helperText={errorField === 'username' ? error : "Spaces are allowed and encouraged!"}
                   />
                 </Grid>
                 
@@ -1352,10 +1362,11 @@ const ProfileSettings = () => {
                     // Show privacy dots when email blur is enabled, but store the actual value
                     value={blurEmail ? getPrivacyEmail(formData.email) : formData.email}
                     onChange={handleInputChange}
+                    error={errorField === 'email'}
                     InputProps={{
                       readOnly: blurEmail, // Make it read-only when blurred for better UX
                     }}
-                    helperText={blurEmail ? "Email is masked for privacy" : ""}
+                    helperText={errorField === 'email' ? error : (blurEmail ? "Email is masked for privacy" : "")}
                   />
                 </Grid>
                 
@@ -1368,6 +1379,8 @@ const ProfileSettings = () => {
                     rows={4}
                     value={formData.bio}
                     onChange={handleInputChange}
+                    error={errorField === 'bio'}
+                    helperText={errorField === 'bio' ? error : ""}
                   />
                 </Grid>
 
@@ -1389,6 +1402,7 @@ const ProfileSettings = () => {
                     type="password"
                     value={formData.currentPassword}
                     onChange={handleInputChange}
+                    error={errorField === 'password'}
                   />
                 </Grid>
                 
@@ -1400,6 +1414,7 @@ const ProfileSettings = () => {
                     type="password"
                     value={formData.newPassword}
                     onChange={handleInputChange}
+                    error={errorField === 'password'}
                   />
                 </Grid>
                 
@@ -1411,6 +1426,7 @@ const ProfileSettings = () => {
                     type="password"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
+                    error={errorField === 'password'}
                   />
                 </Grid>
 

@@ -409,6 +409,7 @@ const HomePage = () => {
   const [userFollowSnackbarOpen, setUserFollowSnackbarOpen] = React.useState(false);
   const [userFollowSnackbarMessage, setUserFollowSnackbarMessage] = React.useState('');
   const [userFollowSnackbarSeverity, setUserFollowSnackbarSeverity] = React.useState('success');
+  const [timelineCreateError, setTimelineCreateError] = React.useState(false);
   const [visibleTimelineCount, setVisibleTimelineCount] = React.useState(HOME_LIST_BATCH_SIZE);
   const [visiblePopularTimelineCount, setVisiblePopularTimelineCount] = React.useState(POPULAR_LIST_BATCH_SIZE);
   const [visiblePopularPostCount, setVisiblePopularPostCount] = React.useState(POPULAR_LIST_BATCH_SIZE);
@@ -3652,6 +3653,8 @@ const HomePage = () => {
       handleDialogClose();
       navigate(`/timeline-v3/${response.data.id}`);
     } catch (error) {
+      setTimelineCreateError(true);
+      setTimeout(() => setTimelineCreateError(false), 1000);
       console.error('Error creating timeline:', error);
       const message = error?.response?.data?.error || error?.message || 'Failed to create timeline. Please try again.';
       setUserFollowSnackbarMessage(message);
@@ -5823,7 +5826,19 @@ const HomePage = () => {
                   fullWidth
                   value={formData.name}
                   onChange={handleInputChange}
-                  sx={{ mb: 2.2, ...getGlassInputSx(theme) }}
+                  className={timelineCreateError ? 'animate-shake' : ''}
+                  sx={{ 
+                    mb: 2.2, 
+                    ...getGlassInputSx(theme),
+                    '& .MuiOutlinedInput-root': {
+                      transition: 'all 0.3s ease',
+                      ...(timelineCreateError && {
+                        borderColor: '#ff4757',
+                        boxShadow: '0 0 15px rgba(255, 71, 87, 0.4)',
+                        borderWidth: '2px'
+                      })
+                    }
+                  }}
                 />
                 <TextField
                   name="description"

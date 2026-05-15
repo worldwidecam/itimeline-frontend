@@ -39,6 +39,7 @@ const Login = () => {
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [errorField, setErrorField] = useState('');
   const [loginExpanded, setLoginExpanded] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -69,6 +70,8 @@ const Login = () => {
         navigate('/suspended');
       } else {
         setError(errorMessage || 'Failed to login');
+        setErrorField('all');
+        setTimeout(() => setErrorField(''), 1000);
       }
     }
   };
@@ -205,12 +208,14 @@ const Login = () => {
               value={formData.email} onChange={handleChange}
               margin="normal" required autoComplete="username email"
               InputLabelProps={{ shrink: true }}
+              error={errorField === 'all'}
             />
             <TextField
               fullWidth label="Password" name="password" type="password"
               value={formData.password} onChange={handleChange}
               margin="normal" required autoComplete="current-password"
               InputLabelProps={{ shrink: true }}
+              error={errorField === 'all'}
             />
             <Button
               type="submit" fullWidth variant="outlined"

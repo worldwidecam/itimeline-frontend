@@ -36,6 +36,37 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes error-glow {
+  0%, 100% { border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 0 0 rgba(255, 71, 87, 0); }
+  50% { border-color: #ff4757; box-shadow: 0 0 15px rgba(255, 71, 87, 0.4); }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+.animate-error-glow {
+  animation: error-glow 1s ease-in-out infinite;
+}
+
+/* Global MUI Error Shake - Applies to ANY TextField/Input in error state site-wide */
+.Mui-error.MuiOutlinedInput-root,
+.Mui-error .MuiOutlinedInput-root,
+.Mui-error.MuiInputBase-root {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both !important;
+  border-color: #ff4757 !important;
+}
+
+.Mui-error.MuiFormLabel-root {
+  color: #ff4757 !important;
+}
+
 /* Global styles */
 body {
   margin: 0;
