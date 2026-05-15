@@ -78,6 +78,7 @@ import api, {
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
 import EventDialog from '../timeline-v3/events/EventDialog';
+import TimelineListTab from './TimelineListTab';
 import SiteControlLockView from './SiteControlLockView';
 import { displayUsername } from '../../utils/usernameDisplay';
 import {
@@ -450,6 +451,7 @@ const LOGS_SECTIONS = [
   { key: 'broken-events', label: 'Broken Events' },
   { key: 'ban-list', label: 'Ban List' },
   { key: 'user-list', label: 'User List' },
+  { key: 'timeline-list', label: 'Timeline List' },
 ];
 
 function formatBytes(bytes) {
@@ -697,6 +699,7 @@ const LogsTab = () => {
           {logsSection === 'broken-events' ? <BrokenEventsTab /> : null}
           {logsSection === 'ban-list' ? <BanListTab /> : null}
           {logsSection === 'user-list' ? <UserListTab /> : null}
+          {logsSection === 'timeline-list' ? <TimelineListTab /> : null}
         </Box>
       </Box>
     </Box>
