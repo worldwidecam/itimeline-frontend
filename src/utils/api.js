@@ -499,7 +499,9 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
         role: member.role || 'member',
         joinDate: joinDate,
         is_active_member: member.is_active_member !== false, // Default to true unless explicitly false
-        isRestricted: member.is_restricted || member.isRestricted || false
+        isRestricted: member.is_restricted || member.isRestricted || false,
+        isSuspended: member.is_suspended || member.isSuspended || false,
+        isAvatarBlurred: member.is_avatar_blurred || member.isAvatarBlurred || false
       };
       
       return transformed;
@@ -2007,9 +2009,13 @@ export const fetchUserPassport = async (refresh = false) => {
     const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : {};
     const hasMustChangeUsername = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'must_change_username');
     const hasIsRestricted = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'is_restricted');
+    const hasIsSuspended = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'is_suspended');
+    const hasIsAvatarBlurred = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'is_avatar_blurred');
     const hasRestrictedUntil = Object.prototype.hasOwnProperty.call(passportPayload || {}, 'restricted_until');
     const mustChangeUsername = hasMustChangeUsername ? Boolean(passportPayload.must_change_username) : Boolean(currentUser?.must_change_username);
     const isRestricted = hasIsRestricted ? Boolean(passportPayload.is_restricted) : Boolean(currentUser?.is_restricted);
+    const isSuspended = hasIsSuspended ? Boolean(passportPayload.is_suspended) : Boolean(currentUser?.is_suspended);
+    const isAvatarBlurred = hasIsAvatarBlurred ? Boolean(passportPayload.is_avatar_blurred) : Boolean(currentUser?.is_avatar_blurred);
     const restrictedUntil = hasRestrictedUntil ? (passportPayload.restricted_until || null) : (currentUser?.restricted_until || null);
     const preferences = passportPayload.preferences || {};
     const passportUser = passportPayload.user || {};
@@ -2022,6 +2028,8 @@ export const fetchUserPassport = async (refresh = false) => {
         is_site_admin: isSiteAdmin,
         must_change_username: mustChangeUsername,
         is_restricted: isRestricted,
+        is_suspended: isSuspended,
+        is_avatar_blurred: isAvatarBlurred,
         restricted_until: restrictedUntil,
         last_updated: passportPayload.last_updated || new Date().toISOString(),
         timestamp: new Date().toISOString()
@@ -2038,8 +2046,12 @@ export const fetchUserPassport = async (refresh = false) => {
           user_color: userColorFromPassport,
           must_change_username: mustChangeUsername,
           is_restricted: isRestricted,
+          is_suspended: isSuspended,
+          is_avatar_blurred: isAvatarBlurred,
           restricted_until: restrictedUntil,
-          can_post_or_report: !(mustChangeUsername || isRestricted),
+          is_site_admin: isSiteAdmin,
+          site_admin_role: siteRole,
+          can_post_or_report: !(mustChangeUsername || isRestricted || isSuspended),
         }));
       } catch (e) {
         console.warn('[API] Failed to mirror moderation flags onto user object from passport:', e);
@@ -2844,5 +2856,12 @@ export const listBanList = async () => {
     throw error;
   }
 };
+
+/**
+ * Moderation Action API
+ */
+export const createModerationAction = (data) => api.post('/api/v1/moderation', data);
+export const updateModerationAction = (id, data) => api.patch(`/api/v1/moderation/${id}`, data);
+export const listModerationActions = (params) => api.get('/api/v1/moderation', { params });
 
 export default api;

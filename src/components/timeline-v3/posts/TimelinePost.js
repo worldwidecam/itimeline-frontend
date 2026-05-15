@@ -23,6 +23,7 @@ const TimelinePost = ({ post }) => {
             size={40}
             userColor={post.author.user_color}
             isRestricted={post.author.is_restricted || post.author.is_suspended}
+            isAvatarBlurred={post.author.is_avatar_blurred}
           />
           <Box ml={2} flex={1}>
             <Typography variant="subtitle1" component="div">

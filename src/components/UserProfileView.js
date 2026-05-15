@@ -131,7 +131,9 @@ const UserProfileView = () => {
                 avatarUrl={profileUser.avatar_url}
                 id={profileUser.id}
                 size={80}
-                isRestricted={profileUser.is_restricted || profileUser.is_suspended}
+                isRestricted={profileUser.is_restricted}
+                isSuspended={profileUser.is_suspended}
+                isAvatarBlurred={profileUser.is_avatar_blurred}
                 sx={{ mr: 2 }}
               />
               <Box>

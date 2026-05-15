@@ -141,6 +141,7 @@ const parseVerdictDetails = (verdictRaw) => {
 };
 
 const AdminListTab = ({ canManage }) => {
+  const { user: currentUser } = useAuth();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -156,7 +157,13 @@ const AdminListTab = ({ canManage }) => {
       setLoading(true);
       setError('');
       const data = await listSiteAdmins();
-      setAdmins(Array.isArray(data?.items) ? data.items : []);
+      // Sort: SiteOwner first, then by user_id
+      const sorted = (Array.isArray(data?.items) ? data.items : []).sort((a, b) => {
+        if (a.role === 'SiteOwner' && b.role !== 'SiteOwner') return -1;
+        if (a.role !== 'SiteOwner' && b.role === 'SiteOwner') return 1;
+        return Number(a.user_id) - Number(b.user_id);
+      });
+      setAdmins(sorted);
     } catch (e) {
       setAdmins([]);
       setError(e?.response?.data?.error || 'Failed to load site admins');
@@ -214,94 +221,200 @@ const AdminListTab = ({ canManage }) => {
     }
   };
 
+  const getRoleChipProps = (role) => {
+    if (role === 'SiteOwner') {
+      return {
+        label: 'SITE OWNER',
+        sx: { 
+          bgcolor: '#2e7d32', 
+          color: '#fff', 
+          fontWeight: 800,
+          px: 1,
+          boxShadow: '0 2px 10px rgba(46, 125, 50, 0.3)',
+          letterSpacing: '0.5px'
+        }
+      };
+    }
+    return {
+      label: 'SITE ADMIN',
+      sx: { 
+        bgcolor: '#1565c0', 
+        color: '#fff', 
+        fontWeight: 700,
+        px: 1,
+        boxShadow: '0 2px 10px rgba(21, 101, 192, 0.3)',
+        letterSpacing: '0.5px'
+      }
+    };
+  };
+
   return (
     <Box sx={{ mt: 2 }}>
-      <Paper sx={{ p: 3 }} elevation={2}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Site Administration</Typography>
+      <Paper 
+        sx={{ 
+          p: 4, 
+          borderRadius: 4,
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }} 
+        elevation={0}
+      >
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 800 }}>Site Authority</Typography>
+        <Typography variant="body2" sx={{ mb: 4, opacity: 0.7 }}>
+          Managed hierarchy of system administrators with global platform access.
+        </Typography>
+
         {canManage && (
-          <Stack spacing={2} sx={{ mb: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Add SiteAdmin by username, email, or user ID.
+          <Box sx={{ mb: 5, p: 3, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>
+              Elevate User to Admin
             </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
               <TextField
-                label="Add SiteAdmin"
-                placeholder="username / email / user ID"
+                label="Identifier"
+                placeholder="Username, Email, or User ID"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
+                variant="outlined"
                 fullWidth
+                size="medium"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'rgba(0,0,0,0.1)',
+                    borderRadius: 2
+                  }
+                }}
               />
               <Button
                 variant="contained"
                 onClick={handleAddAdmin}
                 disabled={actionLoading}
-                sx={{ minWidth: 160 }}
+                sx={{ 
+                  minWidth: 160, 
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                }}
               >
-                Add Admin
+                {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Grant Access'}
               </Button>
             </Stack>
-          </Stack>
-        )}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={24} />
           </Box>
         )}
+
+        {loading && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 2 }}>
+            <CircularProgress size={40} thickness={4} sx={{ color: '#1565c0' }} />
+            <Typography variant="body2" sx={{ opacity: 0.6 }}>Loading authority list...</Typography>
+          </Box>
+        )}
+
         {!loading && error && (
-          <Alert severity="error">{error}</Alert>
+          <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>
         )}
+
         {!loading && !error && admins.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            No site admins found.
-          </Typography>
+          <Box sx={{ py: 6, textAlign: 'center', opacity: 0.5 }}>
+            <Typography variant="h6">No system admins found.</Typography>
+          </Box>
         )}
+
         {!loading && !error && admins.length > 0 && (
           <Stack spacing={2}>
-            {admins.map((admin) => (
-              <Paper
-                key={admin.user_id}
-                variant="outlined"
-                sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <UserAvatar
-                    name={admin.username || 'Admin'}
-                    avatarUrl={admin.avatar_url}
-                    id={admin.user_id}
-                    size={36}
-                    userColor={admin.user_color}
-                  />
-                  <Box>
-                    <Typography variant="subtitle1">{displayUsername(admin.username) || `User ${admin.user_id}`}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      User ID: {admin.user_id}
-                    </Typography>
-                    {admin.email && (
-                      <Typography variant="body2" color="text.secondary">
-                        {admin.email}
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip
-                    label={admin.role || 'SiteAdmin'}
-                    color={admin.role === 'SiteOwner' ? 'primary' : 'default'}
-                    sx={{ fontWeight: 600 }}
-                  />
-                  {canManage && admin.role !== 'SiteOwner' && (
-                    <Button
+            <AnimatePresence mode="popLayout">
+              {admins.map((admin) => {
+                const isYou = Number(admin.user_id) === Number(currentUser?.id);
+                const chipProps = getRoleChipProps(admin.role);
+
+                return (
+                  <motion.div
+                    key={admin.user_id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    layout
+                  >
+                    <Paper
                       variant="outlined"
-                      color="error"
-                      size="small"
-                      onClick={() => setRemoveTarget(admin)}
+                      sx={{ 
+                        p: 2.5, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between', 
+                        gap: 2,
+                        borderRadius: 3,
+                        bgcolor: isYou ? 'rgba(21, 101, 192, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                        borderColor: isYou ? 'rgba(21, 101, 192, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: isYou ? 'rgba(21, 101, 192, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                        }
+                      }}
                     >
-                      Remove
-                    </Button>
-                  )}
-                </Stack>
-              </Paper>
-            ))}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+                        <UserAvatar
+                          name={admin.username || 'Admin'}
+                          avatarUrl={admin.avatar_url}
+                          id={admin.user_id}
+                          size={44}
+                          userColor={admin.user_color}
+                          isRestricted={admin.is_restricted || admin.isRestricted}
+                          isSuspended={admin.is_suspended || admin.isSuspended}
+                          isAvatarBlurred={admin.is_avatar_blurred || admin.isAvatarBlurred}
+                        />
+                        <Box>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                              {displayUsername(admin.username) || `User ${admin.user_id}`}
+                            </Typography>
+                            {isYou && (
+                              <Chip 
+                                label="YOU" 
+                                size="small" 
+                                sx={{ 
+                                  height: 18, 
+                                  fontSize: '0.65rem', 
+                                  fontWeight: 900,
+                                  bgcolor: 'rgba(255,255,255,0.1)',
+                                  color: 'rgba(255,255,255,0.8)',
+                                  border: '1px solid rgba(255,255,255,0.2)'
+                                }} 
+                              />
+                            )}
+                          </Stack>
+                          <Typography variant="body2" sx={{ opacity: 0.6, fontSize: '0.85rem' }}>
+                            ID: {admin.user_id} • {admin.email || 'No email provided'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Chip {...chipProps} />
+                        {canManage && admin.role !== 'SiteOwner' && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            onClick={() => setRemoveTarget(admin)}
+                            sx={{ 
+                              borderRadius: '8px', 
+                              fontWeight: 700,
+                              borderWidth: '2px',
+                              '&:hover': { borderWidth: '2px' }
+                            }}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      </Stack>
+                    </Paper>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </Stack>
         )}
       </Paper>
@@ -1896,6 +2009,7 @@ const GlobalReportsTab = () => {
                                 size={54}
                                 userColor={post.reportedUser?.user_color}
                                 isRestricted={post.reported_user_is_restricted || post.reportedUser?.is_restricted}
+                                isAvatarBlurred={post.reported_user_is_avatar_blurred || post.reportedUser?.is_avatar_blurred}
                               />
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="overline" sx={{ color: '#0D47A1', fontWeight: 700, letterSpacing: 0.8 }}>
@@ -2262,6 +2376,8 @@ const GlobalReportsTab = () => {
                             size={22}
                             userColor={post.reporter?.user_color}
                             isRestricted={post.reporter_is_restricted || post.reporter?.is_restricted}
+                            isSuspended={post.reporter_is_suspended || post.reporter?.is_suspended}
+                            isAvatarBlurred={post.reporter_is_avatar_blurred || post.reporter?.is_avatar_blurred}
                           />
                         )}
                         {post.reporter?.id ? (
@@ -2296,6 +2412,8 @@ const GlobalReportsTab = () => {
                               size={22}
                               userColor={post.assignedModerator.user_color}
                               isRestricted={post.assigned_to_is_restricted || post.assignedModerator.is_restricted}
+                              isSuspended={post.assigned_to_is_suspended || post.assignedModerator.is_suspended}
+                              isAvatarBlurred={post.assigned_to_is_avatar_blurred || post.assignedModerator.is_avatar_blurred}
                             />
                           )}
                           <Typography variant="body2">{post.assignedModerator.name}</Typography>

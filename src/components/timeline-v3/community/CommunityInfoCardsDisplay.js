@@ -232,6 +232,9 @@ const RichContentRenderer = ({ content, theme }) => {
                   avatarUrl={userData?.avatar_url}
                   id={userData?.id}
                   size={24}
+                  isRestricted={userData?.is_restricted || userData?.isRestricted}
+                  isSuspended={userData?.is_suspended || userData?.isSuspended}
+                  isAvatarBlurred={userData?.is_avatar_blurred || userData?.isAvatarBlurred}
                   sx={{
                     border: `1px solid ${theme.palette.primary.main}`
                   }}

@@ -14,7 +14,8 @@ export default function UserAvatar({
   onClick,
   userColor,
   isRestricted,
-  isSuspended
+  isSuspended,
+  isAvatarBlurred,
 }) {
   const displayName = displayUsername(name || 'User');
   const initial = getInitial(displayName);
@@ -33,6 +34,7 @@ export default function UserAvatar({
       fontWeight: 600,
       bgcolor: avatarUrl ? undefined : bg,
       color: avatarUrl ? undefined : '#111',
+      filter: isAvatarBlurred ? 'blur(18px) saturate(0.45)' : 'none',
     }
   };
 

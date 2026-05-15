@@ -43,6 +43,9 @@ export default function UserCard({
     bio,
     avatarUrl,
     identityColor,
+    isRestricted,
+    isSuspended,
+    isAvatarBlurred,
   } = cardData;
 
   const isFollowing = followedUserIdSet.has(profileUserId);
@@ -132,6 +135,7 @@ export default function UserCard({
             fontWeight: 800,
             fontSize: '1.4rem',
             border: identityColor ? `2px solid ${alpha(identityColor, 0.5)}` : 'none',
+            filter: cardData.isAvatarBlurred ? 'blur(18px) saturate(0.5)' : 'none',
           }}
         >
           {String(username || '?').charAt(0).toUpperCase()}

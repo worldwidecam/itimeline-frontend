@@ -94,10 +94,16 @@ export const AuthProvider = ({ children }) => {
       }
 
       const meResponse = await api.get('/api/v1/auth/me');
-      const userData = meResponse?.data?.user || null;
-      if (!userData) {
+      const userDataRaw = meResponse?.data?.user || null;
+      if (!userDataRaw) {
         throw new Error('Login succeeded but no user session payload was returned');
       }
+      
+      const userData = {
+        ...userDataRaw,
+        is_site_admin: !!meResponse.data.is_site_admin,
+        site_admin_role: meResponse.data.site_admin_role || null,
+      };
       
       // Clear any existing membership data from localStorage
       Object.keys(localStorage).forEach(key => {
@@ -189,10 +195,16 @@ export const AuthProvider = ({ children }) => {
 
       // Backend already set HTTP-only cookies - just fetch user data
       const meResponse = await api.get('/api/v1/auth/me');
-      const userData = meResponse?.data?.user || null;
-      if (!userData) {
+      const userDataRaw = meResponse?.data?.user || null;
+      if (!userDataRaw) {
         throw new Error('Registration succeeded but no user session payload was returned');
       }
+
+      const userData = {
+        ...userDataRaw,
+        is_site_admin: !!meResponse.data.is_site_admin,
+        site_admin_role: meResponse.data.site_admin_role || null,
+      };
 
       // Clear any existing membership data from localStorage
       Object.keys(localStorage).forEach(key => {
@@ -386,7 +398,11 @@ export const AuthProvider = ({ children }) => {
       });
       
       if (response.data) {
-        const validatedUser = response.data.user;
+        const validatedUser = {
+          ...response.data.user,
+          is_site_admin: !!response.data.is_site_admin,
+          site_admin_role: response.data.site_admin_role || null,
+        };
         if (!validatedUser) {
           setUser(null);
           setIsGuest(false);
@@ -457,7 +473,9 @@ export const AuthProvider = ({ children }) => {
           if (finalResponse.data?.user) {
             const userData = {
               ...finalResponse.data.user,
-              avatar_url: finalResponse.data.user.avatar_url || finalResponse.data.user.avatar
+              avatar_url: finalResponse.data.user.avatar_url || finalResponse.data.user.avatar,
+              is_site_admin: !!finalResponse.data.is_site_admin,
+              site_admin_role: finalResponse.data.site_admin_role || null,
             };
             
             // Store user data in localStorage for API functions to access

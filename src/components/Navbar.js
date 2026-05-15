@@ -1514,6 +1514,7 @@ function Navbar() {
                     id={user.id}
                     size={40}
                     isRestricted={user?.is_restricted || user?.is_suspended}
+                    isAvatarBlurred={user?.is_avatar_blurred}
                     sx={{
                       transition: 'transform 0.2s ease-in-out',
                       '&:hover': { transform: 'scale(1.1)' }

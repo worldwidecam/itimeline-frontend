@@ -350,6 +350,7 @@ const PersonalAccessPanel = ({
                     size={32}
                     userColor={user?.user_color}
                     isRestricted={user?.is_restricted || user?.isRestricted}
+                    isAvatarBlurred={user?.is_avatar_blurred || user?.isAvatarBlurred}
                     sx={{
                       bgcolor: theme.palette.mode === 'dark'
                         ? 'rgba(255,255,255,0.12)'
@@ -394,6 +395,7 @@ const PersonalAccessPanel = ({
                       size={28}
                       userColor={viewer.user_color}
                       isRestricted={viewer.isRestricted || viewer.is_restricted}
+                      isAvatarBlurred={viewer.isAvatarBlurred || viewer.is_avatar_blurred}
                       sx={{
                         bgcolor: theme.palette.mode === 'dark'
                           ? 'rgba(255,255,255,0.08)'

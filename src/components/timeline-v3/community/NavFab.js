@@ -221,6 +221,7 @@ const NavFab = ({
             overlayText={tradingCard.overlayText || 'Tap to Share'}
             overlaySx={tradingCard.overlaySx}
             isRestricted={tradingCard.isRestricted}
+            isAvatarBlurred={tradingCard.isAvatarBlurred}
             frameSx={{
               position: 'absolute',
               ...(position === 'left' ? { left: { xs: 70, sm: 82 } } : { right: { xs: 70, sm: 82 } }),

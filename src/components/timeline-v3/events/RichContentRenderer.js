@@ -381,6 +381,7 @@ const RichContentRenderer = ({
                   size={24}
                   userColor={userData?.user_color}
                   isRestricted={userData?.is_restricted || userData?.is_suspended}
+                  isAvatarBlurred={userData?.is_avatar_blurred}
                   sx={{
                     border: `1px solid ${theme.palette.primary.main}`,
                   }}

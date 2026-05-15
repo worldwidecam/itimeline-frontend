@@ -26,6 +26,7 @@ const TradingCard = ({
   overlayText = 'Tap to Share',
   overlaySx = {},
   isRestricted = false,
+  isAvatarBlurred = false,
 }) => {
   const [imageLoadFailed, setImageLoadFailed] = React.useState(false);
 
@@ -96,6 +97,7 @@ const TradingCard = ({
               height: '100%',
               objectFit: 'contain',
               objectPosition: '50% 50%',
+              filter: isAvatarBlurred ? 'blur(18px)' : 'none',
               ...imageSx,
             }}
           />

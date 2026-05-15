@@ -656,6 +656,7 @@ const NewsCard = forwardRef(({
                       userColor={event.created_by_user_color}
                       isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
                       isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
+                      isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
                       sx={{ mr: 0.5, fontSize: '0.75rem' }}
                     />
                     <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>

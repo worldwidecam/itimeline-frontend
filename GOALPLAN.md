@@ -229,9 +229,11 @@ When auditing each feature/endpoint:
   - *Note regarding User Access Lock*: Resolved access check issues; guest users can correctly view public texts but not write.
 - [x] **Profile Settings** (`/profile/settings`) - Avatar, bio, preferences, music - user_color save verified ✅
 - [ ] **Site Control** (`/site-control`) - Admin list, reports, site settings - user_color added to site-admins ✅
-  - *Intricacies regarding Report Duplicate Locking*: 
-    - Active State (Pending/Reviewing): If a ticket matching the timeline ID, user ID, or event ID is active, prevent all subsequent reports across ALL users. Display a specific snackbar stating that a report is already in progress.
-    - Resolved State (Safeguard Tag): If a ticket was resolved using the "Safeguard" action, block subsequent reports on that ID for the specified duration.
+  - [x] **Global Reports Tab** — ✅ CONFIRMED WORKING (May 14, 2026)
+    - [x] **User Suspension** — High-court redirect flow + "YOU ARE BANNED" page verified.
+    - [x] **User Restriction** — Temporary restriction logic and resolution parity verified.
+    - [x] **Lift Ban/Restriction** — Administrative lift capability and "Ban is lifted" badge verified.
+    - [x] **Report Duplicate Locking** — Logic for active and safeguarded tickets verified.
   - **Timeline Report Buttons Audit**:
     - [x] **Ban Timeline** — ✅ CONFIRMED WORKING (May 14, 2026)
       - Fixes required to get here:
@@ -249,8 +251,8 @@ When auditing each feature/endpoint:
     - [x] Verify "Remove from Community" vs "Delete Post" logic parity. — ✅ CONFIRMED WORKING (May 14, 2026)
     - [x] Confirm "Safeguard Post" cooldown enforcement on frontend. — ✅ CONFIRMED WORKING (May 14, 2026)
   - **User Report Tickets Audit**:
-    - [ ] Verify "Require Username Change" flow and "Reported Username" display.
-    - [ ] Audit "Suspend/Restrict User" logic parity.
+    - [x] Verify "Require Username Change" flow and "Reported Username" display. ✅
+    - [x] Audit "Suspend/Restrict User" logic parity. ✅
     - [x] Separate User vs Post safeguards — ✅ FIXED (May 14, 2026). Safeguarding a post no longer safeguards the author.
     - [x] Safeguard transparency — ✅ CONFIRMED. Error messages and Site Control now show linked report IDs.
 - [ ] **Share Pages** (`/share/timeline/:id`, `/share/profile/:id`) - Backend-rendered trading cards - OG meta tags verified ✅
@@ -536,6 +538,9 @@ When auditing each feature/endpoint:
 - [x] Fix landing badge settings saving
 - [x] Fix auth parity: Backend bootstrap SiteOwner for User ID 1 + email check
 - [x] Bootstrap SiteOwner appears in admin list on Site Control page
+- [x] **Site Control: Admin List Audit** (Hierarchy, Branding, ID lookup)
+- [x] **Site-wide Avatar Blur Toggle** (Moderation enforcement for profiles)
+- [ ] **Site Control: Logs Tab Audit** (NEXT PRIORITY)
 - [ ] Verify redirect pages (non-admin → locked view, guest → appropriate page)
 - [ ] Test MAKE A POST button functionality
 - [ ] Test timeline creation flows

@@ -32,6 +32,7 @@ const UserProfile = () => {
             size={150}
             userColor={user?.user_color}
             isRestricted={user?.is_restricted || user?.is_suspended}
+            isAvatarBlurred={user?.is_avatar_blurred}
             sx={{ mb: 2, fontSize: '4rem' }}
           />
           <Typography variant="h4" gutterBottom>

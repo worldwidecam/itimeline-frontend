@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import api, { submitUserReport } from '../utils/api';
+import api, { 
+  submitUserReport, 
+  createModerationAction, 
+  updateModerationAction, 
+  listModerationActions 
+} from '../utils/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Container,
@@ -27,6 +32,8 @@ import {
   IconButton,
   Snackbar,
   Alert,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -122,6 +129,9 @@ const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
         author_id: Number.isInteger(authorId) && authorId > 0 ? authorId : null,
         author_username: String(entry?.author_username || fallbackAuthor).trim().slice(0, 80),
         author_avatar_url: entry?.author_avatar_url || null,
+        author_is_restricted: Boolean(entry?.author_is_restricted || entry?.is_restricted),
+        author_is_suspended: Boolean(entry?.author_is_suspended || entry?.is_suspended),
+        author_is_avatar_blurred: Boolean(entry?.author_is_avatar_blurred || entry?.is_avatar_blurred),
         created_at: String(entry?.created_at || '').trim() || null,
       };
     })
@@ -1314,6 +1324,8 @@ const Profile = () => {
                     size={isNarrowViewport ? 100 : 140}
                     userColor={profileUser.user_color}
                     isRestricted={profileUser.is_restricted}
+                    isSuspended={profileUser.is_suspended}
+                    isAvatarBlurred={profileUser.is_avatar_blurred}
                   />
                   {profileAccessVisibility === 'private' && (
                     <Box sx={{
@@ -1344,6 +1356,68 @@ const Profile = () => {
                   }}>
                     {displayUsername(profileUser.username)}
                   </Typography>
+
+                  {/* Site Admin Controls */}
+                  {user?.site_admin_role && !isGuestProfileRoute && (
+                    <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={Boolean(profileUser.is_avatar_blurred)}
+                            onChange={async (e) => {
+                              const checked = e.target.checked;
+                              try {
+                                if (checked) {
+                                  await createModerationAction({
+                                    subject_type: 'user',
+                                    subject_id: profileUser.id,
+                                    action: 'blur_avatar',
+                                    reason_public: 'Avatar contains inappropriate content.',
+                                  });
+                                } else {
+                                  // Deactivate all active blur actions for this user
+                                  const responseActions = await listModerationActions({
+                                    subject_type: 'user',
+                                    subject_id: profileUser.id,
+                                    is_active: true
+                                  });
+                                  const actionsArray = Array.isArray(responseActions.data) 
+                                    ? responseActions.data 
+                                    : (responseActions.data?.data || []);
+                                  const blurActions = actionsArray.filter(a => a.action === 'blur_avatar');
+                                  for (const action of blurActions) {
+                                    await updateModerationAction(action.id, { is_active: false });
+                                  }
+                                }
+                                // Refresh profile data
+                                const response = await api.get(`/api/v1/users/${profileUser.id}`);
+                                setProfileUser(response.data);
+                                setSnackbar({
+                                  open: true,
+                                  message: checked ? 'Avatar blurred site-wide' : 'Avatar blur removed',
+                                  severity: 'success'
+                                });
+                              } catch (err) {
+                                console.error('Failed to toggle avatar blur:', err);
+                                setSnackbar({
+                                  open: true,
+                                  message: 'Failed to update avatar blur status',
+                                  severity: 'error'
+                                });
+                              }
+                            }}
+                            size="small"
+                            color="warning"
+                          />
+                        }
+                        label={
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: 'warning.main', letterSpacing: '0.05em' }}>
+                            SITE-WIDE AVATAR BLUR
+                          </Typography>
+                        }
+                      />
+                    </Box>
+                  )}
 
                   <Stack direction="row" spacing={2} sx={{ mb: 2, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                     <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -1518,6 +1592,8 @@ const Profile = () => {
                                     avatarUrl={entry.author_avatar_url}
                                     size={32}
                                     isRestricted={entry.author_is_restricted}
+                                    isSuspended={entry.author_is_suspended}
+                                    isAvatarBlurred={entry.author_is_avatar_blurred}
                                     sx={{ mb: 0.5, flexShrink: 0 }}
                                   />
                                   <Card

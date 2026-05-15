@@ -2023,6 +2023,8 @@ const MemberListTab = () => {
                       size={48}
                       userColor={member.user_color}
                       isRestricted={member.isRestricted}
+                      isSuspended={member.isSuspended}
+                      isAvatarBlurred={member.isAvatarBlurred}
                       sx={{
                         mr: 2,
                         boxShadow: '0 0 0 2px ' + roleColor.bg,

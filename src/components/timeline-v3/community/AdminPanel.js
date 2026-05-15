@@ -1315,6 +1315,8 @@ const AdminPanel = () => {
                                 size={48}
                                 userColor={member.user_color}
                                 isRestricted={member.isRestricted || member.is_restricted}
+                                isSuspended={member.isSuspended || member.is_suspended}
+                                isAvatarBlurred={member.isAvatarBlurred || member.is_avatar_blurred}
                                 sx={{ mr: 2 }}
                               />
                               <Box>
@@ -1492,6 +1494,8 @@ const AdminPanel = () => {
                                 size={48}
                                 userColor={member.user_color}
                                 isRestricted={member.isRestricted || member.is_restricted}
+                                isSuspended={member.isSuspended || member.is_suspended}
+                                isAvatarBlurred={member.isAvatarBlurred || member.is_avatar_blurred}
                                 sx={{ mr: 2 }}
                               />
                               <Box>
@@ -1574,6 +1578,7 @@ const AdminPanel = () => {
                             size={48}
                             userColor={member.user_color}
                             isRestricted={member.isRestricted || member.is_restricted}
+                            isAvatarBlurred={member.isAvatarBlurred || member.is_avatar_blurred}
                             sx={{
                               mr: 2,
                               filter: 'grayscale(100%)',

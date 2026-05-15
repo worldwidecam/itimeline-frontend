@@ -15,6 +15,7 @@ export function normalizeUserCardData(user) {
   const identityColor = resolveUserIdentityColor(user);
   const isRestricted = !!user.is_restricted;
   const isSuspended = !!user.is_suspended;
+  const isAvatarBlurred = !!user.is_avatar_blurred;
 
   return {
     id,
@@ -24,6 +25,7 @@ export function normalizeUserCardData(user) {
     identityColor,
     isRestricted,
     isSuspended,
+    isAvatarBlurred,
     raw: user,
   };
 }
