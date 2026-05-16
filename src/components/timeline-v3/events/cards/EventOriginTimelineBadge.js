@@ -64,6 +64,8 @@ const resolveOriginTimeline = (event = {}) => {
     .replace(/^i-/i, '')
     .replace(/^my-/i, '')
     .replace(/^#+/, '')
+    .replace(/'s\s+personal$/i, '')
+    .replace(/\s+personal$/i, '')
     .trim();
 
   if (!baseName) return null;
@@ -72,7 +74,9 @@ const resolveOriginTimeline = (event = {}) => {
     id: timelineId || null,
     type: timelineType,
     name: baseName,
-    label: baseName,
+    label: (timelineType === 'personal' && (event?.owner_username || event?.creator_username)) 
+      ? (event?.owner_username || event?.creator_username) 
+      : baseName,
   };
 };
 

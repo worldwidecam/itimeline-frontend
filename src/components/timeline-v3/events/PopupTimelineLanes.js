@@ -411,9 +411,9 @@ const PopupTimelineLanes = ({
               freeSolo
               isOptionEqualToValue={(option, value) => option?.id === value?.id || option?.name === value?.name}
               filterOptions={(options, state) => {
-                // If no input, show only first 10 options
+                // If no input, return empty array to act as a pure narrowing auto-complete
                 if (!state.inputValue || state.inputValue.trim() === '') {
-                  return options.slice(0, 10);
+                  return [];
                 }
                 // Otherwise use default filtering
                 const filtered = options.filter(option =>
@@ -421,8 +421,31 @@ const PopupTimelineLanes = ({
                 );
                 return filtered;
               }}
+              renderOption={(props, option) => {
+                const { key, ...optionProps } = props;
+                return (
+                  <Box key={key} component="li" {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                    <HashtagIcon size={14} color={theme.palette.primary.main} />
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{option.name}</Typography>
+                  </Box>
+                );
+              }}
               renderInput={(params) => (
-                <TextField {...params} placeholder="Search hashtags..." variant="outlined" size="small" />
+                <TextField 
+                  {...params} 
+                  placeholder="Search hashtags..." 
+                  variant="outlined" 
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                      '& fieldset': { borderColor: alpha(theme.palette.primary.main, 0.2) },
+                      '&:hover fieldset': { borderColor: alpha(theme.palette.primary.main, 0.4) },
+                      '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
+                    }
+                  }}
+                />
               )}
               sx={{ flex: 1, maxWidth: '300px' }}
             />
@@ -433,11 +456,16 @@ const PopupTimelineLanes = ({
               onClick={() => onAddToTimeline(selectedHashtag)}
               sx={{
                 minWidth: 'auto',
-                px: 1.5,
+                height: 40,
+                px: 2,
+                borderRadius: 1.5,
                 textTransform: 'none',
+                fontWeight: 600,
                 backgroundColor: theme.palette.primary.main,
+                boxShadow: `0 4px 10px ${alpha(theme.palette.primary.main, 0.3)}`,
                 '&:hover': {
                   backgroundColor: alpha(theme.palette.primary.main, 0.9),
+                  boxShadow: `0 6px 14px ${alpha(theme.palette.primary.main, 0.4)}`,
                 },
               }}
             >
@@ -487,8 +515,31 @@ const PopupTimelineLanes = ({
                     option.name.toLowerCase().includes(state.inputValue.toLowerCase())
                   );
                 }}
+                renderOption={(props, option) => {
+                  const { key, ...optionProps } = props;
+                  return (
+                    <Box key={key} component="li" {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                      <CommunityIcon sx={{ fontSize: 16, color: theme.palette.secondary.main }} />
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{option.name}</Typography>
+                    </Box>
+                  );
+                }}
                 renderInput={(params) => (
-                  <TextField {...params} placeholder="Search communities..." variant="outlined" size="small" />
+                  <TextField 
+                    {...params} 
+                    placeholder="Search communities..." 
+                    variant="outlined" 
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                        '& fieldset': { borderColor: alpha(theme.palette.secondary.main, 0.2) },
+                        '&:hover fieldset': { borderColor: alpha(theme.palette.secondary.main, 0.4) },
+                        '&.Mui-focused fieldset': { borderColor: theme.palette.secondary.main },
+                      }
+                    }}
+                  />
                 )}
                 sx={{ flex: 1 }}
               />
@@ -499,11 +550,16 @@ const PopupTimelineLanes = ({
                 onClick={() => onAddToTimeline(selectedCommunity)}
                 sx={{
                   minWidth: 'auto',
-                  px: 1.5,
+                  height: 40,
+                  px: 2,
+                  borderRadius: 1.5,
                   textTransform: 'none',
+                  fontWeight: 600,
                   backgroundColor: theme.palette.secondary.main,
+                  boxShadow: `0 4px 10px ${alpha(theme.palette.secondary.main, 0.3)}`,
                   '&:hover': {
                     backgroundColor: alpha(theme.palette.secondary.main, 0.9),
+                    boxShadow: `0 6px 14px ${alpha(theme.palette.secondary.main, 0.4)}`,
                   },
                 }}
               >
@@ -570,7 +626,10 @@ const PopupTimelineLanes = ({
               <Autocomplete
                 size="small"
                 options={personalOptions}
-                getOptionLabel={(opt) => opt.name || ''}
+                getOptionLabel={(opt) => {
+                  const rawName = opt.name || '';
+                  return rawName.replace(/'s\s+personal$/i, '').replace(/\s+personal$/i, '');
+                }}
                 value={selectedPersonal}
                 loading={loadingTimelines}
                 onChange={(e, newVal) => setSelectedPersonal(newVal)}
@@ -585,8 +644,33 @@ const PopupTimelineLanes = ({
                     option.name.toLowerCase().includes(state.inputValue.toLowerCase())
                   );
                 }}
+                renderOption={(props, option) => {
+                  const { key, ...optionProps } = props;
+                  return (
+                    <Box key={key} component="li" {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                      <PersonIcon sx={{ fontSize: 16, color: theme.palette.primary.main }} />
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {(option.name || '').replace(/'s\s+personal$/i, '').replace(/\s+personal$/i, '')}
+                      </Typography>
+                    </Box>
+                  );
+                }}
                 renderInput={(params) => (
-                  <TextField {...params} placeholder="Search personals..." variant="outlined" size="small" />
+                  <TextField 
+                    {...params} 
+                    placeholder="Search personals..." 
+                    variant="outlined" 
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                        '& fieldset': { borderColor: alpha(theme.palette.primary.main, 0.2) },
+                        '&:hover fieldset': { borderColor: alpha(theme.palette.primary.main, 0.4) },
+                        '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
+                      }
+                    }}
+                  />
                 )}
                 sx={{ flex: 1 }}
               />
@@ -597,11 +681,16 @@ const PopupTimelineLanes = ({
                 onClick={() => onAddToTimeline(selectedPersonal)}
                 sx={{
                   minWidth: 'auto',
-                  px: 1.5,
+                  height: 40,
+                  px: 2,
+                  borderRadius: 1.5,
                   textTransform: 'none',
+                  fontWeight: 600,
                   backgroundColor: theme.palette.primary.main,
+                  boxShadow: `0 4px 10px ${alpha(theme.palette.primary.main, 0.3)}`,
                   '&:hover': {
                     backgroundColor: alpha(theme.palette.primary.main, 0.9),
+                    boxShadow: `0 6px 14px ${alpha(theme.palette.primary.main, 0.4)}`,
                   },
                 }}
               >
@@ -615,16 +704,20 @@ const PopupTimelineLanes = ({
             <Box sx={{ maxHeight: '200px', overflowY: 'auto' }}>
               {personals.map((personal, idx) => {
                 const isOwner = personal.created_by && currentUserId && Number(personal.created_by) === Number(currentUserId);
-                const displayName = isOwner ? (personal.name || 'Personal') : (personal.owner_username || 'User');
+                const displayName = isOwner 
+                  ? (personal.display_name || personal.name || 'Personal') 
+                  : (personal.owner_username || 'Personal');
                 
                 return (
                   <Chip
                     key={idx}
                     avatar={!isOwner ? (
                       personal.owner_avatar ? (
-                        <Avatar src={personal.owner_avatar} />
+                        <Avatar src={personal.owner_avatar} sx={{ width: 18, height: 18 }} />
                       ) : (
-                        <PersonIcon sx={{ fontSize: 16 }} />
+                        <Avatar sx={{ width: 18, height: 18, bgcolor: alpha(theme.palette.primary.main, 0.2) }}>
+                          <PersonIcon sx={{ fontSize: 14, color: theme.palette.primary.main }} />
+                        </Avatar>
                       )
                     ) : (
                       <PersonalIcon />
@@ -648,10 +741,9 @@ const PopupTimelineLanes = ({
                       '&:hover': {
                         backgroundColor: alpha(theme.palette.primary.main, 0.2),
                       },
-                      '& .MuiChip-avatar': {
-                        width: 18,
-                        height: 18,
-                        fontSize: '0.65rem'
+                      '& .MuiChip-label': {
+                        fontSize: '0.7rem',
+                        fontWeight: 600
                       }
                     }}
                   />

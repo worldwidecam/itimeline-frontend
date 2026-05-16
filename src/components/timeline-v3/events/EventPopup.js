@@ -644,26 +644,55 @@ const EventPopup = ({
     return fallbackName.startsWith('My-') && Boolean(currentUserId);
   };
 
+  // Get currently associated timeline IDs to filter them out of options
+  const currentAssocTimelines = localEventData?.associated_timelines || event?.associated_timelines || [];
+  const currentAssocTimelineIds = new Set(currentAssocTimelines.map(t => Number(t.id)));
+
   // Option sources per lane
-  const hashtagOptions = existingTimelines.filter((tl) => (tl.timeline_type || tl.type) === 'hashtag');
+  const hashtagOptions = existingTimelines
+    .filter((tl) => (tl.timeline_type || tl.type) === 'hashtag')
+    .filter((tl) => !currentAssocTimelineIds.has(Number(tl.id)));
+
+  // Helper to determine role rank for checking posting restrictions
+  const getRoleRank = (roleStr) => {
+    const ranks = { member: 1, moderator: 2, admin: 3, siteadmin: 4, siteowner: 5 };
+    return ranks[String(roleStr).toLowerCase()] || 0;
+  };
 
   // Communities: from passport memberships where active + community
   const communityOptions = passportMemberships
-    .filter((m) => String(m.timeline_type || m.type || '').toLowerCase() === 'community' && m.is_active_member)
+    .filter((m) => {
+      if (String(m.timeline_type || m.type || '').toLowerCase() !== 'community') return false;
+      if (!m.is_active_member) return false;
+
+      // Check posting restrictions based on the timeline data
+      const tl = existingTimelines.find((t) => Number(t.id) === Number(m.timeline_id));
+      if (tl && tl.posting_restriction_enabled) {
+        if (getRoleRank(m.member_role || m.role) < getRoleRank(tl.posting_min_role || 'member')) {
+          return false;
+        }
+      }
+      return true;
+    })
     .map((m) => ({
       id: m.timeline_id,
       name: m.timeline_name || m.name,
       type: 'community',
     }))
-    // fallback to any loaded community timelines not yet included
+    // Site owners, admins, and timeline creators can bypass the membership requirement
     .concat(
       existingTimelines
-        .filter((tl) => (tl.timeline_type || tl.type) === 'community')
+        .filter((tl) => {
+          if (String(tl.timeline_type || tl.type).toLowerCase() !== 'community') return false;
+          const isOwner = tl.created_by_id === currentUserId || tl.created_by === currentUserId;
+          return isSiteAdmin || isSiteOwner || isOwner;
+        })
         .map((tl) => ({ id: tl.id, name: tl.name, type: 'community' }))
     )
     // dedupe by id
     .reduce((acc, item) => {
       if (!item || !item.id) return acc;
+      if (currentAssocTimelineIds.has(Number(item.id))) return acc;
       if (acc.find((x) => Number(x.id) === Number(item.id))) return acc;
       acc.push(item);
       return acc;
@@ -694,6 +723,7 @@ const EventPopup = ({
     )
     .reduce((acc, item) => {
       if (!item || !item.id) return acc;
+      if (currentAssocTimelineIds.has(Number(item.id))) return acc;
       if (acc.find((x) => Number(x.id) === Number(item.id))) return acc;
       acc.push(item);
       return acc;

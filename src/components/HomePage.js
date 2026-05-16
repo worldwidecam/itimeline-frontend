@@ -126,6 +126,7 @@ const HOME_MY_CREATIONS_EVENTS_RESULT_LIMIT = 300;
 const HOME_FOLLOWED_USERS_SOURCE_LIMIT = 25;
 const HOME_FAVORITE_EVENTS_FETCH_LIMIT = 50;
 const HOME_SEARCH_USERS_RESULT_LIMIT = 50;
+const HOME_CACHE_TTL_MS = 600000; // 10 minutes
 const EMPTY_REVIEWING_EVENT_IDS = new Set();
 const DEFAULT_FAVORITE_QUOTE = {
   text: 'Those who make Peaceful Revolution impossible, will make violent Revolution inevitable.',
@@ -2157,6 +2158,18 @@ const HomePage = () => {
       }
 
       const parsed = JSON.parse(raw);
+      
+      // Cache expiration check
+      const cachedAt = Number(parsed?.cached_at || 0);
+      if (Date.now() - cachedAt > HOME_CACHE_TTL_MS) {
+        console.log('[HomePage] Popular cache expired, forcing refresh');
+        setHasLoadedPopular(false);
+        setPopularTimelines([]);
+        setPopularEvents([]);
+        setHasBootstrappedPopularCache(true);
+        return;
+      }
+
       const sourceTimelineCount = Number(parsed?.source_timeline_count || 0);
       if (sourceTimelineCount <= 0) {
         setHasLoadedPopular(false);
@@ -2416,6 +2429,18 @@ const HomePage = () => {
       }
 
       const parsed = JSON.parse(raw);
+
+      // Cache expiration check
+      const cachedAt = Number(parsed?.cached_at || 0);
+      if (Date.now() - cachedAt > HOME_CACHE_TTL_MS) {
+        console.log('[HomePage] Your Page cache expired, forcing refresh');
+        setHasLoadedYourPage(false);
+        setYourPageTimelines([]);
+        setYourPageEvents([]);
+        setHasBootstrappedYourPageCache(true);
+        return;
+      }
+
       const sourceTimelineCount = Number(parsed?.source_timeline_count || 0);
       if (sourceTimelineCount <= 0) {
         setHasLoadedYourPage(false);
