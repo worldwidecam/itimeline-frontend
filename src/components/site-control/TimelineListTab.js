@@ -3,7 +3,7 @@ import {
   Box, Tabs, Tab, Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
   Chip, IconButton, CircularProgress, Button, Typography,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  FormControl, InputLabel, Select, MenuItem, Stack
+  FormControl, InputLabel, Select, MenuItem, Stack, useTheme, alpha
 } from '@mui/material';
 import FlagIcon from '@mui/icons-material/Flag';
 import { getTimelineIcon } from '../../utils/timelineIcons';
@@ -12,6 +12,8 @@ import UserAvatar from '../common/UserAvatar';
 import api from '../../utils/api';
 import config from '../../config';
 import { useNavigate } from 'react-router-dom';
+import { getTimelineSurfaceTheme } from '../timeline-v3/timelineSurfaceTheme';
+import { getGlassInputSx, getGlassSquareActionButtonSx, getGlassDialogPaperSx } from '../../utils/formStyleGuide';
 
 // Helper hook for fetching paginated timeline data
 const useAdminTimelines = (type) => {
@@ -54,6 +56,8 @@ const useAdminTimelines = (type) => {
 };
 
 export default function TimelineListTab() {
+  const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [tab, setTab] = useState('all');
   const { data, loading, error, hasMore, loadMore } = useAdminTimelines(tab);
   const navigate = useNavigate();
@@ -85,7 +89,6 @@ export default function TimelineListTab() {
         reason: reportCategory,
         details: reportReason
       });
-      alert('Report submitted successfully.');
       setReportOpen(false);
     } catch (err) {
       console.error('Report Error:', err);
@@ -114,11 +117,11 @@ export default function TimelineListTab() {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           transition: 'all 0.2s',
-          '& td': { borderBottom: '1px solid rgba(255,255,255,0.05)', py: 2 },
+          '& td': { borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`, py: 2 },
           '&:hover': { 
             backgroundImage: coverUrl 
               ? `linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)), url("${coverUrl}")` 
-              : 'rgba(255,255,255,0.03)',
+              : alpha(theme.palette.action.hover, 0.05),
           }
         }}
       >
@@ -130,9 +133,8 @@ export default function TimelineListTab() {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            bgcolor: 'rgba(255,255,255,0.05)',
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
             color: 'primary.main',
-            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)'
           }}>
             {getTimelineIcon(row.type)}
           </Box>
@@ -161,7 +163,7 @@ export default function TimelineListTab() {
             >
               {row.name}
             </Button>
-            <Typography variant="caption" sx={{ opacity: 0.4, fontSize: '0.65rem', mt: 0.5, letterSpacing: '0.05em' }}>
+            <Typography variant="caption" sx={{ opacity: 0.5, fontSize: '0.65rem', mt: 0.5, letterSpacing: '0.05em' }}>
               ID: #{row.id}
             </Typography>
           </Box>
@@ -178,7 +180,7 @@ export default function TimelineListTab() {
               borderRadius: 2,
               width: 'fit-content',
               transition: 'all 0.2s',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateX(4px)' }
+              '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.1), transform: 'translateX(4px)' }
             }}
           >
             <UserAvatar
@@ -201,7 +203,7 @@ export default function TimelineListTab() {
           </Box>
         </TableCell>
 
-        <TableCell align="right" sx={{ width: 100, px: 2, fontWeight: 800, color: 'primary.light', fontFamily: '"JetBrains Mono", monospace' }}>
+        <TableCell align="right" sx={{ width: 100, px: 2, fontWeight: 800, color: 'primary.main' }}>
           {row.member_count?.toLocaleString()}
         </TableCell>
 
@@ -210,13 +212,13 @@ export default function TimelineListTab() {
             label={row.visibility?.toUpperCase()}
             size="small"
             sx={{
-              fontWeight: 900,
-              fontSize: '0.6rem',
-              height: 20,
+              fontWeight: 800,
+              fontSize: '0.65rem',
+              height: 22,
               letterSpacing: '0.05em',
-              bgcolor: row.visibility === 'public' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(249, 115, 22, 0.1)',
-              color: row.visibility === 'public' ? '#4ade80' : '#fb923c',
-              border: '1px solid currentColor'
+              bgcolor: row.visibility === 'public' ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.warning.main, 0.1),
+              color: row.visibility === 'public' ? 'success.main' : 'warning.main',
+              border: `1px solid ${alpha(row.visibility === 'public' ? theme.palette.success.main : theme.palette.warning.main, 0.3)}`
             }}
           />
         </TableCell>
@@ -226,13 +228,13 @@ export default function TimelineListTab() {
             label={row.is_active ? 'ACTIVE' : 'BANNED'}
             size="small"
             sx={{
-              fontWeight: 900,
-              fontSize: '0.6rem',
-              height: 20,
+              fontWeight: 800,
+              fontSize: '0.65rem',
+              height: 22,
               letterSpacing: '0.05em',
-              bgcolor: row.is_active ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              color: row.is_active ? '#60a5fa' : '#f87171',
-              border: '1px solid currentColor'
+              bgcolor: row.is_active ? alpha(theme.palette.info.main, 0.1) : alpha(theme.palette.error.main, 0.1),
+              color: row.is_active ? 'info.main' : 'error.main',
+              border: `1px solid ${alpha(row.is_active ? theme.palette.info.main : theme.palette.error.main, 0.3)}`
             }}
           />
         </TableCell>
@@ -242,9 +244,9 @@ export default function TimelineListTab() {
             onClick={() => handleOpenReport(row.id)}
             size="small"
             sx={{
-              color: 'rgba(255,255,255,0.2)',
+              color: alpha(theme.palette.text.secondary, 0.3),
               transition: 'all 0.2s',
-              '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.1)', transform: 'scale(1.1)' }
+              '&:hover': { color: 'error.main', bgcolor: alpha(theme.palette.error.main, 0.08), transform: 'scale(1.1)' }
             }}
           >
             <FlagIcon sx={{ fontSize: 18 }} />
@@ -255,12 +257,22 @@ export default function TimelineListTab() {
   };
 
   return (
-    <Box sx={{ p: { xs: 1, md: 3 }, maxWidth: '1600px', margin: '0 auto' }}>
+    <Box 
+      sx={{ 
+        p: { xs: 2, md: 3 }, 
+        maxWidth: '1600px', 
+        margin: '0 auto',
+        background: timelineSurfaces.panel,
+        border: `1px solid ${timelineSurfaces.panelBorder}`,
+        backdropFilter: timelineSurfaces.panelBlur,
+        borderRadius: 3.5,
+      }}
+    >
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: '-0.03em', background: 'linear-gradient(45deg, #fff 30%, #aaa 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           Timeline Moderation
         </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.5, fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ opacity: 0.6, fontWeight: 600 }}>
           {data.length} timelines listed
         </Typography>
       </Box>
@@ -271,14 +283,14 @@ export default function TimelineListTab() {
         centered
         sx={{
           mb: 4,
-          '& .MuiTabs-indicator': { height: 4, borderRadius: '4px 4px 0 0', bgcolor: 'primary.main' },
+          '& .MuiTabs-indicator': { height: 3, borderRadius: '4px', bgcolor: 'primary.main' },
           '& .MuiTab-root': {
             textTransform: 'none',
             minWidth: { xs: 80, sm: 120 },
-            fontSize: '0.95rem',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.4)',
-            '&.Mui-selected': { color: '#fff' }
+            fontSize: '0.9rem',
+            fontWeight: 700,
+            opacity: 0.6,
+            '&.Mui-selected': { opacity: 1 }
           }
         }}
       >
@@ -292,27 +304,25 @@ export default function TimelineListTab() {
         sx={{
           width: '100%',
           overflowX: 'auto',
-          borderRadius: 4,
-          bgcolor: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          '&::-webkit-scrollbar': { height: 8 },
-          '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 4 },
+          borderRadius: 3,
+          bgcolor: alpha(theme.palette.background.paper, 0.4),
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          '&::-webkit-scrollbar': { height: 6 },
+          '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.text.primary, 0.1), borderRadius: 4 },
         }}
       >
         <Table size="medium" sx={{ minWidth: 950 }}>
           <TableHead>
             <TableRow sx={{
-              bgcolor: 'rgba(0,0,0,0.4)',
+              bgcolor: alpha(theme.palette.text.primary, 0.03),
               '& th': {
-                borderBottom: '1px solid rgba(255,255,255,0.15)',
-                fontWeight: 900,
-                color: 'rgba(255,255,255,0.4)',
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+                fontWeight: 800,
+                color: 'text.secondary',
                 textTransform: 'uppercase',
-                fontSize: '0.65rem',
-                letterSpacing: '0.15em',
-                py: 2.5
+                fontSize: '0.7rem',
+                letterSpacing: '0.1em',
+                py: 2
               }
             }}>
               <TableCell align="center" sx={{ width: 70, px: 1 }}>Type</TableCell>
@@ -329,7 +339,7 @@ export default function TimelineListTab() {
               data.map(renderRow)
             ) : !loading ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 10, opacity: 0.5, fontWeight: 600 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 8, opacity: 0.5, fontWeight: 600 }}>
                   No timelines found in this category.
                 </TableCell>
               </TableRow>
@@ -344,18 +354,12 @@ export default function TimelineListTab() {
         </Box>
       )}
 
-      {!loading && data.length === 0 && (
-        <Box p={8} textAlign="center">
-          <Typography sx={{ opacity: 0.5 }}>No timelines found in this category.</Typography>
-        </Box>
-      )}
-
       {!loading && hasMore && (
         <Box display="flex" justifyContent="center" p={3}>
           <Button
             onClick={loadMore}
-            variant="outlined"
-            sx={{ borderRadius: 10, px: 4, fontWeight: 700 }}
+            variant="contained"
+            sx={{ ...getGlassSquareActionButtonSx(theme), borderRadius: 10, px: 4, fontWeight: 700 }}
           >
             Load More
           </Button>
@@ -363,7 +367,13 @@ export default function TimelineListTab() {
       )}
 
       {/* Report Dialog */}
-      <Dialog open={reportOpen} onClose={() => setReportOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog 
+        open={reportOpen} 
+        onClose={() => setReportOpen(false)} 
+        maxWidth="xs" 
+        fullWidth
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+      >
         <DialogTitle sx={{ fontWeight: 800 }}>Report Timeline</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
@@ -376,6 +386,7 @@ export default function TimelineListTab() {
                 value={reportCategory}
                 label="Category"
                 onChange={(e) => setReportCategory(e.target.value)}
+                sx={getGlassInputSx(theme)}
               >
                 <MenuItem value="Spam">Spam</MenuItem>
                 <MenuItem value="Harassment">Harassment</MenuItem>
@@ -393,6 +404,7 @@ export default function TimelineListTab() {
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
               placeholder="Provide specific details about the violation..."
+              sx={getGlassInputSx(theme)}
             />
           </Stack>
         </DialogContent>
@@ -403,7 +415,14 @@ export default function TimelineListTab() {
             variant="contained"
             color="error"
             disabled={submitting}
-            sx={{ fontWeight: 800, borderRadius: 2 }}
+            sx={{ 
+              ...getGlassSquareActionButtonSx(theme),
+              bgcolor: 'error.main',
+              color: '#fff',
+              '&:hover': { bgcolor: 'error.dark' },
+              fontWeight: 800, 
+              borderRadius: 2 
+            }}
           >
             {submitting ? 'Submitting...' : 'Submit Report'}
           </Button>

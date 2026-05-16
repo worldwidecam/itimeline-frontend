@@ -31,6 +31,7 @@ import {
   TableRow,
   Portal,
   Switch,
+  alpha,
   useTheme,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -142,6 +143,8 @@ const parseVerdictDetails = (verdictRaw) => {
 };
 
 const AdminListTab = ({ canManage }) => {
+  const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const { user: currentUser } = useAuth();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +161,6 @@ const AdminListTab = ({ canManage }) => {
       setLoading(true);
       setError('');
       const data = await listSiteAdmins();
-      // Sort: SiteOwner first, then by user_id
       const sorted = (Array.isArray(data?.items) ? data.items : []).sort((a, b) => {
         if (a.role === 'SiteOwner' && b.role !== 'SiteOwner') return -1;
         if (a.role !== 'SiteOwner' && b.role === 'SiteOwner') return 1;
@@ -255,9 +257,9 @@ const AdminListTab = ({ canManage }) => {
         sx={{ 
           p: 4, 
           borderRadius: 4,
-          background: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          background: timelineSurfaces.panel,
+          backdropFilter: timelineSurfaces.panelBlur,
+          border: `1px solid ${timelineSurfaces.panelBorder}`,
         }} 
         elevation={0}
       >
@@ -267,7 +269,7 @@ const AdminListTab = ({ canManage }) => {
         </Typography>
 
         {canManage && (
-          <Box sx={{ mb: 5, p: 3, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <Box sx={{ mb: 5, p: 3, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>
               Elevate User to Admin
             </Typography>
@@ -280,23 +282,16 @@ const AdminListTab = ({ canManage }) => {
                 variant="outlined"
                 fullWidth
                 size="medium"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'rgba(0,0,0,0.1)',
-                    borderRadius: 2
-                  }
-                }}
+                sx={getGlassInputSx(theme)}
               />
               <Button
                 variant="contained"
                 onClick={handleAddAdmin}
                 disabled={actionLoading}
                 sx={{ 
+                  ...getGlassSquareActionButtonSx(theme),
                   minWidth: 160, 
                   py: 1.5,
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
                 }}
               >
                 {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Grant Access'}
@@ -346,11 +341,11 @@ const AdminListTab = ({ canManage }) => {
                         justifyContent: 'space-between', 
                         gap: 2,
                         borderRadius: 3,
-                        bgcolor: isYou ? 'rgba(21, 101, 192, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-                        borderColor: isYou ? 'rgba(21, 101, 192, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                        background: timelineSurfaces.panel,
+                        border: `1px solid ${timelineSurfaces.panelBorder}`,
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                          bgcolor: isYou ? 'rgba(21, 101, 192, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+                          background: alpha(timelineSurfaces.panel, 0.8),
                           transform: 'translateY(-2px)',
                           boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
                         }
@@ -463,6 +458,8 @@ function formatBytes(bytes) {
 }
 
 const UserListTab = () => {
+  const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -504,7 +501,7 @@ const UserListTab = () => {
           onClick={() => fetchUsers(1)}
           disabled={loading}
           size="small"
-          sx={{ borderRadius: 2 }}
+          sx={getGlassSquareActionButtonSx(theme)}
         >
           Refresh
         </Button>
@@ -518,15 +515,16 @@ const UserListTab = () => {
         sx={{ 
           borderRadius: 3, 
           overflow: 'hidden',
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          background: timelineSurfaces.panel,
+          border: `1px solid ${timelineSurfaces.panelBorder}`,
+          backdropFilter: timelineSurfaces.panelBlur,
         }} 
         elevation={0}
       >
         <Box sx={{ overflowX: 'auto' }}>
           <Table size="medium">
             <TableHead>
-              <TableRow sx={{ bgcolor: 'rgba(0,0,0,0.2)' }}>
+              <TableRow sx={{ bgcolor: 'rgba(0,0,0,0.1)' }}>
                 <TableCell sx={{ fontWeight: 800, width: '10%' }}>User ID</TableCell>
                 <TableCell sx={{ fontWeight: 800, width: '40%' }}>User Info</TableCell>
                 <TableCell sx={{ fontWeight: 800, width: '25%' }}>Email</TableCell>
@@ -577,7 +575,7 @@ const UserListTab = () => {
                     <Chip 
                       label={formatBytes(u.total_storage_bytes)} 
                       size="small"
-                      color={u.total_storage_bytes > 50 * 1024 * 1024 ? "warning" : "default"} // Warn > 50MB
+                      color={u.total_storage_bytes > 50 * 1024 * 1024 ? "warning" : "default"}
                       variant={u.total_storage_bytes > 0 ? "filled" : "outlined"}
                       sx={{ 
                         fontWeight: 700, 
@@ -615,7 +613,7 @@ const UserListTab = () => {
             variant="outlined" 
             onClick={() => fetchUsers(page + 1)}
             disabled={loading}
-            sx={{ borderRadius: 8, px: 4 }}
+            sx={{ ...getGlassSquareActionButtonSx(theme), borderRadius: 8, px: 4 }}
           >
             {loading ? 'Loading...' : 'Load More'}
           </Button>
@@ -626,6 +624,8 @@ const UserListTab = () => {
 };
 
 const LogsTab = () => {
+  const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [logsSection, setLogsSection] = useState('broken-events');
 
   return (
@@ -643,9 +643,9 @@ const LogsTab = () => {
             p: 1.5, 
             height: 'fit-content',
             borderRadius: 3,
-            background: 'rgba(255, 255, 255, 0.03)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
+            background: timelineSurfaces.panel,
+            border: `1px solid ${timelineSurfaces.panelBorder}`,
+            backdropFilter: timelineSurfaces.panelBlur,
           }} 
           elevation={0}
         >
@@ -707,6 +707,8 @@ const LogsTab = () => {
 };
 
 const BrokenEventsTab = () => {
+  const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingByKey, setActionLoadingByKey] = useState({});
@@ -829,9 +831,9 @@ const BrokenEventsTab = () => {
         sx={{ 
           p: 4, 
           borderRadius: 4,
-          background: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          background: timelineSurfaces.panel,
+          border: `1px solid ${timelineSurfaces.panelBorder}`,
+          backdropFilter: timelineSurfaces.panelBlur,
         }} 
         elevation={0}
       >
@@ -842,12 +844,12 @@ const BrokenEventsTab = () => {
               Queue suspicious/broken event IDs. Open their timeline, delete if needed, or remove from queue.
             </Typography>
           </Box>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue} disabled={loading || !!actionLoadingByKey.add}>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue} disabled={loading || !!actionLoadingByKey.add} sx={getGlassSquareActionButtonSx(theme)}>
             Refresh
           </Button>
         </Stack>
 
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
           <TextField
             label="Event ID"
             value={eventIdInput}
@@ -855,7 +857,7 @@ const BrokenEventsTab = () => {
             placeholder="e.g. 12345"
             sx={{ 
               maxWidth: { xs: '100%', md: 180 },
-              '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2 }
+              ...getGlassInputSx(theme)
             }}
           />
           <TextField
@@ -864,7 +866,7 @@ const BrokenEventsTab = () => {
             onChange={(event) => setNoteInput(event.target.value)}
             placeholder="Reason this event is suspected broken"
             fullWidth
-            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2 } }}
+            sx={getGlassInputSx(theme)}
           />
           <Button
             variant="contained"
@@ -872,10 +874,8 @@ const BrokenEventsTab = () => {
             onClick={handleAddQueueItem}
             disabled={!!actionLoadingByKey.add}
             sx={{ 
+              ...getGlassSquareActionButtonSx(theme),
               minWidth: 160, 
-              borderRadius: 2, 
-              fontWeight: 700,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
             }}
           >
             Queue Event
@@ -1042,6 +1042,8 @@ const BrokenEventsTab = () => {
 };
 
 const BanListTab = () => {
+  const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addInput, setAddInput] = useState('');
@@ -1122,9 +1124,9 @@ const BanListTab = () => {
         sx={{ 
           p: 4, 
           borderRadius: 4,
-          background: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          background: timelineSurfaces.panel,
+          border: `1px solid ${timelineSurfaces.panelBorder}`,
+          backdropFilter: timelineSurfaces.panelBlur,
         }} 
         elevation={0}
       >
@@ -1135,12 +1137,12 @@ const BanListTab = () => {
               Blocked names. These cannot be used as usernames or community timeline names.
             </Typography>
           </Box>
-          <Button variant="outlined" onClick={fetchBanList} disabled={loading}>
+          <Button variant="outlined" onClick={fetchBanList} disabled={loading} sx={getGlassSquareActionButtonSx(theme)}>
             Refresh
           </Button>
         </Stack>
 
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
           <TextField
             label="Name to ban"
             value={addInput}
@@ -1150,16 +1152,7 @@ const BanListTab = () => {
             className={hasError ? 'animate-shake' : ''}
             sx={{ 
               maxWidth: { xs: '100%', md: 240 },
-              '& .MuiOutlinedInput-root': { 
-                bgcolor: 'rgba(0,0,0,0.1)', 
-                borderRadius: 2,
-                transition: 'all 0.3s ease',
-                ...(hasError && {
-                  borderColor: '#ff4757',
-                  boxShadow: '0 0 15px rgba(255, 71, 87, 0.4)',
-                  borderWidth: '2px'
-                })
-              }
+              ...getGlassInputSx(theme),
             }}
             size="medium"
           />
@@ -1170,17 +1163,15 @@ const BanListTab = () => {
             placeholder="Why is this name banned?"
             fullWidth
             size="medium"
-            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2 } }}
+            sx={getGlassInputSx(theme)}
           />
           <Button
             variant="contained"
             onClick={handleAddBan}
             disabled={addLoading || !addInput.trim()}
             sx={{ 
+              ...getGlassSquareActionButtonSx(theme),
               minWidth: 140,
-              borderRadius: 2,
-              fontWeight: 700,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
             }}
           >
             Add Ban
@@ -1314,7 +1305,6 @@ const getEventTypeDisplay = (eventType, reportType, timelineType) => {
 const parseReasonCategory = (reasonRaw, detailsRaw) => {
   const out = { chipLabel: null, chipStyle: {}, cleaned: reasonRaw || '' };
   
-  // 1. Check brackets in reason (legacy compatibility)
   if (reasonRaw && typeof reasonRaw === 'string') {
     const match = reasonRaw.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
     if (match) {
@@ -1337,7 +1327,6 @@ const parseReasonCategory = (reasonRaw, detailsRaw) => {
     }
   }
 
-  // 2. Check details/category field (modern implementation)
   const categoryKey = (detailsRaw || '').toLowerCase();
   if (categoryKey === 'website_policy') {
     out.chipLabel = 'Website Policy';
@@ -1364,6 +1353,7 @@ const inferReportType = (item) => {
 
 const GlobalReportsTab = () => {
   const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const { user } = useAuth();
   const isSiteOwner = Number(user?.id) === 1;
   const [postTabValue, setPostTabValue] = useState(0);
@@ -1697,7 +1687,6 @@ const GlobalReportsTab = () => {
             const eventRes = await api.get(`/api/v1/events/${it.event_id}`);
             const event = eventRes?.data;
             if (event) {
-              // Check media_type first for image/video/audio icons
               if (event.media_type) {
                 const mediaType = String(event.media_type).toLowerCase();
                 if (mediaType === 'image') displayType = 'Image';
@@ -2053,20 +2042,22 @@ const GlobalReportsTab = () => {
                 return (
                   <Paper
                     key={post.id}
-                    elevation={2}
+                    elevation={0}
                     sx={{
-                      p: 2,
+                      p: 2.5,
                       mb: 2,
                       cursor: 'pointer',
-                      transition: 'all 0.2s',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                       borderLeft: `4px solid ${statusColor.text}`,
-                      borderTop: `3px solid ${eventTypeDisplay.color}`,
-                      borderRight: `2px solid ${eventTypeDisplay.color}`,
-                      borderBottom: `2px solid ${eventTypeDisplay.color}`,
-                      background: isUserTicket
-                        ? 'linear-gradient(180deg, rgba(21,101,192,0.09) 0%, rgba(21,101,192,0.03) 42%, rgba(255,255,255,0) 100%)'
-                        : 'transparent',
-                      '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 },
+                      background: timelineSurfaces.panel,
+                      border: `1px solid ${timelineSurfaces.panelBorder}`,
+                      backdropFilter: timelineSurfaces.panelBlur,
+                      borderRadius: 2.5,
+                      '&:hover': { 
+                        transform: 'translateY(-3px)', 
+                        boxShadow: '0 12px 24px -8px rgba(0,0,0,0.15)',
+                        background: alpha(timelineSurfaces.panel, 0.95),
+                      },
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, gap: 2, flexWrap: 'wrap' }}>
@@ -2134,7 +2125,6 @@ const GlobalReportsTab = () => {
                                   Safe Until: {new Date(post.safeguardSafeUntil).toLocaleString()}
                                 </Typography>
                               )}
-                              {/* Side-effects: e.g. User safeguarded by a post report */}
                               {post.moderation_actions?.filter(a => a.is_active && a.action === 'cooldown' && a.subject_type === 'user' && a.subject_id !== post.reportedUser?.id).map((action, idx) => (
                                 <Typography
                                   key={idx}
@@ -2674,21 +2664,24 @@ const GlobalReportsTab = () => {
                       {post.status === 'pending' && (
                         <>
                           <Button
-                            variant="outlined"
+                            variant="contained"
                             size="small"
-                            color="primary"
                             startIcon={<ShieldIcon />}
                             onClick={() => handleAcceptReport(post)}
-                            sx={{ mr: 1, mb: 1 }}
+                            sx={{ ...getGlassSquareActionButtonSx(theme), mr: 1, mb: 1, px: 2 }}
                           >
                             Accept for Review
                           </Button>
                           <Button
-                            variant="outlined"
+                            variant="contained"
                             size="small"
-                            color="success"
                             onClick={() => handleDismissReport(post)}
-                            sx={{ mr: 1, mb: 1 }}
+                            sx={{ 
+                              ...getGlassSquareActionButtonSx(theme), 
+                              mr: 1, mb: 1, px: 2,
+                              color: 'success.main',
+                              borderColor: alpha(theme.palette.success.main, 0.2)
+                            }}
                           >
                             Dismiss
                           </Button>
@@ -3300,8 +3293,9 @@ const GlobalReportsTab = () => {
   );
 };
 
-const SiteSettingsTab = ({ canManageSettings }) => {
+const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
   const theme = useTheme();
+  const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [settingsSection, setSettingsSection] = useState('home-hero');
   const [leadSentence, setLeadSentence] = useState('');
   const [rotatorItems, setRotatorItems] = useState([]);
@@ -3370,7 +3364,6 @@ const SiteSettingsTab = ({ canManageSettings }) => {
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (error) {
-      // Requested fallback: if badge refresh fails, reset to disabled/empty so owner can explicitly save this safe state.
       setBadgeText('');
       setBadgeEnabled(false);
       setHasUnsavedChanges(true);
@@ -3515,11 +3508,21 @@ const SiteSettingsTab = ({ canManageSettings }) => {
   return (
     <Box sx={{ mt: 2 }}>
       {!canManageSettings ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }} elevation={2}>
+        <Paper 
+          sx={{ 
+            p: 4, 
+            textAlign: 'center',
+            background: timelineSurfaces.panel,
+            border: `1px solid ${timelineSurfaces.panelBorder}`,
+            backdropFilter: timelineSurfaces.panelBlur,
+            borderRadius: 3.2,
+          }} 
+          elevation={0}
+        >
           <LockIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
           <Typography variant="h6">Site Settings Locked</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Site settings are only available to the Site Owner.
+            Site settings are only available to authorized administrators.
           </Typography>
         </Paper>
       ) : (
@@ -3530,7 +3533,17 @@ const SiteSettingsTab = ({ canManageSettings }) => {
             gap: 2,
           }}
         >
-          <Paper sx={{ p: 1.25, height: 'fit-content' }} elevation={2}>
+          <Paper 
+            sx={{ 
+              p: 1.25, 
+              height: 'fit-content',
+              background: timelineSurfaces.panel,
+              border: `1px solid ${timelineSurfaces.panelBorder}`,
+              backdropFilter: timelineSurfaces.panelBlur,
+              borderRadius: 2.2,
+            }} 
+            elevation={0}
+          >
             <Tabs
               value={settingsSection}
               onChange={(_event, nextValue) => setSettingsSection(nextValue)}
@@ -3543,7 +3556,17 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   minHeight: 42,
                   borderRadius: 1.5,
                   mb: 0.5,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    bgcolor: theme.palette.mode === 'dark' ? alpha('#38bdf8', 0.12) : alpha('#0ea5e9', 0.08),
+                    color: theme.palette.mode === 'dark' ? '#7dd3fc' : '#0369a1',
+                  },
                 },
+                '& .MuiTabs-indicator': {
+                  left: 0,
+                  width: 3,
+                  borderRadius: '0 4px 4px 0',
+                }
               }}
             >
               {SITE_SETTINGS_SECTIONS.map((section) => (
@@ -3554,7 +3577,16 @@ const SiteSettingsTab = ({ canManageSettings }) => {
 
           <Stack spacing={2.5}>
             {settingsSection === 'home-hero' ? (
-              <Paper sx={{ p: 3 }} elevation={2}>
+              <Paper 
+                sx={{ 
+                  p: 3,
+                  background: timelineSurfaces.panel,
+                  border: `1px solid ${timelineSurfaces.panelBorder}`,
+                  backdropFilter: timelineSurfaces.panelBlur,
+                  borderRadius: 2.5,
+                }} 
+                elevation={0}
+              >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="h6">Home Hero Banner</Typography>
                   <IconButton
@@ -3585,6 +3617,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                     }}
                     helperText="Default is 75000ms (1 minute 15 seconds)."
                     disabled={loadingSettings}
+                    sx={getGlassInputSx(theme)}
                   />
 
                   <Box>
@@ -3613,22 +3646,28 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                         </Select>
                       </FormControl>
                       <Button
-                        variant="outlined"
+                        variant="contained"
                         startIcon={<AddIcon />}
                         onClick={handleAddHomeHeroSlide}
                         disabled={loadingSettings || hasHomeHeroTemplate(newHomeHeroSlideType)}
+                        sx={{ ...getGlassSquareActionButtonSx(theme), width: 'auto', minWidth: 120, px: 2 }}
                       >
                         Add Slide
                       </Button>
                     </Stack>
 
-                    <Table size="small">
+                    <Table size="small" sx={{ 
+                      '& .MuiTableCell-root': { 
+                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        py: 1.5
+                      } 
+                    }}>
                       <TableHead>
-                        <TableRow>
-                          <TableCell>Template</TableCell>
-                          <TableCell>Enabled</TableCell>
-                          <TableCell>Details</TableCell>
-                          <TableCell align="right">Actions</TableCell>
+                        <TableRow sx={{ bgcolor: alpha(theme.palette.text.primary, 0.03) }}>
+                          <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Template</TableCell>
+                          <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Enabled</TableCell>
+                          <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Details</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -3643,7 +3682,13 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                           const templateLabel = HOME_HERO_TEMPLATE_OPTIONS.find((option) => option.type === slideType)?.label || slideType;
 
                           return (
-                            <TableRow key={`home-hero-slide-${slideType}`}>
+                            <TableRow 
+                              key={`home-hero-slide-${slideType}`}
+                              sx={{ 
+                                transition: 'all 0.2s ease',
+                                '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.03) }
+                              }}
+                            >
                               <TableCell>{templateLabel}</TableCell>
                               <TableCell>
                                 <Switch
@@ -3793,7 +3838,16 @@ const SiteSettingsTab = ({ canManageSettings }) => {
             ) : null}
 
             {settingsSection === 'landing-badge' ? (
-              <Paper sx={{ p: 3 }} elevation={2}>
+              <Paper 
+                sx={{ 
+                  p: 3,
+                  background: timelineSurfaces.panel,
+                  border: `1px solid ${timelineSurfaces.panelBorder}`,
+                  backdropFilter: timelineSurfaces.panelBlur,
+                  borderRadius: 2.5,
+                }} 
+                elevation={0}
+              >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Landing Badge</Typography>
               <IconButton
@@ -3822,6 +3876,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   setHasUnsavedChanges(true);
                 }}
                 disabled={loadingSettings || loadingBadgeSettings}
+                sx={getGlassInputSx(theme)}
               />
               <FormControlLabel
                 control={
@@ -3842,7 +3897,16 @@ const SiteSettingsTab = ({ canManageSettings }) => {
             ) : null}
 
             {settingsSection === 'landing-rotator' ? (
-              <Paper sx={{ p: 3 }} elevation={2}>
+              <Paper 
+                sx={{ 
+                  p: 3,
+                  background: timelineSurfaces.panel,
+                  border: `1px solid ${timelineSurfaces.panelBorder}`,
+                  backdropFilter: timelineSurfaces.panelBlur,
+                  borderRadius: 2.5,
+                }} 
+                elevation={0}
+              >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Landing Page Text Rotator</Typography>
               <IconButton
@@ -3871,6 +3935,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   setHasUnsavedChanges(true);
                 }}
                 disabled={loadingSettings}
+                sx={getGlassInputSx(theme)}
               />
               <TextField
                 label="Rotation Interval (ms)"
@@ -3884,6 +3949,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                 }}
                 helperText="Default is 3000ms. Leave as-is if you like the current pacing."
                 disabled={loadingSettings}
+                sx={getGlassInputSx(theme)}
               />
               <FormControlLabel
                 control={
@@ -3907,19 +3973,25 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   <Typography variant="subtitle1">Rotating Endings</Typography>
                   <Button
                     size="small"
-                    variant="outlined"
+                    variant="contained"
                     startIcon={<AddIcon />}
                     onClick={handleAddRotatorItem}
                     disabled={loadingSettings}
+                    sx={{ ...getGlassSquareActionButtonSx(theme), width: 'auto', minWidth: 100, px: 2 }}
                   >
                     Add Row
                   </Button>
                 </Box>
-                <Table size="small">
+                <Table size="small" sx={{ 
+                  '& .MuiTableCell-root': { 
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    py: 1.25
+                  } 
+                }}>
                   <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ width: '70%' }}>Text</TableCell>
-                      <TableCell align="right">Actions</TableCell>
+                    <TableRow sx={{ bgcolor: alpha(theme.palette.text.primary, 0.03) }}>
+                      <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', width: '70%' }}>Text</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -3963,7 +4035,16 @@ const SiteSettingsTab = ({ canManageSettings }) => {
             ) : null}
 
             {settingsSection === 'toolbar-led' ? (
-              <Paper sx={{ p: 3 }} elevation={2}>
+              <Paper 
+                sx={{ 
+                  p: 3,
+                  background: timelineSurfaces.panel,
+                  border: `1px solid ${timelineSurfaces.panelBorder}`,
+                  backdropFilter: timelineSurfaces.panelBlur,
+                  borderRadius: 2.5,
+                }} 
+                elevation={0}
+              >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="h6">Toolbar LED Banner</Typography>
               <FormControlLabel
@@ -3996,6 +4077,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   setHasUnsavedChanges(true);
                 }}
                 disabled={loadingSettings}
+                sx={getGlassInputSx(theme)}
               />
               <FormControlLabel
                 control={
@@ -4024,6 +4106,7 @@ const SiteSettingsTab = ({ canManageSettings }) => {
                   }}
                   helperText="Example: 240 = 4 minutes"
                   disabled={loadingSettings || !toolbarLedEnabled}
+                  sx={getGlassInputSx(theme)}
                 />
               )}
             </Stack>
@@ -4059,26 +4142,33 @@ const SiteSettingsTab = ({ canManageSettings }) => {
             >
               <Button
                 variant="contained"
-                color={showSavedState ? 'success' : 'primary'}
                 onClick={handleSave}
                 disabled={isSaving || showSavedState}
                 startIcon={showSavedState ? <CheckCircleIcon /> : isSaving ? null : <SaveIcon />}
                 sx={{
-                  borderRadius: '28px',
-                  padding: '12px 24px',
-                  boxShadow: showSavedState
-                    ? '0 8px 16px rgba(76, 175, 80, 0.3)'
-                    : '0 8px 16px rgba(0,0,0,0.2)',
+                  ...getGlassPillActionButtonSx(theme),
+                  bgcolor: showSavedState ? '#16a34a' : theme.palette.mode === 'dark' ? '#0284c7' : '#0ea5e9',
+                  color: '#fff',
+                  px: 4,
+                  py: 1.5,
                   '&:hover': {
-                    boxShadow: showSavedState
-                      ? '0 8px 16px rgba(76, 175, 80, 0.3)'
-                      : '0 12px 20px rgba(0,0,0,0.3)',
+                    ...getGlassPillActionButtonSx(theme)['&:hover'],
+                    bgcolor: showSavedState ? '#15803d' : theme.palette.mode === 'dark' ? '#0369a1' : '#0284c7',
                   },
                   '&.Mui-disabled': {
-                    color: 'white',
-                    opacity: showSavedState ? 1 : 0.7
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    color: 'rgba(255,255,255,0.3)',
+                    borderColor: 'transparent',
+                    opacity: showSavedState ? 1 : 0.7,
+                    ...(showSavedState && {
+                      bgcolor: '#16a34a',
+                      color: '#fff',
+                      opacity: 1,
+                      boxShadow: '0 4px 20px rgba(22, 163, 74, 0.4)'
+                    })
                   },
-                  transition: 'all 0.3s ease'
+                  boxShadow: hasUnsavedChanges ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}` : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
                 {showSavedState ? 'SAVED!' : isSaving ? 'Saving...' : 'Save Changes'}
@@ -4123,12 +4213,18 @@ const SiteControlPage = () => {
     try {
       const storageKey = `user_passport_${user.id}`;
       const passport = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      setSiteRole(passport.site_role || null);
-      setIsSiteAdmin(Boolean(passport.is_site_admin) || Number(user.id) === 1);
+      
+      // Use live user data from AuthContext as primary source of truth,
+      // fallback to cached passport data.
+      const effectiveRole = user.site_admin_role || passport.site_admin_role || passport.site_role || null;
+      const effectiveIsAdmin = Boolean(user.is_site_admin) || Boolean(passport.is_site_admin) || Number(user.id) === 1;
+      
+      setSiteRole(effectiveRole);
+      setIsSiteAdmin(effectiveIsAdmin);
     } catch (e) {
       console.warn('[SiteControl] Unable to parse passport data:', e);
-      setSiteRole(null);
-      setIsSiteAdmin(Number(user.id) === 1);
+      setSiteRole(user.site_admin_role || null);
+      setIsSiteAdmin(Boolean(user.is_site_admin) || Number(user.id) === 1);
     } finally {
       setAccessLoading(false);
     }
@@ -4136,7 +4232,7 @@ const SiteControlPage = () => {
 
   const isSiteOwner = Number(user?.id) === 1 || siteRole === 'SiteOwner';
   const hasAccess = Boolean(isSiteAdmin || isSiteOwner);
-  const canManageSettings = isSiteOwner;
+  const canManageSettings = hasAccess; // SiteAdmins can manage settings too
 
   if (accessLoading) {
     return (
@@ -4214,17 +4310,70 @@ const SiteControlPage = () => {
             onChange={(event, newValue) => setTabValue(newValue)}
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
-            <Tab label="Global Reports" />
-            <Tab label="Admin List" />
-            <Tab label="Logs" />
-            <Tab label="Site Settings" disabled={!canManageSettings} />
+            <Tab label="Global Reports" sx={{ fontWeight: 600 }} />
+            <Tab label="Admin List" sx={{ fontWeight: 600 }} />
+            <Tab label="Logs" sx={{ fontWeight: 600 }} />
+            <Tab 
+              label="Site Settings" 
+              disabled={!canManageSettings} 
+              sx={{ 
+                fontWeight: 600,
+                '&.Mui-disabled': {
+                  opacity: 0.4,
+                  cursor: 'not-allowed',
+                  pointerEvents: 'auto', // Allow tooltip to work if added
+                }
+              }} 
+            />
           </Tabs>
 
           <Box sx={{ mt: 3 }}>
-            {tabValue === 0 && <GlobalReportsTab />}
-            {tabValue === 1 && <AdminListTab canManage={canManageSettings} />}
-            {tabValue === 2 && <LogsTab />}
-            {tabValue === 3 && <SiteSettingsTab canManageSettings={canManageSettings} />}
+            <AnimatePresence mode="wait">
+              {tabValue === 0 && (
+                <motion.div 
+                  key="reports"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <GlobalReportsTab />
+                </motion.div>
+              )}
+              {tabValue === 1 && (
+                <motion.div 
+                  key="admins"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AdminListTab canManage={canManageSettings} />
+                </motion.div>
+              )}
+              {tabValue === 2 && (
+                <motion.div 
+                  key="logs"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LogsTab />
+                </motion.div>
+              )}
+              {tabValue === 3 && (
+                <motion.div 
+                  key="settings"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <SiteSettingsTab canManageSettings={canManageSettings} isSiteAdmin={isSiteAdmin} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Box>
         </Paper>
       </Box>

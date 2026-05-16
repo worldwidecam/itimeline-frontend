@@ -320,8 +320,8 @@ function Navbar() {
     try {
       const storageKey = `user_passport_${user.id}`;
       const passport = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      setSiteRole(passport.site_role || null);
-      setIsSiteAdmin(Boolean(passport.is_site_admin) || Number(user.id) === 1);
+      setSiteRole(passport.site_role || user.site_admin_role || null);
+      setIsSiteAdmin(Boolean(user.is_site_admin) || Boolean(passport.is_site_admin) || Number(user.id) === 1);
     } catch (e) {
       console.warn('[Navbar] Unable to parse passport data:', e);
       setSiteRole(null);

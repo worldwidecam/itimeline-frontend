@@ -719,6 +719,7 @@ Use the Site Control page as the baseline visual language for all settings-style
 - **Section cards**: elevated panels with soft borders, mild blur, and consistent internal padding.
 - **Status cues**: use color chips and small badges (e.g., warning/locked) instead of loud alerts.
 - **Action emphasis**: primary actions live at the bottom-right of a card or on a fixed bar.
+- **Restricted Access Tabs**: Tabs requiring higher privileges (e.g., SiteOwner only) should remain visible but disabled for lower-tier admins. This maintains a clear hierarchy of authority without hiding potential capabilities.
 - **Empty states**: descriptive copy + icon (no blank screens).
 - **Motion**: staggered entry of sections and subtle hover lift on cards.
 

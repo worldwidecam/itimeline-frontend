@@ -591,14 +591,19 @@ const EventPopup = ({
     currentUserId = userData?.id || null;
 
     const passportKey = currentUserId ? `user_passport_${currentUserId}` : null;
-    if (passportKey) {
+    // Prioritize live user state from AuthContext, fallback to passport
+    isSiteAdmin = Boolean(user?.is_site_admin);
+    if (!isSiteAdmin && passportKey) {
       const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
       isSiteAdmin = Boolean(passport?.is_site_admin);
-      
-      if (currentTimelineIdFromUrl) {
+    }
+    
+    if (currentTimelineIdFromUrl && !isSiteAdmin) {
+      try {
+        const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
         const membership = (passport?.memberships || []).find((m) => Number(m?.timeline_id) === Number(currentTimelineIdFromUrl));
         currentTimelineRole = String(membership?.member_role || membership?.role || '').toLowerCase();
-      }
+      } catch (_) {}
     }
   } catch (_) {}
 
