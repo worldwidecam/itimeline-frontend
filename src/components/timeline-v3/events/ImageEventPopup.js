@@ -182,6 +182,7 @@ const ImageEventPopup = ({
   
   const canDelete = Boolean(onDelete && (isSiteOwner || isSiteAdmin || isEventCreator || canDeleteAsModerator));
   const canEdit = Boolean(onEdit && (isSiteOwner || isSiteAdmin || (isEventCreator && !isEditLocked)));
+  const canOpenActionMenu = canEdit || canDelete || (!isSafeguarded && !isInReview);
   
   // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   useEffect(() => {
@@ -313,7 +314,16 @@ const ImageEventPopup = ({
           onClose={handleClose}
           maxWidth="lg" // Larger dialog for the two-container layout
           fullWidth
-          container={document.fullscreenElement || document.body}
+          
+          sx={{
+            '& .MuiDialog-container': {
+              overscrollBehavior: 'none',
+            },
+            '& .MuiBackdrop-root': {
+              touchAction: 'none',
+              overscrollBehavior: 'none',
+            }
+          }}
           closeAfterTransition
           disableEscapeKeyDown={false}
           PaperComponent={motion.div}
@@ -322,41 +332,59 @@ const ImageEventPopup = ({
             animate: { opacity: 1, y: 0, scale: 1 },
             exit: { opacity: 0, y: 20, scale: 0.98 },
             transition: { duration: 0.3 },
-            sx: {
-              borderRadius: 3,
-              overflow: 'hidden',
-              backgroundColor: theme.palette.mode === 'dark' 
-                ? 'rgba(10,10,20,0.85)' 
-                : 'rgba(255,255,255,0.85)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
-                : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
-              border: 'none',
-              // Two-container layout
-              display: 'flex',
-              flexDirection: 'row',
-              height: '90vh',
-              maxHeight: '90vh',
-              overflow: 'hidden'
-            },
-          }}
-        >
-          {/* Left container - Fixed image display */}
-          <Box
-            sx={{
-              width: '60%',
-              height: '100%',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              bgcolor: 'black',
-              overflow: 'hidden',
-              borderRight: '1px solid',
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              sx: {
+                borderRadius: { xs: 2, sm: 3 },
+                overflow: 'hidden',
+                backgroundColor: theme.palette.mode === 'dark' 
+                  ? 'rgba(10,10,20,0.92)' 
+                  : 'rgba(255,255,255,0.92)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+                  : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+                border: 'none',
+                // Responsive layout: row on desktop, column on mobile
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                height: { xs: 'auto', md: '90vh' },
+                maxHeight: { xs: 'calc(100% - 16px)', md: '90vh' },
+                width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
+                maxWidth: { md: '1200px' },
+                margin: { xs: 1, sm: 2, md: 'auto' },
+                overflowY: { xs: 'auto', md: 'hidden' }
+              },
+              component: motion.div,
+              drag: "x",
+              dragConstraints: { left: 0, right: 0 },
+              dragElastic: { left: 0.5, right: 0.5 },
+              onDragEnd: (event, info) => {
+                if (Math.abs(info.offset.x) > 100) {
+                  handleCloseButtonClick();
+                }
+              },
+            }}
+            slotProps={{
+              backdrop: {
+                sx: { touchAction: 'none' }
+              }
             }}
           >
+            {/* Left container - Fixed image display */}
+            <Box
+              sx={{
+                width: { xs: '100%', md: '60%' },
+                height: { xs: '300px', sm: '400px', md: '100%' },
+                position: 'relative',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                bgcolor: 'black',
+                overflow: 'hidden',
+                borderRight: { xs: 'none', md: '1px solid' },
+                borderBottom: { xs: '1px solid', md: 'none' },
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              }}
+            >
             {/* The image itself - centered and fixed */}
             <motion.img 
               initial={{ opacity: 0 }}
@@ -414,68 +442,74 @@ const ImageEventPopup = ({
           </Box>
           
           {/* Right container - Scrollable content */}
-          <Box
-            sx={{
-              width: '40%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-            }}
-          >
+            <Box
+              sx={{
+                width: { xs: '100%', md: '40%' },
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                minHeight: { xs: '400px', md: 'auto' }
+              }}
+            >
             {/* Title area */}
             <DialogTitle 
               sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                p: 3,
+                p: { xs: 2, sm: 3 },
                 pb: 2,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.03)',
-                    color: imageColor, // Use the specific image color for the icon
-                  }}
-                >
-                  <TypeIcon fontSize="medium" />
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      width: { xs: 32, sm: 40 },
+                      height: { xs: 32, sm: 40 },
+                      flexShrink: 0,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.03)',
+                      color: imageColor,
+                    }}
+                  >
+                    <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
+                  </Box>
+                  <Typography 
+                    variant="h5" 
+                    component="div"
+                    sx={{ 
+                      fontWeight: 600,
+                      fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                      lineHeight: 1.2,
+                      wordBreak: 'break-word',
+                      color: theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.95)'
+                        : 'rgba(0,0,0,0.85)',
+                    }}
+                  >
+                    {event.title || "Untitled Event"}
+                  </Typography>
                 </Box>
-                <Typography 
-                  variant="h5" 
-                  component="div"
+                <IconButton 
+                  edge="end" 
+                  color="inherit" 
+                  onClick={handleCloseButtonClick} 
+                  aria-label="close"
                   sx={{ 
-                    fontWeight: 600,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.95)'
-                      : 'rgba(0,0,0,0.85)',
+                    color: theme.palette.mode === 'dark' 
+                      ? 'rgba(255,255,255,0.7)' 
+                      : 'rgba(0,0,0,0.5)',
+                    mt: -0.5,
+                    mr: -0.5,
                   }}
                 >
-                  {event.title || "Untitled Event"}
-                </Typography>
+                  <CloseIcon />
+                </IconButton>
               </Box>
-              <IconButton 
-                edge="end" 
-                color="inherit" 
-                onClick={handleCloseButtonClick} 
-                aria-label="close"
-                sx={{ 
-                  color: theme.palette.mode === 'dark' 
-                    ? 'rgba(255,255,255,0.7)' 
-                    : 'rgba(0,0,0,0.5)',
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
             </DialogTitle>
             
             <Divider sx={{ opacity: 0.5 }} />
@@ -489,6 +523,7 @@ const ImageEventPopup = ({
                 flexDirection: 'column',
                 overflow: 'auto',
                 position: 'relative',
+                touchAction: 'pan-y', // Allow horizontal swipe to bubble up to Paper drag
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -514,8 +549,6 @@ const ImageEventPopup = ({
                 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* Creator Chip */}
-                  <CreatorChip user={getUserData()} color={imageColor} />
                   
                   {/* Timeline Date with icon */}
                   {event.event_date && (
@@ -561,51 +594,6 @@ const ImageEventPopup = ({
                       </Box>
                     </Box>
                   )}
-                  
-                  {/* Published Date with icon */}
-                  {event.created_at && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Box
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.05)'
-                            : 'rgba(0,0,0,0.03)',
-                          color: imageColor,
-                        }}
-                      >
-                        <AccessTimeIcon fontSize="small" />
-                      </Box>
-                      <Box>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            display: 'block',
-                            color: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.5)' 
-                              : 'rgba(0,0,0,0.5)',
-                          }}
-                        >
-                          Published
-                        </Typography>
-                        <Typography 
-                          variant="body2"
-                          sx={{ 
-                            color: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.9)'
-                              : 'rgba(0,0,0,0.9)',
-                          }}
-                        >
-                          {formatDate(event.created_at || event.createdAt).replace('Published on ', '')}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
                 </Box>
               </Paper>
               
@@ -641,9 +629,12 @@ const ImageEventPopup = ({
               </Box>
             </DialogContent>
             
-            {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Divider sx={{ opacity: 0.3 }} />
+                
+            {/* Standardized Footer */}
+            <Box sx={{ px: 3, py: 2, mt: 'auto', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, pt: 1 }}>
+                <CreatorChip user={getUserData()} color={imageColor} />
                 <VoteControls
                   value={voteValue}
                   onChange={handleVoteChange}
@@ -657,200 +648,101 @@ const ImageEventPopup = ({
                   badgeScale={0.75}
                 />
               </Box>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 6,
-                  textAlign: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontSize: '0.7rem', opacity: 0.7 }}
-                >
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                   ID: {event?.id ?? '--'}
                 </Typography>
+                {event.created_at && (
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    {formatDate(event.created_at)}
+                  </Typography>
+                )}
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              {(isInReview && !isSafeguarded) && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 0.2)' 
-                      : 'rgba(255, 152, 0, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <RateReviewIcon 
-                    sx={{ 
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 152, 0, 1)' 
-                        : 'rgba(255, 152, 0, 1)',
-                    }} 
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 152, 0, 1)' 
-                        : 'rgba(255, 152, 0, 1)',
-                    }}
-                  >
-                    In Review
-                  </Typography>
-                </Box>
-              )}
-              {isSafeguarded && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 0.2)' 
-                      : 'rgba(76, 175, 80, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <CheckCircleIcon 
-                    sx={{ 
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(76, 175, 80, 1)' 
-                        : 'rgba(56, 142, 60, 1)',
-                    }} 
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(76, 175, 80, 1)' 
-                        : 'rgba(56, 142, 60, 1)',
-                    }}
-                  >
-                    Safeguarded
-                  </Typography>
-                </Box>
-              )}
-              {(!isGuest && (canEdit || canDelete || !isSafeguarded)) && (
-                <>
-                  <IconButton
+              
+              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
+                {(isInReview && !isSafeguarded) && (
+                  <Chip
+                    icon={<RateReviewIcon sx={{ fontSize: '14px !important' }} />}
+                    label="In Review"
                     size="small"
-                    onClick={handleActionMenuOpen}
-                    sx={{
-                      bgcolor: `${imageColor}18`,
-                      color: imageColor,
-                      border: `1px solid ${imageColor}40`,
-                      borderRadius: '10px',
-                      width: 32,
-                      height: 32,
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        bgcolor: `${imageColor}30`,
-                        transform: 'scale(1.08)',
-                        boxShadow: `0 2px 8px ${imageColor}30`,
-                      }
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.65rem', 
+                      bgcolor: 'warning.main', 
+                      color: 'white',
+                      fontWeight: 600
                     }}
-                  >
-                    <MoreHorizIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                  <Menu
-                    anchorEl={actionAnchorEl}
-                    open={Boolean(actionAnchorEl)}
-                    onClose={handleActionMenuClose}
-                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    PaperProps={{
-                      sx: {
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(20, 20, 35, 0.85)'
-                          : 'rgba(255, 255, 255, 0.85)',
-                        backdropFilter: 'blur(16px)',
-                        borderRadius: '12px',
-                        border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 8px 32px rgba(0,0,0,0.5)'
-                          : '0 8px 32px rgba(0,0,0,0.12)',
-                        mt: -1,
-                        minWidth: 160,
-                        '& .MuiMenuItem-root': {
-                          borderRadius: '8px',
-                          mx: 0.5,
-                          my: 0.25,
-                          transition: 'all 0.15s ease',
-                          '&:hover': {
-                            bgcolor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.04)',
-                          },
-                        },
-                      }
-                    }}
-                  >
-                    {canEdit && (
-                      <MenuItem onClick={handleEdit}>
-                        <ListItemIcon>
-                          <EditIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary="Edit" />
-                      </MenuItem>
-                    )}
-                    {canDelete && (
-                      <MenuItem onClick={() => {
-                        handleActionMenuClose();
-                        handleOpenDelete();
-                      }}>
-                        <ListItemIcon>
-                          <DeleteIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary="Delete" />
-                      </MenuItem>
-                    )}
-                    {!isSafeguarded && !isInReview && (
-                      <MenuItem
-                        onClick={() => {
-                          handleActionMenuClose();
-                          handleOpenReport();
-                        }}
-                        disabled={reportedOnce}
-                      >
-                        <ListItemIcon>
-                          <RateReviewIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
-                      </MenuItem>
-                    )}
-                  </Menu>
-                </>
-              )}
+                  />
+                )}
+                {isSafeguarded && (
+                  <Chip
+                    icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+                    label="Safeguarded"
+                    size="small"
+                    sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }}
+                  />
+                )}
+                {canOpenActionMenu && (
+                  <>
+                    <IconButton
+                      size="small"
+                      onClick={handleActionMenuOpen}
+                      sx={{
+                        bgcolor: `${imageColor}18`,
+                        color: imageColor,
+                        border: `1px solid ${imageColor}40`,
+                        borderRadius: '10px',
+                        width: 32,
+                        height: 32,
+                      }}
+                    >
+                      <MoreHorizIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                    <Menu
+                      anchorEl={actionAnchorEl}
+                      open={Boolean(actionAnchorEl)}
+                      onClose={handleActionMenuClose}
+                      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      PaperProps={{
+                        sx: {
+                          ...getGlassDialogPaperSx(theme),
+                          minWidth: 160,
+                          '& .MuiMenuItem-root': {
+                            borderRadius: 1,
+                            mx: 1,
+                            my: 0.5,
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                              transform: 'translateX(4px)',
+                            }
+                          }
+                        }
+                      }}
+                    >
+                      {canEdit && (
+                        <MenuItem onClick={handleEdit}>
+                          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary="Edit" />
+                        </MenuItem>
+                      )}
+                      {canDelete && (
+                        <MenuItem onClick={() => { handleActionMenuClose(); handleOpenDelete(); }}>
+                          <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary="Delete" />
+                        </MenuItem>
+                      )}
+                      {!isSafeguarded && !isInReview && (
+                        <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}>
+                          <ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
+                        </MenuItem>
+                      )}
+                    </Menu>
+                  </>
+                )}
               </Box>
             </Box>
           </Box>
@@ -873,7 +765,7 @@ const ImageEventPopup = ({
           <Dialog
             open={deleteDialogOpen}
             onClose={handleCloseDelete}
-            container={document.fullscreenElement || document.body}
+            
           >
             <DialogTitle>Delete Event</DialogTitle>
             <DialogContent>
@@ -902,7 +794,8 @@ const ImageEventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          container={document.fullscreenElement || document.body}
+          
+          closeAfterTransition
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

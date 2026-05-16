@@ -60,9 +60,6 @@ import RichContentRenderer from './RichContentRenderer';
  * Features a two-container layout similar to media popups:
  * - Left container (60%): Featured URL preview with newspaper-style layout
  * - Right container (40%): Event details and metadata
- * 
- * When open, it signals to TimelineV3 to pause its refresh interval to prevent
- * disruptions to media playback.
  */
 const NewsEventPopup = ({ 
   event, 
@@ -103,8 +100,8 @@ const NewsEventPopup = ({
   const [actionAnchorEl, setActionAnchorEl] = React.useState(null);
   const [tagSectionExpanded, setTagSectionExpanded] = React.useState(false);
   const [localEventData, setLocalEventData] = React.useState(event);
-  // Local snackbar for report submission feedback
   const [reportSnackOpen, setReportSnackOpen] = React.useState(false);
+  
   const {
     value: voteValue,
     totalVotes,
@@ -114,14 +111,10 @@ const NewsEventPopup = ({
     handleVoteChange,
   } = useEventVote(event?.id, { enabled: open });
   
-  // Notify TimelineV3 when the popup opens or closes to pause/resume refresh
   React.useEffect(() => {
-    // Only update if setIsPopupOpen function is provided
     if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
       setIsPopupOpen(open);
     }
-    
-    // Cleanup when component unmounts
     return () => {
       if (setIsPopupOpen && typeof setIsPopupOpen === 'function') {
         setIsPopupOpen(false);
@@ -129,7 +122,6 @@ const NewsEventPopup = ({
     };
   }, [open, setIsPopupOpen]);
   
-  // Fetch timelines when the tag section is expanded
   React.useEffect(() => {
     if (tagSectionExpanded && existingTimelines.length === 0) {
       if (typeof fetchExistingTimelines === 'function') {
@@ -144,9 +136,7 @@ const NewsEventPopup = ({
     }
   };
 
-  // Get user data with fallbacks
   const getUserData = () => {
-    // First try to get from created_by object (nested)
     if (event.created_by && typeof event.created_by === 'object') {
       return {
         id: event.created_by.id || event.created_by_id || event.created_by,
@@ -157,7 +147,6 @@ const NewsEventPopup = ({
         is_avatar_blurred: event.created_by.is_avatar_blurred || event.created_by_is_avatar_blurred || false
       };
     }
-    // Then try direct properties (flattened)
     return {
       id: event.created_by || event.created_by_id || 'unknown',
       username: event.created_by_username || 'Unknown User',
@@ -169,8 +158,6 @@ const NewsEventPopup = ({
   };
 
   const userData = getUserData();
-
-  // Current user (from localStorage) for delete permissions
   let currentUserId = null;
   try {
     const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -205,19 +192,17 @@ const NewsEventPopup = ({
     }
   };
 
-  const normalizedEventUrl = normalizeExternalUrl(event.url);
+  const normalizedEventUrl = normalizeExternalUrl(event.url || event.media_source);
+  const mediaSource = event.url_image || (event.media_source && event.media_source.match(/\.(jpeg|jpg|gif|png)$/) ? event.media_source : null);
+  const newsColor = '#d32f2f';
 
-  // Determine if we have URL data to display
-  const hasUrlData = Boolean(normalizedEventUrl) && Boolean(event.url_title || event.url_description || event.url_image);
-  const urlDomain = normalizedEventUrl
-    ? (() => {
-        try {
-          return new URL(normalizedEventUrl).hostname.replace('www.', '');
-        } catch (_) {
-          return '';
-        }
-      })()
-    : '';
+  const handleUrlClick = (e) => {
+    e.preventDefault();
+    if (normalizedEventUrl) {
+      window.open(normalizedEventUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const deriveTimelineId = () => {
     try {
       const match = location?.pathname?.match(/timeline-v3\/(\d+)/);
@@ -225,6 +210,7 @@ const NewsEventPopup = ({
     } catch (_) {}
     return event?.timeline_id || event?.timelineId || null;
   };
+
   const handleOpenReport = () => {
     setReportReason('');
     setReportCategory('');
@@ -265,19 +251,19 @@ const NewsEventPopup = ({
       onClose();
     }
   };
+
   const handleCloseReport = () => {
     if (reportSubmitting) return;
     setReportOpen(false);
   };
+
   const handleSubmitReport = async () => {
     const timelineId = deriveTimelineId();
     if (!timelineId || !event?.id) {
       if (typeof setError === 'function') setError('Unable to submit report: missing timeline or event id');
       return;
     }
-    if (!reportCategory) {
-      return;
-    }
+    if (!reportCategory) return;
     try {
       setReportSubmitting(true);
       if (typeof setError === 'function') setError('');
@@ -292,87 +278,36 @@ const NewsEventPopup = ({
       setReportSubmitting(false);
     }
   };
-  
-  // News theme color
-  const newsColor = '#d32f2f'; // Red color for news theme
-  
-  // Handle URL click to open in new tab
-  const handleUrlClick = (e) => {
-    e.preventDefault();
-    if (normalizedEventUrl) {
-      window.open(normalizedEventUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
-  
-  /**
-   * Creator Chip Component
-   * A reusable component that displays creator information with avatar and profile link
-   * 
-   * @param {Object} user - User object containing id, username, and avatar
-   * @param {string} color - Accent color for the chip
-   * @returns {JSX.Element} Rendered creator chip
-   */
+
   const CreatorChip = ({ user, color = newsColor }) => {
     if (!user || !user.username) return null;
-    
     return (
       <Box sx={{ 
         display: 'flex', 
         alignItems: 'center', 
-        mb: 3, 
-        p: 2, 
-        bgcolor: theme.palette.mode === 'dark' 
-          ? `${color}15`  // 15% opacity in dark mode
-          : `${color}08`,  // 8% opacity in light mode
+        p: 1.5, 
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
         borderRadius: 2, 
         borderLeft: `3px solid ${color}`,
-        transition: 'all 0.2s ease',
-        '&:hover': {
-          transform: 'translateX(2px)',
-          boxShadow: theme.shadows[1]
-        }
       }}>
         <UserAvatar
           name={user.username}
           avatarUrl={user.avatar}
           id={user.id}
-          size={44}
+          size={32}
           userColor={user.user_color}
-          isRestricted={user.is_restricted || user.created_by_is_restricted || user.created_by_is_suspended}
-          isAvatarBlurred={user.is_avatar_blurred || user.created_by_is_avatar_blurred}
-          sx={{ mr: 2, border: `2px solid ${color}` }}
+          isRestricted={user.is_restricted}
+          isAvatarBlurred={user.is_avatar_blurred}
+          sx={{ mr: 1.5, border: `1px solid ${color}` }}
         />
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-            <PersonIcon sx={{ fontSize: 16, mr: 0.75, color: color, opacity: 0.8 }} />
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: theme.palette.mode === 'dark' 
-                  ? 'rgba(255,255,255,0.8)' 
-                  : 'rgba(0,0,0,0.8)',
-                fontWeight: 500,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontSize: '0.7rem',
-              }}
-            >
-              Created By
-            </Typography>
-          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase' }}>
+            Created By
+          </Typography>
           <Link 
             component={RouterLink}
             to={`/profile/${user.id}`}
-            sx={{
-              fontWeight: 600,
-              color: theme.palette.mode === 'dark' ? 'white' : 'rgba(0,0,0,0.9)',
-              textDecoration: 'none',
-              display: 'block',
-              fontSize: '1.1rem',
-              '&:hover': {
-                color: color,
-              },
-            }}
+            sx={{ fontWeight: 600, color: 'text.primary', textDecoration: 'none', fontSize: '0.9rem', '&:hover': { color: color } }}
           >
             {user.username}
           </Link>
@@ -385,778 +320,231 @@ const NewsEventPopup = ({
     <AnimatePresence>
       {open && (
         <>
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          maxWidth="lg" // Larger dialog for the two-container layout
-          fullWidth
-          container={document.fullscreenElement || document.body}
-          PaperProps={{
-            component: motion.div,
-            initial: { opacity: 0, y: 20, scale: 0.98 },
-            animate: { opacity: 1, y: 0, scale: 1 },
-            exit: { opacity: 0, y: 20, scale: 0.98 },
-            transition: { duration: 0.3 },
-            sx: {
-              borderRadius: 3,
-              overflow: 'hidden',
-              backgroundColor: theme.palette.mode === 'dark' 
-                ? 'rgba(10,10,20,0.95)' 
-                : 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
-                : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
-              border: 'none',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-            },
-          }}
-        >
-          <DialogTitle sx={{ 
-            p: 3, 
-            pb: 2,
-            borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.03)',
-                    color: newsColor, // Use the specific news color for the icon
-                  }}
-                >
-                  <TypeIcon fontSize="medium" />
-                </Box>
-                <Typography 
-                  variant="h5" 
-                  component="div"
-                  sx={{ 
-                    fontWeight: 600,
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.95)'
-                      : 'rgba(0,0,0,0.95)',
-                  }}
-                >
-                  {event.title || "News Article"}
-                </Typography>
-              </Box>
-              <IconButton 
-                edge="end" 
-                color="inherit" 
-                onClick={handleCloseButtonClick} 
-                aria-label="close"
-                sx={{ 
-                  color: theme.palette.mode === 'dark' 
-                    ? 'rgba(255,255,255,0.7)' 
-                    : 'rgba(0,0,0,0.5)',
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
-          </DialogTitle>
-          
-          <DialogContent 
-            sx={{ 
-              p: 0,
-              display: 'flex',
-              flex: 1,
-              overflow: 'hidden',
+          <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="lg"
+            fullWidth
+            
+            sx={{
+              '& .MuiDialog-container': {
+                overscrollBehavior: 'none',
+              },
+              '& .MuiBackdrop-root': {
+                touchAction: 'none',
+                overscrollBehavior: 'none',
+              }
+            }}
+            PaperProps={{
+              component: motion.div,
+              initial: { opacity: 0, y: 20, scale: 0.98 },
+              animate: { opacity: 1, y: 0, scale: 1 },
+              exit: { opacity: 0, y: 20, scale: 0.98 },
+              transition: { duration: 0.3 },
+              sx: {
+                borderRadius: 3,
+                overflow: 'hidden',
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(10,10,20,0.95)' : 'rgba(255,255,255,0.95)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+                  : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+                border: 'none',
+                maxHeight: { xs: 'calc(100% - 16px)', md: '90vh' },
+                height: { xs: 'auto', md: '90vh' },
+                width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
+                maxWidth: { md: '1200px' },
+                margin: { xs: 1, sm: 2, md: 'auto' },
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: { xs: 'auto', md: 'hidden' }
+              },
+              component: motion.div,
+              drag: "x",
+              dragConstraints: { left: 0, right: 0 },
+              dragElastic: { left: 0.5, right: 0.5 },
+              onDragEnd: (event, info) => {
+                if (Math.abs(info.offset.x) > 100) {
+                  handleCloseButtonClick();
+                }
+              },
+            }}
+            slotProps={{
+              backdrop: {
+                sx: { touchAction: 'none' }
+              }
             }}
           >
-            {/* Left Container - URL Preview */}
-            {hasUrlData && (
-              <Box 
-                sx={{
-                  flex: '0 0 60%',
-                  maxWidth: '60%',
-                  height: '100%',
-                  overflowY: 'auto',
-                  p: 3,
-                  borderRight: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <Paper 
-                  elevation={0}
-                  onClick={handleUrlClick}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: '100%', overflow: 'hidden' }}>
+              {/* Left Container - Preview */}
+              {mediaSource && (
+                <Box
                   sx={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
+                    flex: { xs: '0 0 auto', md: '0 0 60%' },
+                    width: { xs: '100%', md: '60%' },
+                    height: { xs: '250px', sm: '350px', md: '100%' },
+                    position: 'relative',
+                    bgcolor: 'black',
                     overflow: 'hidden',
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(211, 47, 47, 0.2)'}`,
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'white',
-                    transition: 'all 0.3s ease',
                     cursor: 'pointer',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: `0 6px 16px ${theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.2)' : 'rgba(211, 47, 47, 0.15)'}`,
-                      borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 0, 0, 0.3)' : 'rgba(211, 47, 47, 0.4)'
-                    },
+                    borderRight: { xs: 'none', md: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` },
+                    borderBottom: { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, md: 'none' },
                   }}
+                  onClick={handleUrlClick}
                 >
-                  {/* URL Image - Larger container */}
-                  {event.url_image && (
-                    <Box
-                      sx={{
-                        height: '60vh', // Increased height for better visibility
-                        minHeight: '300px',
-                        backgroundImage: `url(${event.url_image})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        borderTopLeftRadius: 8,
-                        borderTopRightRadius: 8,
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: '40%',
-                          background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0) 100%)',
-                        }}
-                      >
-                        <Box sx={{ 
-                          position: 'absolute', 
-                          bottom: 0, 
-                          left: 0, 
-                          right: 0,
-                          p: 3,
-                          pb: 2,
-                        }}>
-                          <Typography 
-                            variant="h5" 
-                            component="h2"
-                            sx={{ 
-                              color: 'white',
-                              fontWeight: 700,
-                              lineHeight: 1.3,
-                              mb: 1.5,
-                              textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                            }}
-                          >
-                            {event.url_title || 'Read the full article'}
-                          </Typography>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            borderTop: '1px solid rgba(255,255,255,0.1)',
-                            pt: 1.5
-                          }}>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                color: 'rgba(255,255,255,0.9)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                fontWeight: 500,
-                              }}
-                            >
-                              <OpenInNewIcon sx={{ fontSize: 14, mr: 0.75, opacity: 0.8 }} />
-                              {urlDomain}
-                            </Typography>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                color: 'rgba(255,255,255,0.7)',
-                                display: 'flex',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5, opacity: 0.7 }} />
-                              {formatDate(event.created_at || event.createdAt).replace('Published on ', '')}
-                            </Typography>
-                          </Box>
-                        </Box>
+                  <Box
+                    component="img"
+                    src={mediaSource}
+                    alt={event.title}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      transition: 'transform 0.5s ease',
+                      '&:hover': { transform: 'scale(1.05)' }
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/images/fallbacks/news-link-fallback.jpg';
+                    }}
+                  />
+                  <Box sx={{ position: 'absolute', top: 16, right: 16, bgcolor: 'rgba(0,0,0,0.6)', color: 'white', p: 1, borderRadius: '50%', display: 'flex', backdropFilter: 'blur(4px)' }}>
+                    <OpenInNewIcon sx={{ fontSize: 20 }} />
+                  </Box>
+                </Box>
+              )}
+
+              {/* Right Container - Details */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+                <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+                      <Box sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: newsColor }}>
+                        <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
                       </Box>
+                      <Typography variant="h5" component="div" sx={{ fontWeight: 600, fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }, lineHeight: 1.2, wordBreak: 'break-word', color: 'text.primary' }}>
+                        {event.title || "News Article"}
+                      </Typography>
+                    </Box>
+                    <IconButton edge="end" color="inherit" onClick={handleCloseButtonClick} aria-label="close" sx={{ color: 'text.secondary', mt: -0.5, mr: -0.5 }}>
+                      <CloseIcon />
+                    </IconButton>
+                  </Box>
+                </DialogTitle>
+                
+                <Divider sx={{ opacity: 0.5 }} />
+                
+                <DialogContent sx={{ flex: 1, p: { xs: 2, sm: 4 }, overflowY: 'auto', WebkitOverflowScrolling: 'touch', position: 'relative', touchAction: 'pan-y' }}>
+                  <Paper elevation={0} onClick={handleUrlClick} sx={{ mb: 3, p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: 2, border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, cursor: 'pointer', '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderColor: newsColor } }}>
+                    <Typography variant="caption" sx={{ color: newsColor, fontWeight: 600, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>Article Source</Typography>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-all', opacity: 0.8 }}>{event.media_source}</Typography>
+                  </Paper>
+
+                  {(event.content || event.description) && (
+                    <Box sx={{ mb: 3 }}>
+                      {event.content ? <RichContentRenderer content={event.content} theme={theme} /> : <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, color: 'text.primary' }}>{event.description}</Typography>}
                     </Box>
                   )}
                   
-                  {/* URL Content - Removed duplicate content */}
-                  <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ flex: 1 }}>
-                      {/* Removed duplicate title and description */}
-                    </Box>
-                    
-                    <Box sx={{ mt: 'auto' }}>
-                      <Button
-                        component="a"
-                        href={normalizedEventUrl || undefined}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="outlined"
-                        size="small"
-                        endIcon={<OpenInNewIcon />}
-                        sx={{
-                          mt: 2,
-                          alignSelf: 'flex-start',
-                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)',
-                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                          '&:hover': {
-                            borderColor: color,
-                            color: color,
-                            backgroundColor: theme.palette.mode === 'dark' 
-                              ? 'rgba(255,255,255,0.05)' 
-                              : 'rgba(0,0,0,0.05)',
-                          },
-                        }}
-                      >
-                        Read Full Article
-                      </Button>
-                    </Box>
+                  <Divider sx={{ my: 2 }} />
+                  <Box sx={{ mb: 3 }}><PopupTimelineLanes {...laneProps} /></Box>
+                </DialogContent>
+                
+                <Divider sx={{ opacity: 0.3 }} />
+                
+                {/* Standardized Footer */}
+                <Box sx={{ px: 3, py: 2, mt: 'auto', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, pt: 1 }}>
+                    <CreatorChip user={userData} color={newsColor} />
+                    <VoteControls value={voteValue} onChange={handleVoteChange} positiveRatio={positiveRatio} totalVotes={totalVotes} isLoading={voteLoading} hasError={!!voteError} layout="stacked" sizeScale={0.8} pillScale={1.05} badgeScale={0.75} />
                   </Box>
-                </Paper>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>ID: {event?.id ?? '--'}</Typography>
+                    {event.created_at && <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{formatDate(event.created_at)}</Typography>}
+                  </Box>
+                  
+                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
+                    {(isInReview && !isSafeguarded) && (
+                      <Chip icon={<RateReviewIcon sx={{ fontSize: '14px !important' }} />} label="In Review" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'warning.main', color: 'white', fontWeight: 600 }} />
+                    )}
+                    {isSafeguarded && (
+                      <Chip icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />} label="Safeguarded" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }} />
+                    )}
+                    {canEdit || canDelete || (!isSafeguarded && !isInReview) ? (
+                      <>
+                        <IconButton size="small" onClick={handleActionMenuOpen} sx={{ bgcolor: `${newsColor}18`, color: newsColor, border: `1px solid ${newsColor}40`, borderRadius: '10px', width: 32, height: 32 }}>
+                          <MoreHorizIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                        <Menu
+                          anchorEl={actionAnchorEl}
+                          open={Boolean(actionAnchorEl)}
+                          onClose={handleActionMenuClose}
+                          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                          transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          PaperProps={{
+                            sx: {
+                              ...getGlassDialogPaperSx(theme),
+                              minWidth: 160,
+                              '& .MuiMenuItem-root': {
+                                borderRadius: 1,
+                                mx: 1,
+                                my: 0.5,
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                                  transform: 'translateX(4px)',
+                                }
+                              }
+                            }
+                          }}
+                        >
+                          {canEdit && (
+                            <MenuItem onClick={handleEdit}><ListItemIcon><EditIcon fontSize="small" /></ListItemIcon><ListItemText primary="Edit" /></MenuItem>
+                          )}
+                          {canDelete && (
+                            <MenuItem onClick={() => { handleActionMenuClose(); handleOpenDelete(); }}><ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon><ListItemText primary="Delete" /></MenuItem>
+                          )}
+                          {!isSafeguarded && !isInReview && (
+                            <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}><ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon><ListItemText primary={reportedOnce ? 'Reported' : 'Report'} /></MenuItem>
+                          )}
+                        </Menu>
+                      </>
+                    ) : null}
+                  </Box>
+                </Box>
               </Box>
-            )}
+            </Box>
             
-            {/* Right Container - Event Details */}
-            <Box 
-              sx={{
-                flex: hasUrlData ? '0 0 40%' : '1 1 100%',
-                maxWidth: hasUrlData ? '40%' : '100%',
-                minHeight: 0,
-                overflowY: 'auto',
-                p: 3,
-                position: 'relative',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 4,
-                  background: `linear-gradient(90deg, ${newsColor} 0%, ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(211, 47, 47, 0.2)'} 100%)`,
-                }
-              }}
-            >
-              {/* Event Metadata - Background colored section */}
-              <Paper
-                elevation={0}
-                sx={{
-                  mb: 3,
-                  p: 2.5,
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? 'rgba(255,255,255,0.03)'
-                    : 'rgba(0,0,0,0.02)',
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-                }}
-              >
-                {/* Creator Chip */}
-                <CreatorChip user={userData} color={newsColor} />
-                
-                {/* Timeline Date */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1.5 }}>
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.03)',
-                      color: newsColor,
-                    }}
-                  >
-                    <EventIcon fontSize="small" />
-                  </Box>
-                  <Box>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        display: 'block',
-                        color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.5)'
-                          : 'rgba(0,0,0,0.5)',
-                      }}
-                    >
-                      Timeline Date
-                    </Typography>
-                    <Typography 
-                      variant="body2"
-                      sx={{ 
-                        color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.9)'
-                          : 'rgba(0,0,0,0.9)',
-                      }}
-                    >
-                      {formatEventDate(event.event_date)}
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Published Date */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1.5 }}>
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.03)',
-                      color: newsColor,
-                    }}
-                  >
-                    <AccessTimeIcon fontSize="small" />
-                  </Box>
-                  <Box>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        display: 'block',
-                        color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.5)'
-                          : 'rgba(0,0,0,0.5)',
-                      }}
-                    >
-                      Published
-                    </Typography>
-                    <Typography 
-                      variant="body2"
-                      sx={{ 
-                        color: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.9)'
-                          : 'rgba(0,0,0,0.9)',
-                      }}
-                    >
-                      {formatDate(event.created_at || event.createdAt).replace('Published on ', '')}
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Source URL */}
-                {normalizedEventUrl && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 3 }}>
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.05)'
-                          : 'rgba(0,0,0,0.03)',
-                        color: newsColor,
-                      }}
-                    >
-                      <OpenInNewIcon fontSize="small" />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          display: 'block',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.5)'
-                            : 'rgba(0,0,0,0.5)',
-                        }}
-                      >
-                        Source
-                      </Typography>
-                      <Link 
-                        href={normalizedEventUrl}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        sx={{
-                          display: 'block',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          color: newsColor,
-                          '&:hover': {
-                            textDecoration: 'none',
-                            opacity: 0.8,
-                          },
-                        }}
-                      >
-                        {urlDomain}
-                      </Link>
-                    </Box>
-                  </Box>
-                )}
-              </Paper>
-              
-              <Divider sx={{ my: 2 }} />
-              
-              {/* Event Description */}
-              {(event.content || event.description) && (
-                <Box sx={{ mb: 3 }}>
-                  {event.content ? (
-                    <RichContentRenderer content={event.content} theme={theme} />
-                  ) : (
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.7,
-                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)',
-                      }}
-                    >
-                      {event.description}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-              
-              <Divider sx={{ my: 2 }} />
-              
-              {/* Timelines Lanes Section */}
-              <Box sx={{ mb: 3 }}>
-                <PopupTimelineLanes {...laneProps} />
-              </Box>
-            </Box>
-          </DialogContent>
-          
-          {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <VoteControls
-                value={voteValue}
-                onChange={handleVoteChange}
-                positiveRatio={positiveRatio}
-                totalVotes={totalVotes}
-                isLoading={voteLoading}
-                hasError={!!voteError}
-                layout="stacked"
-                sizeScale={0.8}
-                pillScale={1.05}
-                badgeScale={0.75}
-              />
-            </Box>
-            <Box
-              sx={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 6,
-                textAlign: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontSize: '0.7rem', opacity: 0.7 }}
-              >
-                ID: {event?.id ?? '--'}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {(isInReview && !isSafeguarded) && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: '12px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 152, 0, 0.2)' 
-                    : 'rgba(255, 152, 0, 0.15)',
-                  transform: 'rotate(-2deg)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 4px rgba(0,0,0,0.3)'
-                    : '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <RateReviewIcon 
-                  sx={{ 
-                    fontSize: 14,
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 1)' 
-                      : 'rgba(255, 152, 0, 1)',
-                  }} 
-                />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 1)' 
-                      : 'rgba(255, 152, 0, 1)',
-                  }}
-                >
-                  In Review
-                </Typography>
-              </Box>
-            )}
-            {isSafeguarded && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: '12px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(76, 175, 80, 0.2)' 
-                    : 'rgba(76, 175, 80, 0.15)',
-                  transform: 'rotate(-2deg)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 4px rgba(0,0,0,0.3)'
-                    : '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <CheckCircleIcon 
-                  sx={{ 
-                    fontSize: 14,
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 1)' 
-                      : 'rgba(56, 142, 60, 1)',
-                  }} 
-                />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 1)' 
-                      : 'rgba(56, 142, 60, 1)',
-                  }}
-                >
-                  Safeguarded
-                </Typography>
-              </Box>
-            )}
-            {(!isGuest && (canEdit || canDelete || !isSafeguarded)) && (
-              <>
-                <IconButton
-                  size="small"
-                  onClick={handleActionMenuOpen}
-                  sx={{
-                    bgcolor: `${newsColor}18`,
-                    color: newsColor,
-                    border: `1px solid ${newsColor}40`,
-                    borderRadius: '10px',
-                    width: 32,
-                    height: 32,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: `${newsColor}30`,
-                      transform: 'scale(1.08)',
-                      boxShadow: `0 2px 8px ${newsColor}30`,
-                    }
-                  }}
-                >
-                  <MoreHorizIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-                <Menu
-                  anchorEl={actionAnchorEl}
-                  open={Boolean(actionAnchorEl)}
-                  onClose={handleActionMenuClose}
-                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                  transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                  PaperProps={{
-                    sx: {
-                      bgcolor: theme.palette.mode === 'dark'
-                        ? 'rgba(20, 20, 35, 0.85)'
-                        : 'rgba(255, 255, 255, 0.85)',
-                      backdropFilter: 'blur(16px)',
-                      borderRadius: '12px',
-                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                      boxShadow: theme.palette.mode === 'dark'
-                        ? '0 8px 32px rgba(0,0,0,0.5)'
-                        : '0 8px 32px rgba(0,0,0,0.12)',
-                      mt: -1,
-                      minWidth: 160,
-                      '& .MuiMenuItem-root': {
-                        borderRadius: '8px',
-                        mx: 0.5,
-                        my: 0.25,
-                        transition: 'all 0.15s ease',
-                        '&:hover': {
-                          bgcolor: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(0,0,0,0.04)',
-                        },
-                      },
-                    }
-                  }}
-                >
-                  {canEdit && (
-                    <MenuItem onClick={handleEdit}>
-                      <ListItemIcon>
-                        <EditIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary="Edit" />
-                    </MenuItem>
-                  )}
-                  {canDelete && (
-                    <MenuItem onClick={() => {
-                      handleActionMenuClose();
-                      handleOpenDelete();
-                    }}>
-                      <ListItemIcon>
-                        <DeleteIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary="Delete" />
-                    </MenuItem>
-                  )}
-                  {!isSafeguarded && !isInReview && (
-                    <MenuItem
-                      onClick={() => {
-                        handleActionMenuClose();
-                        handleOpenReport();
-                      }}
-                      disabled={reportedOnce}
-                    >
-                      <ListItemIcon>
-                        <RateReviewIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
-                    </MenuItem>
-                  )}
-                </Menu>
-              </>
-            )}
-            </Box>
-          </Box>
-          
-          {/* Snackbar for notifications */}
-          <Snackbar
-            open={snackbarOpen}
-            autoHideDuration={6000}
-            onClose={handleSnackbarClose}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          >
-            <Alert onClose={handleSnackbarClose} severity={error ? 'error' : 'success'} sx={{ width: '100%' }}>
-              {error || success}
-            </Alert>
-          </Snackbar>
-          <Dialog
-            open={deleteDialogOpen}
-            onClose={handleCloseDelete}
-            container={document.fullscreenElement || document.body}
-          >
-            <DialogTitle>Delete Event</DialogTitle>
-            <DialogContent>
-              Are you sure you want to delete "{event?.title || 'this event'}"?
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseDelete}>Cancel</Button>
-              <Button onClick={handleConfirmDelete} color="error">Delete</Button>
-            </DialogActions>
+            <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+              <Alert onClose={handleSnackbarClose} severity={error ? 'error' : 'success'} sx={{ width: '100%' }}>{error || success}</Alert>
+            </Snackbar>
+            <Dialog open={deleteDialogOpen} onClose={handleCloseDelete} >
+              <DialogTitle>Delete Event</DialogTitle>
+              <DialogContent>Are you sure you want to delete "{event?.title || 'this event'}"?</DialogContent>
+              <DialogActions><Button onClick={handleCloseDelete}>Cancel</Button><Button onClick={handleConfirmDelete} color="error">Delete</Button></DialogActions>
+            </Dialog>
+            <Snackbar open={reportSnackOpen} autoHideDuration={3000} onClose={() => setReportSnackOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+              <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>Report submitted</Alert>
+            </Snackbar>
           </Dialog>
-          {/* Local success snackbar for report submission */}
-          <Snackbar
-            open={reportSnackOpen}
-            autoHideDuration={3000}
-            onClose={() => setReportSnackOpen(false)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          >
-            <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>
-              Report submitted
-            </Alert>
-          </Snackbar>
-        </Dialog>
-        {/* Report Overlay */}
-        <Dialog
-          open={reportOpen}
-          onClose={handleCloseReport}
-          maxWidth="xs"
-          fullWidth
-          container={document.fullscreenElement || document.body}
-          closeAfterTransition
-          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
-        >
-          <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
-          <DialogContent sx={{ pt: 1, overflow: 'visible', '& .MuiTextField-root': getGlassInputSx(theme) }}>
-            <TextField
-              select
-              fullWidth
-              required
-              margin="dense"
-              label="Violation Type"
-              value={reportCategory}
-              onChange={(e) => setReportCategory(e.target.value)}
-              error={!reportCategory}
-              helperText={!reportCategory ? "Required" : ""}
-              sx={{ mb: 2 }}
-            >
-              <MenuItem value={''} disabled>Select a category</MenuItem>
-              <MenuItem value={'website_policy'}>Website Policy</MenuItem>
-              <MenuItem value={'government_policy'}>Government Policy</MenuItem>
-              <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
-            </TextField>
-            <TextField
-              fullWidth
-              margin="dense"
-              label="Reason (optional)"
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              multiline
-              minRows={3}
-            />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
-              <Button 
-                onClick={handleCloseReport} 
-                disabled={reportSubmitting}
-                variant="contained"
-                sx={{
-                  ...getGlassSquareActionButtonSx(theme),
-                  width: 'auto',
-                  minWidth: 84,
-                  px: 2,
-                  borderRadius: 1.4,
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="contained" 
-                onClick={handleSubmitReport} 
-                disabled={reportSubmitting || !reportCategory}
-                sx={{
-                  ...getGlassPillActionButtonSx(theme),
-                  bgcolor: theme.palette.error.main,
-                  color: '#fff',
-                  border: '1px solid ' + theme.palette.error.main + '88',
-                  '&:hover': {
-                    bgcolor: theme.palette.error.dark,
-                  }
-                }}
-              >
-                {reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}
-              </Button>
-            </Box>
-          </DialogContent>
-        </Dialog>
+          
+          <Dialog open={reportOpen} onClose={handleCloseReport} maxWidth="xs" fullWidth  closeAfterTransition PaperProps={{ sx: getGlassDialogPaperSx(theme) }}>
+            <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
+            <DialogContent sx={{ pt: 1, overflow: 'visible', '& .MuiTextField-root': getGlassInputSx(theme) }}>
+              <TextField select fullWidth required margin="dense" label="Violation Type" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)} error={!reportCategory} helperText={!reportCategory ? "Required" : ""} sx={{ mb: 2 }}>
+                <MenuItem value={''} disabled>Select a category</MenuItem>
+                <MenuItem value={'website_policy'}>Website Policy</MenuItem>
+                <MenuItem value={'government_policy'}>Government Policy</MenuItem>
+                <MenuItem value={'unethical_boundary'}>Unethical Boundary</MenuItem>
+              </TextField>
+              <TextField fullWidth margin="dense" label="Reason (optional)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} multiline minRows={3} />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
+                <Button onClick={handleCloseReport} disabled={reportSubmitting} variant="contained" sx={{ ...getGlassSquareActionButtonSx(theme), width: 'auto', minWidth: 84, px: 2, borderRadius: 1.4 }}>Cancel</Button>
+                <Button variant="contained" onClick={handleSubmitReport} disabled={reportSubmitting || !reportCategory} sx={{ ...getGlassPillActionButtonSx(theme), bgcolor: theme.palette.error.main, color: '#fff', border: '1px solid ' + theme.palette.error.main + '88', '&:hover': { bgcolor: theme.palette.error.dark } }}>{reportSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Submit'}</Button>
+              </Box>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </AnimatePresence>

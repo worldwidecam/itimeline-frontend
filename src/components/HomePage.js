@@ -92,6 +92,7 @@ import {
 
 import { displayUsername, usernameMatchesQuery } from '../utils/usernameDisplay';
 import GuestHubFiller from './shared/GuestHubFiller';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -4131,9 +4132,53 @@ const HomePage = () => {
                   <Button
                     key={tab.key}
                     aria-label={tab.label}
-                    startIcon={<Icon fontSize="small" />}
+                    startIcon={
+                      <Box sx={{ position: 'relative', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AnimatePresence mode="wait" initial={false}>
+                          {(isActive && showActiveHubScrollTop) ? (
+                            <motion.div
+                              key="scroll-top"
+                              initial={{ y: 12, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              exit={{ y: 12, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeOut" }}
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              }}
+                            >
+                              <NorthIcon sx={{ fontSize: 13, fontWeight: 900, color: 'common.white' }} />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="default-icon"
+                              initial={{ y: -12, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              exit={{ y: -12, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeOut" }}
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Icon fontSize="small" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </Box>
+                    }
                     variant={isActive ? 'contained' : 'text'}
-                    onClick={() => transitionToHubTab(tab.key)}
+                    onClick={(e) => {
+                      if (isActive && showActiveHubScrollTop) {
+                        handleScrollActiveHubToTop(e);
+                      } else {
+                        transitionToHubTab(tab.key);
+                      }
+                    }}
                     sx={{
                       justifyContent: (isActive && isHubLabelVisible) ? 'flex-start' : 'center',
                       alignSelf: 'flex-start',
@@ -4180,34 +4225,7 @@ const HomePage = () => {
                       {tab.label}
                     </Box>
                     
-                    {isActive && (
-                      <Box
-                        component="span"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleScrollActiveHubToTop();
-                        }}
-                        sx={{
-                          ml: 'auto',
-                          width: 22,
-                          height: 22,
-                          borderRadius: 99,
-                          display: isHubLabelVisible ? 'inline-flex' : 'none',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'common.white',
-                          background: 'rgba(255,255,255,0.2)',
-                          border: '1px solid rgba(255,255,255,0.3)',
-                          opacity: showActiveHubScrollTop ? 1 : 0,
-                          transform: showActiveHubScrollTop ? 'scale(1)' : 'scale(0.8)',
-                          pointerEvents: showActiveHubScrollTop ? 'auto' : 'none',
-                          transition: 'opacity 200ms ease, transform 200ms ease',
-                          '&:hover': { background: 'rgba(255,255,255,0.35)' },
-                        }}
-                      >
-                        <NorthIcon sx={{ fontSize: 14, fontWeight: 900 }} />
-                      </Box>
-                    )}
+
                   </Button>
                 );
               })}

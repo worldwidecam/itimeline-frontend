@@ -21,6 +21,7 @@ import {
   Divider,
   Snackbar,
   Alert,
+  Chip,
   TextField,
   Autocomplete,
   Button,
@@ -72,6 +73,32 @@ import RichContentRenderer from './RichContentRenderer';
  * When open, it signals to TimelineV3 to pause its refresh interval to prevent
  * disruptions to media playback.
  */
+
+// Centralized media URL normalization helper
+const normalizeMediaUrl = (url) => {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  if (!trimmed) return '';
+
+  // 1. If it's already a full HTTP(S) URL
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    // Specialized handling for R2/Cloudinary if needed, but usually these are fine as-is
+    return trimmed;
+  }
+
+  // 2. Handle Cloudinary/R2 shorthand or relative paths
+  const baseUrl = config.API_URL?.endsWith('/') 
+    ? config.API_URL.slice(0, -1) 
+    : (config.API_URL || '');
+
+  // If it starts with /uploads, /media, etc., prepend API_URL
+  if (trimmed.startsWith('/')) {
+    return `${baseUrl}${trimmed}`;
+  }
+
+  // Fallback for other relative paths
+  return `${baseUrl}/${trimmed}`;
+};
 
 // Helper to normalize associated timelines by type
 const normalizeAssociatedTimelines = (associatedTimelines = [], removedIds = []) => {
@@ -795,22 +822,8 @@ const EventPopup = ({
   
   // Get the media source URL
   const getMediaSource = () => {
-    let mediaSource = event.media_url || event.mediaUrl || event.url;
-    if (!mediaSource) return '';
-    
-    // Handle relative URLs by prepending the API_URL
-    if (mediaSource && !mediaSource.startsWith('http')) {
-      // Remove any duplicate slashes that might occur when joining URLs
-      const baseUrl = config.API_URL.endsWith('/') 
-        ? config.API_URL.slice(0, -1) 
-        : config.API_URL;
-      
-      mediaSource = mediaSource.startsWith('/') 
-        ? `${baseUrl}${mediaSource}`
-        : `${baseUrl}/${mediaSource}`;
-    }
-    
-    return mediaSource;
+    const rawUrl = event.media_url || event.mediaUrl || event.url;
+    return normalizeMediaUrl(rawUrl);
   };
   
   // Check if we should use the specialized media popups
@@ -987,29 +1000,57 @@ const EventPopup = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
-      container={document.fullscreenElement || document.body}
+      scroll="paper"
+      sx={{
+        '& .MuiDialog-container': {
+          overscrollBehavior: 'none',
+        },
+        '& .MuiBackdrop-root': {
+          touchAction: 'none',
+          overscrollBehavior: 'none',
+        }
+      }}
       PaperProps={{
         sx: {
           borderRadius: 3,
           overflow: 'hidden',
           backgroundColor: theme.palette.mode === 'dark' 
-            ? 'rgba(10,10,20,0.85)' 
-            : 'rgba(255,255,255,0.85)',
+            ? 'rgba(10,10,20,0.92)' 
+            : 'rgba(255,255,255,0.92)',
           backdropFilter: 'blur(20px)',
           boxShadow: theme.palette.mode === 'dark'
             ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
             : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+          margin: { xs: 1, sm: 2, md: 4 },
+          maxHeight: '90vh',
+          width: '100%',
           border: 'none',
         },
+        component: motion.div,
+        drag: "x",
+        dragConstraints: { left: 0, right: 0 },
+        dragElastic: { left: 0.5, right: 0.5 },
+        onDragEnd: (event, info) => {
+          if (Math.abs(info.offset.x) > 100) {
+            handleClose();
+          }
+        },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: { touchAction: 'none' }
+        }
       }}
     >
-          <DialogTitle sx={{ p: 3, pb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+
+          <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
                 <Box
                   sx={{
-                    width: 40,
-                    height: 40,
+                    width: { xs: 32, sm: 40 },
+                    height: { xs: 32, sm: 40 },
+                    flexShrink: 0,
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -1017,16 +1058,19 @@ const EventPopup = ({
                     bgcolor: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.05)'
                       : 'rgba(0,0,0,0.03)',
-                    color: remarkColor, // Use the specific remark color for the icon
+                    color: remarkColor,
                   }}
                 >
-                  <TypeIcon fontSize="medium" />
+                  <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
                 </Box>
                 <Typography 
                   variant="h5" 
                   component="div"
                   sx={{ 
                     fontWeight: 600,
+                    fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                    lineHeight: 1.2,
+                    wordBreak: 'break-word',
                     color: theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.95)'
                       : 'rgba(0,0,0,0.85)',
@@ -1035,21 +1079,21 @@ const EventPopup = ({
                   {event.title || "Untitled Event"}
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton 
-                  edge="end" 
-                  color="inherit" 
-                  onClick={handleClose} 
-                  aria-label="close"
-                  sx={{ 
-                    color: theme.palette.mode === 'dark' 
-                      ? 'rgba(255,255,255,0.7)' 
-                      : 'rgba(0,0,0,0.5)',
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </Box>
+              <IconButton 
+                edge="end" 
+                color="inherit" 
+                onClick={handleClose} 
+                aria-label="close"
+                sx={{ 
+                  color: theme.palette.mode === 'dark' 
+                    ? 'rgba(255,255,255,0.7)' 
+                    : 'rgba(0,0,0,0.5)',
+                  mt: -0.5,
+                  mr: -0.5,
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
             </Box>
           </DialogTitle>
           
@@ -1062,7 +1106,14 @@ const EventPopup = ({
             }}
           />
           
-          <DialogContent sx={{ p: 4 }}>
+          <DialogContent 
+            sx={{ 
+              p: { xs: 2, sm: 4 },
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch', // Better smooth scrolling on iOS
+              touchAction: 'pan-y', // Allow horizontal swipe to bubble up to Paper drag
+            }}
+          >
             {/* Event Description */}
             {(event.content || event.description) && (
               <Box sx={{ mb: 3 }}>
@@ -1071,7 +1122,7 @@ const EventPopup = ({
                     '--remark-rule-gap': '1.88rem',
                     '--remark-rule-color': theme.palette.mode === 'dark' ? 'rgba(169,201,255,0.2)' : 'rgba(120,78,35,0.12)',
                     position: 'relative',
-                    overflow: 'hidden',
+                    overflow: 'visible',
                     px: { xs: 2.25, sm: 2.75 },
                     py: { xs: 2.25, sm: 2.6 },
                     borderRadius: '4px',
@@ -1194,9 +1245,6 @@ const EventPopup = ({
               }}
             >
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {/* Creator Chip */}
-                <CreatorChip user={getUserData()} color={remarkColor} />
-                
                 {/* Timeline Date with icon */}
                 {event.event_date && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -1241,51 +1289,6 @@ const EventPopup = ({
                     </Box>
                   </Box>
                 )}
-                
-                {/* Published Date with icon */}
-                {event.created_at && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.05)'
-                          : 'rgba(0,0,0,0.03)',
-                        color: remarkColor,
-                      }}
-                    >
-                      <AccessTimeIcon fontSize="small" />
-                    </Box>
-                    <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          display: 'block',
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.5)' 
-                            : 'rgba(0,0,0,0.5)',
-                        }}
-                      >
-                        Published
-                      </Typography>
-                      <Typography 
-                        variant="body2"
-                        sx={{ 
-                          color: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.9)'
-                            : 'rgba(0,0,0,0.9)',
-                        }}
-                      >
-                        {formatDate(event.created_at).replace('Published on ', '')}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
               </Box>
             </Paper>
             
@@ -1299,9 +1302,11 @@ const EventPopup = ({
             </Box>
           </DialogContent>
           
-          {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Divider sx={{ opacity: 0.3 }} />
+          
+          <Box sx={{ px: 3, py: 2, mt: 'auto', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <CreatorChip user={getUserData()} color={remarkColor} />
               <VoteControls
                 value={voteValue}
                 onChange={handleVoteChange}
@@ -1315,108 +1320,40 @@ const EventPopup = ({
                 badgeScale={0.75}
               />
             </Box>
-            <Box
-              sx={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 6,
-                textAlign: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontSize: '0.7rem', opacity: 0.7 }}
-              >
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                 ID: {event?.id ?? '--'}
               </Typography>
+              {event.created_at && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                  {formatDate(event.created_at)}
+                </Typography>
+              )}
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
               {(isInReview && !isSafeguarded) && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 152, 0, 0.2)' 
-                      : 'rgba(255, 152, 0, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
+                <Chip
+                  icon={<RateReviewIcon sx={{ fontSize: '14px !important' }} />}
+                  label="In Review"
+                  size="small"
+                  sx={{ 
+                    height: 20, 
+                    fontSize: '0.65rem', 
+                    bgcolor: 'warning.main', 
+                    color: 'white',
+                    fontWeight: 600
                   }}
-                >
-                  <RateReviewIcon 
-                    sx={{ 
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 152, 0, 1)' 
-                        : 'rgba(255, 152, 0, 1)',
-                    }} 
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 152, 0, 1)' 
-                        : 'rgba(255, 152, 0, 1)',
-                    }}
-                  >
-                    In Review
-                  </Typography>
-                </Box>
+                />
               )}
               {isSafeguarded && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(76, 175, 80, 0.2)' 
-                      : 'rgba(76, 175, 80, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <CheckCircleIcon 
-                    sx={{ 
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(76, 175, 80, 1)' 
-                        : 'rgba(56, 142, 60, 1)',
-                    }} 
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark' 
-                        ? 'rgba(76, 175, 80, 1)' 
-                        : 'rgba(56, 142, 60, 1)',
-                    }}
-                  >
-                    Safeguarded
-                  </Typography>
-                </Box>
+                <Chip
+                  icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+                  label="Safeguarded"
+                  size="small"
+                  sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }}
+                />
               )}
               {canOpenActionMenu && (
                 <>
@@ -1430,79 +1367,48 @@ const EventPopup = ({
                       borderRadius: '10px',
                       width: 32,
                       height: 32,
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        bgcolor: `${remarkColor}30`,
-                        transform: 'scale(1.08)',
-                        boxShadow: `0 2px 8px ${remarkColor}30`,
-                      }
                     }}
                   >
                     <MoreHorizIcon sx={{ fontSize: 18 }} />
                   </IconButton>
-                  <Menu
-                    anchorEl={actionAnchorEl}
-                    open={Boolean(actionAnchorEl)}
-                    onClose={handleActionMenuClose}
-                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    PaperProps={{
-                      sx: {
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(20, 20, 35, 0.85)'
-                          : 'rgba(255, 255, 255, 0.85)',
-                        backdropFilter: 'blur(16px)',
-                        borderRadius: '12px',
-                        border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 8px 32px rgba(0,0,0,0.5)'
-                          : '0 8px 32px rgba(0,0,0,0.12)',
-                        mt: -1,
-                        minWidth: 160,
-                        '& .MuiMenuItem-root': {
-                          borderRadius: '8px',
-                          mx: 0.5,
-                          my: 0.25,
-                          transition: 'all 0.15s ease',
-                          '&:hover': {
-                            bgcolor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.04)',
-                          },
-                        },
-                      }
-                    }}
-                  >
+                    <Menu
+                      anchorEl={actionAnchorEl}
+                      open={Boolean(actionAnchorEl)}
+                      onClose={handleActionMenuClose}
+                      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      PaperProps={{
+                        sx: {
+                          ...getGlassDialogPaperSx(theme),
+                          minWidth: 160,
+                          '& .MuiMenuItem-root': {
+                            borderRadius: 1,
+                            mx: 1,
+                            my: 0.5,
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                              transform: 'translateX(4px)',
+                            }
+                          }
+                        }
+                      }}
+                    >
                     {canEdit && (
                       <MenuItem onClick={handleEdit}>
-                        <ListItemIcon>
-                          <EditIcon fontSize="small" />
-                        </ListItemIcon>
+                        <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Edit" />
                       </MenuItem>
                     )}
                     {canDelete && (
-                      <MenuItem onClick={() => {
-                        handleActionMenuClose();
-                        handleOpenDelete();
-                      }}>
-                        <ListItemIcon>
-                          <DeleteIcon fontSize="small" />
-                        </ListItemIcon>
+                      <MenuItem onClick={() => { handleActionMenuClose(); handleOpenDelete(); }}>
+                        <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Delete" />
                       </MenuItem>
                     )}
                     {!isSafeguarded && !isInReview && (
-                      <MenuItem
-                        onClick={() => {
-                          handleActionMenuClose();
-                          handleOpenReport();
-                        }}
-                        disabled={reportedOnce}
-                      >
-                        <ListItemIcon>
-                          <RateReviewIcon fontSize="small" />
-                        </ListItemIcon>
+                      <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}>
+                        <ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
                       </MenuItem>
                     )}
@@ -1535,7 +1441,7 @@ const EventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          container={document.fullscreenElement || document.body}
+          
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
@@ -1603,7 +1509,7 @@ const EventPopup = ({
         <Dialog
           open={deleteDialogOpen}
           onClose={handleCloseDelete}
-          container={document.fullscreenElement || document.body}
+          
         >
           <DialogTitle>Delete Event</DialogTitle>
           <DialogContent>

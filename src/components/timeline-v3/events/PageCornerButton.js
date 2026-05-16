@@ -25,7 +25,7 @@ const PageCorner = styled(Box)(({ theme, color }) => ({
     background: color || theme.palette.primary.main,
     transformOrigin: '100% 0',
     transition: 'all 0.3s ease',
-    clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+    borderRadius: '0 0 0 12px', // Added rounding to the inner corner
   },
   '&:hover::before': {
     width: '40px',

@@ -31,8 +31,8 @@ const CreatorChip = ({ user, color }) => {
     <Box sx={{ 
       display: 'flex', 
       alignItems: 'center', 
-      mb: 3, 
-      p: 2, 
+      mb: { xs: 2, sm: 3 }, 
+      p: { xs: 1.5, sm: 2 }, 
       bgcolor: theme.palette.mode === 'dark' 
         ? `${chipColor}15`  // 15% opacity in dark mode
         : `${chipColor}08`,  // 8% opacity in light mode
@@ -48,12 +48,12 @@ const CreatorChip = ({ user, color }) => {
         name={user.username}
         avatarUrl={user.avatar}
         id={user.id}
-        size={44}
+        size={theme.breakpoints.down('sm') ? 36 : 44}
         userColor={user.user_color}
         isRestricted={user.is_restricted || user.created_by_is_restricted || user.is_suspended || user.created_by_is_suspended}
         isAvatarBlurred={user.is_avatar_blurred || user.created_by_is_avatar_blurred}
         sx={{
-          mr: 2,
+          mr: { xs: 1.5, sm: 2 },
           border: `2px solid ${chipColor}`,
         }}
       />
@@ -83,7 +83,7 @@ const CreatorChip = ({ user, color }) => {
             color: theme.palette.mode === 'dark' ? 'white' : 'rgba(0,0,0,0.9)',
             textDecoration: 'none',
             display: 'block',
-            fontSize: '1.1rem',
+            fontSize: { xs: '0.95rem', sm: '1.1rem' },
             '&:hover': {
               color: chipColor,
             },

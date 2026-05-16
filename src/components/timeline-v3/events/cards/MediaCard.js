@@ -33,7 +33,7 @@ import { EVENT_TYPES, EVENT_TYPE_COLORS } from '../EventTypes';
 import EventCardChipsRow from './EventCardChipsRow';
 import EventOriginTimelineBadge from './EventOriginTimelineBadge';
 import EventPopup from '../EventPopup';
-import PageCornerButton from '../PageCornerButton';
+
 import VoteControls from '../VoteControls';
 import VoteOverlay from '../VoteOverlay';
 import VideoDetailsButton from './VideoDetailsButton';
@@ -495,7 +495,8 @@ const MediaCard = forwardRef(({
           right: 0,
           bottom: 0,
           overflow: 'hidden',
-          zIndex: 1
+          zIndex: 1,
+          borderRadius: 'inherit' // Sync with card borderRadius
         }}
       >
         <img
@@ -540,6 +541,7 @@ const MediaCard = forwardRef(({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            borderRadius: 'inherit'
           }}
         />
         <Box 
@@ -552,12 +554,6 @@ const MediaCard = forwardRef(({
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
             zIndex: 2
           }}
-        />
-        <PageCornerButton 
-          position="top-right" 
-          onClick={handleDetailsClick}
-          icon={<TypeIcon />}
-          color={color}
         />
       </Box>
     );
@@ -624,6 +620,7 @@ const MediaCard = forwardRef(({
               bottom: 0,
               overflow: 'hidden',
               zIndex: 1,
+              borderRadius: 'inherit', // Sync with card borderRadius
               backgroundColor: 'black',
               display: 'flex',
               alignItems: 'center',
@@ -636,6 +633,8 @@ const MediaCard = forwardRef(({
               width: '100%', 
               height: '100%', 
               position: 'relative',
+              borderRadius: 'inherit',
+              overflow: 'hidden',
               backgroundColor: color, // Fade in from the type color
               transition: 'background-color 1s ease'
             }}>
@@ -656,11 +655,9 @@ const MediaCard = forwardRef(({
                   height: '100%',
                   objectFit: 'cover',
                   objectPosition: 'center',
-                  display: 'block'
+                  display: 'block',
+                  borderRadius: 'inherit'
                 }}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
               >
                 {sourceCandidates.filter(Boolean).map((src, i) => {
                   const ext = src.split('.').pop();
@@ -671,13 +668,6 @@ const MediaCard = forwardRef(({
                 })}
               </motion.video>
             </Box>
-            <PageCornerButton 
-              position="top-right" 
-              onClick={handleDetailsClick}
-              tooltip="View Details"
-              icon={<TypeIcon />}
-              color={color}
-            />
           </Box>
         );
       }
@@ -719,6 +709,7 @@ const MediaCard = forwardRef(({
               bottom: 0,
               overflow: 'hidden',
               zIndex: 1,
+              borderRadius: 'inherit', // Sync with card borderRadius
               backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
               display: 'flex',
               alignItems: 'center',
@@ -733,6 +724,8 @@ const MediaCard = forwardRef(({
                     width: '100%', 
                     height: '100%', 
                     cursor: 'pointer',
+                    borderRadius: 'inherit',
+                    overflow: 'hidden',
                     backgroundColor: color // Fade in from type color
                   }}
                   onClick={handleDetailsClick}
@@ -753,7 +746,8 @@ const MediaCard = forwardRef(({
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
-                      display: 'block'
+                      display: 'block',
+                      borderRadius: 'inherit'
                     }}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
@@ -775,13 +769,6 @@ const MediaCard = forwardRef(({
                     })}
                   </motion.video>
                 </Box>
-                <PageCornerButton 
-                  position="top-right" 
-                  onClick={handleDetailsClick}
-                  tooltip="View Details"
-                  icon={<TypeIcon />}
-                  color={color}
-                />
               </>
             ) : (
               <Box sx={{ 
@@ -847,13 +834,17 @@ const MediaCard = forwardRef(({
               left: 0,
               right: 0,
               bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
+              borderRadius: 'inherit',
+              overflow: 'hidden',
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
               justifyContent: 'center',
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
               color: theme.palette.text.secondary,
+              textAlign: 'center',
               p: 2,
-              textAlign: 'center'
+              zIndex: 1
             }}
           >
             <ErrorOutlineIcon sx={{ mr: 1 }} />
@@ -887,8 +878,10 @@ const MediaCard = forwardRef(({
             left: 0,
             right: 0,
             bottom: 0,
+            zIndex: 1,
+            borderRadius: 'inherit',
             overflow: 'hidden',
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.9)' : 'rgba(245, 245, 245, 0.9)',
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
             cursor: 'pointer'
           }}
           onClick={handleCardClick}
@@ -912,12 +905,7 @@ const MediaCard = forwardRef(({
             }}
           />
           
-          <PageCornerButton 
-            position="top-right" 
-            onClick={handleAudioDetailsClick}
-            icon={<TypeIcon />}
-            color={color}
-          />
+          {/* Corner button removed as outdated */}
         </Box>
       );
     } catch (error) {
@@ -969,12 +957,7 @@ const MediaCard = forwardRef(({
         <Typography variant="body1">
           {event.title || "Media File"}
         </Typography>
-        <PageCornerButton 
-          position="top-right" 
-          onClick={handleDetailsClick}
-          icon={<TypeIcon />}
-          color={color}
-        />
+        {/* Corner button removed as outdated */}
       </Box>
     );
   };
@@ -1008,10 +991,20 @@ const MediaCard = forwardRef(({
         // Use the subtype to determine rendering
         switch(event.media_subtype) {
           case 'image':
+          case 'image/jpeg':
+          case 'image/png':
+          case 'image/gif':
+          case 'image/webp':
             return renderImageMedia(mediaSource);
           case 'video':
+          case 'video/mp4':
+          case 'video/webm':
+          case 'video/quicktime':
             return renderVideoMedia(mediaSource);
           case 'audio':
+          case 'audio/mpeg':
+          case 'audio/wav':
+          case 'audio/aac':
             return renderAudioMedia(mediaSource);
           default:
             // Fall back to detection logic if subtype is unknown
@@ -1132,8 +1125,8 @@ const MediaCard = forwardRef(({
               bgcolor: theme.palette.mode === 'dark' 
                 ? 'rgba(18, 18, 18, 0.75)' 
                 : 'rgba(255, 255, 255, 0.75)',
-              backdropFilter: 'blur(3px)',
-              borderRadius: '0 0 8px 8px',
+              backdropFilter: 'blur(8px)',
+              borderRadius: '0 0 16px 16px',
             }}
           >
             <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
@@ -1153,29 +1146,25 @@ const MediaCard = forwardRef(({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       lineHeight: 1.3,
+                      color: 'text.primary',
                     }}
                   >
                     {event.title}
                   </Typography>
-                  
-                  {/* Event date chip */}
-                  {event.event_date && (
-                    <Chip
-                      icon={<EventIcon />}
-                      label={formatEventDate(event.event_date)}
-                      size="small"
-                      color="primary"
-                      sx={{ mb: 1 }}
-                    />
-                  )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                    {event.event_date && (
+                      <Chip
+                        icon={<EventIcon />}
+                        label={formatEventDate(event.event_date)}
+                        size="small"
+                        color="primary"
+                        sx={{ mr: 1 }}
+                      />
+                    )}
+                  </Box>
                 </Box>
               </Box>
               <EventOriginTimelineBadge event={event} />
-              
-              {/* QUARANTINED: Vertical ellipsis menu removed
-                  The edit and delete functionality was incomplete and caused issues
-                  Pending impact review for possible deletion
-              */}
             </Box>
             
             {/* Event description */}
@@ -1193,103 +1182,106 @@ const MediaCard = forwardRef(({
                 removedTimelineIds={event.removed_timeline_ids || []}
               />
             </Box>
-            {/* Event metadata */}
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: { xs: 'column', sm: 'row' },
-              alignItems: { xs: 'flex-start', sm: 'center' },
-              justifyContent: 'space-between',
-              mt: 'auto',
-              pt: 1,
-              borderTop: `1px solid ${theme.palette.divider}`,
-              gap: { xs: 1, sm: 1 },
-            }}>
-              {/* Author with avatar */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
-                {event.created_by_username && (
-                  <>
-                    <UserAvatar
-                      name={event.created_by_display_username || event.created_by_username}
-                      avatarUrl={event.created_by_avatar}
-                      id={event.created_by}
-                      size={24}
-                      userColor={event.created_by_user_color}
-                      isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
-                      isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
-                      isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
-                      sx={{ mr: 0.5, fontSize: '0.75rem' }}
-                    />
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                      By
-                    </Typography>
-                    <Link
-                      component={RouterLink}
-                      to={`/profile/${event.created_by_username}`}
-                      variant="caption"
-                      color="primary"
-                      sx={{
-                        textDecoration: 'none',
-                        '&:hover': {
-                          textDecoration: 'underline'
-                        }
-                      }}
-                    >
-                      {displayUsername(event.created_by_display_username || event.created_by_username)}
-                    </Link>
-                  </>
+
+            {/* Standardized Footer - Two Rows */}
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                mt: 'auto',
+                pt: 1,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                gap: 1,
+              }}
+            >
+              {/* Row 1: Creator and Vote */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                  {event.created_by_username && (
+                    <>
+                      <UserAvatar
+                        name={event.created_by_display_username || event.created_by_username}
+                        avatarUrl={event.created_by_avatar}
+                        id={event.created_by}
+                        size={24}
+                        userColor={event.created_by_user_color}
+                        isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
+                        isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
+                        isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
+                        sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                        By
+                      </Typography>
+                      <Link
+                        component={RouterLink}
+                        to={`/profile/${event.created_by_username}`}
+                        variant="caption"
+                        color="primary"
+                        sx={{
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline'
+                          }
+                        }}
+                      >
+                        {displayUsername(event.created_by_display_username || event.created_by_username)}
+                      </Link>
+                    </>
+                  )}
+                </Box>
+                {showInlineVoteControls && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: 2.5 }}>
+                    {/* Consensus label */}
+                    <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
+                      <AnimatePresence mode="wait">
+                        {(totalVotes || 0) > 0 && positiveVotes !== negativeVotes && !voteLoading && (
+                          <motion.div
+                            key={`${winningCount}-${isPositiveWinning ? 'pos' : 'neg'}`}
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 5 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            style={{ display: 'flex', alignItems: 'center' }}
+                          >
+                            <Typography sx={{
+                              fontSize: '0.9rem', fontWeight: 400, letterSpacing: 0.5,
+                              fontFamily: '"Lobster", "Pacifico", cursive',
+                              whiteSpace: 'nowrap', lineHeight: 1,
+                              color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
+                            }}>
+                              {isPositiveWinning ? 'Good Moment' : 'Bad Moment'}
+                            </Typography>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Box>
+                    {/* Vote pill */}
+                    <Box sx={{
+                      transform: voteValue ? 'scale(0.5)' : 'scale(1)',
+                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+                      transformOrigin: 'center top',
+                    }}>
+                      <VoteControls
+                        value={voteValue}
+                        onChange={handleVoteChange}
+                        positiveRatio={positiveRatio}
+                        totalVotes={totalVotes}
+                        isLoading={voteLoading}
+                        hasError={!!voteError}
+                        layout="inline"
+                        sizeScale={0.76}
+                        pillScale={1}
+                        showBreakdown={false}
+                        compact
+                      />
+                    </Box>
+                  </Box>
                 )}
               </Box>
-              {showInlineVoteControls && (
-                <Box sx={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                  {/* Consensus label — hidden on 0 votes and on exact ties */}
-                  <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
-                    <AnimatePresence mode="wait">
-                      {(totalVotes || 0) > 0 && positiveVotes !== negativeVotes && !voteLoading && (
-                        <motion.div
-                          key={`${winningCount}-${isPositiveWinning ? 'pos' : 'neg'}`}
-                          initial={{ opacity: 0, y: -5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 5 }}
-                          transition={{ duration: 0.2, ease: 'easeOut' }}
-                          style={{ display: 'flex', alignItems: 'center' }}
-                        >
-                          <Typography sx={{
-                            fontSize: '0.95rem', fontWeight: 400, letterSpacing: 0.5,
-                            fontFamily: '"Lobster", "Pacifico", cursive',
-                            whiteSpace: 'nowrap', lineHeight: 1,
-                            color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
-                          }}>
-                            {isPositiveWinning ? 'Good Moment' : 'Bad Moment'}
-                          </Typography>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Box>
-                  {/* Vote pill — shrinks 50% after the user votes */}
-                  <Box sx={{
-                    transform: voteValue ? 'scale(0.5)' : 'scale(1)',
-                    transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-                    transformOrigin: 'center top',
-                  }}>
-                    <VoteControls
-                      value={voteValue}
-                      onChange={handleVoteChange}
-                      positiveRatio={positiveRatio}
-                      totalVotes={totalVotes}
-                      isLoading={voteLoading}
-                      hasError={!!voteError}
-                      layout="inline"
-                      sizeScale={0.76}
-                      pillScale={1}
-                      showBreakdown={false}
-                      compact
-                    />
-                  </Box>
-                </Box>
-              )}
-              
-              {/* Created date */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'end', minWidth: 0 }}>
+
+              {/* Row 2: Published Date (Bottom Locked) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
                 <Typography variant="caption" color="text.secondary">
                   {formatDate(event.created_at)}

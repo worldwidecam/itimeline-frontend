@@ -158,6 +158,7 @@ const AudioMediaPopup = ({
   const isEditLocked = Boolean(event?.edit_locked || localEventData?.edit_locked);
   const canDelete = Boolean(onDelete && (isSiteOwner || isEventCreator));
   const canEdit = Boolean(onEdit && (isSiteOwner || (isEventCreator && !isEditLocked)));
+  const canOpenActionMenu = canEdit || canDelete || (!isSafeguarded && !isInReview);
 
   // Set local event data when the event prop changes
   useEffect(() => {
@@ -262,7 +263,16 @@ const AudioMediaPopup = ({
       onClose={onClose}
       maxWidth="lg"
       fullWidth
-      container={document.fullscreenElement || document.body}
+      
+      sx={{
+        '& .MuiDialog-container': {
+          overscrollBehavior: 'none',
+        },
+        '& .MuiBackdrop-root': {
+          touchAction: 'none',
+          overscrollBehavior: 'none',
+        }
+      }}
       PaperProps={{
         component: motion.div,
         initial: { opacity: 0, y: 20, scale: 0.98 },
@@ -270,24 +280,44 @@ const AudioMediaPopup = ({
         exit: { opacity: 0, y: 20, scale: 0.98 },
         transition: { duration: 0.3 },
         sx: {
-          borderRadius: 3,
+          borderRadius: { xs: 2, sm: 3 },
           overflow: 'hidden',
           backgroundColor: theme.palette.mode === 'dark' 
-            ? 'rgba(10,10,20,0.85)' 
-            : 'rgba(255,255,255,0.85)',
+            ? 'rgba(10,10,20,0.92)' 
+            : 'rgba(255,255,255,0.92)',
           backdropFilter: 'blur(20px)',
           boxShadow: theme.palette.mode === 'dark'
             ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
             : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
           border: 'none',
+          maxHeight: { xs: 'calc(100% - 16px)', md: '90vh' },
+          height: { xs: 'auto', md: '90vh' },
+          width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
+          maxWidth: { md: '1200px' },
+          margin: { xs: 1, sm: 2, md: 'auto' },
+          overflowY: { xs: 'auto', md: 'hidden' }
         },
+        component: motion.div,
+        drag: "x",
+        dragConstraints: { left: 0, right: 0 },
+        dragElastic: { left: 0.5, right: 0.5 },
+        onDragEnd: (event, info) => {
+          if (Math.abs(info.offset.x) > 100) {
+            onClose();
+          }
+        },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: { touchAction: 'none' }
+        }
       }}
     >
       <Box sx={{ 
         display: 'flex', 
         flexDirection: { xs: 'column', md: 'row' },
-        height: { xs: 'auto', md: '80vh' },
-        maxHeight: '80vh'
+        height: { xs: 'auto', md: '100%' },
+        maxHeight: { xs: 'none', md: '90vh' }
       }}>
         {/* Left Container - Audio Visualization */}
         <Box sx={{ 
@@ -296,24 +326,7 @@ const AudioMediaPopup = ({
           bgcolor: 'black',
           height: { xs: '300px', md: 'auto' }
         }}>
-          {/* Close button */}
-          <IconButton
-            aria-label="close"
-            onClick={handleCloseButtonClick}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: 'white',
-              bgcolor: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 10,
-              '&:hover': {
-                bgcolor: 'rgba(0, 0, 0, 0.7)',
-              }
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+
 
           {/* Audio Visualizer */}
           <Box sx={{ 
@@ -344,12 +357,13 @@ const AudioMediaPopup = ({
           position: 'relative'
         }}>
           {/* Event Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3, pb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: { xs: 2, sm: 3 }, pb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
               <Box
                 sx={{
-                  width: 40,
-                  height: 40,
+                  width: { xs: 32, sm: 40 },
+                  height: { xs: 32, sm: 40 },
+                  flexShrink: 0,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
@@ -361,13 +375,16 @@ const AudioMediaPopup = ({
                   mr: 2
                 }}
               >
-                <MusicNoteIcon fontSize="medium" />
+                <MusicNoteIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
               </Box>
               <Typography 
                 variant="h6" 
                 component="div"
                 sx={{ 
                   fontWeight: 600,
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                  lineHeight: 1.2,
+                  wordBreak: 'break-word',
                   color: theme.palette.mode === 'dark'
                     ? 'rgba(255,255,255,0.95)'
                     : 'rgba(0,0,0,0.85)',
@@ -382,6 +399,8 @@ const AudioMediaPopup = ({
                 color: theme.palette.mode === 'dark'
                   ? 'rgba(255,255,255,0.7)'
                   : 'rgba(0,0,0,0.54)',
+                mt: -0.5,
+                mr: -0.5,
               }}
             >
               <CloseIcon />
@@ -391,22 +410,25 @@ const AudioMediaPopup = ({
           <Divider sx={{ opacity: 0.5 }} />
           
           {/* Scrollable content area */}
-          <Box sx={{ 
-            p: 4, 
-            display: 'flex', 
-            flexDirection: 'column',
-            overflow: 'auto',
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 4,
-              background: `linear-gradient(90deg, ${audioColor} 0%, ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(230, 81, 0, 0.2)'} 100%)`,
-            }
-          }}>
+          <DialogContent 
+            sx={{ 
+              p: { xs: 2, sm: 4 }, 
+              display: 'flex', 
+              flexDirection: 'column',
+              overflowY: 'auto',
+              position: 'relative',
+              touchAction: 'pan-y', // Allow horizontal swipe to bubble up to Paper drag
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 4,
+                background: `linear-gradient(90deg, ${audioColor} 0%, ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(230, 81, 0, 0.2)'} 100%)`,
+              }
+            }}
+          >
             {/* Event Metadata - Background colored section */}
             <Paper
               elevation={0}
@@ -546,222 +568,126 @@ const AudioMediaPopup = ({
             <Box sx={{ mb: 3 }}>
               <PopupTimelineLanes {...laneProps} />
             </Box>
-          </Box>
-
-          {/* Vote Controls (Bottom Left) + Report Button & Status Indicators (Bottom Right) */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, px: 3, pb: 2, position: 'relative' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <VoteControls
-                value={voteValue}
-                onChange={handleVoteChange}
-                positiveRatio={positiveRatio}
-                totalVotes={totalVotes}
-                isLoading={voteLoading}
-                hasError={!!voteError}
-                layout="stacked"
-                sizeScale={0.8}
-                pillScale={1.05}
-                badgeScale={0.75}
-              />
-            </Box>
-            <Box
-              sx={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 6,
-                textAlign: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontSize: '0.7rem', opacity: 0.7 }}
-              >
-                ID: {event?.id ?? '--'}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              {(isInReview && !isSafeguarded) && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark'
-                      ? 'rgba(255, 152, 0, 0.2)'
-                      : 'rgba(255, 152, 0, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <RateReviewIcon
-                    sx={{
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255, 152, 0, 1)'
-                        : 'rgba(255, 152, 0, 1)',
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(255, 152, 0, 1)'
-                        : 'rgba(255, 152, 0, 1)',
-                    }}
-                  >
-                    In Review
+            </DialogContent>
+            
+            <Divider sx={{ opacity: 0.3 }} />
+            
+            {/* Standardized Footer */}
+            <Box sx={{ px: 3, py: 2, mt: 'auto', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <CreatorChip user={getUserData()} color={audioColor} />
+                <VoteControls
+                  value={voteValue}
+                  onChange={handleVoteChange}
+                  positiveRatio={positiveRatio}
+                  totalVotes={totalVotes}
+                  isLoading={voteLoading}
+                  hasError={!!voteError}
+                  layout="stacked"
+                  sizeScale={0.8}
+                  pillScale={1.05}
+                  badgeScale={0.75}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                  ID: {eventData?.id ?? '--'}
+                </Typography>
+                {eventData.created_at && (
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    {formatDate(eventData.created_at)}
                   </Typography>
-                </Box>
-              )}
-              {isSafeguarded && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.25,
-                    borderRadius: '12px',
-                    backgroundColor: theme.palette.mode === 'dark'
-                      ? 'rgba(76, 175, 80, 0.2)'
-                      : 'rgba(76, 175, 80, 0.15)',
-                    transform: 'rotate(-2deg)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 2px 4px rgba(0,0,0,0.3)'
-                      : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <CheckCircleIcon
-                    sx={{
-                      fontSize: 14,
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(76, 175, 80, 1)'
-                        : 'rgba(56, 142, 60, 1)',
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: theme.palette.mode === 'dark'
-                        ? 'rgba(76, 175, 80, 1)'
-                        : 'rgba(56, 142, 60, 1)',
-                    }}
-                  >
-                    Safeguarded
-                  </Typography>
-                </Box>
-              )}
-              {(!isGuest && (canEdit || canDelete || !isSafeguarded)) && (
-                <>
-                  <IconButton
+                )}
+              </Box>
+              
+              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
+                {(isInReview && !isSafeguarded) && (
+                  <Chip
+                    icon={<RateReviewIcon sx={{ fontSize: '14px !important' }} />}
+                    label="In Review"
                     size="small"
-                    onClick={handleActionMenuOpen}
-                    sx={{
-                      bgcolor: `${audioColor}18`,
-                      color: audioColor,
-                      border: `1px solid ${audioColor}40`,
-                      borderRadius: '10px',
-                      width: 32,
-                      height: 32,
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        bgcolor: `${audioColor}30`,
-                        transform: 'scale(1.08)',
-                        boxShadow: `0 2px 8px ${audioColor}30`,
-                      }
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.65rem', 
+                      bgcolor: 'warning.main', 
+                      color: 'white',
+                      fontWeight: 600
                     }}
-                  >
-                    <MoreHorizIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                  <Menu
-                    anchorEl={actionAnchorEl}
-                    open={Boolean(actionAnchorEl)}
-                    onClose={handleActionMenuClose}
-                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    PaperProps={{
-                      sx: {
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(20, 20, 35, 0.85)'
-                          : 'rgba(255, 255, 255, 0.85)',
-                        backdropFilter: 'blur(16px)',
-                        borderRadius: '12px',
-                        border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 8px 32px rgba(0,0,0,0.5)'
-                          : '0 8px 32px rgba(0,0,0,0.12)',
-                        mt: -1,
-                        minWidth: 160,
-                        '& .MuiMenuItem-root': {
-                          borderRadius: '8px',
-                          mx: 0.5,
-                          my: 0.25,
-                          transition: 'all 0.15s ease',
-                          '&:hover': {
-                            bgcolor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.04)',
-                          },
-                        },
-                      }
-                    }}
-                  >
-                    {canEdit && (
-                      <MenuItem onClick={handleEdit}>
-                        <ListItemIcon>
-                          <EditIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary="Edit" />
-                      </MenuItem>
-                    )}
-                    {canDelete && (
-                      <MenuItem onClick={() => {
-                        handleActionMenuClose();
-                        handleOpenDelete();
-                      }}>
-                        <ListItemIcon>
-                          <DeleteIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary="Delete" />
-                      </MenuItem>
-                    )}
-                    {!isSafeguarded && !isInReview && (
-                      <MenuItem
-                        onClick={() => {
-                          handleActionMenuClose();
-                          handleOpenReport();
-                        }}
-                        disabled={reportedOnce}
-                      >
-                        <ListItemIcon>
-                          <RateReviewIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
-                      </MenuItem>
-                    )}
-                  </Menu>
-                </>
-              )}
+                  />
+                )}
+                {isSafeguarded && (
+                  <Chip
+                    icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+                    label="Safeguarded"
+                    size="small"
+                    sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }}
+                  />
+                )}
+                {canOpenActionMenu && (
+                  <>
+                    <IconButton
+                      size="small"
+                      onClick={handleActionMenuOpen}
+                      sx={{
+                        bgcolor: `${audioColor}18`,
+                        color: audioColor,
+                        border: `1px solid ${audioColor}40`,
+                        borderRadius: '10px',
+                        width: 32,
+                        height: 32,
+                      }}
+                    >
+                      <MoreHorizIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                    <Menu
+                      anchorEl={actionAnchorEl}
+                      open={Boolean(actionAnchorEl)}
+                      onClose={handleActionMenuClose}
+                      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      PaperProps={{
+                        sx: {
+                          ...getGlassDialogPaperSx(theme),
+                          minWidth: 160,
+                          '& .MuiMenuItem-root': {
+                            borderRadius: 1,
+                            mx: 1,
+                            my: 0.5,
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                              transform: 'translateX(4px)',
+                            }
+                          }
+                        }
+                      }}
+                    >
+                      {canEdit && (
+                        <MenuItem onClick={handleEdit}>
+                          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary="Edit" />
+                        </MenuItem>
+                      )}
+                      {canDelete && (
+                        <MenuItem onClick={() => { handleActionMenuClose(); handleOpenDelete(); }}>
+                          <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary="Delete" />
+                        </MenuItem>
+                      )}
+                      {!isSafeguarded && !isInReview && (
+                        <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}>
+                          <ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
+                        </MenuItem>
+                      )}
+                    </Menu>
+                  </>
+                )}
+              </Box>
             </Box>
           </Box>
         </Box>
-      </Box>
           
       {/* Snackbar for notifications */}
       <Snackbar
@@ -781,7 +707,7 @@ const AudioMediaPopup = ({
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDelete}
-        container={document.fullscreenElement || document.body}
+        
       >
         <DialogTitle>Delete Event</DialogTitle>
         <DialogContent>
@@ -810,7 +736,7 @@ const AudioMediaPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          container={document.fullscreenElement || document.body}
+          
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

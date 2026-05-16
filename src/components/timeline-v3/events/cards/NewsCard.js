@@ -38,7 +38,7 @@ import TagList from './TagList';
 import EventCardChipsRow from './EventCardChipsRow';
 import EventOriginTimelineBadge from './EventOriginTimelineBadge';
 import EventPopup from '../EventPopup';
-import PageCornerButton from '../PageCornerButton';
+
 import VoteControls from '../VoteControls';
 import VoteOverlay from '../VoteOverlay';
 import { alpha } from '@mui/material/styles';
@@ -428,16 +428,15 @@ const NewsCard = forwardRef(({
       >
         <Box
           component={motion.div}
-          className={`
-            relative overflow-hidden rounded-xl p-4
-            ${theme.palette.mode === 'dark' ? 'bg-black/40' : 'bg-white/80'}
-            backdrop-blur-md border
-            ${theme.palette.mode === 'dark' ? 'border-white/5' : 'border-black/5'}
-          `}
           sx={{
+            borderRadius: 2, // 16px to match MediaCard
+            overflow: 'hidden',
             minHeight: 300,
             display: 'flex',
             flexDirection: 'column',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.8)',
+            backdropFilter: 'blur(10px)',
+            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
             boxShadow: isSelected
               ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)`
               : '0 2px 4px rgba(0,0,0,0.1)',
@@ -459,11 +458,7 @@ const NewsCard = forwardRef(({
           )}
 
           {/* Page corner button for details */}
-          <PageCornerButton
-            onClick={handleDetailsClick}
-            tooltip="View Details"
-            color={color}
-          />
+          {/* Corner button removed as outdated */}
 
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
@@ -643,106 +638,107 @@ const NewsCard = forwardRef(({
               associatedTimelines={event.associated_timelines || []}
               removedTimelineIds={event.removed_timeline_ids || []}
             />
+            {/* Standardized Footer - Two Rows */}
             <Box
               sx={{
                 display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                mt: 1.5,
-                gap: { xs: 1.5, sm: 1 },
-                borderTop: { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, sm: 'none' },
-                pt: { xs: 1.5, sm: 0 },
+                flexDirection: 'column',
+                mt: 'auto',
+                pt: 1.5,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                gap: 1,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', order: { xs: 2, sm: 1 }, minWidth: 0 }}>
-                {event.created_by_username && (
-                  <>
-                    <UserAvatar
-                      name={event.created_by_display_username || event.created_by_username}
-                      avatarUrl={event.created_by_avatar}
-                      id={event.created_by}
-                      size={24}
-                      userColor={event.created_by_user_color}
-                      isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
-                      isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
-                      isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
-                      sx={{ mr: 0.5, fontSize: '0.75rem' }}
-                    />
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                      By
-                    </Typography>
-                    <Link
-                      component={RouterLink}
-                      to={`/profile/${event.created_by_username}`}
-                      variant="caption"
-                      color="primary"
-                      sx={{
-                        textDecoration: 'none',
-                        '&:hover': {
-                          textDecoration: 'underline'
-                        }
-                      }}
-                    >
-                      {displayUsername(event.created_by_display_username || event.created_by_username)}
-                    </Link>
-                  </>
+              {/* Row 1: Creator and Vote */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                  {event.created_by_username && (
+                    <>
+                      <UserAvatar
+                        name={event.created_by_display_username || event.created_by_username}
+                        avatarUrl={event.created_by_avatar}
+                        id={event.created_by}
+                        size={24}
+                        userColor={event.created_by_user_color}
+                        isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
+                        isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
+                        isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
+                        sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                        By
+                      </Typography>
+                      <Link
+                        component={RouterLink}
+                        to={`/profile/${event.created_by_username}`}
+                        variant="caption"
+                        color="primary"
+                        sx={{
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline'
+                          }
+                        }}
+                      >
+                        {displayUsername(event.created_by_display_username || event.created_by_username)}
+                      </Link>
+                    </>
+                  )}
+                </Box>
+                {showInlineVoteControls && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: 2.5 }}>
+                    {/* Consensus label */}
+                    <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
+                      <AnimatePresence mode="wait">
+                        {(totalVotes || 0) > 0 && positiveVotes !== negativeVotes && !voteLoading && (
+                          <motion.div
+                            key={`${winningCount}-${isPositiveWinning ? 'pos' : 'neg'}`}
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 5 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            style={{ display: 'flex', alignItems: 'center' }}
+                          >
+                            <Typography sx={{
+                              fontSize: '0.9rem', fontWeight: 400, letterSpacing: 0.5,
+                              fontFamily: '"Lobster", "Pacifico", cursive',
+                              whiteSpace: 'nowrap', lineHeight: 1,
+                              color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
+                            }}>
+                              {isPositiveWinning ? 'Good Moment' : 'Bad Moment'}
+                            </Typography>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Box>
+                    {/* Vote pill */}
+                    <Box sx={{
+                      transform: voteValue ? 'scale(0.5)' : 'scale(1)',
+                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+                      transformOrigin: 'center top',
+                    }}>
+                      <VoteControls
+                        value={voteValue}
+                        onChange={handleVoteChange}
+                        positiveRatio={positiveRatio}
+                        totalVotes={totalVotes}
+                        isLoading={voteLoading}
+                        hasError={!!voteError}
+                        layout="inline"
+                        sizeScale={0.76}
+                        pillScale={1}
+                        showBreakdown={false}
+                        compact
+                      />
+                    </Box>
+                  </Box>
                 )}
               </Box>
-              {showInlineVoteControls && (
-                <Box sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' }, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, mb: { xs: 0.5, sm: 0 } }}>
-                  {/* Consensus label — hidden on 0 votes and on exact ties */}
-                  <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
-                    <AnimatePresence mode="wait">
-                      {(totalVotes || 0) > 0 && positiveVotes !== negativeVotes && !voteLoading && (
-                        <motion.div
-                          key={`${winningCount}-${isPositiveWinning ? 'pos' : 'neg'}`}
-                          initial={{ opacity: 0, y: -5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 5 }}
-                          transition={{ duration: 0.2, ease: 'easeOut' }}
-                          style={{ display: 'flex', alignItems: 'center' }}
-                        >
-                          <Typography sx={{
-                            fontSize: '0.9rem', fontWeight: 400, letterSpacing: 0.5,
-                            fontFamily: '"Lobster", "Pacifico", cursive',
-                            whiteSpace: 'nowrap', lineHeight: 1,
-                            color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
-                          }}>
-                            {isPositiveWinning ? 'Good Moment' : 'Bad Moment'}
-                          </Typography>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Box>
-                  {/* Vote pill — shrinks 50% after the user votes */}
-                  <Box sx={{
-                    transform: voteValue ? 'scale(0.5)' : 'scale(1)',
-                    transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-                    transformOrigin: 'center top',
-                  }}>
-                    <VoteControls
-                      value={voteValue}
-                      onChange={handleVoteChange}
-                      positiveRatio={positiveRatio}
-                      totalVotes={totalVotes}
-                      isLoading={voteLoading}
-                      hasError={!!voteError}
-                      layout="inline"
-                      sizeScale={0.76}
-                      pillScale={1}
-                      showBreakdown={false}
-                      compact
-                    />
-                  </Box>
-                </Box>
-              )}
-              <Box sx={{ display: 'flex', alignItems: 'center', order: { xs: 3, sm: 3 }, justifySelf: 'end', minWidth: 0 }}>
+
+              {/* Row 2: Published Date (Bottom Locked) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
-                <Typography 
-                  variant="caption" 
-                  color="text.secondary"
-                >
+                <Typography variant="caption" color="text.secondary">
                   {formatDate(event.created_at)}
                 </Typography>
               </Box>
