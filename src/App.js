@@ -22,6 +22,7 @@ import MemberListTab from './components/timeline-v3/community/MemberListTab';
 import AdminPanel from './components/timeline-v3/community/AdminPanel';
 import SiteControlPage from './components/site-control/SiteControlPage';
 import SuspendedPage from './components/SuspendedPage';
+import GoblinRedirect from './components/GoblinRedirect';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -73,10 +74,19 @@ const buildReturnToUrl = (location) => `${location.pathname || ''}${location.sea
 const isGuestEligibleProtectedPath = (pathname = '') => {
   if (pathname === '/home') return true;
   if (pathname.startsWith('/timeline-v3/')) {
-    return !pathname.endsWith('/admin') && !pathname.endsWith('/members');
+    // Only the main timeline view is guest-eligible.
+    // Sub-paths like /admin, /members, /reports are restricted.
+    const isSubPath = pathname.split('/').length > 3;
+    if (!isSubPath) return true;
+    
+    // Explicitly block these sub-paths
+    const restrictedSubPaths = ['/admin', '/members', '/reports', '/edit'];
+    return !restrictedSubPaths.some(sub => pathname.includes(sub));
   }
   if (pathname === '/profile/guest') return true;
   if (pathname.startsWith('/profile/')) {
+    // Regular profiles are eligible (visibility checks happen inside component)
+    // but settings are always restricted.
     return pathname !== '/profile/settings';
   }
   return false;
@@ -114,7 +124,7 @@ const isForcedRenameRequired = (authUser) => {
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const { user, loading, loginAsGuest } = useAuth();
+  const { user, loading, loginAsGuest, isGuest } = useAuth();
   const location = useLocation();
   const mustChangeUsername = isForcedRenameRequired(user);
   const [guestBootstrapping, setGuestBootstrapping] = React.useState(false);
@@ -161,6 +171,10 @@ const ProtectedRoute = ({ children }) => {
   if (!user) {
     persistAuthReturnTo(location);
     return <Navigate to="/login" replace />;
+  }
+
+  if (isGuest && !guestEligiblePath) {
+    return <Navigate to={`/goblin-redirect?returnTo=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
   if (mustChangeUsername && !isRequiredUsernameChangePath(location.pathname)) {
@@ -1180,6 +1194,7 @@ function App() {
                 } />
                 <Route path="/account/required-user-name-change" element={<Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />} />
                 <Route path="/suspended" element={<SuspendedPage />} />
+          <Route path="/goblin-redirect" element={<GoblinRedirect />} />
                 
                 {/* Protected routes */}
                 <Route path="/home" element={

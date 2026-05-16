@@ -540,10 +540,10 @@ When auditing each feature/endpoint:
 - [x] Bootstrap SiteOwner appears in admin list on Site Control page
 - [x] **Site Control: Admin List Audit** (Hierarchy, Branding, ID lookup)
 - [x] **Site-wide Avatar Blur Toggle** (Moderation enforcement for profiles)
-- [ ] **Site Control: Logs Tab Audit** (NEXT PRIORITY)
-- [ ] Verify redirect pages (non-admin → locked view, guest → appropriate page)
-- [ ] Test MAKE A POST button functionality
-- [ ] Test timeline creation flows
+- [x] **Site Control: Logs Tab Audit** (Verified Broken Events & Ban List)
+- [x] Verify redirect pages (non-admin → locked view, guest → appropriate page)
+- [x] Test MAKE A POST button functionality (Hidden/Disabled for guests)
+- [x] Test timeline creation flows (Restricted for guests)
 - [ ] Test event posting with media uploads
 - [ ] Test member management (join/leave/approve/deny)
 - [ ] Test profile features (avatar, bio, preferences)

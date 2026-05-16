@@ -6,6 +6,7 @@ import {
   FormControl, InputLabel, Select, MenuItem, Stack, useTheme, alpha
 } from '@mui/material';
 import FlagIcon from '@mui/icons-material/Flag';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { getTimelineIcon } from '../../utils/timelineIcons';
 import { displayUsername } from '../../utils/usernameDisplay';
 import UserAvatar from '../common/UserAvatar';
@@ -52,14 +53,14 @@ const useAdminTimelines = (type) => {
     fetch(true);
   }, [type]);
 
-  return { data, loading, error, hasMore, loadMore: () => fetch(false) };
+  return { data, loading, error, hasMore, fetch, loadMore: () => fetch(false) };
 };
 
 export default function TimelineListTab() {
   const theme = useTheme();
   const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [tab, setTab] = useState('all');
-  const { data, loading, error, hasMore, loadMore } = useAdminTimelines(tab);
+  const { data, loading, error, hasMore, fetch, loadMore } = useAdminTimelines(tab);
   const navigate = useNavigate();
 
   // Report Dialog State
@@ -268,14 +269,27 @@ export default function TimelineListTab() {
         borderRadius: 3.5,
       }}
     >
-      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
-          Timeline Moderation
-        </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.6, fontWeight: 600 }}>
-          {data.length} timelines listed
-        </Typography>
-      </Box>
+      <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+            Timeline Moderation
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.6, fontWeight: 600 }}>
+            {data.length} timelines listed
+          </Typography>
+        </Box>
+        <IconButton 
+          size="small"
+          onClick={() => fetch(true)}
+          disabled={loading}
+          sx={{
+            color: 'primary.main',
+            '&:hover': { bgcolor: 'primary.main', color: 'white' }
+          }}
+        >
+          <RefreshIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+      </Stack>
 
       <Tabs
         value={tab}

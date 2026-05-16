@@ -398,22 +398,32 @@ export const AuthProvider = ({ children }) => {
       });
       
       if (response.data) {
-        const validatedUser = {
+        const isValidatedGuest = response.data?.is_guest === true 
+          || response.data?.user?.role === 'guest'
+          || response.data?.user?.is_guest === true
+          || !(Number(response.data?.user?.id) > 0);
+
+        const validatedUser = response.data.user ? {
           ...response.data.user,
           is_site_admin: !!response.data.is_site_admin,
           site_admin_role: response.data.site_admin_role || null,
-        };
-        if (!validatedUser) {
+        } : (isValidatedGuest ? {
+          id: null,
+          username: 'Goblin',
+          display_username: 'Goblin',
+          avatar_url: '/images/GUEST_img.png',
+          email: null,
+          role: 'guest',
+          is_guest: true,
+        } : null);
+
+        if (!validatedUser && !isValidatedGuest) {
           setUser(null);
           setIsGuest(false);
           return false;
         }
-        const isValidatedGuest = validatedUser?.role === 'guest'
-          || validatedUser?.is_guest === true
-          || response.data?.is_guest === true
-          || !(Number(validatedUser?.id) > 0);
+
         console.log('User validation successful:', validatedUser);
-        // Store user data in localStorage for API functions to access
         localStorage.setItem('user', JSON.stringify(validatedUser));
         setUser(validatedUser);
         setIsGuest(isValidatedGuest);

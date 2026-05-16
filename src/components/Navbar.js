@@ -612,7 +612,7 @@ function Navbar() {
                   {displayUsername(user.username)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {getBlurredEmail(user.email)}
+                  {isGuest ? 'Goblin Mode (View-Only)' : getBlurredEmail(user.email)}
                 </Typography>
               </Box>
             </Box>
@@ -1455,28 +1455,45 @@ function Navbar() {
                 )}
                 {/* Hamburger menu — hidden in guest mode; replaced with CTA */}
                 {isGuest ? (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={async () => { await logout(); navigate('/register'); }}
-                    sx={{
-                      mr: 1,
-                      borderRadius: 99,
-                      borderColor: theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.5)' : 'rgba(22,101,52,0.35)',
-                      color: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
-                      fontWeight: 700,
-                      fontSize: '0.72rem',
-                      letterSpacing: 0.6,
-                      textTransform: 'none',
-                      px: 1.5,
-                      '&:hover': {
-                        borderColor: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
-                        background: theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.08)' : 'rgba(22,101,52,0.05)',
-                      },
-                    }}
-                  >
-                    Join iTimeline
-                  </Button>
+                  <Tooltip title="Create a full account to start posting and organizing timelines!">
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={async () => {
+                        await logout();
+                        navigate('/register');
+                      }}
+                      sx={{
+                        mr: 1.5,
+                        borderRadius: 99,
+                        background: theme.palette.mode === 'dark' 
+                          ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' 
+                          : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: '0.75rem',
+                        letterSpacing: 0.8,
+                        textTransform: 'none',
+                        px: 2,
+                        py: 0.75,
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 4px 14px rgba(34, 197, 94, 0.35)'
+                          : '0 4px 14px rgba(22, 101, 52, 0.2)',
+                        '&:hover': {
+                          background: theme.palette.mode === 'dark' 
+                            ? 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)' 
+                            : 'linear-gradient(135deg, #15803d 0%, #166534 100%)',
+                          boxShadow: theme.palette.mode === 'dark'
+                            ? '0 6px 20px rgba(34, 197, 94, 0.45)'
+                            : '0 6px 20px rgba(22, 101, 52, 0.3)',
+                          transform: 'translateY(-1px)',
+                        },
+                        transition: 'all 0.2s ease-in-out',
+                      }}
+                    >
+                      Join iTimeline
+                    </Button>
+                  </Tooltip>
                 ) : (
                   <IconButton
                     color="inherit"

@@ -72,6 +72,7 @@ import api, {
   updateLandingRotatorSettings,
   listBrokenEventQueue,
   addBrokenEventQueueItem,
+  removeBrokenEventQueueItem,
   deleteBrokenEventById,
   listBanList,
   listWebsiteUsers,
@@ -495,16 +496,17 @@ const UserListTab = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>Website Users</Typography>
-        <Button 
-          variant="outlined" 
-          startIcon={<RefreshIcon />}
+        <IconButton 
+          size="small"
           onClick={() => fetchUsers(1)}
           disabled={loading}
-          size="small"
-          sx={getGlassSquareActionButtonSx(theme)}
+          sx={{
+            color: 'primary.main',
+            '&:hover': { bgcolor: 'primary.main', color: 'white' }
+          }}
         >
-          Refresh
-        </Button>
+          <RefreshIcon sx={{ fontSize: 18 }} />
+        </IconButton>
       </Box>
 
       {error && (
@@ -844,9 +846,17 @@ const BrokenEventsTab = () => {
               Queue suspicious/broken event IDs. Open their timeline, delete if needed, or remove from queue.
             </Typography>
           </Box>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchQueue} disabled={loading || !!actionLoadingByKey.add} sx={getGlassSquareActionButtonSx(theme)}>
-            Refresh
-          </Button>
+          <IconButton 
+            size="small"
+            onClick={fetchQueue}
+            disabled={loading || !!actionLoadingByKey.add}
+            sx={{
+              color: 'primary.main',
+              '&:hover': { bgcolor: 'primary.main', color: 'white' }
+            }}
+          >
+            <RefreshIcon sx={{ fontSize: 18 }} />
+          </IconButton>
         </Stack>
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -1047,6 +1057,7 @@ const BanListTab = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addInput, setAddInput] = useState('');
+  const [addType, setAddType] = useState('username');
   const [addReason, setAddReason] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -1089,7 +1100,7 @@ const BanListTab = () => {
     try {
       setAddLoading(true);
       await api.post('/api/v1/moderation', {
-        subject_type: 'username',
+        subject_type: addType,
         subject_id: null,
         subject_value: name,
         action: 'block_name',
@@ -1137,12 +1148,32 @@ const BanListTab = () => {
               Blocked names. These cannot be used as usernames or community timeline names.
             </Typography>
           </Box>
-          <Button variant="outlined" onClick={fetchBanList} disabled={loading} sx={getGlassSquareActionButtonSx(theme)}>
-            Refresh
-          </Button>
+          <IconButton 
+            size="small"
+            onClick={fetchBanList}
+            disabled={loading}
+            sx={{
+              color: 'primary.main',
+              '&:hover': { bgcolor: 'primary.main', color: 'white' }
+            }}
+          >
+            <RefreshIcon sx={{ fontSize: 18 }} />
+          </IconButton>
         </Stack>
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 4, p: 2.5, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <FormControl sx={{ minWidth: 160, ...getGlassInputSx(theme) }}>
+            <InputLabel>Type</InputLabel>
+            <Select
+              value={addType}
+              label="Type"
+              onChange={(e) => setAddType(e.target.value)}
+              size="medium"
+            >
+              <MenuItem value="username">Username</MenuItem>
+              <MenuItem value="timeline_name">Timeline Name</MenuItem>
+            </Select>
+          </FormControl>
           <TextField
             label="Name to ban"
             value={addInput}
@@ -1190,7 +1221,8 @@ const BanListTab = () => {
           <Table size="small" sx={{ mt: 2 }}>
             <TableHead>
               <TableRow>
-                <TableCell>Banned Name</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Name</TableCell>
                 <TableCell>Reason</TableCell>
                 <TableCell>Date Added</TableCell>
                 <TableCell align="right">Actions</TableCell>
@@ -1199,6 +1231,19 @@ const BanListTab = () => {
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id}>
+                  <TableCell>
+                    <Chip 
+                      label={item.subject_type === 'username' ? 'USER' : 'TL'} 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ 
+                        fontWeight: 700, 
+                        fontSize: '0.65rem',
+                        borderColor: item.subject_type === 'username' ? 'primary.main' : 'secondary.main',
+                        color: item.subject_type === 'username' ? 'primary.main' : 'secondary.main',
+                      }}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600}>
                       {item.subject_value}

@@ -826,6 +826,8 @@ const ProfileSettings = () => {
         profile_portrait_y: portraitY,
         profile_portrait_zoom: String(portraitZoom),
         country: formData.country || null,
+        avatar_key: avatarKey,
+        avatar_size: selectedFile ? selectedFile.size : undefined,
       };
 
       let response = await api.patch('/api/v1/users/me', profilePayload);
@@ -874,20 +876,7 @@ const ProfileSettings = () => {
         }
       }
 
-      // Update avatar separately via POST /users/me/avatar (not in PATCH /users/me schema)
-      if (avatarKey) {
-        try {
-          await api.post('/api/v1/users/me/avatar', { 
-            avatar_key: avatarKey,
-            avatar_size: selectedFile.size
-          });
-          // Refetch user to get updated avatar_url
-          const meResponse = await api.get('/api/v1/users/me');
-          response = meResponse;
-        } catch (avatarError) {
-          console.warn('Failed to update avatar:', avatarError);
-        }
-      }
+      // Avatar update is now handled by the PATCH /api/v1/users/me call above
       console.log('Profile update response:', response.data);
       const uploadedAvatarUrl = String(response?.data?.avatar_url || '').trim();
       const shouldSyncProfilePortraitFromAvatar = Boolean(selectedFile && uploadedAvatarUrl);

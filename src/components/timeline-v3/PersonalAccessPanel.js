@@ -127,13 +127,13 @@ const PersonalAccessPanel = ({
       timeout: 30000,
     });
 
-    const uploadedUrl = String(response?.data?.url || '').trim();
-    if (!uploadedUrl) {
-      throw new Error('No cover URL returned from upload response');
+    const stored = response?.data;
+    if (!stored?.key) {
+      throw new Error('No cover key returned from upload response');
     }
 
-    return uploadedUrl;
-  }, [timelineId]);
+    return stored;
+  }, []);
 
   const clampPercent = useCallback((value) => Math.max(0, Math.min(100, Number(value) || 0)), []);
   const clampFramePosition = useCallback((value, defaultValue = 50) => {
@@ -208,19 +208,24 @@ const PersonalAccessPanel = ({
 
     try {
       setIsUploadingCover(true);
-      let resolvedUrl = pendingCoverRemoval ? '' : coverPortraitUrl;
-
-      if (pendingCoverFile) {
-        resolvedUrl = await uploadCoverFile(pendingCoverFile);
-      }
-
-      const updatedTimeline = await updateTimelineDetails(timelineId, {
+      let resolvedUrl = coverPortraitUrl;
+      const payload = {
         description: String(timelineDescription || ''),
-        cover_portrait_image_url: resolvedUrl,
         cover_portrait_x: clampFramePosition(coverPortraitPosition?.x ?? 50, 50),
         cover_portrait_y: clampFramePosition(coverPortraitPosition?.y ?? 50, 50),
         cover_portrait_zoom: clampZoom(coverPortraitZoom ?? 1),
-      });
+      };
+
+      if (pendingCoverRemoval) {
+        payload.cover_portrait_key = null;
+        resolvedUrl = '';
+      } else if (pendingCoverFile) {
+        const stored = await uploadCoverFile(pendingCoverFile);
+        payload.cover_portrait_key = stored.key;
+        resolvedUrl = stored.url;
+      }
+
+      const updatedTimeline = await updateTimelineDetails(timelineId, payload);
 
       const nextDescription = String(updatedTimeline?.description ?? timelineDescription ?? '');
       setTimelineDescription(nextDescription);
