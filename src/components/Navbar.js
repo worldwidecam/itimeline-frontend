@@ -932,7 +932,7 @@ function Navbar() {
           <Typography
             variant="h6"
             component={RouterLink}
-            to={user ? '/home' : '/'}
+            to={user && !['/login', '/register'].includes(currentPath) ? '/home' : '/'}
             sx={{ textDecoration: 'none', color: 'inherit', mr: 2, flexShrink: 0 }}
           >
             Timeline Forum
@@ -1031,7 +1031,7 @@ function Navbar() {
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {user ? (
+            {user && !['/login', '/register'].includes(currentPath) ? (
               <>
                 {isTimelinePage && !timelineWarningState?.active && timelineStatusMessage?.active && statusTone && statusIcon && (
                   <>
@@ -1454,7 +1454,7 @@ function Navbar() {
                   </>
                 )}
                 {/* Hamburger menu — hidden in guest mode; replaced with CTA */}
-                {isGuest ? (
+                {isGuest && !['/login', '/register'].includes(currentPath) ? (
                   <Tooltip title="Create a full account to start posting and organizing timelines!">
                     <Button
                       variant="contained"

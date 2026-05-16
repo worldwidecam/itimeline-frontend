@@ -11,199 +11,199 @@ import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date
 const generateDemoEvents = () => {
   const now = new Date();
   
-  // DAY VIEW EVENTS - Events within the current day, spanning from -12 to +12 hours with better spacing
+  // DAY VIEW EVENTS - Modern, relatable daily life examples
   const dayViewEvents = [
     {
       id: 101,
-      title: "Take kids to school",
-      description: "Drop off Tommy and Emma at Westside Elementary",
+      title: "Morning Brew & Planning",
+      description: "Starting the day with a flat white and mapping out the new timeline features.",
       type: "remark",
       position: -10,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0).toISOString(),
-      tags: ["daily", "kids", "morning"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 30, 0).toISOString(),
+      tags: ["daily", "coffee", "productive"]
     },
     {
       id: 102,
-      title: "Team standup meeting",
-      description: "Daily scrum with the development team",
-      type: "remark",
-      position: -5,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30, 0).toISOString(),
-      tags: ["work", "meeting", "daily"]
+      title: "New AI Model Alpha Test",
+      description: "Testing the latest LLM integration for auto-tagging timeline events. Results are promising!",
+      type: "media",
+      position: -4,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0, 0).toISOString(),
+      tags: ["tech", "AI", "devlog"]
     },
     {
       id: 103,
-      title: "Lunch with friends",
-      description: "Meeting Sarah and Mike at Riverfront Café",
-      type: "media",
-      position: 0,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 30, 0).toISOString(),
-      tags: ["social", "food", "friends"]
+      title: "Lunch Break in the Park",
+      description: "Catching some sun while browsing the community timelines. Found some great history boards today.",
+      type: "remark",
+      position: 1,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 15, 0).toISOString(),
+      tags: ["social", "nature", "break"]
     },
     {
       id: 104,
-      title: "Dentist appointment",
-      description: "Regular checkup with Dr. Johnson",
-      type: "remark",
-      position: 5,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0).toISOString(),
-      tags: ["health", "appointment"]
+      title: "Global Tech Summit 2026",
+      description: "The keynote on decentralized identity just finished. Huge implications for iTimeline's future.",
+      type: "news",
+      position: 6,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 45, 0).toISOString(),
+      tags: ["summit", "future", "tech"]
     },
     {
       id: 105,
-      title: "Local Tech Startup Secures $5M Funding",
-      description: "Innovate Solutions announces Series A funding to expand AI capabilities",
-      type: "news",
-      position: 10,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 30, 0).toISOString(),
-      tags: ["business", "technology", "funding"]
+      title: "Evening Wind Down",
+      description: "Reflecting on a productive day. Organizing the 'Project Launch' timeline before bed.",
+      type: "remark",
+      position: 11,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 0, 0).toISOString(),
+      tags: ["night", "planning", "mindful"]
     }
   ];
 
-  // WEEK VIEW EVENTS - Events within -14 to +14 days from current date with better spacing
+  // WEEK VIEW EVENTS - Community and milestone focused
   const weekViewEvents = [
     {
       id: 201,
-      title: "Weekend brunch",
-      description: "Brunch with family at Sunrise Cafe",
-      type: "media",
-      position: -10,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 10, 0, 0).toISOString(),
-      tags: ["family", "weekend", "food"]
+      title: "Community Milestone: 50k Timelines!",
+      description: "Our community just surpassed 50,000 public timelines. Thank you for sharing your stories!",
+      type: "news",
+      position: -12,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 10, 0, 0).toISOString(),
+      tags: ["community", "milestone", "celebration"]
     },
     {
       id: 202,
-      title: "Market Report: Tech Stocks Surge 15%",
-      description: "Technology sector leads market rally amid positive earnings reports",
-      type: "news",
-      position: -5,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3, 13, 0, 0).toISOString(),
-      tags: ["finance", "markets", "technology"]
+      title: "Weekend Hiking Trip",
+      description: "Captured some incredible 4K footage of the summit. Uploading to the 'Nature Walks' board soon.",
+      type: "media",
+      position: -6,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3, 14, 0, 0).toISOString(),
+      tags: ["adventure", "outdoors", "video"]
     },
     {
       id: 203,
-      title: "Project deadline",
-      description: "Final submission for the client project",
-      type: "remark",
+      title: "v3 Beta Feature: Rich Media Preview",
+      description: "Successfully implemented live URL previews for all event cards. Check it out!",
+      type: "news",
       position: 0,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0).toISOString(),
-      tags: ["work", "deadline", "important"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0).toISOString(),
+      tags: ["update", "beta", "feature"]
     },
     {
       id: 204,
-      title: "Weekend getaway",
-      description: "Short trip to the mountains with family",
+      title: "Neighborhood Block Party",
+      description: "Great turnout this year. Created a shared community timeline for everyone to upload photos.",
       type: "media",
       position: 5,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 4, 8, 0, 0).toISOString(),
-      tags: ["travel", "family", "vacation"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 18, 30, 0).toISOString(),
+      tags: ["local", "social", "community"]
     },
     {
       id: 205,
-      title: "New Climate Policy Announced",
-      description: "Government unveils ambitious carbon reduction targets for next decade",
+      title: "Major Infrastructure Upgrade",
+      description: "Switching to the new Cloudflare Workers backend for 2x faster load times.",
       type: "news",
-      position: 10,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 13, 0, 0).toISOString(),
-      tags: ["politics", "environment", "policy"]
+      position: 11,
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5, 0, 0, 0).toISOString(),
+      tags: ["dev", "speed", "backend"]
     }
   ];
 
-  // MONTH VIEW EVENTS - Events within -6 to +6 months from current date with better spacing
+  // MONTH VIEW EVENTS - Global and long-term milestones
   const monthViewEvents = [
     {
       id: 301,
-      title: "Annual Developer Conference",
-      description: "Three-day tech conference with workshops",
-      type: "media",
+      title: "First Mars Colony Anniversary",
+      description: "Celebrating 5 years since the first permanent settlement was established.",
+      type: "news",
       position: -10,
-      event_date: new Date(now.getFullYear(), now.getMonth() - 4, 15, 9, 0, 0).toISOString(),
-      tags: ["tech", "conference", "networking"]
+      event_date: new Date(now.getFullYear(), now.getMonth() - 5, 10, 9, 0, 0).toISOString(),
+      tags: ["history", "space", "science"]
     },
     {
       id: 302,
-      title: "Global Tech Conference Reveals Industry Trends",
-      description: "Annual TechWorld Summit highlights AI and sustainability as key focus areas",
-      type: "news",
-      position: -5,
-      event_date: new Date(now.getFullYear(), now.getMonth() - 2, 20, 10, 0, 0).toISOString(),
-      tags: ["technology", "conference", "trends"]
+      title: "iTimeline Mobile App v1.0 Launch",
+      description: "The wait is over! iTimeline is now available on iOS and Android.",
+      type: "media",
+      position: -4,
+      event_date: new Date(now.getFullYear(), now.getMonth() - 2, 15, 10, 0, 0).toISOString(),
+      tags: ["launch", "mobile", "ios", "android"]
     },
     {
       id: 303,
-      title: "Company Retreat",
-      description: "Team building activities at Mountain Lodge",
+      title: "Summer Solstice Festival",
+      description: "The largest digital-physical hybrid festival starts today.",
       type: "media",
-      position: 0,
-      event_date: new Date(now.getFullYear(), now.getMonth(), 15, 8, 0, 0).toISOString(),
-      tags: ["team", "retreat", "company"]
+      position: 1,
+      event_date: new Date(now.getFullYear(), now.getMonth(), 21, 12, 0, 0).toISOString(),
+      tags: ["festival", "culture", "summer"]
     },
     {
       id: 304,
-      title: "Investor Meeting",
-      description: "Quarterly update with major stakeholders",
+      title: "Quarterly Community Town Hall",
+      description: "Joining the founders to discuss the Q4 roadmap and user-requested features.",
       type: "remark",
-      position: 5,
-      event_date: new Date(now.getFullYear(), now.getMonth() + 2, 15, 14, 0, 0).toISOString(),
-      tags: ["finance", "investors", "meeting"]
+      position: 7,
+      event_date: new Date(now.getFullYear(), now.getMonth() + 2, 5, 15, 0, 0).toISOString(),
+      tags: ["roadmap", "transparency", "feedback"]
     },
     {
       id: 305,
-      title: "Breakthrough in Renewable Energy Storage",
-      description: "Scientists develop new battery technology with 3x capacity of current solutions",
+      title: "The Great Ocean Cleanup Completion",
+      description: "Ocean Foundation announces 90% of surface plastics removed. A win for the planet!",
       type: "news",
-      position: 10,
-      event_date: new Date(now.getFullYear(), now.getMonth() + 4, 1, 9, 0, 0).toISOString(),
-      tags: ["science", "technology", "energy"]
+      position: 12,
+      event_date: new Date(now.getFullYear(), now.getMonth() + 4, 18, 9, 0, 0).toISOString(),
+      tags: ["environment", "goodnews", "ocean"]
     }
   ];
 
-  // YEAR VIEW EVENTS - Events within -5 to +5 years from current date with better spacing
+  // YEAR VIEW EVENTS - Historic and future visions
   const yearViewEvents = [
     {
       id: 401,
-      title: "Historic Climate Agreement Signed",
-      description: "195 countries commit to landmark environmental protection treaty",
-      type: "news",
-      position: -10,
-      event_date: new Date(now.getFullYear() - 3, 0, 6, 0, 0, 0).toISOString(),
-      tags: ["global", "environment", "politics"]
+      title: "The Genesis of iTimeline",
+      description: "The first commit that started it all. A vision for organized digital memory.",
+      type: "remark",
+      position: -12,
+      event_date: new Date(now.getFullYear() - 4, 3, 12, 0, 0, 0).toISOString(),
+      tags: ["genesis", "history", "milestone"]
     },
     {
       id: 402,
-      title: "Major Healthcare Reform Legislation Passed",
-      description: "Sweeping changes to healthcare system expected to impact millions",
+      title: "Global Transition to Clean Energy",
+      description: "Renewables officially surpass fossil fuels as the world's primary energy source.",
       type: "news",
-      position: -5,
-      event_date: new Date(now.getFullYear() - 1, 5, 14, 0, 0, 0).toISOString(),
-      tags: ["politics", "healthcare", "legislation"]
+      position: -7,
+      event_date: new Date(now.getFullYear() - 2, 8, 22, 0, 0, 0).toISOString(),
+      tags: ["earth", "energy", "progress"]
     },
     {
       id: 403,
-      title: "Current Year Milestone",
-      description: "Major achievement for this year",
+      title: "The Year of Expansion",
+      description: "iTimeline scales to 1 million active users and introduces Community Timelines.",
       type: "remark",
       position: 0,
-      event_date: new Date(now.getFullYear(), 5, 5, 0, 0, 0).toISOString(),
-      tags: ["milestone", "achievement", "current"]
+      event_date: new Date(now.getFullYear(), 5, 1, 0, 0, 0).toISOString(),
+      tags: ["growth", "v3", "current"]
     },
     {
       id: 404,
-      title: "Next Year's Conference",
-      description: "Planned attendance at major industry event",
+      title: "First Interstellar Probe Launch",
+      description: "Humanity's first mission to Alpha Centauri begins its journey.",
       type: "media",
-      position: 5,
-      event_date: new Date(now.getFullYear() + 1, 6, 26, 0, 0, 0).toISOString(),
-      tags: ["future", "conference", "planning"]
+      position: 6,
+      event_date: new Date(now.getFullYear() + 2, 10, 15, 0, 0, 0).toISOString(),
+      tags: ["future", "voyage", "space"]
     },
     {
       id: 405,
-      title: "Five-Year Company Goal",
-      description: "Target milestone for company growth",
+      title: "The Decadal Vision",
+      description: "Planning for the 2030s: Connecting every shared memory across the globe.",
       type: "media",
-      position: 10,
-      event_date: new Date(now.getFullYear() + 3, 1, 18, 0, 0, 0).toISOString(),
-      tags: ["goals", "future", "planning"]
+      position: 12,
+      event_date: new Date(now.getFullYear() + 5, 0, 1, 0, 0, 0).toISOString(),
+      tags: ["vision", "2030", "longterm"]
     }
   ];
 
@@ -276,6 +276,25 @@ function LandingTimelineV3() {
     
     setMarkers(getInitialMarkers());
   }, []);
+
+  // Handle touch interactions for mobile
+  const handleTouchStart = (e) => {
+    if (!timelineBarRef.current) return;
+    setIsDragging(true);
+    setStartDragX(e.touches[0].clientX);
+    setStartOffset(timelineOffset);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || !timelineBarRef.current) return;
+    const deltaX = e.touches[0].clientX - startDragX;
+    const newOffset = startOffset + deltaX / 100;
+    setTimelineOffset(newOffset);
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
 
   // Update events when view mode changes
   useEffect(() => {
@@ -496,6 +515,9 @@ function LandingTimelineV3() {
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Transparent overlay to capture drag events and prevent text selection */}
         <Box

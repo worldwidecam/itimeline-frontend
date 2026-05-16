@@ -220,7 +220,8 @@ const LandingPage = () => {
         background: appCanvasBackground,
         pt: 6,
         pb: 8,
-        position: 'relative'
+        position: 'relative',
+        overflowX: 'hidden' // Prevent horizontal scrolling
       }}
     >
       <Container maxWidth="lg">
@@ -274,48 +275,44 @@ const LandingPage = () => {
                 component="span"
                 sx={{
                   position: 'absolute',
-                  // Badge position adjust: tweak top + marginLeft while keeping left locked to logo edge.
                   top: '55%',
                   left: '100%',
-                  marginLeft: { xs: '6px', sm: '10px', md: '12px' },
+                  marginLeft: { xs: '8px', sm: '12px' },
                   transform: 'translateY(-50%) rotate(-6deg)',
-                  transformOrigin: '0% 100%',
-                  fontSize: { xs: '0.7rem', sm: '0.85rem', md: '0.95rem' },
-                  fontFamily: '"Comic Sans MS", "Comic Neue", "Trebuchet MS", sans-serif',
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
+                  fontSize: { xs: '0.65rem', sm: '0.85rem' },
+                  fontFamily: '"Comic Sans MS", "Comic Neue", sans-serif',
+                  fontWeight: 800,
                   color: '#1f1f1f',
                   background: 'linear-gradient(140deg, #ffffff 0%, #fff2d6 100%)',
-                  padding: '10px 14px',
-                  borderRadius: '18px',
+                  padding: '8px 12px',
+                  borderRadius: '16px',
                   border: '3px solid #1f1f1f',
-                  boxShadow: '6px 6px 0 #1f1f1f',
+                  boxShadow: '4px 4px 0 #1f1f1f',
                   whiteSpace: 'nowrap',
                   zIndex: 10,
                   animation: `${bubblePulse} 2.2s ease-in-out infinite`,
+                  // Integrated tail using a single clip-path or robust positioning
                   '&::before': {
                     content: '""',
                     position: 'absolute',
-                    left: '-16px',
-                    bottom: '12px',
-                    width: 0,
-                    height: 0,
-                    borderTop: '12px solid transparent',
-                    borderBottom: '12px solid transparent',
-                    borderRight: '16px solid #1f1f1f',
-                    transform: 'rotate(12deg)'
+                    left: '-14px',
+                    bottom: '8px',
+                    width: '16px',
+                    height: '16px',
+                    backgroundColor: '#1f1f1f',
+                    clipPath: 'polygon(100% 0, 0 50%, 100% 100%)',
+                    zIndex: -1
                   },
                   '&::after': {
                     content: '""',
                     position: 'absolute',
-                    left: '-13px',
-                    bottom: '14px',
-                    width: 0,
-                    height: 0,
-                    borderTop: '10px solid transparent',
-                    borderBottom: '10px solid transparent',
-                    borderRight: '14px solid #fff7e6',
-                    transform: 'rotate(12deg)'
+                    left: '-10px',
+                    bottom: '9px',
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: '#fff7e6',
+                    clipPath: 'polygon(100% 0, 0 50%, 100% 100%)',
+                    zIndex: 1
                   }
                 }}
               >

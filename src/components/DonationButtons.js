@@ -234,7 +234,8 @@ const DonationButtons = () => {
         position: 'fixed', // Changed from absolute to fixed
         bottom: '120px', // Moved higher (was 80px)
         right: '20px',
-        background: 'linear-gradient(140deg, #ffffff 0%, #fff2d6 100%)',
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(10px)',
         color: '#1f1f1f',
         padding: '12px 16px',
         borderRadius: '18px',

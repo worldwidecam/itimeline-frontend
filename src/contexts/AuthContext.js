@@ -532,8 +532,11 @@ export const AuthProvider = ({ children }) => {
         }
 
         // No valid real tokens — check for a persisted guest session
+        // Skip guest rehydration if we're on the login or register pages to avoid confusion
         const guestSession = localStorage.getItem('guest_session');
-        if (guestSession === 'true') {
+        const isAuthPage = ['/login', '/register'].includes(window.location.pathname);
+        
+        if (guestSession === 'true' && !isAuthPage) {
           console.log('[Auth] Rehydrating guest session with fresh token');
           await loginAsGuest();
           return;
