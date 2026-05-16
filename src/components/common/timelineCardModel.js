@@ -8,6 +8,13 @@ const toTrimmedString = (value, fallback = '') => {
   return normalized || fallback;
 };
 
+const normalizeMediaUrl = (url) => {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  // Replace absolute localhost backend URLs with relative paths to hit the Vite proxy
+  return trimmed.replace(/^https?:\/\/localhost:5000\//, '/');
+};
+
 export function normalizeTimelineCardData(timeline) {
   const raw = timeline || {};
   const timelineType = String(raw?.timeline_type || 'hashtag').toLowerCase();
@@ -35,8 +42,8 @@ export function normalizeTimelineCardData(timeline) {
     : (followerCount || memberCount || popularityCount);
   const audienceLabel = isCommunity ? 'Members' : 'Followers';
 
-  const portraitCoverUrl = toTrimmedString(raw?.cover_portrait_image_url);
-  const fallbackCoverUrl = toTrimmedString(
+  const portraitCoverUrl = normalizeMediaUrl(raw?.cover_portrait_image_url);
+  const fallbackCoverUrl = normalizeMediaUrl(
     raw?.cover_image_url
     || raw?.banner_url
     || raw?.cover_url

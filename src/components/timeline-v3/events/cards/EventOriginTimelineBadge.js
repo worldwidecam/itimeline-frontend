@@ -116,12 +116,12 @@ const EventOriginTimelineBadge = ({ event }) => {
           borderRadius: '4px',
           fontWeight: 700,
           letterSpacing: '0.02em',
-          fontSize: '0.82rem',
+          fontSize: { xs: '0.68rem', sm: '0.82rem' },
           bgcolor: backgroundColor,
           border: `1px solid ${borderColor}`,
           color: accentColor,
           flexShrink: 0,
-          maxWidth: { xs: 122, sm: 190 },
+          maxWidth: { xs: 100, sm: 190 },
         }}
       >
         {icon}

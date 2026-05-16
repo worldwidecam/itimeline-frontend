@@ -43,6 +43,13 @@ import UserAvatar from '../../../common/UserAvatar';
 import { useEventVote } from '../../../../hooks/useEventVote';
 import { displayUsername } from '../../../../utils/usernameDisplay';
 
+const normalizeMediaUrl = (url) => {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  // Replace absolute localhost backend URLs with relative paths to hit the Vite proxy
+  return trimmed.replace(/^https?:\/\/localhost:5000\//, '/');
+};
+
 const MediaCard = forwardRef(({
   event,
   onEdit,
@@ -372,6 +379,9 @@ const MediaCard = forwardRef(({
     }
     else if (mediaSource.startsWith('/')) {
       fullUrl = `${config.API_URL}${mediaSource}`;
+    }
+    else {
+      fullUrl = normalizeMediaUrl(mediaSource);
     }
     
     // If media_url is already a complete Cloudinary or R2 URL, use it directly
@@ -1078,8 +1088,11 @@ const MediaCard = forwardRef(({
             position: 'relative',
             borderRadius: 2,
             overflow: 'hidden',
-            boxShadow: isSelected 
-              ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)` 
+            minHeight: { xs: 200, sm: 280, md: 320 },
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: isSelected
+              ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)`
               : '0 2px 4px rgba(0,0,0,0.1)',
             transition: 'box-shadow 0.3s ease, transform 0.3s ease',
             cursor: 'pointer',
@@ -1091,9 +1104,6 @@ const MediaCard = forwardRef(({
               },
             },
             height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: '300px',
           }}
         >
           {/* Vote overlay for EventList cards */}
@@ -1126,8 +1136,8 @@ const MediaCard = forwardRef(({
               borderRadius: '0 0 8px 8px',
             }}
           >
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
+            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
                 <TypeIcon sx={{ color, mt: 0.5 }} />
                 <Box sx={{ flex: 1 }}>
                   <Typography
@@ -1185,13 +1195,14 @@ const MediaCard = forwardRef(({
             </Box>
             {/* Event metadata */}
             <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
-              alignItems: 'center',
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
               mt: 'auto',
               pt: 1,
               borderTop: `1px solid ${theme.palette.divider}`,
-              columnGap: 1,
+              gap: { xs: 1, sm: 1 },
             }}>
               {/* Author with avatar */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>

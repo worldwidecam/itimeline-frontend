@@ -49,6 +49,7 @@ import {
   Refresh as RefreshIcon,
   HowToVote as HowToVoteIcon,
   Add as AddIcon,
+  FlagOutlined as FlagOutlinedIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api, {
@@ -391,6 +392,9 @@ const HomePage = () => {
   const [heroSlides, setHeroSlides] = React.useState(HOME_HERO_DEFAULT_SLIDES);
   const [isHeroContentVisible, setIsHeroContentVisible] = React.useState(true);
   const [activeHubTab, setActiveHubTab] = React.useState('popular');
+
+  const [isHubLabelVisible, setIsHubLabelVisible] = React.useState(true); // Control visibility of active tab label on mobile
+  const hubLabelTimeoutRef = React.useRef(null);
   const [isHubContentVisible, setIsHubContentVisible] = React.useState(true);
   const [isHubPhaseOneLoading, setIsHubPhaseOneLoading] = React.useState(false);
   const [showActiveHubScrollTop, setShowActiveHubScrollTop] = React.useState(false);
@@ -400,7 +404,22 @@ const HomePage = () => {
   const [popularFilter, setPopularFilter] = React.useState('posts');
   const [myCreationsFilter, setMyCreationsFilter] = React.useState('posts');
   const [yourPageFilter, setYourPageFilter] = React.useState('posts');
-  const [isFabExpanded, setIsFabExpanded] = React.useState(false);
+  const [isFabExpanded, setIsFabExpanded] = React.useState(() => {
+    try {
+      const saved = window.localStorage.getItem('itimeline_hub_fab_expanded');
+      return saved === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem('itimeline_hub_fab_expanded', String(isFabExpanded));
+    } catch (e) {
+      console.error('Error saving Fab expansion state:', e);
+    }
+  }, [isFabExpanded]);
 
   const [friendsListFilter, setFriendsListFilter] = React.useState('following');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
@@ -795,10 +814,29 @@ const HomePage = () => {
     popularArrowVisibleRef.current = showActiveHubScrollTop;
   }, [showActiveHubScrollTop]);
 
+  React.useEffect(() => {
+    setIsHubLabelVisible(true);
+    hubLabelTimeoutRef.current = window.setTimeout(() => {
+      setIsHubLabelVisible(false);
+    }, 3000);
+  }, []);
+
   const transitionToHubTab = React.useCallback(
     (nextTab) => {
       if (nextTab === activeHubTab) return;
 
+      // Handle label visibility for mobile
+      setIsHubLabelVisible(true);
+      if (hubLabelTimeoutRef.current) {
+        window.clearTimeout(hubLabelTimeoutRef.current);
+      }
+      
+      // Auto-collapse label after 3 seconds on mobile
+      hubLabelTimeoutRef.current = window.setTimeout(() => {
+        setIsHubLabelVisible(false);
+      }, 3000);
+
+      const nextPhaseOneLoading = nextTab === 'my-creations' || nextTab === 'friends-list';
       if (hubTransitionTimeoutRef.current) {
         window.clearTimeout(hubTransitionTimeoutRef.current);
       }
@@ -2219,6 +2257,7 @@ const HomePage = () => {
         setPopularTimelines([]);
         setPopularEvents([]);
         setHasLoadedPopular(true);
+        setLoadingPopular(false);
         return;
       }
 
@@ -2356,12 +2395,12 @@ const HomePage = () => {
 
       setPopularEvents(rankedEvents);
       setHasLoadedPopular(true);
+      setLoadingPopular(false);
     } catch (error) {
       console.error('Error loading Popular data:', error);
       setPopularTimelines([]);
       setPopularEvents([]);
       setHasLoadedPopular(true);
-    } finally {
       setLoadingPopular(false);
     }
   }, [normalizedTimelines]);
@@ -2369,7 +2408,6 @@ const HomePage = () => {
   React.useEffect(() => {
     if (!hasBootstrappedPopularCache) return;
     if (activeHubTab !== 'popular') return;
-    if (isHubPhaseOneLoading) return;
     if (hasLoadedPopular || loadingPopular) return;
 
     fetchPopularData();
@@ -3681,17 +3719,46 @@ const HomePage = () => {
       setTimelineCreateError(true);
       setTimeout(() => setTimelineCreateError(false), 1000);
       console.error('Error creating timeline:', error);
-      const message = error?.response?.data?.error || error?.message || 'Failed to create timeline. Please try again.';
-      setUserFollowSnackbarMessage(message);
-      setUserFollowSnackbarSeverity('error');
-      setUserFollowSnackbarOpen(true);
-    } finally {
       setLoading(false);
     }
   };
 
+  const hubActions = React.useMemo(() => [
+    {
+      key: 'feedback',
+      tooltip: 'Submit Feedback',
+      icon: <HowToVoteIcon />,
+      onClick: () => window.open('https://forms.gle/JyKcWfLKy3a7wJgc6', '_blank'),
+      accent: { dark: '#94A3B8', light: '#A5B4FC' },
+    },
+    !isGuest && !user?.is_restricted && {
+      key: 'create-timeline',
+      tooltip: 'Create Your Timeline',
+      icon: <TimelineMarkerIcon />,
+      onClick: () => setDialogOpen(true),
+      accent: { dark: '#4FC3F7', light: '#039BE5' },
+    },
+    !isGuest && !user?.is_restricted && {
+      key: 'make-post',
+      tooltip: 'Make a Post',
+      icon: <EventIcon />,
+      onClick: handleOpenMakePostDialog,
+      accent: { dark: '#69F0AE', light: '#00CFA1' },
+    },
+  ].filter(Boolean), [isGuest, user?.is_restricted, handleOpenMakePostDialog, setDialogOpen]);
+
   return (
     <>
+      <NavFab
+        actions={hubActions}
+        expanded={isFabExpanded}
+        onToggleExpanded={() => setIsFabExpanded(!isFabExpanded)}
+        onCollapse={() => setIsFabExpanded(false)}
+        position="left"
+        left={24}
+        bottom={24}
+        containerZIndex={1100}
+      />
       <Box
         sx={{
           position: 'fixed',
@@ -3861,9 +3928,15 @@ const HomePage = () => {
                 <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
                 <Button
                   variant="outlined"
-                  endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} />}
+                  size="small"
+                  endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
                   onClick={() => setDialogOpen(true)}
-                  sx={getGlassPillActionButtonSx(theme)}
+                  sx={{
+                    ...getGlassPillActionButtonSx(theme),
+                    px: { xs: 2, sm: 3 },
+                    py: { xs: 0.75, sm: 1 },
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                  }}
                 >
                   Create Your Timeline
                 </Button>
@@ -3871,42 +3944,66 @@ const HomePage = () => {
             ) : null}
 
             {activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimeline ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
-                <Chip label={spotlightTimelineTypeLabel} variant="outlined" />
+              <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Chip label={spotlightTimelineTypeLabel} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
                 <Chip
                   icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
                   label={`${spotlightTimelineAudience.count.toLocaleString()} ${spotlightTimelineAudience.label}`}
                   variant="outlined"
+                  size="small"
+                  sx={{ fontSize: '0.7rem' }}
                 />
-                <Chip label={`Created ${formatDate(spotlightTimeline.created_at)}`} variant="outlined" />
-                <Button variant="contained" onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}>Open Random Timeline</Button>
+                <Chip label={`Created ${formatDate(spotlightTimeline.created_at)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}
+                  sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
+                >
+                  Open Random Timeline
+                </Button>
               </Stack>
             ) : null}
 
             {activeHeroSlide?.type === 'trending_community' && trendingCommunityTimeline ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
-                <Chip label="Community Timeline" variant="outlined" />
+              <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Chip label="Community Timeline" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
                 <Chip
                   icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
                   label={`${trendingCommunityAudience.count.toLocaleString()} ${trendingCommunityAudience.label}`}
                   variant="outlined"
+                  size="small"
+                  sx={{ fontSize: '0.7rem' }}
                 />
-                <Chip label={`Created ${formatDate(trendingCommunityTimeline.created_at)}`} variant="outlined" />
-                <Button variant="contained" onClick={() => navigate(`/timeline-v3/${trendingCommunityTimeline.id}`)}>Open Trending Community</Button>
+                <Chip label={`Created ${formatDate(trendingCommunityTimeline.created_at)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={() => navigate(`/timeline-v3/${trendingCommunityTimeline.id}`)}
+                  sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
+                >
+                  Open Trending Community
+                </Button>
               </Stack>
             ) : null}
 
             {activeHeroSlide?.type === 'event_spotlight' && spotlightEvent ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
+              <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Button
                   variant="contained"
+                  size="small"
                   onClick={handleOpenHeroEventPopup}
                   disabled={heroEventPopupLoading}
                 >
-                  {heroEventPopupLoading ? 'Opening Event...' : 'Open Event Popup'}
+                  {heroEventPopupLoading ? 'Opening...' : 'View Event'}
                 </Button>
                 {spotlightEvent?.timeline_id ? (
-                  <Button variant="outlined" onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}>
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}
+                    sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
+                  >
                     Open Timeline
                   </Button>
                 ) : null}
@@ -3962,10 +4059,16 @@ const HomePage = () => {
               return (
                 <Box
                   key={dotIndex}
-                  component="button"
-                  type="button"
-                  onClick={() => transitionToHeroSlide(dotIndex)}
-                  disabled={heroTransitionPending}
+                  component="span"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => !heroTransitionPending && transitionToHeroSlide(dotIndex)}
+                  onKeyDown={(e) => {
+                    if (!heroTransitionPending && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      transitionToHeroSlide(dotIndex);
+                    }
+                  }}
                   aria-label={`Hero slide ${dotIndex + 1}`}
                   aria-disabled={heroTransitionPending}
                   sx={{
@@ -3991,20 +4094,19 @@ const HomePage = () => {
             position: 'sticky',
             top: `${HOME_NAVBAR_OFFSET_PX}px`,
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' },
-            gap: 2,
-            overflow: 'hidden',
+            gridTemplateColumns: { xs: '48px minmax(0, 1fr)', md: '68px minmax(0, 1fr)' },
+            gap: { xs: 0.5, md: 2 },
             minHeight: { xs: 'calc(100vh - 120px)', md: `calc(100vh - ${HOME_NAVBAR_OFFSET_PX + 20}px)` },
             height: { xs: 'calc(100vh - 120px)', md: `calc(100vh - ${HOME_NAVBAR_OFFSET_PX + 20}px)` },
             alignItems: 'stretch',
-            zIndex: 1,
+            zIndex: 100,
           }}
         >
           <Paper
             elevation={0}
             sx={{
               borderRadius: 3,
-              p: 1.25,
+              p: { xs: 0.75, md: 1.25 },
               display: 'flex',
               flexDirection: 'column',
               border: '1px solid',
@@ -4013,6 +4115,12 @@ const HomePage = () => {
                 ? 'rgba(10,12,20,0.72)'
                 : 'linear-gradient(170deg, rgba(255,215,190,0.86) 0%, rgba(255,238,214,0.92) 40%, rgba(242,231,214,0.95) 100%)',
               boxShadow: theme.palette.mode === 'dark' ? 'none' : '0 14px 28px rgba(88, 58, 38, 0.12)',
+              width: { xs: '48px', md: 'auto' },
+              transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+              scrollbarWidth: 'none',
+              '&::-webkit-scrollbar': { display: 'none' },
+              overflow: 'visible',
+              zIndex: 10,
             }}
           >
             <Stack spacing={1}>
@@ -4027,16 +4135,16 @@ const HomePage = () => {
                     variant={isActive ? 'contained' : 'text'}
                     onClick={() => transitionToHubTab(tab.key)}
                     sx={{
-                      justifyContent: isActive ? 'flex-start' : 'center',
-                      alignSelf: 'flex-end',
+                      justifyContent: (isActive && isHubLabelVisible) ? 'flex-start' : 'center',
+                      alignSelf: 'flex-start',
                       borderRadius: 2,
-                      minWidth: isActive ? { xs: '220px', md: '100%' } : 54,
-                      width: isActive ? { xs: '220px', md: '100%' } : 54,
+                      minWidth: (isActive && isHubLabelVisible) ? { xs: 160, sm: 200 } : { xs: 32, sm: 50 },
+                      width: (isActive && isHubLabelVisible) ? { xs: 160, sm: 200 } : { xs: 32, sm: 50 },
                       height: 42,
-                      px: isActive ? 1.5 : 0,
+                      px: (isActive && isHubLabelVisible) ? 1.5 : 0,
                       '& .MuiButton-startIcon': {
-                        mr: isActive ? 1 : 0,
-                        ml: isActive ? 0 : 0.2,
+                        mr: (isActive && isHubLabelVisible) ? 1 : 0,
+                        ml: (isActive && isHubLabelVisible) ? 0 : 0.2,
                       },
                       color: isActive ? 'common.white' : 'text.primary',
                       border: isActive ? 'none' : '1px solid',
@@ -4047,92 +4155,93 @@ const HomePage = () => {
                         ? 'primary.main'
                         : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.56)'),
                       overflow: 'hidden',
-                      transformOrigin: 'right center',
-                      transform: isActive ? 'scaleX(1)' : 'scaleX(0.92)',
-                      transition:
-                        'width 420ms cubic-bezier(0.34, 1.56, 0.64, 1), min-width 420ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), padding 240ms ease',
-                      '&:hover': {
-                        bgcolor: isActive
-                          ? 'primary.dark'
-                          : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.74)'),
-                      },
+                      transformOrigin: 'left center',
+                      whiteSpace: 'nowrap',
+                      transition: 'width 450ms cubic-bezier(0.22, 1, 0.36, 1), min-width 450ms cubic-bezier(0.22, 1, 0.36, 1), background-color 250ms ease, box-shadow 300ms ease',
+                      zIndex: isActive ? 2 : 1,
+                      boxShadow: isActive ? '0 6px 16px rgba(37, 99, 235, 0.35)' : 'none',
                     }}
                   >
-                    {isActive ? (
-                      <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Typography component="span" sx={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            {tab.label}
-                          </Typography>
-                          {tab.soon ? (
-                            <Typography component="span" variant="caption" sx={{ opacity: 0.72 }}>
-                              soon
-                            </Typography>
-                          ) : null}
-                        </Box>
-
-                        <Box
-                          onClick={handleScrollActiveHubToTop}
-                          sx={{
-                            ml: 'auto',
-                            width: 26,
-                            height: 26,
-                            borderRadius: 99,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'common.white',
-                            background: 'rgba(255,255,255,0.16)',
-                            border: '1px solid rgba(255,255,255,0.28)',
-                            boxShadow: '0 5px 11px rgba(2, 6, 23, 0.28)',
-                            opacity: showActiveHubScrollTop ? 1 : 0,
-                            transform: showActiveHubScrollTop ? 'translateY(0px) scale(1)' : 'translateY(4px) scale(0.86)',
-                            pointerEvents: showActiveHubScrollTop ? 'auto' : 'none',
-                            transition: 'opacity 220ms ease, transform 220ms ease, background 200ms ease',
-                            '&:hover': {
-                              background: 'rgba(255,255,255,0.24)',
-                            },
-                          }}
-                        >
-                          <NorthIcon sx={{ fontSize: 17, fontWeight: 900 }} />
-                        </Box>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        width: (isActive && isHubLabelVisible) ? 'auto' : 0,
+                        opacity: (isActive && isHubLabelVisible) ? 1 : 0,
+                        ml: (isActive && isHubLabelVisible) ? 1.25 : 0,
+                        transition: 'width 450ms cubic-bezier(0.22, 1, 0.36, 1), opacity 350ms ease, ml 450ms cubic-bezier(0.22, 1, 0.36, 1)',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      {tab.label}
+                    </Box>
+                    
+                    {isActive && (
+                      <Box
+                        component="span"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleScrollActiveHubToTop();
+                        }}
+                        sx={{
+                          ml: 'auto',
+                          width: 22,
+                          height: 22,
+                          borderRadius: 99,
+                          display: isHubLabelVisible ? 'inline-flex' : 'none',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'common.white',
+                          background: 'rgba(255,255,255,0.2)',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                          opacity: showActiveHubScrollTop ? 1 : 0,
+                          transform: showActiveHubScrollTop ? 'scale(1)' : 'scale(0.8)',
+                          pointerEvents: showActiveHubScrollTop ? 'auto' : 'none',
+                          transition: 'opacity 200ms ease, transform 200ms ease',
+                          '&:hover': { background: 'rgba(255,255,255,0.35)' },
+                        }}
+                      >
+                        <NorthIcon sx={{ fontSize: 14, fontWeight: 900 }} />
                       </Box>
-                    ) : null}
+                    )}
                   </Button>
                 );
               })}
+              
+              {/* Load More Button - Integrated into Stack for better positioning */}
+              <Box sx={{ pt: 1, display: 'flex', justifyContent: 'center' }}>
+                <Button
+                  aria-label="LOAD MORE"
+                  variant="text"
+                  onClick={handleLoadMoreFromLeftHub}
+                  sx={{
+                    justifyContent: 'center',
+                    borderRadius: 2,
+                    minWidth: { xs: 32, sm: 42 },
+                    width: { xs: 32, sm: 42 },
+                    height: 42,
+                    px: 0,
+                    color: 'text.primary',
+                    border: '1px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.68)',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.56)',
+                    opacity: showActiveHubLoadMore ? 1 : 0,
+                    transform: showActiveHubLoadMore ? 'translateY(0px) scale(1)' : 'translateY(4px) scale(0.9)',
+                    pointerEvents: showActiveHubLoadMore ? 'auto' : 'none',
+                    transition: 'opacity 220ms ease, transform 220ms ease, background 200ms ease, width 300ms ease',
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.72)',
+                    },
+                  }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </Button>
+              </Box>
             </Stack>
-
-            <Box sx={{ mt: 'auto', pt: 1 }}>
-              <Button
-                aria-label="LOAD MORE"
-                startIcon={<ExpandMoreIcon fontSize="small" />}
-                variant="contained"
-                onClick={handleLoadMoreFromLeftHub}
-                sx={{
-                  justifyContent: 'flex-start',
-                  borderRadius: 2,
-                  width: '100%',
-                  height: 42,
-                  px: 1.5,
-                  color: 'common.white',
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
-                  boxShadow: '0 8px 16px rgba(37,99,235,0.25)',
-                  opacity: showActiveHubLoadMore ? 1 : 0,
-                  transform: showActiveHubLoadMore ? 'translateY(0px) scale(1)' : 'translateY(4px) scale(0.9)',
-                  pointerEvents: showActiveHubLoadMore ? 'auto' : 'none',
-                  transition: 'opacity 220ms ease, transform 220ms ease, background 200ms ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%)',
-                  },
-                }}
-              >
-                LOAD MORE
-              </Button>
-            </Box>
           </Paper>
 
           <Paper
@@ -4148,7 +4257,9 @@ const HomePage = () => {
               display: 'flex',
               flexDirection: 'column',
               minHeight: 0,
-              overflow: 'hidden',
+              overflowY: 'hidden',
+              minWidth: 0,
+              zIndex: 1,
             }}
           >
             <Box
@@ -4487,8 +4598,9 @@ const HomePage = () => {
                       mb: 2,
                       p: 0.5,
                       borderRadius: 99,
-                      display: 'inline-flex',
-                      gap: 0.6,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.8,
                       border: '1px solid',
                       borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
                       background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
@@ -4591,7 +4703,7 @@ const HomePage = () => {
                 <Box
                   ref={favoriteScrollRef}
                   onScroll={handleFavoriteScroll}
-                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                  sx={{ p: { xs: 1.25, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5, mb: 2.1, flexWrap: 'wrap' }}>
                     <Box>
@@ -4800,8 +4912,8 @@ const HomePage = () => {
                           <Box
                             sx={{
                               display: 'grid',
-                              gap: 2,
-                              gridTemplateColumns: { xs: '1fr', lg: 'minmax(260px, 33%) minmax(0, 1fr)' },
+                              gap: { xs: 1.25, sm: 2 },
+                              gridTemplateColumns: { xs: '1fr', sm: '300px 1fr', lg: 'minmax(260px, 33%) minmax(0, 1fr)' },
                               alignItems: 'start',
                             }}
                           >
@@ -4876,6 +4988,10 @@ const HomePage = () => {
                                       background: statusTone.body,
                                       color: statusTone.text,
                                       boxShadow: '0 10px 24px rgba(15,23,42,0.15)',
+                                      width: { xs: 'calc(100% + 20px)', sm: '100%' },
+                                      ml: { xs: -1.25, sm: 0 },
+                                      transform: { xs: 'scale(0.92)', sm: 'none' },
+                                      transformOrigin: 'top center',
                                     }}
                                   >
                                     <Box sx={{ px: 1.6, py: 1.2, background: statusTone.header, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -4988,6 +5104,10 @@ const HomePage = () => {
                                           sx={{
                                             position: 'relative',
                                             borderRadius: 2,
+                                            width: { xs: 'calc(100% + 20px)', sm: '100%' },
+                                            ml: { xs: -1.25, sm: 0 },
+                                            transform: { xs: 'scale(0.92)', sm: 'none' },
+                                            transformOrigin: 'top center',
                                             background: actionStyles.bg,
                                             boxShadow: theme.palette.mode === 'dark'
                                               ? `0 8px 16px rgba(0,0,0,0.35), 0 0 0 1px ${actionStyles.edge}`
@@ -5915,40 +6035,8 @@ const HomePage = () => {
           </Alert>
         </Snackbar>
 
-        {/* Home Page FAB (Left Side) */}
-        {!isGuest && (
-          <NavFab
-            position="left"
-            expanded={isFabExpanded}
-            onToggleExpanded={() => setIsFabExpanded(!isFabExpanded)}
-            onCollapse={() => setIsFabExpanded(false)}
-            actions={[
-              {
-                key: 'feedback',
-                tooltip: 'Submit Feedback',
-                icon: <HowToVoteIcon />,
-                onClick: () => window.open('https://forms.gle/JyKcWfLKy3a7wJgc6', '_blank'),
-                accent: { dark: '#94A3B8', light: '#A5B4FC' },
-              },
-              !isGuest && !user?.is_restricted && {
-                key: 'create-timeline',
-                tooltip: 'Create Your Timeline',
-                icon: <TimelineMarkerIcon />,
-                onClick: () => setDialogOpen(true),
-                accent: { dark: '#4FC3F7', light: '#039BE5' },
-              },
-              !isGuest && !user?.is_restricted && {
-                key: 'make-post',
-                tooltip: 'Make a Post',
-                icon: <AddIcon />,
-                onClick: handleOpenMakePostDialog,
-                accent: { dark: '#69F0AE', light: '#00CFA1' },
-              },
-            ].filter(Boolean)}
-            mainTooltipClosed="Show Options"
-            mainTooltipOpen="Hide Options"
-          />
-        )}
+
+
       </Box>
     </>
   );

@@ -21,7 +21,7 @@ const NavFab = ({
   pathname,
   expanded,
   onToggleExpanded,
-  onCollapse,
+  onCollapse = () => {},
   onNavigate,
   actions,
   showReport = false,

@@ -168,9 +168,10 @@ export default function UserCard({
           px: { xs: 1.75, sm: 2.2 },
           py: { xs: 1.4, sm: 1.55 },
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
           justifyContent: 'space-between',
-          gap: 1.5,
+          gap: { xs: 1.2, sm: 1.5 },
         }}
       >
         <Box
@@ -180,7 +181,7 @@ export default function UserCard({
           }}
         >
           {/* Identity Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.15, mb: 0.45 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.8, sm: 1.15 }, mb: 0.45, ml: { xs: -0.5, sm: 0 } }}>
             <Box
               sx={{
                 width: 16,
@@ -224,12 +225,13 @@ export default function UserCard({
                   src={getFlagUrl(cardData.country)}
                   alt=""
                   sx={{ 
-                    width: 24, 
+                    width: { xs: 20, sm: 24 }, 
                     height: 'auto', 
                     borderRadius: '2px', 
                     boxShadow: '0 0 2px rgba(0,0,0,0.2)', 
                     cursor: 'help',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    mr: { xs: 1, sm: 0 }
                   }}
                 />
               </Tooltip>
@@ -241,11 +243,11 @@ export default function UserCard({
               fontFamily: 'Playfair Display, Georgia, serif',
               fontStyle: 'italic',
               fontWeight: 700,
-              fontSize: { xs: '0.95rem', sm: '1.05rem' },
+              fontSize: { xs: '0.9rem', sm: '1.05rem' },
               color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.85)' : 'rgba(15,23,42,0.85)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              display: '-webkit-box',
+              display: { xs: 'none', sm: '-webkit-box' }, // Hide bio on mobile to reduce clutter
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
             }}
@@ -257,28 +259,32 @@ export default function UserCard({
         {/* Actions Menu */}
         <Stack spacing={0.75} sx={{ alignSelf: 'flex-end', zIndex: 5 }}>
           <Button
-            size="small"
+            size="medium"
             variant="contained"
             onClick={handleOpenMenu}
-            endIcon={<ExpandMoreIcon fontSize="small" />}
+            endIcon={<ExpandMoreIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />}
             sx={{
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              borderRadius: 1.75,
-              px: 1.4,
+              fontWeight: 800,
+              fontSize: { xs: '0.85rem', sm: '1.05rem' },
+              borderRadius: 2,
+              px: { xs: 2.5, sm: 4 },
+              py: { xs: 1, sm: 1.5 },
+              width: { xs: '100%', sm: 'auto' },
               color: '#fff',
               textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
               background: identityColor
                 ? `linear-gradient(135deg, ${identityColor} 0%, ${alpha(identityColor, 0.8)} 100%)`
                 : 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
               boxShadow: identityColor
-                ? `0 8px 16px ${alpha(identityColor, 0.2)}`
-                : '0 8px 16px rgba(37,99,235,0.24)',
+                ? `0 10px 20px ${alpha(identityColor, 0.35)}`
+                : '0 10px 20px rgba(37,99,235,0.3)',
               '&:hover': {
                 background: identityColor
                   ? `linear-gradient(135deg, ${alpha(identityColor, 0.9)} 0%, ${identityColor} 100%)`
                   : undefined,
-              }
+                transform: 'scale(1.05)',
+              },
+              transition: 'all 240ms cubic-bezier(0.34, 1.56, 0.64, 1)',
             }}
           >
             Actions

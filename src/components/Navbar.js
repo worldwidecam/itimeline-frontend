@@ -930,12 +930,28 @@ function Navbar() {
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
           <Typography
-            variant="h6"
+            variant="h5"
             component={RouterLink}
             to={user && !['/login', '/register'].includes(currentPath) ? '/home' : '/'}
-            sx={{ textDecoration: 'none', color: 'inherit', mr: 2, flexShrink: 0 }}
+            onClick={(e) => {
+              // If already on the destination page, force a reload
+              const target = user && !['/login', '/register'].includes(currentPath) ? '/home' : '/';
+              if (currentPath === target) {
+                e.preventDefault();
+                window.location.reload();
+              }
+            }}
+            sx={{ 
+              textDecoration: 'none', 
+              color: 'inherit', 
+              mr: 2, 
+              flexShrink: 0,
+              fontFamily: "'Lobster', cursive",
+              fontSize: '1.75rem',
+              transform: 'translateY(-2px)'
+            }}
           >
-            Timeline Forum
+            iTimeline
           </Typography>
 
           <Box

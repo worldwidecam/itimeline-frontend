@@ -46,6 +46,13 @@ import UserAvatar from '../../../common/UserAvatar';
 import { displayUsername } from '../../../../utils/usernameDisplay';
 import { useEventVote } from '../../../../hooks/useEventVote';
 
+const normalizeMediaUrl = (url) => {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  // Replace absolute localhost backend URLs with relative paths to hit the Vite proxy
+  return trimmed.replace(/^https?:\/\/localhost:5000\//, '/');
+};
+
 const NewsCard = forwardRef(({
   event,
   onEdit,
@@ -458,7 +465,7 @@ const NewsCard = forwardRef(({
             color={color}
           />
 
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 2, pr: 8 }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
               <NewsIcon sx={{ color, mt: 0.5 }} />
               <Box sx={{ flex: 1 }}>
@@ -540,7 +547,7 @@ const NewsCard = forwardRef(({
                         <CardMedia
                           component="img"
                           height="auto"
-                          image={previewImageUrl}
+                          image={normalizeMediaUrl(previewImageUrl)}
                           alt={event.url_title || getSourceName(event.url) || "Link preview image"}
                           sx={{ 
                             objectFit: 'contain',
@@ -638,14 +645,17 @@ const NewsCard = forwardRef(({
             />
             <Box
               sx={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
-                alignItems: 'center',
-                mt: 1,
-                columnGap: 1,
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                justifyContent: 'space-between',
+                mt: 1.5,
+                gap: { xs: 1.5, sm: 1 },
+                borderTop: { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, sm: 'none' },
+                pt: { xs: 1.5, sm: 0 },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', order: { xs: 2, sm: 1 }, minWidth: 0 }}>
                 {event.created_by_username && (
                   <>
                     <UserAvatar
@@ -680,7 +690,7 @@ const NewsCard = forwardRef(({
                 )}
               </Box>
               {showInlineVoteControls && (
-                <Box sx={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                <Box sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' }, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, mb: { xs: 0.5, sm: 0 } }}>
                   {/* Consensus label — hidden on 0 votes and on exact ties */}
                   <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
                     <AnimatePresence mode="wait">
@@ -694,7 +704,7 @@ const NewsCard = forwardRef(({
                           style={{ display: 'flex', alignItems: 'center' }}
                         >
                           <Typography sx={{
-                            fontSize: '0.95rem', fontWeight: 400, letterSpacing: 0.5,
+                            fontSize: '0.9rem', fontWeight: 400, letterSpacing: 0.5,
                             fontFamily: '"Lobster", "Pacifico", cursive',
                             whiteSpace: 'nowrap', lineHeight: 1,
                             color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
@@ -727,7 +737,7 @@ const NewsCard = forwardRef(({
                   </Box>
                 </Box>
               )}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'end', minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', order: { xs: 3, sm: 3 }, justifySelf: 'end', minWidth: 0 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
                 <Typography 
                   variant="caption" 

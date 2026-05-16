@@ -239,13 +239,14 @@ const RemarkCard = forwardRef(({
             ${theme.palette.mode === 'dark' ? 'border-white/5' : 'border-black/5'}
           `}
           sx={{
-            minHeight: 300,
+            minHeight: { xs: 200, sm: 260, md: 300 },
             display: 'flex',
             flexDirection: 'column',
             boxShadow: isSelected
               ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)`
               : '0 2px 4px rgba(0,0,0,0.1)',
             transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+            p: { xs: 1.5, sm: 2 },
             '&:hover': {
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             },
@@ -284,13 +285,13 @@ const RemarkCard = forwardRef(({
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 gap: 1,
                 pb: 1,
                 mb: 1,
                 position: 'relative',
-                pr: { xs: 10, sm: 9 },
+                flexWrap: 'wrap',
                 borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'}`,
               }}
             >
@@ -421,14 +422,17 @@ const RemarkCard = forwardRef(({
             />
             <Box
               sx={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
-                alignItems: 'center',
-                mt: 1,
-                columnGap: 1,
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                justifyContent: 'space-between',
+                mt: 1.5,
+                gap: { xs: 1.5, sm: 1 },
+                borderTop: { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, sm: 'none' },
+                pt: { xs: 1.5, sm: 0 },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'start', minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', order: { xs: 2, sm: 1 }, minWidth: 0 }}>
                 {event.created_by_username && (
                   <>
                     <UserAvatar
@@ -463,7 +467,7 @@ const RemarkCard = forwardRef(({
                 )}
               </Box>
               {showInlineVoteControls && (
-                <Box sx={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                <Box sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' }, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, mb: { xs: 0.5, sm: 0 } }}>
                   {/* Consensus label — hidden on 0 votes and on exact ties */}
                   <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
                     <AnimatePresence mode="wait">
@@ -477,7 +481,7 @@ const RemarkCard = forwardRef(({
                           style={{ display: 'flex', alignItems: 'center' }}
                         >
                           <Typography sx={{
-                            fontSize: '0.95rem', fontWeight: 400, letterSpacing: 0.5,
+                            fontSize: '0.9rem', fontWeight: 400, letterSpacing: 0.5,
                             fontFamily: '"Lobster", "Pacifico", cursive',
                             whiteSpace: 'nowrap', lineHeight: 1,
                             color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
@@ -510,7 +514,7 @@ const RemarkCard = forwardRef(({
                   </Box>
                 </Box>
               )}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifySelf: 'end', minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', order: { xs: 3, sm: 3 }, justifySelf: 'end', minWidth: 0 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.75rem' }} />
                 <Typography variant="caption" color="text.secondary">
                   {formatDate(event.created_at)}

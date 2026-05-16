@@ -333,20 +333,22 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
     <Box
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'flex-start', sm: 'center' },
         justifyContent: 'space-between',
-        gap: 1,
+        gap: 1.5,
         mt: 2,
       }}
     >
-      <Box sx={{ flex: 1, minWidth: 0 }}>{renderHashtagChips()}</Box>
+      <Box sx={{ flex: { xs: 'none', sm: 1 }, minWidth: 0, width: '100%' }}>{renderHashtagChips()}</Box>
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: 0.75,
-          ml: 1,
+          gap: 1,
+          ml: { xs: 0, sm: 1 },
           flexShrink: 0,
+          flexWrap: 'wrap',
         }}
       >
         {renderCommunitiesPill()}
