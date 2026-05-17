@@ -1147,78 +1147,7 @@ const ProfileSettings = () => {
             User ID: {user?.id}
           </Typography>
         </Box>
-
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1,
-          mb: 3,
-          p: 2,
-          bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-          borderRadius: 2,
-          transition: 'background-color 0.3s ease'
-        }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={isDarkMode}
-                onChange={handleThemeChange}
-                sx={{
-                  '& .MuiSwitch-switchBase': {
-                    '&.Mui-checked': {
-                      color: '#90caf9',
-                      '& + .MuiSwitch-track': {
-                        backgroundColor: '#90caf9',
-                      },
-                    },
-                  },
-                  '& .MuiSwitch-thumb': {
-                    backgroundColor: isDarkMode ? '#90caf9' : '#f4b942',
-                  },
-                  '& .MuiSwitch-track': {
-                    backgroundColor: isDarkMode ? 'rgba(144, 202, 249, 0.5)' : 'rgba(244, 185, 66, 0.5)',
-                  },
-                }}
-              />
-            }
-            label={
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1,
-              }}>
-                {isDarkMode ? (
-                  <DarkModeIcon sx={{ 
-                    color: '#90caf9',
-                    animation: 'fadeIn 0.3s ease-in',
-                    '@keyframes fadeIn': {
-                      '0%': { opacity: 0, transform: 'scale(0.8)' },
-                      '100%': { opacity: 1, transform: 'scale(1)' },
-                    },
-                  }} />
-                ) : (
-                  <LightModeIcon sx={{ 
-                    color: '#f4b942',
-                    animation: 'fadeIn 0.3s ease-in',
-                    '@keyframes fadeIn': {
-                      '0%': { opacity: 0, transform: 'scale(0.8)' },
-                      '100%': { opacity: 1, transform: 'scale(1)' },
-                    },
-                  }} />
-                )}
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    color: theme => theme.palette.mode === 'dark' ? '#90caf9' : '#f4b942',
-                    fontWeight: 500,
-                  }}
-                >
-                  {isDarkMode ? 'Dark' : 'Light'} Mode
-                </Typography>
-              </Box>
-            }
-          />
-        </Box>
+        
         
         {/* Error messages are shown via Snackbar at bottom-center — see below */}
         

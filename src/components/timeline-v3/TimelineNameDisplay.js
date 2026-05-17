@@ -19,7 +19,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
   if (type === 'personal') {
     return (
       <Box 
-        sx={{ display: 'flex', alignItems: 'center', ...sx }}
+        sx={{ display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden', ...sx }}
         aria-label={`Personal timeline: ${name}`}
       >
         <Tooltip title="Personal Timeline" arrow placement="top">
@@ -32,6 +32,8 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
               alignItems: 'center',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
             }}
           >
             <span 
@@ -45,7 +47,9 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             >
               My-
             </span>
-            {name}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
+              {name}
+            </span>
           </Typography>
         </Tooltip>
       </Box>
@@ -56,7 +60,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
   if (type !== 'community') {
     return (
       <Box 
-        sx={{ display: 'flex', alignItems: 'center', ...sx }}
+        sx={{ display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden', ...sx }}
         aria-label={`Hashtag timeline: ${name}`}
       >
         <Tooltip title="Hashtag Timeline" arrow placement="top">
@@ -69,6 +73,8 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
               alignItems: 'center',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
             }}
           >
             <span 
@@ -81,7 +87,9 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             >
               #
             </span>
-            {name}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
+              {name}
+            </span>
           </Typography>
         </Tooltip>
       </Box>
@@ -96,7 +104,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
   // This matches how hashtag timelines display the "#" symbol
   return (
     <Box 
-      sx={{ display: 'flex', alignItems: 'center', pl: '10px', ...sx }}
+      sx={{ display: 'flex', alignItems: 'center', pl: '10px', minWidth: 0, overflow: 'hidden', ...sx }}
       aria-label={ariaLabel}
     >
       <Tooltip title={tooltipTitle} arrow placement="top">
@@ -109,6 +117,8 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             alignItems: 'center',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
           }}
         >
           <span 
@@ -122,7 +132,9 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
           >
             i -
           </span>
-          {name}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
+            {name}
+          </span>
           
           {/* Show lock icon for private community timelines */}
           {visibility === 'private' && (

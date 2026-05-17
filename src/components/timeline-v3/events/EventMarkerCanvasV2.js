@@ -434,9 +434,22 @@ const EventMarkerCanvasV2 = ({
   }, []);
 
   const findClosestMarker = (event) => {
-    if (!positions.length || !onMarkerClick) return;
+    if (!positions.length || !onMarkerClick) return null;
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left - timelineOffset;
+    
+    // Extract clientX from touch or mouse events
+    let clientX = event.clientX;
+    if (clientX === undefined) {
+      if (event.touches && event.touches.length > 0) {
+        clientX = event.touches[0].clientX;
+      } else if (event.changedTouches && event.changedTouches.length > 0) {
+        clientX = event.changedTouches[0].clientX;
+      }
+    }
+    
+    if (clientX === undefined) return null;
+    
+    const x = clientX - rect.left - timelineOffset;
     let closest = null;
     let minDist = Infinity;
     positions.forEach((pos) => {
@@ -453,7 +466,12 @@ const EventMarkerCanvasV2 = ({
     const match = findClosestMarker(event);
     if (!match) return;
     const { closest, minDist } = match;
-    if (!closest || minDist > HIT_ZONE_WIDTH * 1.5) {
+    
+    // Dynamic hit threshold: much larger on touch devices (28px) than mouse devices (15px)
+    const isTouch = event.type.startsWith('touch') || (event.touches && event.touches.length > 0);
+    const hitThreshold = isTouch ? 28 : HIT_ZONE_WIDTH * 1.5;
+    
+    if (!closest || minDist > hitThreshold) {
       if (onBackgroundClick) {
         onBackgroundClick();
       }
@@ -466,7 +484,12 @@ const EventMarkerCanvasV2 = ({
     const match = findClosestMarker(event);
     if (!match) return;
     const { closest, minDist } = match;
-    if (!closest || minDist > HIT_ZONE_WIDTH * 1.5) {
+    
+    // Dynamic hit threshold: much larger on touch devices (28px) than mouse devices (15px)
+    const isTouch = event.type.startsWith('touch') || (event.touches && event.touches.length > 0);
+    const hitThreshold = isTouch ? 28 : HIT_ZONE_WIDTH * 1.5;
+    
+    if (!closest || minDist > hitThreshold) {
       if (onBackgroundClick) {
         onBackgroundClick();
       }

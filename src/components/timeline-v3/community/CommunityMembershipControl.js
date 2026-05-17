@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Stack, CircularProgress, Snackbar, Alert, useTheme, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Tooltip } from '@mui/material';
+import { Button, Box, Stack, CircularProgress, Snackbar, Alert, useTheme, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Tooltip } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
@@ -64,6 +64,9 @@ const CommunityMembershipControl = ({
   const [memberCount, setMemberCount] = useState(0);
   const [loadingMemberCount, setLoadingMemberCount] = useState(true);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+  const [infoDialogTitle, setInfoDialogTitle] = useState('');
+  const [infoDialogText, setInfoDialogText] = useState('');
   const [adminCount, setAdminCount] = useState(0);
 
   // Sync hook state to local state
@@ -179,7 +182,19 @@ const CommunityMembershipControl = ({
 
   // Handle leave community button click
   const handleLeaveCommunity = () => {
-    setLeaveDialogOpen(true);
+    if (canLeave) {
+      setLeaveDialogOpen(true);
+    } else {
+      if (isSiteOwner) {
+        setInfoDialogTitle('Creator / Owner Status');
+        setInfoDialogText('As the creator and owner of this community, you cannot leave it. If you need to hand over ownership, please promote another member first.');
+        setInfoDialogOpen(true);
+      } else if (isOnlyAdmin) {
+        setInfoDialogTitle('Admin Access Required');
+        setInfoDialogText('You are currently the only Administrator of this community. Please promote another member to Admin before leaving so the community remains managed.');
+        setInfoDialogOpen(true);
+      }
+    }
   };
 
   // Handle leave confirmation
@@ -225,16 +240,33 @@ const CommunityMembershipControl = ({
     return (
       <Button
         disabled
-        startIcon={<CircularProgress size={16} />}
         sx={{
-          bgcolor: 'rgba(0, 0, 0, 0.12)',
+          background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(15, 23, 42, 0.03)',
+          border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
+          borderRadius: 2.25,
+          px: { xs: 0, sm: 2 },
+          py: 0.75,
+          width: { xs: '36px', sm: 'auto' },
+          height: { xs: '36px', sm: 'auto' },
+          minWidth: { xs: '36px', sm: 'auto' },
+          fontSize: '0.8125rem',
+          fontWeight: 600,
           color: theme.palette.text.secondary,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           '&.Mui-disabled': {
             color: theme.palette.text.secondary
           }
         }}
       >
-        Checking membership...
+        <CircularProgress size={14} sx={{ color: theme.palette.mode === 'dark' ? '#93c5fd' : '#2563eb', mr: { xs: 0, sm: 1 } }} />
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
+          Checking membership...
+        </Box>
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
+          Checking...
+        </Box>
       </Button>
     );
   }
@@ -244,17 +276,33 @@ const CommunityMembershipControl = ({
     return (
       <Button
         disabled
-        startIcon={<BlockIcon />}
         sx={{
-          bgcolor: theme.palette.error.light,
-          color: theme.palette.error.contrastText,
+          background: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
+          border: '1px solid rgba(239, 68, 68, 0.28)',
+          borderRadius: 2.25,
+          px: { xs: 0, sm: 2 },
+          py: 0.75,
+          width: { xs: '36px', sm: 'auto' },
+          height: { xs: '36px', sm: 'auto' },
+          minWidth: { xs: '36px', sm: 'auto' },
+          fontSize: '0.8125rem',
           fontWeight: 700,
+          color: theme.palette.mode === 'dark' ? '#fca5a5' : '#b91c1c',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           '&.Mui-disabled': { 
-            color: theme.palette.error.contrastText 
+            color: theme.palette.mode === 'dark' ? '#fca5a5' : '#b91c1c'
           }
         }}
       >
-        Blocked from this community
+        <BlockIcon sx={{ color: '#f87171', fontSize: '1.1rem', mr: { xs: 0, sm: 1 } }} />
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
+          Blocked from this community
+        </Box>
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
+          Blocked
+        </Box>
       </Button>
     );
   }
@@ -265,18 +313,34 @@ const CommunityMembershipControl = ({
       <>
         <Button
           disabled
-          startIcon={<CheckCircleIcon />}
           sx={{
-            bgcolor: theme.palette.warning.light,
-            color: theme.palette.warning.contrastText,
+            background: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.32)',
+            borderRadius: 2.25,
+            px: { xs: 0, sm: 2 },
+            py: 0.75,
+            width: { xs: '36px', sm: 'auto' },
+            height: { xs: '36px', sm: 'auto' },
+            minWidth: { xs: '36px', sm: 'auto' },
+            fontSize: '0.8125rem',
             fontWeight: 700,
+            color: theme.palette.mode === 'dark' ? '#fde68a' : '#b45309',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             '&.Mui-disabled': { 
-              color: theme.palette.warning.contrastText,
-              bgcolor: theme.palette.warning.light
+              color: theme.palette.mode === 'dark' ? '#fde68a' : '#b45309',
+              background: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)'
             }
           }}
         >
-          Request Sent!
+          <CheckCircleIcon sx={{ color: theme.palette.mode === 'dark' ? '#fbbf24' : '#d97706', fontSize: '1.1rem', mr: { xs: 0, sm: 1 } }} />
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
+            Request Sent!
+          </Box>
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
+            Pending
+          </Box>
         </Button>
         <Snackbar 
           open={snackbarOpen} 
@@ -299,13 +363,31 @@ const CommunityMembershipControl = ({
         <Button
           onClick={handleJoinCommunity}
           disabled={joinRequestSent}
-          startIcon={<PersonAddIcon />}
           sx={{
-            bgcolor: theme.palette.info.main,
+            background: theme.palette.mode === 'dark' 
+              ? 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)'
+              : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
             color: 'white',
-            boxShadow: 2,
-            '&:hover': { 
-              bgcolor: theme.palette.info.dark 
+            border: theme.palette.mode === 'dark' ? '1px solid rgba(14, 165, 233, 0.4)' : '1px solid rgba(3, 105, 161, 0.2)',
+            borderRadius: 2.25,
+            px: { xs: 0, sm: 2.5 },
+            py: 0.75,
+            width: { xs: '36px', sm: 'auto' },
+            height: { xs: '36px', sm: 'auto' },
+            minWidth: { xs: '36px', sm: 'auto' },
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: theme.palette.mode === 'dark' ? '0 4px 14px rgba(2, 132, 199, 0.25)' : '0 4px 12px rgba(3, 105, 161, 0.15)',
+            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark' ? '0 8px 24px rgba(2, 132, 199, 0.45)' : '0 8px 20px rgba(3, 105, 161, 0.3)',
+              filter: 'brightness(1.08)'
             },
             '&.Mui-disabled': {
               bgcolor: 'rgba(0, 0, 0, 0.12)',
@@ -313,9 +395,17 @@ const CommunityMembershipControl = ({
             }
           }}
         >
-          {isGuestUser
-            ? 'Log in to Join'
-            : (requiresApproval || visibility === 'private' ? 'Request to Join' : 'Join Community')}
+          <PersonAddIcon sx={{ fontSize: '1.1rem', mr: { xs: 0, sm: 1 } }} />
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
+            {isGuestUser
+              ? 'Log in to Join'
+              : (requiresApproval || visibility === 'private' ? 'Request to Join' : 'Join Community')}
+          </Box>
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
+            {isGuestUser
+              ? 'Log In'
+              : (requiresApproval || visibility === 'private' ? 'Request' : 'Join')}
+          </Box>
         </Button>
         <Snackbar 
           open={snackbarOpen} 
@@ -331,102 +421,62 @@ const CommunityMembershipControl = ({
     );
   }
 
-  // Render member UI (member count + leave button)
+  // Render member UI (member count & click actions)
   return (
     <>
       <Stack direction="row" spacing={1} alignItems="center">
-        {/* Member Count Display */}
-        <Button
-          disabled
-          startIcon={<PeopleIcon sx={{ fontSize: '1.5rem' }} />}
-          sx={{
-            bgcolor: theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.08)' 
-              : 'rgba(25, 118, 210, 0.08)',
-            color: theme.palette.mode === 'dark'
-              ? theme.palette.primary.light
-              : theme.palette.primary.main,
-            fontSize: '1rem',
-            fontWeight: 700,
-            px: 2,
-            py: 1,
-            borderRadius: 2,
-            border: `2px solid ${theme.palette.mode === 'dark' 
-              ? 'rgba(255, 255, 255, 0.12)' 
-              : theme.palette.primary.main}`,
-            '&.Mui-disabled': {
-              color: theme.palette.mode === 'dark'
-                ? theme.palette.primary.light
-                : theme.palette.primary.main
-            }
-          }}
-        >
-          {loadingMemberCount ? '...' : `${formatMemberCount(memberCount)} Member${memberCount !== 1 ? 's' : ''}`}
-        </Button>
-
-        {/* Leave Community Button - Hidden for SiteOwner and only admin */}
-        {canLeave ? (
+        {/* Member Count Display & Leave Toggle */}
+        <Tooltip title={canLeave ? "Click to leave community" : (isSiteOwner ? "Creator / Owner (Click to manage)" : "Sole Admin (Click to manage)")} arrow>
           <Button
             onClick={handleLeaveCommunity}
-            variant="outlined"
-            size="small"
-            startIcon={<ExitToAppIcon />}
             sx={{
-              fontSize: '0.8rem',
-              py: 0.5,
-              px: 1.5,
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
-              color: theme.palette.text.secondary,
+              bgcolor: theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.04)' 
+                : 'rgba(25, 118, 210, 0.05)',
+              color: theme.palette.mode === 'dark'
+                ? theme.palette.primary.light
+                : theme.palette.primary.main,
+              fontSize: '0.8125rem',
+              fontWeight: 800,
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+              px: { xs: 0, sm: 2.25 },
+              py: 0.75,
+              width: { xs: '36px', sm: 'auto' },
+              height: { xs: '36px', sm: 'auto' },
+              minWidth: { xs: '36px', sm: 'auto' },
+              borderRadius: 2.25,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `1px solid ${theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.1)' 
+                : 'rgba(25, 118, 210, 0.15)'}`,
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
-                borderColor: theme.palette.error.main,
-                color: theme.palette.error.main,
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.1)' : 'rgba(211,47,47,0.05)'
+                borderColor: canLeave ? 'rgba(239, 68, 68, 0.45)' : (theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.45)' : 'rgba(37, 99, 235, 0.35)'),
+                color: canLeave 
+                  ? (theme.palette.mode === 'dark' ? '#fca5a5' : '#dc2626') 
+                  : (theme.palette.mode === 'dark' ? '#93c5fd' : '#1d4ed8'),
+                bgcolor: canLeave 
+                  ? (theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)')
+                  : (theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(37, 99, 235, 0.08)'),
+                transform: 'translateY(-2px)',
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? (canLeave ? '0 4px 14px rgba(239, 68, 68, 0.2)' : '0 4px 14px rgba(59, 130, 246, 0.2)')
+                  : (canLeave ? '0 4px 12px rgba(239, 68, 68, 0.15)' : '0 4px 12px rgba(37, 99, 235, 0.15)')
               }
             }}
           >
-            Leave
+            <PeopleIcon sx={{ fontSize: '1.2rem', mr: { xs: 0, sm: 1 } }} />
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              {loadingMemberCount ? '...' : `${formatMemberCount(memberCount)} Member${memberCount !== 1 ? 's' : ''}`}
+            </Box>
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+              {loadingMemberCount ? '...' : formatMemberCount(memberCount)}
+            </Box>
           </Button>
-        ) : isSiteOwner ? (
-          <Tooltip title="SiteOwner cannot leave communities">
-            <span>
-              <Button
-                disabled
-                variant="outlined"
-                size="small"
-                startIcon={<ExitToAppIcon />}
-                sx={{
-                  fontSize: '0.8rem',
-                  py: 0.5,
-                  px: 1.5,
-                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                  color: theme.palette.text.disabled,
-                }}
-              >
-                Leave
-              </Button>
-            </span>
-          </Tooltip>
-        ) : isOnlyAdmin ? (
-          <Tooltip title="Promote another member to admin before leaving">
-            <span>
-              <Button
-                disabled
-                variant="outlined"
-                size="small"
-                startIcon={<ExitToAppIcon />}
-                sx={{
-                  fontSize: '0.8rem',
-                  py: 0.5,
-                  px: 1.5,
-                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                  color: theme.palette.text.disabled,
-                }}
-              >
-                Leave
-              </Button>
-            </span>
-          </Tooltip>
-        ) : null}
+        </Tooltip>
       </Stack>
 
       <Snackbar 
@@ -461,6 +511,28 @@ const CommunityMembershipControl = ({
           </Button>
           <Button onClick={handleLeaveConfirm} color="error" variant="contained" autoFocus>
             Leave Community
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Info / Restriction Dialog */}
+      <Dialog
+        open={infoDialogOpen}
+        onClose={() => setInfoDialogOpen(false)}
+        aria-labelledby="info-dialog-title"
+        aria-describedby="info-dialog-description"
+      >
+        <DialogTitle id="info-dialog-title">
+          {infoDialogTitle}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="info-dialog-description">
+            {infoDialogText}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInfoDialogOpen(false)} color="primary" variant="contained" autoFocus>
+            Okay
           </Button>
         </DialogActions>
       </Dialog>

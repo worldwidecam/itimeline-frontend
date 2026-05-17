@@ -517,9 +517,9 @@ const EventList = ({
       
       {/* Search and Sort Controls */}
       <Stack
-        direction="row"
-        spacing={2}
-        alignItems="center"
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 1.25, sm: 2 }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
         sx={{
           p: 1,
           borderRadius: 2,
@@ -596,13 +596,25 @@ const EventList = ({
         }}
         elevation={0}
       >
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: { xs: 0.75, sm: 1 }, 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            width: '100%',
+            p: 0.5
+          }}
+        >
           <Button
             variant={selectedType === null ? "contained" : "outlined"}
             size="small"
             onClick={() => setSelectedType(null)}
             sx={{
-              minWidth: '80px',
+              minWidth: { xs: '64px', sm: '80px' },
+              fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+              py: { xs: 0.5, sm: 0.75 },
               bgcolor: selectedType === null ? theme.palette.primary.main : 'transparent',
               '&:hover': {
                 bgcolor: selectedType === null 
@@ -648,7 +660,9 @@ const EventList = ({
                 <MediaIcon />
               }
               sx={{
-                minWidth: '100px',
+                minWidth: { xs: '84px', sm: '100px' },
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                py: { xs: 0.5, sm: 0.75 },
                 bgcolor: selectedType === type && EVENT_TYPE_COLORS[type] ? EVENT_TYPE_COLORS[type].light : 'transparent',
                 color: selectedType === type ? 'white' : (EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light),
                 borderColor: EVENT_TYPE_COLORS[type]?.light || theme.palette.primary.light,
@@ -663,7 +677,7 @@ const EventList = ({
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </Button>
           ))}
-        </Stack>
+        </Box>
       </Paper>
 
       {/* Event Count Summary */}

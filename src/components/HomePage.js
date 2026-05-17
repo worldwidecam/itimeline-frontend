@@ -5301,7 +5301,7 @@ const HomePage = () => {
                     Friends List
                   </Typography>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
-                    View both sides of your current follow graph.
+                    Make Friends. Grow a Community!
                   </Typography>
 
                   <Alert severity="info" sx={{ mb: 1.6 }}>

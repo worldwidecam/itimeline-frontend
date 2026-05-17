@@ -626,15 +626,35 @@ const EventMarker = ({
                 position: 'relative',
                 // Increased click area with pseudo-element
                 ...(disableSelectedPulse
-                  ? {}
+                  ? {
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      inset: '-15px',
+                      '@media (pointer: coarse)': {
+                        inset: '-20px -25px',
+                      },
+                      '@media (max-width: 600px)': {
+                        inset: '-20px -25px',
+                      },
+                      zIndex: 10,
+                    }
+                  }
                   : {
                     '&::before': {
                       content: '""',
                       position: 'absolute',
                       inset: '-15px', // Increased from -8px to -15px for larger click area
+                      '@media (pointer: coarse)': {
+                        inset: '-20px -25px',
+                      },
+                      '@media (max-width: 600px)': {
+                        inset: '-20px -25px',
+                      },
                       background: `radial-gradient(ellipse at center, ${getColor()}30 0%, transparent 70%)`,
                       borderRadius: '4px',
                       animation: 'pulse 2s infinite',
+                      zIndex: 10,
                     },
                   }),
                 '&::after': {
@@ -890,7 +910,13 @@ const EventMarker = ({
                   content: '""',
                   position: 'absolute',
                   inset: '-15px', // Creates a 15px invisible padding around the marker
-                  zIndex: 1, // Ensures it's clickable
+                  '@media (pointer: coarse)': {
+                    inset: '-20px -25px', // Much larger target for fingers
+                  },
+                  '@media (max-width: 600px)': {
+                    inset: '-20px -25px', // Safe fallback for mobile screen widths
+                  },
+                  zIndex: 10, // Elevate zIndex to make sure it intercepts clicks perfectly
                 },
                 '&:hover': disableHover
                   ? {}

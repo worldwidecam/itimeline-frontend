@@ -56,6 +56,7 @@ import OutlinedFlag from '@mui/icons-material/OutlinedFlag';
 import Groups from '@mui/icons-material/Groups';
 import Tag from '@mui/icons-material/Tag';
 import Person from '@mui/icons-material/Person';
+import MyLocation from '@mui/icons-material/MyLocation';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -74,6 +75,7 @@ const OutlinedFlagIcon = OutlinedFlag;
 const GroupsIcon = Groups;
 const TagIcon = Tag;
 const PersonIcon = Person;
+const MyLocationIcon = MyLocation;
 const BannedTimelineLock = React.lazy(() => import('./community/BannedTimelineLock'));
 const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
 const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCommunity'));
@@ -650,8 +652,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleTouchMove = (event) => {
     if (!isDragging.current || touchStartX.current === null) return;
     
-    // Prevent default for both touch and mouse
-    if (event.preventDefault) {
+    // Prevent default for both touch and mouse only if event is cancelable (not passive)
+    if (event.cancelable && event.preventDefault) {
       event.preventDefault();
     }
     
@@ -3232,9 +3234,25 @@ const handleRecenter = () => {
     }}>
       <Container maxWidth={false}>
 
-        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Box sx={{ color: theme.palette.primary.main, minWidth: '200px' }}>
+        <Stack 
+          direction="row" 
+          spacing={2} 
+          sx={{ 
+            mb: 2, 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            width: '100%',
+            flexWrap: 'nowrap',
+            minWidth: 0
+          }}
+        >
+          <Stack 
+            direction="row" 
+            spacing={1} 
+            alignItems="center"
+            sx={{ width: 'auto', flexWrap: 'nowrap', minWidth: 0, flexShrink: 1, flexGrow: 1 }}
+          >
+            <Box sx={{ color: theme.palette.primary.main, minWidth: 0, flexShrink: 1, flexGrow: 1, overflow: 'hidden' }}>
               {!isLoading && (
                 <TimelineNameDisplay 
                   name={timelineName} 
@@ -3247,10 +3265,7 @@ const handleRecenter = () => {
                 />
               )}
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {getViewDescription()}
-            </Box>
-            <Box sx={{ position: 'relative' }}>
+            <Box sx={{ position: 'relative', flexShrink: 0 }}>
               {/* Button section */}
               {timeline_type === 'community' ? (
                 // Community timeline membership control
@@ -3489,15 +3504,40 @@ const handleRecenter = () => {
                 onClick={handleRecenter}
                 variant="contained"
                 sx={{
-                  bgcolor: theme.palette.primary.main,
+                  background: theme.palette.mode === 'dark' 
+                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                    : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                   color: 'white',
+                  border: theme.palette.mode === 'dark' ? '1px solid rgba(147, 197, 253, 0.4)' : '1px solid rgba(255, 255, 255, 0.25)',
+                  borderRadius: 2.25,
+                  px: { xs: 0, sm: 2.5 },
+                  py: 0.75,
+                  width: { xs: '36px', sm: 'auto' },
+                  height: { xs: '36px', sm: 'auto' },
+                  minWidth: { xs: '36px', sm: 'auto' },
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: theme.palette.mode === 'dark' ? '0 4px 14px rgba(59, 130, 246, 0.25)' : '0 4px 12px rgba(37, 99, 235, 0.15)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    bgcolor: theme.palette.primary.dark,
-                  },
-                  boxShadow: 2
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.palette.mode === 'dark' ? '0 8px 24px rgba(59, 130, 246, 0.45)' : '0 8px 20px rgba(37, 99, 235, 0.3)',
+                    filter: 'brightness(1.08)'
+                  }
                 }}
               >
-                Back to Present
+                <MyLocationIcon sx={{ fontSize: '0.9rem', mr: { xs: 0, sm: 1 } }} />
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
+                  Back to Present
+                </Box>
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
+                  Present
+                </Box>
               </Button>
             </Fade>
           </Stack>
@@ -3522,160 +3562,7 @@ const handleRecenter = () => {
             setCoverPortraitZoom={setCoverPortraitZoom}
             onNotify={handleAccessPanelNotice}
           />
-          <Stack direction="row" spacing={2} alignItems="center">
-            {/* Event Counter - Now shows filtered events count */}
-            {(() => {
-              // Compute filtered events for EventCounter (memoized inline)
-              const filteredEventsForCounter = isSettled ? events.filter(event => {
-                // Apply the same filtering logic as in EventList
-                if (viewMode === 'position') {
-                  // In position mode, still apply type filter if selected
-                  if (selectedType) {
-                    const eventType = (event.type || '').toLowerCase();
-                    return eventType === selectedType.toLowerCase();
-                  }
-                  return true;
-                }
-                
-                if (!event.event_date) return false;
-                
-                const currentDate = getCurrentTimeReference();
-                let startDate, endDate;
-                
-                // Determine visible marker range with a safe fallback when visibleMarkers isn't ready
-                let rangeMin, rangeMax;
-                if (visibleMarkers && visibleMarkers.length > 0) {
-                  rangeMin = Math.min(...visibleMarkers);
-                  rangeMax = Math.max(...visibleMarkers);
-                } else {
-                  const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
-                  const markerWidth = 100;
-                  const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
-                  const centerMarkerPosition = -timelineOffset / markerWidth;
-                  const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
-                  rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
-                  rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
-                }
-                
-                // Use only the visible markers without any buffer
-                // This ensures we only show events that are actually visible on screen
-                
-                switch (viewMode) {
-                  case 'day': {
-                    startDate = new Date(currentDate);
-                    startDate.setHours(startDate.getHours() + rangeMin);
-                    
-                    endDate = new Date(currentDate);
-                    endDate.setHours(endDate.getHours() + rangeMax);
-                    break;
-                  }
-                  case 'week': {
-                    startDate = subDays(currentDate, Math.abs(rangeMin));
-                    endDate = addDays(currentDate, rangeMax);
-                    break;
-                  }
-                  case 'month': {
-                    startDate = subMonths(currentDate, Math.abs(rangeMin));
-                    endDate = addMonths(currentDate, rangeMax);
-                    break;
-                  }
-                  case 'year': {
-                    startDate = subYears(currentDate, Math.abs(rangeMin));
-                    endDate = addYears(currentDate, rangeMax);
-                    break;
-                  }
-                  default:
-                    return true;
-                }
-                
-                const eventDate = new Date(event.event_date);
-                const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
-                
-                // Apply type filter if selected
-                if (selectedType) {
-                  const eventType = (event.type || '').toLowerCase();
-                  return passesDateFilter && eventType === selectedType.toLowerCase();
-                }
-                
-                return passesDateFilter;
-              }) : [];
-              
-              return (
-                <EventCounter
-                  count={isSettled ? filteredEventsCount : 0}
-                  events={filteredEventsForCounter}
-                  currentIndex={currentEventIndex}
-                  onChangeIndex={(index) => {
-                    // If user just clicked/selected, do not override their choice
-                    if (Date.now() < userSelectionLockUntilRef.current) {
-                      return;
-                    }
-                    
-                    // Get the event at this index
-                    const event = filteredEventsForCounter[index];
-                    if (!event) return;
-                    
-                    // Update index
-                    setCurrentEventIndex(index);
-                    
-                    // Select the event
-                    setSelectedEventId(event.id);
-                    setShouldScrollToEvent(false); // Don't auto-scroll EventList
-                    
-                    // Activate Point B if in a time-based view
-                    if (event.event_date && viewMode !== 'position') {
-                      const markerValue = calculateEventMarkerPosition(event, viewMode);
-                      activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false, 0);
-                    }
-                  }}
-                  onDotClick={handleCarouselPopupOpen}
-                  onEdit={handleEventEdit}
-                  onDelete={handleEventDelete}
-                  timelineOffset={timelineOffset}
-                  goToPrevious={navigateToPrevEvent}
-                  goToNext={navigateToNextEvent}
-                  markerSpacing={100}
-                  sortOrder={sortOrder}
-                  selectedType={selectedType}
-                  motionDissipate={!isSettled}
-                />
-              );
-            })()}
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant={viewMode === 'day' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'day' ? 'position' : 'day')}
-                disabled={isViewTransitioning}
-              >
-                Day
-              </Button>
-              <Button
-                variant={viewMode === 'week' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'week' ? 'position' : 'week')}
-                disabled={isViewTransitioning}
-              >
-                Week
-              </Button>
-              <Button
-                variant={viewMode === 'month' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'month' ? 'position' : 'month')}
-                disabled={isViewTransitioning}
-              >
-                Month
-              </Button>
-              <Button
-                variant={viewMode === 'year' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'year' ? 'position' : 'year')}
-                disabled={isViewTransitioning}
-              >
-                Year
-              </Button>
-            </Stack>
-          </Stack>
+
         </Stack>
         
         <Box 
@@ -3923,47 +3810,224 @@ const handleRecenter = () => {
             label={pointB_active && pointB_reference_timestamp ? new Date(pointB_reference_timestamp).toLocaleString() : undefined}
           />
           
-          <Button
-            onClick={handleLeft}
-            sx={{
-              position: 'absolute',
-              left: 20,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              minWidth: 100,
-              background: timelineSurfaces.glass,
-              border: `1px solid ${timelineSurfaces.glassBorder}`,
-              zIndex: 1050, // Increased z-index to be above marker popups
-              boxShadow: 3, // Add shadow to make it stand out
-              '&:hover': {
-                background: timelineSurfaces.glassHover,
-                boxShadow: 4, // Enhanced shadow on hover
-              }
-            }}
-          >
-            LEFT
-          </Button>
-          <Button
-            onClick={handleRight}
-            sx={{
-              position: 'absolute',
-              right: 20,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              minWidth: 100,
-              background: timelineSurfaces.glass,
-              border: `1px solid ${timelineSurfaces.glassBorder}`,
-              zIndex: 1050, // Increased z-index to be above marker popups
-              boxShadow: 3, // Add shadow to make it stand out
-              '&:hover': {
-                background: timelineSurfaces.glassHover,
-                boxShadow: 4, // Enhanced shadow on hover
-              }
-            }}
-          >
-            RIGHT
-          </Button>
         </Box>
+
+        {/* Unified Timeline Navigation & View Controls Row */}
+        {/* Unified Timeline Navigation & View Controls Row */}
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ mt: 2, mb: 2, width: '100%' }}
+        >
+          {/* Left Hooked - Tiny navigation button for desktop */}
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Button
+              size="small"
+              onClick={handleLeft}
+              sx={{
+                minWidth: 'auto',
+                px: 1.5,
+                py: 0.5,
+                background: timelineSurfaces.tool,
+                border: `1px solid ${timelineSurfaces.toolBorder}`,
+                color: theme.palette.text.secondary,
+                fontWeight: 'bold',
+                fontSize: '0.75rem',
+                '&:hover': {
+                  background: timelineSurfaces.glassHover,
+                }
+              }}
+            >
+              ◀ LEFT
+            </Button>
+          </Box>
+
+          {/* Center Group: EventCounter + View Mode Buttons (always on the same row, never stack!) */}
+          <Stack 
+            direction="row"
+            spacing={{ xs: 1.5, sm: 3 }}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ flexGrow: 1, width: 'auto', flexWrap: 'nowrap' }}
+          >
+            {/* Event Counter */}
+            {(() => {
+              // Compute filtered events for EventCounter (memoized inline)
+              const filteredEventsForCounter = isSettled ? events.filter(event => {
+                // Apply the same filtering logic as in EventList
+                if (viewMode === 'position') {
+                  if (selectedType) {
+                    const eventType = (event.type || '').toLowerCase();
+                    return eventType === selectedType.toLowerCase();
+                  }
+                  return true;
+                }
+                
+                if (!event.event_date) return false;
+                
+                const currentDate = getCurrentTimeReference();
+                let startDate, endDate;
+                
+                let rangeMin, rangeMax;
+                if (visibleMarkers && visibleMarkers.length > 0) {
+                  rangeMin = Math.min(...visibleMarkers);
+                  rangeMax = Math.max(...visibleMarkers);
+                } else {
+                  const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
+                  const markerWidth = 100;
+                  const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
+                  const centerMarkerPosition = -timelineOffset / markerWidth;
+                  const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
+                  rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
+                  rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
+                }
+                
+                switch (viewMode) {
+                  case 'day': {
+                    startDate = new Date(currentDate);
+                    startDate.setHours(startDate.getHours() + rangeMin);
+                    
+                    endDate = new Date(currentDate);
+                    endDate.setHours(endDate.getHours() + rangeMax);
+                    break;
+                  }
+                  case 'week': {
+                    startDate = subDays(currentDate, Math.abs(rangeMin));
+                    endDate = addDays(currentDate, rangeMax);
+                    break;
+                  }
+                  case 'month': {
+                    startDate = subMonths(currentDate, Math.abs(rangeMin));
+                    endDate = addMonths(currentDate, rangeMax);
+                    break;
+                  }
+                  case 'year': {
+                    startDate = subYears(currentDate, Math.abs(rangeMin));
+                    endDate = addYears(currentDate, rangeMax);
+                    break;
+                  }
+                  default:
+                    return true;
+                }
+                
+                const eventDate = new Date(event.event_date);
+                const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
+                
+                if (selectedType) {
+                  const eventType = (event.type || '').toLowerCase();
+                  return passesDateFilter && eventType === selectedType.toLowerCase();
+                }
+                
+                return passesDateFilter;
+              }) : [];
+              
+              return (
+                <EventCounter
+                  count={isSettled ? filteredEventsCount : 0}
+                  events={filteredEventsForCounter}
+                  currentIndex={currentEventIndex}
+                  onChangeIndex={(index) => {
+                    if (Date.now() < userSelectionLockUntilRef.current) {
+                      return;
+                    }
+                    
+                    const event = filteredEventsForCounter[index];
+                    if (!event) return;
+                    
+                    setCurrentEventIndex(index);
+                    setSelectedEventId(event.id);
+                    setShouldScrollToEvent(false);
+                    
+                    if (event.event_date && viewMode !== 'position') {
+                      const markerValue = calculateEventMarkerPosition(event, viewMode);
+                      activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false, 0);
+                    }
+                  }}
+                  onDotClick={handleCarouselPopupOpen}
+                  onEdit={handleEventEdit}
+                  onDelete={handleEventDelete}
+                  timelineOffset={timelineOffset}
+                  goToPrevious={navigateToPrevEvent}
+                  goToNext={navigateToNextEvent}
+                  markerSpacing={100}
+                  sortOrder={sortOrder}
+                  selectedType={selectedType}
+                  motionDissipate={!isSettled}
+                />
+              );
+            })()}
+
+            {/* View Mode Buttons */}
+            <Stack 
+              direction="row" 
+              spacing={{ xs: 0.5, sm: 1 }} 
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Button
+                variant={viewMode === 'day' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleViewModeTransition(viewMode === 'day' ? 'position' : 'day')}
+                disabled={isViewTransitioning}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+              >
+                Day
+              </Button>
+              <Button
+                variant={viewMode === 'week' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleViewModeTransition(viewMode === 'week' ? 'position' : 'week')}
+                disabled={isViewTransitioning}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+              >
+                Week
+              </Button>
+              <Button
+                variant={viewMode === 'month' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleViewModeTransition(viewMode === 'month' ? 'position' : 'month')}
+                disabled={isViewTransitioning}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+              >
+                Month
+              </Button>
+              <Button
+                variant={viewMode === 'year' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleViewModeTransition(viewMode === 'year' ? 'position' : 'year')}
+                disabled={isViewTransitioning}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+              >
+                Year
+              </Button>
+            </Stack>
+          </Stack>
+
+          {/* Right Hooked - Tiny navigation button for desktop */}
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Button
+              size="small"
+              onClick={handleRight}
+              sx={{
+                minWidth: 'auto',
+                px: 1.5,
+                py: 0.5,
+                background: timelineSurfaces.tool,
+                border: `1px solid ${timelineSurfaces.toolBorder}`,
+                color: theme.palette.text.secondary,
+                fontWeight: 'bold',
+                fontSize: '0.75rem',
+                '&:hover': {
+                  background: timelineSurfaces.glassHover,
+                }
+              }}
+            >
+              RIGHT ▶
+            </Button>
+          </Box>
+        </Stack>
       </Container>
 
       {/* Community Hero Banner - Positioned below visualization and above EventList */}
@@ -3973,8 +4037,8 @@ const handleRecenter = () => {
             sx={{
               mb: 3,
               mt: 2,
-              minHeight: { xs: 96, md: 120 },
-              aspectRatio: '8 / 1',
+              minHeight: { xs: 80, md: 120 },
+              aspectRatio: { xs: '4.5 / 1', md: '8 / 1' },
               borderRadius: 2.25,
               border: '1px solid',
               borderColor: timelineSurfaces.shellBorder,

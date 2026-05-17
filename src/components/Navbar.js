@@ -24,10 +24,12 @@ import {
   ClickAwayListener,
   Grow,
   useTheme,
+  Switch,
 } from '@mui/material';
 import UserAvatar from './common/UserAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
+import { useTheme as useAppTheme } from '../contexts/ThemeContext';
 import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
@@ -38,6 +40,8 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
 import ThumbDownAltRoundedIcon from '@mui/icons-material/ThumbDownAltRounded';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ToolbarSpacer from './ToolbarSpacer';
 import api, { checkMembershipStatus, getTimelineWarningState, getTimelineStatusMessage, getTimelineActions, getLandingRotatorSettings } from '../utils/api';
 import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getActionProgressMeta } from './timeline-v3/community/timelineStatusActionUtils';
@@ -52,6 +56,7 @@ function Navbar() {
   const theme = useTheme();
   const { user, logout, isGuest } = useAuth();
   const { getBlurredEmail } = useEmailBlur();
+  const { isDarkMode, toggleTheme } = useAppTheme();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [currentTimelineName, setCurrentTimelineName] = React.useState('');
@@ -836,7 +841,49 @@ function Navbar() {
             />
           </ListItem>
         )}
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 1.5 }} />
+        <ListItem 
+          button 
+          onClick={toggleTheme}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon>
+            {isDarkMode ? (
+              <DarkModeIcon sx={{ color: 'primary.main' }} />
+            ) : (
+              <LightModeIcon sx={{ color: '#f4b942' }} />
+            )}
+          </ListItemIcon>
+          <ListItemText 
+            primary={isDarkMode ? "Dark Theme" : "Light Theme"} 
+            primaryTypographyProps={{ fontWeight: 500 }}
+          />
+          <Switch 
+            checked={isDarkMode}
+            onChange={(e) => {
+              e.stopPropagation();
+              toggleTheme();
+            }}
+            color="primary"
+            sx={{
+              '& .MuiSwitch-switchBase': {
+                '&.Mui-checked': {
+                  color: '#90caf9',
+                  '& + .MuiSwitch-track': {
+                    backgroundColor: '#90caf9',
+                  },
+                },
+              },
+              '& .MuiSwitch-thumb': {
+                backgroundColor: isDarkMode ? '#90caf9' : '#f4b942',
+              },
+              '& .MuiSwitch-track': {
+                backgroundColor: isDarkMode ? 'rgba(144, 202, 249, 0.5)' : 'rgba(244, 185, 66, 0.5)',
+              },
+            }}
+          />
+        </ListItem>
+        <Divider sx={{ my: 1.5 }} />
         
         {/* Last Visited Timeline section */}
         {lastVisitedTimeline && (!isTimelinePage || lastVisitedTimeline.id !== timelineId) && (
