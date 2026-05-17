@@ -447,7 +447,7 @@ const EventPopup = ({
 
   const handleShare = () => {
     try {
-      const shareUrl = `${config.API_URL}/share/event/${event?.id}`;
+      const shareUrl = `${window.location.origin}/share/events/${event?.id}`;
       navigator.clipboard.writeText(shareUrl);
       setError('');
       setSuccess('Share link copied to clipboard!');
@@ -1412,7 +1412,7 @@ const EventPopup = ({
                       }}
                     >
                     <MenuItem onClick={handleShare}>
-                      <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+                      <ListItemIcon sx={{ color: 'inherit' }}><ShareIcon fontSize="small" /></ListItemIcon>
                       <ListItemText primary="Share Event" />
                     </MenuItem>
                     {canEdit && (
