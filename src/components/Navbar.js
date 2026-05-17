@@ -175,6 +175,10 @@ function Navbar() {
     return match ? match[1] : null;
   })();
 
+  const isMembersPage = currentPath.includes('/members') && isTimelinePage;
+  const isAdminPage = currentPath.includes('/admin') && isTimelinePage;
+  const shouldNavigateToTimeline = (isMembersPage || isAdminPage) && timelineId;
+
   const warningPanelOpen = Boolean(warningAnchorEl);
   const statusPanelOpen = Boolean(statusAnchorEl);
   const warningScopeLabel = timelineWarningState?.warning_scope === 'action_cards'
@@ -979,10 +983,19 @@ function Navbar() {
           <Typography
             variant="h5"
             component={RouterLink}
-            to={user && !['/login', '/register'].includes(currentPath) ? '/home' : '/'}
+            to={
+              currentPath === '/profile/settings'
+                ? '/profile'
+                : (shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !['/login', '/register'].includes(currentPath) ? '/home' : '/'))
+            }
             onClick={(e) => {
+              if (currentPath === '/profile/settings') {
+                e.preventDefault();
+                navigate(-1);
+                return;
+              }
               // If already on the destination page, force a reload
-              const target = user && !['/login', '/register'].includes(currentPath) ? '/home' : '/';
+              const target = shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !['/login', '/register'].includes(currentPath) ? '/home' : '/');
               if (currentPath === target) {
                 e.preventDefault();
                 window.location.reload();

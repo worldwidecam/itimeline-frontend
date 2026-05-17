@@ -33,10 +33,13 @@ import {
   Switch,
   alpha,
   useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import FlagIcon from '@mui/icons-material/Flag';
 import ShieldIcon from '@mui/icons-material/Shield';
+import HistoryIcon from '@mui/icons-material/History';
+import SettingsIcon from '@mui/icons-material/Settings';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
@@ -627,8 +630,17 @@ const UserListTab = () => {
 
 const LogsTab = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const timelineSurfaces = getTimelineSurfaceTheme(theme);
   const [logsSection, setLogsSection] = useState('broken-events');
+
+  const getLogsSectionIcon = (key) => {
+    if (key === 'broken-events') return <CancelIcon />;
+    if (key === 'ban-list') return <LockIcon />;
+    if (key === 'user-list') return <PersonIcon />;
+    if (key === 'timeline-list') return <TagIcon />;
+    return null;
+  };
 
   return (
     <Box sx={{ mt: 1.5 }}>
@@ -654,10 +666,10 @@ const LogsTab = () => {
           <Tabs
             value={logsSection}
             onChange={(_event, nextValue) => setLogsSection(nextValue)}
-            orientation="vertical"
-            variant="scrollable"
+            orientation={isMobile ? "horizontal" : "vertical"}
+            variant={isMobile ? "fullWidth" : "scrollable"}
             sx={{
-              '& .MuiTabs-indicator': {
+              '& .MuiTabs-indicator': isMobile ? {} : {
                 left: 0,
                 right: 'auto',
                 width: 4,
@@ -666,7 +678,7 @@ const LogsTab = () => {
               },
               '& .MuiTab-root': {
                 borderRadius: 1.5,
-                mb: 0.5,
+                mb: isMobile ? 0 : 0.5,
                 transition: 'all 0.2s ease',
                 '&:hover': {
                   bgcolor: 'rgba(255, 255, 255, 0.05)',
@@ -681,16 +693,18 @@ const LogsTab = () => {
               <Tab
                 key={section.key}
                 value={section.key}
-                label={section.label}
+                label={isMobile ? undefined : section.label}
+                icon={getLogsSectionIcon(section.key)}
+                iconPosition="start"
                 sx={{
-                  alignItems: 'flex-start',
-                  textAlign: 'left',
+                  alignItems: isMobile ? 'center' : 'flex-start',
+                  textAlign: isMobile ? 'center' : 'left',
                   textTransform: 'none',
                   fontSize: '0.9rem',
                   fontWeight: logsSection === section.key ? 800 : 500,
-                  minHeight: 44,
-                  py: 1,
-                  px: 2,
+                  minHeight: isMobile ? 38 : 44,
+                  py: isMobile ? 0.5 : 1,
+                  px: isMobile ? 0.5 : 2,
                 }}
               />
             ))}
@@ -4239,6 +4253,7 @@ const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
 
 const SiteControlPage = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const { user } = useAuth();
   const [tabValue, setTabValue] = useState(0);
@@ -4353,20 +4368,60 @@ const SiteControlPage = () => {
           <Tabs
             value={tabValue}
             onChange={(event, newValue) => setTabValue(newValue)}
-            sx={{ borderBottom: 1, borderColor: 'divider' }}
+            variant={isMobile ? "fullWidth" : "standard"}
+            sx={{ 
+              borderBottom: 1, 
+              borderColor: 'divider',
+              minHeight: { xs: 36, sm: 48 }
+            }}
           >
-            <Tab label="Global Reports" sx={{ fontWeight: 600 }} />
-            <Tab label="Admin List" sx={{ fontWeight: 600 }} />
-            <Tab label="Logs" sx={{ fontWeight: 600 }} />
             <Tab 
-              label="Site Settings" 
+              label={isMobile ? undefined : "Global Reports"} 
+              icon={<FlagIcon />} 
+              iconPosition="start"
+              sx={{ 
+                fontWeight: 600,
+                minHeight: { xs: 36, sm: 48 },
+                py: { xs: 0.5, sm: 1.5 },
+                px: { xs: 0.5, sm: 2 }
+              }} 
+            />
+            <Tab 
+              label={isMobile ? undefined : "Admin List"} 
+              icon={<ShieldIcon />} 
+              iconPosition="start"
+              sx={{ 
+                fontWeight: 600,
+                minHeight: { xs: 36, sm: 48 },
+                py: { xs: 0.5, sm: 1.5 },
+                px: { xs: 0.5, sm: 2 }
+              }} 
+            />
+            <Tab 
+              label={isMobile ? undefined : "Logs"} 
+              icon={<HistoryIcon />} 
+              iconPosition="start"
+              sx={{ 
+                fontWeight: 600,
+                minHeight: { xs: 36, sm: 48 },
+                py: { xs: 0.5, sm: 1.5 },
+                px: { xs: 0.5, sm: 2 }
+              }} 
+            />
+            <Tab 
+              label={isMobile ? undefined : "Site Settings"} 
+              icon={<SettingsIcon />} 
+              iconPosition="start"
               disabled={!canManageSettings} 
               sx={{ 
                 fontWeight: 600,
+                minHeight: { xs: 36, sm: 48 },
+                py: { xs: 0.5, sm: 1.5 },
+                px: { xs: 0.5, sm: 2 },
                 '&.Mui-disabled': {
                   opacity: 0.4,
                   cursor: 'not-allowed',
-                  pointerEvents: 'auto', // Allow tooltip to work if added
+                  pointerEvents: 'auto',
                 }
               }} 
             />

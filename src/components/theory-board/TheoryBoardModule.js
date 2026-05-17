@@ -1087,21 +1087,22 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
           <Box
             sx={{
               position: 'relative',
-              px: 1.35,
+              px: { xs: 0.8, sm: 1.35 },
               py: 0.8,
               backgroundColor: theme.palette.mode === 'dark' ? 'rgba(9, 7, 4, 0.18)' : 'rgba(255, 252, 247, 0.12)',
               borderBottom: '1px solid',
               borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(55, 31, 17, 0.18)',
-              display: 'grid',
-              gridTemplateColumns: '1fr auto 1fr',
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              gap: 1,
+              gap: { xs: 0.8, sm: 1 },
               zIndex: 2,
             }}
           >
-            <Stack direction="row" spacing={0.35} alignItems="center" sx={{ justifySelf: 'start' }}>
+            <Stack direction="row" spacing={0.35} alignItems="center" sx={{ flexShrink: 0 }}>
               {isOwner && (
-                <>
+                <Tooltip title="Add Thumb Tack">
                   <IconButton
                     size="small"
                     onClick={handleAddPin}
@@ -1118,14 +1119,11 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     <PushPinIcon fontSize="small" />
                     <AddIcon sx={{ fontSize: 13, ml: 0.2 }} />
                   </IconButton>
-                  <Typography variant="caption" sx={{ letterSpacing: 0.3, color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.82)' : 'rgba(84,48,24,0.82)' }}>
-                    Thumb Tack
-                  </Typography>
-                </>
+                </Tooltip>
               )}
             </Stack>
 
-            <Box sx={{ justifySelf: 'center', minHeight: 28, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ minHeight: 28, display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', flexShrink: 1 }}>
               {isOwner && (
                 <Button
                   size="small"
@@ -1137,8 +1135,10 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     textTransform: 'none',
                     fontWeight: 700,
                     letterSpacing: 0.2,
-                    px: 1.2,
-                    minWidth: 96,
+                    px: { xs: 0.8, sm: 1.2 },
+                    minWidth: { xs: 76, sm: 96 },
+                    height: 28,
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
                     bgcolor: hasUnsavedChanges
                       ? (theme.palette.mode === 'dark' ? 'rgba(88, 126, 86, 0.86)' : 'rgba(93, 142, 89, 0.88)')
                       : 'transparent',
@@ -1160,10 +1160,11 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 <Typography
                   variant="caption"
                   sx={{
-                    maxWidth: 240,
+                    maxWidth: { xs: 120, sm: 240 },
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
                     color: saveFeedbackTone === 'error'
                       ? (theme.palette.mode === 'dark' ? '#ffab91' : '#b23b17')
                       : saveFeedbackTone === 'success'
@@ -1176,12 +1177,12 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
               )}
             </Box>
 
-            <Stack direction="row" spacing={0.5} sx={{ justifySelf: 'end' }}>
+            <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
               <Tooltip title="Recenter board">
                 <IconButton
                   size="small"
                   onClick={recenterBoard}
-                  sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)' }}
+                  sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)', p: { xs: 0.5, sm: 1 } }}
                 >
                   <RestartAltIcon fontSize="small" />
                 </IconButton>
@@ -1192,7 +1193,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     size="small"
                     onClick={zoomOut}
                     disabled={zoom <= adaptiveMinZoom + 0.001}
-                    sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)' }}
+                    sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)', p: { xs: 0.5, sm: 1 } }}
                   >
                     <RemoveIcon fontSize="small" />
                   </IconButton>
@@ -1204,7 +1205,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     size="small"
                     onClick={zoomIn}
                     disabled={zoom >= MAX_ZOOM - 0.001}
-                    sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)' }}
+                    sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)', p: { xs: 0.5, sm: 1 } }}
                   >
                     <AddIcon fontSize="small" />
                   </IconButton>
@@ -1224,6 +1225,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                       setYarnPreviewPoint(null);
                     }}
                     sx={{
+                      p: { xs: 0.5, sm: 1 },
                       color: interactionMode === 'cut'
                         ? (theme.palette.mode === 'dark' ? 'rgba(255,210,160,0.98)' : 'rgba(120, 44, 14, 0.96)')
                         : (theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)'),
@@ -1249,6 +1251,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                       setYarnPreviewPoint(null);
                     }}
                     sx={{
+                      p: { xs: 0.5, sm: 1 },
                       color: interactionMode === 'create_yarn'
                         ? (theme.palette.mode === 'dark' ? 'rgba(255,210,160,0.98)' : 'rgba(120, 44, 14, 0.96)')
                         : (theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)'),
@@ -1262,7 +1265,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 <IconButton
                   size="small"
                   onClick={handleToggleFullscreen}
-                  sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)' }}
+                  sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)', p: { xs: 0.5, sm: 1 } }}
                 >
                   {isFullscreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
                 </IconButton>

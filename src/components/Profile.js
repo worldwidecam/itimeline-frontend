@@ -1297,12 +1297,17 @@ const Profile = () => {
               transition: 'all 0.3s ease-in-out',
               boxSizing: 'border-box',
               '@media (max-width: 1100px)': {
-                top: 'auto',
-                bottom: '20px',
-                left: '10px',
-                right: '10px',
+                top: '56px', // Directly below navbar on mobile/tablet
+                bottom: 'auto',
+                left: '0px',
+                right: '0px',
                 maxWidth: 'none',
-                p: 1.5,
+                borderRadius: '0px',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderTop: 'none',
+                p: '4px 12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               },
             }}
           >
@@ -1315,7 +1320,9 @@ const Profile = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
-                '@media (max-width: 1100px)': { fontSize: '0.875rem' }
+                '@media (max-width: 1100px)': {
+                  display: 'none', // Hide title on mobile to save vertical space
+                }
               }}
             >
               <InfoIcon color="primary" sx={{ fontSize: 20 }} />
@@ -1325,10 +1332,26 @@ const Profile = () => {
               display: 'block',
               '@media (max-width: 1100px)': {
                 '& > div': {
-                  flexDirection: 'column !important',
+                  flexDirection: 'row !important', // Horizontal layout for extra thinness
                   alignItems: 'center !important',
-                  gap: '8px !important',
-                  padding: '12px !important',
+                  gap: '10px !important',
+                  padding: '4px 8px !important',
+                  background: 'transparent !important',
+                  border: 'none !important',
+                  boxShadow: 'none !important',
+                  backdropFilter: 'none !important',
+                  transform: 'none !important',
+                },
+                '& .MuiIconButton-root': {
+                  width: '32px !important',
+                  height: '32px !important',
+                  padding: '4px !important',
+                },
+                '& .MuiSvgIcon-root': {
+                  fontSize: '18px !important',
+                },
+                '& .MuiSlider-root': {
+                  py: '4px !important',
                 },
               },
             }}>
