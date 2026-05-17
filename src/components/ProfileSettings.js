@@ -769,9 +769,9 @@ const ProfileSettings = () => {
 
       // Password change validation (will be sent to separate endpoint)
       let passwordChangeError = null;
-      if (formData.currentPassword || formData.newPassword) {
-        if (!formData.currentPassword || !formData.newPassword) {
-          passwordChangeError = 'Both current and new password are required';
+      if (formData.newPassword) {
+        if (!formData.currentPassword) {
+          passwordChangeError = 'Current password is required to change password';
         } else if (formData.newPassword !== formData.confirmPassword) {
           passwordChangeError = 'New passwords do not match';
         }
@@ -826,14 +826,14 @@ const ProfileSettings = () => {
         profile_portrait_y: portraitY,
         profile_portrait_zoom: String(portraitZoom),
         country: formData.country || null,
-        avatar_key: avatarKey,
+        avatar_key: selectedFile ? avatarKey : undefined,
         avatar_size: selectedFile ? selectedFile.size : undefined,
       };
 
       let response = await api.patch('/api/v1/users/me', profilePayload);
 
       // Change password via dedicated endpoint if provided
-      if (formData.currentPassword && formData.newPassword) {
+      if (formData.newPassword) {
         try {
           await api.post('/api/v1/auth/change-password', {
             current_password: formData.currentPassword,
@@ -1340,6 +1340,9 @@ const ProfileSettings = () => {
                   <Typography variant="h6" gutterBottom>
                     Change Password
                   </Typography>
+                  {/* Dummy inputs to absorb browser autofill and keep fields empty */}
+                  <input type="text" name="dummy_username" style={{ display: 'none' }} autoComplete="username" />
+                  <input type="password" name="dummy_password" style={{ display: 'none' }} autoComplete="current-password" />
                 </Grid>
                 
                 <Grid item xs={12}>
@@ -1351,6 +1354,7 @@ const ProfileSettings = () => {
                     value={formData.currentPassword}
                     onChange={handleInputChange}
                     error={errorField === 'password'}
+                    autoComplete="new-password"
                   />
                 </Grid>
                 
