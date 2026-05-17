@@ -169,7 +169,7 @@ const normalizeProfileModules = (rawModules) => {
       const texts = normalizeProfileTextEntries(module?.texts || config?.texts, title || 'User');
       
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
-      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0) return null;
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return null;
       
       const moduleOrder = Number.isFinite(Number(module?.position)) 
         ? Number(module.position) 
@@ -899,19 +899,14 @@ const ProfileSettings = () => {
 
         // Profile modules go to a separate endpoint
         // PUT /api/v1/profile/modules accepts one module at a time
-        // For now, we skip this if it fails - the main profile update already succeeded
-        try {
-          // Sync each module individually
-          for (const mod of nextProfileModules) {
-            await api.put('/api/v1/profile/modules', {
-              module_key: mod.module_key || mod.id,
-              position: mod.position,
-              enabled: mod.enabled,
-              config: mod.config,
-            });
-          }
-        } catch (moduleError) {
-          console.warn('Failed to sync profile modules:', moduleError);
+        // Sync each module individually
+        for (const mod of nextProfileModules) {
+          await api.put('/api/v1/profile/modules', {
+            module_key: mod.module_key || mod.id,
+            position: mod.position,
+            enabled: mod.enabled,
+            config: mod.config,
+          });
         }
 
         // Handle Music Upload/Removal if changed
@@ -981,6 +976,7 @@ const ProfileSettings = () => {
       } catch (prefError) {
         preferenceSyncFailed = true;
         console.warn('Profile preference sync error:', prefError?.response?.data || prefError?.message || prefError);
+        setError('Failed to sync profile modules or preferences: ' + (prefError?.response?.data?.error || prefError?.message || String(prefError)));
       }
 
       if (updateProfile) {

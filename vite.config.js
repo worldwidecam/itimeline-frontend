@@ -38,7 +38,7 @@ export default defineConfig({
     // Proxy API requests to the backend
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:8787',
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -61,7 +61,7 @@ export default defineConfig({
         },
       },
       '/media': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:8787',
         changeOrigin: true,
         secure: false,
       }
@@ -72,7 +72,7 @@ export default defineConfig({
     // Map NODE_ENV for React and other libraries
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     // Add common environment variables with fallbacks
-    'process.env.REACT_APP_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:5000'),
+    'process.env.REACT_APP_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:8787'),
     'process.env.REACT_APP_CLOUDINARY_CLOUD_NAME': JSON.stringify(process.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo'),
     // Global is needed for some npm packages
     'global': 'window',

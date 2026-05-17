@@ -30,7 +30,7 @@ Object.keys(import.meta.env).forEach(key => {
 
 // Add API URL if not already set
 if (!window.process.env.REACT_APP_API_URL && !window.process.env.VITE_API_URL) {
-  const apiUrl = import.meta.env.DEV ? 'http://localhost:5000' : 'https://api.i-timeline.com';
+  const apiUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.i-timeline.com';
   window.process.env.REACT_APP_API_URL = apiUrl;
   window.process.env.VITE_API_URL = apiUrl;
 }

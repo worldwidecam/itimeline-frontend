@@ -58,6 +58,7 @@ import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
 import RichContentRenderer from './RichContentRenderer';
+import config from '../../../config';
 
 /**
  * VideoEventPopup - A specialized popup for video media events
@@ -162,7 +163,7 @@ const VideoEventPopup = ({
     }
     
     if (mediaSource && mediaSource.startsWith('/uploads/')) {
-      videoSources.push(`http://localhost:5000${mediaSource}`);
+      videoSources.push(`${config.API_URL}${mediaSource}`);
     }
     
     // Only try Cloudinary fallback if it's likely a Cloudinary ID
