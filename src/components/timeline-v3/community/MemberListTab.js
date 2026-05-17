@@ -51,6 +51,7 @@ import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import CommunityInfoCardsDisplay from './CommunityInfoCardsDisplay';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
+import { TimelineHeroBanner } from '../TimelineHeroBanner';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -845,86 +846,16 @@ const MemberListTab = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4, overflowX: 'hidden' }}>
-      <Box
-        sx={{
-          mb: 3,
-          mt: 1,
-          minHeight: { xs: 96, md: 120 },
-          aspectRatio: '8 / 1',
-          borderRadius: 2.25,
-          border: '1px solid',
-          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.14)',
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
-            : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
-          overflow: 'hidden',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'flex-end',
-          px: { xs: 2, md: 3 },
-          pb: { xs: 1.5, md: 2 },
-          background: timelineHeader.coverImageUrl
-            ? 'transparent'
-            : membersFallbackGradient,
-        }}
-      >
-        {!isLoading && timelineHeader.coverImageUrl ? (
-          <Box
-            component="img"
-            src={timelineHeader.coverImageUrl}
-            alt={`${timelineHeader.name || 'Community'} cover`}
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              objectPosition: '50% 50%',
-              filter: timelineHeader.coverUploadEnabled
-                ? 'brightness(1.05) saturate(1.04)'
-                : 'blur(18px) saturate(0.42)',
-              transform: `translate(${(Number(timelineHeader.coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(timelineHeader.coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${timelineHeader.coverUploadEnabled ? (timelineHeader.coverZoom || 1) : ((timelineHeader.coverZoom || 1) + 0.08)})`,
-            }}
-          />
-        ) : null}
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
-          }}
-        />
-        {isLoading && (
-          <Box sx={{ position: 'relative', zIndex: 1, width: '100%' }}>
-            <Skeleton variant="text" width={220} height={36} sx={{ bgcolor: 'rgba(255,255,255,0.25)' }} />
-            <Skeleton variant="text" width={140} height={24} sx={{ bgcolor: 'rgba(255,255,255,0.22)' }} />
-          </Box>
-        )}
-        {!isLoading && (
-          <Box sx={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'rgba(248,250,252,0.95)',
-                textShadow: `
-                  0 2px 4px rgba(2,6,23,0.8), 
-                  0 4px 12px rgba(2,6,23,0.6), 
-                  0 0 20px rgba(2,6,23,0.4)
-                `,
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.15em',
-              }}
-            >
-              COMMUNITY TIMELINE
-            </Typography>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 24, md: 32 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-            </Box>
-          </Box>
-        )}
-      </Box>
+      <TimelineHeroBanner
+        timelineName={timelineHeader.name}
+        timelineType="community"
+        coverImageUrl={timelineHeader.coverImageUrl}
+        coverLandscapeX={timelineHeader.coverLandscapeX}
+        coverLandscapeY={timelineHeader.coverLandscapeY}
+        coverZoom={timelineHeader.coverZoom}
+        coverUploadEnabled={timelineHeader.coverUploadEnabled}
+        isLoading={isLoading}
+      />
 
       {isActionCardWarningActive && (
         <Alert severity="warning" sx={{ mb: 2 }}>

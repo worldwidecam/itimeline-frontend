@@ -14,6 +14,7 @@ import {
   Snackbar,
   Skeleton,
   useTheme,
+  useMediaQuery,
   Chip,
   IconButton,
   Dialog,
@@ -85,6 +86,7 @@ import InfoCardsTab from './InfoCardsTab';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
 import { displayUsername } from '../../../utils/usernameDisplay';
 import { getFlagUrl } from '../../../utils/countries';
+import { TimelineHeroBanner } from '../TimelineHeroBanner';
 
 // ----- Shared helpers (module scope) -----
 // Normalize role string
@@ -342,6 +344,7 @@ const AdminPanel = () => {
   const [communityFabExpanded, setCommunityFabExpanded] = useState(false);
   const [settingsSaveFabVisible, setSettingsSaveFabVisible] = useState(false);
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
 
   const communityFabBottom = settingsSaveFabVisible ? 'calc(2rem + 56px + 30px)' : '2rem';
@@ -1221,40 +1224,41 @@ const AdminPanel = () => {
                     onChange={handleMemberTabChange}
                     variant="fullWidth"
                     sx={{ 
-                      minHeight: 48,
+                      minHeight: { xs: 38, sm: 48 },
                       '& .MuiTab-root': {
-                        minHeight: 48,
-                        py: 1.5
+                        minHeight: { xs: 38, sm: 48 },
+                        py: { xs: 0.5, sm: 1.5 },
+                        px: { xs: 0.25, sm: 1.5 }
                       }
                     }}
                   >
                     <Tab 
                       label={<Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <PeopleIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
-                        <Typography variant="button" sx={{ fontWeight: memberTabValue === 0 ? 'bold' : 'normal' }}>
-                          Active Members ({members.length})
+                        <PeopleIcon sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.9rem', sm: '1.1rem' } }} />
+                        <Typography variant="button" sx={{ fontSize: { xs: '0.68rem', sm: '0.8rem', md: '0.875rem' }, whiteSpace: 'nowrap', fontWeight: memberTabValue === 0 ? 'bold' : 'normal', textTransform: 'none' }}>
+                          {isMobile ? `Active (${members.length})` : `Active Members (${members.length})`}
                         </Typography>
                       </Box>} 
                       sx={{ textTransform: 'none' }}
                     />
                     <Tab 
                       label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <HourglassEmptyIcon sx={{ fontSize: '1.1rem' }} />
-                        <Typography variant="button" sx={{ fontWeight: memberTabValue === 1 ? 'bold' : 'normal' }}>
-                          Pending Requests
+                        <HourglassEmptyIcon sx={{ fontSize: { xs: '0.9rem', sm: '1.1rem' } }} />
+                        <Typography variant="button" sx={{ fontSize: { xs: '0.68rem', sm: '0.8rem', md: '0.875rem' }, whiteSpace: 'nowrap', fontWeight: memberTabValue === 1 ? 'bold' : 'normal', textTransform: 'none' }}>
+                          {isMobile ? 'Pending' : 'Pending Requests'}
                         </Typography>
                         {pendingMembers.length > 0 && (
                           <Chip 
                             label={pendingMembers.length} 
                             size="small" 
                             sx={{ 
-                              height: 20,
-                              minWidth: 20,
-                              fontSize: '0.7rem',
+                              height: { xs: 16, sm: 20 },
+                              minWidth: { xs: 16, sm: 20 },
+                              fontSize: { xs: '0.6rem', sm: '0.7rem' },
                               fontWeight: 'bold',
                               bgcolor: 'warning.main',
                               color: 'white',
-                              '& .MuiChip-label': { px: 0.75 }
+                              '& .MuiChip-label': { px: { xs: 0.5, sm: 0.75 } }
                             }} 
                           />
                         )}
@@ -1263,9 +1267,9 @@ const AdminPanel = () => {
                     />
                     <Tab 
                       label={<Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <DeleteOutlineIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
-                        <Typography variant="button" sx={{ fontWeight: memberTabValue === 2 ? 'bold' : 'normal' }}>
-                          Blocked Users ({blockedMembers.length})
+                        <DeleteOutlineIcon sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.9rem', sm: '1.1rem' } }} />
+                        <Typography variant="button" sx={{ fontSize: { xs: '0.68rem', sm: '0.8rem', md: '0.875rem' }, whiteSpace: 'nowrap', fontWeight: memberTabValue === 2 ? 'bold' : 'normal', textTransform: 'none' }}>
+                          {isMobile ? `Blocked (${blockedMembers.length})` : `Blocked Users (${blockedMembers.length})`}
                         </Typography>
                       </Box>} 
                       sx={{ textTransform: 'none' }}
@@ -1746,78 +1750,16 @@ const AdminPanel = () => {
     <Box sx={{ maxWidth: 1200, mx: 'auto', px: 2, pb: 4 }}>
       {/* Timeline hero banner */}
       {timelineData && (
-        <Box
-          sx={{
-            mb: 3,
-            mt: 2,
-            minHeight: { xs: 96, md: 120 },
-            aspectRatio: '8 / 1',
-            borderRadius: 2.25,
-            border: '1px solid',
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.14)',
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
-              : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
-            overflow: 'hidden',
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'flex-end',
-            px: { xs: 2, md: 3 },
-            pb: { xs: 1.5, md: 2 },
-            background: adminCoverImageUrl
-              ? 'transparent'
-              : adminFallbackGradient,
-          }}
-        >
-          {adminCoverImageUrl ? (
-            <Box
-              component="img"
-              src={adminCoverImageUrl}
-              alt={`${timelineData.name} cover`}
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                objectPosition: '50% 50%',
-                filter: adminCoverEnabled
-                  ? 'brightness(1.05) saturate(1.04)'
-                  : 'blur(18px) saturate(0.42)',
-                transform: `translate(${(Number(timelineData?.coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(timelineData?.coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${adminCoverEnabled ? (Number(timelineData?.coverZoom ?? 1) || 1) : ((Number(timelineData?.coverZoom ?? 1) || 1) + 0.08)})`,
-              }}
-            />
-          ) : null}
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
-            }}
-          />
-          <Box sx={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'rgba(248,250,252,0.95)',
-                textShadow: `
-                  0 2px 4px rgba(2,6,23,0.8), 
-                  0 4px 12px rgba(2,6,23,0.6), 
-                  0 0 20px rgba(2,6,23,0.4)
-                `,
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.15em',
-              }}
-            >
-              COMMUNITY TIMELINE
-            </Typography>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 24, md: 32 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-            </Box>
-          </Box>
-        </Box>
+        <TimelineHeroBanner
+          timelineName={timelineData.name}
+          timelineType="community"
+          coverImageUrl={adminCoverImageUrl}
+          coverLandscapeX={timelineData.coverLandscapeX}
+          coverLandscapeY={timelineData.coverLandscapeY}
+          coverZoom={timelineData.coverZoom}
+          coverUploadEnabled={adminCoverEnabled}
+          isLoading={false}
+        />
       )}
       
       <motion.div
@@ -1922,7 +1864,7 @@ const AdminPanel = () => {
         <Paper 
           elevation={2} 
           sx={{ 
-            p: 3, 
+            p: { xs: 1.5, sm: 3 }, 
             mt: 2, 
             borderRadius: 2,
             background: timelineSurfaces.panel,
@@ -1942,7 +1884,14 @@ const AdminPanel = () => {
           <Tabs 
             value={tabValue} 
             onChange={handleTabChange} 
-            sx={{ mb: 3 }}
+            variant={isMobile ? "fullWidth" : "standard"}
+            sx={{ 
+              mb: 3,
+              minHeight: { xs: 44, sm: 48 },
+              '& .MuiTabs-flexContainer': {
+                justifyContent: isMobile ? 'space-around' : 'flex-start',
+              }
+            }}
             TabIndicatorProps={{
               style: {
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -1950,52 +1899,84 @@ const AdminPanel = () => {
             }}
           >
             <Tab 
-              label="Manage Members" 
+              label={isMobile ? undefined : "Manage Members"} 
               icon={<PeopleIcon />} 
               iconPosition="start"
               sx={{ 
                 transition: 'all 0.3s ease',
-                minHeight: 48,
+                minHeight: { xs: 44, sm: 48 },
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                whiteSpace: 'nowrap',
                 '&.Mui-selected': {
                   fontWeight: 'bold'
+                },
+                '& .MuiTab-iconWrapper': {
+                  marginRight: isMobile ? 0 : '8px',
+                  marginBottom: '0px !important',
+                  fontSize: { xs: '1.25rem', sm: '1.5rem' }
                 }
               }}
             />
             <Tab 
-              label="Manage Posts" 
+              label={isMobile ? undefined : "Manage Posts"} 
               icon={<ForumIcon />} 
               iconPosition="start"
               sx={{ 
                 transition: 'all 0.3s ease',
-                minHeight: 48,
+                minHeight: { xs: 44, sm: 48 },
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                whiteSpace: 'nowrap',
                 '&.Mui-selected': {
                   fontWeight: 'bold'
+                },
+                '& .MuiTab-iconWrapper': {
+                  marginRight: isMobile ? 0 : '8px',
+                  marginBottom: '0px !important',
+                  fontSize: { xs: '1.25rem', sm: '1.5rem' }
                 }
               }}
             />
             <Tab 
-              label="Cards" 
+              label={isMobile ? undefined : "Cards"} 
               icon={<InfoIcon />} 
               iconPosition="start"
               sx={{ 
                 transition: 'all 0.3s ease',
-                minHeight: 48,
+                minHeight: { xs: 44, sm: 48 },
+                px: { xs: 1, sm: 2 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                whiteSpace: 'nowrap',
                 '&.Mui-selected': {
                   fontWeight: 'bold'
+                },
+                '& .MuiTab-iconWrapper': {
+                  marginRight: isMobile ? 0 : '8px',
+                  marginBottom: '0px !important',
+                  fontSize: { xs: '1.25rem', sm: '1.5rem' }
                 }
               }}
             />
             {/* Settings tab: Admin-only access */}
             {['admin', 'creator', 'siteowner'].includes((userRole || '').toLowerCase()) && (
               <Tab
-                label="Settings"
+                label={isMobile ? undefined : "Settings"}
                 icon={<SettingsIcon />}
                 iconPosition="start"
                 sx={{
                   transition: 'all 0.3s ease',
-                  minHeight: 48,
+                  minHeight: { xs: 44, sm: 48 },
+                  px: { xs: 1, sm: 2 },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  whiteSpace: 'nowrap',
                   '&.Mui-selected': {
                     fontWeight: 'bold'
+                  },
+                  '& .MuiTab-iconWrapper': {
+                    marginRight: isMobile ? 0 : '8px',
+                    marginBottom: '0px !important',
+                    fontSize: { xs: '1.25rem', sm: '1.5rem' }
                   }
                 }}
               />
@@ -2068,30 +2049,40 @@ const AdminPanel = () => {
 };
 
 const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [cardsTabValue, setCardsTabValue] = useState(0);
 
   return (
     <Box sx={{ py: 1 }}>
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2, alignItems: 'stretch' }}>
         <Tabs
-          orientation="vertical"
+          orientation={isMobile ? 'horizontal' : 'vertical'}
+          variant={isMobile ? 'fullWidth' : 'standard'}
           value={cardsTabValue}
           onChange={(_event, newValue) => setCardsTabValue(newValue)}
           sx={{
-            minWidth: 220,
-            borderRight: '1px solid',
+            minWidth: isMobile ? '100%' : 220,
+            borderRight: isMobile ? 'none' : '1px solid',
+            borderBottom: isMobile ? '1px solid' : 'none',
             borderColor: 'divider',
+            mb: isMobile ? 2 : 0,
             '& .MuiTab-root': {
-              alignItems: 'flex-start',
-              textAlign: 'left',
+              alignItems: isMobile ? 'center' : 'flex-start',
+              textAlign: isMobile ? 'center' : 'left',
               minHeight: 44,
+              px: isMobile ? 1 : 2,
+              '& .MuiTab-iconWrapper': {
+                marginRight: isMobile ? 0 : '8px',
+                marginBottom: '0px !important'
+              }
             },
           }}
         >
-          <Tab label="Info Cards" icon={<InfoIcon />} iconPosition="start" />
-          <Tab label="Status Cards" icon={<CommentIcon />} iconPosition="start" />
-          <Tab label="Quote Card" icon={<NewspaperIcon />} iconPosition="start" />
-          <Tab label="Action Cards" icon={<VolunteerActivismRoundedIcon />} iconPosition="start" />
+          <Tab label={isMobile ? undefined : "Info Cards"} icon={<InfoIcon />} iconPosition="start" />
+          <Tab label={isMobile ? undefined : "Status Cards"} icon={<CommentIcon />} iconPosition="start" />
+          <Tab label={isMobile ? undefined : "Quote Card"} icon={<NewspaperIcon />} iconPosition="start" />
+          <Tab label={isMobile ? undefined : "Action Cards"} icon={<VolunteerActivismRoundedIcon />} iconPosition="start" />
         </Tabs>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -2133,6 +2124,7 @@ const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) 
 
 const ManagePostsTab = ({ timelineId }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [isPrivate, setIsPrivate] = useState(false);
   const [requireMembershipApproval, setRequireMembershipApproval] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
@@ -2630,10 +2622,10 @@ const ManagePostsTab = ({ timelineId }) => {
         </Typography>
       </Box>
       
-      {/* Post Management Tabs */}
       <Tabs 
         value={postTabValue} 
         onChange={handlePostTabChange}
+        variant={isMobile ? "fullWidth" : "standard"}
         sx={{
           mb: 3,
           borderBottom: 1,
@@ -2642,6 +2634,7 @@ const ManagePostsTab = ({ timelineId }) => {
             backgroundColor: selectedTabColor,
             height: 3,
           },
+          minHeight: { xs: 36, sm: 48 }
         }}
       >
         <Tab 
@@ -2650,6 +2643,10 @@ const ManagePostsTab = ({ timelineId }) => {
             color: 'warning.main',
             fontWeight: 'bold',
             '&.Mui-selected': { color: 'warning.main' },
+            minHeight: { xs: 36, sm: 48 },
+            px: { xs: 0.5, sm: 1.5, md: 2 },
+            fontSize: { xs: '0.72rem', sm: '0.8rem', md: '0.875rem' },
+            whiteSpace: 'nowrap',
           }} 
         />
         <Tab 
@@ -2658,6 +2655,10 @@ const ManagePostsTab = ({ timelineId }) => {
             color: 'info.main',
             fontWeight: 'bold',
             '&.Mui-selected': { color: 'info.main' },
+            minHeight: { xs: 36, sm: 48 },
+            px: { xs: 0.5, sm: 1.5, md: 2 },
+            fontSize: { xs: '0.72rem', sm: '0.8rem', md: '0.875rem' },
+            whiteSpace: 'nowrap',
           }} 
         />
         <Tab 
@@ -2666,6 +2667,10 @@ const ManagePostsTab = ({ timelineId }) => {
             color: 'success.main',
             fontWeight: 'bold',
             '&.Mui-selected': { color: 'success.main' },
+            minHeight: { xs: 36, sm: 48 },
+            px: { xs: 0.5, sm: 1.5, md: 2 },
+            fontSize: { xs: '0.72rem', sm: '0.8rem', md: '0.875rem' },
+            whiteSpace: 'nowrap',
           }} 
         />
       </Tabs>
@@ -3161,6 +3166,7 @@ const ManagePostsTab = ({ timelineId }) => {
 // Member Management Tab Component
 const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, timelineData }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [memberTabValue, setMemberTabValue] = useState(0); // 0 = Active Members, 1 = Blocked Members
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -3543,15 +3549,47 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Member Management Tabs */}
       <Tabs 
         value={memberTabValue} 
         onChange={handleMemberTabChange}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+        variant={isMobile ? "fullWidth" : "standard"}
+        sx={{ 
+          mb: 3, 
+          borderBottom: 1, 
+          borderColor: 'divider',
+          minHeight: { xs: 36, sm: 48 }
+        }}
       >
-        <Tab label="Active Members" />
-        <Tab label="Pending Requests" />
-        <Tab label="Blocked Members" />
+        <Tab 
+          label={isMobile ? "Active" : "Active Members"} 
+          sx={{ 
+            minHeight: { xs: 36, sm: 48 },
+            px: { xs: 0.5, sm: 1.5, md: 2 },
+            fontSize: { xs: '0.72rem', sm: '0.8rem', md: '0.875rem' },
+            whiteSpace: 'nowrap',
+            textTransform: 'none'
+          }}
+        />
+        <Tab 
+          label={isMobile ? "Pending" : "Pending Requests"} 
+          sx={{ 
+            minHeight: { xs: 36, sm: 48 },
+            px: { xs: 0.5, sm: 1.5, md: 2 },
+            fontSize: { xs: '0.72rem', sm: '0.8rem', md: '0.875rem' },
+            whiteSpace: 'nowrap',
+            textTransform: 'none'
+          }}
+        />
+        <Tab 
+          label={isMobile ? "Blocked" : "Blocked Members"} 
+          sx={{ 
+            minHeight: { xs: 36, sm: 48 },
+            px: { xs: 0.5, sm: 1.5, md: 2 },
+            fontSize: { xs: '0.72rem', sm: '0.8rem', md: '0.875rem' },
+            whiteSpace: 'nowrap',
+            textTransform: 'none'
+          }}
+        />
       </Tabs>
       
       {/* Active Members Tab */}
