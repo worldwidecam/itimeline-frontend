@@ -58,7 +58,7 @@ const Register = () => {
     window.onloadTurnstileCallback = () => {
       if (window.turnstile) {
         window.turnstile.render('#turnstile-container', {
-          sitekey: '2x00000000000000000000AB',
+          sitekey: '1x00000000000000000000AA',
           callback: (token) => {
             setTurnstileToken(token);
           },
