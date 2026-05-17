@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -13,6 +13,8 @@ import {
   Alert,
   useTheme,
   GlobalStyles,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -43,6 +45,37 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+
+    window.onloadTurnstileCallback = () => {
+      if (window.turnstile) {
+        window.turnstile.render('#turnstile-container', {
+          sitekey: '2x00000000000000000000AB',
+          callback: (token) => {
+            setTurnstileToken(token);
+          },
+          'error-callback': () => {
+            console.error('Turnstile verification error');
+          }
+        });
+      }
+    };
+
+    return () => {
+      try {
+        document.body.removeChild(script);
+      } catch (_e) {}
+      delete window.onloadTurnstileCallback;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,9 +98,13 @@ const Register = () => {
       setError('Password must be at least 12 characters long');
       return;
     }
+    if (!acceptedTerms) {
+      setError('You must accept the Terms of Service to create an account');
+      return;
+    }
 
     try {
-      const response = await register(trimmedUsername, formData.email, formData.password);
+      const response = await register(trimmedUsername, formData.email, formData.password, turnstileToken);
       console.log('Registration successful:', response);
       const returnTo = consumeAuthReturnTo();
       navigate(response?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
@@ -156,9 +193,52 @@ const Register = () => {
             <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" required error={errorField === 'email'} />
             <TextField fullWidth label="Password" name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required error={errorField === 'password'} />
             <TextField fullWidth label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="normal" required error={errorField === 'password'} />
+            
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  color="primary"
+                  sx={{
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                    '&.Mui-checked': {
+                      color: 'primary.main',
+                    }
+                  }}
+                />
+              }
+              label={
+                <Typography variant="body2" color="text.secondary">
+                  I accept the{' '}
+                  <Link component={RouterLink} to="/terms" target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
+                    Terms of Service
+                  </Link>{' '}
+                  &{' '}
+                  <span style={{ fontWeight: 'bold' }}>
+                    Privacy Policy
+                  </span>
+                </Typography>
+              }
+              sx={{ mt: 1.5, mb: 1, display: 'flex', alignItems: 'center' }}
+            />
+
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mt: 1.5,
+                mb: 1.5,
+                width: '100%',
+                minHeight: '65px',
+              }}
+            >
+              <div id="turnstile-container"></div>
+            </Box>
+
             <Button
               type="submit" fullWidth variant="outlined"
-              sx={{ ...getGlassPillActionButtonSx(theme), mt: 3, mb: 2 }}
+              sx={{ ...getGlassPillActionButtonSx(theme), mt: 2, mb: 2 }}
             >
               Register
             </Button>

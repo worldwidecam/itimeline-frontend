@@ -51,6 +51,7 @@ import {
   MoreHoriz as MoreHorizIcon,
   RateReview as RateReviewIcon,
   CheckCircle as CheckCircleIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -443,6 +444,22 @@ const EventPopup = ({
       setReportSubmitting(false);
     }
   };
+
+  const handleShare = () => {
+    try {
+      const shareUrl = `${config.API_URL}/share/event/${event?.id}`;
+      navigator.clipboard.writeText(shareUrl);
+      setError('');
+      setSuccess('Share link copied to clipboard!');
+      setSnackbarOpen(true);
+    } catch (e) {
+      setError('Failed to copy share link');
+      setSuccess('');
+      setSnackbarOpen(true);
+    } finally {
+      handleActionMenuClose();
+    }
+  };
   
   // Function to fetch existing timelines
   const fetchExistingTimelines = async () => {
@@ -655,7 +672,7 @@ const EventPopup = ({
       || (isEventCreator && !isEditLocked)
     )
   );
-  const canOpenActionMenu = !isGuest && !user?.is_restricted && !hideActionMenu && (canEdit || canDelete || !isSafeguarded);
+  const canOpenActionMenu = !isGuest && !user?.is_restricted && !hideActionMenu;
 
   const getTimelineOwnerId = (timeline) => {
     if (!timeline || typeof timeline !== 'object') return null;
@@ -1394,6 +1411,10 @@ const EventPopup = ({
                         }
                       }}
                     >
+                    <MenuItem onClick={handleShare}>
+                      <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+                      <ListItemText primary="Share Event" />
+                    </MenuItem>
                     {canEdit && (
                       <MenuItem onClick={handleEdit}>
                         <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
@@ -1406,7 +1427,7 @@ const EventPopup = ({
                         <ListItemText primary="Delete" />
                       </MenuItem>
                     )}
-                    {!isSafeguarded && !isInReview && (
+                    {!isSafeguarded && !isInReview && !isGuest && !user?.is_restricted && (
                       <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}>
                         <ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />

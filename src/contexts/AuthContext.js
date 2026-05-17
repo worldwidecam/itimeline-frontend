@@ -175,12 +175,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password) => {
+  const register = async (username, email, password, turnstileToken) => {
     try {
       const response = await api.post('/api/v1/auth/register', {
         username,
         email,
-        password
+        password,
+        turnstile_token: turnstileToken,
       });
 
       if (!response?.data?.ok) {

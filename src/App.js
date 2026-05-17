@@ -23,6 +23,8 @@ import AdminPanel from './components/timeline-v3/community/AdminPanel';
 import SiteControlPage from './components/site-control/SiteControlPage';
 import SuspendedPage from './components/SuspendedPage';
 import GoblinRedirect from './components/GoblinRedirect';
+import EventSharePage from './components/timeline-v3/events/EventSharePage';
+import TermsOfService from './components/TermsOfService';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -73,6 +75,7 @@ const buildReturnToUrl = (location) => `${location.pathname || ''}${location.sea
 
 const isGuestEligibleProtectedPath = (pathname = '') => {
   if (pathname === '/home') return true;
+  if (pathname.startsWith('/share/events/') || pathname.startsWith('/events/')) return true;
   if (pathname.startsWith('/timeline-v3/')) {
     // Only the main timeline view is guest-eligible.
     // Sub-paths like /admin, /members, /reports are restricted.
@@ -1194,7 +1197,8 @@ function App() {
                 } />
                 <Route path="/account/required-user-name-change" element={<Navigate to={REQUIRED_USERNAME_CHANGE_PATH} replace />} />
                 <Route path="/suspended" element={<SuspendedPage />} />
-          <Route path="/goblin-redirect" element={<GoblinRedirect />} />
+                <Route path="/goblin-redirect" element={<GoblinRedirect />} />
+                <Route path="/terms" element={<TermsOfService />} />
                 
                 {/* Protected routes */}
                 <Route path="/home" element={
@@ -1273,6 +1277,16 @@ function App() {
                       <SiteControlPage />
                     </ProtectedRoute>
                   </Box>
+                } />
+                <Route path="/share/events/:eventId" element={
+                  <ProtectedRoute>
+                    <EventSharePage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/events/:eventId" element={
+                  <ProtectedRoute>
+                    <EventSharePage />
+                  </ProtectedRoute>
                 } />
               </Routes>
             </Router>
