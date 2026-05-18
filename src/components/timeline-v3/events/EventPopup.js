@@ -1398,6 +1398,7 @@ const EventPopup = ({
                         sx: {
                           ...getGlassDialogPaperSx(theme),
                           minWidth: 160,
+                          color: theme.palette.text.primary,
                           '& .MuiMenuItem-root': {
                             borderRadius: 1,
                             mx: 1,
@@ -1407,12 +1408,15 @@ const EventPopup = ({
                               bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                               transform: 'translateX(4px)',
                             }
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: 'inherit',
                           }
                         }
                       }}
                     >
                     <MenuItem onClick={handleShare}>
-                      <ListItemIcon sx={{ color: 'inherit' }}><ShareIcon fontSize="small" /></ListItemIcon>
+                      <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
                       <ListItemText primary="Share Event" />
                     </MenuItem>
                     {canEdit && (
