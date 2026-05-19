@@ -261,7 +261,7 @@ const Profile = () => {
   const [profileAccessSubmitting, setProfileAccessSubmitting] = useState(false);
   const [profileAccessRefreshNonce, setProfileAccessRefreshNonce] = useState(0);
   const [profilePortraitMeta, setProfilePortraitMeta] = useState({
-    imageUrl: '',
+    imageUrl: !userId ? String(user?.avatar_url || '').trim() : '',
     x: 50,
     y: 50,
     zoom: 1,
@@ -889,7 +889,7 @@ const Profile = () => {
         const prefs = passportResponse?.data?.preferences || {};
         const passportPortraitUrl = String(prefs?.profile_portrait_image_url || '').trim();
         const nextPortrait = {
-          imageUrl: passportPortraitUrl || localPortraitUrl || String(profileUser?.avatar_url || '').trim(),
+          imageUrl: passportPortraitUrl || localPortraitUrl || String(profileUser?.avatar_url || '').trim() || String(user?.avatar_url || '').trim(),
           x: clampPortraitFrameValue(prefs?.profile_portrait_x, localPortraitX),
           y: clampPortraitFrameValue(prefs?.profile_portrait_y, localPortraitY),
           zoom: clampPortraitZoom(prefs?.profile_portrait_zoom, localPortraitZoom),
