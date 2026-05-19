@@ -1,28 +1,28 @@
 # GOALPLAN — iTimeline
 
 ## Main Goal
-Build and maintain a polished, production-quality social timeline platform on the Cloudflare stack.
+create a safe github system , to allow me to continue development without breaking the Live PRODUCTION environment
 
 ---
 
 ## Current Objective
-Post-launch cleanup and new feature work. Site is live at i-timeline.com on the Cloudflare stack (Pages + Workers + D1 + R2).
-
+Post-launch , i'm thinking we move back to MAIN branch for development.
+also, perhaps we need a staging branch for testing before merging to main.
 ---
 
 ## Objectives
 
 ### In Progress
-- [ ] Finish Site Control audit — **Ban Lifted badge** and **Lift Warning** button still need live test cases
+- [ ] 
 - [ ] Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be deleted
 
 ### Up Next (Features)
 - [ ] **NSFW filter** — media creation toggle, birthday-based 18+ gate, blur-by-default in popups
-- [ ] **Goblin Mode (Guest)** — auto-enter read-only guest session for unauthenticated share/deep links; spec locked in notes below
+- [ ] better login credentials. i'm logged in on my phone. hours pass and i want to check the feed. instead of staying logged in, i not only do not go to login page, but i am immediately logged in as guest user. its not that i want to be directed to login page, but i want to be logged in as myself
 - [ ] **Hashtag chip voting** — voting system on hashtag chips
-- [ ] **Home page submission box** — quick post from home feed
+- [ ]
 - [ ] **Timeline deletion** — define requirements + UX, then implement
-- [ ] **Info Cards umbrella** — reorganize action card settings under Info Cards in admin panel
+- [ ] 
 
 ### Backlog
 - [ ] Fallback image rules for news/link events — define rules and improve preview reliability across cards and popups
