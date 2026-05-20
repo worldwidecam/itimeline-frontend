@@ -1,19 +1,20 @@
 # GOALPLAN — iTimeline
 
 ## Main Goal
-create a safe github system , to allow me to continue development without breaking the Live PRODUCTION environment
+create a safe github system , to allow me to continue development without breaking the Live PRODUCTION environment ✅
 
 ---
 
 ## Current Objective
-Post-launch , i'm thinking we move back to MAIN branch for development.
-also, perhaps we need a staging branch for testing before merging to main.
+Session token persistence — keep users logged in on mobile instead of silently falling back to guest.
 ---
 
 ## Objectives
 
+### Completed
+- [x] Safe GitHub branch system — `main` (dev) → `staging` → `PRODUCTION` (protected, PR-only)
+
 ### In Progress
-- [ ] 
 - [ ] Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be deleted
 
 ### Up Next (Features)

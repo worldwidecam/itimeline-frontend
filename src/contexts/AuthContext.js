@@ -430,6 +430,37 @@ export const AuthProvider = ({ children }) => {
         setIsGuest(isValidatedGuest);
 
         if (isValidatedGuest) {
+          // If we have a stored access token, the user was previously logged in.
+          // Try refreshing before accepting the guest fallback.
+          const storedToken = localStorage.getItem('access_token');
+          if (storedToken) {
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+              // Retry session validation with the fresh token (once only)
+              try {
+                const retryResponse = await axios.get(`${baseURL}/api/v1/auth/me`, {
+                  withCredentials: true,
+                  headers: { 'Content-Type': 'application/json' }
+                });
+                if (retryResponse.data?.user && Number(retryResponse.data.user?.id) > 0) {
+                  const retryUser = {
+                    ...retryResponse.data.user,
+                    is_site_admin: !!retryResponse.data.is_site_admin,
+                    site_admin_role: retryResponse.data.site_admin_role || null,
+                  };
+                  localStorage.setItem('user', JSON.stringify(retryUser));
+                  setUser(retryUser);
+                  setIsGuest(false);
+                  localStorage.removeItem('guest_session');
+                  return true;
+                }
+              } catch (_retryErr) {
+                // refresh succeeded but /me still failed — fall through to guest
+              }
+            }
+            // Refresh failed — clear stale token so we don't retry forever
+            localStorage.removeItem('access_token');
+          }
           localStorage.setItem('guest_session', 'true');
           return true;
         }
