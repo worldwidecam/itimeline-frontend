@@ -896,11 +896,16 @@ const Profile = () => {
         };
 
         if (canceled) return;
-        setProfilePortraitMeta(nextPortrait);
+        setProfilePortraitMeta((prev) => ({
+          ...nextPortrait,
+          imageUrl: nextPortrait.imageUrl || prev.imageUrl,
+        }));
 
         setProfileModules((prev) => mergeProfileModules(passportResponse?.data?.profile_modules, prev));
 
-        localStorage.setItem(`profile_portrait_url_user_${storageUserId}`, nextPortrait.imageUrl);
+        if (nextPortrait.imageUrl) {
+          localStorage.setItem(`profile_portrait_url_user_${storageUserId}`, nextPortrait.imageUrl);
+        }
         localStorage.setItem(`profile_portrait_x_user_${storageUserId}`, String(nextPortrait.x));
         localStorage.setItem(`profile_portrait_y_user_${storageUserId}`, String(nextPortrait.y));
         localStorage.setItem(`profile_portrait_zoom_user_${storageUserId}`, String(nextPortrait.zoom));
