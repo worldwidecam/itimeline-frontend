@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -34,6 +34,7 @@ import {
   alpha,
   useTheme,
   useMediaQuery,
+  Tooltip,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -3377,6 +3378,8 @@ const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [bannerImageUploading, setBannerImageUploading] = useState(false);
+  const bannerImageInputRef = useRef(null);
 
   const loadLandingSettings = useCallback(async () => {
     try {
@@ -3513,6 +3516,31 @@ const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
     }));
     setHasUnsavedChanges(true);
   };
+
+  const handleBannerImageUpload = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBannerImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('purpose', 'covers');
+      const response = await api.post('/api/v1/uploads/media', formData, {
+        headers: { 'Content-Type': undefined },
+      });
+      const url = response?.data?.url;
+      if (url) {
+        handleUpdateHomeHeroSlide('advertisement', { media_url: url });
+      }
+    } catch (err) {
+      setSnackbarMessage(err?.response?.data?.error || 'Upload failed');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setBannerImageUploading(false);
+      if (bannerImageInputRef.current) bannerImageInputRef.current.value = '';
+    }
+  }, [handleUpdateHomeHeroSlide]);
 
   const handleSave = async () => {
     try {
@@ -3839,14 +3867,45 @@ const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
                                       onChange={(e) => handleUpdateHomeHeroSlide(slideType, { subtext: e.target.value })}
                                       disabled={loadingSettings}
                                     />
-                                    <TextField
-                                      size="small"
-                                      label="Media URL (Landscape Background)"
-                                      value={slide?.media_url || ''}
-                                      onChange={(e) => handleUpdateHomeHeroSlide(slideType, { media_url: e.target.value })}
-                                      helperText="Optional image URL used as the ad slide background"
-                                      disabled={loadingSettings}
+                                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                                      <TextField
+                                        size="small"
+                                        label="Media URL (Landscape Background)"
+                                        value={slide?.media_url || ''}
+                                        onChange={(e) => handleUpdateHomeHeroSlide(slideType, { media_url: e.target.value })}
+                                        helperText="Paste a URL or upload an image"
+                                        disabled={loadingSettings}
+                                        sx={{ flex: 1 }}
+                                      />
+                                      <Tooltip title="Upload image">
+                                        <span>
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => bannerImageInputRef.current?.click()}
+                                            disabled={loadingSettings || bannerImageUploading}
+                                            sx={{ mt: 0.5 }}
+                                          >
+                                            {bannerImageUploading ? <CircularProgress size={18} /> : <ImageIcon fontSize="small" />}
+                                          </IconButton>
+                                        </span>
+                                      </Tooltip>
+                                    </Stack>
+                                    <input
+                                      ref={bannerImageInputRef}
+                                      type="file"
+                                      accept="image/*"
+                                      style={{ display: 'none' }}
+                                      onChange={handleBannerImageUpload}
                                     />
+                                    {slide?.media_url && (
+                                      <Box
+                                        component="img"
+                                        src={slide.media_url}
+                                        alt="Banner preview"
+                                        sx={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                      />
+                                    )}
                                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                                       <TextField
                                         size="small"
