@@ -1,12 +1,13 @@
 # GOALPLAN — iTimeline
 
 ## Main Goal
-create a safe github system , to allow me to continue development without breaking the Live PRODUCTION environment ✅
+maintain safety of PRODUCTION while making improvements from MAIN branch. 
 
 ---
 
 ## Current Objective
-Session token persistence — keep users logged in on mobile instead of silently falling back to guest.
+* login/register auto fill boxes seem bugged. specifically the username seems to auto fill the email box. 
+* popular page sort order update. needs improvement. update to vote sorting, but more specifically by today's posts , over old posts.
 ---
 
 ## Objectives

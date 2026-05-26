@@ -17,7 +17,9 @@
  * @returns {string} Display-friendly username (e.g. "testing cam")
  */
 export const displayUsername = (username) => {
-  return String(username || '').replace(/_/g, ' ');
+  const spaced = String(username || '').replace(/_/g, ' ');
+  if (!spaced) return '';
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 };
 
 /**
