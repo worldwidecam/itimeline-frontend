@@ -359,16 +359,9 @@ api.interceptors.response.use(
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('guest_session'); // Prevent falling into guest mode on next auth check
           
-          // Only redirect to login for user-initiated requests, not background requests
-          const isBackgroundRequest = [
-            '/api/v1/health',
-            '/api/v1/auth/me'
-          ].some(path => originalRequest.url.includes(path));
-          
-          if (!isBackgroundRequest) {
-            console.log('Redirecting to login page due to authentication failure');
-            window.location.href = '/login';
-          }
+          // Notify AuthContext of the expired session
+          console.warn('Dispatching auth-session-expired event');
+          window.dispatchEvent(new CustomEvent('auth-session-expired'));
         }
         return Promise.reject(refreshError);
       }

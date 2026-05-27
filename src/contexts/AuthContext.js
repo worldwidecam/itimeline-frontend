@@ -6,15 +6,31 @@ import { clearVoteStateCache } from '../hooks/useEventVote';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    try {
+      const cachedUser = localStorage.getItem('user');
+      return cachedUser ? JSON.parse(cachedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isGuest, setIsGuest] = useState(() => {
+    return localStorage.getItem('guest_session') === 'true';
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cachedUser = localStorage.getItem('user');
+      return !cachedUser;
+    } catch {
+      return true;
+    }
+  });
   const previousUserIdRef = useRef(null);
 
   // Function to refresh the access token
   const refreshAccessToken = async () => {
     try {
-      const refreshToken = getCookie('it_refresh') || getCookie('refresh_token');
+      const refreshToken = getCookie('it_refresh') || getCookie('refresh_token') || localStorage.getItem('refresh_token');
       console.log('Attempting to refresh token...');
       
       // Create a direct axios instance to avoid interceptor loops
@@ -51,6 +67,12 @@ export const AuthProvider = ({ children }) => {
         console.log('Stored refreshed access token');
       }
 
+      // Store rotated refresh token from response in localStorage
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+        console.log('Stored refreshed refresh token');
+      }
+
       console.log('Successfully refreshed access token');
       
       return true;
@@ -75,6 +97,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, isGuest]);
 
+  // Listen for the custom auth-session-expired event to cleanly logout without redirects
+  useEffect(() => {
+    const handleSessionExpired = async () => {
+      console.warn('[AuthContext] Session expired event detected, executing logout...');
+      await logout();
+    };
+
+    window.addEventListener('auth-session-expired', handleSessionExpired);
+    return () => {
+      window.removeEventListener('auth-session-expired', handleSessionExpired);
+    };
+  }, []);
+
   const login = async (email, password) => {
     try {
       console.log('Attempting login for email:', email);
@@ -91,6 +126,11 @@ export const AuthProvider = ({ children }) => {
       if (response.data.access_token) {
         localStorage.setItem('access_token', response.data.access_token);
         console.log('Stored access token from login response');
+      }
+      
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+        console.log('Stored refresh token from login response');
       }
 
       const meResponse = await api.get('/api/v1/auth/me');
@@ -192,6 +232,11 @@ export const AuthProvider = ({ children }) => {
       if (response.data.access_token) {
         localStorage.setItem('access_token', response.data.access_token);
         console.log('Stored access token from register response');
+      }
+      
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+        console.log('Stored refresh token from register response');
       }
 
       // Backend already set HTTP-only cookies - just fetch user data
