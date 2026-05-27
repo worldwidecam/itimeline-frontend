@@ -653,8 +653,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleTouchMove = (event) => {
     if (!isDragging.current || touchStartX.current === null) return;
     
-    // Prevent default for both touch and mouse only if event is cancelable (not passive)
-    if (event.cancelable && event.preventDefault) {
+    // Only prevent default for mouse events to avoid console warnings (touchAction: 'none' handles touches naturally)
+    if (event.type === 'mousemove' && event.preventDefault) {
       event.preventDefault();
     }
     
@@ -718,6 +718,17 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+    window.addEventListener('refresh-timeline-events', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh-timeline-events', handleRefresh);
+    };
+  }, []);
   const [voteStatsById, setVoteStatsById] = useState({});
   const [voteDotsLoading, setVoteDotsLoading] = useState(true);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -2335,7 +2346,7 @@ const handleViewModeTransition = (newViewMode) => {
     };
 
     fetchEvents();
-  }, [timelineId, userInteracted, accessDenied, hookStatus]);
+  }, [timelineId, userInteracted, accessDenied, hookStatus, refreshTrigger]);
 
   // Fetch pending and reviewing reports to show "In Review" icon on event popups
   useEffect(() => {

@@ -74,13 +74,29 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
     return null;
   }
 
-  const stringToColor = (str) => {
+  const hslToHex = (h, s, l) => {
+    l /= 100;
+    const a = (s * Math.min(l, 1 - l)) / 100;
+    const f = n => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  };
+
+  const stringToColor = (str, isDarkMode) => {
+    if (typeof str !== 'string') str = String(str || '');
     let hash = 0;
     for (let i = 0; i < str.length; i += 1) {
       hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const hue = Math.abs(hash % 360);
-    return `hsl(${hue}, 30%, 50%)`;
+    // Multiply by 137 to perfectly scatter adjacent hashes far apart in the hue space!
+    const hue = Math.abs((hash * 137) % 360);
+    // Glowing text on dark mode (85% saturation, 65% lightness), high contrast text on light mode (75% saturation, 40% lightness)
+    const s = isDarkMode ? 85 : 75;
+    const l = isDarkMode ? 65 : 40;
+    return hslToHex(hue, s, l);
   };
 
   const handleTagClick = async (e, tagName) => {
@@ -127,16 +143,48 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
     </Box>
   );
 
+  const getMedalColors = (index, isDarkMode) => {
+    if (index === 0) {
+      // Gold: Brilliant, glowing sunlit yellow-gold
+      return {
+        bg: isDarkMode ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 215, 0, 0.18)',
+        text: isDarkMode ? '#FFE066' : '#A37D00',
+        border: isDarkMode ? 'rgba(255, 215, 0, 0.4)' : 'rgba(163, 125, 0, 0.35)',
+      };
+    }
+    if (index === 1) {
+      // Silver: Sleek, clean polished slate-silver
+      return {
+        bg: isDarkMode ? 'rgba(226, 232, 240, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+        text: isDarkMode ? '#F1F5F9' : '#475569',
+        border: isDarkMode ? 'rgba(226, 232, 240, 0.4)' : 'rgba(71, 85, 105, 0.4)',
+      };
+    }
+    if (index === 2) {
+      // Bronze: Vibrant, fiery metallic copper-orange (highly distinct from Gold)
+      return {
+        bg: isDarkMode ? 'rgba(205, 127, 50, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+        text: isDarkMode ? '#FFB077' : '#D84B06',
+        border: isDarkMode ? 'rgba(205, 127, 50, 0.4)' : 'rgba(216, 75, 6, 0.35)',
+      };
+    }
+    return null;
+  };
+
   const renderHashtagChips = () => {
     if (!hashtagTags.length) return null;
 
-    const visible = hashtagTags.slice(0, 5);
-    const extraCount = hashtagTags.length > 5 ? hashtagTags.length - 5 : 0;
+    const visible = hashtagTags.slice(0, 3);
+    const isDarkMode = theme.palette.mode === 'dark';
 
     return (
       <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
         {visible.map((tagName, index) => {
-          const tagColor = stringToColor(tagName);
+          const medalColors = getMedalColors(index, isDarkMode);
+          const tagColor = medalColors ? medalColors.text : stringToColor(tagName, isDarkMode);
+          const bg = medalColors ? medalColors.bg : (isDarkMode ? alpha(tagColor, 0.15) : alpha(tagColor, 0.08));
+          const border = medalColors ? medalColors.border : alpha(tagColor, 0.25);
+
           return (
             <Tooltip key={`${tagName}-${index}`} title="Hashtag Timeline" arrow>
               <Chip
@@ -144,7 +192,7 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
                   <HashtagIcon
                     fontSize="small"
                     sx={{
-                      color: theme.palette.mode === 'dark' ? 'inherit' : tagColor,
+                      color: tagColor,
                       marginLeft: 0,
                     }}
                   />
@@ -154,26 +202,24 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
                 onClick={(e) => handleTagClick(e, tagName)}
                 sx={{
                   height: 24,
-                  backgroundColor: theme.palette.mode === 'dark'
-                    ? alpha(tagColor, 0.2)
-                    : alpha(tagColor, 0.1),
-                  color: theme.palette.mode === 'dark'
-                    ? theme.palette.common.white
-                    : tagColor,
+                  backgroundColor: bg,
+                  color: tagColor,
+                  border: `1px solid ${border}`,
                   borderRadius: 1.5,
                   '& .MuiChip-label': {
                     px: 1,
                     fontSize: '0.75rem',
-                    fontWeight: 500,
+                    fontWeight: medalColors ? 600 : 500,
                   },
                   '& .MuiChip-icon': {
                     mr: 0.5,
                     ml: 0.5,
                   },
                   '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark'
-                      ? alpha(tagColor, 0.3)
-                      : alpha(tagColor, 0.2),
+                    backgroundColor: medalColors 
+                      ? (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.14))
+                      : (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.16)),
+                    borderColor: medalColors ? border : alpha(tagColor, 0.45),
                     cursor: 'pointer',
                   },
                 }}
@@ -181,27 +227,6 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
             </Tooltip>
           );
         })}
-        {extraCount > 0 && (
-          <Chip
-            label={`+${extraCount}`}
-            size="small"
-            sx={{
-              height: 24,
-              backgroundColor: theme.palette.mode === 'dark'
-                ? alpha(theme.palette.primary.main, 0.2)
-                : alpha(theme.palette.primary.main, 0.08),
-              color: theme.palette.mode === 'dark'
-                ? theme.palette.common.white
-                : theme.palette.primary.main,
-              borderRadius: 1.5,
-              '& .MuiChip-label': {
-                px: 1,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-              },
-            }}
-          />
-        )}
       </Box>
     );
   };

@@ -578,6 +578,10 @@ The iTimeline application supports Community Timelines with a Bronze/Silver/Gold
     - Hide `View Event` for resolved post tickets with `resolution === delete`
 
 #### Current Status
+- ✅ **POPULAR SORTING & CARD REDESIGNS COMPLETE** (May 2026)
+  - ✅ **Reddit-style Hot Ranking**: Exchanged votes-only sort for a hot score formula (scale = 7200 seconds / 2 hours) to prioritize fresh, active content on the Popular tab.
+  - ✅ **Remark Card Revamp**: Side-by-side layout featuring a larger responsive creator avatar, separate `@` prefix styling with default sans-serif font compatibility, conversational `" Says"` subtitle, and a theme-aware comic speech bubble (solid outline + offset shadow).
+  - ✅ **News Card Width Fix**: Added proper container padding `p: { xs: 1.5, sm: 2 }` to the outermost container Box, completely resolving layout clipping on desktop and mobile viewports.
 - ✅ Timeline prefix styling and display
 - ✅ Visual indicators for timeline visibility
 - ✅ Community timeline membership status checking
@@ -2247,7 +2251,7 @@ This section contains low-priority improvements, polish items, and feature ideas
 #### Your Physical Notes
 *(Add your bullet point notes here)*
 - [ ] when on a community timeline, eventform needs to understand if the community is private in anyway so that if it is, it actually does NOT auto add its #hashtag counterpart chip as well. i-chip will suffice 
-- [ ] need to redesign Remark Cards visually
+- [x] need to redesign Remark Cards visually (COMPLETED)
 - [ ] in event creation form, the hashtag input field should ONLY add hashtags, not communities or personals
 - [ ] is email blur preference saved to passport?
 - [ ] i need to make a little ballot box form icon on the website
@@ -2267,7 +2271,7 @@ This section contains low-priority improvements, polish items, and feature ideas
 - [ ] the event markers look to be vertically too low. their vertical bottom is intersecting the timelines horizontal line and coming out the other side
 - [ ] make a subsection tab of news event type for social media. that way we can spend less space storing social media posts. 
 - [ ] make SiteAdmin role
-- [ ] make remarks more like tweet phone convo word bubbles, featuring the user's profile picture and name. 
+- [x] make remarks more like tweet phone convo word bubbles, featuring the user's profile picture and name. (COMPLETED)
 - [ ] EventList filter buttons update the list before fades; align order-of-operations later.
 
 
