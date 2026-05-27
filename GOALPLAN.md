@@ -6,41 +6,46 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Current Objective
-* login/register auto fill boxes seem bugged. specifically the username seems to auto fill the email box. 
-* popular page sort order update. needs improvement. update to vote sorting, but more specifically by today's posts , over old posts.
+
 * need a backup way for users to remember their password
-* need to improve the authentication token. right now, when i visit the site from my phone, it goes to a white screen for a too-long time when on stale data (24hrs later) before reauthenticating me. i don't have this trouble at all when i visit reddit. how do they do it? maybe they just set that one session's IP to not need reauthenticating, or auto trigger refresh?
+
+* in hamburger menu, add more rows to 'last visited timeline' section. i'm trying to cycle through more than just one timeline at a time
+- and how come the scrolling and swiping for the background is halted correctly when i'm in hamburger menu, or i'm in hashtag timeline settings or access panel for personal timeline's, but when i have an event Popup open I just can't seem to get the page behind it to stop scrolling on contact.
+
+
+* hashtag voting system
+- for this system to work, and for us to begin, we must first look into any possible problems regarding adding tags to a post. just a safety check is fine. 
+- to be made IN TANDEM with comment section. for hashtag voting will be at the per post level, much like comment section will be.
+- it will be a vote option for the user towards the post its on. displayed in comment chat box like metaData, with the hashtag chip visualize though (style guideline)
+-- example, " USERNAME voted this Post as #GAY" (#GAY will be the colored chip)
+
+* comment section
+- comment section needs to be a section in event Popup. might possibly need to consider its location type -by- type , but will probably want to be near the top. 
+- its
+- in comments section, user can either input a comment, or cast their 1 hashtag vote towards the post.
+- on comments posted, there will be an up-arrow, a down-arrow, and a reply button.
+
+* personal timeline access panel settings needs a section to edit their description
+
+* NSFW filter logic. tie it to our existing elements like content blurring and user's birthdate input.
+
+* need to ReVAMP the landing page timeline. make actual events, not just the intro text cards. 5 events per filter view should be enough. can save these on frontend like we've been doing.
+
+
+
+
 ---
 
-## Objectives
+## In Progress
 
-### Completed
-- [x] Safe GitHub branch system — `main` (dev) → `staging` → `PRODUCTION` (protected, PR-only)
+### Postponed ToDos
 
-### In Progress
-- [ ] Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be deleted
+* Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be 
 
-### Up Next (Features)
-- [ ] **NSFW filter** — media creation toggle, birthday-based 18+ gate, blur-by-default in popups
-- [ ] better login credentials. i'm logged in on my phone. hours pass and i want to check the feed. instead of staying logged in, i not only do not go to login page, but i am immediately logged in as guest user. its not that i want to be directed to login page, but i want to be logged in as myself
-- [ ] **Hashtag chip voting** — voting system on hashtag chips
-- [ ]
-- [ ] **Timeline deletion** — define requirements + UX, then implement
-- [ ] 
+#### COMPLETE 
+(move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
-### Backlog
-- [ ] Fallback image rules for news/link events — define rules and improve preview reliability across cards and popups
-- [ ] Frontend/backend inflation audit — identify logic that belongs in iTimeline-DB package
-- [ ] Theme architecture hardening — final light-mode micro-surface polish pass
-- [ ] Shared personal timelines surface — decide whether "Shared With Me" list/module is needed or link-only access is intentional
-- [ ] Media merge tooling — ideate high-tier report decision for duplicate/redundant media events
+- [x] event Cards seem to be able to visualize too many hash tag chips. this could possibly break its layout.
+ lets limit its hashtag chip visualiztion to the first three,
+lets make their chip color standard for the first 3. representing medals, their coloring will be Gold (first), Silver (second), Bronze (third).
 
----
-
-## Goblin Mode Spec (locked)
-- Auto-enter on unauthenticated share/deep links and Home entry
-- Can view: public timelines (hashtag + non-private community), public profiles, public event popups
-- Cannot: post, create, join, follow, manage, report, or access private surfaces
-- Private surface attempts → Goblin redirect page (CTAs: go back / login / home)
-- Auth handoff: cache `returnTo` URL → resume after real login
-- Implementation order: guest profile route → profile guard → timeline/home surfaces

@@ -116,7 +116,6 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  lineHeight: 1.3,
                   lineHeight: 1.3
                 }}
               >

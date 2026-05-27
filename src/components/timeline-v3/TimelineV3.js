@@ -653,8 +653,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const handleTouchMove = (event) => {
     if (!isDragging.current || touchStartX.current === null) return;
     
-    // Prevent default for both touch and mouse only if event is cancelable (not passive)
-    if (event.cancelable && event.preventDefault) {
+    // Only prevent default for mouse events to avoid console warnings (touchAction: 'none' handles touches naturally)
+    if (event.type === 'mousemove' && event.preventDefault) {
       event.preventDefault();
     }
     
@@ -718,6 +718,17 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+    window.addEventListener('refresh-timeline-events', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh-timeline-events', handleRefresh);
+    };
+  }, []);
   const [voteStatsById, setVoteStatsById] = useState({});
   const [voteDotsLoading, setVoteDotsLoading] = useState(true);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -975,6 +986,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       y: Number(nextSettings?.coverPortraitPosition?.y ?? 50),
     });
     setCoverPortraitZoom(Number(nextSettings?.coverPortraitZoom ?? 1) || 1);
+    setCoverLandscapeUrl(String(nextSettings?.coverLandscapeUrl || '').trim());
+    setCoverLandscapePosition({
+      x: Number(nextSettings?.coverLandscapePosition?.x ?? 50),
+      y: Number(nextSettings?.coverLandscapePosition?.y ?? 50),
+    });
+    setCoverLandscapeZoom(Number(nextSettings?.coverLandscapeZoom ?? 1) || 1);
   }, []);
 
   // Get sort order from localStorage
@@ -2335,7 +2352,7 @@ const handleViewModeTransition = (newViewMode) => {
     };
 
     fetchEvents();
-  }, [timelineId, userInteracted, accessDenied, hookStatus]);
+  }, [timelineId, userInteracted, accessDenied, hookStatus, refreshTrigger]);
 
   // Fetch pending and reviewing reports to show "In Review" icon on event popups
   useEffect(() => {
@@ -3553,6 +3570,7 @@ const handleRecenter = () => {
             onAddViewer={handleAddViewer}
             onRemoveViewer={handleRemoveViewer}
             timelineId={timelineId}
+            timelineType={timeline_type}
             timelineDescription={timelineDescription}
             setTimelineDescription={setTimelineDescription}
             coverPortraitUrl={coverPortraitUrl}
@@ -3561,6 +3579,12 @@ const handleRecenter = () => {
             setCoverPortraitPosition={setCoverPortraitPosition}
             coverPortraitZoom={coverPortraitZoom}
             setCoverPortraitZoom={setCoverPortraitZoom}
+            coverLandscapeUrl={coverLandscapeUrl}
+            setCoverLandscapeUrl={setCoverLandscapeUrl}
+            coverLandscapePosition={coverLandscapePosition}
+            setCoverLandscapePosition={setCoverLandscapePosition}
+            coverLandscapeZoom={coverLandscapeZoom}
+            setCoverLandscapeZoom={setCoverLandscapeZoom}
             onNotify={handleAccessPanelNotice}
           />
 
@@ -4031,8 +4055,8 @@ const handleRecenter = () => {
         </Stack>
       </Container>
 
-      {/* Community Hero Banner - Positioned below visualization and above EventList */}
-      {timeline_type === 'community' && (
+      {/* Timeline Hero Banner - Positioned below visualization and above EventList */}
+      {(timeline_type === 'community' || ((timeline_type === 'personal' || timeline_type === 'hashtag') && coverLandscapeUrl)) && (
         <Container maxWidth={false}>
           <TimelineHeroBanner
             timelineName={timelineName}
@@ -4317,10 +4341,14 @@ const handleRecenter = () => {
         onClose={handleCloseHashtagSettings}
         timelineId={timelineId}
         timelineName={timelineName}
+        timelineType={timeline_type}
         initialDescription={timelineDescription}
         initialCoverPortraitUrl={coverPortraitUrl}
         initialCoverPortraitPosition={coverPortraitPosition}
         initialCoverPortraitZoom={coverPortraitZoom}
+        initialCoverLandscapeUrl={coverLandscapeUrl}
+        initialCoverLandscapePosition={coverLandscapePosition}
+        initialCoverLandscapeZoom={coverLandscapeZoom}
         onSaved={handleHashtagSettingsSaved}
         onNotify={handleAccessPanelNotice}
       />
