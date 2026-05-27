@@ -189,10 +189,10 @@ const Register = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-            <TextField fullWidth label="Username" name="username" value={formData.username} onChange={handleChange} margin="normal" required error={errorField === 'username'} />
-            <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" required error={errorField === 'email'} />
-            <TextField fullWidth label="Password" name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required error={errorField === 'password'} />
-            <TextField fullWidth label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="normal" required error={errorField === 'password'} />
+            <TextField fullWidth label="Username" name="username" value={formData.username} onChange={handleChange} margin="normal" required autoComplete="username" error={errorField === 'username'} />
+            <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" required autoComplete="email" error={errorField === 'email'} />
+            <TextField fullWidth label="Password" name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required autoComplete="new-password" error={errorField === 'password'} />
+            <TextField fullWidth label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="normal" required autoComplete="new-password" error={errorField === 'password'} />
             
             <FormControlLabel
               control={

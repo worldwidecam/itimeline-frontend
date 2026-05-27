@@ -1,4 +1,5 @@
 import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import { alpha } from '@mui/material/styles';
 import {
   Typography,
   IconButton,
@@ -272,7 +273,6 @@ const RemarkCard = forwardRef(({
               mt: -1.2,
               position: 'relative',
               borderTop: `2px solid ${color}`,
-              borderBottom: `2px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
               px: 1,
               py: 1.1,
             }}
@@ -284,7 +284,7 @@ const RemarkCard = forwardRef(({
                 justifyContent: 'space-between',
                 gap: 1,
                 pb: 1,
-                mb: 1,
+                mb: 1.5,
                 position: 'relative',
                 flexWrap: 'wrap',
                 borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'}`,
@@ -323,90 +323,206 @@ const RemarkCard = forwardRef(({
                 )}
               </Box>
               <EventOriginTimelineBadge event={event} />
-
             </Box>
 
+            {/* Redesigned Middle: Tweetified Speech Bubble Layout */}
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                mb: 0.8,
-                px: 0.3,
+                alignItems: 'flex-start',
+                gap: { xs: 1.5, sm: 2.5 },
+                mt: 1.5,
+                mb: 1.5,
               }}
             >
-              <Box sx={{ flex: 1, height: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.2)' }} />
-              <Typography
-                variant="caption"
+              {/* Left Column: Creator Avatar (Responsive Size) */}
+              <Box
                 sx={{
-                  fontFamily: '"Playfair Display", Georgia, serif',
-                  letterSpacing: '0.06em',
-                  fontWeight: 700,
-                  color: theme.palette.text.secondary,
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  flexShrink: 0,
                 }}
               >
-                {event?.created_by_display_username
-                  ? `${displayUsername(event.created_by_display_username)}'s Thoughts`
-                  : (event?.created_by_username
-                    ? `${displayUsername(event.created_by_username)}'s Thoughts`
-                    : 'Author Thoughts')}
-              </Typography>
-              <Box sx={{ flex: 1, height: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.2)' }} />
+                <UserAvatar
+                  name={event.created_by_display_username || event.created_by_username || 'User'}
+                  avatarUrl={event.created_by_avatar}
+                  id={event.created_by}
+                  size={60}
+                  userColor={event.created_by_user_color}
+                  isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
+                  isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
+                  isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
+                  sx={{
+                    width: { xs: 52, sm: 68 },
+                    height: { xs: 52, sm: 68 },
+                    border: `2.5px solid ${event.created_by_user_color || color}`,
+                    boxShadow: `0 0 12px ${alpha(event.created_by_user_color || color, 0.35)}`,
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: `0 0 16px ${alpha(event.created_by_user_color || color, 0.5)}`,
+                    }
+                  }}
+                />
+              </Box>
+
+              {/* Right Column: Thoughts Label + Comic-Styled Theme-Aware Speech Bubble */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                {/* Creator Header Info (Now positioned OUTSIDE and ABOVE the bubble) */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    flexWrap: 'wrap',
+                    mb: 0.6,
+                    pl: 0.5,
+                  }}
+                >
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    sx={{
+                      fontFamily: '"Outfit", "Inter", sans-serif',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      color: theme.palette.mode === 'dark' ? 'rgba(96, 165, 250, 0.8)' : 'rgba(37, 99, 235, 0.8)',
+                    }}
+                  >
+                    @
+                  </Typography>
+                  {event.created_by_username ? (
+                    <Link
+                      component={RouterLink}
+                      to={`/profile/${event.created_by_username}`}
+                      variant="caption"
+                      sx={{
+                        textDecoration: 'none',
+                        fontFamily: '"Outfit", "Inter", sans-serif',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        color: theme.palette.mode === 'dark' ? 'rgba(96, 165, 250, 0.85)' : 'rgba(37, 99, 235, 0.85)',
+                        transition: 'color 0.2s ease',
+                        '&:hover': {
+                          color: color,
+                          textDecoration: 'underline',
+                        }
+                      }}
+                    >
+                      {displayUsername(event.created_by_display_username || event.created_by_username)}
+                    </Link>
+                  ) : (
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{
+                        fontFamily: '"Outfit", "Inter", sans-serif',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        color: theme.palette.text.secondary,
+                      }}
+                    >
+                      Author
+                    </Typography>
+                  )}
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    sx={{
+                      fontFamily: '"Outfit", "Inter", sans-serif',
+                      fontWeight: 500,
+                      fontSize: '0.78rem',
+                      color: theme.palette.text.secondary,
+                      textTransform: 'none',
+                    }}
+                  >
+                    {" Says"}
+                  </Typography>
+                </Box>
+
+                {/* Speech Bubble Container */}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    background: theme.palette.mode === 'dark'
+                      ? 'linear-gradient(165deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)'
+                      : 'linear-gradient(165deg, #ffffff 0%, rgba(33, 150, 243, 0.08) 100%)',
+                    backdropFilter: 'blur(4px)',
+                    border: `2px solid ${
+                      theme.palette.mode === 'dark' 
+                        ? 'rgba(96, 165, 250, 0.4)' 
+                        : 'rgba(33, 150, 243, 0.45)'
+                    }`,
+                    boxShadow: theme.palette.mode === 'dark' 
+                      ? '4px 4px 0 rgba(0,0,0,0.55)' 
+                      : '4px 4px 0 rgba(33, 150, 243, 0.18)',
+                    borderRadius: '16px',
+                    p: { xs: 1.5, sm: 2 },
+                    minHeight: '80px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    // Speech Bubble pointer border overlay
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      left: '-10px',
+                      top: '20px',
+                      width: 0,
+                      height: 0,
+                      borderTop: '8px solid transparent',
+                      borderBottom: '8px solid transparent',
+                      borderRight: `10px solid ${
+                        theme.palette.mode === 'dark' 
+                          ? 'rgba(96, 165, 250, 0.4)' 
+                          : 'rgba(33, 150, 243, 0.45)'
+                      }`,
+                      zIndex: 1,
+                    },
+                    // Speech Bubble pointer fill
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      left: '-8px',
+                      top: '20px',
+                      width: 0,
+                      height: 0,
+                      borderTop: '8px solid transparent',
+                      borderBottom: '8px solid transparent',
+                      borderRight: `8px solid ${
+                        theme.palette.mode === 'dark' 
+                          ? '#1e293b'
+                          : '#ffffff'
+                      }`,
+                      zIndex: 2,
+                    }
+                  }}
+                >
+                  {/* Natural-Case Dominant Title */}
+                  <Typography
+                    variant="h6"
+                    component="div"
+                    sx={{
+                      fontWeight: 700,
+                      fontFamily: '"Playfair Display", Georgia, serif',
+                      letterSpacing: '0.01em',
+                      lineHeight: 1.3,
+                      fontSize: 'clamp(1.05rem, 1.8vw, 1.35rem)',
+                      color: theme.palette.text.primary,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 4,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      px: 0.2,
+                    }}
+                  >
+                    {headline}
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
-
-            <Typography
-              variant="h6"
-              component="div"
-              sx={{
-                textAlign: 'center',
-                fontWeight: 800,
-                fontFamily: '"Playfair Display", Georgia, serif',
-                letterSpacing: '0.01em',
-                lineHeight: 1.14,
-                fontSize: 'clamp(1.2rem, 2.2vw, 1.7rem)',
-                textTransform: 'uppercase',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                px: 0.5,
-              }}
-            >
-              {headline}
-            </Typography>
-
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 1,
-                textAlign: 'center',
-                fontFamily: '"Playfair Display", Georgia, serif',
-                fontStyle: 'italic',
-                color: theme.palette.text.secondary,
-                lineHeight: 1.35,
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                px: { xs: 0.25, md: 1 },
-                minHeight: '3.9em',
-              }}
-            >
-              {summarizedDeckText || 'A developing story from the timeline desk. Open details for the full report.'}
-            </Typography>
-
-            <Box
-              sx={{
-                mt: 1,
-                mx: 'auto',
-                width: '90%',
-                height: 1,
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.18)',
-              }}
-            />
           </Box>
 
           <Box sx={{ mt: 'auto' }}>
@@ -429,38 +545,7 @@ const RemarkCard = forwardRef(({
               {/* Row 1: Creator and Vote */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                  {event.created_by_username && (
-                    <>
-                      <UserAvatar
-                        name={event.created_by_display_username || event.created_by_username}
-                        avatarUrl={event.created_by_avatar}
-                        id={event.created_by}
-                        size={24}
-                        sx={{ mr: 0.5, fontSize: '0.75rem' }}
-                        userColor={event.created_by_user_color}
-                        isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
-                        isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
-                        isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
-                      />
-                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                        By
-                      </Typography>
-                      <Link
-                        component={RouterLink}
-                        to={`/profile/${event.created_by_username}`}
-                        variant="caption"
-                        color="primary"
-                        sx={{
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline'
-                          }
-                        }}
-                      >
-                        {displayUsername(event.created_by_display_username || event.created_by_username)}
-                      </Link>
-                    </>
-                  )}
+                  {/* Creator Info has been moved to the prominent Left Column layout above */}
                 </Box>
                 {showInlineVoteControls && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: 2.5 }}>

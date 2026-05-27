@@ -441,6 +441,7 @@ const NewsCard = forwardRef(({
               ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)`
               : '0 2px 4px rgba(0,0,0,0.1)',
             transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+            p: { xs: 1.5, sm: 2 },
             '&:hover': {
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             },

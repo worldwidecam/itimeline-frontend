@@ -1,12 +1,15 @@
 # GOALPLAN — iTimeline
 
 ## Main Goal
-create a safe github system , to allow me to continue development without breaking the Live PRODUCTION environment ✅
+maintain safety of PRODUCTION while making improvements from MAIN branch. 
 
 ---
 
 ## Current Objective
-Session token persistence — keep users logged in on mobile instead of silently falling back to guest.
+* login/register auto fill boxes seem bugged. specifically the username seems to auto fill the email box. 
+* popular page sort order update. needs improvement. update to vote sorting, but more specifically by today's posts , over old posts.
+* need a backup way for users to remember their password
+* need to improve the authentication token. right now, when i visit the site from my phone, it goes to a white screen for a too-long time when on stale data (24hrs later) before reauthenticating me. i don't have this trouble at all when i visit reddit. how do they do it? maybe they just set that one session's IP to not need reauthenticating, or auto trigger refresh?
 ---
 
 ## Objectives

@@ -2387,12 +2387,15 @@ const HomePage = () => {
 
       const rankedEvents = [...rankingWithKnownVotes, ...fetchedVoteRanked];
 
-      rankedEvents.sort((a, b) => {
-        if ((b.popularity_votes || 0) !== (a.popularity_votes || 0)) {
-          return (b.popularity_votes || 0) - (a.popularity_votes || 0);
-        }
-        return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
-      });
+      // Reddit-style hot ranking: log10(votes) + (created_at_epoch_seconds / scale)
+      // Scale of 7200 (2 hours) means a post ~2 hours newer needs ~10× fewer votes to rank equally.
+      const HOT_SCALE = 7200;
+      const hotScore = (event) => {
+        const votes = Math.max(event.popularity_votes || 0, 1);
+        const createdAtSec = new Date(event?.created_at || 0).getTime() / 1000;
+        return Math.log10(votes) + (createdAtSec / HOT_SCALE);
+      };
+      rankedEvents.sort((a, b) => hotScore(b) - hotScore(a));
 
       setPopularEvents(rankedEvents);
       setHasLoadedPopular(true);
