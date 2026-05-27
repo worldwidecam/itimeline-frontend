@@ -986,6 +986,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       y: Number(nextSettings?.coverPortraitPosition?.y ?? 50),
     });
     setCoverPortraitZoom(Number(nextSettings?.coverPortraitZoom ?? 1) || 1);
+    setCoverLandscapeUrl(String(nextSettings?.coverLandscapeUrl || '').trim());
+    setCoverLandscapePosition({
+      x: Number(nextSettings?.coverLandscapePosition?.x ?? 50),
+      y: Number(nextSettings?.coverLandscapePosition?.y ?? 50),
+    });
+    setCoverLandscapeZoom(Number(nextSettings?.coverLandscapeZoom ?? 1) || 1);
   }, []);
 
   // Get sort order from localStorage
@@ -3564,6 +3570,7 @@ const handleRecenter = () => {
             onAddViewer={handleAddViewer}
             onRemoveViewer={handleRemoveViewer}
             timelineId={timelineId}
+            timelineType={timeline_type}
             timelineDescription={timelineDescription}
             setTimelineDescription={setTimelineDescription}
             coverPortraitUrl={coverPortraitUrl}
@@ -3572,6 +3579,12 @@ const handleRecenter = () => {
             setCoverPortraitPosition={setCoverPortraitPosition}
             coverPortraitZoom={coverPortraitZoom}
             setCoverPortraitZoom={setCoverPortraitZoom}
+            coverLandscapeUrl={coverLandscapeUrl}
+            setCoverLandscapeUrl={setCoverLandscapeUrl}
+            coverLandscapePosition={coverLandscapePosition}
+            setCoverLandscapePosition={setCoverLandscapePosition}
+            coverLandscapeZoom={coverLandscapeZoom}
+            setCoverLandscapeZoom={setCoverLandscapeZoom}
             onNotify={handleAccessPanelNotice}
           />
 
@@ -4042,8 +4055,8 @@ const handleRecenter = () => {
         </Stack>
       </Container>
 
-      {/* Community Hero Banner - Positioned below visualization and above EventList */}
-      {timeline_type === 'community' && (
+      {/* Timeline Hero Banner - Positioned below visualization and above EventList */}
+      {(timeline_type === 'community' || ((timeline_type === 'personal' || timeline_type === 'hashtag') && coverLandscapeUrl)) && (
         <Container maxWidth={false}>
           <TimelineHeroBanner
             timelineName={timelineName}
@@ -4328,10 +4341,14 @@ const handleRecenter = () => {
         onClose={handleCloseHashtagSettings}
         timelineId={timelineId}
         timelineName={timelineName}
+        timelineType={timeline_type}
         initialDescription={timelineDescription}
         initialCoverPortraitUrl={coverPortraitUrl}
         initialCoverPortraitPosition={coverPortraitPosition}
         initialCoverPortraitZoom={coverPortraitZoom}
+        initialCoverLandscapeUrl={coverLandscapeUrl}
+        initialCoverLandscapePosition={coverLandscapePosition}
+        initialCoverLandscapeZoom={coverLandscapeZoom}
         onSaved={handleHashtagSettingsSaved}
         onNotify={handleAccessPanelNotice}
       />

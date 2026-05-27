@@ -16,6 +16,8 @@ import {
   Person as PersonIcon,
   Star as StarIcon,
   StarBorder as StarBorderIcon,
+  FavoriteBorder as HeartIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { normalizeTimelineCardData } from './timelineCardModel';
 import { displayUsername } from '../../utils/usernameDisplay';
@@ -201,35 +203,54 @@ function TimelineCard({
             mb: 1.1,
           }}
         >
-          {resolvedSections.typeChip ? (
-            <Chip
-              size="small"
-              icon={<TypeIcon fontSize="small" />}
-              label={typeLabel}
-              sx={{
-                position: 'relative',
-                mb: 0.85,
-                px: 0.35,
-                height: { xs: 22, sm: 24 },
-                borderRadius: 1.6,
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: { xs: '0.62rem', sm: '0.66rem' },
-                letterSpacing: 0.28,
-                textTransform: 'uppercase',
-                background: typeChipGradient,
-                border: '1px solid rgba(255,255,255,0.24)',
-                boxShadow: '0 8px 18px rgba(0,0,0,0.22)',
-                '& .MuiChip-label': {
-                  px: 0.85,
-                },
-                '& .MuiChip-icon': {
-                  color: 'rgba(255,255,255,0.94)',
-                  fontSize: 14,
-                },
-              }}
-            />
-          ) : null}
+          {resolvedSections.typeChip ? (() => {
+            const renderTypeIcon = () => {
+              if (isCommunity) return <GroupsIcon fontSize="small" />;
+              if (isHashtag) return <TagIcon fontSize="small" />;
+              return (
+                <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14 }}>
+                  <HeartIcon sx={{ fontSize: 14 }} />
+                  <LockIcon
+                    sx={{
+                      fontSize: 9,
+                      position: 'absolute',
+                      bottom: -2,
+                      right: -3,
+                    }}
+                  />
+                </Box>
+              );
+            };
+            return (
+              <Chip
+                size="small"
+                icon={renderTypeIcon()}
+                label={typeLabel}
+                sx={{
+                  position: 'relative',
+                  mb: 0.85,
+                  px: 0.35,
+                  height: { xs: 22, sm: 24 },
+                  borderRadius: 1.6,
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: { xs: '0.62rem', sm: '0.66rem' },
+                  letterSpacing: 0.28,
+                  textTransform: 'uppercase',
+                  background: typeChipGradient,
+                  border: '1px solid rgba(255,255,255,0.24)',
+                  boxShadow: '0 8px 18px rgba(0,0,0,0.22)',
+                  '& .MuiChip-label': {
+                    px: 0.85,
+                  },
+                  '& .MuiChip-icon': {
+                    color: 'rgba(255,255,255,0.94)',
+                    fontSize: 14,
+                  },
+                }}
+              />
+            );
+          })() : null}
           <Box
             sx={{
               display: 'flex',

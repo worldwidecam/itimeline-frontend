@@ -83,6 +83,7 @@ import UserCard from './common/UserCard';
 import NavFab, { TimelineMarkerIcon } from './timeline-v3/community/NavFab';
 import EventIcon from '@mui/icons-material/Event';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
+import { TimelineHeroBanner } from './timeline-v3/TimelineHeroBanner';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -4856,71 +4857,17 @@ const HomePage = () => {
 
                       return (
                         <Box>
-                          <Box
-                            sx={{
-                              borderRadius: 2,
-                              border: '1px solid',
-                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.12)',
-                              overflow: 'hidden',
-                              position: 'relative',
-                              aspectRatio: { xs: '5 / 1', md: '8 / 1' },
-                              mb: 2,
-                              background: bannerImageUrl
-                                ? 'transparent'
-                                : (theme.palette.mode === 'dark'
-                                  ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
-                                  : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)'),
-                            }}
-                          >
-                            {bannerImageUrl ? (
-                              <Box
-                                component="img"
-                                src={bannerImageUrl}
-                                alt={`${prefixedTitle} banner`}
-                                sx={{
-                                  position: 'absolute',
-                                  inset: 0,
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'contain',
-                                  objectPosition: '50% 50%',
-                                  filter: coverUploadEnabled
-                                    ? 'brightness(1.06) saturate(1.04)'
-                                    : 'blur(18px) saturate(0.45)',
-                                  transform: coverLandscapeTransform,
-                                }}
-                              />
-                            ) : null}
-                            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.06) 0%, rgba(2,6,23,0.42) 100%)' }} />
-                            <Box sx={{ position: 'absolute', left: { xs: 12, md: 16 }, right: { xs: 12, md: 16 }, bottom: { xs: 8, md: 12 }, zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                              <Typography 
-                                variant="caption" 
-                                sx={{ 
-                                  color: 'rgba(248,250,252,0.95)',
-                                  textShadow: `
-                                    0 2px 4px rgba(2,6,23,0.8), 
-                                    0 4px 12px rgba(2,6,23,0.6), 
-                                    0 0 20px rgba(2,6,23,0.4)
-                                  `,
-                                  fontWeight: 800,
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.15em',
-                                }}
-                              >
-                                {timelineType.toUpperCase()} TIMELINE
-                              </Typography>
-                              
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                {timelineType === 'community' ? (
-                                  <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-                                ) : timelineType === 'personal' ? (
-                                  <PersonIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-                                ) : (
-                                  <TagIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-                                )}
-                              </Box>
-                            </Box>
-                          </Box>
+                          <TimelineHeroBanner
+                            timelineName={prefixedTitle}
+                            timelineType={timelineType}
+                            coverImageUrl={bannerImageUrl}
+                            coverLandscapeX={coverLandscapePosition.x}
+                            coverLandscapeY={coverLandscapePosition.y}
+                            coverZoom={coverLandscapeZoom}
+                            coverUploadEnabled={coverUploadEnabled}
+                            isLoading={loadingFavoriteTimelineContext}
+                            sx={{ mb: 2 }}
+                          />
 
                           <Box sx={{ mb: 2 }}>
                             <QuoteDisplay

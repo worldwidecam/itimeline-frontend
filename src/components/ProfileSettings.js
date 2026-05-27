@@ -1208,13 +1208,17 @@ const ProfileSettings = () => {
                   <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, opacity: 0.8 }}>
                     Trading Card Preview
                   </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', scale: '0.85', transformOrigin: 'top center' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', transformOrigin: 'top center' }}>
                     <TradingCard
                       imageUrl={previewUrl || user?.avatar_url || ''}
                       imageAlt={displayUsername(formData.username)}
                       label="PROFILE"
                       title={String(displayUsername(formData.username) || '').toUpperCase()}
                       isRestricted={user?.is_restricted || user?.is_suspended}
+                      frameSx={{
+                        width: { xs: 180, sm: 210 },
+                        height: { xs: 266, sm: 310 },
+                      }}
                       imageSx={{
                         objectFit: 'cover',
                         transform: `translate(${(portraitX - 50) * 0.9}%, ${(portraitY - 50) * 0.9}%) scale(${portraitZoom})`,

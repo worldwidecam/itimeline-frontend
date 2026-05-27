@@ -9,7 +9,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * need a backup way for users to remember their password
 
-* need to improve the authentication token. right now, when i visit the site from my phone, it goes to a white screen for a too-long time when on stale data (24hrs later) before reauthenticating me. i don't have this trouble at all when i visit reddit. how do they do it? maybe they just set that one session's IP to not need reauthenticating, or auto trigger refresh?
+* in hamburger menu, add more rows to 'last visited timeline' section. i'm trying to cycle through more than just one timeline at a time
+- and how come the scrolling and swiping for the background is halted correctly when i'm in hamburger menu, or i'm in hashtag timeline settings or access panel for personal timeline's, but when i have an event Popup open I just can't seem to get the page behind it to stop scrolling on contact.
 
 
 * hashtag voting system
@@ -24,6 +25,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 - in comments section, user can either input a comment, or cast their 1 hashtag vote towards the post.
 - on comments posted, there will be an up-arrow, a down-arrow, and a reply button.
 
+* personal timeline access panel settings needs a section to edit their description
 
 * NSFW filter logic. tie it to our existing elements like content blurring and user's birthdate input.
 

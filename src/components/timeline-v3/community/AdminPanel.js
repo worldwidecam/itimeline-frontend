@@ -77,6 +77,7 @@ import NavFab from './NavFab';
 import api from '../../../utils/api';
 import { getTimelineDetails, getTimelineMemberCount, getTimelineMembers, getBlockedMembers, getPendingMembers, updateTimelineVisibility, updateTimelineDetails, removeMember, updateMemberRole, blockMember, unblockMember, approvePendingMember, denyPendingMember, getTimelineActions, saveTimelineActions, getTimelineActionByType, getTimelineQuote, updateTimelineQuote, checkMembershipStatus, listReports, acceptReport, resolveReport, escalateReport, getTimelineStatusMessage, updateTimelineStatusMessage, deleteTimelineStatusMessage } from '../../../utils/api';
 import UserAvatar from '../../common/UserAvatar';
+import TradingCard from '../../common/TradingCard';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommunityLockView from './CommunityLockView';
 import EventPopup from '../events/EventPopup';
@@ -3612,7 +3613,9 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     key={member.id}
                     sx={{
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: isMobile ? 'column' : 'row',
+                      alignItems: isMobile ? 'stretch' : 'center',
+                      gap: isMobile ? 1.5 : 0,
                       p: 2,
                       borderBottom: 1,
                       borderColor: 'divider',
@@ -3625,53 +3628,77 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                       transition: 'background-color 0.2s ease'
                     }}
                   >
-                    <UserAvatar
-                      name={member.name}
-                      avatarUrl={member.avatar}
-                      id={member.userId}
-                      size={48}
-                      userColor={member.user_color}
-                      isRestricted={member.isRestricted || member.is_restricted}
-                      sx={{
-                        mr: 2,
-                        boxShadow: '0 0 0 2px ' + roleColor.bg,
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s ease',
-                        '&:hover': { transform: 'scale(1.05)' }
-                      }}
-                    />
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          {displayUsername(member.name)}
-                        </Typography>
-                        {member.country && (
-                          <Box 
-                            component="img"
-                            src={getFlagUrl(member.country)}
-                            alt={member.country}
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0, flexWrap: 'wrap', gap: 1.5 }}>
+                      <UserAvatar
+                        name={member.name}
+                        avatarUrl={member.avatar}
+                        id={member.userId}
+                        size={48}
+                        userColor={member.user_color}
+                        isRestricted={member.isRestricted || member.is_restricted}
+                        sx={{
+                          mr: 0.5,
+                          boxShadow: '0 0 0 2px ' + roleColor.bg,
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s ease',
+                          '&:hover': { transform: 'scale(1.05)' }
+                        }}
+                      />
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            {displayUsername(member.name)}
+                          </Typography>
+                          {member.country && (
+                            <Box 
+                              component="img"
+                              src={getFlagUrl(member.country)}
+                              alt={member.country}
+                              sx={{ 
+                                width: 20, 
+                                height: 14, 
+                                borderRadius: '2px',
+                                objectFit: 'cover',
+                                boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                                flexShrink: 0
+                              }}
+                            />
+                          )}
+                          <Chip 
+                            label={(roleLower ? roleLower.charAt(0).toUpperCase() + roleLower.slice(1) : 'Member')}
+                            size="small"
+                            icon={
+                              roleLower === 'admin' ? 
+                                <AdminPanelSettingsIcon fontSize="small" /> : 
+                              roleLower === 'moderator' ? 
+                                <ModeratorIcon fontSize="small" /> : 
+                                null
+                            }
                             sx={{ 
-                              width: 20, 
-                              height: 14, 
-                              borderRadius: '2px',
-                              objectFit: 'cover',
-                              boxShadow: '0 0 2px rgba(0,0,0,0.2)',
-                              flexShrink: 0
+                              bgcolor: roleColor.bg,
+                              color: roleColor.text,
+                              fontWeight: 500,
+                              height: 20,
+                              fontSize: '0.68rem',
+                              '& .MuiChip-icon': { fontSize: '0.85rem' }
                             }}
                           />
-                        )}
+                        </Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Joined {member.joinDate}
+                        </Typography>
                       </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        Joined {member.joinDate}
-                      </Typography>
                     </Box>
                     {/* Hover-reveal actions container cloned from MemberListTab style (moved after name/join) */}
                     <Box sx={{ 
                       display: 'flex', 
                       alignItems: 'center',
-                      opacity: 0,
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                      opacity: isMobile ? 1 : 0,
+                      justifyContent: isMobile ? 'flex-end' : 'flex-start',
                       transition: 'opacity 0.2s ease',
-                      '.MuiBox-root:hover > &': { opacity: 1 }
+                      ...(!isMobile ? { '.MuiBox-root:hover > &': { opacity: 1 } } : {})
                     }}>
                       {(() => {
                         const uid = member.userId ?? member.user_id ?? member.id;
@@ -3753,23 +3780,6 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                         );
                       })()}
                     </Box>
-                    <Chip 
-                      label={(roleLower ? roleLower.charAt(0).toUpperCase() + roleLower.slice(1) : 'Member')}
-                      size="small"
-                      icon={
-                        roleLower === 'admin' ? 
-                          <AdminPanelSettingsIcon fontSize="small" /> : 
-                        roleLower === 'moderator' ? 
-                          <ModeratorIcon fontSize="small" /> : 
-                          null
-                      }
-                      sx={{ 
-                        bgcolor: roleColor.bg,
-                        color: roleColor.text,
-                        fontWeight: 500,
-                        mr: 2
-                      }}
-                    />
                   </Box>
                 );
               })}
@@ -3794,7 +3804,9 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                   key={member.id}
                   sx={{
                     display: 'flex',
-                    alignItems: 'center',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    alignItems: isMobile ? 'stretch' : 'center',
+                    gap: isMobile ? 1.5 : 0,
                     p: 2,
                     borderBottom: 1,
                     borderColor: 'divider',
@@ -3807,41 +3819,43 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     transition: 'background-color 0.2s ease'
                   }}
                 >
-                  <UserAvatar
-                    name={member.name}
-                    avatarUrl={member.avatar}
-                    id={member.userId || member.id}
-                    size={48}
-                    userColor={member.user_color}
-                    isRestricted={member.isRestricted || member.is_restricted}
-                    sx={{ mr: 2 }}
-                  />
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle1" component="div">
-                        {displayUsername(member.name)}
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0, flexWrap: 'wrap', gap: 1.5 }}>
+                    <UserAvatar
+                      name={member.name}
+                      avatarUrl={member.avatar}
+                      id={member.userId || member.id}
+                      size={48}
+                      userColor={member.user_color}
+                      isRestricted={member.isRestricted || member.is_restricted}
+                      sx={{ mr: 2 }}
+                    />
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="subtitle1" component="div">
+                          {displayUsername(member.name)}
+                        </Typography>
+                        {member.country && (
+                          <Box 
+                            component="img"
+                            src={getFlagUrl(member.country)}
+                            alt={member.country}
+                            sx={{ 
+                              width: 20, 
+                              height: 14, 
+                              borderRadius: '2px',
+                              objectFit: 'cover',
+                              boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                              flexShrink: 0
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Requested {member.joinDate}
                       </Typography>
-                      {member.country && (
-                        <Box 
-                          component="img"
-                          src={getFlagUrl(member.country)}
-                          alt={member.country}
-                          sx={{ 
-                            width: 20, 
-                            height: 14, 
-                            borderRadius: '2px',
-                            objectFit: 'cover',
-                            boxShadow: '0 0 2px rgba(0,0,0,0.2)',
-                            flexShrink: 0
-                          }}
-                        />
-                      )}
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Requested {member.joinDate}
-                    </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-end' : 'flex-start' }}>
                     <Button
                       variant="contained"
                       color="success"
@@ -3882,7 +3896,9 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                   key={member.id}
                   sx={{
                     display: 'flex',
-                    alignItems: 'center',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    alignItems: isMobile ? 'stretch' : 'center',
+                    gap: isMobile ? 1.5 : 0,
                     p: 2,
                     borderBottom: 1,
                     borderColor: 'divider',
@@ -3895,52 +3911,54 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
                     transition: 'background-color 0.2s ease'
                   }}
                 >
-                  <UserAvatar
-                    name={member.name}
-                    avatarUrl={member.avatar}
-                    id={member.userId || member.id}
-                    size={48}
-                    userColor={member.user_color}
-                    isRestricted={member.isRestricted || member.is_restricted}
-                    sx={{
-                      mr: 2,
-                      filter: 'grayscale(100%)',
-                      opacity: 0.7
-                    }}
-                  />
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        {displayUsername(member.name)}
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0, flexWrap: 'wrap', gap: 1.5 }}>
+                    <UserAvatar
+                      name={member.name}
+                      avatarUrl={member.avatar}
+                      id={member.userId || member.id}
+                      size={48}
+                      userColor={member.user_color}
+                      isRestricted={member.isRestricted || member.is_restricted}
+                      sx={{
+                        mr: 2,
+                        filter: 'grayscale(100%)',
+                        opacity: 0.7
+                      }}
+                    />
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {displayUsername(member.name)}
+                        </Typography>
+                        {member.country && (
+                          <Box 
+                            component="img"
+                            src={getFlagUrl(member.country)}
+                            alt={member.country}
+                            sx={{ 
+                              width: 20, 
+                              height: 14, 
+                              borderRadius: '2px',
+                              objectFit: 'cover',
+                              boxShadow: '0 0 2px rgba(0,0,0,0.2)',
+                              flexShrink: 0
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Blocked on {member.blockedDate}
                       </Typography>
-                      {member.country && (
-                        <Box 
-                          component="img"
-                          src={getFlagUrl(member.country)}
-                          alt={member.country}
-                          sx={{ 
-                            width: 20, 
-                            height: 14, 
-                            borderRadius: '2px',
-                            objectFit: 'cover',
-                            boxShadow: '0 0 2px rgba(0,0,0,0.2)',
-                            flexShrink: 0
-                          }}
-                        />
-                      )}
+                      <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
+                        Reason: {member.reason}
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Blocked on {member.blockedDate}
-                    </Typography>
-                    <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
-                      Reason: {member.reason}
-                    </Typography>
                   </Box>
                   <Button
                     variant="outlined"
                     size="small"
                     onClick={() => handleOpenConfirmDialog(member, 'unblock')}
-                    sx={{ ml: 2 }}
+                    sx={{ ml: isMobile ? 0 : 2, alignSelf: isMobile ? 'flex-end' : 'auto' }}
                   >
                     Unblock
                   </Button>
@@ -4065,6 +4083,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
   const [portraitZoom, setPortraitZoom] = useState(1);
   const [landscapeZoom, setLandscapeZoom] = useState(1);
   const [activeFrameTarget, setActiveFrameTarget] = useState('landscape');
+  const [joystickKnobOffset, setJoystickKnobOffset] = useState({ x: 0, y: 0 });
   const joystickRef = useRef(null);
   const joystickDragRef = useRef(null);
   const [pendingCoverPortraitFile, setPendingCoverPortraitFile] = useState(null);
@@ -4147,11 +4166,23 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
 
-    const deltaXPercent = ((event.clientX - drag.startClientX) / width) * 100 * JOYSTICK_SENSITIVITY;
-    const deltaYPercent = ((event.clientY - drag.startClientY) / height) * 100 * JOYSTICK_SENSITIVITY;
+    const rawDeltaX = ((event.clientX - drag.startClientX) / width) * 100;
+    const rawDeltaY = ((event.clientY - drag.startClientY) / height) * 100;
+
+    const distance = Math.sqrt(rawDeltaX * rawDeltaX + rawDeltaY * rawDeltaY);
+    const maxRadius = 40;
+    let clampedDeltaX = rawDeltaX;
+    let clampedDeltaY = rawDeltaY;
+    if (distance > maxRadius) {
+      clampedDeltaX = (rawDeltaX / distance) * maxRadius;
+      clampedDeltaY = (rawDeltaY / distance) * maxRadius;
+    }
+
+    setJoystickKnobOffset({ x: clampedDeltaX, y: clampedDeltaY });
+
     const next = {
-      x: clampFramePosition(drag.startPositionX + deltaXPercent, 50),
-      y: clampFramePosition(drag.startPositionY + deltaYPercent, 50),
+      x: clampFramePosition(drag.startPositionX + clampedDeltaX * JOYSTICK_SENSITIVITY, 50),
+      y: clampFramePosition(drag.startPositionY + clampedDeltaY * JOYSTICK_SENSITIVITY, 50),
     };
 
     if (activeFrameTarget === 'portrait') {
@@ -4160,18 +4191,21 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       setLandscapePosition(next);
     }
     setHasUnsavedChanges(true);
-  }, [activeFrameTarget, clampFramePosition, JOYSTICK_SENSITIVITY]);
+  }, [activeFrameTarget, clampFramePosition, JOYSTICK_SENSITIVITY, setPortraitPosition, setLandscapePosition]);
 
   const handleJoystickPointerUp = useCallback((event) => {
-    if (joystickDragRef.current?.pointerId === event.pointerId) {
-      joystickDragRef.current = null;
+    if (event?.currentTarget?.releasePointerCapture && joystickDragRef.current?.pointerId !== undefined) {
+      try {
+        event.currentTarget.releasePointerCapture(joystickDragRef.current.pointerId);
+      } catch (_) {}
     }
+    joystickDragRef.current = null;
+    setJoystickKnobOffset({ x: 0, y: 0 });
   }, []);
 
-  const activeJoystickPosition = activeFrameTarget === 'portrait' ? portraitPosition : landscapePosition;
   const joystickKnobPosition = {
-    x: clampPercent(((clampFramePosition(activeJoystickPosition.x, 50) - FRAME_POSITION_MIN) / (FRAME_POSITION_MAX - FRAME_POSITION_MIN)) * 100),
-    y: clampPercent(((clampFramePosition(activeJoystickPosition.y, 50) - FRAME_POSITION_MIN) / (FRAME_POSITION_MAX - FRAME_POSITION_MIN)) * 100),
+    x: 50 + joystickKnobOffset.x,
+    y: 50 + joystickKnobOffset.y,
   };
 
   const canManageImagePrivilege = isSiteAdmin || siteRole === 'SiteOwner';
@@ -5115,43 +5149,27 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
           <Typography variant="caption" sx={{ display: 'block', mb: 0.7, fontWeight: 700 }}>
             Portrait Preview (1200 x 2100)
           </Typography>
-          <Box
-            sx={{
-              width: '100%',
-              aspectRatio: '4 / 7',
-              borderRadius: 1.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              overflow: 'hidden',
-              position: 'relative',
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-            }}
-          >
-            {portraitPreviewUrl ? (
-              <Box
-                component="img"
-                src={portraitPreviewUrl}
-                alt="Portrait cover preview"
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  objectPosition: '50% 50%',
-                  filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
-                  transform: buildFrameTransform(
-                    portraitPosition,
-                    portraitZoom,
-                    coverUploadEnabled
-                  ),
-                }}
-              />
-            ) : (
-              <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', px: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" align="center">
-                  No image selected yet
-                </Typography>
-              </Box>
-            )}
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <TradingCard
+              imageUrl={portraitPreviewUrl}
+              imageAlt={`${timelineData?.name || 'community'} portrait cover`}
+              label="COMMUNITY"
+              title={`i-${timelineData?.name || 'community'}`}
+              frameSx={{
+                width: { xs: 180, sm: 210 },
+                height: { xs: 266, sm: 310 },
+              }}
+              imageSx={{
+                objectFit: 'contain',
+                filter: coverUploadEnabled ? 'none' : 'blur(18px) saturate(0.45)',
+                transform: buildFrameTransform(
+                  portraitPosition,
+                  portraitZoom,
+                  coverUploadEnabled
+                ),
+              }}
+              fallbackSx={{ background: adminFallbackGradient }}
+            />
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1.1, display: 'block' }}>
             Preview only.
