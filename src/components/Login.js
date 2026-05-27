@@ -206,7 +206,7 @@ const Login = () => {
             <TextField
               fullWidth label="Email" name="email" type="email"
               value={formData.email} onChange={handleChange}
-              margin="normal" required autoComplete="username email"
+              margin="normal" required autoComplete="email"
               InputLabelProps={{ shrink: true }}
               error={errorField === 'all'}
             />
