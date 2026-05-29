@@ -359,7 +359,6 @@ const NewsEventPopup = ({
                 flexDirection: 'column',
                 overflowY: { xs: 'auto', md: 'hidden' }
               },
-              component: motion.div,
               drag: "x",
               dragConstraints: { left: 0, right: 0 },
               dragElastic: { left: 0.5, right: 0.5 },

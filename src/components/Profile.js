@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import api, { 
-  submitUserReport, 
-  createModerationAction, 
-  updateModerationAction, 
+import api, {
+  submitUserReport,
+  createModerationAction,
+  updateModerationAction,
   listModerationActions,
   getFollowedUsers,
   followUser,
@@ -441,31 +441,31 @@ const Profile = () => {
     try {
       setFollowActionLoading(true);
       const currentlyFollowing = followedUserIdSet.has(profileId);
-      
+
       if (currentlyFollowing) {
         await unfollowUser(profileId);
-        setSnackbar({ 
-          open: true, 
-          message: `Unfollowed ${displayUsername(profileUser.username)}`, 
-          severity: 'success' 
+        setSnackbar({
+          open: true,
+          message: `Unfollowed ${displayUsername(profileUser.username)}`,
+          severity: 'success'
         });
       } else {
         await followUser(profileId);
-        setSnackbar({ 
-          open: true, 
-          message: `Following ${displayUsername(profileUser.username)}`, 
-          severity: 'success' 
+        setSnackbar({
+          open: true,
+          message: `Following ${displayUsername(profileUser.username)}`,
+          severity: 'success'
         });
       }
-      
+
       // Refresh followed list
       await fetchFollowedUsers();
     } catch (err) {
       console.error('[Profile] Follow toggle error:', err);
-      setSnackbar({ 
-        open: true, 
-        message: 'Failed to update follow status', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: 'Failed to update follow status',
+        severity: 'error'
       });
     } finally {
       setFollowActionLoading(false);
@@ -1448,7 +1448,7 @@ const Profile = () => {
                     {displayUsername(profileUser.username)}
                     {profileUser?.country && (
                       <Tooltip title={countries.find(c => c.code === profileUser.country)?.label || ''} arrow>
-                        <Box 
+                        <Box
                           component="img"
                           loading="lazy"
                           src={getFlagUrl(profileUser.country)}
@@ -1483,8 +1483,8 @@ const Profile = () => {
                                     subject_id: profileUser.id,
                                     is_active: true
                                   });
-                                  const actionsArray = Array.isArray(responseActions.data) 
-                                    ? responseActions.data 
+                                  const actionsArray = Array.isArray(responseActions.data)
+                                    ? responseActions.data
                                     : (responseActions.data?.data || []);
                                   const blurActions = actionsArray.filter(a => a.action === 'blur_avatar');
                                   for (const action of blurActions) {
@@ -1862,12 +1862,12 @@ const Profile = () => {
                                       }
                                     }}
                                   >
-                                    <KeyboardDoubleArrowDownRoundedIcon 
-                                      sx={{ 
+                                    <KeyboardDoubleArrowDownRoundedIcon
+                                      sx={{
                                         fontSize: '1.35rem',
                                         color: hasNewTexts ? (theme.palette.mode === 'dark' ? '#90caf9' : '#1976d2') : theme.palette.text.secondary,
                                         filter: hasNewTexts ? `drop-shadow(0px 2px 4px rgba(25, 118, 210, 0.4))` : 'none'
-                                      }} 
+                                      }}
                                     />
                                   </Button>
                                 )}
@@ -1984,8 +1984,8 @@ const Profile = () => {
               icon: followedUserIdSet.has(Number(profileUser.id)) ? <PersonRemoveIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />,
               onClick: handleToggleFollow,
               step: 58,
-              accent: followedUserIdSet.has(Number(profileUser.id)) 
-                ? { dark: '#EF5350', light: '#D32F2F' } 
+              accent: followedUserIdSet.has(Number(profileUser.id))
+                ? { dark: '#EF5350', light: '#D32F2F' }
                 : { dark: '#4FC3F7', light: '#039BE5' },
             }] : []),
           ]}

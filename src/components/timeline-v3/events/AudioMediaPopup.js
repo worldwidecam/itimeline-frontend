@@ -297,7 +297,6 @@ const AudioMediaPopup = ({
           margin: { xs: 1, sm: 2, md: 'auto' },
           overflowY: { xs: 'auto', md: 'hidden' }
         },
-        component: motion.div,
         drag: "x",
         dragConstraints: { left: 0, right: 0 },
         dragElastic: { left: 0.5, right: 0.5 },

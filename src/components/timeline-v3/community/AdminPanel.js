@@ -4017,6 +4017,9 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
 const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityChange }) => {
   const theme = useTheme();
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
+  const adminFallbackGradient = theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
+    : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)';
   const showTimelineSettings = mode === 'timeline' || mode === 'all';
   const showStatusCards = mode === 'status' || mode === 'all';
   const showQuoteCard = mode === 'quote' || mode === 'all';
