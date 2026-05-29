@@ -372,10 +372,10 @@ const ProfileSettings = () => {
           const passportUserColor = passportUser?.user_color ? String(passportUser.user_color).trim() : '';
           const hasPassportDateOfBirth = Object.prototype.hasOwnProperty.call(passportUser, 'date_of_birth');
           const passportDateOfBirth = passportUser?.date_of_birth ? String(passportUser.date_of_birth).trim() : '';
-          const hasPassportProfilePortraitUrl = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_image_url');
-          const hasPassportProfilePortraitX = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_x');
-          const hasPassportProfilePortraitY = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_y');
-          const hasPassportProfilePortraitZoom = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_portrait_zoom');
+          const hasPassportProfilePortraitUrl = Object.prototype.hasOwnProperty.call(passportUser, 'avatar_url');
+          const hasPassportProfilePortraitX = Object.prototype.hasOwnProperty.call(passportUser, 'profile_portrait_x');
+          const hasPassportProfilePortraitY = Object.prototype.hasOwnProperty.call(passportUser, 'profile_portrait_y');
+          const hasPassportProfilePortraitZoom = Object.prototype.hasOwnProperty.call(passportUser, 'profile_portrait_zoom');
           const hasPassportProfileModules = Object.prototype.hasOwnProperty.call(passportPrefs, 'profile_modules');
           const hasPassportProfileVisibility = Object.prototype.hasOwnProperty.call(passportUser, 'profile_visibility');
           const hasPassportProfileAccessKey = Object.prototype.hasOwnProperty.call(passportUser, 'profile_access_key');
@@ -399,7 +399,7 @@ const ProfileSettings = () => {
           }
           if (userId > 0) {
             if (hasPassportProfilePortraitUrl) {
-              const portraitUrl = String(passportPrefs?.profile_portrait_image_url || '').trim();
+              const portraitUrl = String(passportUser?.avatar_url || '').trim();
               if (portraitUrl) {
                 localStorage.setItem(`profile_portrait_url_user_${userId}`, portraitUrl);
               } else {
@@ -407,21 +407,21 @@ const ProfileSettings = () => {
               }
             }
             if (hasPassportProfilePortraitX) {
-              const pX = Number(passportPrefs?.profile_portrait_x);
+              const pX = Number(passportUser?.profile_portrait_x);
               if (Number.isFinite(pX)) {
                 localStorage.setItem(`profile_portrait_x_user_${userId}`, String(pX));
                 setPortraitX(pX);
               }
             }
             if (hasPassportProfilePortraitY) {
-              const pY = Number(passportPrefs?.profile_portrait_y);
+              const pY = Number(passportUser?.profile_portrait_y);
               if (Number.isFinite(pY)) {
                 localStorage.setItem(`profile_portrait_y_user_${userId}`, String(pY));
                 setPortraitY(pY);
               }
             }
             if (hasPassportProfilePortraitZoom) {
-              const pZoom = Number(passportPrefs?.profile_portrait_zoom);
+              const pZoom = Number(passportUser?.profile_portrait_zoom);
               if (Number.isFinite(pZoom)) {
                 localStorage.setItem(`profile_portrait_zoom_user_${userId}`, String(pZoom));
                 setPortraitZoom(pZoom);
@@ -1220,7 +1220,7 @@ const ProfileSettings = () => {
                         height: { xs: 266, sm: 310 },
                       }}
                       imageSx={{
-                        objectFit: 'cover',
+                        objectFit: (selectedFile !== null || (portraitX === 50 && portraitY === 50 && portraitZoom === 1)) ? 'contain' : 'cover',
                         transform: `translate(${(portraitX - 50) * 0.9}%, ${(portraitY - 50) * 0.9}%) scale(${portraitZoom})`,
                       }}
                     />
