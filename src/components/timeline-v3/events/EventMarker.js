@@ -57,6 +57,8 @@ const EventMarker = ({
   showMarkerLine = true,
   onDelete,
   onEdit,
+  workspaceWidth = null,
+  referenceDate,
 }) => {
   const theme = useTheme();
   const markerRef = React.useRef(null);
@@ -247,6 +249,7 @@ const EventMarker = ({
   }, [index, currentIndex]);
 
   const calculatePosition = () => {
+    const centerX = (workspaceWidth || window.innerWidth) / 2;
     if (viewMode !== 'position') {
       const eventDate = event && event.event_date ? new Date(event.event_date) : null;
       let positionValue = 0;
@@ -255,9 +258,9 @@ const EventMarker = ({
       // ALWAYS calculate positions from Point A (current time)
       // Point B only affects which events are visible and timeline centering
       // CRITICAL: Do NOT use freshCurrentDate here - it changes with Point B
-      const referenceDate = new Date(); // Always Point A [0]
+      const refDate = referenceDate || new Date(); // Always Point A [0]
       
-      markerPosition = calculateMarkerValue(eventDate, viewMode, referenceDate);
+      markerPosition = calculateMarkerValue(eventDate, viewMode, refDate);
       positionValue = markerPosition * markerSpacing;
 
       if (viewMode === 'week') {
@@ -291,17 +294,16 @@ const EventMarker = ({
       }
       
       return {
-        x: Math.round(window.innerWidth/2 + positionValue + timelineOffset),
-        y: 70,
+        x: centerX + positionValue + timelineOffset,
+        y: 75,
         markerValue: markerPosition // Include the exact marker value
       };
     } else {
-      const centerX = window.innerWidth / 2;
       const positionValue = (index - currentIndex) * markerSpacing;
       
       return {
-        x: Math.round(centerX + positionValue + timelineOffset),
-        y: 70,
+        x: centerX + positionValue + timelineOffset,
+        y: 75,
         markerValue: index - currentIndex // For position view
       };
     }
@@ -315,7 +317,7 @@ const EventMarker = ({
       setMarkerPosition(exactMarkerValue);
       console.log('[EventMarker] Position calculated for event:', event.id, 'markerValue:', exactMarkerValue);
     }
-  }, [viewMode, freshCurrentDate, index, currentIndex, timelineOffset, markerSpacing, minMarker, maxMarker]);
+  }, [viewMode, freshCurrentDate, index, currentIndex, timelineOffset, markerSpacing, minMarker, maxMarker, referenceDate]);
 
   const getMediaSubtype = () => {
     const subtype = (event.media_subtype || '').toLowerCase();
@@ -459,48 +461,32 @@ const EventMarker = ({
   const brightDotColor = isNeutralDot ? '#ffffff' : voteDotColor;
   
   const phaseScanDuration = 10;
-  const scanWidth = window.innerWidth || 1;
+  const scanWidth = workspaceWidth || window.innerWidth || 1;
   const phaseScanProgress = position ? position.x / scanWidth : 0;
   const clampedScanProgress = Math.min(1, Math.max(0, phaseScanProgress));
   const phaseScanDelay = -((1 - clampedScanProgress) * phaseScanDuration);
   const idleGlow = isNeutralDot
-    ? '0 0 4px rgba(255,255,255,0.2)'
-    : `0 0 5px ${alpha(voteDotColor, 0.2)}`;
+    ? '0 0 6px rgba(255,255,255,0.35)'
+    : `0 0 6px ${alpha(voteDotColor, 0.38)}`;
   const brightGlow = isNeutralDot
-    ? '0 0 12px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.6)'
-    : `0 0 18px ${alpha(voteDotColor, 0.93)}, 0 0 34px ${alpha(voteDotColor, 0.7)}`;
+    ? '0 0 14px rgba(255,255,255,0.95), 0 0 24px rgba(255,255,255,0.7)'
+    : `0 0 20px ${alpha(voteDotColor, 0.95)}, 0 0 38px ${alpha(voteDotColor, 0.75)}`;
+
+  const selectedIdleGlow = isNeutralDot
+    ? '0 0 0 2.5px rgba(255,255,255,0.25), 0 0 6px rgba(255,255,255,0.15)'
+    : `0 0 0 2.5px ${alpha(voteDotColor, 0.35)}, 0 0 6px ${alpha(voteDotColor, 0.18)}`;
+
+  const selectedBrightGlow = isNeutralDot
+    ? '0 0 0 4px rgba(255,255,255,0.75), 0 0 14px rgba(255,255,255,0.45)'
+    : `0 0 0 4px ${alpha(voteDotColor, 0.8)}, 0 0 14px ${alpha(voteDotColor, 0.5)}`;
 
   const workspaceHeight = 300;
   const markerBottom = position?.y ?? 0;
   const dotPadding = 6;
 
-  const markerHeightSelected = Math.min(
-    getMaxAllowedHeight(true, false),
-    Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier()
-  );
+  const markerHeightNormal = 36;
 
-  const markerHeightNormal = (() => {
-    let baseHeight = 24;
-    let minHeight = 40;
-
-    if (viewMode === 'day') {
-      minHeight = 50;
-      baseHeight = 30;
-    } else if (viewMode === 'week') {
-      minHeight = 45;
-      baseHeight = 28;
-    } else if (viewMode === 'month') {
-      minHeight = 40;
-      baseHeight = 26;
-    } else if (viewMode === 'year') {
-      minHeight = 35;
-      baseHeight = 24;
-    }
-
-    const baseCalculatedHeight =
-      Math.max(minHeight, baseHeight * overlappingFactor) * getMarkerHeightMultiplier();
-    return Math.min(getMaxAllowedHeight(false, isHovered), baseCalculatedHeight);
-  })();
+  const markerHeightSelected = markerHeightNormal;
 
   const maxDotOffsetSelected = Math.max(
     0,
@@ -536,7 +522,7 @@ const EventMarker = ({
     };
   };
 
-  const centerX = window.innerWidth / 2;
+  const centerX = (workspaceWidth || window.innerWidth) / 2;
   const previewShift = position?.x > centerX
     ? 'calc(-100% - 8px)'
     : '8px';
@@ -550,61 +536,114 @@ const EventMarker = ({
             position: 'absolute',
             left: `${position.x + horizontalOffset}px`, // Add horizontal offset
             bottom: `${position.y}px`,
-            display: 'flex',
-            alignItems: 'center',
+            width: '3.2px', // Explicitly define width matching the marker
             transform: 'translateX(-50%)',
             zIndex: 1000,
             ...getTransitionStyle() // Apply transition style based on isMoving
           }}
         >
           {canShowVoteDot && (
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: `calc(100% + 6px + ${clampedVoteDotOffsetSelected}px)`,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: `${voteDotSizeSelected}px`,
-                height: `${voteDotSizeSelected}px`,
-                borderRadius: '999px',
-                '--voteDotIdleColor': idleDotColor,
-                '--voteDotBrightColor': brightDotColor,
-                '--voteDotIdleGlow': idleGlow,
-                '--voteDotBrightGlow': brightGlow,
-                backgroundColor: 'var(--voteDotIdleColor)',
-                opacity: 0.5,
-                boxShadow: 'var(--voteDotIdleGlow)',
-                animation: `voteDotGlow ${phaseScanDuration}s linear infinite`,
-                animationDelay: `${phaseScanDelay}s`,
-                '@keyframes voteDotGlow': {
-                  '0%': {
-                    opacity: 0.5,
-                    boxShadow: 'var(--voteDotIdleGlow)',
-                    backgroundColor: 'var(--voteDotIdleColor)',
+            <>
+              {/* Vertical connector line with traveling upward selected pulse */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 0, // Align exactly to the left edge of the 3.2px parent
+                  width: '3.2px',
+                  height: `${6 + clampedVoteDotOffsetSelected}px`,
+                  background: `linear-gradient(to top, ${alpha(getColor(), 0.5)} 0%, ${alpha(getColor(), 0.15)} 100%)`,
+                  overflow: 'hidden',
+                  zIndex: 5,
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    height: '16px',
+                    background: `linear-gradient(to top, transparent, ${getColor()}, transparent)`,
+                    animation: 'travelUp 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                   },
-                  '40%': {
-                    opacity: 0.5,
-                    boxShadow: 'var(--voteDotIdleGlow)',
-                    backgroundColor: 'var(--voteDotIdleColor)',
+                  '@keyframes travelUp': {
+                    '0%': {
+                      bottom: '-16px',
+                      opacity: 0,
+                    },
+                    '15%': {
+                      opacity: 0.7,
+                    },
+                    '85%': {
+                      opacity: 0.7,
+                    },
+                    '100%': {
+                      bottom: '100%',
+                      opacity: 0,
+                    }
+                  }
+                }}
+              />
+
+              {/* Selected Vote Dot with increased size and clickability */}
+              <Box
+                onClick={handleMarkerClick}
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                sx={{
+                  position: 'absolute',
+                  bottom: `calc(100% + 6px + ${clampedVoteDotOffsetSelected}px)`,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: `${Math.max(8, voteDotSizeSelected * 1.5)}px`,
+                  height: `${Math.max(8, voteDotSizeSelected * 1.5)}px`,
+                  borderRadius: '999px',
+                  '--voteDotIdleColor': idleDotColor,
+                  '--voteDotBrightColor': brightDotColor,
+                  '--voteDotIdleGlow': selectedIdleGlow,
+                  '--voteDotBrightGlow': selectedBrightGlow,
+                  backgroundColor: 'var(--voteDotIdleColor)',
+                  opacity: 0.75,
+                  boxShadow: 'var(--voteDotIdleGlow)',
+                  animation: `voteDotGlow ${phaseScanDuration}s linear infinite`,
+                  animationDelay: `${phaseScanDelay}s`,
+                  cursor: 'pointer',
+                  zIndex: 20,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: '-8px',
+                    borderRadius: '999px',
+                    zIndex: 25,
                   },
-                  '50%': {
-                    opacity: 1,
-                    boxShadow: 'var(--voteDotBrightGlow)',
-                    backgroundColor: 'var(--voteDotBrightColor)',
+                  '@keyframes voteDotGlow': {
+                    '0%': {
+                      opacity: 0.75,
+                      boxShadow: 'var(--voteDotIdleGlow)',
+                      backgroundColor: 'var(--voteDotIdleColor)',
+                    },
+                    '40%': {
+                      opacity: 0.75,
+                      boxShadow: 'var(--voteDotIdleGlow)',
+                      backgroundColor: 'var(--voteDotIdleColor)',
+                    },
+                    '50%': {
+                      opacity: 1,
+                      boxShadow: 'var(--voteDotBrightGlow)',
+                      backgroundColor: 'var(--voteDotBrightColor)',
+                    },
+                    '60%': {
+                      opacity: 0.75,
+                      boxShadow: 'var(--voteDotIdleGlow)',
+                      backgroundColor: 'var(--voteDotIdleColor)',
+                    },
+                    '100%': {
+                      opacity: 0.75,
+                      boxShadow: 'var(--voteDotIdleGlow)',
+                      backgroundColor: 'var(--voteDotIdleColor)',
+                    },
                   },
-                  '60%': {
-                    opacity: 0.5,
-                    boxShadow: 'var(--voteDotIdleGlow)',
-                    backgroundColor: 'var(--voteDotIdleColor)',
-                  },
-                  '100%': {
-                    opacity: 0.5,
-                    boxShadow: 'var(--voteDotIdleGlow)',
-                    backgroundColor: 'var(--voteDotIdleColor)',
-                  },
-                },
-              }}
-            />
+                }}
+              />
+            </>
           )}
           {showMarkerLine && (
             <Box
@@ -620,8 +659,8 @@ const EventMarker = ({
                 if (!disableHover) setIsHovered(false);
               }}
               sx={{
-                width: `${4 + (overlappingFactor - 1) * 0.5}px`, // Increase width slightly for overlapping events
-                height: `${Math.min(getMaxAllowedHeight(true, false), Math.max(60, 40 * overlappingFactor) * getMarkerHeightMultiplier())}px`, // Height constrained by workspace
+                width: '3.2px',
+                height: `${markerHeightSelected}px`, // Matches normal unselected marker line height perfectly
                 cursor: 'pointer',
                 position: 'relative',
                 // Increased click area with pseudo-element
@@ -805,6 +844,9 @@ const EventMarker = ({
         >
           {canShowVoteDot && (
             <Box
+              onClick={handleMarkerClick}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
               sx={{
                 position: 'absolute',
                 bottom: `calc(100% + 6px + ${clampedVoteDotOffsetNormal}px)`,
@@ -822,6 +864,22 @@ const EventMarker = ({
                 boxShadow: 'var(--voteDotIdleGlow)',
                 animation: `voteDotGlow ${phaseScanDuration}s linear infinite`,
                 animationDelay: `${phaseScanDelay}s`,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-out',
+                zIndex: 20,
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: '-8px',
+                  borderRadius: '999px',
+                  zIndex: 25,
+                },
+                '&:hover': {
+                  opacity: 1,
+                  transform: 'translateX(-50%) scale(1.3)',
+                  backgroundColor: 'var(--voteDotBrightColor)',
+                  boxShadow: 'var(--voteDotBrightGlow)',
+                },
                 '@keyframes voteDotGlow': {
                   '0%': {
                     opacity: 0.5,

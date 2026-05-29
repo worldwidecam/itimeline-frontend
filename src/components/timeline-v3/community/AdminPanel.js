@@ -4112,8 +4112,8 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
   const activeCoverPreviewUrl = activeFrameTarget === 'portrait' ? portraitPreviewUrl : landscapePreviewUrl;
   const hasActivePreview = activeFrameTarget === 'portrait' ? hasPortraitPreview : hasLandscapePreview;
 
-  const FRAME_POSITION_MIN = -40;
-  const FRAME_POSITION_MAX = 140;
+  const FRAME_POSITION_MIN = -300;
+  const FRAME_POSITION_MAX = 300;
   const JOYSTICK_SENSITIVITY = 0.42;
   const CAMERA_PAN_MULTIPLIER = 0.9;
 
