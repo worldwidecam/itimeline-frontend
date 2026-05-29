@@ -23,8 +23,8 @@ import {
 } from '../../utils/formStyleGuide';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const FRAME_POSITION_MIN = -40;
-const FRAME_POSITION_MAX = 140;
+const FRAME_POSITION_MIN = -300;
+const FRAME_POSITION_MAX = 300;
 const JOYSTICK_SENSITIVITY = 0.42;
 const CAMERA_PAN_MULTIPLIER = 0.9;
 

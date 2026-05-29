@@ -927,7 +927,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const clampCoverFramePosition = useCallback((value, defaultValue = 50) => {
     const numeric = Number(value);
     const safe = Number.isFinite(numeric) ? numeric : Number(defaultValue);
-    return Math.max(-40, Math.min(140, safe));
+    return Math.max(-300, Math.min(300, safe));
   }, []);
   const clampCoverZoom = useCallback((value) => Math.max(1, Math.min(4.875, Number(value) || 1)), []);
 
@@ -1374,7 +1374,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     
     const eventDate = new Date(event.event_date);
     // Use current time as the base reference; positioning is handled via timelineOffset
-    const currentDate = new Date();
+    const currentDate = pointA_currentTime || new Date();
     let markerValue;
     
     switch (currentViewMode) {
@@ -3740,6 +3740,7 @@ const handleRecenter = () => {
                 timelineMarkersLoading={timelineMarkersLoading}
                 progressiveLoadingState={progressiveLoadingState}
                 motionDissipate={!isSettled}
+                referenceDate={pointA_currentTime}
               />
               {selectedVisibleEvent && (
                 <Fade
@@ -3763,13 +3764,15 @@ const handleRecenter = () => {
                       isSelected
                       isMoving={isMoving}
                       disableHover
-                      disableSelectedPulse
-                      showMarkerLine={false}
-                      showVoteDot={false}
+                      disableSelectedPulse={false}
+                      showMarkerLine={true}
+                      showVoteDot={true}
                       onDelete={handleEventDelete}
                       onEdit={handleEventEdit}
                       voteDot={voteDotsById[selectedVisibleEvent.id] || null}
                       voteDotsLoading={voteDotsLoading}
+                      workspaceWidth={timelineWorkspaceBounds?.width}
+                      referenceDate={pointA_currentTime}
                     />
                   </div>
                 </Fade>
