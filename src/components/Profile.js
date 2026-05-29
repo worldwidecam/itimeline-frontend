@@ -886,13 +886,14 @@ const Profile = () => {
     const hydrateOwnPortraitFromPassport = async () => {
       try {
         const passportResponse = await api.get('/api/v1/profile/hydrate');
+        const passportUser = passportResponse?.data?.user || {};
         const prefs = passportResponse?.data?.preferences || {};
         const passportPortraitUrl = String(prefs?.profile_portrait_image_url || '').trim();
         const nextPortrait = {
-          imageUrl: passportPortraitUrl || localPortraitUrl || String(profileUser?.avatar_url || '').trim() || String(user?.avatar_url || '').trim(),
-          x: clampPortraitFrameValue(prefs?.profile_portrait_x, localPortraitX),
-          y: clampPortraitFrameValue(prefs?.profile_portrait_y, localPortraitY),
-          zoom: clampPortraitZoom(prefs?.profile_portrait_zoom, localPortraitZoom),
+          imageUrl: passportPortraitUrl || String(passportUser?.avatar_url || '').trim() || localPortraitUrl || String(profileUser?.avatar_url || '').trim() || String(user?.avatar_url || '').trim(),
+          x: clampPortraitFrameValue(passportUser?.profile_portrait_x, localPortraitX),
+          y: clampPortraitFrameValue(passportUser?.profile_portrait_y, localPortraitY),
+          zoom: clampPortraitZoom(passportUser?.profile_portrait_zoom, localPortraitZoom),
         };
 
         if (canceled) return;
@@ -909,7 +910,7 @@ const Profile = () => {
         localStorage.setItem(`profile_portrait_x_user_${storageUserId}`, String(nextPortrait.x));
         localStorage.setItem(`profile_portrait_y_user_${storageUserId}`, String(nextPortrait.y));
         localStorage.setItem(`profile_portrait_zoom_user_${storageUserId}`, String(nextPortrait.zoom));
-        localStorage.setItem(`profile_modules_user_${storageUserId}`, JSON.stringify(normalizedProfileModules));
+        localStorage.setItem(`profile_modules_user_${storageUserId}`, JSON.stringify(normalizeProfileModules(passportResponse?.data?.profile_modules || [])));
       } catch (passportError) {
         console.warn('Failed to hydrate profile portrait metadata from passport:', passportError?.response?.data || passportError?.message || passportError);
       }
@@ -1996,7 +1997,7 @@ const Profile = () => {
             imageClassName: 'profile-share-card-image',
             overlayClassName: 'profile-share-card-overlay',
             imageSx: {
-              objectFit: 'cover',
+              objectFit: (profilePortraitMeta.x === 50 && profilePortraitMeta.y === 50 && profilePortraitMeta.zoom === 1) ? 'contain' : 'cover',
               filter: 'brightness(1.08) saturate(1.08)',
               transform: profileShareCardTransform,
             },

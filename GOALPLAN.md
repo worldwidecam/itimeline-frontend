@@ -58,6 +58,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 - this change would most likely set a new standard, that we would then consider updating media-type events to.
 - think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.  
 
+* standardize the portrait trading card feature across the app (objective of its own, last on list)
+
 
 ---
 
