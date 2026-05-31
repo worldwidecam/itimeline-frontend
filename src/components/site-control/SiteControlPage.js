@@ -3831,6 +3831,7 @@ const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
                                       >
                                         <MenuItem value="manual">Manual Event ID</MenuItem>
                                         <MenuItem value="top_votes_today">Top Votes Today</MenuItem>
+                                        <MenuItem value="random">Random Event</MenuItem>
                                       </Select>
                                     </FormControl>
 
@@ -3845,7 +3846,9 @@ const SiteSettingsTab = ({ canManageSettings, isSiteAdmin }) => {
                                       />
                                     ) : (
                                       <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
-                                        Home Hero will auto-pick today's most-voted event from loaded public timeline feeds.
+                                        {String(slide?.selection_mode || 'manual').toLowerCase() === 'random'
+                                           ? 'Home Hero will auto-pick a random public event from the database.'
+                                           : "Home Hero will auto-pick today's most-voted event from loaded public timeline feeds."}
                                       </Typography>
                                     )}
                                   </Stack>

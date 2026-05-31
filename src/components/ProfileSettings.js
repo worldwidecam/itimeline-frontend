@@ -72,10 +72,10 @@ const THEORY_BOARD_TITLE_MAX_LENGTH = 50;
 
 const normalizeProfileModuleType = (type) => {
   const rawType = String(type || '').trim().toLowerCase();
-  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
+  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS || rawType === 'profile-module-texts-main') {
     return PROFILE_MODULE_TYPE_TEXTS;
   }
-  if (rawType === PROFILE_MODULE_TYPE_THEORY_BOARD || rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD) {
+  if (rawType === PROFILE_MODULE_TYPE_THEORY_BOARD || rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD || rawType === 'profile-module-theory-board-main') {
     return PROFILE_MODULE_TYPE_THEORY_BOARD;
   }
   return PROFILE_MODULE_TYPE_TEXTS;
@@ -156,20 +156,23 @@ const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
 
 const normalizeProfileModules = (rawModules) => {
   if (!Array.isArray(rawModules)) return [];
-  return rawModules
-    .map((module, index) => {
-      // Handle both new backend format (module_key) and legacy format (type/id)
-      const moduleKey = module?.module_key || module?.type || module?.id || '';
-      const moduleType = normalizeProfileModuleType(moduleKey);
-      
-      // Handle new backend format (config object) or flat legacy format
+  
+  const modulesMap = new Map();
+  
+  rawModules.forEach((module, index) => {
+    const moduleKey = module?.module_key || module?.type || module?.id || '';
+    const moduleType = normalizeProfileModuleType(moduleKey);
+    
+    const isCanonical = ['texts', 'theory_board'].includes(moduleKey);
+    
+    if (!modulesMap.has(moduleType) || (isCanonical && !['texts', 'theory_board'].includes(modulesMap.get(moduleType).module_key))) {
       const config = module?.config || {};
       const title = String(module?.title || config?.title || '').trim().slice(0, 120);
       const description = String(module?.description || config?.description || '').trim().slice(0, 1200);
       const texts = normalizeProfileTextEntries(module?.texts || config?.texts, title || 'User');
       
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
-      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return null;
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return;
       
       const moduleOrder = Number.isFinite(Number(module?.position)) 
         ? Number(module.position) 
@@ -182,7 +185,7 @@ const normalizeProfileModules = (rawModules) => {
       const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items || config?.max_items) || TEXTS_MODULE_MAX_ITEMS));
       const overflowMode = normalizeOverflowMode(module?.overflow_mode || config?.overflow_mode);
 
-      return {
+      modulesMap.set(moduleType, {
         id: moduleKey,
         module_key: moduleKey,
         type: moduleType,
@@ -196,9 +199,11 @@ const normalizeProfileModules = (rawModules) => {
         overflow_mode: overflowMode,
         texts,
         config: config
-      };
-    })
-    .filter(Boolean)
+      });
+    }
+  });
+
+  return Array.from(modulesMap.values())
     .sort((a, b) => a.order - b.order)
     .map((module, index) => ({
       ...module,
@@ -208,11 +213,15 @@ const normalizeProfileModules = (rawModules) => {
 };
 
 const getTextsModuleFromModules = (modules) => (
-  normalizeProfileModules(modules).find((module) => module.type === PROFILE_MODULE_TYPE_TEXTS) || null
+  Array.isArray(modules)
+    ? (modules.find((module) => normalizeProfileModuleType(module?.module_key || module?.type) === PROFILE_MODULE_TYPE_TEXTS) || null)
+    : null
 );
 
 const getTheoryBoardModuleFromModules = (modules) => (
-  normalizeProfileModules(modules).find((module) => module.type === PROFILE_MODULE_TYPE_THEORY_BOARD) || null
+  Array.isArray(modules)
+    ? (modules.find((module) => normalizeProfileModuleType(module?.module_key || module?.type) === PROFILE_MODULE_TYPE_THEORY_BOARD) || null)
+    : null
 );
 
 const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User' }) => {
@@ -364,7 +373,7 @@ const ProfileSettings = () => {
         let resolvedCountry = userId > 0 ? (user?.country || '') : '';
 
         try {
-          const passportResponse = await api.get('/api/v1/profile/hydrate');
+          const passportResponse = await api.get('/api/v1/profile/hydrate?refresh=true');
           const passportUser = passportResponse?.data?.user || {};
           const passportPrefs = passportResponse?.data?.preferences || {};
           // user_color comes from user object (toUserSelfDTO), not preferences
@@ -446,7 +455,7 @@ const ProfileSettings = () => {
         setProfileModules(normalizedModules);
         const textsModule = getTextsModuleFromModules(normalizedModules);
         const theoryBoardModule = getTheoryBoardModuleFromModules(normalizedModules);
-        setTextsModuleEnabled(Boolean(textsModule?.is_visible));
+        setTextsModuleEnabled(textsModule ? Boolean(textsModule.is_visible) : true);
         setTextsOverflowMode(normalizeOverflowMode(textsModule?.overflow_mode));
         setTheoryBoardModuleEnabled(Boolean(theoryBoardModule?.is_visible));
         setTheoryBoardTitle(normalizeTheoryBoardTitleBase(theoryBoardModule?.title || 'Theory'));
@@ -518,7 +527,7 @@ const ProfileSettings = () => {
       setPreviewUrl(user.avatar_url || '');
       fetchUserData();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const handleThemeChange = () => {
     toggleTheme();
@@ -979,20 +988,39 @@ const ProfileSettings = () => {
         setError('Failed to sync profile modules or preferences: ' + (prefError?.response?.data?.error || prefError?.message || String(prefError)));
       }
 
+      // Fetch the absolute freshest user data directly from the database to avoid clobbering/race conditions
+      let freshUserData = response.data;
+      try {
+        const freshUserRes = await api.get('/api/v1/users/me');
+        if (freshUserRes.data) {
+          freshUserData = freshUserRes.data;
+        }
+      } catch (freshFetchError) {
+        console.warn('Failed to fetch fresh user data from /me, falling back to patch response:', freshFetchError);
+      }
+
       if (updateProfile) {
         try {
           // Update the user data in the auth context
-          await updateProfile(response.data);
+          await updateProfile(freshUserData);
           setSuccess(preferenceSyncFailed
             ? 'Profile updated, but some preferences failed to sync'
             : 'Profile updated successfully');
           
           // Don't reload the page, just update the UI
           // This prevents the token refresh issues that cause logout
-          setPreviewUrl(response.data.avatar_url);
+          setPreviewUrl(freshUserData.avatar_url);
           
-          // Update initial form data and clear unsaved changes
-          setInitialFormData({ ...formData });
+          // Sync local form states with the fresh user data to ensure the UI is in perfect sync
+          const nextFormData = {
+            ...formData,
+            email: freshUserData.email || formData.email,
+            username: freshUserData.username || formData.username,
+            bio: freshUserData.bio || formData.bio,
+            country: freshUserData.country || formData.country,
+          };
+          setFormData(nextFormData);
+          setInitialFormData({ ...nextFormData });
           setHasUnsavedChanges(false);
           setShowSavedState(true);
           
@@ -1014,7 +1042,18 @@ const ProfileSettings = () => {
         setSuccess(preferenceSyncFailed
           ? 'Profile updated, but some preferences failed to sync'
           : 'Profile updated successfully');
-        setPreviewUrl(response.data.avatar_url);
+        setPreviewUrl(freshUserData.avatar_url);
+        
+        // Sync local form states with the fresh user data
+        const nextFormData = {
+          ...formData,
+          email: freshUserData.email || formData.email,
+          username: freshUserData.username || formData.username,
+          bio: freshUserData.bio || formData.bio,
+          country: freshUserData.country || formData.country,
+        };
+        setFormData(nextFormData);
+        setInitialFormData({ ...nextFormData });
         setHasUnsavedChanges(false);
         setShowSavedState(true);
         setTimeout(() => {
@@ -1026,7 +1065,7 @@ const ProfileSettings = () => {
           modules: profileModules,
           enabled: textsModuleEnabled,
           overflowMode: textsOverflowMode,
-          ownerLabel: user?.username || 'User',
+          ownerLabel: freshUserData.username || user?.username || 'User',
         }),
         enabled: theoryBoardModuleEnabled,
         titleBase: theoryBoardTitle,

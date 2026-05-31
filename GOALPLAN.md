@@ -18,18 +18,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ## Current Objective
 
 
-* personal timeline access panel settings needs a section to edit their description
-
-* does event spotlight slide
-- needs to know NOT to show events from published on past days. i see a user has a post that made it there yesterday, and today i still see it is claiming this spot.
-- also, in this spotlight banner's settings, it needs an additional option to set it to random. i want the option to feature a random event as well. i currently can set it to TOP VOTES, or MANUAL SELECTION. i would like to add 'RANDOM' as a third option.
-
-* the inactive-tab containers on home page need a checkup. do they shrink correctly within the left-HUB container? or can they spill out, even though they aren't active-tab state?
-
-* in hamburger menu, add more rows to 'last visited timeline' section. i'm trying to cycle through more than just one timeline at a time
-
-* need to fix save changes on profile settings page. when a user fills in multiple places.
-
 - and how come the scrolling and swiping for the background is halted correctly when i'm in hamburger menu, or i'm in hashtag timeline settings or access panel for personal timeline's, but when i have an event Popup open I just can't seem to get the page behind it to stop scrolling on contact.
 
 * gotta get pinch-to-zoom in/out working for theory board module.
@@ -58,7 +46,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 - this change would most likely set a new standard, that we would then consider updating media-type events to.
 - think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.  
 
-* standardize the portrait trading card feature across the app (objective of its own, last on list)
+* add/create action hover markers
+
+* in mobile view > events > popup > elipsis button is unable to be clicked because navFAB hovers over it. ideation needed
 
 
 ---
@@ -72,6 +62,13 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 #### COMPLETE 
 (move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
+- [x] fix profile settings texts module toggle default active visual fallback and rename empty modules placeholder card title on Profile page (toggles now default to active when unsaved and respect inactive saved state; empty placeholder title is now "Profile Modules" and only mounts on the owner's profile page; implemented robust legacy key grouping and deduplication to ensure old 'profile-module-texts-main' keys do not conflict with new switches)
+- [x] need to fix save changes on profile settings page (resolved multi-field visual state override by fetching the freshest user profile from /api/v1/users/me after all sequential updates are saved, synchronizing the React context, localStorage, and component states seamlessly)
+- [x] in hamburger menu, add more rows to 'last visited timeline' section (implemented a robust, backwards-compatible history list that tracks and cycles through up to 5 recently visited timelines, displaying the correct styling, community/personal prefixes, text truncation, deduplication, and active timeline exclusion)
+- [x] the inactive-tab containers on home page need a checkup (conducted code analysis and verified conditional mounting is 100% layout-safe and spill-proof)
+- [x] does event spotlight slide know NOT to show events from published on past days (implemented local date parameter, strict fallback, and new 'random' selection mode)
+- [x] personal timeline access panel settings has a section to edit their description (verified as already fully functional in PersonalAccessPanel)
+- [x] standardize the portrait trading card feature across the app (coordinate positioning hydration & production Hono backend migration)
 - [x] timeline page > event marker > vote dot (or basically the entire selected event > have all selected be higher on z index than the hover marker.
 - [x] profile share page image needs portrait updating
 - [x] the landscape preview positioning on the y axis is limited for no reason

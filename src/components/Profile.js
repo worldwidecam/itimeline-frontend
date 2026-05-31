@@ -95,11 +95,11 @@ const PROFILE_MODULE_TYPE_META = {
 
 const normalizeProfileModuleType = (type) => {
   const rawType = String(type || '').trim().toLowerCase();
-  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
+  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS || rawType === 'profile-module-texts-main') {
     return PROFILE_MODULE_TYPE_TEXTS;
   }
   if (rawType === PROFILE_MODULE_TYPE_MAILBOX) return PROFILE_MODULE_TYPE_MAILBOX;
-  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD || rawType === PROFILE_MODULE_TYPE_THEORY_BOARD) {
+  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD || rawType === PROFILE_MODULE_TYPE_THEORY_BOARD || rawType === 'profile-module-theory-board-main') {
     return PROFILE_MODULE_TYPE_THEORY_BOARD;
   }
   return PROFILE_MODULE_TYPE_TEXTS;
@@ -147,13 +147,15 @@ const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
 const normalizeProfileModules = (rawModules) => {
   if (!Array.isArray(rawModules)) return [];
 
-  return rawModules
-    .map((module, index) => {
-      // Handle both new backend format (module_key) and legacy format (type/id)
-      const moduleKey = module?.module_key || module?.type || module?.id || '';
-      const moduleType = normalizeProfileModuleType(moduleKey);
+  const modulesMap = new Map();
 
-      // Handle new backend format (config object) or flat legacy format
+  rawModules.forEach((module, index) => {
+    const moduleKey = module?.module_key || module?.type || module?.id || '';
+    const moduleType = normalizeProfileModuleType(moduleKey);
+
+    const isCanonical = ['texts', 'theory_board'].includes(moduleKey);
+
+    if (!modulesMap.has(moduleType) || (isCanonical && !['texts', 'theory_board'].includes(modulesMap.get(moduleType).module_key))) {
       const config = module?.config || {};
       const title = String(module?.title || config?.title || '').trim().slice(0, 120);
       const description = String(module?.description || config?.description || '').trim().slice(0, 1200);
@@ -161,7 +163,7 @@ const normalizeProfileModules = (rawModules) => {
 
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
       // Never hide the texts module if it's empty, so the owner/visitor can always see the input
-      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return null;
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return;
 
       const moduleOrder = Number.isFinite(Number(module?.position))
         ? Number(module.position)
@@ -174,7 +176,7 @@ const normalizeProfileModules = (rawModules) => {
       const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items || config?.max_items) || TEXTS_MODULE_MAX_ITEMS));
       const overflowMode = normalizeOverflowMode(module?.overflow_mode || config?.overflow_mode);
 
-      return {
+      modulesMap.set(moduleType, {
         id: moduleKey,
         module_key: moduleKey,
         type: moduleType,
@@ -188,9 +190,11 @@ const normalizeProfileModules = (rawModules) => {
         overflow_mode: overflowMode,
         texts,
         config: config
-      };
-    })
-    .filter(Boolean)
+      });
+    }
+  });
+
+  return Array.from(modulesMap.values())
     .sort((a, b) => a.order - b.order)
     .map((module, index) => ({
       ...module,
@@ -1582,7 +1586,7 @@ const Profile = () => {
               }}
             >
               <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Texts
+                Profile Modules
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 No modules yet. Manage modules from Profile Settings.

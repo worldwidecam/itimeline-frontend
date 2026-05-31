@@ -467,6 +467,9 @@ const HomePage = () => {
   const [topVotesTodayEvent, setTopVotesTodayEvent] = React.useState(null);
   const [topVotesTodayLoading, setTopVotesTodayLoading] = React.useState(false);
   const [prefetchedSpotlightEvent, setPrefetchedSpotlightEvent] = React.useState(null);
+  const [randomEvent, setRandomEvent] = React.useState(null);
+  const [randomEventLoading, setRandomEventLoading] = React.useState(false);
+  const [prefetchedRandomEvent, setPrefetchedRandomEvent] = React.useState(null);
   const [postTypeDialogOpen, setPostTypeDialogOpen] = React.useState(false);
   const [postEventDialogOpen, setPostEventDialogOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
@@ -662,7 +665,10 @@ const HomePage = () => {
 
   const getTodayKey = React.useCallback(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }, []);
 
   const fetchAndHydrateTopVotesTodayEvent = React.useCallback(async ({ force = false } = {}) => {
@@ -685,7 +691,8 @@ const HomePage = () => {
     const requestPromise = (async () => {
       setTopVotesTodayLoading(true);
       try {
-        const response = await api.get('/api/v1/events/spotlight/top-voted-today');
+        const todayKey = getTodayKey();
+        const response = await api.get(`/api/v1/events/spotlight/top-voted-today?date=${todayKey}`);
         const rawEvent = response?.data?.event;
         const baseEvent = rawEvent && typeof rawEvent === 'object' ? rawEvent : null;
         setTopVotesTodayEvent(baseEvent);
@@ -724,6 +731,45 @@ const HomePage = () => {
     topVotesTodayFetchPromiseRef.current = requestPromise;
     return requestPromise;
   }, [getTodayKey, prefetchedSpotlightEvent, topVotesTodayEvent]);
+
+  const fetchAndHydrateRandomEvent = React.useCallback(async ({ force = false } = {}) => {
+    if (prefetchedRandomEvent && !force) {
+      return prefetchedRandomEvent;
+    }
+    setRandomEventLoading(true);
+    try {
+      const response = await api.get('/api/v1/events/spotlight/random');
+      const rawEvent = response?.data?.event;
+      const baseEvent = rawEvent && typeof rawEvent === 'object' ? rawEvent : null;
+      setRandomEvent(baseEvent);
+
+      let hydratedEvent = baseEvent;
+      const hydratedEventId = Number(baseEvent?.id || 0);
+      const hydratedTimelineId = Number(baseEvent?.timeline_id || 0);
+
+      if (hydratedEventId > 0 && hydratedTimelineId > 0) {
+        try {
+          const detailResponse = await api.get(`/api/v1/events/${hydratedEventId}`);
+          const detailEvent = detailResponse?.data;
+          if (detailEvent?.id) {
+            hydratedEvent = { ...detailEvent, ...baseEvent };
+          }
+        } catch (detailError) {
+          console.warn('[HomePage] Failed to hydrate random spotlight event details:', detailError);
+        }
+      }
+
+      setPrefetchedRandomEvent(hydratedEvent && typeof hydratedEvent === 'object' ? hydratedEvent : null);
+      return hydratedEvent;
+    } catch (error) {
+      setRandomEvent(null);
+      setPrefetchedRandomEvent(null);
+      console.warn('[HomePage] Failed to fetch random event spotlight:', error);
+      return null;
+    } finally {
+      setRandomEventLoading(false);
+    }
+  }, [prefetchedRandomEvent]);
 
   const transitionToHeroSlide = React.useCallback(
     async (nextIndex) => {
@@ -1037,6 +1083,9 @@ const HomePage = () => {
   const activeHeroSlide = enabledHeroSlides[heroIndex] || enabledHeroSlides[0] || null;
   const isEventSpotlightTopVotesMode = activeHeroSlide?.type === 'event_spotlight'
     && String(activeHeroSlide?.selection_mode || 'manual').toLowerCase() === 'top_votes_today';
+  const isEventSpotlightRandomMode = activeHeroSlide?.type === 'event_spotlight'
+    && String(activeHeroSlide?.selection_mode || 'manual').toLowerCase() === 'random';
+
   const isEventPublishedToday = React.useCallback((event) => {
     const rawDate = event?.created_at || event?.published_at || event?.publishedAt || event?.event_date;
     if (!rawDate) return false;
@@ -1116,6 +1165,18 @@ const HomePage = () => {
     loadTopVotesTodayEvent();
   }, [fetchAndHydrateTopVotesTodayEvent, isEventSpotlightTopVotesMode]);
 
+  React.useEffect(() => {
+    if (!isEventSpotlightRandomMode) {
+      return undefined;
+    }
+
+    const loadRandomEvent = async () => {
+      await fetchAndHydrateRandomEvent();
+    };
+
+    loadRandomEvent();
+  }, [fetchAndHydrateRandomEvent, isEventSpotlightRandomMode]);
+
   const spotlightEvent = React.useMemo(() => {
     if (activeHeroSlide?.type !== 'event_spotlight') return null;
 
@@ -1137,22 +1198,35 @@ const HomePage = () => {
           : topVotesTodayEvent;
       }
 
+      // Strict "No Top Event Today" fallback rendering: do NOT leak older events
+      return null;
+    }
+
+    if (selectionMode === 'random') {
+      const fetchedEventId = Number(randomEvent?.id || 0);
+      if (fetchedEventId > 0) {
+        const prefetchedEventId = Number(prefetchedRandomEvent?.id || 0);
+        const fromLoadedFeeds = eventLookupPool.get(fetchedEventId) || null;
+        if (prefetchedEventId === fetchedEventId) {
+          return {
+            ...(fromLoadedFeeds || {}),
+            ...prefetchedRandomEvent,
+            ...randomEvent,
+          };
+        }
+        return fromLoadedFeeds
+          ? { ...fromLoadedFeeds, ...randomEvent }
+          : randomEvent;
+      }
+
+      // Fallback: Pick a random candidate from eventLookupPool if API is loading/empty
       const candidates = Array.from(eventLookupPool.values()).filter((event) => {
         const timelineType = String(event?.timeline_type || '').toLowerCase();
         const timelineVisibility = String(event?.timeline_visibility || event?.visibility || 'public').toLowerCase();
-        if (timelineType === 'personal' || timelineVisibility === 'private') return false;
-        return isEventPublishedToday(event);
+        return timelineType !== 'personal' && timelineVisibility !== 'private';
       });
-
       if (!candidates.length) return null;
-
-      return [...candidates].sort((a, b) => {
-        const voteDelta = getEventVoteTotal(b) - getEventVoteTotal(a);
-        if (voteDelta !== 0) return voteDelta;
-        const dateDelta = new Date(b?.event_date || b?.created_at || 0) - new Date(a?.event_date || a?.created_at || 0);
-        if (dateDelta !== 0) return dateDelta;
-        return Number(b?.id || 0) - Number(a?.id || 0);
-      })[0] || null;
+      return candidates[Math.floor(Math.random() * candidates.length)] || null;
     }
 
     const targetId = Number(activeHeroSlide?.event_id || 0);
@@ -1160,13 +1234,13 @@ const HomePage = () => {
     return eventLookupPool.get(targetId) || null;
   }, [
     activeHeroSlide?.type,
-    activeHeroSlide?.event_id,
     activeHeroSlide?.selection_mode,
-    eventLookupPool,
-    getEventVoteTotal,
-    isEventPublishedToday,
-    prefetchedSpotlightEvent,
+    activeHeroSlide?.event_id,
     topVotesTodayEvent,
+    prefetchedSpotlightEvent,
+    randomEvent,
+    prefetchedRandomEvent,
+    eventLookupPool,
   ]);
   const handleOpenHeroEventPopup = React.useCallback(async () => {
     const eventId = Number(spotlightEvent?.id || 0);
