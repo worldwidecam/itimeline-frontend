@@ -57,6 +57,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 #### COMPLETE 
 (move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
+- [x] implement production-safe silent auto-reload safety net inside index.html to eliminate white screens caused by stale browser caches / Vite chunk hash MIME mismatches, guarded against infinite reload loops
 - [x] gotta get pinch-to-zoom in/out working for theory board module (implemented smooth multitouch pinch-to-zoom on touchscreen with stable focal midpoint zoom and seamless single-finger pan recovery)
 - [x] fix fullscreen dialog blocking issue inside the Theory Board module (standardized the 'Isolated Pamphlet' pattern by portaling MUI Dialogs into document.fullscreenElement when active so event popups render beautifully in front of the board)
 - [x] consolidate landing page user count chip and integrate into Site Control page (abstracted the fire-themed user count chip into a reusable UserCountChip component and integrated it next to the User List refresh button on the Site Control page)
