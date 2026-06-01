@@ -139,6 +139,9 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   const pendingPanRef = useRef(null);
   const recenterFrameRef = useRef(null);
   const minZoomRef = useRef(MIN_ZOOM);
+  const activePointersMapRef = useRef(new Map());
+  const pinchRef = useRef(null);
+
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -368,26 +371,84 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   }, [isFullscreen, zoomIn, zoomOut]);
 
   const handlePointerDown = useCallback((event) => {
-    if (event.button !== 0) return;
-    
-    // Deselect any active pin when clicking/dragging empty space
-    setSelectedPinId(null);
+    // Track active pointer touch coordinate
+    activePointersMapRef.current.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
 
-    if (isOwner && interactionMode !== 'default') return;
+    if (activePointersMapRef.current.size === 2) {
+      // Transition to pinch-to-zoom mode
+      const pointerIds = Array.from(activePointersMapRef.current.keys());
+      const p1 = activePointersMapRef.current.get(pointerIds[0]);
+      const p2 = activePointersMapRef.current.get(pointerIds[1]);
+      const initialDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      
+      pinchRef.current = {
+        initialDistance,
+        initialZoom: zoomRef.current,
+        initialPan: { x: panRef.current.x, y: panRef.current.y },
+        centerClientX: (p1.clientX + p2.clientX) / 2,
+        centerClientY: (p1.clientY + p2.clientY) / 2,
+      };
+      
+      // Suspend single-finger panning
+      setIsDragging(false);
+    } else if (activePointersMapRef.current.size === 1) {
+      if (event.button !== 0) return;
+      
+      // Deselect any active pin when clicking/dragging empty space
+      setSelectedPinId(null);
+
+      if (isOwner && interactionMode !== 'default') return;
+      
+      const nextDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
+      };
+      dragRef.current = nextDrag;
+      setIsDragging(true);
+    }
     
-    const nextDrag = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      startPanX: pan.x,
-      startPanY: pan.y,
-    };
-    dragRef.current = nextDrag;
-    setIsDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [interactionMode, isOwner, pan.x, pan.y]);
 
   const handlePointerMove = useCallback((event) => {
+    // Keep track of moving touch points
+    if (activePointersMapRef.current.has(event.pointerId)) {
+      activePointersMapRef.current.set(event.pointerId, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    }
+
+    if (activePointersMapRef.current.size === 2 && pinchRef.current) {
+      const pointerIds = Array.from(activePointersMapRef.current.keys());
+      const p1 = activePointersMapRef.current.get(pointerIds[0]);
+      const p2 = activePointersMapRef.current.get(pointerIds[1]);
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      
+      const scale = currentDistance / pinchRef.current.initialDistance;
+      const targetZoom = clamp(pinchRef.current.initialZoom * scale, minZoomRef.current, MAX_ZOOM);
+      
+      setZoom(targetZoom);
+      
+      // Adjust pan to focus zoom directly on the pinch midpoint
+      const zoomRatio = targetZoom / pinchRef.current.initialZoom;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const midX = pinchRef.current.centerClientX - rect.left - (viewportSize.width / 2);
+      const midY = pinchRef.current.centerClientY - rect.top - (viewportSize.height / 2);
+      
+      const nextPanX = midX - (midX - pinchRef.current.initialPan.x) * zoomRatio;
+      const nextPanY = midY - (midY - pinchRef.current.initialPan.y) * zoomRatio;
+      
+      setPan({ x: nextPanX, y: nextPanY });
+      return;
+    }
+
     if (isOwner && interactionMode === 'create_yarn') {
       const rect = event.currentTarget.getBoundingClientRect();
       setYarnPreviewPoint({
@@ -411,16 +472,39 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       setPan(pendingPanRef.current);
       pendingPanRef.current = null;
     });
-  }, [interactionMode, isDragging, isOwner]);
+  }, [interactionMode, isDragging, isOwner, viewportSize]);
 
   const handlePointerUp = useCallback((event) => {
-    if (dragRef.current.pointerId !== event.pointerId) return;
-    dragRef.current.pointerId = null;
-    setIsDragging(false);
-    if (pendingPanRef.current) {
-      setPan(pendingPanRef.current);
-      pendingPanRef.current = null;
+    activePointersMapRef.current.delete(event.pointerId);
+
+    if (activePointersMapRef.current.size < 2) {
+      pinchRef.current = null;
     }
+
+    if (dragRef.current.pointerId === event.pointerId) {
+      dragRef.current.pointerId = null;
+      setIsDragging(false);
+      if (pendingPanRef.current) {
+        setPan(pendingPanRef.current);
+        pendingPanRef.current = null;
+      }
+    }
+    
+    // Smooth transition back to single-finger drag on remaining touch pointer
+    if (activePointersMapRef.current.size === 1) {
+      const remainingId = Array.from(activePointersMapRef.current.keys())[0];
+      const remaining = activePointersMapRef.current.get(remainingId);
+      
+      dragRef.current = {
+        pointerId: remainingId,
+        startX: remaining.clientX,
+        startY: remaining.clientY,
+        startPanX: panRef.current.x,
+        startPanY: panRef.current.y,
+      };
+      setIsDragging(true);
+    }
+
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }

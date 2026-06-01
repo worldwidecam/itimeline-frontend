@@ -61,6 +61,7 @@ function Navbar() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [currentTimelineName, setCurrentTimelineName] = React.useState('');
   const [lastVisitedTimeline, setLastVisitedTimeline] = React.useState(null);
+  const [lastVisitedTimelines, setLastVisitedTimelines] = React.useState([]);
   const [siteRole, setSiteRole] = React.useState(null);
   const [isSiteAdmin, setIsSiteAdmin] = React.useState(false);
   const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
@@ -307,16 +308,35 @@ function Navbar() {
     setStatusEventPopup(null);
   };
   
-  // Load last visited timeline from localStorage on component mount
+  // Load last visited timeline list from localStorage on component mount
   useEffect(() => {
+    const savedTimelines = localStorage.getItem('lastVisitedTimelines');
+    if (savedTimelines) {
+      try {
+        setLastVisitedTimelines(JSON.parse(savedTimelines) || []);
+      } catch (error) {
+        console.error('Error parsing saved timelines:', error);
+        localStorage.removeItem('lastVisitedTimelines');
+      }
+    } else {
+      // Fallback/migration from old single lastVisitedTimeline
+      const savedTimeline = localStorage.getItem('lastVisitedTimeline');
+      if (savedTimeline) {
+        try {
+          const parsed = JSON.parse(savedTimeline);
+          if (parsed && parsed.id) {
+            setLastVisitedTimelines([parsed]);
+            localStorage.setItem('lastVisitedTimelines', JSON.stringify([parsed]));
+          }
+        } catch (_) {}
+      }
+    }
+
     const savedTimeline = localStorage.getItem('lastVisitedTimeline');
     if (savedTimeline) {
       try {
         setLastVisitedTimeline(JSON.parse(savedTimeline));
-      } catch (error) {
-        console.error('Error parsing saved timeline:', error);
-        localStorage.removeItem('lastVisitedTimeline');
-      }
+      } catch (_) {}
     }
   }, []);
 
@@ -569,6 +589,24 @@ function Navbar() {
             };
             localStorage.setItem('lastVisitedTimeline', JSON.stringify(timelineData));
             setLastVisitedTimeline(timelineData);
+
+            // Save in the history list of last visited timelines (up to 5 recent)
+            const savedListString = localStorage.getItem('lastVisitedTimelines');
+            let currentList = [];
+            if (savedListString) {
+              try {
+                currentList = JSON.parse(savedListString) || [];
+              } catch (_) {}
+            }
+            if (!Array.isArray(currentList)) {
+              currentList = [];
+            }
+            // Remove existing duplicate to move this to the front
+            currentList = currentList.filter(t => String(t.id) !== String(timelineId));
+            currentList.unshift(timelineData);
+            const nextList = currentList.slice(0, 5);
+            localStorage.setItem('lastVisitedTimelines', JSON.stringify(nextList));
+            setLastVisitedTimelines(nextList);
           }
         } catch (error) {
           // For locked personal timelines, a 403 here is expected; avoid noisy logging
@@ -889,77 +927,86 @@ function Navbar() {
         </ListItem>
         <Divider sx={{ my: 1.5 }} />
         
-        {/* Last Visited Timeline section */}
-        {lastVisitedTimeline && (!isTimelinePage || lastVisitedTimeline.id !== timelineId) && (
-          <>
-            <Typography 
-              variant="subtitle2" 
-              color="text.secondary" 
-              sx={{ px: 2, py: 1, fontSize: '0.75rem', fontWeight: 'bold' }}
-            >
-              LAST VISITED TIMELINE
-            </Typography>
-            <ListItem 
-              button 
-              onClick={() => handleNavigation(lastVisitedTimeline.path)}
-              sx={{
-                position: 'relative',
-                '&:hover': {
-                  backgroundColor: theme => 
-                    theme.palette.mode === 'dark' 
-                      ? 'rgba(144, 202, 249, 0.08)' 
-                      : 'rgba(255, 213, 200, 0.3)',
-                }
-              }}
-            >
-              <ListItemIcon>
-                {lastVisitedTimeline.timeline_type === 'community' ? (
-                  <span style={{ 
-                    fontFamily: 'Lobster, cursive', 
-                    color: 'inherit', // Use the theme's color
-                    fontSize: '1.3em',
-                    marginLeft: '10px' // Match the positioning of the current timeline
-                  }}>
-                    i
-                  </span>
-                ) : lastVisitedTimeline.timeline_type === 'personal' ? (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      fontFamily: 'Lobster, cursive',
-                      marginLeft: '8px',
-                      fontSize: '1.1em',
-                      color: theme.palette.primary.main,
-                      flexShrink: 0,
-                    }}
-                  >
-                    My-
-                  </span>
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      marginLeft: '10px',
-                      fontSize: '1.1em',
-                      color: theme.palette.primary.main,
-                      flexShrink: 0,
-                    }}
-                  >
-                    #
-                  </span>
-                )}
-              </ListItemIcon>
-              {/* For the last visited timeline, we're showing the icon separately, so we show just the name */}
-              <Typography
-                noWrap
-                sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
+        {/* Last Visited Timelines section */}
+        {(() => {
+          const filteredVisited = lastVisitedTimelines.filter(
+            t => t && t.id && (!isTimelinePage || String(t.id) !== String(timelineId))
+          );
+          if (filteredVisited.length === 0) return null;
+          return (
+            <>
+              <Typography 
+                variant="subtitle2" 
+                color="text.secondary" 
+                sx={{ px: 2, py: 1, fontSize: '0.75rem', fontWeight: 'bold' }}
               >
-                {displayUsername(lastVisitedTimeline.name)}
+                {filteredVisited.length > 1 ? "RECENT TIMELINES" : "LAST VISITED TIMELINE"}
               </Typography>
-            </ListItem>
-            <Divider sx={{ my: 1 }} />
-          </>
-        )}
+              {filteredVisited.map((t, idx) => (
+                <ListItem 
+                  key={t.id || idx}
+                  button 
+                  onClick={() => handleNavigation(t.path)}
+                  sx={{
+                    position: 'relative',
+                    '&:hover': {
+                      backgroundColor: theme => 
+                        theme.palette.mode === 'dark' 
+                          ? 'rgba(144, 202, 249, 0.08)' 
+                          : 'rgba(255, 213, 200, 0.3)',
+                    }
+                  }}
+                >
+                  <ListItemIcon>
+                    {t.timeline_type === 'community' ? (
+                      <span style={{ 
+                        fontFamily: 'Lobster, cursive', 
+                        color: 'inherit', // Use the theme's color
+                        fontSize: '1.3em',
+                        marginLeft: '10px' // Match the positioning of the current timeline
+                      }}>
+                        i
+                      </span>
+                    ) : t.timeline_type === 'personal' ? (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          fontFamily: 'Lobster, cursive',
+                          marginLeft: '8px',
+                          fontSize: '1.1em',
+                          color: theme.palette.primary.main,
+                          flexShrink: 0,
+                        }}
+                      >
+                        My-
+                      </span>
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          marginLeft: '10px',
+                          fontSize: '1.1em',
+                          color: theme.palette.primary.main,
+                          flexShrink: 0,
+                        }}
+                      >
+                        #
+                      </span>
+                    )}
+                  </ListItemIcon>
+                  {/* For the last visited timeline, we're showing the icon separately, so we show just the name */}
+                  <Typography
+                    noWrap
+                    sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
+                  >
+                    {displayUsername(t.name)}
+                  </Typography>
+                </ListItem>
+              ))}
+              <Divider sx={{ my: 1 }} />
+            </>
+          );
+        })()}
         
         <ListItem button onClick={handleLogout}>
           <ListItemIcon>

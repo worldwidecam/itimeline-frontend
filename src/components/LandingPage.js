@@ -38,6 +38,7 @@ import LandingTimelineV3 from './LandingTimelineV3';
 import DonationButtons from './DonationButtons';
 import AnimatedTagline from './AnimatedTagline';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
+import UserCountChip from './common/UserCountChip';
 
 // API Health Check Component
 const ApiHealthCheck = () => {
@@ -359,28 +360,7 @@ const LandingPage = () => {
           </Box>
           {typeof siteUserCount === 'number' && (
             <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center' }}>
-              <Chip
-                label={`🔥 ${siteUserCount.toLocaleString()} Users Strong!`}
-                sx={{
-                  height: 30,
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  border: '1px solid',
-                  borderColor: theme.palette.mode === 'dark'
-                    ? 'rgba(251, 146, 60, 0.42)'
-                    : 'rgba(194, 65, 12, 0.34)',
-                  color: theme.palette.mode === 'dark' ? '#fde68a' : '#7c2d12',
-                  backgroundColor: theme.palette.mode === 'dark'
-                    ? 'rgba(244, 114, 34, 0.26)'
-                    : 'rgba(251, 146, 60, 0.22)',
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 8px 20px rgba(0, 0, 0, 0.24)'
-                    : '0 8px 18px rgba(194, 65, 12, 0.14)',
-                  '& .MuiChip-label': {
-                    px: 1.25,
-                  },
-                }}
-              />
+              <UserCountChip count={siteUserCount} />
             </Box>
           )}
         </Box>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -146,9 +147,10 @@ const Pill = ({ label, count, icon, color }) => {
 
 const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   if (!tags.length) return null;
 
-  // Handle hashtag click - open timeline in new tab
+  // Handle hashtag click - open timeline in same tab by default
   const handleHashtagClick = async (e, tagName) => {
     e.stopPropagation();
     try {
@@ -156,16 +158,26 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
       const baseName = (tagName || '').replace(/^#+/, '');
       const slug = baseName.toUpperCase();
       const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
-      if (response.data && response.data.id) {
-        window.open(`/timeline-v3/${response.data.id}`, '_blank');
+      const route = response.data && response.data.id
+        ? `/timeline-v3/${response.data.id}`
+        : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
       } else {
-        window.open(`/timeline-v3/new?name=${encodeURIComponent(slug)}`, '_blank');
+        navigate(route);
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);
       const baseName = (tagName || '').replace(/^#+/, '');
       const fallbackName = baseName.toUpperCase();
-      window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
+      const route = `/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
+      } else {
+        navigate(route);
+      }
     }
   };
 
@@ -288,6 +300,7 @@ const PopupTimelineLanes = ({
   shakePersonal = false,
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [hashtagDropdownOpen, setHashtagDropdownOpen] = React.useState(false);
   const [communityListOpen, setCommunityListOpen] = React.useState(false);
   const [personalListOpen, setPersonalListOpen] = React.useState(false);
@@ -660,7 +673,12 @@ const PopupTimelineLanes = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     if (community.id) {
-                      window.open(`/timeline-v3/${community.id}`, '_blank');
+                      const route = `/timeline-v3/${community.id}`;
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                        window.open(route, '_blank');
+                      } else {
+                        navigate(route);
+                      }
                     }
                   }}
                   sx={{
@@ -822,9 +840,19 @@ const PopupTimelineLanes = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (isOwner && personal.id) {
-                        window.open(`/timeline-v3/${personal.id}`, '_blank');
+                        const route = `/timeline-v3/${personal.id}`;
+                        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                          window.open(route, '_blank');
+                        } else {
+                          navigate(route);
+                        }
                       } else if (!isOwner && personal.created_by) {
-                        window.open(`/profile/${personal.created_by}`, '_blank');
+                        const route = `/profile/${personal.created_by}`;
+                        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                          window.open(route, '_blank');
+                        } else {
+                          navigate(route);
+                        }
                       }
                     }}
                     sx={{
