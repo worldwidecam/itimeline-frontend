@@ -2,6 +2,63 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- PRODUCTION SAFETY NET: Chunk & Asset Load Error Auto-Reloader -->
+    <script>
+      (function() {
+        // Safe check for sessionStorage support (in case browser blocks cookies/storage)
+        function getSafeStorage() {
+          try {
+            return window.sessionStorage;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function handleChunkError(details) {
+          console.warn('[iTimeline Safety] Intercepted asset load failure:', details);
+          var storage = getSafeStorage();
+          var now = Date.now();
+          
+          if (storage) {
+            var lastReload = storage.getItem('itl_last_chunk_reload');
+            if (lastReload && (now - parseInt(lastReload, 10) < 15000)) {
+              console.error('[iTimeline Safety] Aborted auto-reload to prevent infinite loop. Server/Network offline.');
+              return;
+            }
+            storage.setItem('itl_last_chunk_reload', now.toString());
+          }
+          
+          // Perform a reload to fetch the latest index.html and assets
+          window.location.reload();
+        }
+
+        // 1. Capture resource loading failures (e.g. index.OLDHASH.js returns 404 / strict MIME type error)
+        window.addEventListener('error', function(e) {
+          if (!e) return;
+          var target = e.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            var url = target.src || target.href;
+            if (url && (url.indexOf('/assets/') !== -1 || url.endsWith('.js') || url.endsWith('.css'))) {
+              handleChunkError('Failed to load asset file: ' + url);
+            }
+          }
+        }, true); // Note: 'true' is required to intercept resource loading errors which do not bubble!
+
+        // 2. Capture dynamic import failures during active routing/browsing
+        window.addEventListener('unhandledrejection', function(e) {
+          if (!e || !e.reason) return;
+          var msg = e.reason.message || String(e.reason);
+          if (
+            msg.indexOf('ChunkLoadError') !== -1 ||
+            msg.indexOf('Loading chunk') !== -1 ||
+            msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+            msg.indexOf('Failed to load module script') !== -1
+          ) {
+            handleChunkError('Dynamic import failed: ' + msg);
+          }
+        });
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
