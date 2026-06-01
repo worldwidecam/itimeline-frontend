@@ -4,6 +4,8 @@ import { useTheme } from '@mui/material/styles';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import LockIcon from '@mui/icons-material/Lock';
 import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
 
 export const TimelineHeroBanner = ({
@@ -39,7 +41,21 @@ export const TimelineHeroBanner = ({
       case 'community':
         return <GroupsIcon sx={iconStyle} />;
       case 'personal':
-        return <PersonIcon sx={iconStyle} />;
+        return (
+          <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FavoriteBorderIcon sx={iconStyle} />
+            <LockIcon
+              sx={{
+                fontSize: { xs: 12, md: 16 },
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                color: '#fff',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+              }}
+            />
+          </Box>
+        );
       default:
         return <TagIcon sx={iconStyle} />;
     }
@@ -64,7 +80,7 @@ export const TimelineHeroBanner = ({
         alignItems: 'flex-end',
         px: { xs: 2.5, md: 4 },
         pb: { xs: 2, md: 3 },
-        background: cleanCoverImageUrl ? 'transparent' : fallbackGradient,
+        background: fallbackGradient,
         ...sx,
       }}
     >

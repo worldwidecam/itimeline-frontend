@@ -1965,7 +1965,15 @@ const MemberListTab = () => {
                         transition: 'transform 0.2s ease',
                         '&:hover': { transform: 'scale(1.05)' }
                       }}
-                      onClick={() => window.open(`/profile/${member.id}`, '_blank')}
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         const route = `/profile/${member.id}`;
+                         if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                           window.open(route, '_blank');
+                         } else {
+                           navigate(route);
+                         }
+                       }}
                     />
                     <Box sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

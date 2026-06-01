@@ -107,7 +107,6 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
                 variant="subtitle1" 
                 sx={{ 
                   fontWeight: 'bold',
-                  lineHeight: 1.2,
                   fontFamily: '"Georgia", "Times New Roman", serif',
                   textShadow: '0 1px 3px rgba(0,0,0,0.8)',
                   fontSize: '0.95rem',
@@ -116,7 +115,6 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  lineHeight: 1.3,
                   lineHeight: 1.3
                 }}
               >

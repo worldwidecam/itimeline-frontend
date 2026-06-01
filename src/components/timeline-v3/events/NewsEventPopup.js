@@ -325,7 +325,14 @@ const NewsEventPopup = ({
             onClose={handleClose}
             maxWidth="lg"
             fullWidth
-            
+            container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseMove={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
             sx={{
               '& .MuiDialog-container': {
                 overscrollBehavior: 'none',
@@ -359,7 +366,6 @@ const NewsEventPopup = ({
                 flexDirection: 'column',
                 overflowY: { xs: 'auto', md: 'hidden' }
               },
-              component: motion.div,
               drag: "x",
               dragConstraints: { left: 0, right: 0 },
               dragElastic: { left: 0.5, right: 0.5 },
@@ -519,7 +525,7 @@ const NewsEventPopup = ({
             <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
               <Alert onClose={handleSnackbarClose} severity={error ? 'error' : 'success'} sx={{ width: '100%' }}>{error || success}</Alert>
             </Snackbar>
-            <Dialog open={deleteDialogOpen} onClose={handleCloseDelete} >
+            <Dialog open={deleteDialogOpen} onClose={handleCloseDelete} container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}>
               <DialogTitle>Delete Event</DialogTitle>
               <DialogContent>Are you sure you want to delete "{event?.title || 'this event'}"?</DialogContent>
               <DialogActions><Button onClick={handleCloseDelete}>Cancel</Button><Button onClick={handleConfirmDelete} color="error">Delete</Button></DialogActions>
@@ -529,7 +535,7 @@ const NewsEventPopup = ({
             </Snackbar>
           </Dialog>
           
-          <Dialog open={reportOpen} onClose={handleCloseReport} maxWidth="xs" fullWidth  closeAfterTransition PaperProps={{ sx: getGlassDialogPaperSx(theme) }}>
+          <Dialog open={reportOpen} onClose={handleCloseReport} maxWidth="xs" fullWidth closeAfterTransition container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined} PaperProps={{ sx: getGlassDialogPaperSx(theme) }}>
             <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
             <DialogContent sx={{ pt: 1, overflow: 'visible', '& .MuiTextField-root': getGlassInputSx(theme) }}>
               <TextField select fullWidth required margin="dense" label="Violation Type" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)} error={!reportCategory} helperText={!reportCategory ? "Required" : ""} sx={{ mb: 2 }}>

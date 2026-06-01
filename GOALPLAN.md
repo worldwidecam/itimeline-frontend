@@ -5,42 +5,73 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ---
 
+## RULES
+1. maintain safety of PRODUCTION while making improvements from MAIN branch. 
+2. analyze the elements before making changes. if the element exists elsewhere, consolidate its code into a single component/file.
+3. work on one objective at a time.
+4. after analyzing workspace and before beginning making changes, have at least one ideation response with me, so i can give my thoughts on the approach. then, good to proceed.
+5. once an objective is completed, add it to the completed section.
+6. ALWAYS code with keeping production-safe code practices in mind. for example, if a table ever needs to be expanded, never just add it to development without adding it to the LIVE tables.
+
+------
+
 ## Current Objective
-* login/register auto fill boxes seem bugged. specifically the username seems to auto fill the email box. 
-* popular page sort order update. needs improvement. update to vote sorting, but more specifically by today's posts , over old posts.
+
 * need a backup way for users to remember their password
-* need to improve the authentication token. right now, when i visit the site from my phone, it goes to a white screen for a too-long time when on stale data (24hrs later) before reauthenticating me. i don't have this trouble at all when i visit reddit. how do they do it? maybe they just set that one session's IP to not need reauthenticating, or auto trigger refresh?
+
+* NSFW filter logic. tie it to our existing elements like content blurring and user's birthdate input.
+
+* need to ReVAMP the landing page timeline. make actual events, not just the intro text cards. 5 events per filter view should be enough. can save these on frontend like we've been doing.
+
+* hashtag voting system
+- for this system to work, and for us to begin, we must first look into any possible problems regarding adding tags to a post. just a safety check is fine. 
+- to be made IN TANDEM with comment section. for hashtag voting will be at the per post level, much like comment section will be.
+- it will be a vote option for the user towards the post its on. displayed in comment chat box like metaData, with the hashtag chip visualize though (style guideline)
+- example, " USERNAME voted this Post as #GAY" (#GAY will be the colored chip)
+
+* comment section
+- comment section needs to be a section in event Popup. might possibly need to consider its location type -by- type , but will probably want to be near the top. 
+- its
+- in comments section, user can either input a comment, or cast their 1 hashtag vote towards the post.
+- on comments posted, there will be an up-arrow, a down-arrow, and a reply button.
+
+* expand news-type remarks. change their frontend naming nomenclature to LINKS (OR SOMETHING). we can keep code nomenclature relevantly same. but we need to update news-type remarks to handle more links than just news. we need it to play tiktok links, youtube links, instagram reels, etc. basically it needs to also be media handler, but of outside sourse media.
+- so we'll need to reflect on how much would need to change
+- like their event card, hover card, popup, preview display, 
+- this change would most likely set a new standard, that we would then consider updating media-type events to.
+- think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.  
+
+* add/create action hover markers
+
+* in mobile view > events > popup > elipsis button is unable to be clicked because navFAB hovers over it. ideation needed
+
+
 ---
 
-## Objectives
+## In Progress
 
-### Completed
-- [x] Safe GitHub branch system — `main` (dev) → `staging` → `PRODUCTION` (protected, PR-only)
+### Postponed ToDos
 
-### In Progress
-- [ ] Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be deleted
+* Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be 
 
-### Up Next (Features)
-- [ ] **NSFW filter** — media creation toggle, birthday-based 18+ gate, blur-by-default in popups
-- [ ] better login credentials. i'm logged in on my phone. hours pass and i want to check the feed. instead of staying logged in, i not only do not go to login page, but i am immediately logged in as guest user. its not that i want to be directed to login page, but i want to be logged in as myself
-- [ ] **Hashtag chip voting** — voting system on hashtag chips
-- [ ]
-- [ ] **Timeline deletion** — define requirements + UX, then implement
-- [ ] 
+#### COMPLETE 
+(move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
-### Backlog
-- [ ] Fallback image rules for news/link events — define rules and improve preview reliability across cards and popups
-- [ ] Frontend/backend inflation audit — identify logic that belongs in iTimeline-DB package
-- [ ] Theme architecture hardening — final light-mode micro-surface polish pass
-- [ ] Shared personal timelines surface — decide whether "Shared With Me" list/module is needed or link-only access is intentional
-- [ ] Media merge tooling — ideate high-tier report decision for duplicate/redundant media events
-
----
-
-## Goblin Mode Spec (locked)
-- Auto-enter on unauthenticated share/deep links and Home entry
-- Can view: public timelines (hashtag + non-private community), public profiles, public event popups
-- Cannot: post, create, join, follow, manage, report, or access private surfaces
-- Private surface attempts → Goblin redirect page (CTAs: go back / login / home)
-- Auth handoff: cache `returnTo` URL → resume after real login
-- Implementation order: guest profile route → profile guard → timeline/home surfaces
+- [x] gotta get pinch-to-zoom in/out working for theory board module (implemented smooth multitouch pinch-to-zoom on touchscreen with stable focal midpoint zoom and seamless single-finger pan recovery)
+- [x] fix fullscreen dialog blocking issue inside the Theory Board module (standardized the 'Isolated Pamphlet' pattern by portaling MUI Dialogs into document.fullscreenElement when active so event popups render beautifully in front of the board)
+- [x] consolidate landing page user count chip and integrate into Site Control page (abstracted the fire-themed user count chip into a reusable UserCountChip component and integrated it next to the User List refresh button on the Site Control page)
+- [x] halt background timeline scrolling and swiping when Event Popups are open (standardised mouse/touch/wheel event propagation blocking at the Dialog wrapper level across all 5 specialised event popups to keep the timeline canvas completely static)
+- [x] fix profile settings texts module toggle default active visual fallback and rename empty modules placeholder card title on Profile page (toggles now default to active when unsaved and respect inactive saved state; empty placeholder title is now "Profile Modules" and only mounts on the owner's profile page; implemented robust legacy key grouping and deduplication to ensure old 'profile-module-texts-main' keys do not conflict with new switches)
+- [x] need to fix save changes on profile settings page (resolved multi-field visual state override by fetching the freshest user profile from /api/v1/users/me after all sequential updates are saved, synchronizing the React context, localStorage, and component states seamlessly)
+- [x] in hamburger menu, add more rows to 'last visited timeline' section (implemented a robust, backwards-compatible history list that tracks and cycles through up to 5 recently visited timelines, displaying the correct styling, community/personal prefixes, text truncation, deduplication, and active timeline exclusion)
+- [x] the inactive-tab containers on home page need a checkup (conducted code analysis and verified conditional mounting is 100% layout-safe and spill-proof)
+- [x] does event spotlight slide know NOT to show events from published on past days (implemented local date parameter, strict fallback, and new 'random' selection mode)
+- [x] personal timeline access panel settings has a section to edit their description (verified as already fully functional in PersonalAccessPanel)
+- [x] standardize the portrait trading card feature across the app (coordinate positioning hydration & production Hono backend migration)
+- [x] timeline page > event marker > vote dot (or basically the entire selected event > have all selected be higher on z index than the hover marker.
+- [x] profile share page image needs portrait updating
+- [x] the landscape preview positioning on the y axis is limited for no reason
+- [x] home page > home tab > sub tab filter container box is unreasonably long.
+- [x] event Cards seem to be able to visualize too many hash tag chips. this could possibly break its layout.
+ lets limit its hashtag chip visualiztion to the first three,
+lets make their chip color standard for the first 3. representing medals, their coloring will be Gold (first), Silver (second), Bronze (third).

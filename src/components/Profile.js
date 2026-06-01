@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import api, { 
-  submitUserReport, 
-  createModerationAction, 
-  updateModerationAction, 
+import api, {
+  submitUserReport,
+  createModerationAction,
+  updateModerationAction,
   listModerationActions,
   getFollowedUsers,
   followUser,
@@ -95,11 +95,11 @@ const PROFILE_MODULE_TYPE_META = {
 
 const normalizeProfileModuleType = (type) => {
   const rawType = String(type || '').trim().toLowerCase();
-  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS) {
+  if (rawType === PROFILE_MODULE_TYPE_INFO_CARD || rawType === PROFILE_MODULE_TYPE_TEXTS || rawType === 'profile-module-texts-main') {
     return PROFILE_MODULE_TYPE_TEXTS;
   }
   if (rawType === PROFILE_MODULE_TYPE_MAILBOX) return PROFILE_MODULE_TYPE_MAILBOX;
-  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD || rawType === PROFILE_MODULE_TYPE_THEORY_BOARD) {
+  if (rawType === PROFILE_MODULE_TYPE_CONSPIRACY_BOARD || rawType === PROFILE_MODULE_TYPE_THEORY_BOARD || rawType === 'profile-module-theory-board-main') {
     return PROFILE_MODULE_TYPE_THEORY_BOARD;
   }
   return PROFILE_MODULE_TYPE_TEXTS;
@@ -147,13 +147,15 @@ const normalizeProfileTextEntries = (entries, fallbackAuthor = 'User') => {
 const normalizeProfileModules = (rawModules) => {
   if (!Array.isArray(rawModules)) return [];
 
-  return rawModules
-    .map((module, index) => {
-      // Handle both new backend format (module_key) and legacy format (type/id)
-      const moduleKey = module?.module_key || module?.type || module?.id || '';
-      const moduleType = normalizeProfileModuleType(moduleKey);
+  const modulesMap = new Map();
 
-      // Handle new backend format (config object) or flat legacy format
+  rawModules.forEach((module, index) => {
+    const moduleKey = module?.module_key || module?.type || module?.id || '';
+    const moduleType = normalizeProfileModuleType(moduleKey);
+
+    const isCanonical = ['texts', 'theory_board'].includes(moduleKey);
+
+    if (!modulesMap.has(moduleType) || (isCanonical && !['texts', 'theory_board'].includes(modulesMap.get(moduleType).module_key))) {
       const config = module?.config || {};
       const title = String(module?.title || config?.title || '').trim().slice(0, 120);
       const description = String(module?.description || config?.description || '').trim().slice(0, 1200);
@@ -161,7 +163,7 @@ const normalizeProfileModules = (rawModules) => {
 
       const hasTheoryBoardPayload = moduleType === PROFILE_MODULE_TYPE_THEORY_BOARD;
       // Never hide the texts module if it's empty, so the owner/visitor can always see the input
-      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return null;
+      if (!hasTheoryBoardPayload && !title && !description && texts.length === 0 && moduleType !== PROFILE_MODULE_TYPE_TEXTS) return;
 
       const moduleOrder = Number.isFinite(Number(module?.position))
         ? Number(module.position)
@@ -174,7 +176,7 @@ const normalizeProfileModules = (rawModules) => {
       const maxItems = Math.max(1, Math.min(TEXTS_MODULE_MAX_ITEMS, Number(module?.max_items || config?.max_items) || TEXTS_MODULE_MAX_ITEMS));
       const overflowMode = normalizeOverflowMode(module?.overflow_mode || config?.overflow_mode);
 
-      return {
+      modulesMap.set(moduleType, {
         id: moduleKey,
         module_key: moduleKey,
         type: moduleType,
@@ -188,9 +190,11 @@ const normalizeProfileModules = (rawModules) => {
         overflow_mode: overflowMode,
         texts,
         config: config
-      };
-    })
-    .filter(Boolean)
+      });
+    }
+  });
+
+  return Array.from(modulesMap.values())
     .sort((a, b) => a.order - b.order)
     .map((module, index) => ({
       ...module,
@@ -441,31 +445,31 @@ const Profile = () => {
     try {
       setFollowActionLoading(true);
       const currentlyFollowing = followedUserIdSet.has(profileId);
-      
+
       if (currentlyFollowing) {
         await unfollowUser(profileId);
-        setSnackbar({ 
-          open: true, 
-          message: `Unfollowed ${displayUsername(profileUser.username)}`, 
-          severity: 'success' 
+        setSnackbar({
+          open: true,
+          message: `Unfollowed ${displayUsername(profileUser.username)}`,
+          severity: 'success'
         });
       } else {
         await followUser(profileId);
-        setSnackbar({ 
-          open: true, 
-          message: `Following ${displayUsername(profileUser.username)}`, 
-          severity: 'success' 
+        setSnackbar({
+          open: true,
+          message: `Following ${displayUsername(profileUser.username)}`,
+          severity: 'success'
         });
       }
-      
+
       // Refresh followed list
       await fetchFollowedUsers();
     } catch (err) {
       console.error('[Profile] Follow toggle error:', err);
-      setSnackbar({ 
-        open: true, 
-        message: 'Failed to update follow status', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: 'Failed to update follow status',
+        severity: 'error'
       });
     } finally {
       setFollowActionLoading(false);
@@ -886,13 +890,14 @@ const Profile = () => {
     const hydrateOwnPortraitFromPassport = async () => {
       try {
         const passportResponse = await api.get('/api/v1/profile/hydrate');
+        const passportUser = passportResponse?.data?.user || {};
         const prefs = passportResponse?.data?.preferences || {};
         const passportPortraitUrl = String(prefs?.profile_portrait_image_url || '').trim();
         const nextPortrait = {
-          imageUrl: passportPortraitUrl || localPortraitUrl || String(profileUser?.avatar_url || '').trim() || String(user?.avatar_url || '').trim(),
-          x: clampPortraitFrameValue(prefs?.profile_portrait_x, localPortraitX),
-          y: clampPortraitFrameValue(prefs?.profile_portrait_y, localPortraitY),
-          zoom: clampPortraitZoom(prefs?.profile_portrait_zoom, localPortraitZoom),
+          imageUrl: passportPortraitUrl || String(passportUser?.avatar_url || '').trim() || localPortraitUrl || String(profileUser?.avatar_url || '').trim() || String(user?.avatar_url || '').trim(),
+          x: clampPortraitFrameValue(passportUser?.profile_portrait_x, localPortraitX),
+          y: clampPortraitFrameValue(passportUser?.profile_portrait_y, localPortraitY),
+          zoom: clampPortraitZoom(passportUser?.profile_portrait_zoom, localPortraitZoom),
         };
 
         if (canceled) return;
@@ -909,7 +914,7 @@ const Profile = () => {
         localStorage.setItem(`profile_portrait_x_user_${storageUserId}`, String(nextPortrait.x));
         localStorage.setItem(`profile_portrait_y_user_${storageUserId}`, String(nextPortrait.y));
         localStorage.setItem(`profile_portrait_zoom_user_${storageUserId}`, String(nextPortrait.zoom));
-        localStorage.setItem(`profile_modules_user_${storageUserId}`, JSON.stringify(normalizedProfileModules));
+        localStorage.setItem(`profile_modules_user_${storageUserId}`, JSON.stringify(normalizeProfileModules(passportResponse?.data?.profile_modules || [])));
       } catch (passportError) {
         console.warn('Failed to hydrate profile portrait metadata from passport:', passportError?.response?.data || passportError?.message || passportError);
       }
@@ -1448,7 +1453,7 @@ const Profile = () => {
                     {displayUsername(profileUser.username)}
                     {profileUser?.country && (
                       <Tooltip title={countries.find(c => c.code === profileUser.country)?.label || ''} arrow>
-                        <Box 
+                        <Box
                           component="img"
                           loading="lazy"
                           src={getFlagUrl(profileUser.country)}
@@ -1483,8 +1488,8 @@ const Profile = () => {
                                     subject_id: profileUser.id,
                                     is_active: true
                                   });
-                                  const actionsArray = Array.isArray(responseActions.data) 
-                                    ? responseActions.data 
+                                  const actionsArray = Array.isArray(responseActions.data)
+                                    ? responseActions.data
                                     : (responseActions.data?.data || []);
                                   const blurActions = actionsArray.filter(a => a.action === 'blur_avatar');
                                   for (const action of blurActions) {
@@ -1581,7 +1586,7 @@ const Profile = () => {
               }}
             >
               <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Texts
+                Profile Modules
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 No modules yet. Manage modules from Profile Settings.
@@ -1862,12 +1867,12 @@ const Profile = () => {
                                       }
                                     }}
                                   >
-                                    <KeyboardDoubleArrowDownRoundedIcon 
-                                      sx={{ 
+                                    <KeyboardDoubleArrowDownRoundedIcon
+                                      sx={{
                                         fontSize: '1.35rem',
                                         color: hasNewTexts ? (theme.palette.mode === 'dark' ? '#90caf9' : '#1976d2') : theme.palette.text.secondary,
                                         filter: hasNewTexts ? `drop-shadow(0px 2px 4px rgba(25, 118, 210, 0.4))` : 'none'
-                                      }} 
+                                      }}
                                     />
                                   </Button>
                                 )}
@@ -1984,8 +1989,8 @@ const Profile = () => {
               icon: followedUserIdSet.has(Number(profileUser.id)) ? <PersonRemoveIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />,
               onClick: handleToggleFollow,
               step: 58,
-              accent: followedUserIdSet.has(Number(profileUser.id)) 
-                ? { dark: '#EF5350', light: '#D32F2F' } 
+              accent: followedUserIdSet.has(Number(profileUser.id))
+                ? { dark: '#EF5350', light: '#D32F2F' }
                 : { dark: '#4FC3F7', light: '#039BE5' },
             }] : []),
           ]}
@@ -1996,7 +2001,7 @@ const Profile = () => {
             imageClassName: 'profile-share-card-image',
             overlayClassName: 'profile-share-card-overlay',
             imageSx: {
-              objectFit: 'cover',
+              objectFit: (profilePortraitMeta.x === 50 && profilePortraitMeta.y === 50 && profilePortraitMeta.zoom === 1) ? 'contain' : 'cover',
               filter: 'brightness(1.08) saturate(1.08)',
               transform: profileShareCardTransform,
             },

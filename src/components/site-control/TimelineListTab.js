@@ -145,7 +145,14 @@ export default function TimelineListTab() {
           <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Button
               variant="text"
-              onClick={() => window.open(`/timeline-v3/${row.id}`, '_blank')}
+              onClick={(e) => {
+                const route = `/timeline-v3/${row.id}`;
+                if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                  window.open(route, '_blank');
+                } else {
+                  navigate(route);
+                }
+              }}
               sx={{
                 textTransform: 'none',
                 fontWeight: 700,

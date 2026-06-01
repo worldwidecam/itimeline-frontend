@@ -88,6 +88,7 @@ const EventMarkerCanvasV2 = ({
   timelineMarkersLoading = false,
   progressiveLoadingState = 'complete',
   motionDissipate = false,
+  referenceDate,
 }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -135,16 +136,17 @@ const EventMarkerCanvasV2 = ({
   const positions = useMemo(() => {
     if (!canvasSize.width) return [];
     const centerX = canvasSize.width / 2;
+    const refDate = referenceDate || new Date();
     return events
       .map((event, index) => {
         if (!event?.event_date || viewMode === 'position') return null;
-        const markerValue = calculateMarkerValue(event.event_date, viewMode, new Date());
+        const markerValue = calculateMarkerValue(event.event_date, viewMode, refDate);
         const x = centerX + (markerValue * markerSpacing);
         return { event, index, markerValue, x };
       })
       .filter(Boolean)
       .sort((a, b) => a.x - b.x);
-  }, [events, viewMode, markerSpacing, canvasSize.width]);
+  }, [events, viewMode, markerSpacing, canvasSize.width, referenceDate]);
 
   const hasVoteDots = useMemo(
     () => Object.values(voteDotsById || {}).some((dot) => dot?.isVisible),
@@ -370,9 +372,6 @@ const EventMarkerCanvasV2 = ({
       if (index === selectedIndex) return;
       drawRungAtIndex(pos, index);
     });
-    if (selectedIndex >= 0) {
-      drawRungAtIndex(positions[selectedIndex], selectedIndex);
-    }
 
     ctx.restore();
   }, [canvasSize, motionDissipate, positions, selectedEventId, timelineOffset, voteDotsById, voteDotsLoading]);

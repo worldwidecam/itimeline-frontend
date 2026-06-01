@@ -83,7 +83,17 @@ const TradingCard = ({
           ...innerSx,
         }}
       >
-        {shouldRenderImage ? (
+        {/* Always render the fallback HSL gradient background so that empty/transparent space on 'contain' is beautifully filled */}
+        <Box
+          className={fallbackClassName || imageClassName}
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            ...fallbackSx,
+          }}
+        />
+
+        {shouldRenderImage && (
           <Box
             component="img"
             src={imageUrl}
@@ -99,15 +109,6 @@ const TradingCard = ({
               objectPosition: '50% 50%',
               filter: isAvatarBlurred ? 'blur(18px)' : 'none',
               ...imageSx,
-            }}
-          />
-        ) : (
-          <Box
-            className={fallbackClassName || imageClassName}
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              ...fallbackSx,
             }}
           />
         )}

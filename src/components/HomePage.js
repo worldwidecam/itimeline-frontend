@@ -83,6 +83,7 @@ import UserCard from './common/UserCard';
 import NavFab, { TimelineMarkerIcon } from './timeline-v3/community/NavFab';
 import EventIcon from '@mui/icons-material/Event';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
+import { TimelineHeroBanner } from './timeline-v3/TimelineHeroBanner';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -466,6 +467,9 @@ const HomePage = () => {
   const [topVotesTodayEvent, setTopVotesTodayEvent] = React.useState(null);
   const [topVotesTodayLoading, setTopVotesTodayLoading] = React.useState(false);
   const [prefetchedSpotlightEvent, setPrefetchedSpotlightEvent] = React.useState(null);
+  const [randomEvent, setRandomEvent] = React.useState(null);
+  const [randomEventLoading, setRandomEventLoading] = React.useState(false);
+  const [prefetchedRandomEvent, setPrefetchedRandomEvent] = React.useState(null);
   const [postTypeDialogOpen, setPostTypeDialogOpen] = React.useState(false);
   const [postEventDialogOpen, setPostEventDialogOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
@@ -661,7 +665,10 @@ const HomePage = () => {
 
   const getTodayKey = React.useCallback(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }, []);
 
   const fetchAndHydrateTopVotesTodayEvent = React.useCallback(async ({ force = false } = {}) => {
@@ -684,7 +691,8 @@ const HomePage = () => {
     const requestPromise = (async () => {
       setTopVotesTodayLoading(true);
       try {
-        const response = await api.get('/api/v1/events/spotlight/top-voted-today');
+        const todayKey = getTodayKey();
+        const response = await api.get(`/api/v1/events/spotlight/top-voted-today?date=${todayKey}`);
         const rawEvent = response?.data?.event;
         const baseEvent = rawEvent && typeof rawEvent === 'object' ? rawEvent : null;
         setTopVotesTodayEvent(baseEvent);
@@ -723,6 +731,45 @@ const HomePage = () => {
     topVotesTodayFetchPromiseRef.current = requestPromise;
     return requestPromise;
   }, [getTodayKey, prefetchedSpotlightEvent, topVotesTodayEvent]);
+
+  const fetchAndHydrateRandomEvent = React.useCallback(async ({ force = false } = {}) => {
+    if (prefetchedRandomEvent && !force) {
+      return prefetchedRandomEvent;
+    }
+    setRandomEventLoading(true);
+    try {
+      const response = await api.get('/api/v1/events/spotlight/random');
+      const rawEvent = response?.data?.event;
+      const baseEvent = rawEvent && typeof rawEvent === 'object' ? rawEvent : null;
+      setRandomEvent(baseEvent);
+
+      let hydratedEvent = baseEvent;
+      const hydratedEventId = Number(baseEvent?.id || 0);
+      const hydratedTimelineId = Number(baseEvent?.timeline_id || 0);
+
+      if (hydratedEventId > 0 && hydratedTimelineId > 0) {
+        try {
+          const detailResponse = await api.get(`/api/v1/events/${hydratedEventId}`);
+          const detailEvent = detailResponse?.data;
+          if (detailEvent?.id) {
+            hydratedEvent = { ...detailEvent, ...baseEvent };
+          }
+        } catch (detailError) {
+          console.warn('[HomePage] Failed to hydrate random spotlight event details:', detailError);
+        }
+      }
+
+      setPrefetchedRandomEvent(hydratedEvent && typeof hydratedEvent === 'object' ? hydratedEvent : null);
+      return hydratedEvent;
+    } catch (error) {
+      setRandomEvent(null);
+      setPrefetchedRandomEvent(null);
+      console.warn('[HomePage] Failed to fetch random event spotlight:', error);
+      return null;
+    } finally {
+      setRandomEventLoading(false);
+    }
+  }, [prefetchedRandomEvent]);
 
   const transitionToHeroSlide = React.useCallback(
     async (nextIndex) => {
@@ -1036,6 +1083,9 @@ const HomePage = () => {
   const activeHeroSlide = enabledHeroSlides[heroIndex] || enabledHeroSlides[0] || null;
   const isEventSpotlightTopVotesMode = activeHeroSlide?.type === 'event_spotlight'
     && String(activeHeroSlide?.selection_mode || 'manual').toLowerCase() === 'top_votes_today';
+  const isEventSpotlightRandomMode = activeHeroSlide?.type === 'event_spotlight'
+    && String(activeHeroSlide?.selection_mode || 'manual').toLowerCase() === 'random';
+
   const isEventPublishedToday = React.useCallback((event) => {
     const rawDate = event?.created_at || event?.published_at || event?.publishedAt || event?.event_date;
     if (!rawDate) return false;
@@ -1115,6 +1165,18 @@ const HomePage = () => {
     loadTopVotesTodayEvent();
   }, [fetchAndHydrateTopVotesTodayEvent, isEventSpotlightTopVotesMode]);
 
+  React.useEffect(() => {
+    if (!isEventSpotlightRandomMode) {
+      return undefined;
+    }
+
+    const loadRandomEvent = async () => {
+      await fetchAndHydrateRandomEvent();
+    };
+
+    loadRandomEvent();
+  }, [fetchAndHydrateRandomEvent, isEventSpotlightRandomMode]);
+
   const spotlightEvent = React.useMemo(() => {
     if (activeHeroSlide?.type !== 'event_spotlight') return null;
 
@@ -1136,22 +1198,35 @@ const HomePage = () => {
           : topVotesTodayEvent;
       }
 
+      // Strict "No Top Event Today" fallback rendering: do NOT leak older events
+      return null;
+    }
+
+    if (selectionMode === 'random') {
+      const fetchedEventId = Number(randomEvent?.id || 0);
+      if (fetchedEventId > 0) {
+        const prefetchedEventId = Number(prefetchedRandomEvent?.id || 0);
+        const fromLoadedFeeds = eventLookupPool.get(fetchedEventId) || null;
+        if (prefetchedEventId === fetchedEventId) {
+          return {
+            ...(fromLoadedFeeds || {}),
+            ...prefetchedRandomEvent,
+            ...randomEvent,
+          };
+        }
+        return fromLoadedFeeds
+          ? { ...fromLoadedFeeds, ...randomEvent }
+          : randomEvent;
+      }
+
+      // Fallback: Pick a random candidate from eventLookupPool if API is loading/empty
       const candidates = Array.from(eventLookupPool.values()).filter((event) => {
         const timelineType = String(event?.timeline_type || '').toLowerCase();
         const timelineVisibility = String(event?.timeline_visibility || event?.visibility || 'public').toLowerCase();
-        if (timelineType === 'personal' || timelineVisibility === 'private') return false;
-        return isEventPublishedToday(event);
+        return timelineType !== 'personal' && timelineVisibility !== 'private';
       });
-
       if (!candidates.length) return null;
-
-      return [...candidates].sort((a, b) => {
-        const voteDelta = getEventVoteTotal(b) - getEventVoteTotal(a);
-        if (voteDelta !== 0) return voteDelta;
-        const dateDelta = new Date(b?.event_date || b?.created_at || 0) - new Date(a?.event_date || a?.created_at || 0);
-        if (dateDelta !== 0) return dateDelta;
-        return Number(b?.id || 0) - Number(a?.id || 0);
-      })[0] || null;
+      return candidates[Math.floor(Math.random() * candidates.length)] || null;
     }
 
     const targetId = Number(activeHeroSlide?.event_id || 0);
@@ -1159,13 +1234,13 @@ const HomePage = () => {
     return eventLookupPool.get(targetId) || null;
   }, [
     activeHeroSlide?.type,
-    activeHeroSlide?.event_id,
     activeHeroSlide?.selection_mode,
-    eventLookupPool,
-    getEventVoteTotal,
-    isEventPublishedToday,
-    prefetchedSpotlightEvent,
+    activeHeroSlide?.event_id,
     topVotesTodayEvent,
+    prefetchedSpotlightEvent,
+    randomEvent,
+    prefetchedRandomEvent,
+    eventLookupPool,
   ]);
   const handleOpenHeroEventPopup = React.useCallback(async () => {
     const eventId = Number(spotlightEvent?.id || 0);
@@ -4619,9 +4694,8 @@ const HomePage = () => {
                       mb: 2,
                       p: 0.5,
                       borderRadius: 99,
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 0.8,
+                      display: 'inline-flex',
+                      gap: 0.6,
                       border: '1px solid',
                       borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.15)',
                       background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
@@ -4856,71 +4930,17 @@ const HomePage = () => {
 
                       return (
                         <Box>
-                          <Box
-                            sx={{
-                              borderRadius: 2,
-                              border: '1px solid',
-                              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.12)',
-                              overflow: 'hidden',
-                              position: 'relative',
-                              aspectRatio: { xs: '5 / 1', md: '8 / 1' },
-                              mb: 2,
-                              background: bannerImageUrl
-                                ? 'transparent'
-                                : (theme.palette.mode === 'dark'
-                                  ? 'linear-gradient(135deg, rgba(13,36,63,0.86) 0%, rgba(20,48,92,0.9) 40%, rgba(65,34,106,0.86) 100%)'
-                                  : 'linear-gradient(135deg, rgba(250,232,242,0.94) 0%, rgba(246,232,220,0.96) 68%, rgba(252,238,224,0.98) 100%)'),
-                            }}
-                          >
-                            {bannerImageUrl ? (
-                              <Box
-                                component="img"
-                                src={bannerImageUrl}
-                                alt={`${prefixedTitle} banner`}
-                                sx={{
-                                  position: 'absolute',
-                                  inset: 0,
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'contain',
-                                  objectPosition: '50% 50%',
-                                  filter: coverUploadEnabled
-                                    ? 'brightness(1.06) saturate(1.04)'
-                                    : 'blur(18px) saturate(0.45)',
-                                  transform: coverLandscapeTransform,
-                                }}
-                              />
-                            ) : null}
-                            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.06) 0%, rgba(2,6,23,0.42) 100%)' }} />
-                            <Box sx={{ position: 'absolute', left: { xs: 12, md: 16 }, right: { xs: 12, md: 16 }, bottom: { xs: 8, md: 12 }, zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                              <Typography 
-                                variant="caption" 
-                                sx={{ 
-                                  color: 'rgba(248,250,252,0.95)',
-                                  textShadow: `
-                                    0 2px 4px rgba(2,6,23,0.8), 
-                                    0 4px 12px rgba(2,6,23,0.6), 
-                                    0 0 20px rgba(2,6,23,0.4)
-                                  `,
-                                  fontWeight: 800,
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.15em',
-                                }}
-                              >
-                                {timelineType.toUpperCase()} TIMELINE
-                              </Typography>
-                              
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                {timelineType === 'community' ? (
-                                  <GroupsIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-                                ) : timelineType === 'personal' ? (
-                                  <PersonIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-                                ) : (
-                                  <TagIcon sx={{ color: '#fff', fontSize: { xs: 20, md: 28 }, opacity: 0.85, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
-                                )}
-                              </Box>
-                            </Box>
-                          </Box>
+                          <TimelineHeroBanner
+                            timelineName={prefixedTitle}
+                            timelineType={timelineType}
+                            coverImageUrl={bannerImageUrl}
+                            coverLandscapeX={coverLandscapePosition.x}
+                            coverLandscapeY={coverLandscapePosition.y}
+                            coverZoom={coverLandscapeZoom}
+                            coverUploadEnabled={coverUploadEnabled}
+                            isLoading={loadingFavoriteTimelineContext}
+                            sx={{ mb: 2 }}
+                          />
 
                           <Box sx={{ mb: 2 }}>
                             <QuoteDisplay

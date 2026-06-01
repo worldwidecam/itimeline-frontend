@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Chip, Box, useTheme, Tooltip, Typography } from '@mui/material';
 import { Label as TagIcon, People as CommunityIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
@@ -7,6 +8,7 @@ import TimelineNameDisplay from '../../TimelineNameDisplay';
 
 const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   // Seed timeline classification from associatedTimelines (optimistic, reduces flicker)
   const seedTimelineData = React.useMemo(() => {
     try {
@@ -124,7 +126,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
     fetchTimelineData();
   }, [tagsArray, seedTimelineData]);
 
-  // Function to handle tag click - opens the respective timeline in a new tab
+  // Function to handle tag click - opens the respective timeline in same tab by default
   const handleTagClick = async (e, tagName) => {
     e.stopPropagation(); // Prevent event bubbling to parent components
     
@@ -133,18 +135,25 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
       const slug = tagName.toUpperCase();
       const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
       
-      if (response.data && response.data.id) {
-        // If we found the timeline, open it in a new tab
-        window.open(`/timeline-v3/${response.data.id}`, '_blank');
+      const route = response.data && response.data.id
+        ? `/timeline-v3/${response.data.id}`
+        : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
       } else {
-        console.error('Timeline not found for tag:', tagName);
+        navigate(route);
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);
-      // If there's an error, we can still try to open the timeline by name
-      // This is a fallback in case the API call fails
       const timelineName = tagName.toUpperCase();
-      window.open(`/timeline-v3/new?name=${encodeURIComponent(timelineName)}`, '_blank');
+      const route = `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
+      } else {
+        navigate(route);
+      }
     }
   };
 
@@ -211,16 +220,62 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
         }
         
         // Generate a unique color based on the tag name
-        const stringToColor = (str) => {
+        const hslToHex = (h, s, l) => {
+          l /= 100;
+          const a = (s * Math.min(l, 1 - l)) / 100;
+          const f = n => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+          };
+          return `#${f(0)}${f(8)}${f(4)}`;
+        };
+
+        const stringToColor = (str, isDarkMode) => {
+          if (typeof str !== 'string') str = String(str || '');
           let hash = 0;
-          for (let i = 0; i < str.length; i++) {
+          for (let i = 0; i < str.length; i += 1) {
             hash = str.charCodeAt(i) + ((hash << 5) - hash);
           }
-          const hue = Math.abs(hash % 360);
-          return `hsl(${hue}, 30%, 50%)`;
+          // Multiply by 137 to perfectly scatter adjacent hashes far apart in the hue space!
+          const hue = Math.abs((hash * 137) % 360);
+          // Glowing text on dark mode (85% saturation, 65% lightness), high contrast text on light mode (75% saturation, 40% lightness)
+          const s = isDarkMode ? 85 : 75;
+          const l = isDarkMode ? 65 : 40;
+          return hslToHex(hue, s, l);
+        };
+
+        const getMedalColors = (idx, isDarkMode) => {
+          if (idx === 0) {
+            // Gold: Brilliant, glowing sunlit yellow-gold
+            return {
+              bg: isDarkMode ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 215, 0, 0.18)',
+              text: isDarkMode ? '#FFE066' : '#A37D00',
+              border: isDarkMode ? 'rgba(255, 215, 0, 0.4)' : 'rgba(163, 125, 0, 0.35)',
+            };
+          }
+          if (idx === 1) {
+            // Silver: Sleek, clean polished slate-silver
+            return {
+              bg: isDarkMode ? 'rgba(226, 232, 240, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+              text: isDarkMode ? '#F1F5F9' : '#475569',
+              border: isDarkMode ? 'rgba(226, 232, 240, 0.4)' : 'rgba(71, 85, 105, 0.4)',
+            };
+          }
+          if (idx === 2) {
+            // Bronze: Vibrant, fiery metallic copper-orange (highly distinct from Gold)
+            return {
+              bg: isDarkMode ? 'rgba(205, 127, 50, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+              text: isDarkMode ? '#FFB077' : '#D84B06',
+              border: isDarkMode ? 'rgba(205, 127, 50, 0.4)' : 'rgba(216, 75, 6, 0.35)',
+            };
+          }
+          return null;
         };
         
-        const tagColor = stringToColor(tagName);
+        const isDarkMode = theme.palette.mode === 'dark';
+        const medalColors = getMedalColors(index, isDarkMode);
+        const tagColor = medalColors ? medalColors.text : stringToColor(tagName, isDarkMode);
         
         // Different styling for community vs hashtag timelines
         const communityColor = theme.palette.secondary.main;
@@ -294,8 +349,9 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
             </Tooltip>
           );
         } else {
-
           // Standard hashtag timeline chip
+          const bg = medalColors ? medalColors.bg : (isDarkMode ? alpha(chipColor, 0.15) : alpha(chipColor, 0.08));
+          const border = medalColors ? medalColors.border : alpha(chipColor, 0.25);
           return (
             <Tooltip 
               key={`${tagId}-${index}`}
@@ -307,7 +363,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                   <TagIcon 
                     sx={{ 
                       fontSize: 14,
-                      color: theme.palette.mode === 'dark' ? 'inherit' : chipColor,
+                      color: chipColor,
                     }} 
                   />
                 }
@@ -316,22 +372,19 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                 onClick={(e) => handleTagClick(e, tagName)}
                 sx={{
                   height: '24px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? alpha(chipColor, 0.2)
-                    : alpha(chipColor, 0.1),
-                  color: theme.palette.mode === 'dark' 
-                    ? theme.palette.common.white 
-                    : chipColor,
-                  border: 'none',
+                  backgroundColor: bg,
+                  color: chipColor,
+                  border: `1px solid ${border}`,
                   borderRadius: '6px',
                   transition: theme.transitions.create(
                     ['background-color', 'box-shadow', 'transform'],
                     { duration: 200 }
                   ),
                   '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark'
-                      ? alpha(chipColor, 0.3)
-                      : alpha(chipColor, 0.2),
+                    backgroundColor: medalColors 
+                      ? (isDarkMode ? alpha(chipColor, 0.25) : alpha(chipColor, 0.14))
+                      : (isDarkMode ? alpha(chipColor, 0.25) : alpha(chipColor, 0.16)),
+                    borderColor: medalColors ? border : alpha(chipColor, 0.45),
                     transform: 'translateY(-1px)',
                     boxShadow: `0 4px 8px ${alpha(chipColor, 0.2)}`,
                     cursor: 'pointer',
@@ -339,7 +392,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                   '& .MuiChip-label': {
                     px: 1,
                     fontSize: '0.75rem',
-                    fontWeight: 500,
+                    fontWeight: medalColors ? 600 : 500,
                   },
                   '& .MuiChip-icon': {
                     mr: 0.5,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -28,13 +29,57 @@ import {
 import HashtagIcon from '../../common/HashtagIcon';
 import api from '../../../utils/api';
 
-const stringToColor = (str) => {
+const hslToHex = (h, s, l) => {
+  l /= 100;
+  const a = (s * Math.min(l, 1 - l)) / 100;
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
+
+const stringToColor = (str, isDarkMode) => {
+  if (typeof str !== 'string') str = String(str || '');
   let hash = 0;
   for (let i = 0; i < str.length; i += 1) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const hue = Math.abs(hash % 360);
-  return `hsl(${hue}, 30%, 50%)`;
+  // Multiply by 137 to perfectly scatter adjacent hashes far apart in the hue space!
+  const hue = Math.abs((hash * 137) % 360);
+  // Glowing text on dark mode (85% saturation, 65% lightness), high contrast text on light mode (75% saturation, 40% lightness)
+  const s = isDarkMode ? 85 : 75;
+  const l = isDarkMode ? 65 : 40;
+  return hslToHex(hue, s, l);
+};
+
+const getMedalColors = (index, isDarkMode) => {
+  if (index === 0) {
+    // Gold: Brilliant, glowing sunlit yellow-gold
+    return {
+      bg: isDarkMode ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 215, 0, 0.18)',
+      text: isDarkMode ? '#FFE066' : '#A37D00',
+      border: isDarkMode ? 'rgba(255, 215, 0, 0.4)' : 'rgba(163, 125, 0, 0.35)',
+    };
+  }
+  if (index === 1) {
+    // Silver: Sleek, clean polished slate-silver
+    return {
+      bg: isDarkMode ? 'rgba(226, 232, 240, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+      text: isDarkMode ? '#F1F5F9' : '#475569',
+      border: isDarkMode ? 'rgba(226, 232, 240, 0.4)' : 'rgba(71, 85, 105, 0.4)',
+    };
+  }
+  if (index === 2) {
+    // Bronze: Vibrant, fiery metallic copper-orange (highly distinct from Gold)
+    return {
+      bg: isDarkMode ? 'rgba(205, 127, 50, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+      text: isDarkMode ? '#FFB077' : '#D84B06',
+      border: isDarkMode ? 'rgba(205, 127, 50, 0.4)' : 'rgba(216, 75, 6, 0.35)',
+    };
+  }
+  return null;
 };
 
 const PersonalIcon = () => (
@@ -102,9 +147,10 @@ const Pill = ({ label, count, icon, color }) => {
 
 const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   if (!tags.length) return null;
 
-  // Handle hashtag click - open timeline in new tab
+  // Handle hashtag click - open timeline in same tab by default
   const handleHashtagClick = async (e, tagName) => {
     e.stopPropagation();
     try {
@@ -112,16 +158,26 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
       const baseName = (tagName || '').replace(/^#+/, '');
       const slug = baseName.toUpperCase();
       const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
-      if (response.data && response.data.id) {
-        window.open(`/timeline-v3/${response.data.id}`, '_blank');
+      const route = response.data && response.data.id
+        ? `/timeline-v3/${response.data.id}`
+        : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
       } else {
-        window.open(`/timeline-v3/new?name=${encodeURIComponent(slug)}`, '_blank');
+        navigate(route);
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);
       const baseName = (tagName || '').replace(/^#+/, '');
       const fallbackName = baseName.toUpperCase();
-      window.open(`/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`, '_blank');
+      const route = `/timeline-v3/new?name=${encodeURIComponent(fallbackName)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
+      } else {
+        navigate(route);
+      }
     }
   };
 
@@ -145,7 +201,12 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
       }}
     >
       {visible.map((tagName, idx) => {
-        const tagColor = stringToColor(tagName);
+        const isDarkMode = theme.palette.mode === 'dark';
+        const medalColors = getMedalColors(idx, isDarkMode);
+        const tagColor = medalColors ? medalColors.text : stringToColor(tagName, isDarkMode);
+        const bg = medalColors ? medalColors.bg : (isDarkMode ? alpha(tagColor, 0.15) : alpha(tagColor, 0.08));
+        const border = medalColors ? medalColors.border : alpha(tagColor, 0.25);
+
         return (
           <Chip
             key={`${tagName}-${idx}`}
@@ -153,7 +214,7 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
               <HashtagIcon
                 fontSize="small"
                 sx={{
-                  color: theme.palette.mode === 'dark' ? 'inherit' : tagColor,
+                  color: isDarkMode ? 'inherit' : tagColor,
                   marginLeft: 0,
                 }}
               />
@@ -164,22 +225,20 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
             sx={{
               cursor: 'pointer',
               '&:hover': {
-                backgroundColor: theme.palette.mode === 'dark'
-                  ? alpha(tagColor, 0.3)
-                  : alpha(tagColor, 0.2),
+                backgroundColor: medalColors 
+                  ? (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.14))
+                  : (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.16)),
+                borderColor: medalColors ? border : alpha(tagColor, 0.45),
               },
               height: 24,
-              backgroundColor: theme.palette.mode === 'dark'
-                ? alpha(tagColor, 0.2)
-                : alpha(tagColor, 0.1),
-              color: theme.palette.mode === 'dark'
-                ? theme.palette.common.white
-                : tagColor,
+              backgroundColor: bg,
+              color: tagColor,
+              border: `1px solid ${border}`,
               borderRadius: 1.5,
               '& .MuiChip-label': {
                 px: 1,
                 fontSize: '0.75rem',
-                fontWeight: 500,
+                fontWeight: medalColors ? 600 : 500,
               },
               '& .MuiChip-icon': {
                 mr: 0.5,
@@ -236,8 +295,12 @@ const PopupTimelineLanes = ({
   showPrivacyWarningGate = false,
   onAcknowledgePrivacyWarning,
   isRestricted = false,
+  shakeHashtag = false,
+  shakeCommunity = false,
+  shakePersonal = false,
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [hashtagDropdownOpen, setHashtagDropdownOpen] = React.useState(false);
   const [communityListOpen, setCommunityListOpen] = React.useState(false);
   const [personalListOpen, setPersonalListOpen] = React.useState(false);
@@ -394,7 +457,22 @@ const PopupTimelineLanes = ({
         
         {/* Hashtag Add Dropdown */}
         {hashtagDropdownOpen && (
-          <Box sx={{ mb: 1.5, display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box 
+            sx={{ 
+              mb: 1.5, 
+              display: 'flex', 
+              gap: 1, 
+              alignItems: 'center',
+              ...(shakeHashtag && {
+                animation: 'shake-shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                '@keyframes shake-shake': {
+                  '0%, 100%': { transform: 'translateX(0)' },
+                  '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
+                  '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
+                }
+              })
+            }}
+          >
             <Autocomplete
               size="small"
               options={hashtagOptions}
@@ -496,7 +574,22 @@ const PopupTimelineLanes = ({
           
           {/* Add Community Section */}
           {!isRestricted && (
-            <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box 
+              sx={{ 
+                mb: 2, 
+                display: 'flex', 
+                gap: 1, 
+                alignItems: 'center',
+                ...(shakeCommunity && {
+                  animation: 'shake-shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                  '@keyframes shake-shake': {
+                    '0%, 100%': { transform: 'translateX(0)' },
+                    '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
+                    '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
+                  }
+                })
+              }}
+            >
               <Autocomplete
                 size="small"
                 options={communityOptions}
@@ -580,7 +673,12 @@ const PopupTimelineLanes = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     if (community.id) {
-                      window.open(`/timeline-v3/${community.id}`, '_blank');
+                      const route = `/timeline-v3/${community.id}`;
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                        window.open(route, '_blank');
+                      } else {
+                        navigate(route);
+                      }
                     }
                   }}
                   sx={{
@@ -622,7 +720,22 @@ const PopupTimelineLanes = ({
           
           {/* Add Personal Section */}
           {!isRestricted && (
-            <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box 
+              sx={{ 
+                mb: 2, 
+                display: 'flex', 
+                gap: 1, 
+                alignItems: 'center',
+                ...(shakePersonal && {
+                  animation: 'shake-shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                  '@keyframes shake-shake': {
+                    '0%, 100%': { transform: 'translateX(0)' },
+                    '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
+                    '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
+                  }
+                })
+              }}
+            >
               <Autocomplete
                 size="small"
                 options={personalOptions}
@@ -727,9 +840,19 @@ const PopupTimelineLanes = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (isOwner && personal.id) {
-                        window.open(`/timeline-v3/${personal.id}`, '_blank');
+                        const route = `/timeline-v3/${personal.id}`;
+                        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                          window.open(route, '_blank');
+                        } else {
+                          navigate(route);
+                        }
                       } else if (!isOwner && personal.created_by) {
-                        window.open(`/profile/${personal.created_by}`, '_blank');
+                        const route = `/profile/${personal.created_by}`;
+                        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                          window.open(route, '_blank');
+                        } else {
+                          navigate(route);
+                        }
                       }
                     }}
                     sx={{

@@ -228,6 +228,27 @@ const EventPopup = ({
   const [passportMemberships, setPassportMemberships] = useState([]);
   // Store the updated event data after adding a tag
   const [localEventData, setLocalEventData] = useState(null);
+  const [shakeHashtag, setShakeHashtag] = useState(false);
+  const [shakeCommunity, setShakeCommunity] = useState(false);
+  const [shakePersonal, setShakePersonal] = useState(false);
+
+  const triggerShake = (type) => {
+    if (type === 'hashtag') {
+      setShakeHashtag(true);
+      setTimeout(() => setShakeHashtag(false), 500);
+    } else if (type === 'community') {
+      setShakeCommunity(true);
+      setTimeout(() => setShakeCommunity(false), 500);
+    } else if (type === 'personal') {
+      setShakePersonal(true);
+      setTimeout(() => setShakePersonal(false), 500);
+    }
+  };
+
+  // Reset localEventData when the popup is opened or when the active event changes
+  useEffect(() => {
+    setLocalEventData(null);
+  }, [open, event?.id]);
   // Level 1 report overlay state
   const [reportOpen, setReportOpen] = useState(false);
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
@@ -516,39 +537,89 @@ const EventPopup = ({
   const handleAddToTimeline = async (selectedTimeline) => {
     if (!selectedTimeline || !event) return;
 
+    const timelineType = (selectedTimeline.timeline_type || selectedTimeline.type || 'hashtag').toLowerCase();
+
     try {
       setAddingToTimeline(true);
       setError('');
       
+      let timelineToUse = { ...selectedTimeline };
+
+      // If it is a hashtag timeline and its ID is null, resolve or create the hashtag timeline!
+      if (timelineType === 'hashtag' && !timelineToUse.id) {
+        const slug = (timelineToUse.name || '').replace(/^#+/, '').toUpperCase();
+        
+        // 1. Sync check: Find existing timeline synchronously from preloaded timelines to avoid any network requests
+        const foundTimeline = existingTimelines.find(
+          (tl) => tl && tl.slug === slug && (tl.type === 'hashtag' || tl.timeline_type === 'hashtag')
+        );
+        
+        if (foundTimeline && foundTimeline.id) {
+          timelineToUse.id = foundTimeline.id;
+        } else {
+          // 2. Concurrency handling: Try to create it.
+          try {
+            const createTimelineResp = await api.post('/api/v1/timelines', {
+              name: slug,
+              description: `Timeline for hashtag #${slug}`,
+              type: 'hashtag',
+              visibility: 'public'
+            });
+            if (createTimelineResp.data && createTimelineResp.data.id) {
+              timelineToUse.id = createTimelineResp.data.id;
+              // Optimistically add the new timeline to existing list
+              setExistingTimelines(prev => [...prev, createTimelineResp.data]);
+            }
+          } catch (createErr) {
+            try {
+              // 3. Fallback: If creation fails (e.g. 409 conflict because another user created it concurrently),
+              // fetch it by slug since we now know it exists! This request succeeds with 200 OK (no 404!).
+              const checkTimelineResp = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
+              if (checkTimelineResp.data && checkTimelineResp.data.id) {
+                timelineToUse.id = checkTimelineResp.data.id;
+                setExistingTimelines(prev => [...prev, checkTimelineResp.data]);
+              } else {
+                throw createErr;
+              }
+            } catch (_) {
+              throw createErr; // Fallback to original creation error if lookup fails
+            }
+          }
+        }
+      }
+
+      if (!timelineToUse.id) {
+        throw new Error('Failed to resolve or create target timeline.');
+      }
+
       // Check if the event is already in the timeline using modern events endpoint
-      const checkResponse = await api.get(`/api/v1/events/by-timeline/${selectedTimeline.id}`);
+      const checkResponse = await api.get(`/api/v1/events/by-timeline/${timelineToUse.id}`);
       const timelineEvents = checkResponse.data?.data || [];
       
       // Check if this event already exists in the selected timeline
       const eventExists = timelineEvents.some(timelineEvent => timelineEvent.id === event.id);
       
       if (eventExists) {
-        setError(`This event is already in the "${selectedTimeline.name}" timeline.`);
+        setError(`This event is already in the "${timelineToUse.name}" timeline.`);
         setAddingToTimeline(false);
+        triggerShake(timelineType);
         return;
       }
       
       // Share the event to the timeline using modern shares endpoint
-      const addResponse = await api.post(`/api/v1/events/${event.id}/shares`, { timeline_id: selectedTimeline.id });
+      const addResponse = await api.post(`/api/v1/events/${event.id}/shares`, { timeline_id: timelineToUse.id });
       console.log('[EventPopup] Add event response:', addResponse.data);
       
       // Update the local event data to reflect new associations under V2 rules
       const updatedEvent = { ...(localEventData || event) };
 
-      const timelineType = (selectedTimeline.timeline_type || selectedTimeline.type || 'hashtag').toLowerCase();
-
       // Ensure associated_timelines reflects the new listing
       const assoc = (updatedEvent.associated_timelines || event.associated_timelines || []).slice();
-      const alreadyAssoc = assoc.some(tl => tl && Number(tl.id) === Number(selectedTimeline.id));
+      const alreadyAssoc = assoc.some(tl => tl && Number(tl.id) === Number(timelineToUse.id));
       if (!alreadyAssoc) {
         assoc.push({
-          id: selectedTimeline.id,
-          name: selectedTimeline.name,
+          id: timelineToUse.id,
+          name: timelineToUse.name,
           type: timelineType,
         });
       }
@@ -558,7 +629,7 @@ const EventPopup = ({
       let tags = (updatedEvent.tags || event.tags || []).slice();
 
       if (timelineType === 'hashtag') {
-        const baseName = (selectedTimeline.name || '').toLowerCase();
+        const baseName = (timelineToUse.name || '').toLowerCase();
         if (baseName && !tags.some(t => (t.name || t) === baseName)) {
           // Preserve existing tag object shape when possible
           if (tags.length && typeof tags[0] === 'object') {
@@ -573,14 +644,21 @@ const EventPopup = ({
       setLocalEventData(updatedEvent);
       
       // Show success message
-      setSuccess(`Event added to "${selectedTimeline.name}" timeline successfully!`);
+      setSuccess(`Event added to "${timelineToUse.name}" timeline successfully!`);
       setSnackbarOpen(true);
       
       // Reset selection
       setSelectedTimeline(null);
+      setSelectedHashtag(null);
+      setSelectedCommunity(null);
+      setSelectedPersonal(null);
+
+      // Trigger global event refresh so the timeline updates cards/markers instantly!
+      window.dispatchEvent(new CustomEvent('refresh-timeline-events'));
     } catch (error) {
       console.error('Error adding event to timeline:', error);
       setError(error.response?.data?.error || 'Failed to add event to timeline. Please try again.');
+      triggerShake(timelineType);
     } finally {
       setAddingToTimeline(false);
     }
@@ -875,6 +953,9 @@ const EventPopup = ({
     isRestricted: user?.is_restricted,
     showPrivacyWarningGate: showAssociationPrivacyWarningGate,
     onAcknowledgePrivacyWarning: () => setHasAcknowledgedPrivacyWarning(true),
+    shakeHashtag,
+    shakeCommunity,
+    shakePersonal,
   };
 
   if (isNews) {
@@ -1018,6 +1099,14 @@ const EventPopup = ({
       maxWidth="md"
       fullWidth
       scroll="paper"
+      container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
       sx={{
         '& .MuiDialog-container': {
           overscrollBehavior: 'none',
@@ -1466,7 +1555,7 @@ const EventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          
+          container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
@@ -1534,7 +1623,7 @@ const EventPopup = ({
         <Dialog
           open={deleteDialogOpen}
           onClose={handleCloseDelete}
-          
+          container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
         >
           <DialogTitle>Delete Event</DialogTitle>
           <DialogContent>

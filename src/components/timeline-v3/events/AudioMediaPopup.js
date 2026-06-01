@@ -263,7 +263,14 @@ const AudioMediaPopup = ({
       onClose={onClose}
       maxWidth="lg"
       fullWidth
-      
+      container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
       sx={{
         '& .MuiDialog-container': {
           overscrollBehavior: 'none',
@@ -297,7 +304,6 @@ const AudioMediaPopup = ({
           margin: { xs: 1, sm: 2, md: 'auto' },
           overflowY: { xs: 'auto', md: 'hidden' }
         },
-        component: motion.div,
         drag: "x",
         dragConstraints: { left: 0, right: 0 },
         dragElastic: { left: 0.5, right: 0.5 },
@@ -707,7 +713,7 @@ const AudioMediaPopup = ({
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDelete}
-        
+        container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
       >
         <DialogTitle>Delete Event</DialogTitle>
         <DialogContent>
@@ -736,7 +742,7 @@ const AudioMediaPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          
+          container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>
