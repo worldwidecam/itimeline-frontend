@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Chip, Box, useTheme, Tooltip, Typography } from '@mui/material';
 import { Label as TagIcon, People as CommunityIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
@@ -7,6 +8,7 @@ import TimelineNameDisplay from '../../TimelineNameDisplay';
 
 const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   // Seed timeline classification from associatedTimelines (optimistic, reduces flicker)
   const seedTimelineData = React.useMemo(() => {
     try {
@@ -124,7 +126,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
     fetchTimelineData();
   }, [tagsArray, seedTimelineData]);
 
-  // Function to handle tag click - opens the respective timeline in a new tab
+  // Function to handle tag click - opens the respective timeline in same tab by default
   const handleTagClick = async (e, tagName) => {
     e.stopPropagation(); // Prevent event bubbling to parent components
     
@@ -133,18 +135,25 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
       const slug = tagName.toUpperCase();
       const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
       
-      if (response.data && response.data.id) {
-        // If we found the timeline, open it in a new tab
-        window.open(`/timeline-v3/${response.data.id}`, '_blank');
+      const route = response.data && response.data.id
+        ? `/timeline-v3/${response.data.id}`
+        : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
       } else {
-        console.error('Timeline not found for tag:', tagName);
+        navigate(route);
       }
     } catch (error) {
       console.error('Error fetching timeline for tag:', tagName, error);
-      // If there's an error, we can still try to open the timeline by name
-      // This is a fallback in case the API call fails
       const timelineName = tagName.toUpperCase();
-      window.open(`/timeline-v3/new?name=${encodeURIComponent(timelineName)}`, '_blank');
+      const route = `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
+      
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
+      } else {
+        navigate(route);
+      }
     }
   };
 

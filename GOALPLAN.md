@@ -17,11 +17,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current Objective
 
-
-- and how come the scrolling and swiping for the background is halted correctly when i'm in hamburger menu, or i'm in hashtag timeline settings or access panel for personal timeline's, but when i have an event Popup open I just can't seem to get the page behind it to stop scrolling on contact.
-
-* gotta get pinch-to-zoom in/out working for theory board module.
-
 * need a backup way for users to remember their password
 
 * NSFW filter logic. tie it to our existing elements like content blurring and user's birthdate input.
@@ -62,6 +57,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 #### COMPLETE 
 (move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
+- [x] gotta get pinch-to-zoom in/out working for theory board module (implemented smooth multitouch pinch-to-zoom on touchscreen with stable focal midpoint zoom and seamless single-finger pan recovery)
+- [x] fix fullscreen dialog blocking issue inside the Theory Board module (standardized the 'Isolated Pamphlet' pattern by portaling MUI Dialogs into document.fullscreenElement when active so event popups render beautifully in front of the board)
+- [x] consolidate landing page user count chip and integrate into Site Control page (abstracted the fire-themed user count chip into a reusable UserCountChip component and integrated it next to the User List refresh button on the Site Control page)
+- [x] halt background timeline scrolling and swiping when Event Popups are open (standardised mouse/touch/wheel event propagation blocking at the Dialog wrapper level across all 5 specialised event popups to keep the timeline canvas completely static)
 - [x] fix profile settings texts module toggle default active visual fallback and rename empty modules placeholder card title on Profile page (toggles now default to active when unsaved and respect inactive saved state; empty placeholder title is now "Profile Modules" and only mounts on the owner's profile page; implemented robust legacy key grouping and deduplication to ensure old 'profile-module-texts-main' keys do not conflict with new switches)
 - [x] need to fix save changes on profile settings page (resolved multi-field visual state override by fetching the freshest user profile from /api/v1/users/me after all sequential updates are saved, synchronizing the React context, localStorage, and component states seamlessly)
 - [x] in hamburger menu, add more rows to 'last visited timeline' section (implemented a robust, backwards-compatible history list that tracks and cycles through up to 5 recently visited timelines, displaying the correct styling, community/personal prefixes, text truncation, deduplication, and active timeline exclusion)

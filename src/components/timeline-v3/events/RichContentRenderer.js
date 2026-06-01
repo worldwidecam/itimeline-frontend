@@ -248,16 +248,23 @@ const RichContentRenderer = ({
     return tab;
   };
 
-  const handleMentionClick = async (type, name, username) => {
+  const handleMentionClick = async (e, type, name, username) => {
     if (disableInteractions) return;
     if (typeof onChipClick === 'function') {
       onChipClick(type, name, username);
     }
+    const isNewTab = e && (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1);
+
     switch (type) {
       case 'user_mention': {
         const userData = await fetchUserData(username);
         if (userData && userData.id) {
-          navigate(`/profile/${userData.id}`);
+          const route = `/profile/${userData.id}`;
+          if (isNewTab) {
+            window.open(route, '_blank');
+          } else {
+            navigate(route);
+          }
         }
         break;
       }
@@ -268,7 +275,12 @@ const RichContentRenderer = ({
           const route = timeline?.id
             ? `/timeline-v3/${timeline.id}`
             : `/timeline-v3/new?name=${encodeURIComponent(timelineName)}`;
-          navigate(route);
+          
+          if (isNewTab) {
+            window.open(route, '_blank');
+          } else {
+            navigate(route);
+          }
         } catch (error) {
           console.error('Error fetching hashtag timeline:', error);
         }
@@ -280,7 +292,12 @@ const RichContentRenderer = ({
           const timeline = await resolveTimelineByName(baseName)
             || await resolveTimelineByName(`i-${baseName}`);
           if (timeline?.id) {
-            navigate(`/timeline-v3/${timeline.id}`);
+            const route = `/timeline-v3/${timeline.id}`;
+            if (isNewTab) {
+              window.open(route, '_blank');
+            } else {
+              navigate(route);
+            }
           }
         } catch (error) {
           console.error('Error fetching community timeline:', error);
@@ -348,7 +365,7 @@ const RichContentRenderer = ({
           return (
             <Tooltip key={index} title="Click to view profile">
               <Box
-                onClick={() => handleMentionClick('user_mention', item.username, item.username)}
+                onClick={(e) => handleMentionClick(e, 'user_mention', item.username, item.username)}
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -407,7 +424,7 @@ const RichContentRenderer = ({
                 icon={<HashtagIcon fontSize="small" />}
                 label={getTimelineMentionLabel(item.name)}
                 size="small"
-                onClick={() => handleMentionClick('hashtag_mention', item.name, null)}
+                onClick={(e) => handleMentionClick(e, 'hashtag_mention', item.name, null)}
                 sx={{
                   cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: pickChipBg({
@@ -438,7 +455,7 @@ const RichContentRenderer = ({
                 icon={<CommunityIcon />}
                 label={getTimelineMentionLabel(item.name)}
                 size="small"
-                onClick={() => handleMentionClick('community_mention', item.name, null)}
+                onClick={(e) => handleMentionClick(e, 'community_mention', item.name, null)}
                 sx={{
                   cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: pickChipBg({
@@ -469,7 +486,7 @@ const RichContentRenderer = ({
                 icon={<LinkIcon />}
                 label={item.text || item.url}
                 size="small"
-                onClick={() => handleMentionClick('link', item.url)}
+                onClick={(e) => handleMentionClick(e, 'link', item.url)}
                 sx={{
                   cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: pickChipBg({
@@ -508,7 +525,7 @@ const RichContentRenderer = ({
                 icon={<EventTypeIcon fontSize="small" />}
                 label={eventTypeDisplay.label}
                 size="small"
-                onClick={canOpenEventReference ? () => handleMentionClick('event_reference', normalizedEventId, null) : undefined}
+                onClick={canOpenEventReference ? (e) => handleMentionClick(e, 'event_reference', normalizedEventId, null) : undefined}
                 sx={{
                   cursor: canOpenEventReference ? 'pointer' : 'default',
                   bgcolor: eventColor.bg,

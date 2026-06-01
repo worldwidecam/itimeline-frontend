@@ -117,24 +117,19 @@ const RichContentRenderer = ({ content, theme }) => {
     }
   };
 
-  const handleMentionClick = async (type, name, username) => {
-    const toAbsoluteRoute = (route) => {
-      if (!route) return '';
-      if (/^https?:\/\//i.test(route)) return route;
-      return `${window.location.origin}${route.startsWith('/') ? route : `/${route}`}`;
-    };
-    
-    const openRouteInNewTab = (route) => {
-      if (!route) return;
-      window.open(toAbsoluteRoute(route), '_blank', 'noopener,noreferrer');
-    };
-    const openPendingNewTab = () => window.open('about:blank', '_blank', 'noopener,noreferrer');
+  const handleMentionClick = async (e, type, name, username) => {
+    const isNewTab = e && (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1);
 
     switch (type) {
       case 'user_mention': {
         const userData = await fetchUserData(username);
         if (userData && userData.id) {
-          navigate(`/profile/${userData.id}`);
+          const route = `/profile/${userData.id}`;
+          if (isNewTab) {
+            window.open(route, '_blank');
+          } else {
+            navigate(route);
+          }
         }
         break;
       }
@@ -142,10 +137,14 @@ const RichContentRenderer = ({ content, theme }) => {
         try {
           const slug = name.toUpperCase();
           const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
-          if (response.data && response.data.id) {
-            navigate(`/timeline-v3/${response.data.id}`);
+          const route = response.data && response.data.id
+            ? `/timeline-v3/${response.data.id}`
+            : `/timeline-v3/new?name=${encodeURIComponent(slug)}`;
+          
+          if (isNewTab) {
+            window.open(route, '_blank');
           } else {
-            navigate(`/timeline-v3/new?name=${encodeURIComponent(slug)}`);
+            navigate(route);
           }
         } catch (error) {
           console.error('Error fetching hashtag timeline:', error);
@@ -157,7 +156,12 @@ const RichContentRenderer = ({ content, theme }) => {
           const slug = name.toUpperCase();
           const response = await api.get(`/api/v1/timelines/by-slug/${encodeURIComponent(slug)}`);
           if (response.data && response.data.id) {
-            navigate(`/timeline-v3/${response.data.id}`);
+            const route = `/timeline-v3/${response.data.id}`;
+            if (isNewTab) {
+              window.open(route, '_blank');
+            } else {
+              navigate(route);
+            }
           }
         } catch (error) {
           console.error('Error fetching community timeline:', error);
@@ -207,7 +211,7 @@ const RichContentRenderer = ({ content, theme }) => {
           return (
             <Tooltip key={index} title="Click to view profile">
               <Box
-                onClick={() => handleMentionClick('user_mention', item.username, item.username)}
+                onClick={(e) => handleMentionClick(e, 'user_mention', item.username, item.username)}
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -254,7 +258,7 @@ const RichContentRenderer = ({ content, theme }) => {
                 icon={<HashtagIcon fontSize="small" />}
                 label={item.name}
                 size="small"
-                onClick={() => handleMentionClick('hashtag_mention', item.name, null)}
+                onClick={(e) => handleMentionClick(e, 'hashtag_mention', item.name, null)}
                 sx={{
                   cursor: 'pointer',
                   bgcolor: theme.palette.mode === 'dark'
@@ -279,7 +283,7 @@ const RichContentRenderer = ({ content, theme }) => {
                 icon={<CommunityIcon />}
                 label={item.name}
                 size="small"
-                onClick={() => handleMentionClick('community_mention', item.name, null)}
+                onClick={(e) => handleMentionClick(e, 'community_mention', item.name, null)}
                 sx={{
                   cursor: 'pointer',
                   bgcolor: theme.palette.mode === 'dark'
@@ -304,7 +308,7 @@ const RichContentRenderer = ({ content, theme }) => {
                 icon={<LinkIcon />}
                 label={item.text || item.url}
                 size="small"
-                onClick={() => handleMentionClick('link', item.url)}
+                onClick={(e) => handleMentionClick(e, 'link', item.url)}
                 sx={{
                   cursor: 'pointer',
                   bgcolor: theme.palette.mode === 'dark'
@@ -335,7 +339,7 @@ const RichContentRenderer = ({ content, theme }) => {
                 icon={<EventOutlinedIcon fontSize="small" />}
                 label={item.text || `~${normalizedEventId}`}
                 size="small"
-                onClick={canOpenEventReference ? () => handleMentionClick('event_reference', normalizedEventId, null) : undefined}
+                onClick={canOpenEventReference ? (e) => handleMentionClick(e, 'event_reference', normalizedEventId, null) : undefined}
                 sx={{
                   cursor: canOpenEventReference ? 'pointer' : 'default',
                   bgcolor: eventColor.bg,

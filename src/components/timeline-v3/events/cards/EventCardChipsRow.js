@@ -103,11 +103,11 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
     e.stopPropagation();
     const openTimelineRoute = (route) => {
       if (!route) return;
-      if (isHomePage) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        window.open(route, '_blank');
+      } else {
         navigate(route);
-        return;
       }
-      window.open(route, '_blank');
     };
 
     try {

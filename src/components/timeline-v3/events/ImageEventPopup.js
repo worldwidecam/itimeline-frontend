@@ -314,7 +314,14 @@ const ImageEventPopup = ({
           onClose={handleClose}
           maxWidth="lg" // Larger dialog for the two-container layout
           fullWidth
-          
+          container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
           sx={{
             '& .MuiDialog-container': {
               overscrollBehavior: 'none',
@@ -765,7 +772,7 @@ const ImageEventPopup = ({
           <Dialog
             open={deleteDialogOpen}
             onClose={handleCloseDelete}
-            
+            container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
           >
             <DialogTitle>Delete Event</DialogTitle>
             <DialogContent>
@@ -794,8 +801,8 @@ const ImageEventPopup = ({
           onClose={handleCloseReport}
           maxWidth="xs"
           fullWidth
-          
           closeAfterTransition
+          container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
           PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
         >
           <DialogTitle sx={{ pb: 1 }}>Report Post</DialogTitle>

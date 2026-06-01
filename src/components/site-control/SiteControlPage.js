@@ -80,6 +80,7 @@ import api, {
   deleteBrokenEventById,
   listBanList,
   listWebsiteUsers,
+  getSiteUserCount,
 } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import EventPopup from '../timeline-v3/events/EventPopup';
@@ -87,6 +88,7 @@ import EventDialog from '../timeline-v3/events/EventDialog';
 import TimelineListTab from './TimelineListTab';
 import SiteControlLockView from './SiteControlLockView';
 import { displayUsername } from '../../utils/usernameDisplay';
+import UserCountChip from '../common/UserCountChip';
 import {
   getGlassDialogPaperSx,
   getGlassInputSx,
@@ -470,6 +472,7 @@ const UserListTab = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [siteUserCount, setSiteUserCount] = useState(null);
 
   const fetchUsers = useCallback(async (pageNum = 1) => {
     try {
@@ -479,6 +482,14 @@ const UserListTab = () => {
       
       if (pageNum === 1) {
         setUsers(response?.data || []);
+        try {
+          const countData = await getSiteUserCount();
+          if (typeof countData?.count === 'number') {
+            setSiteUserCount(countData.count);
+          }
+        } catch (countErr) {
+          console.warn('[UserListTab] Failed to fetch total site user count:', countErr);
+        }
       } else {
         setUsers(prev => [...prev, ...(response?.data || [])]);
       }
@@ -500,17 +511,22 @@ const UserListTab = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>Website Users</Typography>
-        <IconButton 
-          size="small"
-          onClick={() => fetchUsers(1)}
-          disabled={loading}
-          sx={{
-            color: 'primary.main',
-            '&:hover': { bgcolor: 'primary.main', color: 'white' }
-          }}
-        >
-          <RefreshIcon sx={{ fontSize: 18 }} />
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {typeof siteUserCount === 'number' && (
+            <UserCountChip count={siteUserCount} />
+          )}
+          <IconButton 
+            size="small"
+            onClick={() => fetchUsers(1)}
+            disabled={loading}
+            sx={{
+              color: 'primary.main',
+              '&:hover': { bgcolor: 'primary.main', color: 'white' }
+            }}
+          >
+            <RefreshIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
       </Box>
 
       {error && (
