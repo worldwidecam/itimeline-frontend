@@ -217,9 +217,14 @@ const Login = () => {
               InputLabelProps={{ shrink: true }}
               error={errorField === 'all'}
             />
+            <Typography align="right" sx={{ mt: 1, mb: 1 }}>
+              <Link component={RouterLink} to="/recover" sx={{ fontSize: '0.85rem' }}>
+                Forgot Password?
+              </Link>
+            </Typography>
             <Button
               type="submit" fullWidth variant="outlined"
-              sx={{ ...getGlassPillActionButtonSx(theme), mt: 3, mb: 2 }}
+              sx={{ ...getGlassPillActionButtonSx(theme), mt: 2, mb: 2 }}
             >
               Login
             </Button>

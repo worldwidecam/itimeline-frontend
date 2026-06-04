@@ -17,12 +17,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current Objective
 
-* need a backup way for users to remember their password
-
-* NSFW filter logic. tie it to our existing elements like content blurring and user's birthdate input.
-
-* need to ReVAMP the landing page timeline. make actual events, not just the intro text cards. 5 events per filter view should be enough. can save these on frontend like we've been doing.
-
 * hashtag voting system
 - for this system to work, and for us to begin, we must first look into any possible problems regarding adding tags to a post. just a safety check is fine. 
 - to be made IN TANDEM with comment section. for hashtag voting will be at the per post level, much like comment section will be.
@@ -43,8 +37,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * add/create action hover markers
 
-* in mobile view > events > popup > elipsis button is unable to be clicked because navFAB hovers over it. ideation needed
-
 
 ---
 
@@ -54,9 +46,14 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be 
 
+* NSFW filter logic. tie it to our existing elements like content blurring and user's birthdate input.
+
 #### COMPLETE 
 (move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
+- [x] revamp the landing page interactive preview timeline with a cohesive True Crime cold case narrative tracked by a sleuth podcaster (added 5 realistic, media-rich themed events per view mode using actual Unsplash image URLs for the media cards, fully supported by the landing page event marker tooltip rendering)
+- [x] fix floating action buttons (navFAB) z-index layer overlap conflict in mobile view on timeline pages (floating buttons wrapper z-index is set to a static 1250 so it sits higher than timeline markers at 1200, but lower than popups at 1300, rendering behind dialog overlays cleanly without conditional checks)
+- [x] implement secure, self-contained One-Time Backup Password Account Recovery system. Includes backend setting/recovery API routes, timing attack protection, one-time self-destruct mechanism, frontend Settings component with WebkitTextSecurity anti-autofill, fully featured recovery page (/recover) with field matching and red shake-on-error validation, session rehydration auto-login, and settings nudge alerts.
 - [x] implement production-safe silent auto-reload safety net inside index.html to eliminate white screens caused by stale browser caches / Vite chunk hash MIME mismatches, guarded against infinite reload loops
 - [x] gotta get pinch-to-zoom in/out working for theory board module (implemented smooth multitouch pinch-to-zoom on touchscreen with stable focal midpoint zoom and seamless single-finger pan recovery)
 - [x] fix fullscreen dialog blocking issue inside the Theory Board module (standardized the 'Isolated Pamphlet' pattern by portaling MUI Dialogs into document.fullscreenElement when active so event popups render beautifully in front of the board)

@@ -4358,7 +4358,15 @@ const handleRecenter = () => {
 
       {/* Animated Floating Action Buttons */}
       {!shouldBlur && (
-        <Box sx={{ position: 'fixed', right: 32, bottom: 32, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 1500 }}>
+        <Box sx={{
+          position: 'fixed',
+          right: 32,
+          bottom: 32,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          zIndex: 1250
+        }}>
         {timeline_type === 'community' && canOpenCommunityActionFab ? (
           <NavFab
             timelineId={timelineId}

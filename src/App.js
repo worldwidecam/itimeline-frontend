@@ -11,6 +11,7 @@ import PersonalTimelineWrapper from './components/timeline-v3/PersonalTimelineWr
 import Login from './components/Login';
 import Register from './components/Register';
 import RequiredUsernameChangePage from './components/RequiredUsernameChangePage';
+import AccountRecoveryPage from './components/AccountRecoveryPage';
 import Profile from './components/Profile';
 import ProfileSettings from './components/ProfileSettings';
 import UserProfileView from './components/UserProfileView';
@@ -1188,6 +1189,11 @@ function App() {
                     <Box sx={{ pt: 8 }}>
                       <Register />
                     </Box>
+                  </AuthRoute>
+                } />
+                <Route path="/recover" element={
+                  <AuthRoute>
+                    <AccountRecoveryPage />
                   </AuthRoute>
                 } />
                 <Route path="/account/required-username-change" element={

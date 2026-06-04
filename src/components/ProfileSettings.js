@@ -27,6 +27,11 @@ import {
   Slider,
   Autocomplete,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -330,6 +335,63 @@ const ProfileSettings = () => {
   const [portraitX, setPortraitX] = useState(50);
   const [portraitY, setPortraitY] = useState(50);
   const [portraitZoom, setPortraitZoom] = useState(1);
+
+  // Backup Password Recovery State
+  const [backupPassword, setBackupPasswordState] = useState('');
+  const [confirmBackupPassword, setConfirmBackupPassword] = useState('');
+  const [showBackupPassword, setShowBackupPassword] = useState(false);
+  const [confirmAuthOpen, setConfirmAuthOpen] = useState(false);
+  const [confirmAuthPassword, setConfirmAuthPassword] = useState('');
+  const [confirmAuthError, setConfirmAuthError] = useState('');
+  const [confirmAuthSubmitting, setConfirmAuthSubmitting] = useState(false);
+  const [confirmAuthErrorField, setConfirmAuthErrorField] = useState(false);
+  const [showRecoveryNudge, setShowRecoveryNudge] = useState(false);
+  const [forceShowInputs, setForceShowInputs] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('itl_recovery_nudge') === 'true') {
+      setShowRecoveryNudge(true);
+    }
+  }, []);
+
+  const handleDismissRecoveryNudge = () => {
+    localStorage.removeItem('itl_recovery_nudge');
+    setShowRecoveryNudge(false);
+  };
+
+  const handleConfirmAuthSubmit = async () => {
+    setConfirmAuthError('');
+    setConfirmAuthSubmitting(true);
+    setConfirmAuthErrorField(false);
+    try {
+      const { setBackupPassword } = await import('../utils/api');
+      await setBackupPassword(confirmAuthPassword, backupPassword);
+      
+      setSuccess('Emergency backup password successfully configured! Remember to write it down on paper.');
+      setBackupPasswordState('');
+      setConfirmBackupPassword('');
+      setConfirmAuthOpen(false);
+      localStorage.removeItem('itl_recovery_nudge');
+      setShowRecoveryNudge(false);
+      setForceShowInputs(false);
+      
+      // Save all other profile changes alongside the backup password configuration
+      await handleSubmit();
+      
+      // Reload page to lock down the recovery section
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to save recovery password:', err);
+      const errMsg = err.response?.data?.error || err.message || 'Verification failed';
+      setConfirmAuthError(errMsg);
+      setConfirmAuthErrorField(true);
+      setTimeout(() => setConfirmAuthErrorField(false), 500);
+    } finally {
+      setConfirmAuthSubmitting(false);
+    }
+  };
 
   const markUnsavedChanges = useCallback(() => {
     setHasUnsavedChanges(true);
@@ -739,6 +801,7 @@ const ProfileSettings = () => {
     setSuccess('');
     setIsSaving(true);
     setIsUploading(true);
+
     const trimmedUsername = String(formData.username || '').trim();
 
     if (!trimmedUsername) {
@@ -754,6 +817,32 @@ const ProfileSettings = () => {
       setIsUploading(false);
       setIsSaving(false);
       return;
+    }
+
+    // If backup password fields are filled out, validate them next
+    if (backupPassword) {
+      if (backupPassword.length < 12) {
+        setError('Backup recovery password must be at least 12 characters long.');
+        setIsSaving(false);
+        setIsUploading(false);
+        return;
+      }
+      if (backupPassword !== confirmBackupPassword) {
+        setError('Backup recovery passwords do not match.');
+        setIsSaving(false);
+        setIsUploading(false);
+        return;
+      }
+      
+      // Prompt for identity confirmation before applying changes
+      if (!confirmAuthOpen) {
+        setConfirmAuthPassword('');
+        setConfirmAuthError('');
+        setConfirmAuthOpen(true);
+        setIsSaving(false);
+        setIsUploading(false);
+        return;
+      }
     }
 
     // Golden rule: spaces are stored as underscores, displayed as spaces
@@ -1182,6 +1271,16 @@ const ProfileSettings = () => {
             User ID: {user?.id}
           </Typography>
         </Box>
+        
+        {showRecoveryNudge && (
+          <Alert 
+            severity="success" 
+            onClose={handleDismissRecoveryNudge}
+            sx={{ mb: 3, borderRadius: 2 }}
+          >
+            <strong>🔑 Account Recovered!</strong> Your emergency backup password has been used and deactivated. Please configure a new one below to keep your account secure.
+          </Alert>
+        )}
         
         
         {/* Error messages are shown via Snackbar at bottom-center — see below */}
@@ -2015,6 +2114,108 @@ const ProfileSettings = () => {
                 </Stack>
               </Box>
             </Grid>
+
+            {/* Backup Recovery Password Section */}
+            <Grid item xs={12}>
+              <Box sx={getGlassDialogPaperSx(theme)}>
+                <Typography variant="h6" sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1.5, 
+                  mb: 2, 
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)'
+                }}>
+                  <LockIcon color="primary" /> Emergency Account Recovery
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, ml: { xs: 0, sm: 5 }, mr: { xs: 0, sm: 5 } }}>
+                  Set a one-time emergency backup recovery password. If you lose your main password, you can reset it instantly without needing email verification.
+                </Typography>
+
+                <Alert severity="warning" sx={{ mb: 3, ml: { xs: 0, sm: 5 }, mr: { xs: 0, sm: 5 } }}>
+                  <strong>⚠️ IMPORTANT NOTICE:</strong> Please physically write down your emergency backup password on paper, along with your <strong>User ID Number ({user?.id})</strong>, and store it in a safe place. Do not store it digitally where others can access it.
+                </Alert>
+
+                {user?.has_backup_password ? (
+                  <Box sx={{ 
+                    ml: { xs: 0, sm: 5 },
+                    mr: { xs: 0, sm: 5 },
+                    p: 2.5, 
+                    borderRadius: 3, 
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.08)' : 'rgba(76, 175, 80, 0.05)', 
+                    border: '1px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.25)' : 'rgba(76, 175, 80, 0.2)',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 2 
+                  }}>
+                    <CheckCircleIcon color="success" sx={{ fontSize: 28 }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'success.main', fontSize: '0.95rem' }}>
+                        Emergency Recovery Password Secured
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Your backup key is registered and ready. It will self-destruct once used for recovery.
+                      </Typography>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ ml: { xs: 0, sm: 5 }, mr: { xs: 0, sm: 5 }, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <TextField
+                        type="text"
+                        name="n_code"
+                        id="n_code"
+                        autoComplete="off"
+                        label="New Backup Password"
+                        placeholder="Enter strong backup password..."
+                        value={backupPassword}
+                        onChange={(e) => {
+                          setBackupPasswordState(e.target.value);
+                          markUnsavedChanges();
+                        }}
+                        inputProps={{ style: { WebkitTextSecurity: showBackupPassword ? 'none' : 'disc' } }}
+                        sx={{ ...getGlassInputSx(theme), flex: 1, minWidth: 260 }}
+                        helperText="Must be at least 12 characters long."
+                        FormHelperTextProps={{
+                          sx: {
+                            color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                            fontSize: '0.75rem',
+                            mt: 0.5,
+                          }
+                        }}
+                      />
+                      <TextField
+                        type="text"
+                        name="c_code"
+                        id="c_code"
+                        autoComplete="off"
+                        label="Confirm Backup Password"
+                        placeholder="Repeat backup password..."
+                        value={confirmBackupPassword}
+                        onChange={(e) => {
+                          setConfirmBackupPassword(e.target.value);
+                          markUnsavedChanges();
+                        }}
+                        inputProps={{ style: { WebkitTextSecurity: showBackupPassword ? 'none' : 'disc' } }}
+                        sx={{ ...getGlassInputSx(theme), flex: 1, minWidth: 260 }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+                      <Button
+                        variant="text"
+                        onClick={() => setShowBackupPassword(!showBackupPassword)}
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                      >
+                        {showBackupPassword ? "Hide Characters" : "Show Characters"}
+                      </Button>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
             
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />
@@ -2055,6 +2256,64 @@ const ProfileSettings = () => {
             {success}
           </Alert>
         </Snackbar>
+
+        {/* Identity Verification Dialog for setting Backup Password */}
+        <Dialog 
+          open={confirmAuthOpen} 
+          onClose={() => !confirmAuthSubmitting && setConfirmAuthOpen(false)}
+          PaperProps={{
+            sx: {
+              ...getGlassDialogPaperSx(theme),
+              p: 3,
+              maxWidth: 440,
+            },
+            className: confirmAuthErrorField ? 'animate-shake' : '',
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 700, p: 0, mb: 1.5 }}>
+            Confirm Identity
+          </DialogTitle>
+          <DialogContent sx={{ p: 0, mb: 3 }}>
+            <DialogContentText sx={{ mb: 2, color: 'text.secondary', fontSize: '0.9rem' }}>
+              To set your emergency recovery password, please enter your current account password below.
+            </DialogContentText>
+            {confirmAuthError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {confirmAuthError}
+              </Alert>
+            )}
+            <TextField
+              autoFocus
+              fullWidth
+              type="text"
+              name="v_code"
+              id="v_code"
+              label="Current Password"
+              value={confirmAuthPassword}
+              onChange={(e) => setConfirmAuthPassword(e.target.value)}
+              inputProps={{ style: { WebkitTextSecurity: 'disc' } }}
+              autoComplete="off"
+              sx={getGlassInputSx(theme)}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 0, gap: 1.5 }}>
+            <Button 
+              onClick={() => setConfirmAuthOpen(false)} 
+              disabled={confirmAuthSubmitting}
+              sx={{ borderRadius: 2 }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmAuthSubmit} 
+              variant="contained"
+              disabled={!confirmAuthPassword || confirmAuthSubmitting}
+              sx={{ ...getGlassPillActionButtonSx(theme), px: 3 }}
+            >
+              {confirmAuthSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
     </Container>
     
