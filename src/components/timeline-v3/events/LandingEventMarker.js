@@ -204,6 +204,15 @@ const LandingEventMarker = ({
   
   // Get appropriate media content based on event and view
   const getMediaContent = () => {
+    // If the event has an explicit media URL, render it directly as an image
+    if (event.media_url) {
+      return {
+        type: 'image',
+        src: event.media_url,
+        alt: event.title
+      };
+    }
+
     // Context-appropriate icons for specific events in each view
     
     // Day view - Lunch with friends
