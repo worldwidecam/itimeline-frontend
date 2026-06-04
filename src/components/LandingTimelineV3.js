@@ -11,199 +11,205 @@ import { subDays, addDays, subMonths, addMonths, subYears, addYears } from 'date
 const generateDemoEvents = () => {
   const now = new Date();
   
-  // DAY VIEW EVENTS - Modern, relatable daily life examples
+  // DAY VIEW EVENTS - Sleuth discovery
   const dayViewEvents = [
     {
       id: 101,
-      title: "Morning Brew & Planning",
-      description: "Starting the day with a flat white and mapping out the new timeline features.",
-      type: "remark",
+      title: "Hike on Whispering Pines Trail",
+      description: "Went hiking with Sarah on the old trail. Took some photos of the beautiful forest path.",
+      type: "media",
       position: -10,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 30, 0).toISOString(),
-      tags: ["daily", "coffee", "productive"]
+      media_url: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600",
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 4, 15, 0).toISOString(),
+      tags: ["hiking", "trail", "forest"]
     },
     {
       id: 102,
-      title: "New AI Model Alpha Test",
-      description: "Testing the latest LLM integration for auto-tagging timeline events. Results are promising!",
-      type: "media",
+      title: "Breaking: Evidence Found Near Trail",
+      description: "Local news reports a hiker found a buried container with items linked to the 1994 cold case.",
+      type: "news",
       position: -4,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0, 0).toISOString(),
-      tags: ["tech", "AI", "devlog"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0).toISOString(),
+      tags: ["breakingnews", "coldcase", "localnews"]
     },
     {
       id: 103,
-      title: "Lunch Break in the Park",
-      description: "Catching some sun while browsing the community timelines. Found some great history boards today.",
+      title: "The Trail Connection",
+      description: "Wait! Sarah and I walked right past that exact hollow oak tree this morning. I'm starting this timeline to track it.",
       type: "remark",
       position: 1,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 15, 0).toISOString(),
-      tags: ["social", "nature", "break"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 30, 0).toISOString(),
+      tags: ["investigation", "clues"]
     },
     {
       id: 104,
-      title: "Global Tech Summit 2026",
-      description: "The keynote on decentralized identity just finished. Huge implications for iTimeline's future.",
-      type: "news",
+      title: "Rusted Key in the Mud",
+      description: "Went back to the trail. Found this old rusted iron key half-buried in the mud near the oak tree.",
+      type: "media",
       position: 6,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 45, 0).toISOString(),
-      tags: ["summit", "future", "tech"]
+      media_url: "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600",
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0).toISOString(),
+      tags: ["evidence", "trail"]
     },
     {
       id: 105,
-      title: "Evening Wind Down",
-      description: "Reflecting on a productive day. Organizing the 'Project Launch' timeline before bed.",
+      title: "Recording Podcast Episode 1",
+      description: "Setting up my microphone to record the first episode of 'The Pines Mystery'. It's time to share what we found.",
       type: "remark",
       position: 11,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 0, 0).toISOString(),
-      tags: ["night", "planning", "mindful"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 22, 30, 0).toISOString(),
+      tags: ["podcast", "recording"]
     }
   ];
 
-  // WEEK VIEW EVENTS - Community and milestone focused
+  // WEEK VIEW EVENTS - Investigation grows
   const weekViewEvents = [
     {
       id: 201,
-      title: "Community Milestone: 50k Timelines!",
-      description: "Our community just surpassed 50,000 public timelines. Thank you for sharing your stories!",
+      title: "Police Report: No New Leads",
+      description: "Sheriff's department statement claims trail evidence is inconclusive. The case remains cold.",
       type: "news",
       position: -12,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 10, 0, 0).toISOString(),
-      tags: ["community", "milestone", "celebration"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 9, 0, 0).toISOString(),
+      tags: ["police", "update"]
     },
     {
       id: 202,
-      title: "Weekend Hiking Trip",
-      description: "Captured some incredible 4K footage of the summit. Uploading to the 'Nature Walks' board soon.",
-      type: "media",
+      title: "Episode 1 Goes Live",
+      description: "Published 'Episode 1: The Trail Key'. Shared our trail coordinates and key photos. The town deserves answers.",
+      type: "remark",
       position: -6,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3, 14, 0, 0).toISOString(),
-      tags: ["adventure", "outdoors", "video"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 4, 11, 15, 0).toISOString(),
+      tags: ["podcast", "viral"]
     },
     {
       id: 203,
-      title: "v3 Beta Feature: Rich Media Preview",
-      description: "Successfully implemented live URL previews for all event cards. Check it out!",
-      type: "news",
+      title: "The Abandoned Cabin",
+      description: "A listener sent a tip about an abandoned cabin deep in the woods. Fits the timeline perfectly.",
+      type: "media",
       position: 0,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0).toISOString(),
-      tags: ["update", "beta", "feature"]
+      media_url: "https://images.unsplash.com/photo-1722532850960-5ed0751d80fd?w=600",
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0).toISOString(),
+      tags: ["leads", "cabin"]
     },
     {
       id: 204,
-      title: "Neighborhood Block Party",
-      description: "Great turnout this year. Created a shared community timeline for everyone to upload photos.",
-      type: "media",
+      title: "Retired Sheriff Interview",
+      description: "Met with a retired deputy who worked the case in '94. He confirmed the key we found matches the cabin lock!",
+      type: "remark",
       position: 5,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 18, 30, 0).toISOString(),
-      tags: ["local", "social", "community"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 20, 45, 0).toISOString(),
+      tags: ["interview", "cabin"]
     },
     {
       id: 205,
-      title: "Major Infrastructure Upgrade",
-      description: "Switching to the new Cloudflare Workers backend for 2x faster load times.",
+      title: "Breaking: Police Search Cabin",
+      description: "Following tips from the podcast, investigators obtain a warrant and enter the Whispering Pines cabin.",
       type: "news",
       position: 11,
-      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5, 0, 0, 0).toISOString(),
-      tags: ["dev", "speed", "backend"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5, 10, 0, 0).toISOString(),
+      tags: ["police", "warrant"]
     }
   ];
 
-  // MONTH VIEW EVENTS - Global and long-term milestones
+  // MONTH VIEW EVENTS - Timeline reconstruction
   const monthViewEvents = [
     {
       id: 301,
-      title: "First Mars Colony Anniversary",
-      description: "Celebrating 5 years since the first permanent settlement was established.",
+      title: "1994 Logbook Discovered",
+      description: "Search teams at the cabin uncover a hidden compartment containing a visitor logbook from 1994.",
       type: "news",
       position: -10,
-      event_date: new Date(now.getFullYear(), now.getMonth() - 5, 10, 9, 0, 0).toISOString(),
-      tags: ["history", "space", "science"]
+      event_date: new Date(now.getFullYear(), now.getMonth() - 1, 5, 9, 0, 0).toISOString(),
+      tags: ["evidence", "cabin"]
     },
     {
       id: 302,
-      title: "iTimeline Mobile App v1.0 Launch",
-      description: "The wait is over! iTimeline is now available on iOS and Android.",
+      title: "Town Archival Blueprints",
+      description: "Spent days in the town archives. Found the original 1990 blueprints of the estate showing secret crawlspaces.",
       type: "media",
       position: -4,
-      event_date: new Date(now.getFullYear(), now.getMonth() - 2, 15, 10, 0, 0).toISOString(),
-      tags: ["launch", "mobile", "ios", "android"]
+      media_url: "https://images.unsplash.com/photo-1712696779652-dfca8766c5f8?w=600",
+      event_date: new Date(now.getFullYear(), now.getMonth() - 1, 15, 14, 0, 0).toISOString(),
+      tags: ["archives", "blueprints"]
     },
     {
       id: 303,
-      title: "Summer Solstice Festival",
-      description: "The largest digital-physical hybrid festival starts today.",
-      type: "media",
+      title: "Timeline Matches Logbook",
+      description: "The suspect's logbook visits align exactly with the dates of the blueprint changes and the victim's disappearance.",
+      type: "remark",
       position: 1,
-      event_date: new Date(now.getFullYear(), now.getMonth(), 21, 12, 0, 0).toISOString(),
-      tags: ["festival", "culture", "summer"]
+      event_date: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0).toISOString(),
+      tags: ["breakthrough", "timeline"]
     },
     {
       id: 304,
-      title: "Quarterly Community Town Hall",
-      description: "Joining the founders to discuss the Q4 roadmap and user-requested features.",
-      type: "remark",
+      title: "Antique Lockbox Uncovered",
+      description: "Found the suspect's lockbox hidden behind the chimney. It contained letters that tie everything together.",
+      type: "media",
       position: 7,
-      event_date: new Date(now.getFullYear(), now.getMonth() + 2, 5, 15, 0, 0).toISOString(),
-      tags: ["roadmap", "transparency", "feedback"]
+      media_url: "https://images.unsplash.com/photo-1641359255145-9af4ff37a4f5?w=600",
+      event_date: new Date(now.getFullYear(), now.getMonth() + 1, 5, 16, 0, 0).toISOString(),
+      tags: ["evidence", "lockbox"]
     },
     {
       id: 305,
-      title: "The Great Ocean Cleanup Completion",
-      description: "Ocean Foundation announces 90% of surface plastics removed. A win for the planet!",
+      title: "Suspect Identified & Charged",
+      description: "District Attorney formally charges the prime suspect with kidnapping and conspiracy, ending a 32-year hunt.",
       type: "news",
       position: 12,
-      event_date: new Date(now.getFullYear(), now.getMonth() + 4, 18, 9, 0, 0).toISOString(),
-      tags: ["environment", "goodnews", "ocean"]
+      event_date: new Date(now.getFullYear(), now.getMonth() + 1, 20, 9, 0, 0).toISOString(),
+      tags: ["suspect", "justice"]
     }
   ];
 
-  // YEAR VIEW EVENTS - Historic and future visions
+  // YEAR VIEW EVENTS - The full arc
   const yearViewEvents = [
     {
       id: 401,
-      title: "The Genesis of iTimeline",
-      description: "The first commit that started it all. A vision for organized digital memory.",
+      title: "Launching the Podcast",
+      description: "Started 'The Pines Mystery' with zero listeners, a basic microphone, and a desire to find the truth.",
       type: "remark",
       position: -12,
-      event_date: new Date(now.getFullYear() - 4, 3, 12, 0, 0, 0).toISOString(),
-      tags: ["genesis", "history", "milestone"]
+      event_date: new Date(now.getFullYear() - 1, 4, 12, 0, 0, 0).toISOString(),
+      tags: ["podcast", "genesis"]
     },
     {
       id: 402,
-      title: "Global Transition to Clean Energy",
-      description: "Renewables officially surpass fossil fuels as the world's primary energy source.",
+      title: "Podcast Impact: Case Re-opened",
+      description: "With over 100k listeners sharing tips, the State Attorney formally re-opens the cold case investigation.",
       type: "news",
       position: -7,
-      event_date: new Date(now.getFullYear() - 2, 8, 22, 0, 0, 0).toISOString(),
-      tags: ["earth", "energy", "progress"]
+      event_date: new Date(now.getFullYear() - 1, 9, 22, 0, 0, 0).toISOString(),
+      tags: ["impact", "stateoffice"]
     },
     {
       id: 403,
-      title: "The Year of Expansion",
-      description: "iTimeline scales to 1 million active users and introduces Community Timelines.",
+      title: "Current Day: The Trial Begins",
+      description: "The Whispering Pines cold case trial finally begins. The courtroom is packed with listeners and locals.",
       type: "remark",
       position: 0,
       event_date: new Date(now.getFullYear(), 5, 1, 0, 0, 0).toISOString(),
-      tags: ["growth", "v3", "current"]
+      tags: ["trial", "courtroom"]
     },
     {
       id: 404,
-      title: "First Interstellar Probe Launch",
-      description: "Humanity's first mission to Alpha Centauri begins its journey.",
+      title: "Inside the Courthouse",
+      description: "Documenting the historic courtroom trial. Showing the gavel that will decide the final verdict.",
       type: "media",
       position: 6,
-      event_date: new Date(now.getFullYear() + 2, 10, 15, 0, 0, 0).toISOString(),
-      tags: ["future", "voyage", "space"]
+      media_url: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600",
+      event_date: new Date(now.getFullYear() + 1, 10, 15, 0, 0, 0).toISOString(),
+      tags: ["courthouse", "gavel"]
     },
     {
       id: 405,
-      title: "The Decadal Vision",
-      description: "Planning for the 2030s: Connecting every shared memory across the globe.",
-      type: "media",
+      title: "Verdict: Guilty on All Counts",
+      description: "Jury reaches a unanimous verdict. Justice is served, bringing peace to Whispering Pines at last.",
+      type: "news",
       position: 12,
-      event_date: new Date(now.getFullYear() + 5, 0, 1, 0, 0, 0).toISOString(),
-      tags: ["vision", "2030", "longterm"]
+      event_date: new Date(now.getFullYear() + 2, 0, 1, 0, 0, 0).toISOString(),
+      tags: ["verdict", "justice"]
     }
   ];
 

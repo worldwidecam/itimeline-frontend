@@ -2877,4 +2877,28 @@ export const createModerationAction = (data) => api.post('/api/v1/moderation', d
 export const updateModerationAction = (id, data) => api.patch(`/api/v1/moderation/${id}`, data);
 export const listModerationActions = (params) => api.get('/api/v1/moderation', { params });
 
+/**
+ * Set one-time emergency backup recovery password
+ */
+export const setBackupPassword = async (currentPassword, backupPassword) => {
+  const response = await api.post('/api/v1/auth/set-backup-password', {
+    current_password: currentPassword,
+    backup_password: backupPassword,
+  });
+  return response.data;
+};
+
+/**
+ * Recover account and reset password using emergency backup password
+ */
+export const recoverAccount = async (identifierOrEmail, backupPassword, newPassword) => {
+  const response = await api.post('/api/v1/auth/recover-account', {
+    identifier: identifierOrEmail,
+    email: identifierOrEmail,
+    backup_password: backupPassword,
+    new_password: newPassword,
+  });
+  return response.data;
+};
+
 export default api;
