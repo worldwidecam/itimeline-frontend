@@ -452,7 +452,7 @@ const ImageEventPopup = ({
             <Box
               sx={{
                 width: { xs: '100%', md: '40%' },
-                height: '100%',
+                height: { xs: 'auto', md: '100%' },
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
@@ -524,7 +524,7 @@ const ImageEventPopup = ({
             {/* Scrollable content area */}
             <DialogContent
               sx={{
-                height: '100%',
+                height: { xs: 'auto', md: '100%' },
                 p: 4,
                 display: 'flex',
                 flexDirection: 'column',

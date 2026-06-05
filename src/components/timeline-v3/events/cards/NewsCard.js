@@ -500,17 +500,12 @@ const NewsCard = forwardRef(({
 
           {/* URL Preview Card */}
           {hasUrlPreview && (
-            <Link 
-              href={normalizedEventUrl || undefined}
-              target="_blank" 
-              rel="noopener noreferrer"
-              underline="none"
+            <Box 
               sx={{ 
                 display: 'block', 
                 mb: 1, 
-                color: 'inherit',
+                cursor: 'pointer',
                 '&:hover': { 
-                  textDecoration: 'none',
                   '& .MuiPaper-root': {
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
                   }
@@ -631,7 +626,7 @@ const NewsCard = forwardRef(({
                   </>
                 )}
               </Paper>
-            </Link>
+            </Box>
           )}
           <Box sx={{ mt: 'auto' }}>
             <EventCardChipsRow 

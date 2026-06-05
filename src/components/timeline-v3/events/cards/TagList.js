@@ -300,7 +300,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                 }
                 label={
                   <TimelineNameDisplay
-                    name={tagName}
+                    name={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
                     type="community"
                     visibility={timelineInfo.visibility || 'public'}
                     typographyProps={{
@@ -367,7 +367,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                     }} 
                   />
                 }
-                label={tagName}
+                label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
                 size="small"
                 onClick={(e) => handleTagClick(e, tagName)}
                 sx={{

@@ -193,6 +193,8 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
         gap: 0.75, 
         flexWrap: 'wrap', 
         mb: 1,
+        pt: 0.5,
+        pb: 0.5,
         ...(fullMode && {
           maxHeight: maxHeight,
           overflowY: 'auto',
@@ -219,7 +221,7 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
                 }}
               />
             )}
-            label={tagName}
+            label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
             size="small"
             onClick={(e) => handleHashtagClick(e, tagName)}
             sx={{

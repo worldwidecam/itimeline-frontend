@@ -381,7 +381,7 @@ const NewsEventPopup = ({
               }
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: '100%', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: 'auto', md: '100%' }, overflow: { xs: 'visible', md: 'hidden' } }}>
               {/* Left Container - Preview */}
               {mediaSource && (
                 <Box
@@ -421,7 +421,7 @@ const NewsEventPopup = ({
               )}
 
               {/* Right Container - Details */}
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: { xs: 'auto', md: '100%' }, minWidth: 0 }}>
                 <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
