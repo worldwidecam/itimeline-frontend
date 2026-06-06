@@ -145,7 +145,16 @@ const Pill = ({ label, count, icon, color }) => {
   );
 };
 
-const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
+const HashtagChips = ({
+  tags = [],
+  fullMode = false,
+  maxHeight = '200px',
+  isVotingMode = false,
+  activeRouletteIndex = null,
+  myTagVote = null,
+  onHashtagVoteClick = null,
+  votingInProgress = false,
+}) => {
   const theme = useTheme();
   const navigate = useNavigate();
   if (!tags.length) return null;
@@ -193,6 +202,8 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
         gap: 0.75, 
         flexWrap: 'wrap', 
         mb: 1,
+        pt: 0.5,
+        pb: 0.5,
         ...(fullMode && {
           maxHeight: maxHeight,
           overflowY: 'auto',
@@ -202,10 +213,28 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
     >
       {visible.map((tagName, idx) => {
         const isDarkMode = theme.palette.mode === 'dark';
+        const isHighlighted = isVotingMode && idx === activeRouletteIndex;
+        const isVoted = myTagVote === tagName;
+
         const medalColors = getMedalColors(idx, isDarkMode);
-        const tagColor = medalColors ? medalColors.text : stringToColor(tagName, isDarkMode);
-        const bg = medalColors ? medalColors.bg : (isDarkMode ? alpha(tagColor, 0.15) : alpha(tagColor, 0.08));
-        const border = medalColors ? medalColors.border : alpha(tagColor, 0.25);
+        
+        let tagColor, bg, border;
+        
+        if (isVotingMode) {
+          if (isHighlighted) {
+            tagColor = theme.palette.primary.main;
+            bg = isDarkMode ? alpha(tagColor, 0.3) : alpha(tagColor, 0.18);
+            border = theme.palette.primary.main;
+          } else {
+            tagColor = isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)';
+            bg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
+            border = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+          }
+        } else {
+          tagColor = medalColors ? medalColors.text : stringToColor(tagName, isDarkMode);
+          bg = medalColors ? medalColors.bg : (isDarkMode ? alpha(tagColor, 0.15) : alpha(tagColor, 0.08));
+          border = medalColors ? medalColors.border : alpha(tagColor, 0.25);
+        }
 
         return (
           <Chip
@@ -219,16 +248,30 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
                 }}
               />
             )}
-            label={tagName}
+            label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
             size="small"
-            onClick={(e) => handleHashtagClick(e, tagName)}
+            onClick={(e) => {
+              if (votingInProgress) return;
+              if (isVotingMode && onHashtagVoteClick) {
+                e.stopPropagation();
+                onHashtagVoteClick(tagName);
+              } else {
+                handleHashtagClick(e, tagName);
+              }
+            }}
+            disabled={votingInProgress}
             sx={{
-              cursor: 'pointer',
+              cursor: votingInProgress ? 'not-allowed' : 'pointer',
+              opacity: votingInProgress ? 0.6 : 1,
               '&:hover': {
-                backgroundColor: medalColors 
-                  ? (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.14))
-                  : (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.16)),
-                borderColor: medalColors ? border : alpha(tagColor, 0.45),
+                backgroundColor: votingInProgress
+                  ? bg
+                  : (isVotingMode
+                      ? bg
+                      : (medalColors 
+                          ? (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.14))
+                          : (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.16)))),
+                borderColor: isVotingMode ? border : (medalColors ? border : alpha(tagColor, 0.45)),
               },
               height: 24,
               backgroundColor: bg,
@@ -238,7 +281,7 @@ const HashtagChips = ({ tags = [], fullMode = false, maxHeight = '200px' }) => {
               '& .MuiChip-label': {
                 px: 1,
                 fontSize: '0.75rem',
-                fontWeight: medalColors ? 600 : 500,
+                fontWeight: (medalColors || isHighlighted) ? 600 : 500,
               },
               '& .MuiChip-icon': {
                 mr: 0.5,
@@ -298,6 +341,11 @@ const PopupTimelineLanes = ({
   shakeHashtag = false,
   shakeCommunity = false,
   shakePersonal = false,
+  isVotingMode = false,
+  activeRouletteIndex = null,
+  myTagVote = null,
+  onHashtagVoteClick = null,
+  votingInProgress = false,
 }) => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -553,7 +601,16 @@ const PopupTimelineLanes = ({
         )}
         
         {/* Hashtag Chips */}
-        <HashtagChips tags={hashtagTags} fullMode={true} maxHeight="300px" />
+        <HashtagChips
+          tags={hashtagTags}
+          fullMode={true}
+          maxHeight="300px"
+          isVotingMode={isVotingMode}
+          activeRouletteIndex={activeRouletteIndex}
+          myTagVote={myTagVote}
+          onHashtagVoteClick={onHashtagVoteClick}
+          votingInProgress={votingInProgress}
+        />
       </Box>
 
       {/* Communities Expandable List */}

@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import UserAvatar from '../../common/UserAvatar';
 import { Person as PersonIcon } from '@mui/icons-material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { displayUsername } from '../../../utils/usernameDisplay';
 
 /**
@@ -20,6 +20,7 @@ import { displayUsername } from '../../../utils/usernameDisplay';
  */
 const CreatorChip = ({ user, color }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   
   // If no user data or no username, don't render anything
   if (!user || !user.username) return null;
@@ -52,6 +53,7 @@ const CreatorChip = ({ user, color }) => {
         userColor={user.user_color}
         isRestricted={user.is_restricted || user.created_by_is_restricted || user.is_suspended || user.created_by_is_suspended}
         isAvatarBlurred={user.is_avatar_blurred || user.created_by_is_avatar_blurred}
+        onClick={() => navigate(`/profile/${user.id}`)}
         sx={{
           mr: { xs: 1.5, sm: 2 },
           border: `2px solid ${chipColor}`,
