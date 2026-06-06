@@ -54,6 +54,9 @@ import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
 import RichContentRenderer from './RichContentRenderer';
+import EventCommentDrawer from './EventCommentDrawer';
+import HashtagIcon from '../../common/HashtagIcon';
+import CommentIcon from '@mui/icons-material/Comment';
 
 /**
  * NewsEventPopup - A specialized popup for news events
@@ -86,7 +89,14 @@ const NewsEventPopup = ({
   fetchExistingTimelines,
   isInReview = false,
   isSafeguarded = false,
-  laneProps
+  laneProps,
+  commentsOpen,
+  setCommentsOpen,
+  isVotingMode,
+  setIsVotingMode,
+  myTagVote,
+  handleClearHashtagVote,
+  votingInProgress,
 }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -477,6 +487,72 @@ const NewsEventPopup = ({
                     {isSafeguarded && (
                       <Chip icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />} label="Safeguarded" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }} />
                     )}
+                     {myTagVote ? (
+                        <Chip
+                          icon={<HashtagIcon sx={{ fontSize: '14px !important', color: `${newsColor} !important` }} />}
+                          label={myTagVote.replace(/^#+/, '')}
+                          onClick={handleClearHashtagVote}
+                          onDelete={handleClearHashtagVote}
+                          disabled={votingInProgress}
+                          size="small"
+                          sx={{
+                            height: 32,
+                            borderRadius: '10px',
+                            bgcolor: `${newsColor}22`,
+                            color: newsColor,
+                            border: `1px solid ${newsColor}40`,
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                            opacity: votingInProgress ? 0.6 : 1,
+                          }}
+                        />
+                      ) : (
+                        <IconButton
+                          size="small"
+                          onClick={() => setIsVotingMode(!isVotingMode)}
+                          disabled={votingInProgress}
+                          sx={{
+                            bgcolor: isVotingMode ? newsColor : `${newsColor}18`,
+                            color: isVotingMode ? '#fff' : newsColor,
+                            border: `1px solid ${newsColor}40`,
+                            borderRadius: '10px',
+                            width: 32,
+                            height: 32,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                            opacity: votingInProgress ? 0.6 : 1,
+                            '&:hover': {
+                              bgcolor: isVotingMode ? newsColor : `${newsColor}28`,
+                            }
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
+                        </IconButton>
+                      )}
+                     <IconButton
+                       size="small"
+                       onClick={() => setCommentsOpen(true)}
+                       sx={{
+                         bgcolor: `${newsColor}18`,
+                         color: newsColor,
+                         border: `1px solid ${newsColor}40`,
+                         borderRadius: '10px',
+                         px: 1.5,
+                         height: 32,
+                         display: 'flex',
+                         gap: 0.5,
+                         alignItems: 'center',
+                         '&:hover': {
+                           bgcolor: `${newsColor}28`,
+                         }
+                       }}
+                     >
+                       <CommentIcon sx={{ fontSize: 16 }} />
+                       <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Comment</Typography>
+                     </IconButton>
                     {canEdit || canDelete || (!isSafeguarded && !isInReview) ? (
                       <>
                         <IconButton size="small" onClick={handleActionMenuOpen} sx={{ bgcolor: `${newsColor}18`, color: newsColor, border: `1px solid ${newsColor}40`, borderRadius: '10px', width: 32, height: 32 }}>
@@ -533,6 +609,14 @@ const NewsEventPopup = ({
             <Snackbar open={reportSnackOpen} autoHideDuration={3000} onClose={() => setReportSnackOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
               <Alert onClose={() => setReportSnackOpen(false)} severity="success" sx={{ width: '100%' }}>Report submitted</Alert>
             </Snackbar>
+            {/* Comments Drawer */}
+            <EventCommentDrawer
+              eventId={event.id}
+              open={commentsOpen}
+              onClose={() => setCommentsOpen(false)}
+              eventCreatorId={event.created_by_id}
+              eventColor={newsColor}
+            />
           </Dialog>
           
           <Dialog open={reportOpen} onClose={handleCloseReport} maxWidth="xs" fullWidth closeAfterTransition container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined} PaperProps={{ sx: getGlassDialogPaperSx(theme) }}>
