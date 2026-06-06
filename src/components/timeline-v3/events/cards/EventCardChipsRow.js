@@ -197,7 +197,7 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
                     }}
                   />
                 )}
-                label={tagName}
+                label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
                 size="small"
                 onClick={(e) => handleTagClick(e, tagName)}
                 sx={{

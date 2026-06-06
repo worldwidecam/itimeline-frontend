@@ -20,6 +20,15 @@ import { parseRichContent } from '../../../utils/richContent';
 
 const EventPopup = React.lazy(() => import('./EventPopup'));
 
+const isImageLink = (url) => {
+  try {
+    const path = url.split('?')[0].toLowerCase();
+    return path.endsWith('.gif') || path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.webp');
+  } catch (_) {
+    return false;
+  }
+};
+
 // Helper to get event type icon and color for event reference chips
 const getEventTypeDisplay = (eventType) => {
   const type = (eventType || '').toLowerCase();
@@ -332,7 +341,15 @@ const RichContentRenderer = ({
   };
 
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 0.5,
+        alignItems: 'center',
+        justifyContent: textSx?.textAlign === 'right' ? 'flex-end' : 'flex-start',
+      }}
+    >
       {contentData.content.map((item, index) => {
         if (item.type === 'text') {
           const metadataStampText = ocrMetadataStamps && isStampedEditMetadataText(item.value);
@@ -365,7 +382,10 @@ const RichContentRenderer = ({
           return (
             <Tooltip key={index} title="Click to view profile">
               <Box
-                onClick={(e) => handleMentionClick(e, 'user_mention', item.username, item.username)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMentionClick(e, 'user_mention', item.username, item.username);
+                }}
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -424,7 +444,10 @@ const RichContentRenderer = ({
                 icon={<HashtagIcon fontSize="small" />}
                 label={getTimelineMentionLabel(item.name)}
                 size="small"
-                onClick={(e) => handleMentionClick(e, 'hashtag_mention', item.name, null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMentionClick(e, 'hashtag_mention', item.name, null);
+                }}
                 sx={{
                   cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: pickChipBg({
@@ -455,7 +478,10 @@ const RichContentRenderer = ({
                 icon={<CommunityIcon />}
                 label={getTimelineMentionLabel(item.name)}
                 size="small"
-                onClick={(e) => handleMentionClick(e, 'community_mention', item.name, null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMentionClick(e, 'community_mention', item.name, null);
+                }}
                 sx={{
                   cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: pickChipBg({
@@ -480,13 +506,35 @@ const RichContentRenderer = ({
         }
 
         if (item.type === 'link') {
+          if (isImageLink(item.url)) {
+            return (
+              <Box
+                key={index}
+                component="img"
+                src={item.url}
+                alt="GIF / Image"
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: 200,
+                  borderRadius: 2,
+                  display: 'block',
+                  my: 1.5,
+                  border: '1px solid ' + (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(80,70,60,0.15)'),
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                }}
+              />
+            );
+          }
           return (
             <Tooltip key={index} title="Click to open link">
               <Chip
                 icon={<LinkIcon />}
                 label={item.text || item.url}
                 size="small"
-                onClick={(e) => handleMentionClick(e, 'link', item.url)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMentionClick(e, 'link', item.url);
+                }}
                 sx={{
                   cursor: disableInteractions ? 'default' : 'pointer',
                   bgcolor: pickChipBg({
@@ -525,7 +573,10 @@ const RichContentRenderer = ({
                 icon={<EventTypeIcon fontSize="small" />}
                 label={eventTypeDisplay.label}
                 size="small"
-                onClick={canOpenEventReference ? (e) => handleMentionClick(e, 'event_reference', normalizedEventId, null) : undefined}
+                onClick={canOpenEventReference ? (e) => {
+                  e.stopPropagation();
+                  handleMentionClick(e, 'event_reference', normalizedEventId, null);
+                } : undefined}
                 sx={{
                   cursor: canOpenEventReference ? 'pointer' : 'default',
                   bgcolor: eventColor.bg,

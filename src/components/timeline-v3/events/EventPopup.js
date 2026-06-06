@@ -8,6 +8,9 @@ import CreatorChip from './CreatorChip';
 import VoteControls from './VoteControls';
 import AudioMediaPopup from './AudioMediaPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
+import EventCommentDrawer from './EventCommentDrawer';
+import HashtagIcon from '../../common/HashtagIcon';
+import CommentIcon from '@mui/icons-material/Comment';
 import {
   Dialog,
   DialogTitle,
@@ -228,9 +231,80 @@ const EventPopup = ({
   const [passportMemberships, setPassportMemberships] = useState([]);
   // Store the updated event data after adding a tag
   const [localEventData, setLocalEventData] = useState(null);
+  const hashtagTags = ((localEventData?.tags || event.tags) || []).map((t) => {
+    if (typeof t === 'string') return t;
+    return t?.name || t?.tag_name || '';
+  }).filter(Boolean);
   const [shakeHashtag, setShakeHashtag] = useState(false);
   const [shakeCommunity, setShakeCommunity] = useState(false);
   const [shakePersonal, setShakePersonal] = useState(false);
+
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [isVotingMode, setIsVotingMode] = useState(false);
+  const [myTagVote, setMyTagVote] = useState(event?.my_tag_vote || null);
+  const [votingInProgress, setVotingInProgress] = useState(false);
+  const [activeRouletteIndex, setActiveRouletteIndex] = useState(null);
+
+  // Sync myTagVote when the event prop or local event data changes
+  useEffect(() => {
+    setMyTagVote((localEventData || event)?.my_tag_vote || null);
+  }, [event?.id, localEventData?.my_tag_vote]);
+
+  // Tag Highlight Roulette animation
+  useEffect(() => {
+    let interval;
+    if (isVotingMode) {
+      let count = 0;
+      const totalChips = hashtagTags.length;
+      if (totalChips > 0) {
+        interval = setInterval(() => {
+          setActiveRouletteIndex(count % totalChips);
+          count++;
+        }, 120);
+      }
+    } else {
+      setActiveRouletteIndex(null);
+    }
+    return () => clearInterval(interval);
+  }, [isVotingMode, hashtagTags.length]);
+
+  const handleHashtagVoteClick = async (tagName) => {
+    if (votingInProgress) return;
+    setVotingInProgress(true);
+    try {
+      setIsVotingMode(false);
+      const res = await api.post('/api/v1/events/' + event.id + '/tag-vote', { tag: tagName });
+      setMyTagVote(tagName);
+      if (res.data?.tags) {
+        setLocalEventData((prev) => ({ ...(prev || event), tags: res.data.tags, my_tag_vote: tagName }));
+      }
+      window.dispatchEvent(new CustomEvent('refresh-timeline-events'));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setVotingInProgress(false);
+    }
+  };
+
+  const handleClearHashtagVote = async (e) => {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    if (votingInProgress) return;
+    setVotingInProgress(true);
+    try {
+      const res = await api.delete('/api/v1/events/' + event.id + '/tag-vote');
+      setMyTagVote(null);
+      if (res.data?.tags) {
+        setLocalEventData((prev) => ({ ...(prev || event), tags: res.data.tags, my_tag_vote: null }));
+      }
+      window.dispatchEvent(new CustomEvent('refresh-timeline-events'));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setVotingInProgress(false);
+    }
+  };
 
   const triggerShake = (type) => {
     if (type === 'hashtag') {
@@ -689,10 +763,6 @@ const EventPopup = ({
   const isCurrentTimelinePersonal = currentTimelineType === 'personal';
   const isCurrentTimelinePrivate = currentTimelineVisibility === 'private';
   const showAssociationPrivacyWarningGate = (isCurrentTimelinePersonal || isCurrentTimelinePrivate) && !hasAcknowledgedPrivacyWarning;
-  const hashtagTags = ((localEventData?.tags || event.tags) || []).map((t) => {
-    if (typeof t === 'string') return t;
-    return t?.name || t?.tag_name || '';
-  }).filter(Boolean);
 
   useEffect(() => {
     if (open) {
@@ -956,6 +1026,11 @@ const EventPopup = ({
     shakeHashtag,
     shakeCommunity,
     shakePersonal,
+    isVotingMode,
+    activeRouletteIndex,
+    myTagVote,
+    onHashtagVoteClick: handleHashtagVoteClick,
+    votingInProgress,
   };
 
   if (isNews) {
@@ -985,6 +1060,13 @@ const EventPopup = ({
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
         laneProps={laneProps}
+        commentsOpen={commentsOpen}
+        setCommentsOpen={setCommentsOpen}
+        isVotingMode={isVotingMode}
+        setIsVotingMode={setIsVotingMode}
+        myTagVote={myTagVote}
+        handleClearHashtagVote={handleClearHashtagVote}
+        votingInProgress={votingInProgress}
       />
     </>);
   }
@@ -1021,6 +1103,13 @@ const EventPopup = ({
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
         laneProps={laneProps}
+        commentsOpen={commentsOpen}
+        setCommentsOpen={setCommentsOpen}
+        isVotingMode={isVotingMode}
+        setIsVotingMode={setIsVotingMode}
+        myTagVote={myTagVote}
+        handleClearHashtagVote={handleClearHashtagVote}
+        votingInProgress={votingInProgress}
       />
     );
   }
@@ -1054,6 +1143,13 @@ const EventPopup = ({
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
         laneProps={laneProps}
+        commentsOpen={commentsOpen}
+        setCommentsOpen={setCommentsOpen}
+        isVotingMode={isVotingMode}
+        setIsVotingMode={setIsVotingMode}
+        myTagVote={myTagVote}
+        handleClearHashtagVote={handleClearHashtagVote}
+        votingInProgress={votingInProgress}
       />
     );
   }
@@ -1087,6 +1183,13 @@ const EventPopup = ({
         isInReview={isInReview}
         isSafeguarded={isSafeguarded}
         laneProps={laneProps}
+        commentsOpen={commentsOpen}
+        setCommentsOpen={setCommentsOpen}
+        isVotingMode={isVotingMode}
+        setIsVotingMode={setIsVotingMode}
+        myTagVote={myTagVote}
+        handleClearHashtagVote={handleClearHashtagVote}
+        votingInProgress={votingInProgress}
       />
     );
   }
@@ -1461,6 +1564,72 @@ const EventPopup = ({
                   sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }}
                 />
               )}
+              {myTagVote ? (
+                <Chip
+                  icon={<HashtagIcon sx={{ fontSize: '14px !important', color: remarkColor + ' !important' }} />}
+                  label={myTagVote.replace(/^#+/, '')}
+                  onClick={handleClearHashtagVote}
+                  onDelete={handleClearHashtagVote}
+                  disabled={votingInProgress}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    borderRadius: '10px',
+                    bgcolor: remarkColor + '22',
+                    color: remarkColor,
+                    border: '1px solid ' + remarkColor + '40',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                    opacity: votingInProgress ? 0.6 : 1,
+                  }}
+                />
+              ) : (
+                <IconButton
+                  size="small"
+                  onClick={() => setIsVotingMode(!isVotingMode)}
+                  disabled={votingInProgress}
+                  sx={{
+                    bgcolor: isVotingMode ? remarkColor : remarkColor + '18',
+                    color: isVotingMode ? '#fff' : remarkColor,
+                    border: '1px solid ' + remarkColor + '40',
+                    borderRadius: '10px',
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                    opacity: votingInProgress ? 0.6 : 1,
+                    '&:hover': {
+                      bgcolor: isVotingMode ? remarkColor : remarkColor + '28',
+                    }
+                  }}
+                >
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
+                </IconButton>
+              )}
+              <IconButton
+                size="small"
+                onClick={() => setCommentsOpen(true)}
+                sx={{
+                  bgcolor: remarkColor + '18',
+                  color: remarkColor,
+                  border: '1px solid ' + remarkColor + '40',
+                  borderRadius: '10px',
+                  px: 1.5,
+                  height: 32,
+                  display: 'flex',
+                  gap: 0.5,
+                  alignItems: 'center',
+                  '&:hover': {
+                    bgcolor: remarkColor + '28',
+                  }
+                }}
+              >
+                <CommentIcon sx={{ fontSize: 16 }} />
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Comment</Typography>
+              </IconButton>
               {canOpenActionMenu && (
                 <>
                   <IconButton
@@ -1547,6 +1716,14 @@ const EventPopup = ({
               {error || success}
             </Alert>
           </Snackbar>
+          {/* Comments Drawer */}
+          <EventCommentDrawer
+            eventId={event.id}
+            open={commentsOpen}
+            onClose={() => setCommentsOpen(false)}
+            eventCreatorId={userData.id}
+            eventColor={remarkColor}
+          />
         </Dialog>
 
         {/* Level 1 Report Overlay */}

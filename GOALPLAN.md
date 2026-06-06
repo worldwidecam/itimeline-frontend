@@ -42,6 +42,15 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## In Progress
 
+*  Point 4: Collapsing Logic
+How it works currently: You click "Collapse thread" at the bottom of the list of replies, which collapses them.
+The options we can choose from:
+Option A: A small collapse icon (like [-] or a arrow) next to the username at the top of the comment. Clicking it collapses all replies.
+Option B: Clicking the collapse icon hides the entire comment block (the comment body and all its replies), leaving just a small bar reading "[-] User - 3 replies hidden".
+
+* Point 5: Disable Inline Image/GIF Clicks
+We will remove the onClick handler and the hover pointer cursor (cursor: 'pointer') from expanded images/GIFs in RichContentRenderer.js. They will be static images that you just view.
+
 ### Postponed ToDos
 
 * Consolidate `App.js` + `App.jsx` — only `App.js` is active; `App.jsx` should be 
@@ -51,6 +60,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 #### COMPLETE 
 (move these to README.md, along with any context to add on the feature's behalf. then delete them from this category.)
 
+- [x] Username Styling & Dark Mode Colors: Increased nested reply username sizes to 0.825rem and parent reference indicators to 0.78rem. Upgraded dark mode bubbles to use premium color gradients (Sunset Gold for OP, Warm Coral/Terracotta for replies) and set the OP bubbles to be permanently raised with a golden glow by default.
+- [x] Comments Sorting: Added a custom pill-shaped segmented toggle next to the "Discussion" title in the header ("New" vs. "Top"), which automatically persists user sorting selections using `localStorage`. Programmed smart scroll behavior that positions "New" at the bottom and "Top" at the top, using smooth scroll transitions to mask any potential loading lag.
+- [x] Comments Drawer Alignment: Implemented Thread Style layout (Option B) where root comments are left-aligned and all replies are right-aligned. Standardized reply profile pictures to size 32 with a 12px gap, and locked the unified footer actions & votes directly under the bottom corners of both root and reply bubbles.
 - [x] revamp the landing page interactive preview timeline with a cohesive True Crime cold case narrative tracked by a sleuth podcaster (added 5 realistic, media-rich themed events per view mode using actual Unsplash image URLs for the media cards, fully supported by the landing page event marker tooltip rendering)
 - [x] fix floating action buttons (navFAB) z-index layer overlap conflict in mobile view on timeline pages (floating buttons wrapper z-index is set to a static 1250 so it sits higher than timeline markers at 1200, but lower than popups at 1300, rendering behind dialog overlays cleanly without conditional checks)
 - [x] implement secure, self-contained One-Time Backup Password Account Recovery system. Includes backend setting/recovery API routes, timing attack protection, one-time self-destruct mechanism, frontend Settings component with WebkitTextSecurity anti-autofill, fully featured recovery page (/recover) with field matching and red shake-on-error validation, session rehydration auto-login, and settings nudge alerts.
