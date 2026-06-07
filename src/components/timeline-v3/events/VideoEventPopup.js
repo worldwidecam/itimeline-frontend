@@ -111,7 +111,7 @@ const VideoEventPopup = ({
   votingInProgress,
 }) => {
   const theme = useTheme();
-  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen, onClose);
   const location = useLocation();
   const { isGuest } = useAuth();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
