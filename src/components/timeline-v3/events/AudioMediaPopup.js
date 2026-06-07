@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import CreatorChip from './CreatorChip';
 import {
   Dialog,
+  Fade,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -58,6 +59,7 @@ import { useEventVote } from '../../../hooks/useEventVote';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import RichContentRenderer from './RichContentRenderer';
 import EventCommentDrawer from './EventCommentDrawer';
+import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
 
@@ -105,6 +107,7 @@ const AudioMediaPopup = ({
   votingInProgress,
 }) => {
   const theme = useTheme();
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
   const location = useLocation();
   const { isGuest } = useAuth();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
@@ -271,6 +274,7 @@ const AudioMediaPopup = ({
     <Dialog
       open={open}
       onClose={onClose}
+      TransitionComponent={Fade}
       maxWidth="lg"
       fullWidth
       container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
@@ -291,6 +295,8 @@ const AudioMediaPopup = ({
         }
       }}
       PaperProps={{
+        ref: paperRef,
+        style: { x: popupX, y: popupY },
         component: motion.div,
         initial: { opacity: 0, y: 20, scale: 0.98 },
         animate: { opacity: 1, y: 0, scale: 1 },
@@ -307,20 +313,14 @@ const AudioMediaPopup = ({
             ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
             : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
           border: 'none',
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          height: { xs: 'calc(100% - 16px)', md: '100%' },
           maxHeight: { xs: 'calc(100% - 16px)', md: '90vh' },
-          height: { xs: 'auto', md: '90vh' },
           width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
           maxWidth: { md: '1200px' },
           margin: { xs: 1, sm: 2, md: 'auto' },
-          overflowY: { xs: 'auto', md: 'hidden' }
-        },
-        drag: "x",
-        dragConstraints: { left: 0, right: 0 },
-        dragElastic: { left: 0.5, right: 0.5 },
-        onDragEnd: (event, info) => {
-          if (Math.abs(info.offset.x) > 100) {
-            onClose();
-          }
+          overflowY: 'hidden'
         },
       }}
       slotProps={{
@@ -329,49 +329,49 @@ const AudioMediaPopup = ({
         }
       }}
     >
+      {/* Left Container - Audio Visualization */}
       <Box sx={{ 
-        display: 'flex', 
-        flexDirection: { xs: 'column', md: 'row' },
-        height: { xs: 'auto', md: '100%' },
-        maxHeight: { xs: 'none', md: '90vh' }
+        width: { xs: '100%', md: '60%' },
+        height: { xs: '160px', sm: '220px', md: '100%' },
+        position: 'relative',
+        bgcolor: 'black',
+        overflow: 'hidden',
+        borderRight: { xs: 'none', md: '1px solid' },
+        borderBottom: { xs: '1px solid', md: 'none' },
+        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
       }}>
-        {/* Left Container - Audio Visualization */}
+
+
+        {/* Audio Visualizer */}
         <Box sx={{ 
-          flex: { xs: '1', md: '3' },
-          position: 'relative',
-          bgcolor: 'black',
-          height: { xs: '300px', md: 'auto' }
-        }}>
-
-
-          {/* Audio Visualizer */}
-          <Box sx={{ 
-            width: '100%', 
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <AudioWaveformVisualizer 
-              ref={audioVisualizerRef}
-              audioUrl={mediaSource} 
-              title={eventData.title || "Audio"}
-              previewMode={false}
-              showTitle={false}
-              compactMode={true}
-            />
-          </Box>
-        </Box>
-
-        {/* Right Container - Event Details */}
-        <Box sx={{ 
-          flex: { xs: '1', md: '2' },
-          overflowY: 'auto',
+          width: '100%', 
+          height: '100%',
           display: 'flex',
-          flexDirection: 'column',
-          bgcolor: theme.palette.background.paper,
-          position: 'relative'
+          alignItems: 'center',
+          justifyContent: 'center'
         }}>
+          <AudioWaveformVisualizer 
+            ref={audioVisualizerRef}
+            audioUrl={mediaSource} 
+            title={eventData.title || "Audio"}
+            previewMode={false}
+            showTitle={false}
+            compactMode={true}
+          />
+        </Box>
+      </Box>
+
+      {/* Right Container - Event Details */}
+      <Box sx={{ 
+        width: { xs: '100%', md: '40%' },
+        height: { xs: 'auto', md: '100%' },
+        flex: { xs: 1, md: 'none' }, // Occupy remaining space on mobile
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: theme.palette.background.paper,
+        position: 'relative',
+        overflow: 'hidden' // Contain scrolling to DialogContent
+      }}>
           {/* Event Header */}
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: { xs: 2, sm: 3 }, pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
@@ -427,13 +427,16 @@ const AudioMediaPopup = ({
           
           {/* Scrollable content area */}
           <DialogContent 
+            ref={scrollContainerRef}
             sx={{ 
-              p: { xs: 2, sm: 4 }, 
+              flex: 1, // Let scrollable content grow to fill container
+              p: { xs: 2.5, sm: 4 }, 
               display: 'flex', 
               flexDirection: 'column',
               overflowY: 'auto',
               position: 'relative',
               touchAction: 'pan-y', // Allow horizontal swipe to bubble up to Paper drag
+              overscrollBehaviorY: 'contain',
               '&::before': {
                 content: '""',
                 position: 'absolute',
@@ -769,7 +772,6 @@ const AudioMediaPopup = ({
               </Box>
             </Box>
           </Box>
-        </Box>
           
       {/* Snackbar for notifications */}
       <Snackbar

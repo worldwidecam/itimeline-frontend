@@ -4,6 +4,7 @@ import {
   IconButton,
   Link,
   useTheme,
+  useMediaQuery,
   Box,
   Chip,
   Card,
@@ -66,6 +67,7 @@ const NewsCard = forwardRef(({
 }, ref) => {
   const NEWS_LINK_FALLBACK_IMAGE = '/images/fallbacks/news-link-fallback.jpg';
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [hidePreviewImage, setHidePreviewImage] = useState(false);
@@ -212,6 +214,9 @@ const NewsCard = forwardRef(({
         
         // Format event date without "Published on" prefix
         // Use explicit formatting to ensure consistency
+        if (isMobile) {
+          return format(date, 'M/d/yy');
+        }
         return format(date, 'MMM d, yyyy, h:mm a');
     } catch (error) {
         console.error('Error formatting date:', error);
@@ -461,41 +466,49 @@ const NewsCard = forwardRef(({
           {/* Page corner button for details */}
           {/* Corner button removed as outdated */}
 
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
-              <NewsIcon sx={{ color, mt: 0.5 }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography
-                  variant="h6"
-                  component="div"
-                  sx={{
-                    fontWeight: 'bold',
-                    mb: 1,
-                    pr: 1,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {event.title}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-                  {event.event_date && (
-                    <Chip
-                      icon={<EventIcon />}
-                      label={formatEventDate(event.event_date)}
-                      size="small"
-                      color="primary"
-                      sx={{ mr: 1 }}
-                    />
-                  )}
-                </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1, width: '100%' }}>
+            {/* Row 1: Icons on Left, Date Chip on Right */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <NewsIcon sx={{ color, mt: 0.5 }} />
+                <EventOriginTimelineBadge event={event} />
               </Box>
+              {event.event_date && (
+                <Chip
+                  icon={<EventIcon />}
+                  label={formatEventDate(event.event_date)}
+                  size="small"
+                  color="primary"
+                  sx={{
+                    mr: 1,
+                    maxWidth: { xs: 110, sm: 140, md: 220 },
+                    '& .MuiChip-label': {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }
+                  }}
+                />
+              )}
             </Box>
-            <EventOriginTimelineBadge event={event} />
+            {/* Row 2: Title */}
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                fontWeight: 'bold',
+                mb: 1,
+                pr: 1,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.3,
+              }}
+            >
+              {event.title}
+            </Typography>
           </Box>
 
           {/* URL Preview Card */}
@@ -646,8 +659,8 @@ const NewsCard = forwardRef(({
               }}
             >
               {/* Row 1: Creator and Vote */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 0.5 }}>
                   {event.created_by_username && (
                     <>
                       <UserAvatar
@@ -659,9 +672,9 @@ const NewsCard = forwardRef(({
                         isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
                         isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
                         isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
-                        sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                        sx={{ mr: 0.2, fontSize: '0.75rem' }}
                       />
-                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.2, whiteSpace: 'nowrap' }}>
                         By
                       </Typography>
                       <Link
@@ -671,6 +684,12 @@ const NewsCard = forwardRef(({
                         color="primary"
                         sx={{
                           textDecoration: 'none',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: { xs: 80, sm: 140 },
+                          display: 'inline-block',
+                          verticalAlign: 'bottom',
                           '&:hover': {
                             textDecoration: 'underline'
                           }
@@ -682,7 +701,7 @@ const NewsCard = forwardRef(({
                   )}
                 </Box>
                 {showInlineVoteControls && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: 2.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: { xs: 0.5, sm: 2.5 } }}>
                     {/* Consensus label */}
                     <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
                       <AnimatePresence mode="wait">
@@ -709,9 +728,12 @@ const NewsCard = forwardRef(({
                     </Box>
                     {/* Vote pill */}
                     <Box sx={{
-                      transform: voteValue ? 'scale(0.5)' : 'scale(1)',
-                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-                      transformOrigin: 'center top',
+                      width: 'auto',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      mr: voteValue ? 0 : 0.5,
+                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), width 320ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}>
                       <VoteControls
                         value={voteValue}

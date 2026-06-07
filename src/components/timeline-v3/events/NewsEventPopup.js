@@ -3,6 +3,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Dialog,
+  Fade,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -55,6 +56,7 @@ import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
 import RichContentRenderer from './RichContentRenderer';
 import EventCommentDrawer from './EventCommentDrawer';
+import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
 
@@ -99,6 +101,7 @@ const NewsEventPopup = ({
   votingInProgress,
 }) => {
   const theme = useTheme();
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
   const location = useLocation();
   const { isGuest } = useAuth();
   const [reportOpen, setReportOpen] = React.useState(false);
@@ -333,6 +336,7 @@ const NewsEventPopup = ({
           <Dialog
             open={open}
             onClose={handleClose}
+            TransitionComponent={Fade}
             maxWidth="lg"
             fullWidth
             container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
@@ -353,6 +357,8 @@ const NewsEventPopup = ({
               }
             }}
             PaperProps={{
+              ref: paperRef,
+              style: { x: popupX, y: popupY },
               component: motion.div,
               initial: { opacity: 0, y: 20, scale: 0.98 },
               animate: { opacity: 1, y: 0, scale: 1 },
@@ -367,22 +373,14 @@ const NewsEventPopup = ({
                   ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
                   : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
                 border: 'none',
+                height: { xs: 'calc(100% - 16px)', md: '100%' },
                 maxHeight: { xs: 'calc(100% - 16px)', md: '90vh' },
-                height: { xs: 'auto', md: '90vh' },
                 width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
                 maxWidth: { md: '1200px' },
                 margin: { xs: 1, sm: 2, md: 'auto' },
                 display: 'flex',
                 flexDirection: 'column',
-                overflowY: { xs: 'auto', md: 'hidden' }
-              },
-              drag: "x",
-              dragConstraints: { left: 0, right: 0 },
-              dragElastic: { left: 0.5, right: 0.5 },
-              onDragEnd: (event, info) => {
-                if (Math.abs(info.offset.x) > 100) {
-                  handleCloseButtonClick();
-                }
+                overflowY: 'hidden'
               },
             }}
             slotProps={{
@@ -391,7 +389,7 @@ const NewsEventPopup = ({
               }
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: 'auto', md: '100%' }, overflow: { xs: 'visible', md: 'hidden' } }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: '100%', md: '100%' }, overflow: 'hidden' }}>
               {/* Left Container - Preview */}
               {mediaSource && (
                 <Box
@@ -431,7 +429,7 @@ const NewsEventPopup = ({
               )}
 
               {/* Right Container - Details */}
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: { xs: 'auto', md: '100%' }, minWidth: 0 }}>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: { xs: '100%', md: '100%' }, minWidth: 0, overflow: 'hidden' }}>
                 <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
@@ -450,7 +448,18 @@ const NewsEventPopup = ({
                 
                 <Divider sx={{ opacity: 0.5 }} />
                 
-                <DialogContent sx={{ flex: 1, p: { xs: 2, sm: 4 }, overflowY: 'auto', WebkitOverflowScrolling: 'touch', position: 'relative', touchAction: 'pan-y' }}>
+                <DialogContent
+                  ref={scrollContainerRef}
+                  sx={{
+                    flex: 1,
+                    p: { xs: 2, sm: 4 },
+                    overflowY: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    position: 'relative',
+                    touchAction: 'pan-y',
+                    overscrollBehaviorY: 'contain'
+                  }}
+                >
                   <Paper elevation={0} onClick={handleUrlClick} sx={{ mb: 3, p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: 2, border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, cursor: 'pointer', '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderColor: newsColor } }}>
                     <Typography variant="caption" sx={{ color: newsColor, fontWeight: 600, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>Article Source</Typography>
                     <Typography variant="body2" sx={{ wordBreak: 'break-all', opacity: 0.8 }}>{event.media_source}</Typography>
