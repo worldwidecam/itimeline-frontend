@@ -13,6 +13,22 @@ export const useSwipeDownToClose = (open, onClose) => {
   const paperRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
+  // Prevent mobile browser pull-to-refresh when popup is open
+  useEffect(() => {
+    if (open) {
+      const prevHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+      const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
+      
+      document.documentElement.style.overscrollBehaviorY = 'contain';
+      document.body.style.overscrollBehaviorY = 'contain';
+      
+      return () => {
+        document.documentElement.style.overscrollBehaviorY = prevHtmlOverscroll;
+        document.body.style.overscrollBehaviorY = prevBodyOverscroll;
+      };
+    }
+  }, [open]);
+
   useEffect(() => {
     const paperEl = paperRef.current;
     const scrollEl = scrollContainerRef.current;

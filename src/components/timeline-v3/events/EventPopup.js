@@ -83,26 +83,32 @@ import RichContentRenderer from './RichContentRenderer';
 // Centralized media URL normalization helper
 const normalizeMediaUrl = (url) => {
   if (!url) return '';
-  const trimmed = String(url).trim();
+  let trimmed = String(url).trim();
   if (!trimmed) return '';
+
+  // Replace absolute localhost backend URLs with relative paths to hit the Vite proxy
+  trimmed = trimmed.replace(/^https?:\/\/localhost:5000\//, '/');
 
   // 1. If it's already a full HTTP(S) URL
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    // Specialized handling for R2/Cloudinary if needed, but usually these are fine as-is
     return trimmed;
   }
 
-  // 2. Handle Cloudinary/R2 shorthand or relative paths
+  // 2. If it's a relative path starting with /, return it as-is to hit the Vite proxy
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  // 3. Handle Cloudinary/R2 shorthand or relative paths
   const baseUrl = config.API_URL?.endsWith('/') 
     ? config.API_URL.slice(0, -1) 
     : (config.API_URL || '');
 
-  // If it starts with /uploads, /media, etc., prepend API_URL
-  if (trimmed.startsWith('/')) {
-    return `${baseUrl}${trimmed}`;
+  // If the config.API_URL itself points to localhost:5000, we should return relative
+  if (baseUrl.includes('localhost:5000')) {
+    return `/${trimmed}`;
   }
 
-  // Fallback for other relative paths
   return `${baseUrl}/${trimmed}`;
 };
 

@@ -168,6 +168,22 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     }
   }, [open, eventId]);
 
+  // Prevent mobile browser pull-to-refresh when open
+  useEffect(() => {
+    if (open) {
+      const prevHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+      const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
+      
+      document.documentElement.style.overscrollBehaviorY = 'contain';
+      document.body.style.overscrollBehaviorY = 'contain';
+      
+      return () => {
+        document.documentElement.style.overscrollBehaviorY = prevHtmlOverscroll;
+        document.body.style.overscrollBehaviorY = prevBodyOverscroll;
+      };
+    }
+  }, [open]);
+
   // Reset scrollRestored state when drawer closes so it triggers scroll restoration on next open
   useEffect(() => {
     if (!open) {

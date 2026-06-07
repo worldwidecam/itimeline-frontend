@@ -47,6 +47,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   MoreHoriz as MoreHorizIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -146,28 +147,45 @@ const VideoEventPopup = ({
   // Helper function to prepare video sources (similar to MediaCard)
   const prepareVideoSources = (mediaSource) => {
     let videoSources = [];
+    if (!mediaSource) return videoSources;
+
+    // Normalize input URL by removing localhost:5000 if present
+    const normalizedInput = String(mediaSource).trim().replace(/^https?:\/\/localhost:5000\//, '/');
     
     const isCloudinaryUrl = (
-      (mediaSource && (
-        mediaSource.includes('cloudinary.com') || 
-        mediaSource.includes('res.cloudinary')
+      (normalizedInput && (
+        normalizedInput.includes('cloudinary.com') || 
+        normalizedInput.includes('res.cloudinary')
       )) ||
       (event.media_type && event.media_type.includes('cloudinary'))
     );
     
     // Check if it's an R2 URL
-    const isR2Url = mediaSource && (
-      mediaSource.includes('r2.dev') || 
-      mediaSource.includes('itimeline-media')
+    const isR2Url = normalizedInput && (
+      normalizedInput.includes('r2.dev') || 
+      normalizedInput.includes('itimeline-media')
     );
     
-    let fullUrl = mediaSource;
+    let fullUrl = normalizedInput;
     
     if (isCloudinaryUrl || isR2Url) {
-      fullUrl = mediaSource;
+      fullUrl = normalizedInput;
     }
-    else if (mediaSource && mediaSource.startsWith('/')) {
-      fullUrl = `${config.API_URL}${mediaSource}`;
+    else if (normalizedInput.startsWith('/')) {
+      // Keep relative path so it routes through Vite proxy
+      fullUrl = normalizedInput;
+    }
+    else {
+      // Shorthand path, append config.API_URL (and clean it up if it points to localhost)
+      const baseUrl = config.API_URL?.endsWith('/') 
+        ? config.API_URL.slice(0, -1) 
+        : (config.API_URL || '');
+      
+      if (baseUrl.includes('localhost:5000')) {
+        fullUrl = `/${normalizedInput}`;
+      } else {
+        fullUrl = `${baseUrl}/${normalizedInput}`;
+      }
     }
     
     // Add all possible URLs to try
@@ -175,12 +193,11 @@ const VideoEventPopup = ({
       videoSources.push(fullUrl);
     }
     
-    if (mediaSource && mediaSource.startsWith('/uploads/')) {
-      videoSources.push(`${config.API_URL}${mediaSource}`);
+    if (normalizedInput.startsWith('/uploads/')) {
+      videoSources.push(normalizedInput);
     }
     
     // Only try Cloudinary fallback if it's likely a Cloudinary ID
-    // (Cloudinary IDs in this project are typically 20 chars without slashes)
     const looksLikeCloudinaryId = event.cloudinary_id && 
                                 !event.cloudinary_id.includes('/') && 
                                 !event.cloudinary_id.includes('.');
@@ -665,7 +682,7 @@ const VideoEventPopup = ({
               })()}
               
               {/* Fallback Overlay for when video fails */}
-              {(videoFailed || useCloudinaryPlayer) && (
+              {videoFailed && (
                 <Box
                   sx={{
                     position: 'absolute',
