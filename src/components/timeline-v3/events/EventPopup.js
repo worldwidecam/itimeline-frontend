@@ -148,7 +148,6 @@ const EventPopup = ({
   hideActionMenu = false, // Hide ellipsis menu (for admin page view)
 }) => {
   const theme = useTheme();
-  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
   const location = useLocation();
   const { user, isGuest } = useAuth();
   const effectiveReviewingEventIds = React.useMemo(
@@ -249,6 +248,7 @@ const EventPopup = ({
   const [shakePersonal, setShakePersonal] = useState(false);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen, onClose);
   const [isVotingMode, setIsVotingMode] = useState(false);
   const [myTagVote, setMyTagVote] = useState(event?.my_tag_vote || null);
   const [votingInProgress, setVotingInProgress] = useState(false);
