@@ -9,10 +9,12 @@ import VoteControls from './VoteControls';
 import AudioMediaPopup from './AudioMediaPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import EventCommentDrawer from './EventCommentDrawer';
+import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
 import {
   Dialog,
+  Fade,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -140,6 +142,7 @@ const EventPopup = ({
   hideActionMenu = false, // Hide ellipsis menu (for admin page view)
 }) => {
   const theme = useTheme();
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
   const location = useLocation();
   const { user, isGuest } = useAuth();
   const effectiveReviewingEventIds = React.useMemo(
@@ -1199,6 +1202,7 @@ const EventPopup = ({
     <Dialog
       open={open}
       onClose={handleClose}
+      TransitionComponent={Fade}
       maxWidth="md"
       fullWidth
       scroll="paper"
@@ -1220,6 +1224,8 @@ const EventPopup = ({
         }
       }}
       PaperProps={{
+        ref: paperRef,
+        style: { x: popupX, y: popupY },
         sx: {
           borderRadius: 3,
           overflow: 'hidden',
@@ -1236,14 +1242,6 @@ const EventPopup = ({
           border: 'none',
         },
         component: motion.div,
-        drag: "x",
-        dragConstraints: { left: 0, right: 0 },
-        dragElastic: { left: 0.5, right: 0.5 },
-        onDragEnd: (event, info) => {
-          if (Math.abs(info.offset.x) > 100) {
-            handleClose();
-          }
-        },
       }}
       slotProps={{
         backdrop: {
@@ -1316,11 +1314,13 @@ const EventPopup = ({
           />
           
           <DialogContent 
+            ref={scrollContainerRef}
             sx={{ 
               p: { xs: 2, sm: 4 },
               overflowY: 'auto',
               WebkitOverflowScrolling: 'touch', // Better smooth scrolling on iOS
               touchAction: 'pan-y', // Allow horizontal swipe to bubble up to Paper drag
+              overscrollBehaviorY: 'contain',
             }}
           >
             {/* Event Description */}

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import CreatorChip from './CreatorChip';
 import {
   Dialog,
+  Fade,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -60,6 +61,7 @@ import { useEventVote } from '../../../hooks/useEventVote';
 import RichContentRenderer from './RichContentRenderer';
 import config from '../../../config';
 import EventCommentDrawer from './EventCommentDrawer';
+import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
 
@@ -108,6 +110,7 @@ const VideoEventPopup = ({
   votingInProgress,
 }) => {
   const theme = useTheme();
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
   const location = useLocation();
   const { isGuest } = useAuth();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
@@ -488,6 +491,7 @@ const VideoEventPopup = ({
         <Dialog
           open={open}
           onClose={handleClose}
+          TransitionComponent={Fade}
           maxWidth="lg" // Larger dialog for the two-container layout
           fullWidth
           container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
@@ -511,6 +515,8 @@ const VideoEventPopup = ({
           disableEscapeKeyDown={false}
           PaperComponent={motion.div}
           PaperProps={{
+            ref: paperRef,
+            style: { x: popupX, y: popupY },
             initial: { opacity: 0, y: 20, scale: 0.98 },
             animate: { opacity: 1, y: 0, scale: 1 },
             exit: { opacity: 0, y: 20, scale: 0.98 },
@@ -529,22 +535,14 @@ const VideoEventPopup = ({
               // Responsive layout
               display: 'flex',
               flexDirection: { xs: 'column', md: 'row' },
-              height: { xs: 'auto', md: '90vh' },
+              height: { xs: 'calc(100% - 16px)', md: '100%' },
               maxHeight: { xs: 'calc(100% - 16px)', md: '90vh' },
               width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
               maxWidth: { md: '1200px' },
               margin: { xs: 1, sm: 2, md: 'auto' },
-              overflowY: { xs: 'auto', md: 'hidden' }
+              overflowY: 'hidden'
             },
             component: motion.div,
-            drag: "x", // Left/Right swipe to close
-            dragConstraints: { left: 0, right: 0 },
-            dragElastic: { left: 0.5, right: 0.5 },
-            onDragEnd: (event, info) => {
-              if (Math.abs(info.offset.x) > 100) {
-                handleClose();
-              }
-            },
           }}
           slotProps={{
             backdrop: {
@@ -711,10 +709,11 @@ const VideoEventPopup = ({
               sx={{
                 width: { xs: '100%', md: '40%' },
                 height: { xs: 'auto', md: '100%' },
+                flex: { xs: 1, md: 'none' }, // Occupy remaining height on mobile
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
-                minHeight: { xs: '400px', md: 'auto' }
+                overflow: 'hidden', // Contain scrolling to DialogContent
               }}
             >
             {/* Title area */}
@@ -781,14 +780,16 @@ const VideoEventPopup = ({
             
             {/* Scrollable content area */}
             <DialogContent
+              ref={scrollContainerRef}
               sx={{
-                height: { xs: 'auto', md: '100%' },
-                p: 4,
+                flex: 1, // Let scrollable content grow to fill container
+                p: { xs: 2.5, sm: 4 },
                 display: 'flex',
                 flexDirection: 'column',
-                overflow: 'auto',
+                overflowY: 'auto',
                 position: 'relative',
                 touchAction: 'pan-y',
+                overscrollBehaviorY: 'contain',
                 '&::before': {
                   content: '""',
                   position: 'absolute',

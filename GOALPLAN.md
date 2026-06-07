@@ -85,3 +85,5 @@ We will remove the onClick handler and the hover pointer cursor (cursor: 'pointe
 - [x] event Cards seem to be able to visualize too many hash tag chips. this could possibly break its layout.
  lets limit its hashtag chip visualiztion to the first three,
 lets make their chip color standard for the first 3. representing medals, their coloring will be Gold (first), Silver (second), Bronze (third).
+- [x] Unified Mobile Dialog Layout & Constrained Scrolling: Refactored all five specialized event popups (Image, Video, Audio, News, Remark) to lock heights on mobile (xs) viewports. This forces scrollable areas inside DialogContent while keeping headers, media visualizers, and footers completely sticky and visible. Specifically fixed the Audio waveform popup height constraints and resolved the clipping of the footer controls on small mobile screens.
+- [x] Fixed Reports API 500 Internal Server Error: Resolved the crash on the Site Control page reports list by replacing invalid `.has()` method calls on the user restrictions map with proper dictionary lookups. Consolidated moderator queries to fetch display usernames and avatar keys in a single database check.
