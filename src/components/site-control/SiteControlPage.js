@@ -297,6 +297,7 @@ const AdminListTab = ({ canManage }) => {
                 disabled={actionLoading}
                 sx={{ 
                   ...getGlassSquareActionButtonSx(theme),
+                  width: 'auto',
                   minWidth: 160, 
                   py: 1.5,
                 }}
@@ -635,7 +636,13 @@ const UserListTab = () => {
             variant="outlined" 
             onClick={() => fetchUsers(page + 1)}
             disabled={loading}
-            sx={{ ...getGlassSquareActionButtonSx(theme), borderRadius: 8, px: 4 }}
+            sx={{ 
+              ...getGlassSquareActionButtonSx(theme), 
+              width: 'auto',
+              minWidth: 120,
+              borderRadius: 8, 
+              px: 4 
+            }}
           >
             {loading ? 'Loading...' : 'Load More'}
           </Button>
@@ -916,6 +923,7 @@ const BrokenEventsTab = () => {
             disabled={!!actionLoadingByKey.add}
             sx={{ 
               ...getGlassSquareActionButtonSx(theme),
+              width: 'auto',
               minWidth: 160, 
             }}
           >
@@ -932,126 +940,128 @@ const BrokenEventsTab = () => {
             No queued broken events yet.
           </Typography>
         ) : (
-          <Table size="small" sx={{ mt: 2 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Event</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Event Date/Time</TableCell>
-                <TableCell>Timeline</TableCell>
-                <TableCell>Note</TableCell>
-                <TableCell>Reported</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => {
-                const queueId = Number(item?.id || 0);
-                const eventId = Number(item?.event_id || 0);
-                const timelineId = Number(item?.timeline_id || 0);
-                const openingEvent = !!actionLoadingByKey[`open-${eventId}`];
-                const deleting = !!actionLoadingByKey[`delete-${eventId}`];
-                const removing = !!actionLoadingByKey[`remove-${queueId}`];
-                const eventExists = Boolean(item?.event_exists);
-                const noteText = String(item?.note || '');
-                const deletedByAdmin = /resolution=deleted_by_admin/i.test(noteText);
-                const statusLabel = deletedByAdmin ? 'Deleted' : (eventExists ? 'Found' : 'Missing');
-                const statusColor = deletedByAdmin ? 'warning' : (eventExists ? 'success' : 'error');
-                return (
-                  <TableRow key={queueId}>
-                    <TableCell>
-                      <Typography variant="subtitle2">#{eventId}</Typography>
-                      {item?.event_title ? (
-                        <Typography variant="body2" color="text.secondary">
-                          {item.event_title}
-                        </Typography>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={statusLabel}
-                        color={statusColor}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatTimestamp(item?.event_created_at)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {timelineId > 0 ? (
-                        <Typography
-                          component="a"
-                          href={`/timeline-v3/${timelineId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          variant="body2"
-                          sx={{ textDecoration: 'none' }}
-                        >
-                          {item?.timeline_name || `Timeline ${timelineId}`}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">Unknown</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {item?.note || '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatTimestamp(item?.created_at)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button
+          <Box sx={{ overflowX: 'auto', width: '100%' }}>
+            <Table size="small" sx={{ mt: 2, minWidth: 900 }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Event</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Event Date/Time</TableCell>
+                  <TableCell>Timeline</TableCell>
+                  <TableCell>Note</TableCell>
+                  <TableCell>Reported</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((item) => {
+                  const queueId = Number(item?.id || 0);
+                  const eventId = Number(item?.event_id || 0);
+                  const timelineId = Number(item?.timeline_id || 0);
+                  const openingEvent = !!actionLoadingByKey[`open-${eventId}`];
+                  const deleting = !!actionLoadingByKey[`delete-${eventId}`];
+                  const removing = !!actionLoadingByKey[`remove-${queueId}`];
+                  const eventExists = Boolean(item?.event_exists);
+                  const noteText = String(item?.note || '');
+                  const deletedByAdmin = /resolution=deleted_by_admin/i.test(noteText);
+                  const statusLabel = deletedByAdmin ? 'Deleted' : (eventExists ? 'Found' : 'Missing');
+                  const statusColor = deletedByAdmin ? 'warning' : (eventExists ? 'success' : 'error');
+                  return (
+                    <TableRow key={queueId}>
+                      <TableCell>
+                        <Typography variant="subtitle2">#{eventId}</Typography>
+                        {item?.event_title ? (
+                          <Typography variant="body2" color="text.secondary">
+                            {item.event_title}
+                          </Typography>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
                           size="small"
-                          variant="outlined"
-                          disabled={!eventExists || !(timelineId > 0) || openingEvent}
-                          onClick={() => handleOpenEvent(timelineId, eventId)}
-                        >
-                          Open Event
-                        </Button>
+                          label={statusLabel}
+                          color={statusColor}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatTimestamp(item?.event_created_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
                         {timelineId > 0 ? (
-                          <Button
-                            size="small"
+                          <Typography
                             component="a"
                             href={`/timeline-v3/${timelineId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            variant="outlined"
+                            variant="body2"
+                            sx={{ textDecoration: 'none' }}
                           >
-                            Open Timeline
+                            {item?.timeline_name || `Timeline ${timelineId}`}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">Unknown</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {item?.note || '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatTimestamp(item?.created_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ flexWrap: 'wrap' }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            disabled={!eventExists || !(timelineId > 0) || openingEvent}
+                            onClick={() => handleOpenEvent(timelineId, eventId)}
+                          >
+                            Open Event
                           </Button>
-                        ) : null}
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          startIcon={<DeleteOutlineIcon />}
-                          disabled={!eventExists || deleting}
-                          onClick={() => handleDeleteEvent(eventId)}
-                        >
-                          Delete Event
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="text"
-                          disabled={removing}
-                          onClick={() => handleRemoveQueueItem(queueId)}
-                        >
-                          Remove Queue
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                          {timelineId > 0 ? (
+                            <Button
+                              size="small"
+                              component="a"
+                              href={`/timeline-v3/${timelineId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              variant="outlined"
+                            >
+                              Open Timeline
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            startIcon={<DeleteOutlineIcon />}
+                            disabled={!eventExists || deleting}
+                            onClick={() => handleDeleteEvent(eventId)}
+                          >
+                            Delete Event
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="text"
+                            disabled={removing}
+                            onClick={() => handleRemoveQueueItem(queueId)}
+                          >
+                            Remove Queue
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Box>
         )}
       </Paper>
 
@@ -1233,6 +1243,7 @@ const BanListTab = () => {
             disabled={addLoading || !addInput.trim()}
             sx={{ 
               ...getGlassSquareActionButtonSx(theme),
+              width: 'auto',
               minWidth: 140,
             }}
           >
@@ -1249,61 +1260,63 @@ const BanListTab = () => {
             No banned names in the list.
           </Typography>
         ) : (
-          <Table size="small" sx={{ mt: 2 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Type</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Reason</TableCell>
-                <TableCell>Date Added</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Chip 
-                      label={item.subject_type === 'username' ? 'USER' : 'TL'} 
-                      size="small" 
-                      variant="outlined"
-                      sx={{ 
-                        fontWeight: 700, 
-                        fontSize: '0.65rem',
-                        borderColor: item.subject_type === 'username' ? 'primary.main' : 'secondary.main',
-                        color: item.subject_type === 'username' ? 'primary.main' : 'secondary.main',
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>
-                      {item.subject_value}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {item.reason_public || '—'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(item.created_at).toLocaleDateString()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="text"
-                      color="error"
-                      onClick={() => handleRemoveBan(item.id)}
-                    >
-                      Remove
-                    </Button>
-                  </TableCell>
+          <Box sx={{ overflowX: 'auto', width: '100%' }}>
+            <Table size="small" sx={{ mt: 2, minWidth: 600 }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Type</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Reason</TableCell>
+                  <TableCell>Date Added</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Chip 
+                        label={item.subject_type === 'username' ? 'USER' : 'TL'} 
+                        size="small" 
+                        variant="outlined"
+                        sx={{ 
+                          fontWeight: 700, 
+                          fontSize: '0.65rem',
+                          borderColor: item.subject_type === 'username' ? 'primary.main' : 'secondary.main',
+                          color: item.subject_type === 'username' ? 'primary.main' : 'secondary.main',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>
+                        {item.subject_value}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {item.reason_public || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        size="small"
+                        variant="text"
+                        color="error"
+                        onClick={() => handleRemoveBan(item.id)}
+                      >
+                        Remove
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
         )}
       </Paper>
 
@@ -2736,7 +2749,7 @@ const GlobalReportsTab = () => {
                       )}
                     </Box>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, flexWrap: 'wrap', gap: 1 }}>
                       {post.status === 'pending' && (
                         <>
                           <Button
@@ -2744,7 +2757,17 @@ const GlobalReportsTab = () => {
                             size="small"
                             startIcon={<ShieldIcon />}
                             onClick={() => handleAcceptReport(post)}
-                            sx={{ ...getGlassSquareActionButtonSx(theme), mr: 1, mb: 1, px: 2 }}
+                            sx={{
+                              ...getGlassSquareActionButtonSx(theme),
+                              width: 'auto',
+                              minWidth: 150,
+                              px: 2.5,
+                              mb: 1,
+                              borderRadius: 1.5,
+                              textTransform: 'none',
+                              fontSize: '0.825rem',
+                              fontWeight: 600,
+                            }}
                           >
                             Accept for Review
                           </Button>
@@ -2754,9 +2777,19 @@ const GlobalReportsTab = () => {
                             onClick={() => handleDismissReport(post)}
                             sx={{ 
                               ...getGlassSquareActionButtonSx(theme), 
-                              mr: 1, mb: 1, px: 2,
-                              color: 'success.main',
-                              borderColor: alpha(theme.palette.success.main, 0.2)
+                              width: 'auto',
+                              minWidth: 100,
+                              px: 2.5,
+                              mb: 1,
+                              borderRadius: 1.5,
+                              textTransform: 'none',
+                              fontSize: '0.825rem',
+                              fontWeight: 600,
+                              bgcolor: theme.palette.mode === 'dark' ? '#16a34a' : '#22c55e',
+                              color: '#ffffff',
+                              '&:hover': {
+                                bgcolor: theme.palette.mode === 'dark' ? '#15803d' : '#16a34a',
+                              }
                             }}
                           >
                             Dismiss
@@ -2959,9 +2992,22 @@ const GlobalReportsTab = () => {
                       {post.eventId && post.timelineId && !(post.status === 'resolved' && post.resolution === 'delete') && (
                         <Button
                           onClick={() => handleViewEvent(post)}
-                          variant="text"
+                          variant="outlined"
                           size="small"
-                          sx={{ ml: 1, mb: 1 }}
+                          sx={{
+                            mb: 1,
+                            textTransform: 'none',
+                            fontSize: '0.825rem',
+                            fontWeight: 600,
+                            height: 44,
+                            borderRadius: 1.5,
+                            borderColor: theme.palette.mode === 'dark' ? alpha('#f8fafc', 0.2) : alpha('#0f172a', 0.2),
+                            color: theme.palette.mode === 'dark' ? '#cbd5e1' : '#475569',
+                            '&:hover': {
+                              borderColor: theme.palette.mode === 'dark' ? alpha('#f8fafc', 0.4) : alpha('#0f172a', 0.4),
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                            }
+                          }}
                         >
                           View Event
                         </Button>

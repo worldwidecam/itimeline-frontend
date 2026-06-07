@@ -5,6 +5,7 @@ import {
   IconButton,
   Link,
   useTheme,
+  useMediaQuery,
   Box,
   Chip,
   Menu,
@@ -47,6 +48,7 @@ const RemarkCard = forwardRef(({
   timelineType = 'hashtag',
 }, ref) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const {
@@ -207,6 +209,9 @@ const RemarkCard = forwardRef(({
 
       // Format event date without "Published on" prefix
       // Use explicit formatting to ensure consistency
+      if (isMobile) {
+        return format(date, 'M/d/yy');
+      }
       return format(date, 'MMM d, yyyy, h:mm a');
     } catch (error) {
       console.error('Error formatting date:', error);
@@ -280,7 +285,7 @@ const RemarkCard = forwardRef(({
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'flex-start',
+                alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 1,
                 pb: 1,
@@ -291,38 +296,18 @@ const RemarkCard = forwardRef(({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                <Box
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: '4px',
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    fontSize: '0.72rem',
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(96,165,250,0.2)' : 'rgba(37,99,235,0.1)',
-                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(96,165,250,0.5)' : 'rgba(37,99,235,0.45)'}`,
-                    color,
-                    flexShrink: 0,
-                  }}
-                >
-                  <RemarkIcon sx={{ fontSize: '0.9rem' }} />
-                  Remark
-                </Box>
-                {event.event_date && (
-                  <Chip
-                    icon={<EventIcon />}
-                    label={formatEventDate(event.event_date)}
-                    size="small"
-                    color="primary"
-                    sx={{ maxWidth: 220, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                  />
-                )}
+                <RemarkIcon sx={{ color, fontSize: '1.2rem', mt: 0.5, mr: 0.5, flexShrink: 0 }} />
+                <EventOriginTimelineBadge event={event} />
               </Box>
-              <EventOriginTimelineBadge event={event} />
+              {event.event_date && (
+                <Chip
+                  icon={<EventIcon />}
+                  label={formatEventDate(event.event_date)}
+                  size="small"
+                  color="primary"
+                  sx={{ maxWidth: 220, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                />
+              )}
             </Box>
 
             {/* Redesigned Middle: Tweetified Speech Bubble Layout */}
@@ -548,7 +533,7 @@ const RemarkCard = forwardRef(({
                   {/* Creator Info has been moved to the prominent Left Column layout above */}
                 </Box>
                 {showInlineVoteControls && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: 2.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: { xs: 0.5, sm: 2.5 } }}>
                     {/* Consensus label */}
                     <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
                       <AnimatePresence mode="wait">
@@ -575,9 +560,12 @@ const RemarkCard = forwardRef(({
                     </Box>
                     {/* Vote pill */}
                     <Box sx={{
-                      transform: voteValue ? 'scale(0.5)' : 'scale(1)',
-                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-                      transformOrigin: 'center top',
+                      width: 'auto',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      mr: voteValue ? 0 : 0.5,
+                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), width 320ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}>
                       <VoteControls
                         value={voteValue}

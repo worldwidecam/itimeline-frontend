@@ -91,18 +91,12 @@ const EventOriginTimelineBadge = ({ event }) => {
     : (origin.type === 'personal' ? theme.palette.primary.main : theme.palette.success.main);
 
   const icon = origin.type === 'community'
-    ? <CommunityIcon sx={{ fontSize: '1.02rem' }} />
+    ? <CommunityIcon sx={{ fontSize: '1.25rem' }} />
     : (origin.type === 'personal'
-      ? <PersonalIcon sx={{ fontSize: '1.02rem' }} />
-      : <HashtagIcon sx={{ fontSize: '0.84rem' }} />);
+      ? <PersonalIcon sx={{ fontSize: '1.25rem' }} />
+      : <HashtagIcon sx={{ fontSize: '1.05rem' }} />);
 
-  const backgroundColor = theme.palette.mode === 'dark'
-    ? alpha(accentColor, 0.22)
-    : alpha(accentColor, 0.12);
-
-  const borderColor = theme.palette.mode === 'dark'
-    ? alpha(accentColor, 0.52)
-    : alpha(accentColor, 0.45);
+  const iconColor = theme.palette.mode === 'dark' ? '#fcf6e4' : accentColor;
 
   return (
     <Tooltip title={`Created on ${origin.type}: ${origin.name}`} arrow>
@@ -110,33 +104,12 @@ const EventOriginTimelineBadge = ({ event }) => {
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 0.5,
-          px: 1,
-          py: 0.25,
-          borderRadius: '4px',
-          fontWeight: 700,
-          letterSpacing: '0.02em',
-          fontSize: { xs: '0.68rem', sm: '0.82rem' },
-          bgcolor: backgroundColor,
-          border: `1px solid ${borderColor}`,
-          color: accentColor,
+          justifyContent: 'center',
+          color: iconColor,
           flexShrink: 0,
-          maxWidth: { xs: 100, sm: 190 },
         }}
       >
         {icon}
-        <Box
-          component="span"
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            minWidth: 0,
-            lineHeight: 1.2,
-          }}
-        >
-          {origin.label}
-        </Box>
       </Box>
     </Tooltip>
   );

@@ -24,7 +24,7 @@ import {
   SubdirectoryArrowRight as SubdirectoryArrowRightIcon,
   MoreHoriz as MoreHorizIcon,
 } from '@mui/icons-material';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, useMotionValue, animate } from 'framer-motion';
 import { useAuth } from '../../../contexts/AuthContext';
 import UserAvatar from '../../common/UserAvatar';
 import RichContentRenderer from './RichContentRenderer';
@@ -44,6 +44,7 @@ const scrolledUpCache = {}; // eventId -> boolean
 const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor }) => {
   const theme = useTheme();
   const dragControls = useDragControls();
+  const drawerY = useMotionValue(0);
   const { user, isGuest } = useAuth();
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);
@@ -167,6 +168,22 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     }
   }, [open, eventId]);
 
+  // Prevent mobile browser pull-to-refresh when open
+  useEffect(() => {
+    if (open) {
+      const prevHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+      const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
+      
+      document.documentElement.style.overscrollBehaviorY = 'contain';
+      document.body.style.overscrollBehaviorY = 'contain';
+      
+      return () => {
+        document.documentElement.style.overscrollBehaviorY = prevHtmlOverscroll;
+        document.body.style.overscrollBehaviorY = prevBodyOverscroll;
+      };
+    }
+  }, [open]);
+
   // Reset scrollRestored state when drawer closes so it triggers scroll restoration on next open
   useEffect(() => {
     if (!open) {
@@ -226,6 +243,70 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
       }
     }
   };
+
+  // Handle touch swiping down from the top of the comment body to close the drawer
+  useEffect(() => {
+    const scrollEl = scrollContainerRef.current;
+    if (!scrollEl || !open) return;
+
+    let startY = 0;
+    let startScrollTop = 0;
+    let activeDrag = false;
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length !== 1) return;
+      e.stopPropagation();
+      startY = e.touches[0].clientY;
+      startScrollTop = scrollEl.scrollTop;
+      activeDrag = false;
+    };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length !== 1) return;
+
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+
+      // If at the very top (or negative due to bounce) and pulling downward, move the drawer directly
+      if (startScrollTop <= 0 && deltaY > 0) {
+        e.stopPropagation();
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        activeDrag = true;
+        drawerY.set(deltaY);
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      if (e && typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+      }
+      if (activeDrag) {
+        activeDrag = false;
+        const currentY = drawerY.get();
+        if (currentY > 120) {
+          onClose();
+        } else {
+          // Spring snap back to fully open (y = 0)
+          animate(drawerY, 0, { type: 'spring', damping: 25, stiffness: 200 });
+        }
+      }
+    };
+
+    scrollEl.addEventListener('touchstart', handleTouchStart, { passive: true });
+    scrollEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+    scrollEl.addEventListener('touchend', handleTouchEnd);
+    scrollEl.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      scrollEl.removeEventListener('touchstart', handleTouchStart);
+      scrollEl.removeEventListener('touchmove', handleTouchMove);
+      scrollEl.removeEventListener('touchend', handleTouchEnd);
+      scrollEl.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [open, onClose, drawerY]);
+
 
   // Submit new comment or reply
   const handleSubmit = async (e) => {
@@ -632,6 +713,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
           />
           <Box
             component={motion.div}
+            style={{ y: drawerY }}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -663,7 +745,10 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
           >
             {/* Grab Handle */}
             <Box
-              onPointerDown={(e) => dragControls.start(e)}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                dragControls.start(e);
+              }}
               sx={{
                 width: '100%',
                 pt: 1.5,
@@ -687,7 +772,10 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
 
             {/* Drawer Header */}
             <Box
-              onPointerDown={(e) => dragControls.start(e)}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                dragControls.start(e);
+              }}
               sx={{
                 px: 2,
                 pb: 2,
@@ -788,6 +876,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                   flexDirection: 'column',
                   gap: 2.5,
                   backgroundColor: 'transparent',
+                  overscrollBehaviorY: 'contain',
                 }}
               >
                 <AnimatePresence mode="wait">

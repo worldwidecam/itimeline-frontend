@@ -6,6 +6,7 @@ import {
   Box,
   Tooltip,
   useTheme,
+  useMediaQuery,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -87,6 +88,7 @@ const MediaCard = forwardRef(({
     );
   }
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const {
@@ -318,6 +320,9 @@ const MediaCard = forwardRef(({
     try {
       if (!dateStr) return 'Invalid date';
       const date = parseISO(dateStr);
+      if (isMobile) {
+        return format(date, 'M/d/yy');
+      }
       return format(date, 'MMM d, yyyy, h:mm a');
     } catch (error) {
       console.error('Error formatting date:', error);
@@ -358,30 +363,44 @@ const MediaCard = forwardRef(({
   // Helper function to prepare media sources
   const prepareMediaSources = (mediaSource) => {
     let mediaSources = [];
+    if (!mediaSource) return { mediaSources, fullUrl: '' };
+
+    // Normalize input URL by removing localhost:5000 if present
+    const normalizedInput = String(mediaSource).trim().replace(/^https?:\/\/localhost:5000\//, '/');
     
     const isCloudinaryUrl = (
-      (mediaSource && (
-        mediaSource.includes('cloudinary.com') || 
-        mediaSource.includes('res.cloudinary')
+      (normalizedInput && (
+        normalizedInput.includes('cloudinary.com') || 
+        normalizedInput.includes('res.cloudinary')
       )) ||
       (event.media_type && event.media_type.includes('cloudinary'))
     );
 
-    const isR2Url = mediaSource && (
-      mediaSource.includes('r2.dev') || 
-      mediaSource.includes('itimeline-media')
+    const isR2Url = normalizedInput && (
+      normalizedInput.includes('r2.dev') || 
+      normalizedInput.includes('itimeline-media')
     );
     
-    let fullUrl = mediaSource;
+    let fullUrl = normalizedInput;
     
     if (isCloudinaryUrl || isR2Url) {
-      fullUrl = mediaSource;
+      fullUrl = normalizedInput;
     }
-    else if (mediaSource.startsWith('/')) {
-      fullUrl = `${config.API_URL}${mediaSource}`;
+    else if (normalizedInput.startsWith('/')) {
+      // Keep relative path so it routes through Vite proxy
+      fullUrl = normalizedInput;
     }
     else {
-      fullUrl = normalizeMediaUrl(mediaSource);
+      // Shorthand path, append config.API_URL (and clean it up if it points to localhost)
+      const baseUrl = config.API_URL?.endsWith('/') 
+        ? config.API_URL.slice(0, -1) 
+        : (config.API_URL || '');
+      
+      if (baseUrl.includes('localhost:5000')) {
+        fullUrl = `/${normalizedInput}`;
+      } else {
+        fullUrl = `${baseUrl}/${normalizedInput}`;
+      }
     }
     
     // If media_url is already a complete Cloudinary or R2 URL, use it directly
@@ -424,8 +443,8 @@ const MediaCard = forwardRef(({
       mediaSources.push(fullUrl);
     }
     
-    if (mediaSource && mediaSource.startsWith('/uploads/')) {
-      mediaSources.push(`${config.API_URL}${mediaSource}`);
+    if (normalizedInput && normalizedInput.startsWith('/uploads/')) {
+      mediaSources.push(normalizedInput);
     }
     
     // De-duplicate while preserving order
@@ -641,7 +660,7 @@ const MediaCard = forwardRef(({
               <motion.video
                 ref={videoRef}
                 initial={{ opacity: 0 }}
-                animate={{ opacity: videoLoaded ? 1 : 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
                 onLoadedData={() => setVideoLoaded(true)}
                 poster={posterUrl}
@@ -733,7 +752,7 @@ const MediaCard = forwardRef(({
                   <motion.video
                     ref={videoRef}
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: videoLoaded ? 1 : 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ duration: 1.2, ease: 'easeOut' }}
                     onLoadedData={() => setVideoLoaded(true)}
                     poster={validMediaSources[0].includes('cloudinary') ? validMediaSources[0].replace(/\/video\/upload\//, '/video/upload/so_auto/').replace(/\.[^.]+$/, '.jpg') : undefined}
@@ -1129,42 +1148,42 @@ const MediaCard = forwardRef(({
               borderRadius: '0 0 16px 16px',
             }}
           >
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
-                <TypeIcon sx={{ color, mt: 0.5 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography
-                    variant="h6"
-                    component="h3"
-                    sx={{
-                      fontWeight: 'bold',
-                      mb: 1,
-                      pr: 1,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      lineHeight: 1.3,
-                      color: 'text.primary',
-                    }}
-                  >
-                    {event.title}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-                    {event.event_date && (
-                      <Chip
-                        icon={<EventIcon />}
-                        label={formatEventDate(event.event_date)}
-                        size="small"
-                        color="primary"
-                        sx={{ mr: 1 }}
-                      />
-                    )}
-                  </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1, width: '100%' }}>
+              {/* Row 1: Icons on Left, Date Chip on Right */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TypeIcon sx={{ color, mt: 0.5 }} />
+                  <EventOriginTimelineBadge event={event} />
                 </Box>
+                {event.event_date && (
+                  <Chip
+                    icon={<EventIcon />}
+                    label={formatEventDate(event.event_date)}
+                    size="small"
+                    color="primary"
+                    sx={{ mr: 1 }}
+                  />
+                )}
               </Box>
-              <EventOriginTimelineBadge event={event} />
+              {/* Row 2: Title */}
+              <Typography
+                variant="h6"
+                component="h3"
+                sx={{
+                  fontWeight: 'bold',
+                  mb: 1,
+                  pr: 1,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  lineHeight: 1.3,
+                  color: 'text.primary',
+                }}
+              >
+                {event.title}
+              </Typography>
             </Box>
             
             {/* Event description */}
@@ -1195,8 +1214,8 @@ const MediaCard = forwardRef(({
               }}
             >
               {/* Row 1: Creator and Vote */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 0.5 }}>
                   {event.created_by_username && (
                     <>
                       <UserAvatar
@@ -1208,9 +1227,9 @@ const MediaCard = forwardRef(({
                         isRestricted={event.created_by_is_restricted || event.created_by?.is_restricted}
                         isSuspended={event.created_by_is_suspended || event.created_by?.is_suspended}
                         isAvatarBlurred={event.created_by_is_avatar_blurred || event.is_avatar_blurred}
-                        sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                        sx={{ mr: 0.2, fontSize: '0.75rem' }}
                       />
-                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.2, whiteSpace: 'nowrap' }}>
                         By
                       </Typography>
                       <Link
@@ -1220,6 +1239,12 @@ const MediaCard = forwardRef(({
                         color="primary"
                         sx={{
                           textDecoration: 'none',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: { xs: 80, sm: 140 },
+                          display: 'inline-block',
+                          verticalAlign: 'bottom',
                           '&:hover': {
                             textDecoration: 'underline'
                           }
@@ -1231,7 +1256,7 @@ const MediaCard = forwardRef(({
                   )}
                 </Box>
                 {showInlineVoteControls && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: 2.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, pr: { xs: 0.5, sm: 2.5 } }}>
                     {/* Consensus label */}
                     <Box sx={{ height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.3 }}>
                       <AnimatePresence mode="wait">
@@ -1258,9 +1283,12 @@ const MediaCard = forwardRef(({
                     </Box>
                     {/* Vote pill */}
                     <Box sx={{
-                      transform: voteValue ? 'scale(0.5)' : 'scale(1)',
-                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-                      transformOrigin: 'center top',
+                      width: 'auto',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      mr: voteValue ? 0 : 0.5,
+                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), width 320ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}>
                       <VoteControls
                         value={voteValue}
