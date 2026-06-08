@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -37,6 +37,12 @@ const commentsCache = {}; // eventId -> comments array
 const scrollPositionsCache = {}; // eventId -> scrollTop
 const scrolledUpCache = {}; // eventId -> boolean
 
+// Read-only helper for other components to check cached comment count without importing state
+export const getCachedCommentCount = (eventId) => {
+  const cached = eventId != null ? commentsCache[eventId] : null;
+  return Array.isArray(cached) ? cached.length : null;
+};
+
 /**
  * EventCommentDrawer - Slide-up comments section for event popups
  * Renders in custom vellum styling for light mode, slate drafting for dark mode.
@@ -45,6 +51,15 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
   const theme = useTheme();
   const dragControls = useDragControls();
   const drawerY = useMotionValue(0);
+
+  // Reset drawer Y position to bottom BEFORE first paint whenever open becomes true.
+  // This prevents the MotionValue (which starts at 0) from overriding the enter animation
+  // and causing the drawer to flash at the top of the popup.
+  useLayoutEffect(() => {
+    if (open) {
+      drawerY.set(typeof window !== 'undefined' ? window.innerHeight : 800);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const { user, isGuest } = useAuth();
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);
@@ -68,7 +83,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     if (newSortBy === sortBy) return;
     setSortBy(newSortBy);
     localStorage.setItem('comment_sort_preference', newSortBy);
-    
+
     setTimeout(() => {
       if (newSortBy === 'top') {
         if (scrollContainerRef.current) {
@@ -91,10 +106,10 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     try {
       const res = await api.get(`/api/v1/comments/event/${eventId}`);
       const fetched = res.data?.data || [];
-      
+
       // Update session cache
       commentsCache[eventId] = fetched;
-      
+
       setComments((prev) => {
         if (isBackground && prev.length > 0 && fetched.length > prev.length) {
           setHasNewComments(true);
@@ -121,11 +136,11 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
       setMinimizedComments(new Set());
       setCollapsingParentId(null);
       const isDifferentEvent = eventId !== activeEventIdRef.current;
-      
+
       if (isDifferentEvent) {
         activeEventIdRef.current = eventId;
         const cached = commentsCache[eventId];
-        
+
         if (cached) {
           // Instantly populate drawer with cached comments
           setComments(cached);
@@ -133,7 +148,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
           setHasNewComments(false);
           setIsScrolledUp(scrolledUpCache[eventId] || false);
           setScrollRestored(false);
-          
+
           // Background refresh silently
           const timer = setTimeout(() => {
             fetchComments(true);
@@ -147,7 +162,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
           setHasNewComments(false);
           setIsScrolledUp(false);
           setScrollRestored(false);
-          
+
           const timer = setTimeout(() => {
             fetchComments(false);
           }, 350);
@@ -173,10 +188,10 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     if (open) {
       const prevHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
       const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
-      
+
       document.documentElement.style.overscrollBehaviorY = 'contain';
       document.body.style.overscrollBehaviorY = 'contain';
-      
+
       return () => {
         document.documentElement.style.overscrollBehaviorY = prevHtmlOverscroll;
         document.body.style.overscrollBehaviorY = prevBodyOverscroll;
@@ -235,7 +250,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
       if (!isScrolled) {
         setHasNewComments(false);
       }
-      
+
       // Save scroll position in cache
       if (eventId) {
         scrollPositionsCache[eventId] = scrollTop;
@@ -250,32 +265,52 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     if (!scrollEl || !open) return;
 
     let startY = 0;
+    let lastClientY = 0;
     let startScrollTop = 0;
     let activeDrag = false;
+    let hasDraggedUp = false;
 
     const handleTouchStart = (e) => {
       if (e.touches.length !== 1) return;
       e.stopPropagation();
       startY = e.touches[0].clientY;
+      lastClientY = e.touches[0].clientY;
       startScrollTop = scrollEl.scrollTop;
       activeDrag = false;
+      hasDraggedUp = false;
     };
 
     const handleTouchMove = (e) => {
       if (e.touches.length !== 1) return;
+      e.stopPropagation();
 
       const currentY = e.touches[0].clientY;
       const deltaY = currentY - startY;
 
-      // If at the very top (or negative due to bounce) and pulling downward, move the drawer directly
-      if (startScrollTop <= 0 && deltaY > 0) {
-        e.stopPropagation();
+      // Track if the user has dragged upward significantly in this gesture
+      if (deltaY < -10) {
+        hasDraggedUp = true;
+      }
+
+      const isScrollAtTop = scrollEl.scrollTop <= 0;
+      const isMovingDown = currentY > lastClientY;
+
+      // Only transition to dragging the drawer if the gesture started at the very top,
+      // is currently at the top, moving down, and has not dragged upward during this touch sequence.
+      if (!activeDrag && startScrollTop <= 0 && isScrollAtTop && isMovingDown && deltaY > 5 && !hasDraggedUp) {
+        activeDrag = true;
+        startY = currentY; // reset startY to current touch position to start drag from 0
+      }
+
+      if (activeDrag) {
         if (e.cancelable) {
           e.preventDefault();
         }
-        activeDrag = true;
-        drawerY.set(deltaY);
+        const dragDistance = currentY - startY;
+        drawerY.set(Math.max(0, dragDistance));
       }
+
+      lastClientY = currentY;
     };
 
     const handleTouchEnd = (e) => {
@@ -467,7 +502,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
 
     // Find the thread replies mapping by building the threads context
     const { repliesMap } = buildThreads();
-    
+
     // Helper to find root comment ID
     const findRootId = (pId) => {
       let current = comments.find((x) => x.id === pId);
@@ -520,7 +555,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     setTimeout(() => {
       const parentEl = document.getElementById(`comment-row-${parentId}`);
       const replyEl = document.getElementById(`comment-row-${reply.id}`);
-      
+
       if (parentEl) {
         parentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
@@ -578,7 +613,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
     } else {
       rootComments.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     }
-    
+
     // Sort replies within thread by creation time
     Object.keys(repliesMap).forEach((rootId) => {
       repliesMap[rootId].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -639,7 +674,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
   // Bubble style picker
   const getBubbleStyle = (c) => {
     const isOp = Number(c.userId) === Number(eventCreatorId);
-    
+
     if (c.type === 'system') {
       // Lavender/Plum - Mirrored gradient (dim to bright)
       return {
@@ -724,7 +759,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
             dragConstraints={{ top: 0 }}
             dragElastic={{ top: 0, bottom: 0.8 }}
             onDragEnd={(event, info) => {
-              if (info.offset.y > 100 || info.velocity.y > 300) {
+              if (info.offset.y > 100 || (info.velocity.y > 300 && info.offset.y > 20)) {
                 onClose();
               }
             }}
@@ -749,6 +784,8 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                 e.stopPropagation();
                 dragControls.start(e);
               }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
               sx={{
                 width: '100%',
                 pt: 1.5,
@@ -776,6 +813,8 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                 e.stopPropagation();
                 dragControls.start(e);
               }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
               sx={{
                 px: 2,
                 pb: 2,
@@ -792,7 +831,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                 <Typography variant="h6" sx={{ fontFamily: 'Lobster, cursive', color: textPrimary, fontWeight: 600 }}>
                   Discussion
                 </Typography>
-                
+
                 {/* Sort Toggle Segmented Control */}
                 <Box
                   onPointerDown={(e) => e.stopPropagation()}
@@ -852,10 +891,10 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                   </Button>
                 </Box>
               </Box>
-              <IconButton 
-                onClick={onClose} 
-                onPointerDown={(e) => e.stopPropagation()} 
-                size="small" 
+              <IconButton
+                onClick={onClose}
+                onPointerDown={(e) => e.stopPropagation()}
+                size="small"
                 sx={{ color: textPrimary }}
               >
                 <CloseIcon />
@@ -923,533 +962,533 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                         gap: 2,
                       }}
                     >
-                    <Box
-                      sx={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-                        color: textSecondary,
-                        border: `1px solid ${charcoalBorder}`,
-                        mb: 1,
-                      }}
-                    >
-                      <CommentIcon sx={{ fontSize: 24, opacity: 0.7 }} />
+                      <Box
+                        sx={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          color: textSecondary,
+                          border: `1px solid ${charcoalBorder}`,
+                          mb: 1,
+                        }}
+                      >
+                        <CommentIcon sx={{ fontSize: 24, opacity: 0.7 }} />
+                      </Box>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{
+                          fontFamily: 'Lobster, cursive',
+                          color: textPrimary,
+                          fontSize: '1.2rem',
+                          fontWeight: 500,
+                        }}
+                      >
+                        No comments yet
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: textSecondary,
+                          maxWidth: 280,
+                          lineHeight: 1.5,
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        How about you leave one? Start the discussion below!
+                      </Typography>
                     </Box>
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        fontFamily: 'Lobster, cursive',
-                        color: textPrimary,
-                        fontSize: '1.2rem',
-                        fontWeight: 500,
-                      }}
+                  ) : (
+                    <Box
+                      key="comments-list"
+                      component={motion.div}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5 }}
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}
                     >
-                      No comments yet
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: textSecondary,
-                        maxWidth: 280,
-                        lineHeight: 1.5,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      How about you leave one? Start the discussion below!
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box
-                    key="comments-list"
-                    component={motion.div}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5 }}
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}
-                  >
-                    {rootComments.map((rootComment) => {
-                    const threadReplies = repliesMap[rootComment.id] || [];
-                    const isMinimized = minimizedComments.has(rootComment.id);
-                    const isRepliesHidden = isMinimized || collapsingParentId === rootComment.id;
-                    const bubbleStyle = getBubbleStyle(rootComment);
-                    const alignSide = isTagLog(rootComment) ? 'right' : 'left';
+                      {rootComments.map((rootComment) => {
+                        const threadReplies = repliesMap[rootComment.id] || [];
+                        const isMinimized = minimizedComments.has(rootComment.id);
+                        const isRepliesHidden = isMinimized || collapsingParentId === rootComment.id;
+                        const bubbleStyle = getBubbleStyle(rootComment);
+                        const alignSide = isTagLog(rootComment) ? 'right' : 'left';
 
-                    return (
-                      <Box key={rootComment.id} id={`comment-row-${rootComment.id}`} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {/* Root Comment Row */}
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            gap: 1.5,
-                            alignItems: 'flex-start',
-                            flexDirection: alignSide === 'right' ? 'row-reverse' : 'row',
-                            position: 'relative',
-                            pb: rootComment.type !== 'system' ? '4px' : 0,
-                          }}
-                        >
-                          {rootComment.type === 'system' ? (
-                            <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: '50%',
-                                bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: textSecondary,
-                                border: '1px solid ' + charcoalBorder,
-                              }}
-                            >
-                              <GearIcon sx={{ fontSize: 16 }} />
-                            </Box>
-                          ) : (
-                            <UserAvatar
-                              name={rootComment.user?.displayUsername || rootComment.user?.username}
-                              avatarUrl={rootComment.user?.avatar}
-                              id={rootComment.userId}
-                              userColor={rootComment.user?.userColor}
-                              isRestricted={rootComment.user?.is_restricted || rootComment.user?.is_suspended}
-                              isAvatarBlurred={rootComment.user?.is_avatar_blurred}
-                              onClick={() => navigate(`/profile/${rootComment.userId}`)}
-                              size={32}
-                            />
-                          )}
-                          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            {/* Bubble + Other Actions Wrapper */}
+                        return (
+                          <Box key={rootComment.id} id={`comment-row-${rootComment.id}`} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            {/* Root Comment Row */}
                             <Box
                               sx={{
                                 display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: alignSide === 'right' ? 'flex-end' : 'flex-start',
-                                ml: alignSide === 'right' ? 'auto' : 0,
-                                mr: 0,
-                                maxWidth: alignSide === 'right' ? '100%' : 'calc(100% - 96px)',
-                                width: 'fit-content',
+                                gap: 1.5,
+                                alignItems: 'flex-start',
+                                flexDirection: alignSide === 'right' ? 'row-reverse' : 'row',
+                                position: 'relative',
+                                pb: rootComment.type !== 'system' ? '4px' : 0,
                               }}
                             >
-                              <AnimatePresence mode="wait">
-                                {isMinimized ? (
-                                  <motion.div
-                                    key="minimized"
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                    transition={{ type: 'spring', stiffness: 140, damping: 20 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleMinimize(rootComment.id, threadReplies.length > 0);
-                                    }}
-                                    style={{ transformOrigin: alignSide === 'right' ? 'top right' : 'top left', width: 'fit-content' }}
-                                  >
-                                    <Box
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      component={motion.div}
-                                      sx={{
-                                        width: 44,
-                                        height: 32,
-                                        borderRadius: '16px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: bubbleStyle.bg,
-                                        border: '1px solid ' + bubbleStyle.border,
-                                        color: bubbleStyle.text,
-                                        boxShadow: bubbleStyle.shadow,
-                                        cursor: 'pointer',
-                                        userSelect: 'none',
-                                        mt: 0,
-                                      }}
-                                    >
-                                      <IconButton
-                                        size="small"
-                                        disableRipple
-                                        sx={{ 
-                                          color: 'inherit',
-                                          p: 0,
-                                          '&:hover': { background: 'none' }
-                                        }}
-                                      >
-                                        <MoreHorizIcon sx={{ fontSize: 18 }} />
-                                      </IconButton>
-                                    </Box>
-                                  </motion.div>
-                                ) : (
-                                  <motion.div
-                                    key="expanded"
-                                    initial={{ opacity: 0, scale: 0.92 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.92 }}
-                                    transition={{ type: 'spring', stiffness: 140, damping: 20 }}
-                                    style={{ transformOrigin: alignSide === 'right' ? 'top right' : 'top left', width: 'fit-content' }}
-                                  >
-                                    <Box
-                                      onClick={() => handleToggleMinimize(rootComment.id, threadReplies.length > 0)}
-                                      sx={{
-                                        minWidth: '220px',
-                                        p: 1.5,
-                                        borderRadius: alignSide === 'right' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                                        background: bubbleStyle.bg,
-                                        border: '1px solid ' + bubbleStyle.border,
-                                        color: bubbleStyle.text,
-                                        boxShadow: bubbleStyle.shadow,
-                                        transform: bubbleStyle.transform || 'none',
-                                        transition: 'all 0.2s ease-in-out',
-                                        cursor: 'pointer',
-                                        '&:hover': bubbleStyle.hover,
-                                      }}
-                                    >
-                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, gap: 1 }}>
-                                        <Typography sx={{ fontWeight: 700, color: textPrimary, fontSize: '0.85rem', textTransform: rootComment.type === 'system' ? 'none' : 'capitalize' }}>
-                                          {rootComment.type === 'system' ? 'System Generated' : (rootComment.user?.displayUsername || rootComment.user?.username)}
-                                        </Typography>
-                                        {Number(rootComment.userId) === Number(eventCreatorId) && rootComment.type !== 'system' && (
-                                          <Typography variant="caption" sx={{ px: 0.75, py: 0.1, borderRadius: 1, bgcolor: 'rgba(212, 163, 89, 0.25)', fontSize: '0.6rem', fontWeight: 800, color: isDarkMode ? '#ffdd77' : '#996600' }}>
-                                            OP
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                      
-                                      <RichContentRenderer content={rootComment.content} theme={theme} inheritTextColor={true} />
-                                    </Box>
-       
-                                    {/* Bubble Footer Row (Actions + Votes) */}
-                                    <Box
-                                      sx={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        width: '100%',
-                                        mt: 0.5,
-                                        pl: 0.5,
-                                        pr: 0.5,
-                                        height: '24px',
-                                      }}
-                                    >
-                                      {/* Left Actions */}
-                                      <Box sx={{ display: 'flex', gap: alignSide === 'right' ? 1.25 : 2, alignItems: 'center' }}>
-                                        <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.7rem' }}>
-                                          {formatCommentTimestamp(rootComment.createdAt)}
-                                        </Typography>
-                                        {!isGuest && rootComment.type !== 'system' && (
-                                          <Typography
-                                            variant="caption"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleReplyClick(rootComment);
-                                            }}
-                                            sx={{ color: textSecondary, cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem', '&:hover': { color: textPrimary } }}
-                                          >
-                                            Reply
-                                          </Typography>
-                                        )}
-                                        {canDeleteComment(rootComment) && (
-                                          <Typography
-                                            variant="caption"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDeleteComment(rootComment.id);
-                                            }}
-                                            sx={{ color: theme.palette.error.main, cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem', '&:hover': { opacity: 0.8 } }}
-                                          >
-                                            Delete
-                                          </Typography>
-                                        )}
-                                      </Box>
-       
-                                      {/* Right Votes */}
-                                      {rootComment.type !== 'system' && (
-                                        <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', justifyContent: 'center', width: 56 }}>
-                                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(rootComment.id, 'up'); }} sx={{ p: 0.2, color: rootComment.my_vote === 'up' ? theme.palette.success.main : textSecondary }}>
-                                            <UpvoteIcon sx={{ fontSize: 13 }} />
-                                          </IconButton>
-                                          <Typography variant="caption" sx={{ fontSize: '0.68rem', color: textSecondary, fontWeight: 700 }}>
-                                            {rootComment.upvotes - rootComment.downvotes}
-                                          </Typography>
-                                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(rootComment.id, 'down'); }} sx={{ p: 0.2, color: rootComment.my_vote === 'down' ? theme.palette.error.main : textSecondary }}>
-                                            <DownvoteIcon sx={{ fontSize: 13 }} />
-                                          </IconButton>
-                                        </Box>
-                                      )}
-                                    </Box>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </Box>
-                          </Box>
-                        </Box>
-
-                        {/* Replies Wrapper */}
-                        {threadReplies.length > 0 && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            <AnimatePresence>
-                              {!isRepliesHidden && (
-                                <motion.div
-                                  key={`replies-${rootComment.id}`}
-                                  initial={{ opacity: 0, height: 0, scale: 0.95 }}
-                                  animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                                  exit={{ opacity: 0, height: 0, scale: 0 }}
-                                  transition={{ duration: 0.3 }}
-                                  style={{ transformOrigin: alignSide === 'right' ? 'top right' : 'top left', overflow: 'hidden' }}
+                              {rootComment.type === 'system' ? (
+                                <Box
+                                  sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: textSecondary,
+                                    border: '1px solid ' + charcoalBorder,
+                                  }}
                                 >
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
-                                    {threadReplies.map((reply) => {
-                                      const isReplyMinimized = minimizedComments.has(reply.id);
-                                      const replyBubbleStyle = getBubbleStyle(reply);
-
-                                      return (
+                                  <GearIcon sx={{ fontSize: 16 }} />
+                                </Box>
+                              ) : (
+                                <UserAvatar
+                                  name={rootComment.user?.displayUsername || rootComment.user?.username}
+                                  avatarUrl={rootComment.user?.avatar}
+                                  id={rootComment.userId}
+                                  userColor={rootComment.user?.userColor}
+                                  isRestricted={rootComment.user?.is_restricted || rootComment.user?.is_suspended}
+                                  isAvatarBlurred={rootComment.user?.is_avatar_blurred}
+                                  onClick={() => navigate(`/profile/${rootComment.userId}`)}
+                                  size={32}
+                                />
+                              )}
+                              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                {/* Bubble + Other Actions Wrapper */}
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: alignSide === 'right' ? 'flex-end' : 'flex-start',
+                                    ml: alignSide === 'right' ? 'auto' : 0,
+                                    mr: 0,
+                                    maxWidth: alignSide === 'right' ? '100%' : 'calc(100% - 96px)',
+                                    width: 'fit-content',
+                                  }}
+                                >
+                                  <AnimatePresence mode="wait">
+                                    {isMinimized ? (
+                                      <motion.div
+                                        key="minimized"
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        transition={{ type: 'spring', stiffness: 140, damping: 20 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleMinimize(rootComment.id, threadReplies.length > 0);
+                                        }}
+                                        style={{ transformOrigin: alignSide === 'right' ? 'top right' : 'top left', width: 'fit-content' }}
+                                      >
                                         <Box
-                                          key={reply.id}
-                                          id={`comment-row-${reply.id}`}
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          component={motion.div}
                                           sx={{
+                                            width: 44,
+                                            height: 32,
+                                            borderRadius: '16px',
                                             display: 'flex',
-                                            gap: 1.5,
-                                            alignItems: 'flex-start',
-                                            flexDirection: 'row-reverse',
-                                            position: 'relative',
-                                            pb: reply.type !== 'system' ? '4px' : 0,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: bubbleStyle.bg,
+                                            border: '1px solid ' + bubbleStyle.border,
+                                            color: bubbleStyle.text,
+                                            boxShadow: bubbleStyle.shadow,
+                                            cursor: 'pointer',
+                                            userSelect: 'none',
+                                            mt: 0,
                                           }}
                                         >
-                                          {reply.type === 'system' ? (
-                                            <Box
-                                              sx={{
-                                                width: 32,
-                                                height: 32,
-                                                borderRadius: '50%',
-                                                bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                color: textSecondary,
-                                                border: '1px solid ' + charcoalBorder,
-                                              }}
-                                            >
-                                              <GearIcon sx={{ fontSize: 16 }} />
+                                          <IconButton
+                                            size="small"
+                                            disableRipple
+                                            sx={{
+                                              color: 'inherit',
+                                              p: 0,
+                                              '&:hover': { background: 'none' }
+                                            }}
+                                          >
+                                            <MoreHorizIcon sx={{ fontSize: 18 }} />
+                                          </IconButton>
+                                        </Box>
+                                      </motion.div>
+                                    ) : (
+                                      <motion.div
+                                        key="expanded"
+                                        initial={{ opacity: 0, scale: 0.92 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.92 }}
+                                        transition={{ type: 'spring', stiffness: 140, damping: 20 }}
+                                        style={{ transformOrigin: alignSide === 'right' ? 'top right' : 'top left', width: 'fit-content' }}
+                                      >
+                                        <Box
+                                          onClick={() => handleToggleMinimize(rootComment.id, threadReplies.length > 0)}
+                                          sx={{
+                                            minWidth: '220px',
+                                            p: 1.5,
+                                            borderRadius: alignSide === 'right' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                                            background: bubbleStyle.bg,
+                                            border: '1px solid ' + bubbleStyle.border,
+                                            color: bubbleStyle.text,
+                                            boxShadow: bubbleStyle.shadow,
+                                            transform: bubbleStyle.transform || 'none',
+                                            transition: 'all 0.2s ease-in-out',
+                                            cursor: 'pointer',
+                                            '&:hover': bubbleStyle.hover,
+                                          }}
+                                        >
+                                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, gap: 1 }}>
+                                            <Typography sx={{ fontWeight: 700, color: textPrimary, fontSize: '0.85rem', textTransform: rootComment.type === 'system' ? 'none' : 'capitalize' }}>
+                                              {rootComment.type === 'system' ? 'System Generated' : (rootComment.user?.displayUsername || rootComment.user?.username)}
+                                            </Typography>
+                                            {Number(rootComment.userId) === Number(eventCreatorId) && rootComment.type !== 'system' && (
+                                              <Typography variant="caption" sx={{ px: 0.75, py: 0.1, borderRadius: 1, bgcolor: 'rgba(212, 163, 89, 0.25)', fontSize: '0.6rem', fontWeight: 800, color: isDarkMode ? '#ffdd77' : '#996600' }}>
+                                                OP
+                                              </Typography>
+                                            )}
+                                          </Box>
+
+                                          <RichContentRenderer content={rootComment.content} theme={theme} inheritTextColor={true} />
+                                        </Box>
+
+                                        {/* Bubble Footer Row (Actions + Votes) */}
+                                        <Box
+                                          sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            mt: 0.5,
+                                            pl: 0.5,
+                                            pr: 0.5,
+                                            height: '24px',
+                                          }}
+                                        >
+                                          {/* Left Actions */}
+                                          <Box sx={{ display: 'flex', gap: alignSide === 'right' ? 1.25 : 2, alignItems: 'center' }}>
+                                            <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.7rem' }}>
+                                              {formatCommentTimestamp(rootComment.createdAt)}
+                                            </Typography>
+                                            {!isGuest && rootComment.type !== 'system' && (
+                                              <Typography
+                                                variant="caption"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleReplyClick(rootComment);
+                                                }}
+                                                sx={{ color: textSecondary, cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem', '&:hover': { color: textPrimary } }}
+                                              >
+                                                Reply
+                                              </Typography>
+                                            )}
+                                            {canDeleteComment(rootComment) && (
+                                              <Typography
+                                                variant="caption"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleDeleteComment(rootComment.id);
+                                                }}
+                                                sx={{ color: theme.palette.error.main, cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem', '&:hover': { opacity: 0.8 } }}
+                                              >
+                                                Delete
+                                              </Typography>
+                                            )}
+                                          </Box>
+
+                                          {/* Right Votes */}
+                                          {rootComment.type !== 'system' && (
+                                            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', justifyContent: 'center', width: 56 }}>
+                                              <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(rootComment.id, 'up'); }} sx={{ p: 0.2, color: rootComment.my_vote === 'up' ? theme.palette.success.main : textSecondary }}>
+                                                <UpvoteIcon sx={{ fontSize: 13 }} />
+                                              </IconButton>
+                                              <Typography variant="caption" sx={{ fontSize: '0.68rem', color: textSecondary, fontWeight: 700 }}>
+                                                {rootComment.upvotes - rootComment.downvotes}
+                                              </Typography>
+                                              <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(rootComment.id, 'down'); }} sx={{ p: 0.2, color: rootComment.my_vote === 'down' ? theme.palette.error.main : textSecondary }}>
+                                                <DownvoteIcon sx={{ fontSize: 13 }} />
+                                              </IconButton>
                                             </Box>
-                                          ) : (
-                                            <UserAvatar
-                                              name={reply.user?.displayUsername || reply.user?.username}
-                                              avatarUrl={reply.user?.avatar}
-                                              id={reply.userId}
-                                              userColor={reply.user?.userColor}
-                                              isRestricted={reply.user?.is_restricted || reply.user?.is_suspended}
-                                              isAvatarBlurred={reply.user?.is_avatar_blurred}
-                                              onClick={() => navigate(`/profile/${reply.userId}`)}
-                                              size={32}
-                                            />
                                           )}
-                                          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                            {/* Bubble + L-Arrow wrapper row */}
+                                        </Box>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </Box>
+                              </Box>
+                            </Box>
+
+                            {/* Replies Wrapper */}
+                            {threadReplies.length > 0 && (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                                <AnimatePresence>
+                                  {!isRepliesHidden && (
+                                    <motion.div
+                                      key={`replies-${rootComment.id}`}
+                                      initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                                      animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                                      exit={{ opacity: 0, height: 0, scale: 0 }}
+                                      transition={{ duration: 0.3 }}
+                                      style={{ transformOrigin: alignSide === 'right' ? 'top right' : 'top left', overflow: 'hidden' }}
+                                    >
+                                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
+                                        {threadReplies.map((reply) => {
+                                          const isReplyMinimized = minimizedComments.has(reply.id);
+                                          const replyBubbleStyle = getBubbleStyle(reply);
+
+                                          return (
                                             <Box
+                                              key={reply.id}
+                                              id={`comment-row-${reply.id}`}
                                               sx={{
                                                 display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1,
-                                                alignSelf: 'flex-end',
+                                                gap: 1.5,
+                                                alignItems: 'flex-start',
+                                                flexDirection: 'row-reverse',
+                                                position: 'relative',
+                                                pb: reply.type !== 'system' ? '4px' : 0,
                                               }}
                                             >
-                                              {/* External L-Arrow thread connector (outside, left of bubble, opposite avatar) */}
-                                              {reply.parentId && !isReplyMinimized && (
-                                                <Tooltip title="Show parent comment">
-                                                  <IconButton
-                                                    size="small"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      handleLArrowClick(reply);
-                                                    }}
+                                              {reply.type === 'system' ? (
+                                                <Box
+                                                  sx={{
+                                                    width: 32,
+                                                    height: 32,
+                                                    borderRadius: '50%',
+                                                    bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: textSecondary,
+                                                    border: '1px solid ' + charcoalBorder,
+                                                  }}
+                                                >
+                                                  <GearIcon sx={{ fontSize: 16 }} />
+                                                </Box>
+                                              ) : (
+                                                <UserAvatar
+                                                  name={reply.user?.displayUsername || reply.user?.username}
+                                                  avatarUrl={reply.user?.avatar}
+                                                  id={reply.userId}
+                                                  userColor={reply.user?.userColor}
+                                                  isRestricted={reply.user?.is_restricted || reply.user?.is_suspended}
+                                                  isAvatarBlurred={reply.user?.is_avatar_blurred}
+                                                  onClick={() => navigate(`/profile/${reply.userId}`)}
+                                                  size={32}
+                                                />
+                                              )}
+                                              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                                {/* Bubble + L-Arrow wrapper row */}
+                                                <Box
+                                                  sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 1,
+                                                    alignSelf: 'flex-end',
+                                                  }}
+                                                >
+                                                  {/* External L-Arrow thread connector (outside, left of bubble, opposite avatar) */}
+                                                  {reply.parentId && !isReplyMinimized && (
+                                                    <Tooltip title="Show parent comment">
+                                                      <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleLArrowClick(reply);
+                                                        }}
+                                                        sx={{
+                                                          color: textSecondary,
+                                                          p: 0.5,
+                                                          '&:hover': {
+                                                            color: textPrimary,
+                                                            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                                                          }
+                                                        }}
+                                                      >
+                                                        <SubdirectoryArrowRightIcon sx={{ fontSize: 16 }} />
+                                                      </IconButton>
+                                                    </Tooltip>
+                                                  )}
+
+                                                  {/* Bubble + Other Actions Wrapper */}
+                                                  <Box
                                                     sx={{
-                                                      color: textSecondary,
-                                                      p: 0.5,
-                                                      '&:hover': {
-                                                        color: textPrimary,
-                                                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                                                      }
+                                                      display: 'flex',
+                                                      flexDirection: 'column',
+                                                      alignItems: 'flex-end',
+                                                      mr: 0,
+                                                      maxWidth: '100%',
+                                                      width: 'fit-content',
                                                     }}
                                                   >
-                                                    <SubdirectoryArrowRightIcon sx={{ fontSize: 16 }} />
-                                                  </IconButton>
-                                                </Tooltip>
-                                              )}
-
-                                              {/* Bubble + Other Actions Wrapper */}
-                                              <Box
-                                                sx={{
-                                                  display: 'flex',
-                                                  flexDirection: 'column',
-                                                  alignItems: 'flex-end',
-                                                  mr: 0,
-                                                  maxWidth: '100%',
-                                                  width: 'fit-content',
-                                                }}
-                                              >
-                                                <AnimatePresence mode="wait">
-                                                  {isReplyMinimized ? (
-                                                    <motion.div
-                                                      key="minimized"
-                                                      initial={{ opacity: 0, scale: 0.8 }}
-                                                      animate={{ opacity: 1, scale: 1 }}
-                                                      exit={{ opacity: 0, scale: 0.8 }}
-                                                      transition={{ type: 'spring', stiffness: 140, damping: 20 }}
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleToggleMinimize(reply.id, false);
-                                                      }}
-                                                      style={{ transformOrigin: 'top right', width: 'fit-content' }}
-                                                    >
-                                                      <Box
-                                                        whileHover={{ scale: 1.05 }}
-                                                        whileTap={{ scale: 0.95 }}
-                                                        component={motion.div}
-                                                        sx={{
-                                                          width: 44,
-                                                          height: 32,
-                                                          borderRadius: '16px',
-                                                          display: 'flex',
-                                                          alignItems: 'center',
-                                                          justifyContent: 'center',
-                                                          background: replyBubbleStyle.bg,
-                                                          border: '1px solid ' + replyBubbleStyle.border,
-                                                          color: replyBubbleStyle.text,
-                                                          boxShadow: replyBubbleStyle.shadow,
-                                                          cursor: 'pointer',
-                                                          userSelect: 'none',
-                                                          mt: 0,
-                                                        }}
-                                                      >
-                                                        <IconButton
-                                                          size="small"
-                                                          disableRipple
-                                                          sx={{ 
-                                                            color: 'inherit',
-                                                            p: 0,
-                                                            '&:hover': { background: 'none' }
+                                                    <AnimatePresence mode="wait">
+                                                      {isReplyMinimized ? (
+                                                        <motion.div
+                                                          key="minimized"
+                                                          initial={{ opacity: 0, scale: 0.8 }}
+                                                          animate={{ opacity: 1, scale: 1 }}
+                                                          exit={{ opacity: 0, scale: 0.8 }}
+                                                          transition={{ type: 'spring', stiffness: 140, damping: 20 }}
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleToggleMinimize(reply.id, false);
                                                           }}
+                                                          style={{ transformOrigin: 'top right', width: 'fit-content' }}
                                                         >
-                                                          <MoreHorizIcon sx={{ fontSize: 18 }} />
-                                                        </IconButton>
-                                                      </Box>
-                                                    </motion.div>
-                                                  ) : (
-                                                    <motion.div
-                                                      key="expanded"
-                                                      initial={{ opacity: 0, scale: 0.92 }}
-                                                      animate={{ opacity: 1, scale: 1 }}
-                                                      exit={{ opacity: 0, scale: 0.92 }}
-                                                      transition={{ type: 'spring', stiffness: 140, damping: 20 }}
-                                                      style={{ transformOrigin: 'top right', width: 'fit-content' }}
-                                                    >
-                                                      {/* Bubble */}
-                                                      <Box
-                                                        onClick={() => handleToggleMinimize(reply.id, false)}
-                                                        sx={{
-                                                          minWidth: '200px',
-                                                          p: 1.25,
-                                                          borderRadius: '16px 4px 16px 16px',
-                                                          background: replyBubbleStyle.bg,
-                                                          border: '1px solid ' + replyBubbleStyle.border,
-                                                          color: replyBubbleStyle.text,
-                                                          boxShadow: replyBubbleStyle.shadow,
-                                                          transform: replyBubbleStyle.transform || 'none',
-                                                          transition: 'all 0.2s ease-in-out',
-                                                          cursor: 'pointer',
-                                                        }}
-                                                      >
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 0.5, gap: 1 }}>
-                                                          {Number(reply.userId) === Number(eventCreatorId) && reply.type !== 'system' && (
-                                                            <Typography variant="caption" sx={{ px: 0.5, py: 0.05, borderRadius: 0.5, bgcolor: 'rgba(212, 163, 89, 0.25)', fontSize: '0.55rem', fontWeight: 800, color: isDarkMode ? '#ffdd77' : '#996600', mr: 'auto' }}>
-                                                              OP
-                                                            </Typography>
-                                                          )}
-                                                          <Typography sx={{ fontWeight: 700, color: textPrimary, fontSize: '0.825rem', textTransform: reply.type === 'system' ? 'none' : 'capitalize' }}>
-                                                            {reply.type === 'system' ? 'System Generated' : (reply.user?.displayUsername || reply.user?.username)}
-                                                          </Typography>
-                                                        </Box>
-                                                        <RichContentRenderer content={reply.content} theme={theme} inheritTextColor={true} textSx={{ fontSize: '0.825rem', textAlign: 'right' }} />
-                                                      </Box>
-
-                                                      {/* Bubble Footer Row (Actions + Votes) */}
-                                                      <Box
-                                                        sx={{
-                                                          display: 'flex',
-                                                          justifyContent: 'space-between',
-                                                          alignItems: 'center',
-                                                          width: '100%',
-                                                          mt: 0.5,
-                                                          pl: 0.5,
-                                                          pr: 0.5,
-                                                          height: '24px',
-                                                        }}
-                                                      >
-                                                        {/* Left Actions */}
-                                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                                          <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.65rem' }}>
-                                                            {formatCommentTimestamp(reply.createdAt)}
-                                                          </Typography>
-                                                          {!isGuest && reply.type !== 'system' && (
-                                                            <Typography
-                                                              variant="caption"
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleReplyClick(reply);
+                                                          <Box
+                                                            whileHover={{ scale: 1.05 }}
+                                                            whileTap={{ scale: 0.95 }}
+                                                            component={motion.div}
+                                                            sx={{
+                                                              width: 44,
+                                                              height: 32,
+                                                              borderRadius: '16px',
+                                                              display: 'flex',
+                                                              alignItems: 'center',
+                                                              justifyContent: 'center',
+                                                              background: replyBubbleStyle.bg,
+                                                              border: '1px solid ' + replyBubbleStyle.border,
+                                                              color: replyBubbleStyle.text,
+                                                              boxShadow: replyBubbleStyle.shadow,
+                                                              cursor: 'pointer',
+                                                              userSelect: 'none',
+                                                              mt: 0,
+                                                            }}
+                                                          >
+                                                            <IconButton
+                                                              size="small"
+                                                              disableRipple
+                                                              sx={{
+                                                                color: 'inherit',
+                                                                p: 0,
+                                                                '&:hover': { background: 'none' }
                                                               }}
-                                                              sx={{ color: textSecondary, cursor: 'pointer', fontWeight: 600, fontSize: '0.65rem', '&:hover': { color: textPrimary } }}
                                                             >
-                                                              Reply
-                                                            </Typography>
-                                                          )}
-                                                          {canDeleteComment(reply) && (
-                                                            <Typography
-                                                              variant="caption"
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeleteComment(reply.id);
-                                                              }}
-                                                              sx={{ color: theme.palette.error.main, cursor: 'pointer', fontWeight: 600, fontSize: '0.65rem', '&:hover': { opacity: 0.8 } }}
-                                                            >
-                                                              Delete
-                                                            </Typography>
-                                                          )}
-                                                        </Box>
-
-                                                        {/* Right Votes */}
-                                                        {reply.type !== 'system' && (
-                                                          <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', justifyContent: 'center', width: 56 }}>
-                                                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(reply.id, 'up'); }} sx={{ p: 0.2, color: reply.my_vote === 'up' ? theme.palette.success.main : textSecondary }}>
-                                                              <UpvoteIcon sx={{ fontSize: 13 }} />
-                                                            </IconButton>
-                                                            <Typography variant="caption" sx={{ fontSize: '0.68rem', color: textSecondary, fontWeight: 700 }}>
-                                                              {reply.upvotes - reply.downvotes}
-                                                            </Typography>
-                                                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(reply.id, 'down'); }} sx={{ p: 0.2, color: reply.my_vote === 'down' ? theme.palette.error.main : textSecondary }}>
-                                                              <DownvoteIcon sx={{ fontSize: 13 }} />
+                                                              <MoreHorizIcon sx={{ fontSize: 18 }} />
                                                             </IconButton>
                                                           </Box>
-                                                        )}
-                                                      </Box>
-                                                    </motion.div>
-                                                  )}
-                                                </AnimatePresence>
+                                                        </motion.div>
+                                                      ) : (
+                                                        <motion.div
+                                                          key="expanded"
+                                                          initial={{ opacity: 0, scale: 0.92 }}
+                                                          animate={{ opacity: 1, scale: 1 }}
+                                                          exit={{ opacity: 0, scale: 0.92 }}
+                                                          transition={{ type: 'spring', stiffness: 140, damping: 20 }}
+                                                          style={{ transformOrigin: 'top right', width: 'fit-content' }}
+                                                        >
+                                                          {/* Bubble */}
+                                                          <Box
+                                                            onClick={() => handleToggleMinimize(reply.id, false)}
+                                                            sx={{
+                                                              minWidth: '200px',
+                                                              p: 1.25,
+                                                              borderRadius: '16px 4px 16px 16px',
+                                                              background: replyBubbleStyle.bg,
+                                                              border: '1px solid ' + replyBubbleStyle.border,
+                                                              color: replyBubbleStyle.text,
+                                                              boxShadow: replyBubbleStyle.shadow,
+                                                              transform: replyBubbleStyle.transform || 'none',
+                                                              transition: 'all 0.2s ease-in-out',
+                                                              cursor: 'pointer',
+                                                            }}
+                                                          >
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 0.5, gap: 1 }}>
+                                                              {Number(reply.userId) === Number(eventCreatorId) && reply.type !== 'system' && (
+                                                                <Typography variant="caption" sx={{ px: 0.5, py: 0.05, borderRadius: 0.5, bgcolor: 'rgba(212, 163, 89, 0.25)', fontSize: '0.55rem', fontWeight: 800, color: isDarkMode ? '#ffdd77' : '#996600', mr: 'auto' }}>
+                                                                  OP
+                                                                </Typography>
+                                                              )}
+                                                              <Typography sx={{ fontWeight: 700, color: textPrimary, fontSize: '0.825rem', textTransform: reply.type === 'system' ? 'none' : 'capitalize' }}>
+                                                                {reply.type === 'system' ? 'System Generated' : (reply.user?.displayUsername || reply.user?.username)}
+                                                              </Typography>
+                                                            </Box>
+                                                            <RichContentRenderer content={reply.content} theme={theme} inheritTextColor={true} textSx={{ fontSize: '0.825rem', textAlign: 'right' }} />
+                                                          </Box>
+
+                                                          {/* Bubble Footer Row (Actions + Votes) */}
+                                                          <Box
+                                                            sx={{
+                                                              display: 'flex',
+                                                              justifyContent: 'space-between',
+                                                              alignItems: 'center',
+                                                              width: '100%',
+                                                              mt: 0.5,
+                                                              pl: 0.5,
+                                                              pr: 0.5,
+                                                              height: '24px',
+                                                            }}
+                                                          >
+                                                            {/* Left Actions */}
+                                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                                              <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.65rem' }}>
+                                                                {formatCommentTimestamp(reply.createdAt)}
+                                                              </Typography>
+                                                              {!isGuest && reply.type !== 'system' && (
+                                                                <Typography
+                                                                  variant="caption"
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleReplyClick(reply);
+                                                                  }}
+                                                                  sx={{ color: textSecondary, cursor: 'pointer', fontWeight: 600, fontSize: '0.65rem', '&:hover': { color: textPrimary } }}
+                                                                >
+                                                                  Reply
+                                                                </Typography>
+                                                              )}
+                                                              {canDeleteComment(reply) && (
+                                                                <Typography
+                                                                  variant="caption"
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteComment(reply.id);
+                                                                  }}
+                                                                  sx={{ color: theme.palette.error.main, cursor: 'pointer', fontWeight: 600, fontSize: '0.65rem', '&:hover': { opacity: 0.8 } }}
+                                                                >
+                                                                  Delete
+                                                                </Typography>
+                                                              )}
+                                                            </Box>
+
+                                                            {/* Right Votes */}
+                                                            {reply.type !== 'system' && (
+                                                              <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', justifyContent: 'center', width: 56 }}>
+                                                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(reply.id, 'up'); }} sx={{ p: 0.2, color: reply.my_vote === 'up' ? theme.palette.success.main : textSecondary }}>
+                                                                  <UpvoteIcon sx={{ fontSize: 13 }} />
+                                                                </IconButton>
+                                                                <Typography variant="caption" sx={{ fontSize: '0.68rem', color: textSecondary, fontWeight: 700 }}>
+                                                                  {reply.upvotes - reply.downvotes}
+                                                                </Typography>
+                                                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleVote(reply.id, 'down'); }} sx={{ p: 0.2, color: reply.my_vote === 'down' ? theme.palette.error.main : textSecondary }}>
+                                                                  <DownvoteIcon sx={{ fontSize: 13 }} />
+                                                                </IconButton>
+                                                              </Box>
+                                                            )}
+                                                          </Box>
+                                                        </motion.div>
+                                                      )}
+                                                    </AnimatePresence>
+                                                  </Box>
+                                                </Box>
                                               </Box>
                                             </Box>
-                                          </Box>
-                                        </Box>
-                                      );
-                                    })}
-                                  </Box>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                                          );
+                                        })}
+                                      </Box>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </Box>
+                            )}
                           </Box>
-                        )}
-                      </Box>
-                    );
-                  })}
+                        );
+                      })}
                     </Box>
                   )}
                 </AnimatePresence>

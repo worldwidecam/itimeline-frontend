@@ -52,7 +52,7 @@ import VoteControls from './VoteControls';
 import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
 import RichContentRenderer from './RichContentRenderer';
-import EventCommentDrawer from './EventCommentDrawer';
+import EventCommentDrawer, { getCachedCommentCount } from './EventCommentDrawer';
 import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
@@ -102,7 +102,7 @@ const ImageEventPopup = ({
   votingInProgress,
 }) => {
   const theme = useTheme();
-  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open, onClose);
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen, onClose);
   const location = useLocation();
   const { user, isGuest } = useAuth();
   const [tagSectionExpanded, setTagSectionExpanded] = useState(false);
@@ -765,7 +765,11 @@ const ImageEventPopup = ({
                   }}
                 >
                   <CommentIcon sx={{ fontSize: 16 }} />
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Comment</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                    {getCachedCommentCount(event?.id) != null
+                      ? `${getCachedCommentCount(event?.id)}`
+                      : 'Comment'}
+                  </Typography>
                 </IconButton>
                 {canOpenActionMenu && (
                   <>
