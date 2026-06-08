@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -37,6 +37,12 @@ const commentsCache = {}; // eventId -> comments array
 const scrollPositionsCache = {}; // eventId -> scrollTop
 const scrolledUpCache = {}; // eventId -> boolean
 
+// Read-only helper for other components to check cached comment count without importing state
+export const getCachedCommentCount = (eventId) => {
+  const cached = eventId != null ? commentsCache[eventId] : null;
+  return Array.isArray(cached) ? cached.length : null;
+};
+
 /**
  * EventCommentDrawer - Slide-up comments section for event popups
  * Renders in custom vellum styling for light mode, slate drafting for dark mode.
@@ -45,6 +51,15 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
   const theme = useTheme();
   const dragControls = useDragControls();
   const drawerY = useMotionValue(0);
+
+  // Reset drawer Y position to bottom BEFORE first paint whenever open becomes true.
+  // This prevents the MotionValue (which starts at 0) from overriding the enter animation
+  // and causing the drawer to flash at the top of the popup.
+  useLayoutEffect(() => {
+    if (open) {
+      drawerY.set(typeof window !== 'undefined' ? window.innerHeight : 800);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const { user, isGuest } = useAuth();
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);

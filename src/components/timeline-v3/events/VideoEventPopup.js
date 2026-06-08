@@ -61,7 +61,7 @@ import { submitReport } from '../../../utils/api';
 import { useEventVote } from '../../../hooks/useEventVote';
 import RichContentRenderer from './RichContentRenderer';
 import config from '../../../config';
-import EventCommentDrawer from './EventCommentDrawer';
+import EventCommentDrawer, { getCachedCommentCount } from './EventCommentDrawer';
 import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
@@ -1077,7 +1077,11 @@ const VideoEventPopup = ({
                   }}
                 >
                   <CommentIcon sx={{ fontSize: 16 }} />
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Comment</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                    {getCachedCommentCount(event?.id) != null
+                      ? `${getCachedCommentCount(event?.id)}`
+                      : 'Comment'}
+                  </Typography>
                 </IconButton>
                 {canOpenActionMenu && (
                   <>

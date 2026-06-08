@@ -8,7 +8,7 @@ import CreatorChip from './CreatorChip';
 import VoteControls from './VoteControls';
 import AudioMediaPopup from './AudioMediaPopup';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
-import EventCommentDrawer from './EventCommentDrawer';
+import EventCommentDrawer, { getCachedCommentCount } from './EventCommentDrawer';
 import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
@@ -248,6 +248,15 @@ const EventPopup = ({
   const [shakePersonal, setShakePersonal] = useState(false);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
+
+  // Reset comments drawer whenever the popup itself is closed.
+  // Prevents the drawer from staying open when the user closes the popup
+  // and then reopens it on the same or a different event.
+  useEffect(() => {
+    if (!open) {
+      setCommentsOpen(false);
+    }
+  }, [open]);
   const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen, onClose);
   const [isVotingMode, setIsVotingMode] = useState(false);
   const [myTagVote, setMyTagVote] = useState(event?.my_tag_vote || null);
@@ -1615,27 +1624,31 @@ const EventPopup = ({
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
                 </IconButton>
               )}
-              <IconButton
-                size="small"
-                onClick={() => setCommentsOpen(true)}
-                sx={{
-                  bgcolor: remarkColor + '18',
-                  color: remarkColor,
-                  border: '1px solid ' + remarkColor + '40',
-                  borderRadius: '10px',
-                  px: 1.5,
-                  height: 32,
-                  display: 'flex',
-                  gap: 0.5,
-                  alignItems: 'center',
-                  '&:hover': {
-                    bgcolor: remarkColor + '28',
-                  }
-                }}
-              >
-                <CommentIcon sx={{ fontSize: 16 }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Comment</Typography>
-              </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => setCommentsOpen(true)}
+                  sx={{
+                    bgcolor: remarkColor + '18',
+                    color: remarkColor,
+                    border: '1px solid ' + remarkColor + '40',
+                    borderRadius: '10px',
+                    px: 1.5,
+                    height: 32,
+                    display: 'flex',
+                    gap: 0.5,
+                    alignItems: 'center',
+                    '&:hover': {
+                      bgcolor: remarkColor + '28',
+                    }
+                  }}
+                >
+                  <CommentIcon sx={{ fontSize: 16 }} />
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                    {getCachedCommentCount(event?.id) != null
+                      ? `${getCachedCommentCount(event?.id)}`
+                      : 'Comment'}
+                  </Typography>
+                </IconButton>
               {canOpenActionMenu && (
                 <>
                   <IconButton
