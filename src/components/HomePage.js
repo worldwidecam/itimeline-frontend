@@ -393,8 +393,32 @@ const HomePage = () => {
   const [heroRotateMs, setHeroRotateMs] = React.useState(HOME_HERO_DEFAULT_ROTATE_MS);
   const [heroSlides, setHeroSlides] = React.useState(HOME_HERO_DEFAULT_SLIDES);
   const [isHeroContentVisible, setIsHeroContentVisible] = React.useState(true);
-  const [activeHubTab, setActiveHubTab] = React.useState('popular');
+  const [isHeroMinimized, setIsHeroMinimized] = React.useState(() => {
+    try {
+      return window.localStorage.getItem('home_hero_minimized_state') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+  const [heroVisualPhase, setHeroVisualPhase] = React.useState(isHeroMinimized ? 'minimized' : 'expanded');
 
+  React.useEffect(() => {
+    if (isHeroMinimized) {
+      if (heroVisualPhase === 'expanded' || heroVisualPhase === 'opening_curtains') {
+        setHeroVisualPhase('closing_curtains');
+      } else if (heroVisualPhase === 'expanding') {
+        setHeroVisualPhase('shrinking');
+      }
+    } else {
+      if (heroVisualPhase === 'minimized' || heroVisualPhase === 'shrinking') {
+        setHeroVisualPhase('expanding');
+      } else if (heroVisualPhase === 'closing_curtains') {
+        setHeroVisualPhase('opening_curtains');
+      }
+    }
+  }, [isHeroMinimized, heroVisualPhase]);
+  const isTransitioningRef = React.useRef(false);
+  const [activeHubTab, setActiveHubTab] = React.useState('popular');
   const [isHubLabelVisible, setIsHubLabelVisible] = React.useState(true); // Control visibility of active tab label on mobile
   const hubLabelTimeoutRef = React.useRef(null);
   const [isHubContentVisible, setIsHubContentVisible] = React.useState(true);
@@ -817,7 +841,7 @@ const HomePage = () => {
   );
 
   React.useEffect(() => {
-    if (enabledHeroSlides.length <= 1) return undefined;
+    if (enabledHeroSlides.length <= 1 || isHeroMinimized) return undefined;
 
     const timer = window.setTimeout(() => {
       transitionToHeroSlide((heroIndex + 1) % enabledHeroSlides.length);
@@ -826,7 +850,7 @@ const HomePage = () => {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [heroIndex, heroRotateMs, transitionToHeroSlide, enabledHeroSlides.length]);
+  }, [heroIndex, heroRotateMs, transitionToHeroSlide, enabledHeroSlides.length, isHeroMinimized]);
 
   React.useEffect(
     () => () => {
@@ -861,6 +885,31 @@ const HomePage = () => {
   React.useEffect(() => {
     popularArrowVisibleRef.current = showActiveHubScrollTop;
   }, [showActiveHubScrollTop]);
+
+  const handleHeroBannerClick = React.useCallback((e) => {
+    if (isHeroMinimized) {
+      setIsHeroMinimized(false);
+      try {
+        window.localStorage.setItem('home_hero_minimized_state', 'false');
+      } catch (_) {}
+      return;
+    }
+
+    const target = e.target;
+    const isInteractive = target.closest('button') ||
+                          target.closest('a') ||
+                          target.closest('.MuiChip-root') ||
+                          target.closest('[role="button"]') ||
+                          target.closest('input') ||
+                          target.closest('svg');
+
+    if (!isInteractive) {
+      setIsHeroMinimized(true);
+      try {
+        window.localStorage.setItem('home_hero_minimized_state', 'true');
+      } catch (_) {}
+    }
+  }, [isHeroMinimized]);
 
   React.useEffect(() => {
     setIsHubLabelVisible(true);
@@ -3826,6 +3875,9 @@ const HomePage = () => {
     },
   ].filter(Boolean), [isGuest, user?.is_restricted, handleOpenMakePostDialog, setDialogOpen]);
 
+  const isExpandedHeight = (heroVisualPhase === 'expanded' || heroVisualPhase === 'closing_curtains' || heroVisualPhase === 'opening_curtains' || heroVisualPhase === 'expanding');
+  const isCurtainClosed = (heroVisualPhase === 'minimized' || heroVisualPhase === 'expanding' || heroVisualPhase === 'closing_curtains' || heroVisualPhase === 'shrinking');
+
   return (
     <>
       <NavFab
@@ -3854,329 +3906,483 @@ const HomePage = () => {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: 'calc(100vh - 78px)',
-          pt: 4,
+          height: '100%',
+          maxHeight: '100%',
+          pt: isExpandedHeight ? 4 : 1.5,
           px: { xs: 1.5, md: 4 },
-          pb: { xs: 2, md: 3 },
+          pb: isExpandedHeight ? { xs: 2, md: 3 } : 1,
           position: 'relative',
           zIndex: 1,
-          gap: 2,
+          gap: isExpandedHeight ? 2 : 1,
+          overflow: 'hidden',
+          transition: 'padding 850ms cubic-bezier(0.25, 0.8, 0.25, 1), gap 850ms cubic-bezier(0.25, 0.8, 0.25, 1)',
         }}
       >
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 2, md: 3 },
-            borderRadius: 3,
-            position: 'relative',
-            overflow: 'hidden',
-            border: '1px solid',
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-            backgroundImage: heroVisualStyles.backgroundImage,
-            backgroundSize: heroVisualStyles.backgroundSize,
-            backgroundPosition: heroVisualStyles.backgroundPosition,
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              inset: 0,
-              background: heroVisualStyles.fogOverlay,
-              zIndex: 0,
-              pointerEvents: 'none',
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              inset: 0,
-              zIndex: 0,
-              pointerEvents: 'none',
-              background: heroVisualStyles.blurOverlay,
-              backdropFilter: heroVisualStyles.applyHardBlur ? 'blur(18px) saturate(0.45)' : 'none',
-            },
+        <motion.div
+          animate={{ 
+            height: isExpandedHeight ? 'auto' : 40,
+            borderRadius: isExpandedHeight ? '12px' : '9999px'
           }}
-        >
-          <Box
-            sx={{
-              position: 'relative',
-              zIndex: 1,
-              opacity: isHeroContentVisible ? 1 : 0,
-              transform: isHeroContentVisible ? 'translateY(0px)' : 'translateY(10px)',
-              transition: 'opacity 320ms cubic-bezier(0.22, 1, 0.36, 1), transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-              minHeight: { xs: 150, md: 165 },
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              px: { xs: 1.1, md: 2 },
-              py: { xs: 1.1, md: 1.4 },
-              borderRadius: 2.2,
-              border: activeHeroSlide?.type === 'welcome' ? 'none' : '1px solid',
-              borderColor: activeHeroSlide?.type === 'welcome'
-                ? 'transparent'
-                : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.15)'),
-              background: activeHeroSlide?.type === 'welcome'
-                ? 'transparent'
-                : (theme.palette.mode === 'dark' ? 'rgba(10,16,28,0.28)' : 'rgba(255,255,255,0.36)'),
-              backdropFilter: activeHeroSlide?.type === 'welcome' ? 'none' : 'blur(7px)',
-            }}
-          >
-            {activeHeroSlide?.type === 'welcome' ? (
-              <>
-                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.8rem' } }}>
-                  {user?.username ? `Welcome Back ${displayUsername(user.username)}!` : 'Welcome to Timeline Forum'}
-                </Typography>
-                <Typography variant="body1" sx={{ mt: 1, opacity: 0.88 }}>
-                  {isGuest ? (
-                    <>
-                      <strong>VIEW</strong> as much as you like! <strong>CREATE</strong> when you actually login.
-                    </>
-                  ) : user?.is_restricted ? (
-                    <>
-                      Your account is currently <strong>RESTRICTED</strong>. You can still browse, but posting is disabled.
-                    </>
-                  ) : (
-                    <>
-                      <strong>MAKE</strong> a post to save a moment.  <strong>CREATE</strong> a timeline to start a movement.
-                    </>
-                  )}
-                </Typography>
-              </>
-            ) : null}
-
-            {activeHeroSlide?.type === 'timeline_spotlight' ? (
-              <>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.2 }}>
-                  <SpotlightTimelineIcon sx={{ fontSize: 22, opacity: 0.92 }} />
-                  <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.35rem' }, lineHeight: 1.1 }}>
-                    {spotlightTimeline?.name || 'Timeline not available'}
-                  </Typography>
-                </Stack>
-                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
-                  Random Timeline
-                </Typography>
-              </>
-            ) : null}
-
-            {activeHeroSlide?.type === 'trending_community' ? (
-              <>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.2 }}>
-                  <GroupsIcon sx={{ fontSize: 22, opacity: 0.92 }} />
-                  <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.35rem' }, lineHeight: 1.1 }}>
-                    {trendingCommunityLabel || 'Trending community unavailable'}
-                  </Typography>
-                </Stack>
-                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
-                  Trending Community
-                </Typography>
-                <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
-                  {trendingCommunityTimeline?.description || 'Set a community timeline ID in Site Control to feature it here.'}
-                </Typography>
-              </>
-            ) : null}
-
-            {activeHeroSlide?.type === 'event_spotlight' ? (
-              <>
-                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.25rem' }, lineHeight: 1.15 }}>
-                  {spotlightEvent?.title || (isEventSpotlightTopVotesMode
-                    ? (topVotesTodayLoading ? 'Loading Event Spotlight...' : 'Event Spotlight')
-                    : `Event Spotlight #${Number(activeHeroSlide?.event_id || 0) || ''}`)}
-                </Typography>
-                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
-                  Event Spotlight of the Day
-                </Typography>
-                <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
-                  {spotlightEvent?.description || (isEventSpotlightTopVotesMode
-                    ? 'No top-voted event published today is available yet.'
-                    : 'Selected event is not available in loaded home feeds yet.')}
-                </Typography>
-              </>
-            ) : null}
-
-            {activeHeroSlide?.type === 'advertisement' ? (
-              <>
-                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.2rem' }, lineHeight: 1.15 }}>
-                  {activeHeroSlide?.headline || 'Advertisement'}
-                </Typography>
-                <Typography variant="body1" sx={{ mt: 0.7, opacity: 0.9 }}>
-                  {activeHeroSlide?.subtext || 'Promotional banner slot available.'}
-                </Typography>
-              </>
-            ) : null}
-
-            {activeHeroSlide?.type === 'welcome' && user && !isGuest && !user?.is_restricted ? (
-              <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} sx={{ mt: 2, justifyContent: 'center' }}>
-                <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
-                  onClick={() => setDialogOpen(true)}
-                  sx={{
-                    ...getGlassPillActionButtonSx(theme),
-                    px: { xs: 2, sm: 3 },
-                    py: { xs: 0.75, sm: 1 },
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                  }}
-                >
-                  Create Your Timeline
-                </Button>
-              </Stack>
-            ) : null}
-
-            {activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimeline ? (
-              <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Chip label={spotlightTimelineTypeLabel} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
-                <Chip
-                  icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
-                  label={`${spotlightTimelineAudience.count.toLocaleString()} ${spotlightTimelineAudience.label}`}
-                  variant="outlined"
-                  size="small"
-                  sx={{ fontSize: '0.7rem' }}
-                />
-                <Chip label={`Created ${formatDate(spotlightTimeline.created_at)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
-                <Button 
-                  variant="contained" 
-                  size="small"
-                  onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}
-                  sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
-                >
-                  Open Random Timeline
-                </Button>
-              </Stack>
-            ) : null}
-
-            {activeHeroSlide?.type === 'trending_community' && trendingCommunityTimeline ? (
-              <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Chip label="Community Timeline" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
-                <Chip
-                  icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
-                  label={`${trendingCommunityAudience.count.toLocaleString()} ${trendingCommunityAudience.label}`}
-                  variant="outlined"
-                  size="small"
-                  sx={{ fontSize: '0.7rem' }}
-                />
-                <Chip label={`Created ${formatDate(trendingCommunityTimeline.created_at)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
-                <Button 
-                  variant="contained" 
-                  size="small"
-                  onClick={() => navigate(`/timeline-v3/${trendingCommunityTimeline.id}`)}
-                  sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
-                >
-                  Open Trending Community
-                </Button>
-              </Stack>
-            ) : null}
-
-            {activeHeroSlide?.type === 'event_spotlight' && spotlightEvent ? (
-              <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleOpenHeroEventPopup}
-                  disabled={heroEventPopupLoading}
-                >
-                  {heroEventPopupLoading ? 'Opening...' : 'View Event'}
-                </Button>
-                {spotlightEvent?.timeline_id ? (
-                  <Button 
-                    variant="outlined" 
-                    size="small"
-                    onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}
-                    sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
-                  >
-                    Open Timeline
-                  </Button>
-                ) : null}
-              </Stack>
-            ) : null}
-
-            {activeHeroSlide?.type === 'advertisement' && activeHeroSlide?.cta_label ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    const target = resolveHeroCtaTarget(activeHeroSlide?.cta_href);
-                    if (!target) return;
-
-                    if (target.external) {
-                      window.location.assign(target.href);
-                      return;
-                    }
-
-                    navigate(target.href);
-                  }}
-                  sx={getGlassPillActionButtonSx(theme)}
-                >
-                  {activeHeroSlide?.cta_label}
-                </Button>
-              </Stack>
-            ) : null}
-          </Box>
-
-          {activeHeroSlide?.type === 'advertisement' ? (
-            <Chip
-              size="small"
-              label="Advertisement"
-              sx={{
-                position: 'absolute',
-                right: 14,
-                bottom: 14,
-                zIndex: 2,
-                fontWeight: 800,
-                letterSpacing: 0.2,
-                border: '1px solid',
-                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(15,23,42,0.3)',
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(8,12,20,0.58)' : 'rgba(255,255,255,0.7)',
-                color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
-                backdropFilter: 'blur(6px)',
+              transition={{ duration: 0.85, ease: [0.25, 0.8, 0.25, 1] }}
+              onAnimationComplete={() => {
+                if (heroVisualPhase === 'shrinking') {
+                  setHeroVisualPhase('minimized');
+                } else if (heroVisualPhase === 'expanding') {
+                  setHeroVisualPhase('opening_curtains');
+                }
               }}
-            />
-          ) : null}
-
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2, position: 'relative', zIndex: 1 }}>
-            {enabledHeroSlides.map((_slide, dotIndex) => {
-              const isActive = dotIndex === heroIndex;
-              return (
-                <Box
-                  key={dotIndex}
-                  component="span"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => !heroTransitionPending && transitionToHeroSlide(dotIndex)}
-                  onKeyDown={(e) => {
-                    if (!heroTransitionPending && (e.key === 'Enter' || e.key === ' ')) {
-                      e.preventDefault();
-                      transitionToHeroSlide(dotIndex);
+              style={{ overflow: 'hidden', flexShrink: 0 }}
+            >
+              <Paper
+                elevation={0}
+                onClick={handleHeroBannerClick}
+                sx={{
+                  p: isExpandedHeight ? { xs: 2, md: 3 } : 0,
+                  height: '100%',
+                  cursor: isExpandedHeight ? 'default' : 'pointer',
+                  borderRadius: isExpandedHeight ? 3 : '9999px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                  backgroundImage: heroVisualStyles.backgroundImage,
+                  backgroundSize: heroVisualStyles.backgroundSize,
+                  backgroundPosition: heroVisualStyles.backgroundPosition,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'padding 850ms cubic-bezier(0.25, 0.8, 0.25, 1), border-radius 850ms cubic-bezier(0.25, 0.8, 0.25, 1)',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    background: heroVisualStyles.fogOverlay,
+                    zIndex: 0,
+                    pointerEvents: 'none',
+                  },
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 0,
+                    pointerEvents: 'none',
+                    background: heroVisualStyles.blurOverlay,
+                    backdropFilter: heroVisualStyles.applyHardBlur ? 'blur(18px) saturate(0.45)' : 'none',
+                  },
+                }}
+              >
+                {/* Theater curtains (left) */}
+                <motion.div
+                  initial={false}
+                  animate={{ x: isCurtainClosed ? '0%' : '-100%' }}
+                  transition={{ duration: 0.85, ease: [0.25, 0.8, 0.25, 1] }}
+                  onAnimationComplete={() => {
+                    if (heroVisualPhase === 'closing_curtains') {
+                      setHeroVisualPhase('shrinking');
+                    } else if (heroVisualPhase === 'opening_curtains') {
+                      setHeroVisualPhase('expanded');
                     }
                   }}
-                  aria-label={`Hero slide ${dotIndex + 1}`}
-                  aria-disabled={heroTransitionPending}
-                  sx={{
-                    width: isActive ? 30 : 10,
-                    height: 10,
-                    borderRadius: 99,
-                    border: 'none',
-                    cursor: heroTransitionPending ? 'wait' : 'pointer',
-                    p: 0,
-                    transform: isActive ? 'scale(1.03)' : 'scale(0.97)',
-                    bgcolor: isActive ? 'primary.main' : 'text.disabled',
-                    opacity: heroTransitionPending ? 0.5 : (isActive ? 1 : 0.75),
-                    transition: 'width 320ms cubic-bezier(0.22, 1, 0.36, 1), background-color 260ms ease, opacity 260ms ease, transform 280ms ease',
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    width: '50%',
+                    background: `
+                      repeating-linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0.05) 0px,
+                        rgba(255, 255, 255, 0.05) 8px,
+                        rgba(0, 0, 0, 0.2) 16px,
+                        rgba(0, 0, 0, 0.35) 24px,
+                        rgba(0, 0, 0, 0.2) 32px,
+                        rgba(255, 255, 255, 0.05) 40px
+                      ),
+                      linear-gradient(90deg, #500707 0%, #7e0c0c 35%, #b81c1c 70%, #440404 100%)
+                    `,
+                    borderRight: '2px solid rgba(0, 0, 0, 0.6)',
+                    zIndex: 10,
+                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
+                    pointerEvents: 'none',
                   }}
                 />
-              );
-            })}
-          </Stack>
-        </Paper>
+                {/* Theater curtains (right) */}
+                <motion.div
+                  initial={false}
+                  animate={{ x: isCurtainClosed ? '0%' : '100%' }}
+                  transition={{ duration: 0.85, ease: [0.25, 0.8, 0.25, 1] }}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: '50%',
+                    background: `
+                      repeating-linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0.05) 0px,
+                        rgba(255, 255, 255, 0.05) 8px,
+                        rgba(0, 0, 0, 0.2) 16px,
+                        rgba(0, 0, 0, 0.35) 24px,
+                        rgba(0, 0, 0, 0.2) 32px,
+                        rgba(255, 255, 255, 0.05) 40px
+                      ),
+                      linear-gradient(270deg, #500707 0%, #7e0c0c 35%, #b81c1c 70%, #440404 100%)
+                    `,
+                    borderLeft: '2px solid rgba(0, 0, 0, 0.6)',
+                    zIndex: 10,
+                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
+                    pointerEvents: 'none',
+                  }}
+                />
+
+                {/* Tap to Open Spotlight Text */}
+                <motion.div
+                  initial={false}
+                  animate={{ opacity: (heroVisualPhase === 'minimized' || heroVisualPhase === 'shrinking') ? 1 : 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{
+                    position: 'absolute',
+                    zIndex: 20,
+                    pointerEvents: 'none',
+                    display: (heroVisualPhase === 'expanded' || heroVisualPhase === 'opening_curtains') ? 'none' : 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span style={{
+                    color: '#ffd700',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+                    background: 'rgba(0,0,0,0.4)',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(255, 215, 0, 0.3)',
+                    backdropFilter: 'blur(3px)',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    🎭 Tap to Open Spotlight
+                  </span>
+                </motion.div>
+
+                {/* Expanded Content Wrapper */}
+                <motion.div
+                  initial={false}
+                  animate={{ 
+                    opacity: (heroVisualPhase === 'expanded' || heroVisualPhase === 'opening_curtains') ? 1 : 0,
+                    y: (heroVisualPhase === 'expanded' || heroVisualPhase === 'opening_curtains') ? 0 : 10
+                  }}
+                  transition={{ duration: 0.3 }}
+                  style={{
+                    width: '100%',
+                    display: (heroVisualPhase === 'minimized') ? 'none' : 'block',
+                    pointerEvents: (heroVisualPhase === 'expanded') ? 'auto' : 'none',
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      zIndex: 1,
+                      opacity: isHeroContentVisible ? 1 : 0,
+                      transform: isHeroContentVisible ? 'translateY(0px)' : 'translateY(10px)',
+                      transition: 'opacity 150ms ease-in-out, transform 150ms ease-in-out',
+                      minHeight: { xs: 150, md: 165 },
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      px: { xs: 1.1, md: 2 },
+                      py: { xs: 1.1, md: 1.4 },
+                      borderRadius: 2.2,
+                      border: activeHeroSlide?.type === 'welcome' ? 'none' : '1px solid',
+                      borderColor: activeHeroSlide?.type === 'welcome'
+                        ? 'transparent'
+                        : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.15)'),
+                      background: activeHeroSlide?.type === 'welcome'
+                        ? 'transparent'
+                        : (theme.palette.mode === 'dark' ? 'rgba(10,16,28,0.28)' : 'rgba(255,255,255,0.36)'),
+                      backdropFilter: activeHeroSlide?.type === 'welcome' ? 'none' : 'blur(7px)',
+                    }}
+                  >
+                    {activeHeroSlide?.type === 'welcome' ? (
+                      <>
+                        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.8rem' } }}>
+                          {user?.username ? `Welcome Back ${displayUsername(user.username)}!` : 'Welcome to Timeline Forum'}
+                        </Typography>
+                        <Typography variant="body1" sx={{ mt: 1, opacity: 0.88 }}>
+                          {isGuest ? (
+                            <>
+                              <strong>VIEW</strong> as much as you like! <strong>CREATE</strong> when you actually login.
+                            </>
+                          ) : user?.is_restricted ? (
+                            <>
+                              Your account is currently <strong>RESTRICTED</strong>. You can still browse, but posting is disabled.
+                            </>
+                          ) : (
+                            <>
+                              <strong>MAKE</strong> a post to save a moment.  <strong>CREATE</strong> a timeline to start a movement.
+                            </>
+                          )}
+                        </Typography>
+                      </>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'timeline_spotlight' ? (
+                      <>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.2 }}>
+                          <SpotlightTimelineIcon sx={{ fontSize: 22, opacity: 0.92 }} />
+                          <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.35rem' }, lineHeight: 1.1 }}>
+                            {spotlightTimeline?.name || 'Timeline not available'}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
+                          Random Timeline
+                        </Typography>
+                      </>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'trending_community' ? (
+                      <>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.2 }}>
+                          <GroupsIcon sx={{ fontSize: 22, opacity: 0.92 }} />
+                          <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.35rem' }, lineHeight: 1.1 }}>
+                            {trendingCommunityLabel || 'Trending community unavailable'}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
+                          Trending Community
+                        </Typography>
+                        <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
+                          {trendingCommunityTimeline?.description || 'Set a community timeline ID in Site Control to feature it here.'}
+                        </Typography>
+                      </>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'event_spotlight' ? (
+                      <>
+                        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.25rem' }, lineHeight: 1.15 }}>
+                          {spotlightEvent?.title || (isEventSpotlightTopVotesMode
+                            ? (topVotesTodayLoading ? 'Loading Event Spotlight...' : 'Event Spotlight')
+                            : `Event Spotlight #${Number(activeHeroSlide?.event_id || 0) || ''}`)}
+                        </Typography>
+                        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8, mt: 0.4 }}>
+                          Event Spotlight of the Day
+                        </Typography>
+                        <Typography variant="body1" sx={{ mt: 0.65, opacity: 0.88 }}>
+                          {spotlightEvent?.description || (isEventSpotlightTopVotesMode
+                            ? 'No top-voted event published today is available yet.'
+                            : 'Selected event is not available in loaded home feeds yet.')}
+                        </Typography>
+                      </>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'advertisement' ? (
+                      <>
+                        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.55rem', md: '2.2rem' }, lineHeight: 1.15 }}>
+                          {activeHeroSlide?.headline || 'Advertisement'}
+                        </Typography>
+                        <Typography variant="body1" sx={{ mt: 0.7, opacity: 0.9 }}>
+                          {activeHeroSlide?.subtext || 'Promotional banner slot available.'}
+                        </Typography>
+                      </>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'welcome' && user && !isGuest && !user?.is_restricted ? (
+                      <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} sx={{ mt: 2, justifyContent: 'center' }}>
+                        <Button variant="contained" onClick={handleOpenMakePostDialog}>MAKE A POST</Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+                          onClick={() => setDialogOpen(true)}
+                          sx={{
+                            ...getGlassPillActionButtonSx(theme),
+                            px: { xs: 2, sm: 3 },
+                            py: { xs: 0.75, sm: 1 },
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                          }}
+                        >
+                          Create Your Timeline
+                        </Button>
+                      </Stack>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'timeline_spotlight' && spotlightTimeline ? (
+                      <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Chip label={spotlightTimelineTypeLabel} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Chip
+                          icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
+                          label={`${spotlightTimelineAudience.count.toLocaleString()} ${spotlightTimelineAudience.label}`}
+                          variant="outlined"
+                          size="small"
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                        <Chip label={`Created ${formatDate(spotlightTimeline.created_at)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={() => navigate(`/timeline-v3/${spotlightTimeline.id}`)}
+                          sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
+                        >
+                          Open Random Timeline
+                        </Button>
+                      </Stack>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'trending_community' && trendingCommunityTimeline ? (
+                      <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Chip label="Community Timeline" variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Chip
+                          icon={<LocalFireDepartmentIcon sx={{ color: '#d97706 !important' }} />}
+                          label={`${trendingCommunityAudience.count.toLocaleString()} ${trendingCommunityAudience.label}`}
+                          variant="outlined"
+                          size="small"
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                        <Chip label={`Created ${formatDate(trendingCommunityTimeline.created_at)}`} variant="outlined" size="small" sx={{ fontSize: '0.7rem' }} />
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={() => navigate(`/timeline-v3/${trendingCommunityTimeline.id}`)}
+                          sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
+                        >
+                          Open Trending Community
+                        </Button>
+                      </Stack>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'event_spotlight' && spotlightEvent ? (
+                      <Stack direction={{ xs: 'row', sm: 'row' }} spacing={{ xs: 1, sm: 1.5 }} sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={handleOpenHeroEventPopup}
+                          disabled={heroEventPopupLoading}
+                        >
+                          {heroEventPopupLoading ? 'Opening...' : 'View Event'}
+                        </Button>
+                        {spotlightEvent?.timeline_id ? (
+                          <Button 
+                            variant="outlined" 
+                            size="small"
+                            onClick={() => navigate(`/timeline-v3/${spotlightEvent.timeline_id}`)}
+                            sx={{ borderRadius: 999, textTransform: 'none', px: 2, fontSize: '0.75rem' }}
+                          >
+                            Open Timeline
+                          </Button>
+                        ) : null}
+                      </Stack>
+                    ) : null}
+
+                    {activeHeroSlide?.type === 'advertisement' && activeHeroSlide?.cta_label ? (
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2, justifyContent: 'center' }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => {
+                            const target = resolveHeroCtaTarget(activeHeroSlide?.cta_href);
+                            if (!target) return;
+
+                            if (target.external) {
+                              window.location.assign(target.href);
+                              return;
+                            }
+
+                            navigate(target.href);
+                          }}
+                          sx={getGlassPillActionButtonSx(theme)}
+                        >
+                          {activeHeroSlide?.cta_label}
+                        </Button>
+                      </Stack>
+                    ) : null}
+                  </Box>
+
+                  {activeHeroSlide?.type === 'advertisement' ? (
+                    <Chip
+                      size="small"
+                      label="Advertisement"
+                      sx={{
+                        position: 'absolute',
+                        right: 14,
+                        bottom: 14,
+                        zIndex: 2,
+                        fontWeight: 800,
+                        letterSpacing: 0.2,
+                        border: '1px solid',
+                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(15,23,42,0.3)',
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(8,12,20,0.58)' : 'rgba(255,255,255,0.7)',
+                        color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                        backdropFilter: 'blur(6px)',
+                      }}
+                    />
+                  ) : null}
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    sx={{
+                      mt: 2,
+                      position: 'relative',
+                      zIndex: 1,
+                      opacity: 1,
+                      height: 'auto',
+                      overflow: 'hidden',
+                      pointerEvents: 'auto',
+                      transition: 'opacity 150ms ease-in-out, height 150ms ease-in-out, margin 150ms ease-in-out',
+                    }}
+                  >
+                    {enabledHeroSlides.map((_slide, dotIndex) => {
+                      const isActive = dotIndex === heroIndex;
+                      return (
+                        <Box
+                          key={dotIndex}
+                          component="span"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => !heroTransitionPending && transitionToHeroSlide(dotIndex)}
+                          onKeyDown={(e) => {
+                            if (!heroTransitionPending && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              transitionToHeroSlide(dotIndex);
+                            }
+                          }}
+                          aria-label={`Hero slide ${dotIndex + 1}`}
+                          aria-disabled={heroTransitionPending}
+                          sx={{
+                            width: isActive ? 30 : 10,
+                            height: 10,
+                            borderRadius: 99,
+                            border: 'none',
+                            cursor: heroTransitionPending ? 'wait' : 'pointer',
+                            p: 0,
+                            transform: isActive ? 'scale(1.03)' : 'scale(0.97)',
+                            bgcolor: isActive ? 'primary.main' : 'text.disabled',
+                            opacity: heroTransitionPending ? 0.5 : (isActive ? 1 : 0.75),
+                            transition: 'width 320ms cubic-bezier(0.22, 1, 0.36, 1), background-color 260ms ease, opacity 260ms ease, transform 280ms ease',
+                          }}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </motion.div>
+              </Paper>
+            </motion.div>
 
         <Box
           sx={{
-            position: 'sticky',
-            top: `${HOME_NAVBAR_OFFSET_PX}px`,
             display: 'grid',
             gridTemplateColumns: { xs: '48px minmax(0, 1fr)', md: '68px minmax(0, 1fr)' },
             gap: { xs: 0.5, md: 2 },
-            minHeight: { xs: 'calc(100vh - 120px)', md: `calc(100vh - ${HOME_NAVBAR_OFFSET_PX + 20}px)` },
-            height: { xs: 'calc(100vh - 120px)', md: `calc(100vh - ${HOME_NAVBAR_OFFSET_PX + 20}px)` },
+            flex: 1,
+            minHeight: 0,
             alignItems: 'stretch',
             zIndex: 100,
           }}
@@ -4854,7 +5060,9 @@ const HomePage = () => {
                       const titlePrefix = timelineType === 'community'
                         ? 'i-'
                         : (timelineType === 'personal' ? 'My-' : (timelineType === 'hashtag' ? '#' : ''));
-                      const prefixedTitle = `${titlePrefix}${timelineName}`;
+                      const prefixedTitle = timelineType === 'personal'
+                        ? `${titlePrefix}${displayUsername(timelineName)}`
+                        : `${titlePrefix}${timelineName}`;
                       const shareCardLabel = timelineType === 'community'
                         ? 'COMMUNITY'
                         : (timelineType === 'personal' ? 'PERSONAL' : 'HASHTAG');

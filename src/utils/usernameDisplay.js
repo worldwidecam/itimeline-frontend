@@ -19,7 +19,10 @@
 export const displayUsername = (username) => {
   const spaced = String(username || '').replace(/_/g, ' ');
   if (!spaced) return '';
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  return spaced
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 /**

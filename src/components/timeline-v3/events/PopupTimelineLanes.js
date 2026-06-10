@@ -29,6 +29,15 @@ import {
 import HashtagIcon from '../../common/HashtagIcon';
 import api from '../../../utils/api';
 
+const formatTagName = (name) => {
+  if (!name) return '';
+  const spaced = String(name).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  return spaced
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 const hslToHex = (h, s, l) => {
   l /= 100;
   const a = (s * Math.min(l, 1 - l)) / 100;
@@ -248,7 +257,7 @@ const HashtagChips = ({
                 }}
               />
             )}
-            label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
+            label={formatTagName(tagName)}
             size="small"
             onClick={(e) => {
               if (votingInProgress) return;

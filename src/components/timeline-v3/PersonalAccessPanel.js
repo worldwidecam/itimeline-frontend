@@ -801,7 +801,7 @@ const PersonalAccessPanel = ({
                         imageUrl={portraitPreviewUrl}
                         imageAlt={`${user?.username || 'personal'} portrait cover`}
                         label="PERSONAL"
-                        title={user?.username || 'personal'}
+                        title={displayUsername(user?.username) || 'Personal'}
                         frameSx={{
                           width: { xs: 180, sm: 210 },
                           height: { xs: 266, sm: 310 },

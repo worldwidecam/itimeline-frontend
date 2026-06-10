@@ -959,7 +959,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     : (timeline_type === 'personal' ? 'PERSONAL' : 'HASHTAG');
   const shareCardTitle = timeline_type === 'community'
     ? `i-${timelineName || 'Community'}`
-    : (timeline_type === 'hashtag' ? `#${timelineName || 'Hashtag'}` : (timelineName || 'Personal'));
+    : (timeline_type === 'hashtag' ? `#${timelineName || 'Hashtag'}` : (displayUsername(timelineName) || 'Personal'));
   const shareCardImageObjectFit = timeline_type === 'community' ? 'cover' : 'contain';
 
   const handleAccessPanelNotice = useCallback(({ message, severity }) => {
