@@ -20,7 +20,6 @@ import {
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Article as NewsIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
   Language as LanguageIcon,
@@ -334,46 +333,45 @@ const NewsCard = forwardRef(({
   const isLogoImage = (url) => {
     if (!url) return false;
     try {
-      // First check if the image URL itself matches any of our known logo URLs
-      for (const logoUrl of Object.values(domainLogos)) {
-        if (url.includes(logoUrl) || logoUrl.includes(url)) {
-          return true;
-        }
-      }
-      
-      // Check if the URL contains common logo indicators
-      if (url.includes('favicon') || 
-          url.includes('logo') || 
-          url.includes('icon') || 
-          url.includes('brand')) {
+      // If the URL is exactly one of our known logo URLs, it's a logo
+      if (Object.values(domainLogos).includes(url)) {
         return true;
       }
       
-      // Check if the URL is from a known domain with logos
-      try {
-        const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
-        const domain = urlObj.hostname.toLowerCase();
-        
-        // Check if the domain matches any of our known domains with logos
-        for (const [knownDomain] of Object.entries(domainLogos)) {
-          if (domain.includes(knownDomain)) {
-            return true;
-          }
-        }
-      } catch (error) {
-        // If URL parsing fails, just continue with other checks
-        console.error('Error parsing URL in isLogoImage:', error);
-      }
-      
-      // Check if the image is likely a small icon/logo based on filename
-      const filename = url.split('/').pop().toLowerCase();
-      if (filename.includes('favicon') || 
-          filename.includes('logo') || 
-          filename.includes('icon') || 
-          filename.includes('brand')) {
+      // If the URL is exactly the fallback image URL, it's a logo
+      if (url === fallbackImageUrl) {
         return true;
       }
-      
+
+      // YouTube thumbnails should never be classified as logos
+      if (isYouTubeImage(url)) {
+        return false;
+      }
+
+      // Check common social/media CDNs to make sure they are not classified as logos
+      const lowercaseUrl = url.toLowerCase();
+      if (lowercaseUrl.includes('fbcdn.net') || 
+          lowercaseUrl.includes('instagram.com/p/') ||
+          lowercaseUrl.includes('tiktok.com') ||
+          lowercaseUrl.includes('googleusercontent.com') ||
+          lowercaseUrl.includes('cloudinary.com') ||
+          lowercaseUrl.includes('images.unsplash.com')) {
+        return false;
+      }
+
+      // Check if the URL has explicit indicators of being a tiny icon/favicon
+      if (lowercaseUrl.includes('favicon') || 
+          lowercaseUrl.includes('logo-thumb') || 
+          lowercaseUrl.includes('brand-icon') ||
+          lowercaseUrl.includes('/logo.svg') ||
+          lowercaseUrl.includes('/logo.png') ||
+          lowercaseUrl.includes('/logo.jpg') ||
+          lowercaseUrl.includes('/logo.gif') ||
+          lowercaseUrl.includes('/icon.png') ||
+          lowercaseUrl.includes('/apple-touch-icon')) {
+        return true;
+      }
+
       return false;
     } catch (error) {
       console.error('Error checking if logo image:', error);
@@ -470,7 +468,7 @@ const NewsCard = forwardRef(({
             {/* Row 1: Icons on Left, Date Chip on Right */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', mb: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <NewsIcon sx={{ color, mt: 0.5 }} />
+                <LinkIcon sx={{ color, mt: 0.5 }} />
                 <EventOriginTimelineBadge event={event} />
               </Box>
               {event.event_date && (
@@ -532,34 +530,32 @@ const NewsCard = forwardRef(({
                   transition: 'box-shadow 0.2s ease-in-out',
                   backgroundColor: 'background.paper'
                 }}
-              >
-                {/* For YouTube and Logo images, use side-by-side layout */}
-                {(isYouTubeImage(previewImageUrl) || isLogoImage(previewImageUrl)) ? (
+              >                {isLogoImage(previewImageUrl) ? (
                   <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                     {/* Image on the left */}
                     <Box sx={{
-                      width: isLogoImage(previewImageUrl) ? '120px' : '180px',
+                      width: '120px',
                       display: 'flex',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: isLogoImage(previewImageUrl) ? 'background.paper' : 'transparent',
+                      backgroundColor: 'background.paper',
                       borderRadius: 1,
                       overflow: 'hidden',
-                      padding: isLogoImage(previewImageUrl) ? 1 : 0,
+                      padding: 1,
                     }}>
                       {!hidePreviewImage && previewImageUrl ? (
                         <CardMedia
                           component="img"
                           height="auto"
                           image={normalizeMediaUrl(previewImageUrl)}
-                          alt={event.url_title || getSourceName(event.url) || "Link preview image"}
+                          alt={event.title || "Link preview image"}
                           sx={{ 
                             objectFit: 'contain',
                             width: 'auto',
-                            maxHeight: isLogoImage(previewImageUrl) ? '100px' : '180px',
+                            maxHeight: '100px',
                             display: 'block',
                             margin: 'auto',
-                            maxWidth: isLogoImage(previewImageUrl) ? '100px' : '180px'
+                            maxWidth: '100px'
                           }}
                           onError={handlePreviewImageError}
                         />
@@ -568,11 +564,6 @@ const NewsCard = forwardRef(({
                     
                     {/* Content on the right */}
                     <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
-                      {event.url_title && (
-                        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                          {event.url_title}
-                        </Typography>
-                      )}
                       {event.url_description && (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                           {truncateDescription(event.url_description)}
@@ -587,7 +578,7 @@ const NewsCard = forwardRef(({
                     </CardContent>
                   </Box>
                 ) : (
-                  /* For news articles, keep the original stacked layout */
+                  /* For news articles and actual preview images, use the stacked layout */
                   <>
                     {!hidePreviewImage && previewImageUrl && (
                       <Box sx={{
@@ -605,7 +596,7 @@ const NewsCard = forwardRef(({
                           component="img"
                           height="240"
                           image={previewImageUrl}
-                          alt={event.url_title || getSourceName(event.url) || "Link preview image"}
+                          alt={event.title || "Link preview image"}
                           sx={{ 
                             objectFit: 'cover',
                             width: '100%',
@@ -619,11 +610,6 @@ const NewsCard = forwardRef(({
                       </Box>
                     )}
                     <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
-                      {event.url_title && (
-                        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                          {event.url_title}
-                        </Typography>
-                      )}
                       {event.url_description && (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                           {truncateDescription(event.url_description)}

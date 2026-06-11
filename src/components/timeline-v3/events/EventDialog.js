@@ -226,7 +226,9 @@ const EventDialog = ({
 
   const [eventType, setEventType] = useState(initialType);
   const [title, setTitle] = useState('');
+  const userEditedTitleRef = React.useRef(false);
   const [description, setDescription] = useState('');
+  const userEditedDescriptionRef = React.useRef(false);
   const [descriptionAppend, setDescriptionAppend] = useState('');
   const [existingEditsText, setExistingEditsText] = useState('');
   const [eventDate, setEventDate] = useState(new Date());
@@ -284,7 +286,9 @@ const EventDialog = ({
     if (initialEvent) {
       setEventType(initialEvent.type || EVENT_TYPES.REMARK);
       setTitle(clampTitle(initialEvent.title || ''));
+      userEditedTitleRef.current = Boolean(initialEvent.title);
       const incomingDescription = String(initialEvent.description || '');
+      userEditedDescriptionRef.current = Boolean(initialEvent.description);
       const marker = '\n\n---\nEdits made\n';
       const markerIndex = incomingDescription.indexOf(marker);
       if (descriptionAppendOnly && markerIndex >= 0) {
@@ -403,9 +407,13 @@ const EventDialog = ({
         const response = await api.post('/api/v1/url-preview', { url });
         setUrlPreview(response.data);
 
-        // Auto-fill title if empty and URL preview has a title
-        if (!title && response.data.title) {
+        // Auto-fill title if not manually edited and URL preview has a title
+        if (!userEditedTitleRef.current && response.data.title) {
           setTitle(clampTitle(response.data.title));
+        }
+        // Auto-fill description if not manually edited and URL preview has a description
+        if (!userEditedDescriptionRef.current && response.data.description) {
+          setDescription(response.data.description);
         }
       } catch (error) {
         console.error('Error fetching URL preview:', error);
@@ -420,12 +428,14 @@ const EventDialog = ({
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [url, eventType, title]);
+  }, [url, eventType]);
 
   const resetForm = () => {
     setEventType(EVENT_TYPES.REMARK);
     setTitle('');
+    userEditedTitleRef.current = false;
     setDescription('');
+    userEditedDescriptionRef.current = false;
     setEventDate(new Date());
     setUrl('');
     setMediaFile(null);
@@ -751,65 +761,6 @@ const EventDialog = ({
 
   const renderTypeSpecificFields = () => {
     switch (eventType) {
-      case EVENT_TYPES.NEWS:
-        return (
-          <Box sx={{ mt: 2 }}>
-            <TextField
-              fullWidth
-              label="Article URL"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={!canEditUrl}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LinkIcon />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ mb: 2 }}
-            />
-            {isLoadingPreview ? (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Loading preview...
-              </Typography>
-            ) : urlPreview && (
-              <Box
-                sx={{
-                  border: 1,
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  overflow: 'hidden',
-                }}
-              >
-                {urlPreview.image && (
-                  <Box
-                    component="img"
-                    src={urlPreview.image}
-                    alt={urlPreview.title}
-                    sx={{
-                      width: '100%',
-                      height: 200,
-                      objectFit: 'cover',
-                    }}
-                  />
-                )}
-                <Box sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    {urlPreview.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {urlPreview.description}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {urlPreview.source}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-          </Box>
-        );
-
       case EVENT_TYPES.MEDIA:
         return (
           <Box sx={{ mt: 2 }}>
@@ -956,8 +907,8 @@ const EventDialog = ({
           </ToggleButton>
           <ToggleButton value={EVENT_TYPES.NEWS}>
             <Stack alignItems="center" spacing={1}>
-              <NewsIcon />
-              <Typography variant="caption">News</Typography>
+              <LinkIcon />
+              <Typography variant="caption">Links</Typography>
             </Stack>
           </ToggleButton>
           <ToggleButton value={EVENT_TYPES.MEDIA}>
@@ -969,11 +920,86 @@ const EventDialog = ({
         </ToggleButtonGroup>
 
         <Stack spacing={2}>
+          {eventType === EVENT_TYPES.NEWS && (
+            <Box>
+              <TextField
+                fullWidth
+                label="Link URL"
+                value={url}
+                onChange={(e) => {
+                  const newUrl = e.target.value;
+                  setUrl(newUrl);
+                  if (!newUrl) {
+                    setUrlPreview(null);
+                  }
+                  if (!userEditedTitleRef.current) {
+                    setTitle('');
+                  }
+                  if (!userEditedDescriptionRef.current) {
+                    setDescription('');
+                  }
+                }}
+                disabled={!canEditUrl}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LinkIcon sx={{ mr: 0.5 }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+              {isLoadingPreview ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
+                  Loading preview...
+                </Typography>
+              ) : urlPreview && (
+                <Box
+                  sx={{
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    mb: 2,
+                  }}
+                >
+                  {urlPreview.image && (
+                    <Box
+                      component="img"
+                      src={urlPreview.image}
+                      alt={urlPreview.title}
+                      sx={{
+                        width: '100%',
+                        height: 200,
+                        objectFit: 'cover',
+                      }}
+                    />
+                  )}
+                  <Box sx={{ p: 2 }}>
+                    <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+                      {urlPreview.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {urlPreview.description}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {urlPreview.source}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+
           <TextField
             fullWidth
             label="Event Title"
             value={title}
-            onChange={(e) => setTitle(clampTitle(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              setTitle(clampTitle(val));
+              userEditedTitleRef.current = val.trim() !== '';
+            }}
             helperText={`${title.length}/${EVENT_TITLE_MAX_LENGTH}`}
             inputProps={{ maxLength: EVENT_TITLE_MAX_LENGTH }}
             disabled={!canEditTitle}
@@ -1002,11 +1028,14 @@ const EventDialog = ({
             />
           </LocalizationProvider>
 
-          {renderTypeSpecificFields()}
+          {eventType === EVENT_TYPES.MEDIA && renderTypeSpecificFields()}
 
           <RichEditor
             value={description}
-            onChange={setDescription}
+            onChange={(val) => {
+              setDescription(val);
+              userEditedDescriptionRef.current = val.trim() !== '';
+            }}
             disabled={!canEditDescription}
             readOnly={descriptionAppendOnly && canEditDescription}
             label={descriptionAppendOnly ? 'Original Description' : 'Description'}

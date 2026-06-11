@@ -124,7 +124,8 @@ const RichContentRenderer = ({
   };
 
   const getTimelineMentionLabel = (rawName) => {
-    const spaced = String(rawName || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    // Replace both underscores and hyphens (slugified names) with spaces before capitalizing
+    const spaced = String(rawName || '').replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!spaced) return '';
     return spaced
       .split(' ')

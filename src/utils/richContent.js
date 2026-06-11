@@ -27,8 +27,9 @@ export const toRichContentPayload = (description) => {
   // (~[0-9]+) - event references ~123
   // (https?:\/\/[^\s]+) - full URLs https://... or http://...
   // (www\.[^\s]+) - www URLs (must come before i- to avoid partial matches)
-  // (i-[a-zA-Z0-9_]+) - community mentions i-community (must come after www to avoid matching in URLs)
-  const pattern = /(@[a-zA-Z0-9_]+)|(#[a-zA-Z0-9_]+)|(~[0-9]+)|(https?:\/\/[^\s]+)|(www\.[^\s]+)|(i-[a-zA-Z0-9_]+)/g;
+  // (i-[a-zA-Z0-9_-]+) - community mentions i-community (must come after www to avoid matching in URLs)
+  //   Note: hyphens are included to support slugified timeline names like i-my-community
+  const pattern = /(@[a-zA-Z0-9_]+)|(#[a-zA-Z0-9_]+)|(~[0-9]+)|(https?:\/\/[^\s]+)|(www\.[^\s]+)|(i-[a-zA-Z0-9_-]+)/g;
   
   const contentItems = [];
   let lastEnd = 0;

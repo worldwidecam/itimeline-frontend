@@ -22,14 +22,14 @@ import {
 import {
   Search as SearchIcon,
   Comment as RemarkIcon,
-  Newspaper as NewsIcon,
+  Link as NewsIcon,
   PermMedia as MediaIcon,
   Sort as SortIcon,
   ExpandMore as ExpandMoreIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EVENT_TYPES, EVENT_TYPE_COLORS } from './EventTypes';
+import { EVENT_TYPES, EVENT_TYPE_COLORS, EVENT_TYPE_METADATA } from './EventTypes';
 import EventCard from './cards/EventCard';
 import EventCounter from './EventCounter';
 import { getTimelineSurfaceTheme } from '../timelineSurfaceTheme';
@@ -674,7 +674,7 @@ const EventList = ({
                 }
               }}
             >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
+              {EVENT_TYPE_METADATA[type]?.label || (type.charAt(0).toUpperCase() + type.slice(1))}
             </Button>
           ))}
         </Box>

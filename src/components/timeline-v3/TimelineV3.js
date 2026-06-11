@@ -42,7 +42,7 @@ import TradingCard from '../common/TradingCard';
 // Material UI Icons - importing each icon separately to ensure they're properly loaded
 import Add from '@mui/icons-material/Add';
 import Comment from '@mui/icons-material/Comment';
-import Newspaper from '@mui/icons-material/Newspaper';
+import Link from '@mui/icons-material/Link';
 import PermMedia from '@mui/icons-material/PermMedia';
 import Event from '@mui/icons-material/Event';
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
@@ -63,7 +63,7 @@ import MyLocation from '@mui/icons-material/MyLocation';
 const AddIcon = Add;
 const CommentIcon = Comment;
 const EventIcon = Event;
-const NewspaperIcon = Newspaper;
+const LinkIcon = Link;
 const PermMediaIcon = PermMedia;
 const ArrowDropDownIcon = ArrowDropDown;
 const SettingsIcon = Settings;
@@ -3501,9 +3501,9 @@ const handleRecenter = () => {
                     setNewsDialogOpen(true);
                   }}>
                     <ListItemIcon>
-                      <NewspaperIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
+                      <LinkIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
                     </ListItemIcon>
-                    <ListItemText>Add News</ListItemText>
+                    <ListItemText>Add Links</ListItemText>
                   </MenuItem>
                   <MenuItem onClick={() => {
                     handleAddEventMenuClose();

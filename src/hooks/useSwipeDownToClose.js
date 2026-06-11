@@ -1,17 +1,27 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useMotionValue, animate } from 'framer-motion';
 
 /**
  * useSwipeDownToClose
  * Custom hook to enable swiping downward or horizontally on a modal dialog / paper component to close it,
  * while respecting internal scrollable containers.
- * Supports mouse events (PC) and touch events (mobile) with overscroll rubber-banding physics.
+ * Supports mouse events (PC) and touch events (mobile) with overscroll rubber-banding physics and flick-to-close velocity.
  */
 export const useSwipeDownToClose = (open, onClose) => {
   const popupX = useMotionValue(0);
   const popupY = useMotionValue(0);
-  const paperRef = useRef(null);
-  const scrollContainerRef = useRef(null);
+  
+  const [paperEl, setPaperEl] = useState(null);
+  const [scrollEl, setScrollEl] = useState(null);
+
+  // Callback refs to handle lazy mounting of dialog components
+  const paperRef = useCallback((node) => {
+    setPaperEl(node);
+  }, []);
+
+  const scrollContainerRef = useCallback((node) => {
+    setScrollEl(node);
+  }, []);
 
   // Prevent mobile browser pull-to-refresh when popup is open
   useEffect(() => {
@@ -30,8 +40,6 @@ export const useSwipeDownToClose = (open, onClose) => {
   }, [open]);
 
   useEffect(() => {
-    const paperEl = paperRef.current;
-    const scrollEl = scrollContainerRef.current;
     if (!paperEl || !open) return;
 
     let startX = 0;
@@ -41,6 +49,7 @@ export const useSwipeDownToClose = (open, onClose) => {
     let startScrollTop = 0;
     let activeDragX = false;
     let activeDragY = false;
+    let startDragTime = 0;
 
     // Helper to calculate rubber-banding overscroll
     const applyRubberBanding = (delta) => {
@@ -57,6 +66,7 @@ export const useSwipeDownToClose = (open, onClose) => {
       lastClientY = clientY;
       activeDragX = false;
       activeDragY = false;
+      startDragTime = Date.now();
 
       const isInsideScroll = scrollEl && scrollEl.contains(target);
       if (isInsideScroll) {
@@ -122,10 +132,17 @@ export const useSwipeDownToClose = (open, onClose) => {
     };
 
     const dragEnd = () => {
+      const duration = Date.now() - startDragTime;
+      const physicalDeltaX = lastClientX - startX;
+      const physicalDeltaY = lastClientY - startY;
+      const velocityX = duration > 0 ? (physicalDeltaX / duration) * 1000 : 0;
+      const velocityY = duration > 0 ? (physicalDeltaY / duration) * 1000 : 0;
+
       if (activeDragX) {
         activeDragX = false;
         const currentX = popupX.get();
-        if (Math.abs(currentX) > 120) {
+        // Allow close if physical drag > 100px OR quick horizontal flick > 300px/s with > 20px movement
+        if (Math.abs(currentX) > 100 || (Math.abs(velocityX) > 300 && Math.abs(currentX) > 20)) {
           if (typeof onClose === 'function') onClose();
         } else {
           animate(popupX, 0, { type: 'spring', damping: 25, stiffness: 200 });
@@ -134,8 +151,10 @@ export const useSwipeDownToClose = (open, onClose) => {
       if (activeDragY) {
         activeDragY = false;
         const currentY = popupY.get();
-        // Since we apply rubber-banding (0.5x), a drag of 75px matches 150px of physical movement
-        if (currentY > 75) {
+        // Since we apply rubber-banding (0.5x), currentY is physicalDeltaY * 0.5.
+        // A threshold of currentY > 50 matches 100px of physical movement.
+        // A velocityY > 300 matches a quick downward flick.
+        if (currentY > 50 || (velocityY > 300 && currentY > 10)) {
           if (typeof onClose === 'function') onClose();
         } else {
           animate(popupY, 0, { type: 'spring', damping: 25, stiffness: 200 });
@@ -208,7 +227,7 @@ export const useSwipeDownToClose = (open, onClose) => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [open, onClose, popupX, popupY]);
+  }, [open, onClose, popupX, popupY, paperEl, scrollEl]);
 
   // Reset positions when Dialog state changes
   useEffect(() => {
