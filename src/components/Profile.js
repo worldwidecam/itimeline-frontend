@@ -416,17 +416,19 @@ const Profile = () => {
     const texts = textsEntries.map(t => ({ ...t, feedType: 'text' }));
     if (!isOwnProfile) return texts;
     
-    const notifs = notifications.map(n => ({
-      id: `notification-${n.id}`,
-      notificationId: n.id,
-      feedType: 'notification',
-      text: n.text,
-      target_route: n.target_route,
-      created_at: n.created_at,
-      sender: n.sender,
-      type: n.type,
-      sender_id: n.sender_id,
-    }));
+    const notifs = notifications
+      .filter(n => n.type !== 'profile_text')
+      .map(n => ({
+        id: `notification-${n.id}`,
+        notificationId: n.id,
+        feedType: 'notification',
+        text: n.text,
+        target_route: n.target_route,
+        created_at: n.created_at,
+        sender: n.sender,
+        type: n.type,
+        sender_id: n.sender_id,
+      }));
     
     return [...texts, ...notifs].sort((a, b) => {
       const dateA = new Date(a.created_at || 0).getTime();
@@ -1801,11 +1803,12 @@ const Profile = () => {
                                               {entry.type === 'mention' && '🏷️ Mentioned'}
                                               {entry.type === 'vote' && '🔥 Promote'}
                                               {entry.type === 'vote_demote' && '😈 Consensus'}
+                                              {entry.type === 'profile_text' && '📝 Profile Note'}
                                               {entry.type === 'timeline_post' && '📅 Timeline Activity'}
                                               {entry.type === 'join_request' && '🔒 Join Request'}
                                               {entry.type === 'join_accept' && '✅ Approved'}
                                               {entry.type === 'role_change' && '🛡️ Role Update'}
-                                              {!['follow', 'comment', 'reply', 'mention', 'vote', 'timeline_post', 'join_request', 'join_accept', 'role_change'].includes(entry.type) && '🔔 System'}
+                                              {!['follow', 'comment', 'reply', 'mention', 'vote', 'vote_demote', 'profile_text', 'timeline_post', 'join_request', 'join_accept', 'role_change'].includes(entry.type) && '🔔 System'}
                                             </Typography>
                                             {entry.created_at && (
                                               <Typography
