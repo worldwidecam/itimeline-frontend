@@ -6,6 +6,15 @@ import { alpha } from '@mui/material/styles';
 import api from '../../../../utils/api';
 import TimelineNameDisplay from '../../TimelineNameDisplay';
 
+const formatTagName = (name) => {
+  if (!name) return '';
+  const spaced = String(name).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  return spaced
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -300,7 +309,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                 }
                 label={
                   <TimelineNameDisplay
-                    name={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
+                    name={formatTagName(tagName)}
                     type="community"
                     visibility={timelineInfo.visibility || 'public'}
                     typographyProps={{
@@ -367,7 +376,7 @@ const TagList = ({ tags, associatedTimelines = [], removedTimelineIds = [] }) =>
                     }} 
                   />
                 }
-                label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
+                label={formatTagName(tagName)}
                 size="small"
                 onClick={(e) => handleTagClick(e, tagName)}
                 sx={{

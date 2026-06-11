@@ -123,7 +123,14 @@ const RichContentRenderer = ({
     return solidChips ? solidLight : softLight;
   };
 
-  const getTimelineMentionLabel = (rawName) => String(rawName || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  const getTimelineMentionLabel = (rawName) => {
+    const spaced = String(rawName || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!spaced) return '';
+    return spaced
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
 
   const isStampedEditMetadataText = (value) => {
     const raw = String(value || '');

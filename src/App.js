@@ -1208,7 +1208,7 @@ function App() {
                 
                 {/* Protected routes */}
                 <Route path="/home" element={
-                  <Box sx={{ height: '100vh', overflow: 'auto' }}>
+                  <Box sx={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
                     <ProtectedRoute>
                       <HomePage />
                     </ProtectedRoute>

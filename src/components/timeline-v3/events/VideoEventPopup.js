@@ -165,10 +165,13 @@ const VideoEventPopup = ({
       normalizedInput.includes('r2.dev') || 
       normalizedInput.includes('itimeline-media')
     );
+
+    // Check if it's already an absolute URL
+    const isAbsoluteUrl = normalizedInput.startsWith('http://') || normalizedInput.startsWith('https://');
     
     let fullUrl = normalizedInput;
     
-    if (isCloudinaryUrl || isR2Url) {
+    if (isCloudinaryUrl || isR2Url || isAbsoluteUrl) {
       fullUrl = normalizedInput;
     }
     else if (normalizedInput.startsWith('/')) {

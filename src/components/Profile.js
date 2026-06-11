@@ -37,6 +37,7 @@ import {
   Alert,
   Switch,
   FormControlLabel,
+  Avatar,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -49,6 +50,8 @@ import InfoIcon from '@mui/icons-material/Info';
 import KeyboardDoubleArrowDownRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowDownRounded';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import CloseIcon from '@mui/icons-material/Close';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
@@ -251,6 +254,7 @@ const Profile = () => {
   const [profileTextSubmitting, setProfileTextSubmitting] = useState(false);
   const [profileTextDeletingId, setProfileTextDeletingId] = useState('');
   const [textsEntries, setTextsEntries] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [visibleTextsCount, setVisibleTextsCount] = useState(10);
   const textsContainerRef = React.useRef(null);
@@ -380,6 +384,58 @@ const Profile = () => {
       console.warn('[Profile] Failed to fetch profile texts module:', fetchError?.response?.data || fetchError?.message || fetchError);
     }
   }, [applyTextsModuleUpdate, profileUser?.username]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!isOwnProfile || isGuest) return;
+    try {
+      const response = await api.get('/api/v1/notifications', { params: { limit: 50 } });
+      if (response?.data?.data) {
+        setNotifications(response.data.data);
+      }
+      // Clear unread count on backend
+      await api.patch('/api/v1/notifications/read-all');
+      // Dispatch custom event to let Navbar know
+      window.dispatchEvent(new CustomEvent('notifications-read'));
+    } catch (err) {
+      console.error('[Profile] Failed to fetch notifications:', err);
+    }
+  }, [isOwnProfile, isGuest]);
+
+  const handleDeleteNotification = useCallback(async (id) => {
+    try {
+      await api.delete(`/api/v1/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      setSnackbar({ open: true, message: 'Notification removed', severity: 'success' });
+    } catch (err) {
+      console.error('[Profile] Failed to delete notification:', err);
+      setSnackbar({ open: true, message: 'Failed to remove notification', severity: 'error' });
+    }
+  }, []);
+
+  const combinedEntries = useMemo(() => {
+    const texts = textsEntries.map(t => ({ ...t, feedType: 'text' }));
+    if (!isOwnProfile) return texts;
+    
+    const notifs = notifications
+      .filter(n => n.type !== 'profile_text')
+      .map(n => ({
+        id: `notification-${n.id}`,
+        notificationId: n.id,
+        feedType: 'notification',
+        text: n.text,
+        target_route: n.target_route,
+        created_at: n.created_at,
+        sender: n.sender,
+        type: n.type,
+        sender_id: n.sender_id,
+      }));
+    
+    return [...texts, ...notifs].sort((a, b) => {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateA - dateB;
+    });
+  }, [textsEntries, notifications, isOwnProfile]);
   const handleSubmitProfileText = useCallback(async () => {
     const targetUserId = Number(profileUser?.id || 0);
     const textValue = String(profileTextDraft || '').trim();
@@ -781,16 +837,22 @@ const Profile = () => {
     };
   }, [userId, user, isOwnProfile, profileAccessRefreshNonce, profileAccessStorageKey, queryAccessKey, authLoading]);
 
-  // Live polling for profile texts
+  // Live polling for profile texts and notifications
   useEffect(() => {
     if (profileUser?.id) {
       fetchProfileTextsModule(profileUser.id);
+      if (isOwnProfile) {
+        fetchNotifications();
+      }
       const pollInterval = setInterval(() => {
         fetchProfileTextsModule(profileUser.id);
+        if (isOwnProfile) {
+          fetchNotifications();
+        }
       }, 15000);
       return () => clearInterval(pollInterval);
     }
-  }, [profileUser?.id, fetchProfileTextsModule]);
+  }, [profileUser?.id, fetchProfileTextsModule, isOwnProfile, fetchNotifications]);
 
   // Redirect owner to canonical /profile if they land on /profile/:id
   useEffect(() => {
@@ -1626,7 +1688,7 @@ const Profile = () => {
                   >
                     {normalizeProfileModuleType(group.type) === PROFILE_MODULE_TYPE_TEXTS ? (
                       <Box>
-                        {textsEntries.length > visibleTextsCount && (
+                        {combinedEntries.length > visibleTextsCount && (
                           <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
                             <Button
                               onClick={() => setVisibleTextsCount(prev => prev + 10)}
@@ -1662,12 +1724,133 @@ const Profile = () => {
                             },
                           }}
                         >
-                          {textsEntries.length === 0 ? (
+                          {combinedEntries.length === 0 ? (
                             <Typography variant="body2" color="text.secondary">
                               No texts yet.
                             </Typography>
                           ) : (
-                            textsEntries.slice(-visibleTextsCount).map((entry) => {
+                            combinedEntries.slice(-visibleTextsCount).map((entry) => {
+                              if (entry.feedType === 'notification') {
+                                return (
+                                  <Box
+                                    key={entry.id}
+                                    sx={{
+                                      display: 'flex',
+                                      flexDirection: 'row-reverse',
+                                      alignItems: 'flex-end',
+                                      gap: 1.5,
+                                      alignSelf: 'flex-end',
+                                      width: { xs: '98%', sm: '90%' },
+                                      cursor: 'pointer',
+                                      '&:hover .notification-card': {
+                                        transform: 'translateY(-2px)',
+                                        boxShadow: theme => theme.palette.mode === 'dark'
+                                          ? '0 12px 24px rgba(168, 143, 184, 0.25)'
+                                          : '0 12px 24px rgba(168, 143, 184, 0.15)',
+                                      },
+                                    }}
+                                    onClick={() => {
+                                      if (entry.target_route) {
+                                        navigate(entry.target_route);
+                                      }
+                                    }}
+                                  >
+                                    <Avatar
+                                      sx={{
+                                        width: 32,
+                                        height: 32,
+                                        mb: 0.5,
+                                        flexShrink: 0,
+                                        bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(168, 143, 184, 0.2)' : 'rgba(168, 143, 184, 0.15)',
+                                        border: '1px solid',
+                                        borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(168, 143, 184, 0.3)' : 'rgba(168, 143, 184, 0.35)',
+                                        color: theme => theme.palette.mode === 'dark' ? 'rgba(168, 143, 184, 0.8)' : '#a88fb8',
+                                      }}
+                                    >
+                                      <NotificationsIcon sx={{ fontSize: '1.1rem' }} />
+                                    </Avatar>
+                                    <Card
+                                      className="notification-card"
+                                      sx={{
+                                        position: 'relative',
+                                        flex: 1,
+                                        borderRadius: '18px 18px 6px 18px',
+                                        background: theme => theme.palette.mode === 'dark'
+                                          ? 'linear-gradient(135deg, rgba(168, 143, 184, 0.08) 0%, rgba(168, 143, 184, 0.2) 100%)'
+                                          : 'linear-gradient(135deg, rgba(168, 143, 184, 0.1) 0%, rgba(168, 143, 184, 0.18) 100%)',
+                                        border: '1px solid',
+                                        borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(168, 143, 184, 0.3)' : 'rgba(168, 143, 184, 0.35)',
+                                        boxShadow: '0 8px 20px rgba(9, 18, 40, 0.12)',
+                                        transition: 'all 0.2s ease-in-out',
+                                      }}
+                                    >
+                                      <CardContent sx={{ pb: 1.4, '&:last-child': { pb: 1.4 } }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                                          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                            <Typography
+                                              variant="caption"
+                                              sx={{
+                                                fontWeight: 800,
+                                                fontSize: '0.68rem',
+                                                letterSpacing: 0.8,
+                                                textTransform: 'uppercase',
+                                                color: 'primary.main',
+                                              }}
+                                            >
+                                              {entry.type === 'follow' && '👥 New Follower'}
+                                              {entry.type === 'comment' && '💬 New Comment'}
+                                              {entry.type === 'reply' && '↩️ New Reply'}
+                                              {entry.type === 'mention' && '🏷️ Mentioned'}
+                                              {entry.type === 'vote' && '🔥 Promote'}
+                                              {entry.type === 'vote_demote' && '😈 Consensus'}
+                                              {entry.type === 'profile_text' && '📝 Profile Note'}
+                                              {entry.type === 'timeline_post' && '📅 Timeline Activity'}
+                                              {entry.type === 'join_request' && '🔒 Join Request'}
+                                              {entry.type === 'join_accept' && '✅ Approved'}
+                                              {entry.type === 'role_change' && '🛡️ Role Update'}
+                                              {!['follow', 'comment', 'reply', 'mention', 'vote', 'vote_demote', 'profile_text', 'timeline_post', 'join_request', 'join_accept', 'role_change'].includes(entry.type) && '🔔 System'}
+                                            </Typography>
+                                            {entry.created_at && (
+                                              <Typography
+                                                variant="caption"
+                                                sx={{
+                                                  opacity: 0.5,
+                                                  fontSize: '0.65rem',
+                                                  color: 'text.secondary'
+                                                }}
+                                              >
+                                                {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                                              </Typography>
+                                            )}
+                                          </Box>
+                                          <Tooltip title="Dismiss Activity">
+                                            <IconButton
+                                              size="small"
+                                              color="default"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteNotification(entry.notificationId);
+                                              }}
+                                            >
+                                              <CloseIcon fontSize="small" sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                          </Tooltip>
+                                        </Box>
+                                        <Box
+                                          sx={{
+                                            color: 'text.primary',
+                                            lineHeight: 1.45,
+                                            mt: 0.5,
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          {entry.text}
+                                        </Box>
+                                      </CardContent>
+                                    </Card>
+                                  </Box>
+                                );
+                              }
                               const isOwnerEntry = Number(entry.author_id) === Number(profileUser?.id);
                               const isLeftBubble = isOwnerEntry;
                               const textModuleBackground = isLeftBubble
@@ -1845,8 +2028,8 @@ const Profile = () => {
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                               <Typography variant="caption" color="text.secondary">
                                 {textsOverflowMode === 'fifo'
-                                  ? `Auto-rollover enabled (${textsEntries.length}/${textsMaxItems})`
-                                  : `Manual mode (${textsEntries.length}/${textsMaxItems})`}
+                                  ? `Auto-rollover enabled (${combinedEntries.length}/${textsMaxItems})`
+                                  : `Manual mode (${combinedEntries.length}/${textsMaxItems})`}
                               </Typography>
                               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                                 {(isTextsScrolledUp || hasNewTexts) && (
