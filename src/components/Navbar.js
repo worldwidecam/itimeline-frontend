@@ -1677,6 +1677,69 @@ function Navbar() {
                     </Popper>
                   </>
                 )}
+                {/* User profile pic / menu */}
+                <IconButton onClick={() => navigate(isGuest ? '/profile/guest' : '/profile')} sx={{ p: 0, position: 'relative', mr: 1 }} aria-label="view profile">
+                  <UserAvatar
+                    name={displayUsername(user.username)}
+                    avatarUrl={user.avatar_url}
+                    id={user.id}
+                    size={40}
+                    isRestricted={user?.is_restricted || user?.is_suspended}
+                    isAvatarBlurred={user?.is_avatar_blurred}
+                    sx={{
+                      transition: 'transform 0.2s ease-in-out',
+                      '&:hover': { transform: 'scale(1.1)' }
+                    }}
+                    userColor={user.user_color}
+                  />
+                  {unreadCount > 0 && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: '#ff3b30', // Vibrant system red
+                        border: theme => `2px solid ${theme.palette.background.paper}`,
+                        zIndex: 10,
+                        animation: 'pulse 1.5s infinite',
+                        '@keyframes pulse': {
+                          '0%': {
+                            boxShadow: '0 0 0 0 rgba(255, 59, 48, 0.7)',
+                          },
+                          '70%': {
+                            boxShadow: '0 0 0 6px rgba(255, 59, 48, 0)',
+                          },
+                          '100%': {
+                            boxShadow: '0 0 0 0 rgba(255, 59, 48, 0)',
+                          },
+                        },
+                      }}
+                    />
+                  )}
+                </IconButton>
+                <Drawer
+                  anchor="right"
+                  open={drawerOpen}
+                  onClose={toggleDrawer(false)}
+                  variant="temporary"
+                  sx={{
+                    '& .MuiDrawer-paper': {
+                      marginTop: '64px', // Height of AppBar
+                      height: 'calc(100% - 64px)',
+                      boxSizing: 'border-box',
+                      zIndex: 1600, // Higher than timeline floating buttons (which go up to 1530)
+                    },
+                    zIndex: 1600, // Apply to the Drawer component itself
+                  }}
+                  ModalProps={{
+                    keepMounted: true, // Better mobile performance
+                  }}
+                >
+                  {profileTabs}
+                </Drawer>
                 {/* Hamburger menu — hidden in guest mode; replaced with CTA */}
                 {isGuest && !['/login', '/register'].includes(currentPath) ? (
                   <Tooltip title="Create a full account to start posting and organizing timelines!">
@@ -1722,118 +1785,13 @@ function Navbar() {
                   <IconButton
                     color="inherit"
                     onClick={handleHamburgerClick}
-                    sx={{ mr: 2 }}
-                    aria-label="profile menu"
+                    sx={{ mr: 0 }}
+                    aria-label="navigation menu"
                   >
                     <MenuIcon />
                   </IconButton>
                 )}
-                <Drawer
-                  anchor="right"
-                  open={drawerOpen}
-                  onClose={toggleDrawer(false)}
-                  variant="temporary"
-                  sx={{
-                    '& .MuiDrawer-paper': {
-                      marginTop: '64px', // Height of AppBar
-                      height: 'calc(100% - 64px)',
-                      boxSizing: 'border-box',
-                      zIndex: 1600, // Higher than timeline floating buttons (which go up to 1530)
-                    },
-                    zIndex: 1600, // Apply to the Drawer component itself
-                  }}
-                  ModalProps={{
-                    keepMounted: true, // Better mobile performance
-                  }}
-                >
-                  {profileTabs}
-                </Drawer>
-                <IconButton onClick={handleMenu} sx={{ p: 0, position: 'relative' }}>
-                  <UserAvatar
-                    name={displayUsername(user.username)}
-                    avatarUrl={user.avatar_url}
-                    id={user.id}
-                    size={40}
-                    isRestricted={user?.is_restricted || user?.is_suspended}
-                    isAvatarBlurred={user?.is_avatar_blurred}
-                    sx={{
-                      transition: 'transform 0.2s ease-in-out',
-                      '&:hover': { transform: 'scale(1.1)' }
-                    }}
-                    userColor={user.user_color}
-                  />
-                  {unreadCount > 0 && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        backgroundColor: '#ff3b30', // Vibrant system red
-                        border: theme => `2px solid ${theme.palette.background.paper}`,
-                        zIndex: 10,
-                        animation: 'pulse 1.5s infinite',
-                        '@keyframes pulse': {
-                          '0%': {
-                            boxShadow: '0 0 0 0 rgba(255, 59, 48, 0.7)',
-                          },
-                          '70%': {
-                            boxShadow: '0 0 0 6px rgba(255, 59, 48, 0)',
-                          },
-                          '100%': {
-                            boxShadow: '0 0 0 0 rgba(255, 59, 48, 0)',
-                          },
-                        },
-                      }}
-                    />
-                  )}
-                </IconButton>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={handleClose}
-                  PaperProps={{
-                    sx: {
-                      mt: 1.5,
-                      boxShadow: theme => theme.palette.mode === 'dark' 
-                        ? '0 4px 20px rgba(0,0,0,0.5)' 
-                        : '0 4px 20px rgba(0,0,0,0.15)',
-                      borderRadius: 2,
-                    }
-                  }}
-                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      navigate(isGuest ? '/profile/guest' : '/profile');
-                      handleClose();
-                    }}
-                    sx={{
-                      minWidth: '150px',
-                      py: 1.5,
-                    }}
-                  >
-                    <ListItemIcon>
-                      <PersonIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary="Profile" />
-                  </MenuItem>
-                  <MenuItem onClick={handleLogout} sx={{ 
-                    minWidth: '150px',
-                    py: 1.5,
-                  }}>
-                    <ListItemIcon>
-                      <Box component="svg" sx={{ width: 20, height: 20 }} viewBox="0 0 24 24" fill="none">
-                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </Box>
-                    </ListItemIcon>
-                    <ListItemText primary="Logout" />
-                  </MenuItem>
-                </Menu>
+
               </>
             ) : (
               <>

@@ -46,9 +46,9 @@ export const EVENT_TYPE_METADATA = {
     optionalFields: ['tags', 'url']
   },
   [EVENT_TYPES.NEWS]: {
-    label: 'News',
-    description: 'Share news articles and factual content',
-    icon: 'newspaper',
+    label: 'Links',
+    description: 'Share links, video embeds, and other media sources',
+    icon: 'link',
     requiredFields: ['title', 'date', 'url'],
     optionalFields: ['tags', 'description']
   },

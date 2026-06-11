@@ -21,7 +21,6 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import {
   Close as CloseIcon,
   Link as LinkIcon,
-  Newspaper as NewsIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import api from '../../../utils/api';
@@ -40,7 +39,9 @@ const EVENT_TITLE_MAX_LENGTH = 120;
 const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
   const theme = useTheme();
   const [title, setTitle] = useState('');
+  const userEditedTitleRef = React.useRef(false);
   const [description, setDescription] = useState('');
+  const userEditedDescriptionRef = React.useRef(false);
   const [eventDate, setEventDate] = useState(new Date());
   const [url, setUrl] = useState('');
   const [urlPreview, setUrlPreview] = useState(null);
@@ -72,6 +73,8 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
     setTags([]);
     setCurrentTag('');
     setError(null);
+    userEditedTitleRef.current = false;
+    userEditedDescriptionRef.current = false;
   };
 
   // Handle tag input
@@ -125,11 +128,11 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
       const response = await api.post('/api/v1/url-preview', { url });
       setUrlPreview(response.data);
       
-      // Auto-populate title and description if they're empty
-      if (!title.trim() && response.data.title) {
+      // Auto-populate title and description if they're not manually edited
+      if (!userEditedTitleRef.current && response.data.title) {
         setTitle(clampTitle(response.data.title));
       }
-      if (!description.trim() && response.data.description) {
+      if (!userEditedDescriptionRef.current && response.data.description) {
         setDescription(response.data.description);
       }
     } catch (error) {
@@ -161,7 +164,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
       }
 
       if (!url.trim()) {
-        setError('URL is required for news events');
+        setError('URL is required for Link events');
         return;
       }
 
@@ -190,8 +193,8 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
       onClose();
       resetForm();
     } catch (error) {
-      console.error('Error creating news event:', error);
-      setError(error.message || 'Failed to create news event');
+      console.error('Error creating Link event:', error);
+      setError(error.message || 'Failed to create Link event');
     }
   };
 
@@ -254,7 +257,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
               color: theme.palette.mode === 'dark' ? '#F87171' : '#EF4444', // Red color for News events
             }}
           >
-            <NewsIcon fontSize="medium" />
+            <LinkIcon fontSize="medium" />
           </Box>
           <Typography 
             variant="h5" 
@@ -266,7 +269,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
                 : 'rgba(0,0,0,0.85)',
             }}
           >
-            Create News Event
+            Create Link Event
           </Typography>
         </Box>
         <IconButton 
@@ -299,12 +302,115 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
               {error}
             </Typography>
           )}
+
+          <Box>
+            <TextField
+              label="URL"
+              fullWidth
+              value={url}
+              onChange={(e) => {
+                const newUrl = e.target.value;
+                setUrl(newUrl);
+                if (!newUrl) {
+                  setUrlPreview(null);
+                }
+                if (!userEditedTitleRef.current) {
+                  setTitle('');
+                }
+                if (!userEditedDescriptionRef.current) {
+                  setDescription('');
+                }
+              }}
+              required
+              variant="outlined"
+              InputProps={{
+                startAdornment: <LinkIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                endAdornment: isLoadingPreview && <CircularProgress size={20} />
+              }}
+              InputLabelProps={{
+                sx: { 
+                  fontSize: '0.95rem',
+                  transform: 'translate(14px, -9px) scale(0.75)',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(14px, -9px) scale(0.75)'
+                  },
+                  '&.Mui-focused': {
+                    color: 'primary.main'
+                  }
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  '& fieldset': {
+                    borderColor: 'divider'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                    borderWidth: 2
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  padding: '14px 16px',
+                  fontSize: '0.95rem'
+                }
+              }}
+            />
+            
+            {urlPreview && (
+              <Box sx={{ 
+                mt: 2, 
+                p: 2, 
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1.5,
+                bgcolor: 'background.paper',
+                boxShadow: 1
+              }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  URL Preview
+                </Typography>
+                {urlPreview.image && (
+                  <Box 
+                    component="img" 
+                    src={urlPreview.image} 
+                    alt={urlPreview.title || 'URL preview'} 
+                    sx={{ 
+                      width: '100%', 
+                      height: 160, 
+                      objectFit: 'cover',
+                      borderRadius: 1,
+                      mb: 1
+                    }} 
+                  />
+                )}
+                <Typography variant="subtitle1" gutterBottom>
+                  {urlPreview.title || 'No title available'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {urlPreview.description || 'No description available'}
+                </Typography>
+                {urlPreview.source && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Source: {urlPreview.source}
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Box>
           
           <TextField
             label="Title"
             fullWidth
             value={title}
-            onChange={(e) => setTitle(clampTitle(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              setTitle(clampTitle(val));
+              userEditedTitleRef.current = val.trim() !== '';
+            }}
             required
             variant="outlined"
             helperText={`${title.length}/${EVENT_TITLE_MAX_LENGTH}`}
@@ -348,7 +454,11 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
             multiline
             rows={4}
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setDescription(val);
+              userEditedDescriptionRef.current = val.trim() !== '';
+            }}
             variant="outlined"
             InputLabelProps={{
               sx: { 
@@ -431,93 +541,6 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
                 }
               />
             </LocalizationProvider>
-          </Box>
-          
-          <Box>
-            <TextField
-              label="URL"
-              fullWidth
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
-              variant="outlined"
-              InputProps={{
-                startAdornment: <LinkIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                endAdornment: isLoadingPreview && <CircularProgress size={20} />
-              }}
-              InputLabelProps={{
-                sx: { 
-                  fontSize: '0.95rem',
-                  transform: 'translate(14px, -9px) scale(0.75)',
-                  '&.MuiInputLabel-shrink': {
-                    transform: 'translate(14px, -9px) scale(0.75)'
-                  },
-                  '&.Mui-focused': {
-                    color: 'primary.main'
-                  }
-                }
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  '& fieldset': {
-                    borderColor: 'divider'
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'primary.light'
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'primary.main',
-                    borderWidth: 2
-                  }
-                },
-                '& .MuiInputBase-input': {
-                  padding: '14px 16px',
-                  fontSize: '0.95rem'
-                }
-              }}
-            />
-            
-            {urlPreview && (
-              <Box sx={{ 
-                mt: 2, 
-                p: 2, 
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1.5,
-                bgcolor: 'background.paper',
-                boxShadow: 1
-              }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  URL Preview
-                </Typography>
-                {urlPreview.image && (
-                  <Box 
-                    component="img" 
-                    src={urlPreview.image} 
-                    alt={urlPreview.title || 'URL preview'} 
-                    sx={{ 
-                      width: '100%', 
-                      height: 160, 
-                      objectFit: 'cover',
-                      borderRadius: 1,
-                      mb: 1
-                    }} 
-                  />
-                )}
-                <Typography variant="subtitle1" gutterBottom>
-                  {urlPreview.title || 'No title available'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {urlPreview.description || 'No description available'}
-                </Typography>
-                {urlPreview.source && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                    Source: {urlPreview.source}
-                  </Typography>
-                )}
-              </Box>
-            )}
           </Box>
           
           <Box sx={{ mt: 0.5 }}>
@@ -617,7 +640,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
             }
           }}
         >
-          Create News Event
+          Create Link Event
         </Button>
       </DialogActions>
     </Dialog>

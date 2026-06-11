@@ -1797,18 +1797,23 @@ const Profile = () => {
                                                 color: 'primary.main',
                                               }}
                                             >
-                                              {entry.type === 'follow' && '👥 New Follower'}
-                                              {entry.type === 'comment' && '💬 New Comment'}
-                                              {entry.type === 'reply' && '↩️ New Reply'}
-                                              {entry.type === 'mention' && '🏷️ Mentioned'}
-                                              {entry.type === 'vote' && '🔥 Promote'}
-                                              {entry.type === 'vote_demote' && '😈 Consensus'}
-                                              {entry.type === 'profile_text' && '📝 Profile Note'}
-                                              {entry.type === 'timeline_post' && '📅 Timeline Activity'}
-                                              {entry.type === 'join_request' && '🔒 Join Request'}
-                                              {entry.type === 'join_accept' && '✅ Approved'}
-                                              {entry.type === 'role_change' && '🛡️ Role Update'}
-                                              {!['follow', 'comment', 'reply', 'mention', 'vote', 'vote_demote', 'profile_text', 'timeline_post', 'join_request', 'join_accept', 'role_change'].includes(entry.type) && '🔔 System'}
+                                              {entry.type === 'follow' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>👥</span>{' New Follower'}</>}
+                                              {entry.type === 'comment' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>💬</span>{' New Comment'}</>}
+                                              {entry.type === 'reply' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>↩️</span>{' New Reply'}</>}
+                                              {entry.type === 'mention' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>🏷️</span>{' Mentioned'}</>}
+                                              {entry.type === 'vote' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>🔥</span>{' Promote'}</>}
+                                              {entry.type === 'vote_demote' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>😈</span>{' Consensus'}</>}
+                                              {entry.type === 'profile_text' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>📝</span>{' Profile Note'}</>}
+                                              {/* Legacy type — kept for backward compat with older notifications */}
+                                              {entry.type === 'timeline_post' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>📅</span>{' Timeline Activity'}</>}
+                                              {/* Specific types produced by new backend */}
+                                              {entry.type === 'timeline_post_owner' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>📅</span>{' New Post on Your Timeline'}</>}
+                                              {entry.type === 'timeline_post_follower' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>📅</span>{' New Post on Watched Timeline'}</>}
+                                              {entry.type === 'timeline_post_feed' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>📋</span>{' New Post in Your Feed'}</>}
+                                              {entry.type === 'join_request' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>🔒</span>{' Join Request'}</>}
+                                              {entry.type === 'join_accept' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>✅</span>{' Approved'}</>}
+                                              {entry.type === 'role_change' && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>🛡️</span>{' Role Update'}</>}
+                                              {!['follow', 'comment', 'reply', 'mention', 'vote', 'vote_demote', 'profile_text', 'timeline_post', 'timeline_post_owner', 'timeline_post_follower', 'timeline_post_feed', 'join_request', 'join_accept', 'role_change'].includes(entry.type) && <><span style={{ fontSize: '1.1rem', lineHeight: 1 }}>🔔</span>{' System'}</>}
                                             </Typography>
                                             {entry.created_at && (
                                               <Typography
@@ -1844,7 +1849,12 @@ const Profile = () => {
                                             fontWeight: 500,
                                           }}
                                         >
-                                          {entry.text}
+                                          <RichContentRenderer
+                                            content={toRichContentPayload(entry.text)}
+                                            theme={theme}
+                                            solidChips
+                                            inheritTextColor
+                                          />
                                         </Box>
                                       </CardContent>
                                     </Card>

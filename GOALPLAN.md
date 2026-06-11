@@ -22,12 +22,18 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 - this change would most likely set a new standard, that we would then consider updating media-type events to.
 - think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.
 
+* make media events play better and its logic work smarter. ask me to explain.
+
 * add/create action hover markers
+
+* look into making this an app on apple and google play stores
+
 
 
 ---
 
 ## Completed
+* Query batching optimization (resolving 503 Service Unavailable / CORS errors on events retrieval routes by reducing database query overhead from N+1 to grouped queries).
 * Notifications System (Unified Activity Notifications feed, Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges).
 * Timeline header titles and username cards dynamic scale-shrinking for mobile views.
 
