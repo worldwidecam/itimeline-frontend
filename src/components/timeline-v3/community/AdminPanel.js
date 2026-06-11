@@ -2543,7 +2543,7 @@ const ManagePostsTab = ({ timelineId }) => {
       case 'audio':
         return { icon: AudiotrackIcon, color: '#e65100', label: 'Audio' };
       case 'news':
-        return { icon: NewspaperIcon, color: '#e53935', label: 'News' };
+        return { icon: LinkIcon, color: '#e53935', label: 'Links' };
       default:
         return { icon: CommentIcon, color: '#757575', label: eventType || 'Event' };
     }

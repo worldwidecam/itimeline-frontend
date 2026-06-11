@@ -1139,6 +1139,29 @@ const Homepage = () => {
   );
 };
 
+const NavigationScrollAndLockReset = () => {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    // 1. Scroll window to top
+    window.scrollTo(0, 0);
+
+    // 2. Unlock scroll by resetting styling applied by unmounted modals
+    document.body.style.overflow = '';
+    document.body.style.overflowY = '';
+    document.body.style.paddingRight = '';
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.overflowY = '';
+    // 3. Reset overscrollBehaviorY set by useSwipeDownToClose / EventCommentDrawer.
+    //    If the user navigates away while a popup is open, the hook cleanup never
+    //    fires, leaving 'contain' stuck on the page and blocking normal scrolling.
+    document.body.style.overscrollBehaviorY = '';
+    document.documentElement.style.overscrollBehaviorY = '';
+  }, [pathname]);
+
+  return null;
+};
+
 function App() {
   // Set up keep-alive ping to prevent backend from spinning down
   React.useEffect(() => {
@@ -1162,6 +1185,7 @@ function App() {
           <CssBaseline />
           <PageTransition>
             <Router>
+              <NavigationScrollAndLockReset />
               {/* Conditional Navbar - only show on non-landing pages */}
               <Routes>
                 <Route path="/" element={null} />

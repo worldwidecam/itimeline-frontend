@@ -45,7 +45,7 @@ import {
 import {
   Close as CloseIcon,
   Comment as RemarkIcon,
-  Newspaper as NewsIcon,
+  Link as LinkIcon,
   Movie as MediaIcon,
   Person as PersonIcon,
   Event as EventIcon,
@@ -408,7 +408,7 @@ const EventPopup = ({
   try {
     const iconMap = {
       [EVENT_TYPES.REMARK]: RemarkIcon,
-      [EVENT_TYPES.NEWS]: NewsIcon,
+      [EVENT_TYPES.NEWS]: LinkIcon,
       [EVENT_TYPES.MEDIA]: MediaIcon,
     };
     TypeIcon = iconMap[safeEventType] || RemarkIcon;

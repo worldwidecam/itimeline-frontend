@@ -818,6 +818,14 @@ File references:
 
 ### Recent Bugfixes and Lessons Learned
 
+#### Lazy-Mounted Dialog Gesture Binding & Swipe-to-Close (June 2026)
+
+**Issue**: The swipe-to-close gesture on detailed popups did not work when a popup was first opened. However, after opening and closing the comments drawer, it suddenly started working.
+
+**Root Cause**: The popup dialog contains lazy-mounted or conditionally rendered container elements. The gesture hook was using standard React `useRef` hooks. In React, mutating `ref.current` does not trigger re-renders or re-run `useEffect` blocks. As a result, the event listeners were attempted to be bound before the DOM elements were actually mounted and available, leading to no listeners being registered. Opening the comments drawer triggered a state change and re-render, which accidentally updated bindings.
+
+**Fix**: Converted standard `useRef` handlers into **callback refs** using state setters (e.g., `useCallback(node => setPaperEl(node))`). This guarantees that whenever React mounts/unmounts the DOM element, a state update is triggered, causing the event binding effect to run with the correct, active elements.
+
 #### Media URL Construction Regression (Jan 2026)
 
 **Issue**: Month/year views showed Cloudinary 404s while day/week appeared fine. EventList cards attempted to construct Cloudinary URLs from a missing `cloudinary_id` field instead of using `media_url`.

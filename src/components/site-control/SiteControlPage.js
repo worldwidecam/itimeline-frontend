@@ -1373,7 +1373,7 @@ const getEventTypeDisplay = (eventType, reportType, timelineType) => {
     case 'audio':
       return { icon: AudiotrackIcon, color: '#e65100', label: 'Audio' };
     case 'news':
-      return { icon: NewspaperIcon, color: '#e53935', label: 'News' };
+      return { icon: LinkIcon, color: '#e53935', label: 'Links' };
     case 'timeline':
       if ((timelineType || '').toLowerCase() === 'hashtag') {
         return { icon: TagIcon, color: '#2e7d32', label: 'Hashtag Timeline' };

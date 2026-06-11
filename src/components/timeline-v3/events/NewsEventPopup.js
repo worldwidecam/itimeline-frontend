@@ -32,7 +32,7 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Newspaper as NewsIcon,
+  Link as LinkIcon,
   Person as PersonIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
@@ -59,6 +59,100 @@ import EventCommentDrawer, { getCachedCommentCount } from './EventCommentDrawer'
 import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
 import CommentIcon from '@mui/icons-material/Comment';
+
+const getEmbedData = (url) => {
+  if (!url) return null;
+  const s = String(url).trim();
+
+  // 1. YouTube
+  const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/;
+  const ytMatch = s.match(ytRegex);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: 'youtube',
+      embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}`
+    };
+  }
+
+  // 2. TikTok
+  const ttRegex = /tiktok\.com\/@[^\/]+\/video\/(\d+)/;
+  const ttMatch = s.match(ttRegex);
+  if (ttMatch && ttMatch[1]) {
+    return {
+      type: 'tiktok',
+      embedUrl: `https://www.tiktok.com/embed/v2/${ttMatch[1]}`
+    };
+  }
+  const ttRegex2 = /tiktok\.com\/v\/(\d+)/;
+  const ttMatch2 = s.match(ttRegex2);
+  if (ttMatch2 && ttMatch2[1]) {
+    return {
+      type: 'tiktok',
+      embedUrl: `https://www.tiktok.com/embed/v2/${ttMatch2[1]}`
+    };
+  }
+
+  // 3. Instagram
+  const igRegex = /instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)/;
+  const igMatch = s.match(igRegex);
+  if (igMatch && igMatch[1]) {
+    return {
+      type: 'instagram',
+      embedUrl: `https://www.instagram.com/p/${igMatch[1]}/embed`
+    };
+  }
+
+  // 4. Twitter / X
+  const twitterRegex = /(?:twitter|x)\.com\/[a-zA-Z0-9_]+\/status\/(\d+)/;
+  const twitterMatch = s.match(twitterRegex);
+  if (twitterMatch && twitterMatch[1]) {
+    return {
+      type: 'twitter',
+      embedUrl: `https://platform.twitter.com/embed/Tweet.html?id=${twitterMatch[1]}`
+    };
+  }
+
+  // 5. Facebook
+  const isFb = /facebook\.com|fb\.watch/i.test(s);
+  if (isFb) {
+    const isFbVideo = s.includes('/videos/') || s.includes('/watch') || s.includes('video.php');
+    if (isFbVideo) {
+      return {
+        type: 'facebook',
+        embedUrl: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(s)}&show_text=false`
+      };
+    } else {
+      return {
+        type: 'facebook',
+        embedUrl: `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(s)}&show_text=true`
+      };
+    }
+  }
+
+  // 6. Bluesky
+  const bskyRegex = /bsky\.app\/profile\/[^\/]+\/post\/([a-zA-Z0-9]+)/;
+  const bskyMatch = s.match(bskyRegex);
+  if (bskyMatch && bskyMatch[1]) {
+    return {
+      type: 'bluesky',
+      embedUrl: `https://embed.bsky.app/iframe?url=${encodeURIComponent(s)}`
+    };
+  }
+
+  return null;
+};
+
+const getAutoplayUrl = (embed) => {
+  if (!embed) return '';
+  const url = embed.embedUrl;
+  if (embed.type === 'youtube') {
+    return url + (url.includes('?') ? '&autoplay=1&mute=0' : '?autoplay=1&mute=0');
+  }
+  if (embed.type === 'facebook') {
+    return url + (url.includes('?') ? '&autoplay=true' : '?autoplay=true');
+  }
+  return url;
+};
 
 /**
  * NewsEventPopup - A specialized popup for news events
@@ -114,6 +208,11 @@ const NewsEventPopup = ({
   const [tagSectionExpanded, setTagSectionExpanded] = React.useState(false);
   const [localEventData, setLocalEventData] = React.useState(event);
   const [reportSnackOpen, setReportSnackOpen] = React.useState(false);
+  const [isPlayerActive, setIsPlayerActive] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsPlayerActive(false);
+  }, [open, event?.id]);
   
   const {
     value: voteValue,
@@ -207,7 +306,8 @@ const NewsEventPopup = ({
 
   const normalizedEventUrl = normalizeExternalUrl(event.url || event.media_source);
   const mediaSource = event.url_image || (event.media_source && event.media_source.match(/\.(jpeg|jpg|gif|png)$/) ? event.media_source : null);
-  const newsColor = '#d32f2f';
+  const newsColor = color || '#d32f2f';
+  const embedData = getEmbedData(event.url || event.media_source);
 
   const handleUrlClick = (e) => {
     e.preventDefault();
@@ -391,7 +491,68 @@ const NewsEventPopup = ({
           >
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: '100%', md: '100%' }, overflow: 'hidden' }}>
               {/* Left Container - Preview */}
-              {mediaSource && (
+              {embedData ? (
+                <Box
+                  sx={{
+                    flex: { xs: '0 0 auto', md: '0 0 60%' },
+                    width: { xs: '100%', md: '60%' },
+                    height: { xs: '250px', sm: '350px', md: '100%' },
+                    position: 'relative',
+                    bgcolor: 'black',
+                    borderRight: { xs: 'none', md: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` },
+                    borderBottom: { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, md: 'none' },
+                  }}
+                >
+                  {isPlayerActive ? (
+                    <iframe
+                      src={getAutoplayUrl(embedData)}
+                      title={event.title || 'Embed'}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      onClick={() => setIsPlayerActive(true)}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src={mediaSource || '/images/fallbacks/news-link-fallback.jpg'}
+                        alt={event.title}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          transition: 'transform 0.5s ease, filter 0.5s ease',
+                          '&:hover': {
+                            transform: 'scale(1.03)',
+                            filter: 'brightness(1.05)',
+                          }
+                        }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/images/fallbacks/news-link-fallback.jpg';
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              ) : mediaSource ? (
                 <Box
                   sx={{
                     flex: { xs: '0 0 auto', md: '0 0 60%' },
@@ -426,7 +587,7 @@ const NewsEventPopup = ({
                     <OpenInNewIcon sx={{ fontSize: 20 }} />
                   </Box>
                 </Box>
-              )}
+              ) : null}
 
               {/* Right Container - Details */}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: { xs: '100%', md: '100%' }, minWidth: 0, overflow: 'hidden' }}>
@@ -437,7 +598,7 @@ const NewsEventPopup = ({
                         <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
                       </Box>
                       <Typography variant="h5" component="div" sx={{ fontWeight: 600, fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }, lineHeight: 1.2, wordBreak: 'break-word', color: 'text.primary' }}>
-                        {event.title || "News Article"}
+                        {event.title || "Link Event"}
                       </Typography>
                     </Box>
                     <IconButton edge="end" color="inherit" onClick={handleCloseButtonClick} aria-label="close" sx={{ color: 'text.secondary', mt: -0.5, mr: -0.5 }}>

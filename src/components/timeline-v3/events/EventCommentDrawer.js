@@ -69,6 +69,7 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
   const [replyTo, setReplyTo] = useState(null); // comment object we are replying to
   const [minimizedComments, setMinimizedComments] = useState(new Set()); // Set of comment IDs that are minimized
   const [collapsingParentId, setCollapsingParentId] = useState(null); // Parent comment ID whose replies are currently collapsing
+  const [highlightedCommentId, setHighlightedCommentId] = useState(null); // ID of parent comment to highlight/blink
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [hasNewComments, setHasNewComments] = useState(false);
   const scrollContainerRef = useRef(null);
@@ -550,6 +551,12 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
       }
       return prev;
     });
+
+    // Highlight parent comment
+    setHighlightedCommentId(parentId);
+    setTimeout(() => {
+      setHighlightedCommentId(null);
+    }, 1800); // 3 blinks of 0.6s = 1.8s
 
     // Nearest scroll parent, then reply into viewport
     setTimeout(() => {
@@ -1142,6 +1149,20 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                                             transition: 'all 0.2s ease-in-out',
                                             cursor: 'pointer',
                                             '&:hover': bubbleStyle.hover,
+                                            // Soft border highlight blink
+                                            '@keyframes comment-row-pulse': {
+                                              '0%, 100%': {
+                                                borderColor: bubbleStyle.border,
+                                                boxShadow: bubbleStyle.shadow,
+                                              },
+                                              '50%': {
+                                                borderColor: eventColor || '#3B82F6',
+                                                boxShadow: `0 0 12px ${eventColor || '#3B82F6'}`,
+                                              }
+                                            },
+                                            animation: highlightedCommentId === rootComment.id
+                                              ? 'comment-row-pulse 0.6s ease-in-out 3'
+                                              : 'none'
                                           }}
                                         >
                                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, gap: 1 }}>
@@ -1397,6 +1418,20 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                                                               transform: replyBubbleStyle.transform || 'none',
                                                               transition: 'all 0.2s ease-in-out',
                                                               cursor: 'pointer',
+                                                              // Soft border highlight blink
+                                                              '@keyframes comment-row-pulse': {
+                                                                '0%, 100%': {
+                                                                  borderColor: replyBubbleStyle.border,
+                                                                  boxShadow: replyBubbleStyle.shadow,
+                                                                },
+                                                                '50%': {
+                                                                  borderColor: eventColor || '#3B82F6',
+                                                                  boxShadow: `0 0 12px ${eventColor || '#3B82F6'}`,
+                                                                }
+                                                              },
+                                                              animation: highlightedCommentId === reply.id
+                                                                ? 'comment-row-pulse 0.6s ease-in-out 3'
+                                                                : 'none'
                                                             }}
                                                           >
                                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 0.5, gap: 1 }}>
