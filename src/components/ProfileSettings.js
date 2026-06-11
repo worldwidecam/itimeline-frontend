@@ -229,7 +229,7 @@ const getTheoryBoardModuleFromModules = (modules) => (
     : null
 );
 
-const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User' }) => {
+const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User', notifyCreations, notifyHomeFeed, notifyCommentsMentions, notifyActionCards, notifyFollowedTimelines, notifyPopularFeed }) => {
   const normalizedModules = normalizeProfileModules(modules);
   const nextOverflowMode = normalizeOverflowMode(overflowMode);
   const existingTextsModule = getTextsModuleFromModules(normalizedModules);
@@ -239,7 +239,13 @@ const upsertTextsModule = ({ modules, enabled, overflowMode, ownerLabel = 'User'
     description: existingTextsModule?.description || '',
     max_items: TEXTS_MODULE_MAX_ITEMS,
     overflow_mode: nextOverflowMode,
-    texts: existingTextsModule?.texts || []
+    texts: existingTextsModule?.texts || [],
+    notifyCreations: notifyCreations !== false,
+    notifyHomeFeed: notifyHomeFeed !== false,
+    notifyCommentsMentions: notifyCommentsMentions !== false,
+    notifyActionCards: notifyActionCards !== false,
+    notifyFollowedTimelines: notifyFollowedTimelines !== false,
+    notifyPopularFeed: notifyPopularFeed !== false,
   };
 
   const nextTextsModule = {
@@ -336,6 +342,13 @@ const ProfileSettings = () => {
   const [portraitY, setPortraitY] = useState(50);
   const [portraitZoom, setPortraitZoom] = useState(1);
 
+  const [notifyCreations, setNotifyCreations] = useState(true);
+  const [notifyHomeFeed, setNotifyHomeFeed] = useState(true);
+  const [notifyCommentsMentions, setNotifyCommentsMentions] = useState(true);
+  const [notifyActionCards, setNotifyActionCards] = useState(true);
+  const [notifyFollowedTimelines, setNotifyFollowedTimelines] = useState(true);
+  const [notifyPopularFeed, setNotifyPopularFeed] = useState(true);
+
   // Backup Password Recovery State
   const [backupPassword, setBackupPasswordState] = useState('');
   const [confirmBackupPassword, setConfirmBackupPassword] = useState('');
@@ -347,6 +360,18 @@ const ProfileSettings = () => {
   const [confirmAuthErrorField, setConfirmAuthErrorField] = useState(false);
   const [showRecoveryNudge, setShowRecoveryNudge] = useState(false);
   const [forceShowInputs, setForceShowInputs] = useState(false);
+
+  useEffect(() => {
+    const textsModule = getTextsModuleFromModules(profileModules);
+    if (textsModule && textsModule.config) {
+      setNotifyCreations(textsModule.config.notifyCreations !== false);
+      setNotifyHomeFeed(textsModule.config.notifyHomeFeed !== false);
+      setNotifyCommentsMentions(textsModule.config.notifyCommentsMentions !== false);
+      setNotifyActionCards(textsModule.config.notifyActionCards !== false);
+      setNotifyFollowedTimelines(textsModule.config.notifyFollowedTimelines !== false);
+      setNotifyPopularFeed(textsModule.config.notifyPopularFeed !== false);
+    }
+  }, [profileModules]);
 
   useEffect(() => {
     if (localStorage.getItem('itl_recovery_nudge') === 'true') {
@@ -988,6 +1013,12 @@ const ProfileSettings = () => {
           enabled: textsModuleEnabled,
           overflowMode: textsOverflowMode,
           ownerLabel: user?.username || 'User',
+          notifyCreations,
+          notifyHomeFeed,
+          notifyCommentsMentions,
+          notifyActionCards,
+          notifyFollowedTimelines,
+          notifyPopularFeed,
         });
         const nextProfileModules = upsertTheoryBoardModule({
           modules: withTextsModules,
@@ -1155,6 +1186,12 @@ const ProfileSettings = () => {
           enabled: textsModuleEnabled,
           overflowMode: textsOverflowMode,
           ownerLabel: freshUserData.username || user?.username || 'User',
+          notifyCreations,
+          notifyHomeFeed,
+          notifyCommentsMentions,
+          notifyActionCards,
+          notifyFollowedTimelines,
+          notifyPopularFeed,
         }),
         enabled: theoryBoardModuleEnabled,
         titleBase: theoryBoardTitle,
@@ -2093,6 +2130,7 @@ const ProfileSettings = () => {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
+                            style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
                           >
                             <TextField
                               select
@@ -2106,6 +2144,104 @@ const ProfileSettings = () => {
                               <MenuItem value="manual">Manual Selection</MenuItem>
                               <MenuItem value="fifo">Automatic (FIFO)</MenuItem>
                             </TextField>
+
+                            <Divider sx={{ my: 1 }} />
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: 0.5 }}>
+                              NOTIFICATION PREFERENCES
+                            </Typography>
+                            
+                            <Stack spacing={1.5}>
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    checked={notifyCreations}
+                                    onChange={(e) => {
+                                      setNotifyCreations(e.target.checked);
+                                      markUnsavedChanges();
+                                    }}
+                                    color="primary"
+                                    size="small"
+                                  />
+                                }
+                                label={<Typography variant="body2">Creations / My Timelines</Typography>}
+                                sx={{ ml: 0 }}
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    checked={notifyHomeFeed}
+                                    onChange={(e) => {
+                                      setNotifyHomeFeed(e.target.checked);
+                                      markUnsavedChanges();
+                                    }}
+                                    color="primary"
+                                    size="small"
+                                  />
+                                }
+                                label={<Typography variant="body2">Home Feed (Follows)</Typography>}
+                                sx={{ ml: 0 }}
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    checked={notifyCommentsMentions}
+                                    onChange={(e) => {
+                                      setNotifyCommentsMentions(e.target.checked);
+                                      markUnsavedChanges();
+                                    }}
+                                    color="primary"
+                                    size="small"
+                                  />
+                                }
+                                label={<Typography variant="body2">Comments & Mentions</Typography>}
+                                sx={{ ml: 0 }}
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    checked={notifyActionCards}
+                                    onChange={(e) => {
+                                      setNotifyActionCards(e.target.checked);
+                                      markUnsavedChanges();
+                                    }}
+                                    color="primary"
+                                    size="small"
+                                  />
+                                }
+                                label={<Typography variant="body2">Action Cards</Typography>}
+                                sx={{ ml: 0 }}
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    checked={notifyFollowedTimelines}
+                                    onChange={(e) => {
+                                      setNotifyFollowedTimelines(e.target.checked);
+                                      markUnsavedChanges();
+                                    }}
+                                    color="primary"
+                                    size="small"
+                                  />
+                                }
+                                label={<Typography variant="body2">Followed Timelines Digests</Typography>}
+                                sx={{ ml: 0 }}
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    checked={notifyPopularFeed}
+                                    onChange={(e) => {
+                                      setNotifyPopularFeed(e.target.checked);
+                                      markUnsavedChanges();
+                                    }}
+                                    color="primary"
+                                    size="small"
+                                  />
+                                }
+                                label={<Typography variant="body2">Popular Feed Digests</Typography>}
+                                sx={{ ml: 0 }}
+                              />
+                            </Stack>
                           </motion.div>
                         )}
                       </AnimatePresence>

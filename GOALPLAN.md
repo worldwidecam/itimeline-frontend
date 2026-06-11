@@ -16,8 +16,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ------
 
 ## Current TODOs
-* Notifications feature. ideation needed.
-
 * expand news-type remarks. change their frontend naming nomenclature to LINKS (OR SOMETHING). we can keep code nomenclature relevantly same. but we need to update news-type remarks to handle more links than just news. we need it to play tiktok links, youtube links, instagram reels, etc. basically it needs to also be media handler, but of outside sourse media.
 - so we'll need to reflect on how much would need to change
 - like their event card, hover card, popup, preview display, 
@@ -30,6 +28,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+* Notifications System (Unified Activity Notifications feed, Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges).
 * Timeline header titles and username cards dynamic scale-shrinking for mobile views.
 
 ---

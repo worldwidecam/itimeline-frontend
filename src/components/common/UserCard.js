@@ -185,6 +185,31 @@ export default function UserCard({
             }}
           />
         )}
+
+        {/* Country Flag Overlay Badge */}
+        {cardData.country && (
+          <Tooltip title={countries.find(c => c.code === cardData.country)?.label || ''} arrow>
+            <Box 
+              component="img"
+              loading="lazy"
+              src={getFlagUrl(cardData.country)}
+              alt=""
+              sx={{ 
+                position: 'absolute',
+                bottom: { xs: 8, sm: 12 },
+                right: { xs: 4, sm: 8 },
+                width: { xs: 26, sm: 30 }, 
+                height: 'auto', 
+                borderRadius: '3px', 
+                border: '2px solid',
+                borderColor: theme => theme.palette.mode === 'dark' ? '#161212' : '#120e0e',
+                boxShadow: '0 3px 6px rgba(0,0,0,0.4)', 
+                cursor: 'help',
+                zIndex: 12,
+              }}
+            />
+          </Tooltip>
+        )}
       </Box>
 
       <CardContent
@@ -246,25 +271,6 @@ export default function UserCard({
             >
               @{displayedName.charAt(0).toUpperCase() + displayedName.slice(1)}
             </Typography>
-            {cardData.country && (
-              <Tooltip title={countries.find(c => c.code === cardData.country)?.label || ''} arrow>
-                <Box 
-                  component="img"
-                  loading="lazy"
-                  src={getFlagUrl(cardData.country)}
-                  alt=""
-                  sx={{ 
-                    width: { xs: 20, sm: 24 }, 
-                    height: 'auto', 
-                    borderRadius: '2px', 
-                    boxShadow: '0 0 2px rgba(0,0,0,0.2)', 
-                    cursor: 'help',
-                    flexShrink: 0,
-                    mr: { xs: 1, sm: 0 }
-                  }}
-                />
-              </Tooltip>
-            )}
           </Box>
 
           <Typography
