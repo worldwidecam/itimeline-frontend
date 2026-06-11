@@ -90,6 +90,7 @@ function Navbar() {
   const toolbarLedStartTimeoutRef = useRef(null);
   const toolbarLedIntroTimeoutRef = useRef(null);
   const currentPath = location.pathname;
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const clearToolbarLedStartTimer = useCallback(() => {
     if (toolbarLedStartTimeoutRef.current) {
@@ -357,6 +358,106 @@ function Navbar() {
       setIsSiteAdmin(Number(user.id) === 1);
     }
   }, [user]);
+
+  const audioContextRef = useRef(null);
+
+  useEffect(() => {
+    const initAudio = () => {
+      if (!audioContextRef.current) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioContextRef.current = new AudioContext();
+        }
+      }
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch((err) => console.warn('[Navbar] AudioContext resume failed:', err));
+      }
+    };
+
+    window.addEventListener('click', initAudio);
+    window.addEventListener('touchstart', initAudio);
+
+    return () => {
+      window.removeEventListener('click', initAudio);
+      window.removeEventListener('touchstart', initAudio);
+    };
+  }, []);
+
+  // Synthesize a cute pop/plop sound when a new notification arrives
+  const playPlopSound = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      // Cute bubble plop sound: starts high at 800Hz, drops to 150Hz exponentially
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.12);
+
+      // Dynamic volume control to avoid clicking pop
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.02); // quick rise
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12); // quick decay
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.13);
+    } catch (err) {
+      console.warn('[Navbar] Audio play failed:', err);
+    }
+  };
+
+  // Notifications count polling & listener
+  useEffect(() => {
+    if (!user || isGuest) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await api.get('/api/v1/notifications/unread-count');
+        if (response.data && typeof response.data.count === 'number') {
+          setUnreadCount(prev => {
+            const nextVal = response.data.count;
+            if (nextVal > prev) {
+              playPlopSound();
+            }
+            return nextVal;
+          });
+        }
+      } catch (err) {
+        console.error('[Navbar] Failed to fetch unread notifications count:', err);
+      }
+    };
+
+    fetchUnreadCount();
+
+    const interval = setInterval(fetchUnreadCount, 45000); // Poll every 45s
+
+    const handleNotificationsRead = () => {
+      setUnreadCount(0);
+    };
+
+    window.addEventListener('notifications-read', handleNotificationsRead);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notifications-read', handleNotificationsRead);
+    };
+  }, [user, isGuest]);
 
   useEffect(() => {
     let active = true;
@@ -1647,7 +1748,7 @@ function Navbar() {
                 >
                   {profileTabs}
                 </Drawer>
-                <IconButton onClick={handleMenu} sx={{ p: 0 }}>
+                <IconButton onClick={handleMenu} sx={{ p: 0, position: 'relative' }}>
                   <UserAvatar
                     name={displayUsername(user.username)}
                     avatarUrl={user.avatar_url}
@@ -1661,6 +1762,33 @@ function Navbar() {
                     }}
                     userColor={user.user_color}
                   />
+                  {unreadCount > 0 && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: '#ff3b30', // Vibrant system red
+                        border: theme => `2px solid ${theme.palette.background.paper}`,
+                        zIndex: 10,
+                        animation: 'pulse 1.5s infinite',
+                        '@keyframes pulse': {
+                          '0%': {
+                            boxShadow: '0 0 0 0 rgba(255, 59, 48, 0.7)',
+                          },
+                          '70%': {
+                            boxShadow: '0 0 0 6px rgba(255, 59, 48, 0)',
+                          },
+                          '100%': {
+                            boxShadow: '0 0 0 0 rgba(255, 59, 48, 0)',
+                          },
+                        },
+                      }}
+                    />
+                  )}
                 </IconButton>
                 <Menu
                   anchorEl={anchorEl}

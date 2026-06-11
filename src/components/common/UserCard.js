@@ -21,6 +21,27 @@ import { Tooltip } from '@mui/material';
 import { normalizeUserCardData, resolveUserCardGradient } from './userCardModel';
 
 /**
+ * Helper to dynamically calculate font size based on username length.
+ */
+const getUsernameFontSize = (nameLength) => {
+  let xs = '1.05rem';
+  let sm = '1.22rem';
+  
+  if (nameLength > 20) {
+    xs = '0.75rem';
+    sm = '0.9rem';
+  } else if (nameLength > 15) {
+    xs = '0.85rem';
+    sm = '1.0rem';
+  } else if (nameLength > 10) {
+    xs = '0.95rem';
+    sm = '1.1rem';
+  }
+  
+  return { xs, sm };
+};
+
+/**
  * Standardized User Card component.
  * Displays a user profile preview with color identity integration.
  */
@@ -71,6 +92,9 @@ export default function UserCard({
   };
 
   const userCardBackground = resolveUserCardGradient(identityColor, theme);
+
+  const displayedName = displayUsername(username);
+  const usernameFontSize = getUsernameFontSize(displayedName.length);
 
   return (
     <Card
@@ -161,6 +185,31 @@ export default function UserCard({
             }}
           />
         )}
+
+        {/* Country Flag Overlay Badge */}
+        {cardData.country && (
+          <Tooltip title={countries.find(c => c.code === cardData.country)?.label || ''} arrow>
+            <Box 
+              component="img"
+              loading="lazy"
+              src={getFlagUrl(cardData.country)}
+              alt=""
+              sx={{ 
+                position: 'absolute',
+                bottom: { xs: 8, sm: 12 },
+                right: { xs: 4, sm: 8 },
+                width: { xs: 26, sm: 30 }, 
+                height: 'auto', 
+                borderRadius: '3px', 
+                border: '2px solid',
+                borderColor: theme => theme.palette.mode === 'dark' ? '#161212' : '#120e0e',
+                boxShadow: '0 3px 6px rgba(0,0,0,0.4)', 
+                cursor: 'help',
+                zIndex: 12,
+              }}
+            />
+          </Tooltip>
+        )}
       </Box>
 
       <CardContent
@@ -181,7 +230,7 @@ export default function UserCard({
           }}
         >
           {/* Identity Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.8, sm: 1.15 }, mb: 0.45, ml: { xs: -0.5, sm: 0 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.8, sm: 1.15 }, mb: 0.45, ml: { xs: -0.5, sm: 0 }, minWidth: 0 }}>
             <Box
               sx={{
                 width: 16,
@@ -200,12 +249,13 @@ export default function UserCard({
                   borderBottom: '4px solid transparent',
                   borderLeft: `6px solid ${identityColor || (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.92)')}`,
                 },
+                flexShrink: 0,
               }}
             />
             <Typography
               sx={{
                 fontFamily: 'Lobster, cursive',
-                fontSize: { xs: '1.05rem', sm: '1.22rem' },
+                fontSize: usernameFontSize,
                 lineHeight: 1.1,
                 textDecoration: identityColor ? 'none' : 'underline',
                 textUnderlineOffset: '4px',
@@ -213,29 +263,14 @@ export default function UserCard({
                 color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.95)',
                 fontWeight: 700,
                 textShadow: 'none',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
               }}
             >
-              @{displayUsername(username).charAt(0).toUpperCase() + displayUsername(username).slice(1)}
+              @{displayedName.charAt(0).toUpperCase() + displayedName.slice(1)}
             </Typography>
-            {cardData.country && (
-              <Tooltip title={countries.find(c => c.code === cardData.country)?.label || ''} arrow>
-                <Box 
-                  component="img"
-                  loading="lazy"
-                  src={getFlagUrl(cardData.country)}
-                  alt=""
-                  sx={{ 
-                    width: { xs: 20, sm: 24 }, 
-                    height: 'auto', 
-                    borderRadius: '2px', 
-                    boxShadow: '0 0 2px rgba(0,0,0,0.2)', 
-                    cursor: 'help',
-                    flexShrink: 0,
-                    mr: { xs: 1, sm: 0 }
-                  }}
-                />
-              </Tooltip>
-            )}
           </Box>
 
           <Typography

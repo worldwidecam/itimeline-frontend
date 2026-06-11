@@ -15,17 +15,21 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ------
 
-## Current Objective
-
-
+## Current TODOs
 * expand news-type remarks. change their frontend naming nomenclature to LINKS (OR SOMETHING). we can keep code nomenclature relevantly same. but we need to update news-type remarks to handle more links than just news. we need it to play tiktok links, youtube links, instagram reels, etc. basically it needs to also be media handler, but of outside sourse media.
 - so we'll need to reflect on how much would need to change
 - like their event card, hover card, popup, preview display, 
 - this change would most likely set a new standard, that we would then consider updating media-type events to.
-- think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.  
+- think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.
 
 * add/create action hover markers
 
+
+---
+
+## Completed
+* Notifications System (Unified Activity Notifications feed, Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges).
+* Timeline header titles and username cards dynamic scale-shrinking for mobile views.
 
 ---
 

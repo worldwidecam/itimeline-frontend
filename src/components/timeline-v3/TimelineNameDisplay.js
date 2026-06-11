@@ -2,6 +2,35 @@ import React from 'react';
 import { Box, Typography, Tooltip, useTheme } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 
+// Helper to dynamically calculate font size based on text length for title variant 'h4'
+const getResponsiveFontSize = (nameLength, variant) => {
+  if (variant !== 'h4') return undefined; // Only apply dynamic shrinking to the main title (variant h4)
+
+  let xs = '1.5rem';
+  let sm = '1.85rem';
+  let md = '2.125rem';
+
+  if (nameLength > 30) {
+    xs = '0.85rem';
+    sm = '1.1rem';
+    md = '1.3rem';
+  } else if (nameLength > 20) {
+    xs = '1.0rem';
+    sm = '1.3rem';
+    md = '1.5rem';
+  } else if (nameLength > 15) {
+    xs = '1.2rem';
+    sm = '1.5rem';
+    md = '1.75rem';
+  } else if (nameLength > 10) {
+    xs = '1.35rem';
+    sm = '1.7rem';
+    md = '1.95rem';
+  }
+
+  return { xs, sm, md };
+};
+
 /**
  * Component to display timeline names with proper formatting
  * For community timelines, adds the "i-" prefix in Lobster font
@@ -15,6 +44,8 @@ import LockIcon from '@mui/icons-material/Lock';
  */
 const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typographyProps = {} }) => {
   const theme = useTheme();
+  const dynamicFontSize = getResponsiveFontSize(name.length, typographyProps.variant);
+
   // For personal timelines, use "My-" prefix similar to community style
   if (type === 'personal') {
     return (
@@ -27,6 +58,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             {...typographyProps}
             component="div"
             sx={{
+              fontSize: dynamicFontSize,
               ...typographyProps.sx,
               display: 'flex',
               alignItems: 'center',
@@ -68,6 +100,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             {...typographyProps}
             component="div"
             sx={{
+              fontSize: dynamicFontSize,
               ...typographyProps.sx,
               display: 'flex',
               alignItems: 'center',
@@ -112,6 +145,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
           {...typographyProps}
           component="div"
           sx={{
+            fontSize: dynamicFontSize,
             ...typographyProps.sx,
             display: 'flex',
             alignItems: 'center',

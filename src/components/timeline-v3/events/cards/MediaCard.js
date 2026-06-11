@@ -380,10 +380,13 @@ const MediaCard = forwardRef(({
       normalizedInput.includes('r2.dev') || 
       normalizedInput.includes('itimeline-media')
     );
+
+    // Check if it's already an absolute URL
+    const isAbsoluteUrl = normalizedInput.startsWith('http://') || normalizedInput.startsWith('https://');
     
     let fullUrl = normalizedInput;
     
-    if (isCloudinaryUrl || isR2Url) {
+    if (isCloudinaryUrl || isR2Url || isAbsoluteUrl) {
       fullUrl = normalizedInput;
     }
     else if (normalizedInput.startsWith('/')) {
@@ -403,8 +406,8 @@ const MediaCard = forwardRef(({
       }
     }
     
-    // If media_url is already a complete Cloudinary or R2 URL, use it directly
-    if ((isCloudinaryUrl || isR2Url) && fullUrl) {
+    // If media_url is already a complete Cloudinary, R2, or absolute URL, use it directly
+    if ((isCloudinaryUrl || isR2Url || isAbsoluteUrl) && fullUrl) {
       mediaSources.push(fullUrl);
     }
     
@@ -613,8 +616,8 @@ const MediaCard = forwardRef(({
       const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
       const cloudinaryPublicId = normalizeCloudinaryPublicId((event && event.cloudinary_id) || derivedPublicId);
       
-      const isR2Url = (mediaSource && (mediaSource.includes('r2.dev') || mediaSource.includes('itimeline-media'))) ||
-                     (event.media_url && (event.media_url.includes('r2.dev') || event.media_url.includes('itimeline-media')));
+      const isR2Url = (mediaSource && (mediaSource.includes('r2.dev') || mediaSource.includes('itimeline-media') || (mediaSource.startsWith('http') && !mediaSource.includes('cloudinary')))) ||
+                     (event.media_url && (event.media_url.includes('r2.dev') || event.media_url.includes('itimeline-media') || (event.media_url.startsWith('http') && !event.media_url.includes('cloudinary'))));
 
       if (cloudinaryPublicId && !isR2Url) {
         const base = `https://res.cloudinary.com/dnjwvuxn7/video/upload/${cloudinaryPublicId}`;
