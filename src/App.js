@@ -1146,17 +1146,29 @@ const NavigationScrollAndLockReset = () => {
     // 1. Scroll window to top
     window.scrollTo(0, 0);
 
-    // 2. Unlock scroll by resetting styling applied by unmounted modals
-    document.body.style.overflow = '';
-    document.body.style.overflowY = '';
-    document.body.style.paddingRight = '';
-    document.documentElement.style.overflow = '';
-    document.documentElement.style.overflowY = '';
-    // 3. Reset overscrollBehaviorY set by useSwipeDownToClose / EventCommentDrawer.
-    //    If the user navigates away while a popup is open, the hook cleanup never
-    //    fires, leaving 'contain' stuck on the page and blocking normal scrolling.
-    document.body.style.overscrollBehaviorY = '';
-    document.documentElement.style.overscrollBehaviorY = '';
+    const resetScrollLock = () => {
+      document.body.style.overflow = '';
+      document.body.style.overflowY = '';
+      document.body.style.paddingRight = '';
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.overflowY = '';
+      document.body.style.overscrollBehaviorY = '';
+      document.documentElement.style.overscrollBehaviorY = '';
+    };
+
+    // Run immediately when route changes
+    resetScrollLock();
+
+    // Listen for tab focus/visibility change (e.g., returning from external apps like TikTok)
+    window.addEventListener('focus', resetScrollLock);
+    document.addEventListener('visibilitychange', resetScrollLock);
+    window.addEventListener('pageshow', resetScrollLock);
+
+    return () => {
+      window.removeEventListener('focus', resetScrollLock);
+      document.removeEventListener('visibilitychange', resetScrollLock);
+      window.removeEventListener('pageshow', resetScrollLock);
+    };
   }, [pathname]);
 
   return null;
