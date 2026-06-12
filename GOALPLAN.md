@@ -16,8 +16,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ------
 
 ## Current TODOs
-* make media events play better and its logic work smarter. ask me to explain.
-
 * add/create action hover markers
 
 * look into making this an app on apple and google play stores
@@ -27,6 +25,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+* Unified Event Popup & Universal Media Display (Merged VideoEventPopup, ImageEventPopup, AudioMediaPopup, and NewsEventPopup into a master EventPopup.js component, implemented CSS-based "Entire-Popup Fullscreen" state transitions, fixed aspect ratio scaling, and maintained audio/video playback continuity during mobile screen rotation).
 * Link events (expanded news-type remarks to parse, embed, and inline-play TikTok, YouTube, Instagram, Twitter/X, and Bluesky video and content previews; optimized scroll lock behaviors to prevent frozen page scrolls).
 * Query batching optimization (resolving 503 Service Unavailable / CORS errors on events retrieval routes by reducing database query overhead from N+1 to grouped queries).
 * Notifications System (Unified Activity Notifications feed, Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges).
