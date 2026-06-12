@@ -669,7 +669,7 @@ const EventDialog = ({
     }
 
     if ((!isEditing || canEditUrl) && eventType === EVENT_TYPES.NEWS && (urlPreview || url)) {
-      eventData.url = url;
+      eventData.url = urlPreview?.url || url;
       eventData.url_title = urlPreview?.title || initialEvent?.url_title || '';
       eventData.url_description = urlPreview?.description || initialEvent?.url_description || '';
       eventData.url_image = urlPreview?.image || initialEvent?.url_image || '';

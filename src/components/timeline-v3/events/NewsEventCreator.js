@@ -180,6 +180,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
 
       // Add URL preview data if available
       if (urlPreview) {
+        eventData.url = urlPreview.url || url;
         eventData.url_title = urlPreview.title || '';
         eventData.url_description = urlPreview.description || '';
         eventData.url_image = urlPreview.image || '';

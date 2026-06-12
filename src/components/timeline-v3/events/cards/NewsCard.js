@@ -240,13 +240,15 @@ const NewsCard = forwardRef(({
 
   // Common sites with known logos
   const domainLogos = {
-    'facebook.com': 'https://www.facebook.com/images/fb_icon_325x325.png',
-    'instagram.com': 'https://www.instagram.com/static/images/ico/favicon-192.png/68d99ba29cc8.png',
-    'twitter.com': 'https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png',
-    'x.com': 'https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png',
+    'facebook.com': '/images/facebook-logo.svg',
+    'instagram.com': '/images/instagram-logo.png',
+    'twitter.com': '/images/twitter-logo.svg',
+    'x.com': '/images/twitter-logo.svg',
+    'tiktok.com': '/images/tiktok-logo.svg',
+    'bsky.app': '/images/bluesky-logo.svg',
     'linkedin.com': 'https://static.licdn.com/sc/h/al2o9zrvru7aqj8e1x2rzsrca',
-    'youtube.com': 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png',
-    'youtu.be': 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png',
+    'youtube.com': '/images/youtube-logo.svg',
+    'youtu.be': '/images/youtube-logo.svg',
     'reddit.com': 'https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png',
     'google.com': 'https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png',
     'spotify.com': 'https://open.scdn.co/cdn/images/favicon.5cb2bd30.ico',
@@ -407,9 +409,11 @@ const NewsCard = forwardRef(({
     setHidePreviewImage(true);
   };
 
+  const cardDescription = event.description !== undefined && event.description !== null ? event.description : event.url_description;
+
   // Determine if we have enough data to show a URL preview
   const hasUrlPreview = Boolean(
-    normalizedEventUrl && (event.url_title || event.url_description || previewImageUrl)
+    normalizedEventUrl && (event.url_title || cardDescription || previewImageUrl)
   );
 
   return (
@@ -564,9 +568,9 @@ const NewsCard = forwardRef(({
                     
                     {/* Content on the right */}
                     <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
-                      {event.url_description && (
+                      {cardDescription && (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                          {truncateDescription(event.url_description)}
+                          {truncateDescription(cardDescription)}
                         </Typography>
                       )}
                       <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
@@ -610,9 +614,9 @@ const NewsCard = forwardRef(({
                       </Box>
                     )}
                     <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
-                      {event.url_description && (
+                      {cardDescription && (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                          {truncateDescription(event.url_description)}
+                          {truncateDescription(cardDescription)}
                         </Typography>
                       )}
                       <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>

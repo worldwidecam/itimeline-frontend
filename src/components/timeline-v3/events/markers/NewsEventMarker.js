@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { EVENT_TYPE_COLORS, EVENT_TYPES } from '../EventTypes';
@@ -11,6 +11,56 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   
+  const getBannerText = (url) => {
+    if (!url) return 'News';
+    try {
+      const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.toLowerCase();
+      if (host.includes('instagram.com')) return 'Instagram';
+      if (host.includes('tiktok.com')) return 'TikTok';
+      if (host.includes('youtube.com') || host.includes('youtu.be')) return 'YouTube';
+      if (host.includes('twitter.com') || host.includes('x.com')) return 'X / Twitter';
+      if (host.includes('facebook.com')) return 'Facebook';
+      if (host.includes('bsky.app')) return 'Bluesky';
+      return 'News';
+    } catch {
+      return 'News';
+    }
+  };
+
+  const getFallbackImage = (url) => {
+    if (!url) return '';
+    try {
+      const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.toLowerCase();
+      if (host.includes('instagram.com')) return '/images/instagram-logo.png';
+      if (host.includes('tiktok.com')) return '/images/tiktok-logo.svg';
+      if (host.includes('youtube.com') || host.includes('youtu.be')) return '/images/youtube-logo.svg';
+      if (host.includes('twitter.com') || host.includes('x.com')) return '/images/twitter-logo.svg';
+      if (host.includes('facebook.com')) return '/images/facebook-logo.svg';
+      if (host.includes('bsky.app')) return '/images/bluesky-logo.svg';
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
+  const fallbackImage = getFallbackImage(event?.url);
+  const [imageSrc, setImageSrc] = useState(event?.url_image || fallbackImage);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    const fallback = getFallbackImage(event?.url);
+    setImageSrc(event?.url_image || fallback);
+    setImageFailed(false);
+  }, [event?.id, event?.url, event?.url_image]);
+
+  const handleImageError = () => {
+    if (imageSrc && imageSrc !== fallbackImage) {
+      setImageSrc(fallbackImage);
+    } else {
+      setImageFailed(true);
+    }
+  };
+
   const handleMarkerClick = useCallback((e) => {
     e.stopPropagation();
     setPopupOpen(true);
@@ -68,26 +118,30 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
           position: 'relative',
           zIndex: 2 // Ensure banner stays above image
         }}>
-          News
+          {getBannerText(event.url)}
         </Box>
         
         {/* Image with title overlay */}
-        {event.url_image && (
+        {!imageFailed && imageSrc ? (
           <Box sx={{
             width: '100%',
             aspectRatio: '16/9',
             overflow: 'hidden',
-            position: 'relative'
+            position: 'relative',
+            bgcolor: 'rgba(0,0,0,0.03)'
           }}>
             <Box 
               component="img"
-              src={event.url_image}
+              src={imageSrc}
               alt={event.title}
+              onError={handleImageError}
               sx={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
-                display: 'block'
+                objectFit: imageSrc === fallbackImage ? 'contain' : 'cover',
+                display: 'block',
+                p: imageSrc === fallbackImage ? 1.5 : 0,
+                bgcolor: imageSrc === fallbackImage ? 'rgba(0,0,0,0.03)' : 'transparent'
               }}
             />
             
@@ -121,6 +175,26 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
                 {event.title}
               </Typography>
             </Box>
+          </Box>
+        ) : (
+          /* Plain text fallback when no image */
+          <Box sx={{ p: 1.5, color: 'text.primary' }}>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontWeight: 'bold',
+                fontFamily: '"Georgia", "Times New Roman", serif',
+                fontSize: '0.95rem',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.3
+              }}
+            >
+              {event.title}
+            </Typography>
           </Box>
         )}
       </Box>

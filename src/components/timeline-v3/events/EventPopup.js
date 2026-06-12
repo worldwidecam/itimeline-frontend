@@ -1,13 +1,9 @@
 import { getGlassDialogPaperSx, getGlassInputSx, getGlassSquareActionButtonSx, getGlassPillActionButtonSx } from '../../../utils/formStyleGuide';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
-import ImageEventPopup from './ImageEventPopup';
-import VideoEventPopup from './VideoEventPopup';
-import NewsEventPopup from './NewsEventPopup';
+import UniversalMediaDisplay from './UniversalMediaDisplay';
 import CreatorChip from './CreatorChip';
 import VoteControls from './VoteControls';
-import AudioMediaPopup from './AudioMediaPopup';
-import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import EventCommentDrawer, { getCachedCommentCount } from './EventCommentDrawer';
 import { useSwipeDownToClose } from '../../../hooks/useSwipeDownToClose';
 import HashtagIcon from '../../common/HashtagIcon';
@@ -43,6 +39,8 @@ import {
   FormHelperText
 } from '@mui/material';
 import {
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon,
   Close as CloseIcon,
   Comment as RemarkIcon,
   Link as LinkIcon,
@@ -248,6 +246,14 @@ const EventPopup = ({
   const [shakePersonal, setShakePersonal] = useState(false);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [isPlayerActive, setIsPlayerActive] = useState(false);
+  const [isMediaFullscreen, setIsMediaFullscreen] = useState(false);
+
+  // Reset player and fullscreen state when dialog opens or event changes
+  useEffect(() => {
+    setIsPlayerActive(false);
+    setIsMediaFullscreen(false);
+  }, [open, event?.id]);
 
   // Reset comments drawer whenever the popup itself is closed.
   // Prevents the drawer from staying open when the user closes the popup
@@ -257,7 +263,7 @@ const EventPopup = ({
       setCommentsOpen(false);
     }
   }, [open]);
-  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen, onClose);
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen && !isMediaFullscreen, onClose);
   const [isVotingMode, setIsVotingMode] = useState(false);
   const [myTagVote, setMyTagVote] = useState(event?.my_tag_vote || null);
   const [votingInProgress, setVotingInProgress] = useState(false);
@@ -1051,166 +1057,26 @@ const EventPopup = ({
     votingInProgress,
   };
 
-  if (isNews) {
-    return (<>
-      <NewsEventPopup
-        event={event}
-        open={open}
-        onClose={onClose}
-        onDelete={onDelete}
-        onEdit={onEdit}
-        formatDate={formatDate}
-        formatEventDate={formatEventDate}
-        color={remarkColor}
-        TypeIcon={TypeIcon}
-        snackbarOpen={snackbarOpen}
-        handleSnackbarClose={handleSnackbarClose}
-        error={error}
-        success={success}
-        existingTimelines={existingTimelines}
-        selectedTimeline={selectedTimeline}
-        setSelectedTimeline={setSelectedTimeline}
-        loadingTimelines={loadingTimelines}
-        addingToTimeline={addingToTimeline}
-        setError={setError}
-        handleAddToTimeline={handleAddToTimeline}
-        fetchExistingTimelines={fetchExistingTimelines}
-        isInReview={isInReview}
-        isSafeguarded={isSafeguarded}
-        laneProps={laneProps}
-        commentsOpen={commentsOpen}
-        setCommentsOpen={setCommentsOpen}
-        isVotingMode={isVotingMode}
-        setIsVotingMode={setIsVotingMode}
-        myTagVote={myTagVote}
-        handleClearHashtagVote={handleClearHashtagVote}
-        votingInProgress={votingInProgress}
-      />
-    </>);
-  }
-  
-  // For image media, use the specialized ImageEventPopup component.
-  // As a final safeguard, any media event that isn't clearly video/audio
-  // will still use the image media popup so media events never fall back
-  // to the generic remark layout.
-  if (useImagePopup || (safeEventType === EVENT_TYPES.MEDIA && !useVideoPopup && !useAudioPopup)) {
-    return (
-      <ImageEventPopup
-        event={event}
-        open={open}
-        onClose={onClose}
-        onDelete={onDelete}
-        onEdit={onEdit}
-        mediaSource={mediaSource}
-        formatDate={formatDate}
-        formatEventDate={formatEventDate}
-        color={color}
-        TypeIcon={TypeIcon}
-        snackbarOpen={snackbarOpen}
-        handleSnackbarClose={handleSnackbarClose}
-        error={error}
-        success={success}
-        existingTimelines={existingTimelines}
-        selectedTimeline={selectedTimeline}
-        setSelectedTimeline={setSelectedTimeline}
-        loadingTimelines={loadingTimelines}
-        addingToTimeline={addingToTimeline}
-        setError={setError}
-        handleAddToTimeline={handleAddToTimeline}
-        fetchExistingTimelines={fetchExistingTimelines}
-        isInReview={isInReview}
-        isSafeguarded={isSafeguarded}
-        laneProps={laneProps}
-        commentsOpen={commentsOpen}
-        setCommentsOpen={setCommentsOpen}
-        isVotingMode={isVotingMode}
-        setIsVotingMode={setIsVotingMode}
-        myTagVote={myTagVote}
-        handleClearHashtagVote={handleClearHashtagVote}
-        votingInProgress={votingInProgress}
-      />
-    );
-  }
-  
-  // For video media, use the specialized VideoEventPopup component
-  if (useVideoPopup) {
-    return (
-      <VideoEventPopup
-        event={event}
-        open={open}
-        onClose={onClose}
-        onDelete={onDelete}
-        onEdit={onEdit}
-        mediaSource={mediaSource}
-        formatDate={formatDate}
-        formatEventDate={formatEventDate}
-        color={color}
-        TypeIcon={TypeIcon}
-        snackbarOpen={snackbarOpen}
-        handleSnackbarClose={handleSnackbarClose}
-        error={error}
-        success={success}
-        existingTimelines={existingTimelines}
-        selectedTimeline={selectedTimeline}
-        setSelectedTimeline={setSelectedTimeline}
-        loadingTimelines={loadingTimelines}
-        addingToTimeline={addingToTimeline}
-        setError={setError}
-        handleAddToTimeline={handleAddToTimeline}
-        fetchExistingTimelines={fetchExistingTimelines}
-        isInReview={isInReview}
-        isSafeguarded={isSafeguarded}
-        laneProps={laneProps}
-        commentsOpen={commentsOpen}
-        setCommentsOpen={setCommentsOpen}
-        isVotingMode={isVotingMode}
-        setIsVotingMode={setIsVotingMode}
-        myTagVote={myTagVote}
-        handleClearHashtagVote={handleClearHashtagVote}
-        votingInProgress={votingInProgress}
-      />
-    );
-  }
-  
-  // For audio media, use the specialized AudioMediaPopup component
-  if (useAudioPopup) {
-    return (
-      <AudioMediaPopup
-        event={event}
-        open={open}
-        onClose={onClose}
-        onDelete={onDelete}
-        onEdit={onEdit}
-        mediaSource={mediaSource}
-        formatDate={formatDate}
-        formatEventDate={formatEventDate}
-        color={color}
-        TypeIcon={TypeIcon}
-        snackbarOpen={snackbarOpen}
-        handleSnackbarClose={handleSnackbarClose}
-        error={error}
-        success={success}
-        existingTimelines={existingTimelines}
-        selectedTimeline={selectedTimeline}
-        setSelectedTimeline={setSelectedTimeline}
-        loadingTimelines={loadingTimelines}
-        addingToTimeline={addingToTimeline}
-        setError={setError}
-        handleAddToTimeline={handleAddToTimeline}
-        fetchExistingTimelines={fetchExistingTimelines}
-        isInReview={isInReview}
-        isSafeguarded={isSafeguarded}
-        laneProps={laneProps}
-        commentsOpen={commentsOpen}
-        setCommentsOpen={setCommentsOpen}
-        isVotingMode={isVotingMode}
-        setIsVotingMode={setIsVotingMode}
-        myTagVote={myTagVote}
-        handleClearHashtagVote={handleClearHashtagVote}
-        votingInProgress={votingInProgress}
-      />
-    );
-  }
+  const normalizeExternalUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      return new URL(raw).toString();
+    } catch (_) {
+      try {
+        return new URL(`https://${raw.replace(/^\/+/, '')}`).toString();
+      } catch (_) {
+        return '';
+      }
+    }
+  };
+
+  const isImage = isImageMedia();
+  const isVideo = isVideoMedia();
+  const isAudio = isAudioMedia();
+  const hasMedia = isNews || isImage || isVideo || isAudio || (safeEventType === EVENT_TYPES.MEDIA) || !!mediaSource;
+  const brandingColor = isNews ? '#d32f2f' : (safeEventType === EVENT_TYPES.MEDIA ? '#4a148c' : '#2196f3');
+  const eventColor = event?.color || brandingColor;
 
   // For all other event types, use the standard popup
   return (<>
@@ -1218,7 +1084,7 @@ const EventPopup = ({
       open={open}
       onClose={handleClose}
       TransitionComponent={Fade}
-      maxWidth="md"
+      maxWidth={hasMedia ? "lg" : "md"}
       fullWidth
       scroll="paper"
       container={typeof document !== 'undefined' ? (document.fullscreenElement || document.webkitFullscreenElement || undefined) : undefined}
@@ -1242,7 +1108,7 @@ const EventPopup = ({
         ref: paperRef,
         style: { x: popupX, y: popupY },
         sx: {
-          borderRadius: 3,
+          borderRadius: isMediaFullscreen ? { xs: 0, md: 3 } : 3,
           overflow: 'hidden',
           backgroundColor: theme.palette.mode === 'dark' 
             ? 'rgba(10,10,20,0.92)' 
@@ -1251,10 +1117,15 @@ const EventPopup = ({
           boxShadow: theme.palette.mode === 'dark'
             ? '0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
             : '0 10px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)',
-          margin: { xs: 1, sm: 2, md: 4 },
-          maxHeight: '90vh',
-          width: '100%',
+          margin: isMediaFullscreen ? { xs: 0, md: 'auto' } : { xs: 1, sm: 2, md: 'auto' },
+          height: isMediaFullscreen ? { xs: '100vh', md: '80vh' } : (hasMedia ? { xs: 'calc(100% - 16px)', md: '100%' } : 'auto'),
+          maxHeight: isMediaFullscreen ? { xs: '100vh', md: '90vh' } : { xs: 'calc(100% - 16px)', md: '90vh' },
+          width: isMediaFullscreen ? { xs: '100vw', md: '90vw' } : { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)', md: '90vw' },
+          maxWidth: hasMedia ? { md: '1200px' } : { md: '800px' },
           border: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
         },
         component: motion.div,
       }}
@@ -1264,6 +1135,320 @@ const EventPopup = ({
         }
       }}
     >
+      {hasMedia ? (
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: '100%', md: '100%' }, overflow: 'hidden' }}>
+          {/* Left Container - Media Preview */}
+          <Box
+            sx={{
+              flex: isMediaFullscreen ? '1 1 100%' : { xs: '0 0 auto', md: '0 0 60%' },
+              width: isMediaFullscreen ? '100%' : { xs: '100%', md: '60%' },
+              height: isMediaFullscreen ? '100%' : { xs: '250px', sm: '350px', md: '100%' },
+              position: 'relative',
+              bgcolor: 'black',
+              borderRight: (!isMediaFullscreen && { xs: 'none', md: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }),
+              borderBottom: (!isMediaFullscreen && { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, md: 'none' }),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
+            }}
+          >
+            <UniversalMediaDisplay
+              event={event}
+              isPlayerActive={isPlayerActive}
+              setIsPlayerActive={setIsPlayerActive}
+              isMediaFullscreen={isMediaFullscreen}
+              setIsMediaFullscreen={setIsMediaFullscreen}
+            />
+
+
+
+            {/* Exit Fullscreen button when in fullscreen */}
+            {isMediaFullscreen && (
+              <Button
+                variant="contained"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMediaFullscreen(false);
+                }}
+                startIcon={<FullscreenExitIcon />}
+                sx={{
+                  position: 'absolute',
+                  bottom: { xs: 60, md: 24 },
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  bgcolor: 'rgba(0, 0, 0, 0.6)',
+                  color: '#fff',
+                  backdropFilter: 'blur(4px)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                  borderRadius: '20px',
+                  textTransform: 'none',
+                  zIndex: 10,
+                }}
+              >
+                Exit Fullscreen
+              </Button>
+            )}
+          </Box>
+
+          {/* Right Container - Details */}
+          <Box
+            sx={{
+              flex: isMediaFullscreen ? '0 0 0%' : 1,
+              width: isMediaFullscreen ? '0%' : 'auto',
+              opacity: isMediaFullscreen ? 0 : 1,
+              visibility: isMediaFullscreen ? 'hidden' : 'visible',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              height: { xs: '100%', md: '100%' },
+              minWidth: 0,
+              transform: isMediaFullscreen ? 'translateX(60px)' : 'translateX(0)',
+              transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
+            }}
+          >
+              <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+                    <Box sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: eventColor }}>
+                      <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
+                    </Box>
+                    <Typography variant="h5" component="div" sx={{ fontWeight: 600, fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }, lineHeight: 1.2, wordBreak: 'break-word', color: 'text.primary' }}>
+                      {event.title || "Event details"}
+                    </Typography>
+                  </Box>
+                  <IconButton edge="end" color="inherit" onClick={handleCloseButtonClick} aria-label="close" sx={{ color: 'text.secondary', mt: -0.5, mr: -0.5 }}>
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+              </DialogTitle>
+              
+              <Divider sx={{ opacity: 0.5 }} />
+
+              <DialogContent
+                ref={scrollContainerRef}
+                sx={{
+                  flex: 1,
+                  p: { xs: 2, sm: 4 },
+                  overflowY: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  position: 'relative',
+                  touchAction: 'pan-y',
+                  overscrollBehaviorY: 'contain'
+                }}
+              >
+                {/* News Article Source */}
+                {safeEventType === EVENT_TYPES.NEWS && event.media_source && (
+                  <Paper 
+                    elevation={0} 
+                    onClick={() => {
+                      const normalized = normalizeExternalUrl(event.url || event.media_source);
+                      if (normalized) window.open(normalized, '_blank', 'noopener,noreferrer');
+                    }}
+                    sx={{ 
+                      mb: 3, 
+                      p: 2, 
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', 
+                      borderRadius: 2, 
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, 
+                      cursor: 'pointer', 
+                      '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderColor: eventColor } 
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: eventColor, fontWeight: 600, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>Article Source</Typography>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-all', opacity: 0.8 }}>{event.media_source}</Typography>
+                  </Paper>
+                )}
+
+                {(event.content || event.description) && (
+                  <Box sx={{ mb: 3 }}>
+                    {event.content ? (
+                      <RichContentRenderer content={event.content} theme={theme} />
+                    ) : (
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, color: 'text.primary' }}>
+                        {event.description}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+
+                <Divider sx={{ my: 2 }} />
+                
+                {/* Event Metadata */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    mb: 3,
+                    p: 2.5,
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.03)'
+                      : 'rgba(0,0,0,0.02)',
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {event.event_date && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: eventColor }}>
+                          <EventIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>Timeline Date</Typography>
+                          <Typography variant="body2" sx={{ color: 'text.primary' }}>{formatEventDate(event.event_date)}</Typography>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ mb: 3 }}><PopupTimelineLanes {...laneProps} /></Box>
+              </DialogContent>
+
+              <Divider sx={{ opacity: 0.3 }} />
+
+              {/* Standardized Footer */}
+              <Box sx={{ px: 3, py: 2, mt: 'auto', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, pt: 1 }}>
+                  <CreatorChip user={userData} color={eventColor} />
+                  <VoteControls value={voteValue} onChange={handleVoteChange} positiveRatio={positiveRatio} totalVotes={totalVotes} isLoading={voteLoading} hasError={!!voteError} layout="stacked" sizeScale={0.8} pillScale={1.05} badgeScale={0.75} />
+                </Box>
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>ID: {event?.id ?? '--'}</Typography>
+                  {event.created_at && <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{formatDate(event.created_at)}</Typography>}
+                </Box>
+                
+                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
+                  {(isInReview && !isSafeguarded) && (
+                    <Chip icon={<RateReviewIcon sx={{ fontSize: '14px !important' }} />} label="In Review" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'warning.main', color: 'white', fontWeight: 600 }} />
+                  )}
+                  {isSafeguarded && (
+                    <Chip icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />} label="Safeguarded" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }} />
+                  )}
+                  {myTagVote ? (
+                    <Chip
+                      icon={<HashtagIcon sx={{ fontSize: '14px !important', color: `${eventColor} !important` }} />}
+                      label={myTagVote.replace(/^#+/, '')}
+                      onClick={handleClearHashtagVote}
+                      onDelete={handleClearHashtagVote}
+                      disabled={votingInProgress}
+                      size="small"
+                      sx={{
+                        height: 32,
+                        borderRadius: '10px',
+                        bgcolor: `${eventColor}22`,
+                        color: eventColor,
+                        border: `1px solid ${eventColor}40`,
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                        opacity: votingInProgress ? 0.6 : 1,
+                      }}
+                    />
+                  ) : (
+                    <IconButton
+                      size="small"
+                      onClick={() => setIsVotingMode(!isVotingMode)}
+                      disabled={votingInProgress}
+                      sx={{
+                        bgcolor: isVotingMode ? eventColor : `${eventColor}18`,
+                        color: isVotingMode ? '#fff' : eventColor,
+                        border: `1px solid ${eventColor}40`,
+                        borderRadius: '10px',
+                        width: 32,
+                        height: 32,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                        opacity: votingInProgress ? 0.6 : 1,
+                        '&:hover': {
+                          bgcolor: isVotingMode ? eventColor : `${eventColor}28`,
+                        }
+                      }}
+                    >
+                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
+                    </IconButton>
+                  )}
+                  <IconButton
+                    size="small"
+                    onClick={() => setCommentsOpen(true)}
+                    sx={{
+                      bgcolor: `${eventColor}18`,
+                      color: eventColor,
+                      border: `1px solid ${eventColor}40`,
+                      borderRadius: '10px',
+                      px: 1.5,
+                      height: 32,
+                      display: 'flex',
+                      gap: 0.5,
+                      alignItems: 'center',
+                      '&:hover': {
+                        bgcolor: `${eventColor}28`,
+                      }
+                    }}
+                  >
+                    <CommentIcon sx={{ fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      {getCachedCommentCount(event?.id) != null
+                        ? `${getCachedCommentCount(event?.id)}`
+                        : 'Comment'}
+                    </Typography>
+                  </IconButton>
+                  {canOpenActionMenu && (
+                    <>
+                      <IconButton size="small" onClick={handleActionMenuOpen} sx={{ bgcolor: `${eventColor}18`, color: eventColor, border: `1px solid ${eventColor}40`, borderRadius: '10px', width: 32, height: 32 }}>
+                        <MoreHorizIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                      <Menu
+                        anchorEl={actionAnchorEl}
+                        open={Boolean(actionAnchorEl)}
+                        onClose={handleActionMenuClose}
+                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                        PaperProps={{
+                          sx: {
+                            ...getGlassDialogPaperSx(theme),
+                            minWidth: 160,
+                            '& .MuiMenuItem-root': {
+                              borderRadius: 1,
+                              mx: 1,
+                              my: 0.5,
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                                transform: 'translateX(4px)',
+                              }
+                            }
+                          }
+                        }}
+                      >
+                        <MenuItem onClick={handleShare}>
+                          <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary="Share Event" />
+                        </MenuItem>
+                        {canEdit && (
+                          <MenuItem onClick={handleEdit}><ListItemIcon><EditIcon fontSize="small" /></ListItemIcon><ListItemText primary="Edit" /></MenuItem>
+                        )}
+                        {canDelete && (
+                          <MenuItem onClick={() => { handleActionMenuClose(); handleOpenDelete(); }}><ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon><ListItemText primary="Delete" /></MenuItem>
+                        )}
+                        {!isSafeguarded && !isInReview && !isGuest && !user?.is_restricted && (
+                          <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}><ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon><ListItemText primary={reportedOnce ? 'Reported' : 'Report'} /></MenuItem>
+                        )}
+                      </Menu>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
 
           <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
@@ -1719,6 +1904,8 @@ const EventPopup = ({
               )}
             </Box>
           </Box>
+        </Box>
+      )}
           
           {/* Success/Error Snackbar */}
           <Snackbar

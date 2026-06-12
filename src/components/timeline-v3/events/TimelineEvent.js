@@ -13,6 +13,7 @@ import RichContentRenderer from './RichContentRenderer';
 const TimelineEvent = ({ event, position = 'left', onDelete }) => {
   const theme = useTheme();
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const cardDescription = event?.description !== undefined && event?.description !== null ? event.description : event?.url_description;
 
   // Return a placeholder if event is undefined or null
   if (!event) {
@@ -409,7 +410,7 @@ const TimelineEvent = ({ event, position = 'left', onDelete }) => {
                         {event.url_title || 'Visit Link'}
                       </Typography>
                     </Box>
-                    {event.url_description && (
+                    {cardDescription && (
                       <Typography
                         variant="body2"
                         color="text.secondary"
@@ -420,7 +421,7 @@ const TimelineEvent = ({ event, position = 'left', onDelete }) => {
                           overflow: 'hidden',
                         }}
                       >
-                        {event.url_description}
+                        {cardDescription}
                       </Typography>
                     )}
                   </Box>
