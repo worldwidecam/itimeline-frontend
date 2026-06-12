@@ -42,7 +42,7 @@ const MAX_ZOOM = 2.1;
 const ZOOM_STEP = 0.12;
 const BASE_TEXTURE_TILE = 120;
 const BASE_CELL_SIZE = 162;
-const ABS_MIN_ZOOM = 0.2;
+const ABS_MIN_ZOOM = 0.25;
 const CUT_LIMP_DURATION_MS = 520;
 
 const TACK_COLORS = ['#cd4f56', '#4a78cf', '#4aa867', '#d9a248', '#8a67d8'];
@@ -1392,20 +1392,22 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
               `,
             }}
           >
-            <Box
-              sx={{
-                position: 'absolute',
-                left: perforationLeft,
-                top: perforationTop,
-                width: perforationWidth,
-                height: perforationHeight,
-                borderRadius: 0.8,
-                border: '2px dashed',
-                borderColor: pins.length === 0 ? 'rgba(255, 245, 229, 0.8)' : 'rgba(255, 245, 229, 0.45)',
-                boxShadow: pins.length === 0 ? '0 0 0 1px rgba(95, 57, 30, 0.28)' : 'none',
-                pointerEvents: 'none',
-              }}
-            />
+            {isOwner && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: perforationLeft,
+                  top: perforationTop,
+                  width: perforationWidth,
+                  height: perforationHeight,
+                  borderRadius: 0.8,
+                  border: '2px dashed',
+                  borderColor: pins.length === 0 ? 'rgba(255, 245, 229, 0.8)' : 'rgba(255, 245, 229, 0.45)',
+                  boxShadow: pins.length === 0 ? '0 0 0 1px rgba(95, 57, 30, 0.28)' : 'none',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
 
             {(yarnLinks.length > 0 || limpYarnLinks.length > 0) && (
               <Box

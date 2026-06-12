@@ -43,6 +43,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   MoreHoriz as MoreHorizIcon,
+  PlayArrow as PlayIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
@@ -150,6 +151,9 @@ const getAutoplayUrl = (embed) => {
   }
   if (embed.type === 'facebook') {
     return url + (url.includes('?') ? '&autoplay=true' : '?autoplay=true');
+  }
+  if (embed.type === 'tiktok') {
+    return url + (url.includes('?') ? '&autoplay=0' : '?autoplay=0');
   }
   return url;
 };
@@ -501,6 +505,9 @@ const NewsEventPopup = ({
                     bgcolor: 'black',
                     borderRight: { xs: 'none', md: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` },
                     borderBottom: { xs: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, md: 'none' },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
                   {isPlayerActive ? (
@@ -513,6 +520,11 @@ const NewsEventPopup = ({
                       style={{
                         width: '100%',
                         height: '100%',
+                        aspectRatio: embedData.type === 'tiktok' ? '9/16' : 'unset',
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        margin: 'auto',
+                        display: 'block',
                         border: 'none',
                       }}
                     />
@@ -549,6 +561,36 @@ const NewsEventPopup = ({
                           e.target.src = '/images/fallbacks/news-link-fallback.jpg';
                         }}
                       />
+                      {/* Play Button Overlay */}
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: 68,
+                          height: 68,
+                          borderRadius: '50%',
+                          bgcolor: 'rgba(0,0,0,0.5)',
+                          backdropFilter: 'blur(8px)',
+                          border: '2px solid rgba(255,255,255,0.7)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          pointerEvents: 'none',
+                          'div:hover > &': {
+                            bgcolor: 'rgba(0,0,0,0.75)',
+                            borderColor: 'white',
+                            transform: 'translate(-50%, -50%) scale(1.1)',
+                            boxShadow: '0 6px 25px rgba(0,0,0,0.6)',
+                          }
+                        }}
+                      >
+                        <PlayIcon sx={{ fontSize: 36, ml: 0.5 }} />
+                      </Box>
                     </Box>
                   )}
                 </Box>

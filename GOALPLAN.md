@@ -16,14 +16,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ------
 
 ## Current TODOs
-* expand news-type remarks. change their frontend naming nomenclature to LINKS (OR SOMETHING). we can keep code nomenclature relevantly same. but we need to update news-type remarks to handle more links than just news. we need it to play tiktok links, youtube links, instagram reels, etc. basically it needs to also be media handler, but of outside sourse media.
-- so we'll need to reflect on how much would need to change
-- like their event card, hover card, popup, preview display, 
-- this change would most likely set a new standard, that we would then consider updating media-type events to.
-- think of discord for example. i can just drop a link, and it'll embed the media, give me a preview of the media, and play it if it is a video.
-
-* make media events play better and its logic work smarter. ask me to explain.
-
 * add/create action hover markers
 
 * look into making this an app on apple and google play stores
@@ -33,6 +25,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+* Unified Event Popup & Universal Media Display (Merged VideoEventPopup, ImageEventPopup, AudioMediaPopup, and NewsEventPopup into a master EventPopup.js component, implemented CSS-based "Entire-Popup Fullscreen" state transitions, fixed aspect ratio scaling, and maintained audio/video playback continuity during mobile screen rotation).
+* Link events (expanded news-type remarks to parse, embed, and inline-play TikTok, YouTube, Instagram, Twitter/X, and Bluesky video and content previews; optimized scroll lock behaviors to prevent frozen page scrolls).
 * Query batching optimization (resolving 503 Service Unavailable / CORS errors on events retrieval routes by reducing database query overhead from N+1 to grouped queries).
 * Notifications System (Unified Activity Notifications feed, Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges).
 * Timeline header titles and username cards dynamic scale-shrinking for mobile views.
