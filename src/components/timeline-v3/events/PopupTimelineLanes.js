@@ -210,6 +210,7 @@ const HashtagChips = ({
         display: 'flex', 
         gap: 0.75, 
         flexWrap: 'wrap', 
+        alignItems: 'center',
         mb: 1,
         pt: 0.5,
         pb: 0.5,
@@ -248,15 +249,23 @@ const HashtagChips = ({
         return (
           <Chip
             key={`${tagName}-${idx}`}
-            icon={(
-              <HashtagIcon
-                fontSize="small"
-                sx={{
-                  color: isDarkMode ? 'inherit' : tagColor,
-                  marginLeft: 0,
-                }}
-              />
-            )}
+            icon={
+              idx === 0 ? (
+                <span style={{ fontSize: '1.15rem', marginLeft: '6px', marginRight: '-2px', display: 'flex', alignItems: 'center' }}>🥇</span>
+              ) : idx === 1 ? (
+                <span style={{ fontSize: '1.05rem', marginLeft: '6px', marginRight: '-2px', display: 'flex', alignItems: 'center' }}>🥈</span>
+              ) : idx === 2 ? (
+                <span style={{ fontSize: '0.95rem', marginLeft: '6px', marginRight: '-2px', display: 'flex', alignItems: 'center' }}>🥉</span>
+              ) : (
+                <HashtagIcon
+                  fontSize={16}
+                  sx={{
+                    color: isDarkMode ? 'inherit' : tagColor,
+                    marginLeft: 0,
+                  }}
+                />
+              )
+            }
             label={formatTagName(tagName)}
             size="small"
             onClick={(e) => {
@@ -282,14 +291,14 @@ const HashtagChips = ({
                           : (isDarkMode ? alpha(tagColor, 0.25) : alpha(tagColor, 0.16)))),
                 borderColor: isVotingMode ? border : (medalColors ? border : alpha(tagColor, 0.45)),
               },
-              height: 24,
+              height: idx === 0 ? 30 : idx === 1 ? 28 : idx === 2 ? 26 : 24,
               backgroundColor: bg,
               color: tagColor,
               border: `1px solid ${border}`,
               borderRadius: 1.5,
               '& .MuiChip-label': {
                 px: 1,
-                fontSize: '0.75rem',
+                fontSize: idx === 0 ? '0.8rem' : idx === 1 ? '0.78rem' : '0.75rem',
                 fontWeight: (medalColors || isHighlighted) ? 600 : 500,
               },
               '& .MuiChip-icon': {

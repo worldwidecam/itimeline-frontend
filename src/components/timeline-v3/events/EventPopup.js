@@ -579,6 +579,20 @@ const EventPopup = ({
       handleActionMenuClose();
     }
   };
+
+  const handleCopyEventId = () => {
+    if (!event?.id) return;
+    try {
+      navigator.clipboard.writeText(`~${event.id}`);
+      setError('');
+      setSuccess('ID copied!');
+      setSnackbarOpen(true);
+    } catch (e) {
+      setError('Failed to copy Event ID');
+      setSuccess('');
+      setSnackbarOpen(true);
+    }
+  };
   
   // Function to fetch existing timelines
   const fetchExistingTimelines = async () => {
@@ -1318,7 +1332,18 @@ const EventPopup = ({
                 </Box>
                 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>ID: {event?.id ?? '--'}</Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    onClick={handleCopyEventId}
+                    sx={{
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.8 },
+                    }}
+                  >
+                    ID: ~{event?.id ?? '--'}
+                  </Typography>
                   {event.created_at && <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{formatDate(event.created_at)}</Typography>}
                 </Box>
                 
@@ -1329,50 +1354,52 @@ const EventPopup = ({
                   {isSafeguarded && (
                     <Chip icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />} label="Safeguarded" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }} />
                   )}
-                  {myTagVote ? (
-                    <Chip
-                      icon={<HashtagIcon sx={{ fontSize: '14px !important', color: `${eventColor} !important` }} />}
-                      label={myTagVote.replace(/^#+/, '')}
-                      onClick={handleClearHashtagVote}
-                      onDelete={handleClearHashtagVote}
-                      disabled={votingInProgress}
-                      size="small"
-                      sx={{
-                        height: 32,
-                        borderRadius: '10px',
-                        bgcolor: `${eventColor}22`,
-                        color: eventColor,
-                        border: `1px solid ${eventColor}40`,
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        cursor: votingInProgress ? 'not-allowed' : 'pointer',
-                        opacity: votingInProgress ? 0.6 : 1,
-                      }}
-                    />
-                  ) : (
-                    <IconButton
-                      size="small"
-                      onClick={() => setIsVotingMode(!isVotingMode)}
-                      disabled={votingInProgress}
-                      sx={{
-                        bgcolor: isVotingMode ? eventColor : `${eventColor}18`,
-                        color: isVotingMode ? '#fff' : eventColor,
-                        border: `1px solid ${eventColor}40`,
-                        borderRadius: '10px',
-                        width: 32,
-                        height: 32,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: votingInProgress ? 'not-allowed' : 'pointer',
-                        opacity: votingInProgress ? 0.6 : 1,
-                        '&:hover': {
-                          bgcolor: isVotingMode ? eventColor : `${eventColor}28`,
-                        }
-                      }}
-                    >
-                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
-                    </IconButton>
+                  {!isGuest && (
+                    myTagVote ? (
+                      <Chip
+                        icon={<HashtagIcon sx={{ fontSize: '14px !important', color: `${eventColor} !important` }} />}
+                        label={myTagVote.replace(/^#+/, '')}
+                        onClick={handleClearHashtagVote}
+                        onDelete={handleClearHashtagVote}
+                        disabled={votingInProgress}
+                        size="small"
+                        sx={{
+                          height: 32,
+                          borderRadius: '10px',
+                          bgcolor: `${eventColor}22`,
+                          color: eventColor,
+                          border: `1px solid ${eventColor}40`,
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                          opacity: votingInProgress ? 0.6 : 1,
+                        }}
+                      />
+                    ) : (
+                      <IconButton
+                        size="small"
+                        onClick={() => setIsVotingMode(!isVotingMode)}
+                        disabled={votingInProgress}
+                        sx={{
+                          bgcolor: isVotingMode ? eventColor : `${eventColor}18`,
+                          color: isVotingMode ? '#fff' : eventColor,
+                          border: `1px solid ${eventColor}40`,
+                          borderRadius: '10px',
+                          width: 32,
+                          height: 32,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                          opacity: votingInProgress ? 0.6 : 1,
+                          '&:hover': {
+                            bgcolor: isVotingMode ? eventColor : `${eventColor}28`,
+                          }
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
+                      </IconButton>
+                    )
                   )}
                   <IconButton
                     size="small"
@@ -1731,8 +1758,17 @@ const EventPopup = ({
             </Box>
             
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                ID: {event?.id ?? '--'}
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                onClick={handleCopyEventId}
+                sx={{
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  '&:hover': { opacity: 0.8 },
+                }}
+              >
+                ID: ~{event?.id ?? '--'}
               </Typography>
               {event.created_at && (
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
@@ -1764,50 +1800,52 @@ const EventPopup = ({
                   sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'success.main', color: 'white' }}
                 />
               )}
-              {myTagVote ? (
-                <Chip
-                  icon={<HashtagIcon sx={{ fontSize: '14px !important', color: remarkColor + ' !important' }} />}
-                  label={myTagVote.replace(/^#+/, '')}
-                  onClick={handleClearHashtagVote}
-                  onDelete={handleClearHashtagVote}
-                  disabled={votingInProgress}
-                  size="small"
-                  sx={{
-                    height: 32,
-                    borderRadius: '10px',
-                    bgcolor: remarkColor + '22',
-                    color: remarkColor,
-                    border: '1px solid ' + remarkColor + '40',
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    cursor: votingInProgress ? 'not-allowed' : 'pointer',
-                    opacity: votingInProgress ? 0.6 : 1,
-                  }}
-                />
-              ) : (
-                <IconButton
-                  size="small"
-                  onClick={() => setIsVotingMode(!isVotingMode)}
-                  disabled={votingInProgress}
-                  sx={{
-                    bgcolor: isVotingMode ? remarkColor : remarkColor + '18',
-                    color: isVotingMode ? '#fff' : remarkColor,
-                    border: '1px solid ' + remarkColor + '40',
-                    borderRadius: '10px',
-                    width: 32,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: votingInProgress ? 'not-allowed' : 'pointer',
-                    opacity: votingInProgress ? 0.6 : 1,
-                    '&:hover': {
-                      bgcolor: isVotingMode ? remarkColor : remarkColor + '28',
-                    }
-                  }}
-                >
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
-                </IconButton>
+              {!isGuest && (
+                myTagVote ? (
+                  <Chip
+                    icon={<HashtagIcon sx={{ fontSize: '14px !important', color: remarkColor + ' !important' }} />}
+                    label={myTagVote.replace(/^#+/, '')}
+                    onClick={handleClearHashtagVote}
+                    onDelete={handleClearHashtagVote}
+                    disabled={votingInProgress}
+                    size="small"
+                    sx={{
+                      height: 32,
+                      borderRadius: '10px',
+                      bgcolor: remarkColor + '22',
+                      color: remarkColor,
+                      border: '1px solid ' + remarkColor + '40',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                      opacity: votingInProgress ? 0.6 : 1,
+                    }}
+                  />
+                ) : (
+                  <IconButton
+                    size="small"
+                    onClick={() => setIsVotingMode(!isVotingMode)}
+                    disabled={votingInProgress}
+                    sx={{
+                      bgcolor: isVotingMode ? remarkColor : remarkColor + '18',
+                      color: isVotingMode ? '#fff' : remarkColor,
+                      border: '1px solid ' + remarkColor + '40',
+                      borderRadius: '10px',
+                      width: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: votingInProgress ? 'not-allowed' : 'pointer',
+                      opacity: votingInProgress ? 0.6 : 1,
+                      '&:hover': {
+                        bgcolor: isVotingMode ? remarkColor : remarkColor + '28',
+                      }
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 800 }}>#</Typography>
+                  </IconButton>
+                )
               )}
                 <IconButton
                   size="small"
