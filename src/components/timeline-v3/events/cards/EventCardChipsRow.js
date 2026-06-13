@@ -178,7 +178,7 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
     const isDarkMode = theme.palette.mode === 'dark';
 
     return (
-      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
         {visible.map((tagName, index) => {
           const medalColors = getMedalColors(index, isDarkMode);
           const tagColor = medalColors ? medalColors.text : stringToColor(tagName, isDarkMode);
@@ -188,27 +188,35 @@ const EventCardChipsRow = ({ tags, associatedTimelines = [], removedTimelineIds 
           return (
             <Tooltip key={`${tagName}-${index}`} title="Hashtag Timeline" arrow>
               <Chip
-                icon={(
-                  <HashtagIcon
-                    fontSize="small"
-                    sx={{
-                      color: tagColor,
-                      marginLeft: 0,
-                    }}
-                  />
-                )}
+                icon={
+                  index === 0 ? (
+                    <span style={{ fontSize: '1.15rem', marginLeft: '6px', marginRight: '-2px', display: 'flex', alignItems: 'center' }}>🥇</span>
+                  ) : index === 1 ? (
+                    <span style={{ fontSize: '1.05rem', marginLeft: '6px', marginRight: '-2px', display: 'flex', alignItems: 'center' }}>🥈</span>
+                  ) : index === 2 ? (
+                    <span style={{ fontSize: '0.95rem', marginLeft: '6px', marginRight: '-2px', display: 'flex', alignItems: 'center' }}>🥉</span>
+                  ) : (
+                    <HashtagIcon
+                      fontSize={16}
+                      sx={{
+                        color: tagColor,
+                        marginLeft: 0,
+                      }}
+                    />
+                  )
+                }
                 label={tagName ? tagName.charAt(0).toUpperCase() + tagName.slice(1) : ''}
                 size="small"
                 onClick={(e) => handleTagClick(e, tagName)}
                 sx={{
-                  height: 24,
+                  height: index === 0 ? 30 : index === 1 ? 28 : index === 2 ? 26 : 24,
                   backgroundColor: bg,
                   color: tagColor,
                   border: `1px solid ${border}`,
                   borderRadius: 1.5,
                   '& .MuiChip-label': {
                     px: 1,
-                    fontSize: '0.75rem',
+                    fontSize: index === 0 ? '0.8rem' : index === 1 ? '0.78rem' : '0.75rem',
                     fontWeight: medalColors ? 600 : 500,
                   },
                   '& .MuiChip-icon': {

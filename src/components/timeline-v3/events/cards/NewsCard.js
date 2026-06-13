@@ -539,6 +539,7 @@ const NewsCard = forwardRef(({
                     {/* Image on the left */}
                     <Box sx={{
                       width: '120px',
+                      flexShrink: 0,
                       display: 'flex',
                       justifyContent: 'center',
                       alignItems: 'center',
@@ -567,9 +568,20 @@ const NewsCard = forwardRef(({
                     </Box>
                     
                     {/* Content on the right */}
-                    <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
+                    <CardContent sx={{ flex: '1 1 auto', p: 2 }}>
                       {cardDescription && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mb: 0.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
                           {truncateDescription(cardDescription)}
                         </Typography>
                       )}
@@ -613,9 +625,20 @@ const NewsCard = forwardRef(({
                         />
                       </Box>
                     )}
-                    <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
+                    <CardContent sx={{ flex: '1 1 auto', p: 2 }}>
                       {cardDescription && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mb: 0.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
                           {truncateDescription(cardDescription)}
                         </Typography>
                       )}
