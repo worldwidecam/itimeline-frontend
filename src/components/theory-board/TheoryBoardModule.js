@@ -39,10 +39,10 @@ import { toRichContentPayload } from '../../utils/richContent';
 
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 2.1;
-const ZOOM_STEP = 0.12;
+const ZOOM_FACTOR = 1.15;
 const BASE_TEXTURE_TILE = 120;
 const BASE_CELL_SIZE = 162;
-const ABS_MIN_ZOOM = 0.25;
+const ABS_MIN_ZOOM = 0.002;
 const CUT_LIMP_DURATION_MS = 520;
 
 const TACK_COLORS = ['#cd4f56', '#4a78cf', '#4aa867', '#d9a248', '#8a67d8'];
@@ -52,6 +52,16 @@ const NON_ORIGIN_TACK_COLORS = TACK_COLORS.slice(1);
 const wrapOffset = (value, tileSize) => {
   if (!Number.isFinite(tileSize) || tileSize <= 0) return 0;
   return ((value % tileSize) + tileSize) % tileSize;
+};
+
+const mapZoomToDb = (zoom) => {
+  const clamped = Math.max(0.002, Math.min(2.1, zoom));
+  return Math.round(((clamped - 0.002) / 2.098) * 275 + 25);
+};
+
+const mapDbToZoom = (dbZoom) => {
+  const clamped = Math.max(25, Math.min(300, Number(dbZoom) || 100));
+  return ((clamped - 25) / 275) * 2.098 + 0.002;
 };
 
 const isTheoryBoardStorageUnavailableError = (error) => {
@@ -138,7 +148,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   const panFrameRef = useRef(null);
   const pendingPanRef = useRef(null);
   const recenterFrameRef = useRef(null);
-  const minZoomRef = useRef(MIN_ZOOM);
   const activePointersMapRef = useRef(new Map());
   const pinchRef = useRef(null);
 
@@ -170,6 +179,53 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   const selectedPinInputRef = useRef(null);
   const cutLimpTimeoutsRef = useRef({});
   const suppressDirtyTrackingRef = useRef(true);
+
+  const occupiedCellBounds = useMemo(() => {
+    if (pins.length === 0) {
+      return {
+        minX: 0,
+        maxX: 0,
+        minY: 0,
+        maxY: 0,
+      };
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    pins.forEach((pin) => {
+      const cellX = toCellCoord(pin.worldX);
+      const cellY = toCellCoord(pin.worldY);
+      minX = Math.min(minX, cellX);
+      maxX = Math.max(maxX, cellX);
+      minY = Math.min(minY, cellY);
+      maxY = Math.max(maxY, cellY);
+    });
+
+    return {
+      minX,
+      maxX,
+      minY,
+      maxY,
+    };
+  }, [pins]);
+
+  const dynamicMinZoom = useMemo(() => {
+    const perforationPaddingCells = 0.14;
+    const occupiedCellWidthUnits = (occupiedCellBounds.maxX - occupiedCellBounds.minX + 1) + (perforationPaddingCells * 2);
+    const occupiedCellHeightUnits = (occupiedCellBounds.maxY - occupiedCellBounds.minY + 1) + (perforationPaddingCells * 2);
+
+    const fitZoomX = viewportSize.width > 0
+      ? (viewportSize.width * 0.84) / (BASE_CELL_SIZE * occupiedCellWidthUnits)
+      : MIN_ZOOM;
+    const fitZoomY = viewportSize.height > 0
+      ? (viewportSize.height * 0.78) / (BASE_CELL_SIZE * occupiedCellHeightUnits)
+      : MIN_ZOOM;
+
+    return Math.max(ABS_MIN_ZOOM, Math.min(MIN_ZOOM, fitZoomX, fitZoomY) * 0.95);
+  }, [occupiedCellBounds, viewportSize]);
 
   const applyBoardSnapshot = useCallback((board) => {
     const normalizedBoard = board && typeof board === 'object' ? board : {};
@@ -219,7 +275,8 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
 
     const nextPanX = Number(normalizedBoard?.viewportX ?? normalizedBoard?.viewport?.x ?? 0);
     const nextPanY = Number(normalizedBoard?.viewportY ?? normalizedBoard?.viewport?.y ?? 0);
-    const nextZoom = clamp((Number(normalizedBoard?.zoomLevel ?? normalizedBoard?.zoom_level ?? normalizedBoard?.viewport?.zoom ?? 100) || 100) / 100, ABS_MIN_ZOOM, MAX_ZOOM);
+    const rawZoom = Number(normalizedBoard?.zoomLevel ?? normalizedBoard?.zoom_level ?? normalizedBoard?.viewport?.zoom ?? 100) || 100;
+    const nextZoom = clamp(mapDbToZoom(rawZoom), ABS_MIN_ZOOM, MAX_ZOOM);
 
     suppressDirtyTrackingRef.current = true;
     setPins(hydratedPins);
@@ -317,15 +374,11 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     };
   }, [applyBoardSnapshot, profileUserId]);
 
-  const adjustZoom = useCallback((nextZoom, minimumZoom = MIN_ZOOM) => {
-    setZoom(Math.max(minimumZoom, Math.min(MAX_ZOOM, nextZoom)));
-  }, []);
-
-  const zoomIn = useCallback(() => adjustZoom(zoom + ZOOM_STEP, minZoomRef.current), [adjustZoom, zoom]);
-  const zoomOut = useCallback(() => adjustZoom(zoom - ZOOM_STEP, minZoomRef.current), [adjustZoom, zoom]);
+  const adjustZoom = useCallback((nextZoom) => {
+    setZoom(Math.max(dynamicMinZoom, Math.min(MAX_ZOOM, nextZoom)));
+  }, [dynamicMinZoom]);
   const recenterBoard = useCallback(() => {
     const startPan = panRef.current;
-    const startZoom = zoomRef.current;
     const duration = 420;
 
     if (recenterFrameRef.current) {
@@ -333,9 +386,8 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       recenterFrameRef.current = null;
     }
 
-    if (Math.abs(startPan.x) < 0.2 && Math.abs(startPan.y) < 0.2 && Math.abs(startZoom - 1) < 0.005) {
+    if (Math.abs(startPan.x) < 0.2 && Math.abs(startPan.y) < 0.2) {
       setPan({ x: 0, y: 0 });
-      setZoom(1);
       return;
     }
 
@@ -348,7 +400,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
         x: startPan.x * (1 - eased),
         y: startPan.y * (1 - eased),
       });
-      setZoom(startZoom + ((1 - startZoom) * eased));
 
       if (progress < 1) {
         recenterFrameRef.current = window.requestAnimationFrame(animateStep);
@@ -364,11 +415,11 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     if (!isFullscreen) return;
     event.preventDefault();
     if (event.deltaY > 0) {
-      zoomOut();
+      adjustZoom(zoom / ZOOM_FACTOR);
     } else if (event.deltaY < 0) {
-      zoomIn();
+      adjustZoom(zoom * ZOOM_FACTOR);
     }
-  }, [isFullscreen, zoomIn, zoomOut]);
+  }, [isFullscreen, zoom, adjustZoom]);
 
   const handlePointerDown = useCallback((event) => {
     // Track active pointer touch coordinate
@@ -432,7 +483,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
       
       const scale = currentDistance / pinchRef.current.initialDistance;
-      const targetZoom = clamp(pinchRef.current.initialZoom * scale, minZoomRef.current, MAX_ZOOM);
+      const targetZoom = clamp(pinchRef.current.initialZoom * scale, dynamicMinZoom, MAX_ZOOM);
       
       setZoom(targetZoom);
       
@@ -649,61 +700,15 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     return mapped;
   }, [pinPositions]);
 
-  const occupiedCellBounds = useMemo(() => {
-    if (pins.length === 0) {
-      return {
-        minX: 0,
-        maxX: 0,
-        minY: 0,
-        maxY: 0,
-      };
-    }
-
-    let minX = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-
-    pins.forEach((pin) => {
-      const cellX = toCellCoord(pin.worldX);
-      const cellY = toCellCoord(pin.worldY);
-      minX = Math.min(minX, cellX);
-      maxX = Math.max(maxX, cellX);
-      minY = Math.min(minY, cellY);
-      maxY = Math.max(maxY, cellY);
-    });
-
-    return {
-      minX,
-      maxX,
-      minY,
-      maxY,
-    };
-  }, [pins]);
-
   const perforationPaddingCells = 0.14;
   const perforationLeft = boardCenterX + ((occupiedCellBounds.minX - 0.5 - perforationPaddingCells) * scaledCell);
   const perforationTop = boardCenterY + ((occupiedCellBounds.minY - 0.5 - perforationPaddingCells) * scaledCell);
   const perforationWidth = ((occupiedCellBounds.maxX - occupiedCellBounds.minX + 1) + (perforationPaddingCells * 2)) * scaledCell;
   const perforationHeight = ((occupiedCellBounds.maxY - occupiedCellBounds.minY + 1) + (perforationPaddingCells * 2)) * scaledCell;
 
-  const occupiedCellWidthUnits = (occupiedCellBounds.maxX - occupiedCellBounds.minX + 1) + (perforationPaddingCells * 2);
-  const occupiedCellHeightUnits = (occupiedCellBounds.maxY - occupiedCellBounds.minY + 1) + (perforationPaddingCells * 2);
-  const fitZoomX = viewportSize.width > 0
-    ? (viewportSize.width * 0.84) / (BASE_CELL_SIZE * occupiedCellWidthUnits)
-    : MIN_ZOOM;
-  const fitZoomY = viewportSize.height > 0
-    ? (viewportSize.height * 0.78) / (BASE_CELL_SIZE * occupiedCellHeightUnits)
-    : MIN_ZOOM;
-  const adaptiveMinZoom = Math.max(ABS_MIN_ZOOM, Math.min(MIN_ZOOM, fitZoomX, fitZoomY));
-
   useEffect(() => {
-    minZoomRef.current = adaptiveMinZoom;
-  }, [adaptiveMinZoom]);
-
-  useEffect(() => {
-    setZoom((previousZoom) => Math.max(adaptiveMinZoom, Math.min(MAX_ZOOM, previousZoom)));
-  }, [adaptiveMinZoom]);
+    setZoom((previousZoom) => Math.max(dynamicMinZoom, Math.min(MAX_ZOOM, previousZoom)));
+  }, [dynamicMinZoom]);
 
   const selectedPin = useMemo(
     () => pins.find((pin) => pin.id === selectedPinId) || null,
@@ -922,7 +927,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       await api.patch(`/api/v1/users/${targetUserId}/theory-board/viewport`, {
         x: Math.round(Number(pan?.x || 0)),
         y: Math.round(Number(pan?.y || 0)),
-        zoom: Math.round(clamp(Number(zoom || 1), ABS_MIN_ZOOM, MAX_ZOOM) * 100),
+        zoom: mapZoomToDb(zoom),
       });
 
       const latestResponse = await api.get(`/api/v1/users/${targetUserId}/theory-board`, {
@@ -1275,8 +1280,8 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 <span>
                   <IconButton
                     size="small"
-                    onClick={zoomOut}
-                    disabled={zoom <= adaptiveMinZoom + 0.001}
+                    onClick={() => adjustZoom(zoom / ZOOM_FACTOR)}
+                    disabled={zoom <= dynamicMinZoom + 0.001}
                     sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)', p: { xs: 0.5, sm: 1 } }}
                   >
                     <RemoveIcon fontSize="small" />
@@ -1287,7 +1292,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 <span>
                   <IconButton
                     size="small"
-                    onClick={zoomIn}
+                    onClick={() => adjustZoom(zoom * ZOOM_FACTOR)}
                     disabled={zoom >= MAX_ZOOM - 0.001}
                     sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,240,220,0.9)' : 'rgba(84,48,24,0.9)', p: { xs: 0.5, sm: 1 } }}
                   >
@@ -1574,13 +1579,14 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                       : '2px 6px 12px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.12)',
                     p: (isChipOnlyContent || isEventReference) ? 0 : 1.2,
                     zIndex: 2,
-                    transform: `translateX(-50%) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
+                    transform: `translateX(-50%) scale(${0.65 + 0.35 * zoom}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
+                    transformOrigin: 'top center',
                     cursor: canOpenResolvedEventReference ? 'pointer' : 'default',
                     overflowWrap: 'anywhere',
                     wordBreak: 'break-word',
                     transition: 'transform 0.2s ease',
                     '&:hover': {
-                      transform: `translateX(-50%) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg) scale(1.02)`,
+                      transform: `translateX(-50%) scale(${(0.65 + 0.35 * zoom) * 1.02}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
                       zIndex: 10,
                     }
                   }}

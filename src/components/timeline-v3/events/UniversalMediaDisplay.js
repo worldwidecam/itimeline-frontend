@@ -53,7 +53,7 @@ const getEmbedData = (url) => {
   }
 
   // 2. TikTok
-  const ttRegex = /tiktok\.com\/@[^\/]+\/video\/(\d+)/;
+  const ttRegex = /tiktok\.com\/(?:@[^\/]+\/)?video\/(\d+)/;
   const ttMatch = s.match(ttRegex);
   if (ttMatch && ttMatch[1]) {
     return {
@@ -143,6 +143,7 @@ const getAutoplayUrl = (embed) => {
 
 const TikTokEmbed = ({ embedUrl, title, isMediaFullscreen }) => {
   const containerRef = useRef(null);
+  const iframeRef = useRef(null);
   const [scale, setScale] = useState(1);
   const targetWidth = 325;
   const targetHeight = 580;
@@ -183,6 +184,45 @@ const TikTokEmbed = ({ embedUrl, title, isMediaFullscreen }) => {
     };
   }, [isMediaFullscreen]);
 
+  const handleLoad = () => {
+    const sendUnmute = () => {
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        try {
+          const win = iframeRef.current.contentWindow;
+          // 1. TikTok Native player commands
+          win.postMessage({ 'x-tiktok-player': true, type: 'unMute' }, '*');
+          win.postMessage({ 'x-tiktok-player': true, type: 'changeVolume', value: 100 }, '*');
+          
+          // 2. PlayerJS standard commands
+          win.postMessage(JSON.stringify({ event: 'command', func: 'unmute', args: [] }), '*');
+          win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [1] }), '*');
+          
+          // 3. Alternate standard object forms
+          win.postMessage({ event: 'command', func: 'unmute', args: [] }, '*');
+          win.postMessage({ event: 'command', func: 'setVolume', args: [100] }, '*');
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+
+    sendUnmute();
+    const t1 = setTimeout(sendUnmute, 500);
+    const t2 = setTimeout(sendUnmute, 1500);
+    const t3 = setTimeout(sendUnmute, 3000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  };
+
+  useEffect(() => {
+    const cleanup = handleLoad();
+    return cleanup;
+  }, [embedUrl]);
+
   return (
     <Box
       ref={containerRef}
@@ -198,8 +238,10 @@ const TikTokEmbed = ({ embedUrl, title, isMediaFullscreen }) => {
       }}
     >
       <iframe
+        ref={iframeRef}
         src={embedUrl}
         title={title}
+        onLoad={handleLoad}
         frameBorder="0"
         allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
         allowFullScreen
