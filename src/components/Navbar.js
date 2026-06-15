@@ -459,6 +459,27 @@ function Navbar() {
     };
   }, [user, isGuest]);
 
+  // Update browser/PWA App Badge when unreadCount changes
+  useEffect(() => {
+    try {
+      if ('setAppBadge' in navigator) {
+        if (unreadCount > 0) {
+          navigator.setAppBadge(unreadCount).catch(err => {
+            console.warn('[Badge] Failed to set badge:', err);
+          });
+        } else {
+          if ('clearAppBadge' in navigator) {
+            navigator.clearAppBadge().catch(err => {
+              console.warn('[Badge] Failed to clear badge:', err);
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Badge] Badging API error:', err);
+    }
+  }, [unreadCount]);
+
   useEffect(() => {
     let active = true;
     const fetchWarningState = async () => {

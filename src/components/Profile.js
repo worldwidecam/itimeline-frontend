@@ -1340,7 +1340,7 @@ const Profile = () => {
   return (
     <Box
       sx={{
-        minHeight: 'calc(100vh - 64px)',
+        minHeight: 'calc(100vh - 64px + 120px)',
         width: '100%',
         position: 'relative',
         background: appCanvasBackground,
@@ -1348,7 +1348,11 @@ const Profile = () => {
         flexDirection: 'column',
         justifyContent: 'flex-start',
         alignItems: 'flex-start',
-        pt: 4,
+        mt: '-120px',
+        pt: 'calc(32px + 120px)',
+        '@media (max-width: 1100px)': {
+          pt: showMusic ? 'calc(32px + 120px + 72px)' : 'calc(32px + 120px)',
+        },
         pb: 4
       }}
     >
