@@ -33,10 +33,12 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * Made event IDs on popups clickable to copy to the clipboard with the prefix "~" automatically added (using the snackbar "ID copied!" notification).
 * Prevented guest mode users from seeing the hashtag voting button (# trigger and voted tag chip) on the event popup card footers (both media and text layouts).
 * Unified Event Popup & Universal Media Display (Merged VideoEventPopup, ImageEventPopup, AudioMediaPopup, and NewsEventPopup into a master EventPopup.js component, implemented CSS-based "Entire-Popup Fullscreen" state transitions, fixed aspect ratio scaling, and maintained audio/video playback continuity during mobile screen rotation).
-* Link events (expanded news-type remarks to parse, embed, and inline-play TikTok, YouTube, Instagram, Twitter/X, and Bluesky video and content previews; optimized scroll lock behaviors to prevent frozen page scrolls).
+* Link events (expanded news-type remarks to parse, embed, and inline-play TikTok, YouTube, Instagram, Twitter/X, and Bluesky video and content previews; optimized scroll lock behaviors to prevent frozen page scrolls; fixed live production YouTube thumbnails using official oEmbed API and video-id fallbacks; resolved mobile TikTok short-link redirects in EventForm and updated parsing regex to make username optional).
 * Query batching optimization (resolving 503 Service Unavailable / CORS errors on events retrieval routes by reducing database query overhead from N+1 to grouped queries).
 * Notifications System (Unified Activity Notifications feed, Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges).
 * Timeline header titles and username cards dynamic scale-shrinking for mobile views.
+* Enhanced Theory Board zooming to be fully adaptive (dynamically recalculating minimum zoom to frame the dashed perimeter regardless of board size) and smooth (implementing percentage-based multiplicative scaling at 15% intervals); decoupled zoom from recentering, mapped database-safe zoom level integers [25, 300] on the frontend, and added scaling to note box cards to prevent overlap on zoom out.
+
 
 ---
 

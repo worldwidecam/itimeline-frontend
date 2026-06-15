@@ -701,7 +701,7 @@ const EventForm = ({ open, onClose, timelineId, onEventCreated }) => {
         raw_event_date: eventData.raw_event_date,
         is_exact_user_time: eventData.is_exact_user_time ?? true,
         type: eventData.type,
-        url: eventData.url || null,
+        url: (urlData && urlData.url) || eventData.url || null,
         url_title: eventData.url_title || null,
         url_description: eventData.url_description || null,
         url_image: eventData.url_image || null,
