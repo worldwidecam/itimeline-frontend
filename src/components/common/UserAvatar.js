@@ -24,6 +24,19 @@ export default function UserAvatar({
   const cachedColor = getCachedUserIdentityColor(id);
   const bg = userColor || cachedColor || resolveAvatarColor(userForColor);
 
+  let resolvedAvatarUrl = avatarUrl;
+  if (resolvedAvatarUrl) {
+    if (resolvedAvatarUrl.includes('/images/GUEST_img.png')) {
+      resolvedAvatarUrl = '/images/GUEST_img.png';
+    } else if (resolvedAvatarUrl.includes('localhost:3000')) {
+      try {
+        resolvedAvatarUrl = new URL(resolvedAvatarUrl).pathname;
+      } catch (e) {
+        // fallback
+      }
+    }
+  }
+
   const commonProps = {
     alt: alt || displayName,
     sx: {
@@ -32,8 +45,8 @@ export default function UserAvatar({
       // Scale initials proportionally to avatar size
       fontSize: Math.max(12, Math.round(size * 0.42)),
       fontWeight: 600,
-      bgcolor: avatarUrl ? undefined : bg,
-      color: avatarUrl ? undefined : '#111',
+      bgcolor: bg,
+      color: '#111',
       filter: isAvatarBlurred ? 'blur(18px) saturate(0.45)' : 'none',
     }
   };
@@ -70,8 +83,8 @@ export default function UserAvatar({
         ...sx 
       }}
     >
-      <Avatar src={avatarUrl || undefined} {...commonProps}>
-        {!avatarUrl ? initial : null}
+      <Avatar src={resolvedAvatarUrl || undefined} {...commonProps}>
+        {initial}
       </Avatar>
       {overlay}
     </Box>
