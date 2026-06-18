@@ -1,6 +1,6 @@
 const TIMELINE_SURFACE_THEMES = Object.freeze({
   light: Object.freeze({
-    canvas: 'linear-gradient(180deg, #ffc272af 0%, #efe4cd 52%, #f7f2e7 100%)',
+    canvas: 'linear-gradient(135deg, #ffb199 0%, #ffd5c8 50%, #ffeae0 100%)',
     shell: 'rgba(255, 248, 235, 0.74)',
     shellBorder: 'transparent',
     shellBlur: 'none',
@@ -15,7 +15,7 @@ const TIMELINE_SURFACE_THEMES = Object.freeze({
     glassHover: 'rgba(255, 248, 233, 0.96)',
   }),
   dark: Object.freeze({
-    canvas: 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)',
+    canvas: 'linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #201235 100%)',
     shell: 'rgba(8, 12, 24, 0.28)',
     shellBorder: 'transparent',
     shellBlur: 'none',

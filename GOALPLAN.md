@@ -13,11 +13,12 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 5. once an objective is completed, add it to the completed section.
 6. ALWAYS code with keeping production-safe code practices in mind. for example, if a table ever needs to be expanded, never just add it to development without adding it to the LIVE tables.
 7. when starting on the next TODO, first respond asking me to explain the problem in my own words.
+8. DO NOT move on to the next todo objective without receiving a confirmation that the previous todo objective has been completed.
+9. update and remove ANY implementation plan aspects that are confirmed finished. that way we do not continue believing we must make certain changes that we've finished long ago.
 
 ------
 
 ## Current TODOs
-* redesign login page
 
 * add/create action hover markers
 
@@ -28,6 +29,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+* Redesigned `/login`, `/register`, and `/recover` pages into a horizontal, swipeable "trading card table" layout. Implemented pure CSS 3D flip card animations (inactive cards face-down, active cards face-up), collapsible scrollable input forms with footers locking submit buttons in view, a page background click-out detector to flip cards face-down, and a themed guest mode (Goblin Mode) timed doorway countdown with auto-login and cancellation.
+* Symmetrized the baseline layout of all three authentication pages (`/login`, `/register`, and `/recover`) to identical 4-option card decks: **Login First** (Blue, 👤), **Join Timeline** (Amber/Gold, 📜), **Forgot Keys** (Purple/Coral, 🚪🔑 with a door + key overlapping emoji avatar), and **Goblin Mode** (Green, guest login), ensuring they render in the same order with the active route's form container displayed directly below it. Cleaned up legacy inline links/buttons from within the forms (the "Forgot Password?" link on login, "Already have an account? Login here" on register, and "Back to Login" on recovery) to create a clean, consistent modular gateway interface.
+* Redesigned Login page with a fixed medieval parchment scroll banner header, refined soft rounded ribbons, and high contrast readable typography. Unified the theme engine canvas gradients globally across `/login`, `/register`, `/recover`, `LandingPage`, and `HomePage` to feature a seamless transition with premium glowing purple/sunset background design blobs; aligned the `/recover` page flow and route wrapper to display the global navbar and fixed the background fade-in animation to eliminate transition blinking; synchronized the navbar behavior on the recovery page to enforce the unauthenticated layout (Login/Register buttons only) and route brand logo clicks back to the landing page `/`.
 * Improved first 3 hashtag chips on event cards and popups by displaying podium visual indicators: 🥇, 🥈, 🥉 medal emojis instead of `#` symbols, scaled height hierarchy (30px, 28px, 26px, 24px), scaled text font-sizes, vertical center baseline alignment, and reduced standard `#` icon sizing to 12.8px (fontSize={16}) for other chips.
 * Protected preview images on link event cards (fallback logos and main images) by limiting descriptions to a maximum of 2 lines using CSS line clamping, and set `flexShrink: 0` to prevent the description from squeezing the preview image.
 * Made event IDs on popups clickable to copy to the clipboard with the prefix "~" automatically added (using the snackbar "ID copied!" notification).

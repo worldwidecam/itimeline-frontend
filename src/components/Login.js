@@ -1,26 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  Paper,
   TextField,
   Button,
   Typography,
-  Link,
   Box,
-  Divider,
   Avatar,
   Alert,
   useTheme,
   GlobalStyles,
-  Collapse,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  getGlassDialogPaperSx,
   getGlassInputSx,
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
+import TradingCard from './TradingCard';
+import GoblinModeFront from './GoblinModeFront';
 
 const AUTH_RETURN_TO_KEY = 'auth_return_to';
 
@@ -34,13 +31,13 @@ const consumeAuthReturnTo = () => {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, loginAsGuest } = useAuth();
+  const { login } = useAuth();
   const theme = useTheme();
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState('');
-  const [loginExpanded, setLoginExpanded] = useState(false);
+  const [activeCard, setActiveCard] = useState('login');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,13 +56,13 @@ const Login = () => {
       const errorCode = typeof errorData === 'string' ? errorData : errorData?.code;
       const errorMessage = typeof errorData === 'string' ? errorData : (errorData?.message || '');
       const status = error.response?.status;
-      
-      const isSuspended = 
-        errorCode === 'SUSPENDED' || 
-        status === 403 || 
+
+      const isSuspended =
+        errorCode === 'SUSPENDED' ||
+        status === 403 ||
         errorMessage.toLowerCase().includes('suspended') ||
         (typeof errorData === 'string' && errorData.toLowerCase().includes('suspended'));
-      
+
       if (isSuspended) {
         navigate('/suspended');
       } else {
@@ -82,240 +79,476 @@ const Login = () => {
 
   return (
     <>
-      <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground } }} />
+      <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflow: 'hidden' } }} />
       <Box
-      sx={{
-        minHeight: '100vh',
-        width: '100%',
-        background: appCanvasBackground,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        mt: '-64px',
-        pt: 8,
-        pb: 6,
-        px: 3,
-        zIndex: 0,
-        gap: 3,
-      }}
-    >
-      {/* ── Page Header ──────────────────────────────────────────────────── */}
-      <Typography
-        variant="h4"
-        component="h1"
-        align="center"
+        onClick={() => setActiveCard(null)}
         sx={{
-          fontWeight: 600,
-          letterSpacing: 0.5,
-        }}
-      >
-        Choose Your Path
-      </Typography>
-
-      {/* ── Login card (collapsible) ──────────────────────────────────────── */}
-      <Box
-        sx={{
-          width: 190,
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor:
-            theme.palette.mode === 'dark'
-              ? 'rgba(147,197,253,0.25)'
-              : 'rgba(30,64,175,0.18)',
-          background:
-            theme.palette.mode === 'dark'
-              ? 'rgba(30,58,138,0.35)'
-              : 'rgba(219,234,254,0.45)',
-          backdropFilter: 'blur(8px)',
-          p: 2.5,
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: appCanvasBackground,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 1.5,
+          justifyContent: 'space-between',
+          pt: { xs: '72px', md: '88px' }, // Offset for the fixed top AppBar height to prevent visual leak
+          pb: { xs: 2, md: 3 },
+          px: 0, // Zero padding for edge-to-edge scrolling on mobile
+          zIndex: 0,
+          overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        <Avatar
+        {/* Floating background design elements */}
+        <Box
           sx={{
-            width: 86,
-            height: 86,
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.2)' : 'rgba(30,64,175,0.1)',
-            color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
-            fontSize: 40,
-            border: '2px solid',
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.35)' : 'rgba(30,64,175,0.25)',
-          }}
-        >
-          👤
-        </Avatar>
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={() => setLoginExpanded(!loginExpanded)}
-          sx={{
-            borderRadius: 99,
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            borderColor:
-              theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.4)' : 'rgba(30,64,175,0.3)',
-            color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
-            '&:hover': {
-              borderColor: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
-              background:
-                theme.palette.mode === 'dark'
-                  ? 'rgba(147,197,253,0.08)'
-                  : 'rgba(30,64,175,0.05)',
+            position: 'absolute',
+            top: '-10%',
+            right: '-5%',
+            width: '40%',
+            height: '40%',
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.12)' : 'rgba(255, 255, 255, 0.4)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'float 8s ease-in-out infinite',
+            '@keyframes float': {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-30px)' },
             },
           }}
-        >
-          Login First
-        </Button>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          align="center"
-          sx={{ lineHeight: 1.45 }}
-        >
-          for full access & posting
-        </Typography>
-      </Box>
-
-      {/* ── Login form (expandable) ────────────────────────────────────────── */}
-      <Collapse in={loginExpanded} sx={{ width: '100%', maxWidth: 'sm' }}>
-        <Paper
-          elevation={3}
+        />
+        <Box
           sx={{
-            ...getGlassDialogPaperSx(theme),
-            p: 4,
-            boxShadow:
-              theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.3)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-            position: 'relative',
-            zIndex: 1,
+            position: 'absolute',
+            bottom: '-10%',
+            left: '-5%',
+            width: '35%',
+            height: '35%',
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark' ? 'rgba(103, 58, 183, 0.12)' : 'rgba(255, 255, 255, 0.3)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'float 10s ease-in-out infinite',
+            animationDelay: '1.5s',
+          }}
+        />
+
+        {/* ── Medieval Hanging Scroll Title Banner ────────────────────────── */}
+        <Box
+          onClick={(e) => {
+            e.stopPropagation();
+            if (activeCard) setActiveCard(null);
+          }}
+          sx={{
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            mb: { xs: 1.5, md: 3 },
+            flexShrink: 0,
+            cursor: activeCard ? 'pointer' : 'default',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            msUserSelect: 'none',
+            transition: 'transform 0.2s ease',
+            '&:active': activeCard ? {
+              transform: 'scale(0.98)',
+            } : {},
           }}
         >
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {/* Wooden Peg / Nail */}
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#5c4033',
+              border: '1px solid rgba(0,0,0,0.4)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              zIndex: 3,
+              mb: -0.25,
+            }}
+          />
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-            <TextField
-              fullWidth label="Email" name="email" type="email"
-              value={formData.email} onChange={handleChange}
-              margin="normal" required autoComplete="email"
-              InputLabelProps={{ shrink: true }}
-              error={errorField === 'all'}
+          {/* Hanging Ropes Wrapper */}
+          <Box
+            sx={{
+              width: 120,
+              height: 25,
+              position: 'relative',
+              mb: -0.25,
+            }}
+          >
+            {/* Left rope line */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                width: '2px',
+                height: '30px',
+                background: theme.palette.mode === 'dark' ? '#bf9553' : '#5c4033',
+                transform: 'rotate(-32deg)',
+                transformOrigin: 'top center',
+              }}
             />
-            <TextField
-              fullWidth label="Password" name="password" type="password"
-              value={formData.password} onChange={handleChange}
-              margin="normal" required autoComplete="current-password"
-              InputLabelProps={{ shrink: true }}
-              error={errorField === 'all'}
+            {/* Right rope line */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                right: '50%',
+                width: '2px',
+                height: '30px',
+                background: theme.palette.mode === 'dark' ? '#bf9553' : '#5c4033',
+                transform: 'rotate(32deg)',
+                transformOrigin: 'top center',
+              }}
             />
-            <Typography align="right" sx={{ mt: 1, mb: 1 }}>
-              <Link component={RouterLink} to="/recover" sx={{ fontSize: '0.85rem' }}>
-                Forgot Password?
-              </Link>
-            </Typography>
-            <Button
-              type="submit" fullWidth variant="outlined"
-              sx={{ ...getGlassPillActionButtonSx(theme), mt: 2, mb: 2 }}
+          </Box>
+
+          {/* Scroll banner cylinder body */}
+          <Box
+            sx={{
+              background: theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, #3a3227 0%, #241e16 100%)' 
+                : 'linear-gradient(180deg, #faefe0 0%, #ebdcb9 100%)',
+              border: `2px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
+              borderRadius: '10px',
+              px: { xs: 4, md: 7 },
+              py: { xs: 1, md: 1.25 },
+              boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+              position: 'relative',
+              '&::before, &::after': {
+                content: '""',
+                position: 'absolute',
+                bottom: '-6px',
+                width: '16px',
+                height: '100%',
+                background: theme.palette.mode === 'dark' ? '#211a11' : '#d2bca0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
+                zIndex: -1,
+              },
+              '&::before': {
+                left: '-10px',
+                transform: 'skewY(-6deg)',
+                borderRight: 'none',
+                borderTopLeftRadius: '6px',
+                borderBottomLeftRadius: '6px',
+              },
+              '&::after': {
+                right: '-10px',
+                transform: 'skewY(6deg)',
+                borderLeft: 'none',
+                borderTopRightRadius: '6px',
+                borderBottomRightRadius: '6px',
+              },
+            }}
+          >
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{
+                color: theme.palette.mode === 'dark' ? '#fff5e6' : '#3d2b1f',
+                fontWeight: 800,
+                letterSpacing: 3,
+                textTransform: 'uppercase',
+                fontSize: { xs: '1.05rem', md: '1.35rem' },
+                textAlign: 'center',
+                fontFamily: 'serif',
+                textShadow: theme.palette.mode === 'dark' 
+                  ? '0 2px 3px rgba(0,0,0,0.9)' 
+                  : '0 1px 1px rgba(255,255,255,0.7)',
+              }}
             >
-              Login
-            </Button>
-            <Typography align="center">
-              Don't have an account?{' '}
-              <Link component={RouterLink} to="/register">Register here</Link>
+              Choose Your Path
             </Typography>
           </Box>
-        </Paper>
-      </Collapse>
+        </Box>
 
-      {/* ── "OR" divider (prominent) ──────────────────────────────────────── */}
-      <Divider
-        sx={{
-          width: '100%',
-          maxWidth: 'sm',
-          fontSize: '1rem',
-          fontWeight: 600,
-          color: 'text.secondary',
-          '&::before, &::after': {
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
-          },
-        }}
-      >
-        OR
-      </Divider>
-
-      {/* ── Goblin Mode portrait card ────────────────────────────────────── */}
-      <Box
-        sx={{
-          width: 190,
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor:
-            theme.palette.mode === 'dark'
-              ? 'rgba(134,239,172,0.25)'
-              : 'rgba(22,101,52,0.18)',
-          background:
-            theme.palette.mode === 'dark'
-              ? 'rgba(20,50,20,0.35)'
-              : 'rgba(220,252,231,0.45)',
-          backdropFilter: 'blur(8px)',
-          p: 2.5,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 1.5,
-        }}
-      >
-        <Avatar
-          src="/images/GUEST_img.png"
-          alt="Goblin guest"
-          sx={{ width: 86, height: 86, border: '2px solid', borderColor: theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.35)' : 'rgba(22,101,52,0.25)' }}
-        />
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={async () => {
-            await loginAsGuest();
-            const returnTo = consumeAuthReturnTo();
-            navigate(returnTo || '/home');
-          }}
+        {/* ── Trading Cards Horizontal Container ────────────────────────── */}
+        <Box
           sx={{
-            borderRadius: 99,
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            borderColor:
-              theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.4)' : 'rgba(22,101,52,0.3)',
-            color: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
-            '&:hover': {
-              borderColor: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
-              background:
-                theme.palette.mode === 'dark'
-                  ? 'rgba(134,239,172,0.08)'
-                  : 'rgba(22,101,52,0.05)',
-            },
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: { xs: 'flex-start', md: 'center' },
+            gap: { xs: 2, md: 3 },
+            width: '100%',
+            maxWidth: '100vw', // Bleed edge-to-edge
+            flexGrow: 1,
+            height: '100%',
+            overflowX: { xs: 'auto', md: 'visible' },
+            overflowY: 'hidden',
+            pb: 2,
+            px: { xs: 3, md: 4 }, // Padding inside the scroll container for mobile and PC view consistent wide margin
+            scrollSnapType: 'x mandatory',
+            '&::-webkit-scrollbar': { display: 'none' },
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
           }}
         >
-          Goblin Mode
-        </Button>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          align="center"
-          sx={{ lineHeight: 1.45 }}
-        >
-          view-only as a guest
-        </Typography>
+          {/* Card 1: Login First */}
+          <TradingCard
+            active={activeCard === 'login'}
+            onClick={() => setActiveCard('login')}
+            cardType="login"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(30,58,138,0.35)' : 'rgba(219,234,254,0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.2)' : 'rgba(30,64,175,0.1)',
+                    color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
+                    fontSize: 40,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.35)' : 'rgba(30,64,175,0.25)',
+                  }}
+                >
+                  👤
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Login First
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  for full access & posting
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                onClick={(e) => e.stopPropagation()}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  p: { xs: 1.5, sm: 2.5 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: theme.palette.mode === 'dark' ? 'rgba(15, 12, 32, 0.65)' : 'rgba(255, 255, 255, 0.65)',
+                  border: '3px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(147, 197, 253, 0.45)' : 'rgba(30, 64, 175, 0.4)',
+                  borderRadius: '10px',
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: theme.palette.mode === 'dark' ? '0 20px 45px rgba(0, 0, 0, 0.45)' : '0 20px 45px rgba(255, 177, 153, 0.25)',
+                  '& .MuiTextField-root': getGlassInputSx(theme),
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: 'rgba(147,197,253,0.1)',
+                      color: '#93c5fd',
+                      fontSize: 20,
+                    }}
+                  >
+                    👤
+                  </Avatar>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Login</Typography>
+                </Box>
+
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5 }}>
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 1.5, py: 0 }}>
+                      {error}
+                    </Alert>
+                  )}
+                  <TextField
+                    fullWidth label="Email" name="email" type="email"
+                    value={formData.email} onChange={handleChange}
+                    margin="dense" required autoComplete="email"
+                    InputLabelProps={{ shrink: true }}
+                    error={errorField === 'all'}
+                  />
+                  <TextField
+                    fullWidth label="Password" name="password" type="password"
+                    value={formData.password} onChange={handleChange}
+                    margin="dense" required autoComplete="current-password"
+                    InputLabelProps={{ shrink: true }}
+                    error={errorField === 'all'}
+                  />
+                </Box>
+
+                <Box sx={{ mt: 'auto', pt: 1.5 }}>
+                  <Button
+                    type="submit" fullWidth variant="outlined"
+                    sx={getGlassPillActionButtonSx(theme)}
+                  >
+                    Login
+                  </Button>
+                </Box>
+              </Box>
+            }
+          />
+
+          {/* Card 2: Join Timeline */}
+          <TradingCard
+            active={activeCard === 'register'}
+            onClick={() => navigate('/register')}
+            cardType="register"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(120, 80, 20, 0.35)' : 'rgba(254, 243, 199, 0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(217, 119, 6, 0.1)',
+                    color: theme.palette.mode === 'dark' ? '#f59e0b' : '#b45309',
+                    fontSize: 40,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(217, 119, 6, 0.25)',
+                  }}
+                >
+                  📜
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#f59e0b' : '#b45309'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Join Timeline
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  claim your path
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Navigating...</Typography>
+              </Box>
+            }
+          />
+
+          {/* Card 3: Forgot Keys */}
+          <TradingCard
+            active={activeCard === 'recover'}
+            onClick={() => navigate('/recover')}
+            cardType="recover"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(88, 28, 135, 0.35)' : 'rgba(243, 232, 255, 0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.2)' : 'rgba(124, 58, 237, 0.1)',
+                    color: theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed',
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.35)' : 'rgba(124, 58, 237, 0.25)',
+                  }}
+                >
+                  <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '32px', zIndex: 1 }}>🚪</span>
+                    <span style={{ fontSize: '20px', position: 'absolute', bottom: -5, right: -5, zIndex: 2 }}>🔑</span>
+                  </Box>
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Forgot Keys
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  lost keys & recovery
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Navigating...</Typography>
+              </Box>
+            }
+          />
+
+          {/* Card 4: Goblin Mode */}
+          <TradingCard
+            active={activeCard === 'goblin'}
+            onClick={() => setActiveCard('goblin')}
+            cardType="goblin"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(20,50,20,0.35)' : 'rgba(220,252,231,0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  src="/images/GUEST_img.png"
+                  alt="Goblin guest"
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.35)' : 'rgba(22, 101, 52, 0.25)',
+                  }}
+                />
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#86efac' : '#166534'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Goblin Mode
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  view-only as a guest
+                </Typography>
+              </Box>
+            }
+            front={<GoblinModeFront theme={theme} active={activeCard === 'goblin'} />}
+          />
+        </Box>
       </Box>
-    </Box>
     </>
   );
 };

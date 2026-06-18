@@ -1,27 +1,38 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
   TextField,
   Typography,
   Alert,
-  Stack,
   useTheme,
   IconButton,
   InputAdornment,
+  GlobalStyles,
+  Avatar,
 } from '@mui/material';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { motion } from 'framer-motion';
 import { recoverAccount } from '../utils/api';
 import {
   getGlassInputSx,
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
+import TradingCard from './TradingCard';
+import GoblinModeFront from './GoblinModeFront';
+
+const AUTH_RETURN_TO_KEY = 'auth_return_to';
+
+const consumeAuthReturnTo = () => {
+  const raw = localStorage.getItem(AUTH_RETURN_TO_KEY);
+  if (!raw) return '';
+  localStorage.removeItem(AUTH_RETURN_TO_KEY);
+  if (raw === '/login' || raw === '/register') return '';
+  return raw;
+};
 
 const AccountRecoveryPage = () => {
   const navigate = useNavigate();
@@ -37,6 +48,7 @@ const AccountRecoveryPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [activeCard, setActiveCard] = useState('recover');
 
   const handleChange = (e) => {
     setFormData({
@@ -84,22 +96,16 @@ const AccountRecoveryPage = () => {
     try {
       setSubmitting(true);
       const response = await recoverAccount(email, backupPassword, newPassword);
-      
-      // Store session tokens in localStorage for automatic login
+
       if (response.access_token) {
         localStorage.setItem('access_token', response.access_token);
       }
       if (response.refresh_token) {
         localStorage.setItem('refresh_token', response.refresh_token);
       }
-      
-      // Clear stale user info to force AuthContext to fetch fresh data
+
       localStorage.removeItem('user');
-      
-      // Set a temporary nudge flag so settings page displays the backup reminder alert
       localStorage.setItem('itl_recovery_nudge', 'true');
-      
-      // Clean redirect to trigger session rehydration in AuthContext
       window.location.href = '/home';
     } catch (e) {
       const message = e?.response?.data?.error || e?.message || 'Failed to recover account';
@@ -115,263 +121,507 @@ const AccountRecoveryPage = () => {
     setTimeout(() => setShake(false), 500);
   };
 
+  const pageBackground = getTimelineSurfaceTheme(theme).canvas;
+
   return (
-    <Box
-      sx={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 9999,
-        overflow: 'auto',
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        style={{ width: '100%', height: '100%', minHeight: '100vh' }}
+    <>
+      <GlobalStyles styles={{ 'html, body': { background: pageBackground, overflow: 'hidden' } }} />
+      <Box
+        onClick={() => setActiveCard(null)}
+        sx={{
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: pageBackground,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pt: { xs: '72px', md: '88px' }, // Offset for the fixed top AppBar height to prevent visual leak
+          pb: { xs: 2, md: 3 },
+          px: 0, // Zero padding for edge-to-edge scrolling on mobile
+          zIndex: 0,
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
       >
+        {/* Floating background design elements */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '-10%',
+            right: '-5%',
+            width: '40%',
+            height: '40%',
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.12)' : 'rgba(255, 255, 255, 0.4)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'float 8s ease-in-out infinite',
+            '@keyframes float': {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-30px)' },
+            },
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: '-10%',
+            left: '-5%',
+            width: '35%',
+            height: '35%',
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark' ? 'rgba(103, 58, 183, 0.12)' : 'rgba(255, 255, 255, 0.3)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'float 10s ease-in-out infinite',
+            animationDelay: '1.5s',
+          }}
+        />
+
+        {/* ── Medieval Hanging Scroll Title Banner ────────────────────────── */}
+        <Box
+          onClick={(e) => {
+            e.stopPropagation();
+            if (activeCard) setActiveCard(null);
+          }}
+          sx={{
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            mb: { xs: 1.5, md: 3 },
+            flexShrink: 0,
+            cursor: activeCard ? 'pointer' : 'default',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            msUserSelect: 'none',
+            transition: 'transform 0.2s ease',
+            '&:active': activeCard ? {
+              transform: 'scale(0.98)',
+            } : {},
+          }}
+        >
+          {/* Wooden Peg / Nail */}
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#5c4033',
+              border: '1px solid rgba(0,0,0,0.4)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              zIndex: 3,
+              mb: -0.25,
+            }}
+          />
+
+          {/* Hanging Ropes Wrapper */}
+          <Box
+            sx={{
+              width: 120,
+              height: 25,
+              position: 'relative',
+              mb: -0.25,
+            }}
+          >
+            {/* Left rope line */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                width: '2px',
+                height: '30px',
+                background: theme.palette.mode === 'dark' ? '#bf9553' : '#5c4033',
+                transform: 'rotate(-32deg)',
+                transformOrigin: 'top center',
+              }}
+            />
+            {/* Right rope line */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                right: '50%',
+                width: '2px',
+                height: '30px',
+                background: theme.palette.mode === 'dark' ? '#bf9553' : '#5c4033',
+                transform: 'rotate(32deg)',
+                transformOrigin: 'top center',
+              }}
+            />
+          </Box>
+
+          {/* Scroll banner cylinder body */}
+          <Box
+            sx={{
+              background: theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, #3a3227 0%, #241e16 100%)' 
+                : 'linear-gradient(180deg, #faefe0 0%, #ebdcb9 100%)',
+              border: `2px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
+              borderRadius: '10px',
+              px: { xs: 4, md: 7 },
+              py: { xs: 1, md: 1.25 },
+              boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+              position: 'relative',
+              '&::before, &::after': {
+                content: '""',
+                position: 'absolute',
+                bottom: '-6px',
+                width: '16px',
+                height: '100%',
+                background: theme.palette.mode === 'dark' ? '#211a11' : '#d2bca0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
+                zIndex: -1,
+              },
+              '&::before': {
+                left: '-10px',
+                transform: 'skewY(-6deg)',
+                borderRight: 'none',
+                borderTopLeftRadius: '6px',
+                borderBottomLeftRadius: '6px',
+              },
+              '&::after': {
+                right: '-10px',
+                transform: 'skewY(6deg)',
+                borderLeft: 'none',
+                borderTopRightRadius: '6px',
+                borderBottomRightRadius: '6px',
+              },
+            }}
+          >
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{
+                color: theme.palette.mode === 'dark' ? '#fff5e6' : '#3d2b1f',
+                fontWeight: 800,
+                letterSpacing: 3,
+                textTransform: 'uppercase',
+                fontSize: { xs: '1.05rem', md: '1.35rem' },
+                textAlign: 'center',
+                fontFamily: 'serif',
+                textShadow: theme.palette.mode === 'dark' 
+                  ? '0 2px 3px rgba(0,0,0,0.9)' 
+                  : '0 1px 1px rgba(255,255,255,0.7)',
+              }}
+            >
+              Choose Your Path
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ── Trading Cards Horizontal Container ────────────────────────── */}
         <Box
           sx={{
             display: 'flex',
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '100vh',
-            px: { xs: 2, sm: 3 },
-            py: 4,
-            position: 'relative',
-            overflow: 'hidden',
-            background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #201235 100%)'
-              : 'linear-gradient(135deg, #ffb199 0%, #ffd5c8 50%, #ffeae0 100%)',
+            justifyContent: { xs: 'flex-start', md: 'center' },
+            gap: { xs: 2, md: 3 },
+            width: '100%',
+            maxWidth: '100vw', // Bleed edge-to-edge
+            flexGrow: 1,
+            height: '100%',
+            overflowX: { xs: 'auto', md: 'visible' },
+            overflowY: 'hidden',
+            pb: 2,
+            px: { xs: 3, md: 4 }, // Padding inside the scroll container for mobile and PC view consistent wide margin
+            scrollSnapType: 'x mandatory',
+            '&::-webkit-scrollbar': { display: 'none' },
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
           }}
         >
-          {/* Floating background design elements */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '-10%',
-              right: '-5%',
-              width: '40%',
-              height: '40%',
-              borderRadius: '50%',
-              background: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.12)' : 'rgba(255, 255, 255, 0.4)',
-              filter: 'blur(60px)',
-              animation: 'float 8s ease-in-out infinite',
-              '@keyframes float': {
-                '0%, 100%': { transform: 'translateY(0px)' },
-                '50%': { transform: 'translateY(-30px)' },
-              },
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: '-10%',
-              left: '-5%',
-              width: '35%',
-              height: '35%',
-              borderRadius: '50%',
-              background: theme.palette.mode === 'dark' ? 'rgba(103, 58, 183, 0.12)' : 'rgba(255, 255, 255, 0.3)',
-              filter: 'blur(60px)',
-              animation: 'float 10s ease-in-out infinite',
-              animationDelay: '1.5s',
-            }}
-          />
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            style={{ width: '100%', maxWidth: 540, zIndex: 1 }}
-          >
-            <Stack
-              spacing={2.5}
-              className={shake ? 'animate-shake' : ''}
-              sx={{
-                borderRadius: 4,
-                p: { xs: 3, sm: 4 },
-                background: theme.palette.mode === 'dark' ? 'rgba(15, 12, 32, 0.65)' : 'rgba(255, 255, 255, 0.65)',
-                backdropFilter: 'blur(16px)',
-                border: '1px solid',
-                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.4)',
-                boxShadow: theme.palette.mode === 'dark'
-                  ? '0 20px 45px rgba(0, 0, 0, 0.45)'
-                  : '0 20px 45px rgba(255, 177, 153, 0.25)',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Button
-                  component={RouterLink}
-                  to="/login"
-                  startIcon={<ArrowBackIcon />}
+          {/* Card 1: Login First */}
+          <TradingCard
+            active={activeCard === 'login'}
+            onClick={() => navigate('/login')}
+            cardType="login"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(30,58,138,0.35)' : 'rgba(219,234,254,0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
                   sx={{
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    color: theme.palette.mode === 'dark' ? '#c084fc' : '#d35c3d',
-                    '&:hover': {
-                      background: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.08)' : 'rgba(211, 92, 61, 0.05)',
-                    }
-                  }}
-                >
-                  Back to Login
-                </Button>
-              </Box>
-
-              <Box sx={{ textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    width: 90,
-                    height: 90,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1.25rem',
-                    background: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.12)' : 'rgba(211, 92, 61, 0.1)',
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.2)' : 'rgba(30,64,175,0.1)',
+                    color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
+                    fontSize: 40,
                     border: '2px solid',
-                    borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.24)' : 'rgba(211, 92, 61, 0.2)',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1)',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.35)' : 'rgba(30,64,175,0.25)',
                   }}
                 >
-                  <LockOpenIcon sx={{ fontSize: 44, color: theme.palette.mode === 'dark' ? '#c084fc' : '#d35c3d' }} />
-                </Box>
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 800,
-                    letterSpacing: '-0.02em',
-                    color: theme.palette.mode === 'dark' ? '#fff' : '#1a0c08',
-                    mb: 1,
-                  }}
-                >
-                  Account Recovery
+                  👤
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Login First
                 </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ maxWidth: '400px', margin: '0 auto', lineHeight: 1.5 }}
-                >
-                  Enter your registered email and the emergency backup password to reset your account credentials.
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  for full access & posting
                 </Typography>
               </Box>
+            }
+            front={
+              <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Navigating...</Typography>
+              </Box>
+            }
+          />
 
-              {error && (
-                <Alert 
-                  severity="error" 
-                  sx={{ 
-                    borderRadius: 2,
-                    border: '1px solid rgba(239, 83, 80, 0.2)'
+          {/* Card 2: Join Timeline */}
+          <TradingCard
+            active={activeCard === 'register'}
+            onClick={() => navigate('/register')}
+            cardType="register"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(120, 80, 20, 0.35)' : 'rgba(254, 243, 199, 0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(217, 119, 6, 0.1)',
+                    color: theme.palette.mode === 'dark' ? '#f59e0b' : '#b45309',
+                    fontSize: 40,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(217, 119, 6, 0.25)',
                   }}
                 >
-                  {error}
-                </Alert>
-              )}
+                  📜
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#f59e0b' : '#b45309'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Join Timeline
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  claim your path
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Navigating...</Typography>
+              </Box>
+            }
+          />
 
-              <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-                <Stack spacing={2}>
+          {/* Card 3: Forgot Keys */}
+          <TradingCard
+            active={activeCard === 'recover'}
+            onClick={() => setActiveCard('recover')}
+            cardType="recover"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(88, 28, 135, 0.35)' : 'rgba(243, 232, 255, 0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.2)' : 'rgba(124, 58, 237, 0.1)',
+                    color: theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed',
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.35)' : 'rgba(124, 58, 237, 0.25)',
+                  }}
+                >
+                  <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '32px', zIndex: 1 }}>🚪</span>
+                    <span style={{ fontSize: '20px', position: 'absolute', bottom: -5, right: -5, zIndex: 2 }}>🔑</span>
+                  </Box>
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Forgot Keys
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  lost keys & recovery
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                onClick={(e) => e.stopPropagation()}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  p: { xs: 1.5, sm: 2.5 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: theme.palette.mode === 'dark' ? 'rgba(15, 12, 32, 0.65)' : 'rgba(255, 255, 255, 0.65)',
+                  border: '3px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.45)' : 'rgba(124, 58, 237, 0.4)',
+                  borderRadius: '10px',
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: theme.palette.mode === 'dark' ? '0 20px 45px rgba(0, 0, 0, 0.45)' : '0 20px 45px rgba(255, 177, 153, 0.25)',
+                  '& .MuiTextField-root': getGlassInputSx(theme),
+                }}
+                className={shake ? 'animate-shake' : ''}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: 'rgba(192, 132, 252, 0.1)',
+                      color: '#c084fc',
+                      fontSize: 20,
+                    }}
+                  >
+                    🔑
+                  </Avatar>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Recovery</Typography>
+                </Box>
+
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, py: 0.5 }}>
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 1.5, py: 0 }}>
+                      {error}
+                    </Alert>
+                  )}
                   <TextField
-                    fullWidth
-                    required
-                    label="Registered Email or User ID"
-                    name="email"
-                    type="text"
-                    value={formData.email}
-                    onChange={handleChange}
-                    autoComplete="username"
-                    placeholder="you@example.com or User ID..."
+                    fullWidth size="small" required label="Registered Email or User ID" name="email" type="text"
+                    value={formData.email} onChange={handleChange} autoComplete="username" margin="dense"
                   />
-
                   <TextField
-                    fullWidth
-                    required
-                    label="Emergency Backup Password"
-                    name="backupPassword"
-                    type={showBackupPassword ? 'text' : 'password'}
-                    value={formData.backupPassword}
-                    onChange={handleChange}
-                    autoComplete="off"
-                    placeholder="Enter your written recovery key..."
+                    fullWidth size="small" required label="Backup Password" name="backupPassword"
+                    type={showBackupPassword ? 'text' : 'password'} value={formData.backupPassword} onChange={handleChange}
+                    autoComplete="off" margin="dense"
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowBackupPassword(!showBackupPassword)}
-                            edge="end"
-                            sx={{ color: 'text.secondary' }}
-                          >
+                          <IconButton onClick={() => setShowBackupPassword(!showBackupPassword)} edge="end" sx={{ color: 'text.secondary' }}>
                             {showBackupPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
                       ),
                     }}
                   />
-
                   <TextField
-                    fullWidth
-                    required
-                    label="New Password"
-                    name="newPassword"
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={formData.newPassword}
-                    onChange={handleChange}
-                    autoComplete="new-password"
-                    placeholder="Min 12 characters..."
+                    fullWidth size="small" required label="New Password" name="newPassword"
+                    type={showNewPassword ? 'text' : 'password'} value={formData.newPassword} onChange={handleChange}
+                    autoComplete="new-password" margin="dense"
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            edge="end"
-                            sx={{ color: 'text.secondary' }}
-                          >
+                          <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end" sx={{ color: 'text.secondary' }}>
                             {showNewPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
                       ),
                     }}
                   />
-
                   <TextField
-                    fullWidth
-                    required
-                    label="Confirm New Password"
-                    name="confirmPassword"
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    autoComplete="new-password"
-                    placeholder="Repeat new password..."
+                    fullWidth size="small" required label="Confirm New Password" name="confirmPassword"
+                    type={showNewPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleChange}
+                    autoComplete="new-password" margin="dense"
                   />
+                </Box>
 
+                <Box sx={{ mt: 'auto', pt: 1.5 }}>
                   <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
+                    type="submit" variant="outlined" size="large"
                     disabled={submitting || !formData.email || !formData.backupPassword || !formData.newPassword || !formData.confirmPassword}
-                    startIcon={<CheckCircleOutlineIcon />}
                     fullWidth
-                    sx={{
-                      ...getGlassPillActionButtonSx(theme),
-                      mt: 1.5,
-                      py: 1.5,
-                      fontWeight: 700,
-                      textTransform: 'none',
-                      fontSize: '1rem',
-                      borderRadius: '50px',
-                    }}
+                    sx={getGlassPillActionButtonSx(theme)}
                   >
-                    {submitting ? 'Recovering Account…' : 'Recover Account'}
+                    {submitting ? 'Recovering…' : 'Recover'}
                   </Button>
-                </Stack>
+                </Box>
               </Box>
-            </Stack>
-          </motion.div>
+            }
+          />
+
+          {/* Card 4: Goblin Mode */}
+          <TradingCard
+            active={activeCard === 'goblin'}
+            onClick={() => setActiveCard('goblin')}
+            cardType="goblin"
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(20,50,20,0.35)' : 'rgba(220,252,231,0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  src="/images/GUEST_img.png"
+                  alt="Goblin guest"
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.35)' : 'rgba(22, 101, 52, 0.25)',
+                  }}
+                />
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#86efac' : '#166534'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Goblin Mode
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  choose to login as a Guest with viewing-only
+                </Typography>
+              </Box>
+            }
+            front={<GoblinModeFront theme={theme} active={activeCard === 'goblin'} />}
+          />
         </Box>
-      </motion.div>
-    </Box>
+      </Box>
+    </>
   );
 };
 
