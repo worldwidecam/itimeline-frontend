@@ -48,7 +48,93 @@ const AccountRecoveryPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
-  const [activeCard, setActiveCard] = useState('recover');
+  const [activeCard, setActiveCard] = useState(null);
+  const anyCardActive = !!activeCard;
+  const [isEntering, setIsEntering] = useState(true);
+
+  const containerRef = React.useRef(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(window.innerWidth);
+
+  const cardRefs = [React.useRef(null), React.useRef(null), React.useRef(null), React.useRef(null)];
+
+  React.useEffect(() => {
+    if (window.innerWidth < 900 && cardRefs[2].current) {
+      cardRefs[2].current.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+    }
+
+    const timer1 = setTimeout(() => {
+      setActiveCard('recover');
+    }, 50);
+
+    const timer2 = setTimeout(() => {
+      setIsEntering(false);
+    }, 450);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
+
+  const handleCardClick = (cardType, index) => {
+    setActiveCard(cardType);
+    if (window.innerWidth < 900 && cardRefs[index].current) {
+      cardRefs[index].current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  };
+
+  const handleCardNavigation = (targetPath, targetIndex) => {
+    setActiveCard(null);
+    if (window.innerWidth < 900 && cardRefs[targetIndex].current) {
+      cardRefs[targetIndex].current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    setTimeout(() => {
+      navigate(targetPath);
+    }, 220);
+  };
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleScroll = (e) => {
+    setScrollLeft(e.currentTarget.scrollLeft);
+  };
+
+  const getCardProps = (index) => {
+    const isMobile = window.innerWidth < 900;
+    if (!isMobile) {
+      const angles = [-4, -1.5, 1.5, 4];
+      const offsets = [0, -12, -12, 0];
+      return { tiltAngle: angles[index], fanningY: offsets[index] };
+    }
+
+    const cardWidth = Math.max(300, Math.min(window.innerWidth * 0.85, 340));
+    const gap = 16;
+    const paddingLeft = 24;
+
+    // Position of card center relative to scroll container
+    const cardCenter = paddingLeft + index * (cardWidth + gap) + cardWidth / 2;
+    // Position of viewport center relative to scroll container
+    const viewportCenter = scrollLeft + window.innerWidth / 2;
+
+    const distance = cardCenter - viewportCenter;
+    const maxTilt = 8;
+    const tilt = (distance / window.innerWidth) * maxTilt;
+
+    return {
+      tiltAngle: Math.max(-10, Math.min(10, tilt)),
+      fanningY: 0
+    };
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -259,8 +345,8 @@ const AccountRecoveryPage = () => {
           {/* Scroll banner cylinder body */}
           <Box
             sx={{
-              background: theme.palette.mode === 'dark' 
-                ? 'linear-gradient(180deg, #3a3227 0%, #241e16 100%)' 
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(180deg, #3a3227 0%, #241e16 100%)'
                 : 'linear-gradient(180deg, #faefe0 0%, #ebdcb9 100%)',
               border: `2px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
               borderRadius: '10px',
@@ -305,8 +391,8 @@ const AccountRecoveryPage = () => {
                 fontSize: { xs: '1.05rem', md: '1.35rem' },
                 textAlign: 'center',
                 fontFamily: 'serif',
-                textShadow: theme.palette.mode === 'dark' 
-                  ? '0 2px 3px rgba(0,0,0,0.9)' 
+                textShadow: theme.palette.mode === 'dark'
+                  ? '0 2px 3px rgba(0,0,0,0.9)'
                   : '0 1px 1px rgba(255,255,255,0.7)',
               }}
             >
@@ -317,6 +403,8 @@ const AccountRecoveryPage = () => {
 
         {/* ── Trading Cards Horizontal Container ────────────────────────── */}
         <Box
+          ref={containerRef}
+          onScroll={handleScroll}
           sx={{
             display: 'flex',
             flexDirection: 'row',
@@ -328,8 +416,10 @@ const AccountRecoveryPage = () => {
             flexGrow: 1,
             height: '100%',
             overflowX: { xs: 'auto', md: 'visible' },
-            overflowY: 'hidden',
-            pb: 2,
+            overflowY: 'visible',
+            mt: { xs: '-36px', md: 0 },
+            pt: { xs: 4, md: 5 },
+            pb: { xs: 4, md: 5 },
             px: { xs: 3, md: 4 }, // Padding inside the scroll container for mobile and PC view consistent wide margin
             scrollSnapType: 'x mandatory',
             '&::-webkit-scrollbar': { display: 'none' },
@@ -339,9 +429,13 @@ const AccountRecoveryPage = () => {
         >
           {/* Card 1: Login First */}
           <TradingCard
+            ref={cardRefs[0]}
             active={activeCard === 'login'}
-            onClick={() => navigate('/login')}
+            onClick={() => handleCardNavigation('/login', 0)}
             cardType="login"
+            tiltAngle={getCardProps(0).tiltAngle}
+            fanningY={getCardProps(0).fanningY}
+            anyCardActive={anyCardActive}
             back={
               <Box
                 sx={{
@@ -389,9 +483,13 @@ const AccountRecoveryPage = () => {
 
           {/* Card 2: Join Timeline */}
           <TradingCard
+            ref={cardRefs[1]}
             active={activeCard === 'register'}
-            onClick={() => navigate('/register')}
+            onClick={() => handleCardNavigation('/register', 1)}
             cardType="register"
+            tiltAngle={getCardProps(1).tiltAngle}
+            fanningY={getCardProps(1).fanningY}
+            anyCardActive={anyCardActive}
             back={
               <Box
                 sx={{
@@ -439,9 +537,14 @@ const AccountRecoveryPage = () => {
 
           {/* Card 3: Forgot Keys */}
           <TradingCard
+            ref={cardRefs[2]}
             active={activeCard === 'recover'}
-            onClick={() => setActiveCard('recover')}
+            onClick={() => handleCardClick('recover', 2)}
             cardType="recover"
+            tiltAngle={getCardProps(2).tiltAngle}
+            fanningY={getCardProps(2).fanningY}
+            anyCardActive={anyCardActive}
+            preHovered={isEntering && !activeCard}
             back={
               <Box
                 sx={{
@@ -493,17 +596,31 @@ const AccountRecoveryPage = () => {
                   p: { xs: 1.5, sm: 2.5 },
                   display: 'flex',
                   flexDirection: 'column',
-                  background: theme.palette.mode === 'dark' ? 'rgba(15, 12, 32, 0.65)' : 'rgba(255, 255, 255, 0.65)',
+                  background: 'transparent',
                   border: '3px solid',
                   borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.45)' : 'rgba(124, 58, 237, 0.4)',
                   borderRadius: '10px',
-                  backdropFilter: 'blur(16px)',
                   boxShadow: theme.palette.mode === 'dark' ? '0 20px 45px rgba(0, 0, 0, 0.45)' : '0 20px 45px rgba(255, 177, 153, 0.25)',
                   '& .MuiTextField-root': getGlassInputSx(theme),
                 }}
                 className={shake ? 'animate-shake' : ''}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                <Box
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCard(null);
+                  }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    mb: 1,
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    '&:hover': { opacity: 0.8 },
+                    transition: 'opacity 0.2s ease',
+                  }}
+                >
                   <Avatar
                     sx={{
                       width: 40,
@@ -579,9 +696,13 @@ const AccountRecoveryPage = () => {
 
           {/* Card 4: Goblin Mode */}
           <TradingCard
+            ref={cardRefs[3]}
             active={activeCard === 'goblin'}
-            onClick={() => setActiveCard('goblin')}
+            onClick={() => handleCardClick('goblin', 3)}
             cardType="goblin"
+            tiltAngle={getCardProps(3).tiltAngle}
+            fanningY={getCardProps(3).fanningY}
+            anyCardActive={anyCardActive}
             back={
               <Box
                 sx={{
