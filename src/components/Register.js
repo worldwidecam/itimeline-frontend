@@ -1,27 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
-  Container,
-  Paper,
   TextField,
   Button,
   Typography,
-  Link,
   Box,
-  Divider,
   Avatar,
   Alert,
   useTheme,
   GlobalStyles,
   Checkbox,
   FormControlLabel,
+  Link,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  getGlassDialogPaperSx,
   getGlassInputSx,
   getGlassPillActionButtonSx,
 } from '../utils/formStyleGuide';
+import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
+import TradingCard from './TradingCard';
+import GoblinModeFront from './GoblinModeFront';
 
 const AUTH_RETURN_TO_KEY = 'auth_return_to';
 
@@ -35,7 +34,7 @@ const consumeAuthReturnTo = () => {
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register, loginAsGuest } = useAuth();
+  const { register } = useAuth();
   const theme = useTheme();
   const [formData, setFormData] = useState({
     username: '',
@@ -47,13 +46,104 @@ const Register = () => {
   const [errorField, setErrorField] = useState('');
   const [turnstileToken, setTurnstileToken] = useState(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [activeCard, setActiveCard] = useState(null);
+  const anyCardActive = !!activeCard;
+  const [isEntering, setIsEntering] = useState(true);
+
+  const containerRef = React.useRef(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(window.innerWidth);
+
+  const cardRefs = [React.useRef(null), React.useRef(null), React.useRef(null), React.useRef(null)];
+
+  useEffect(() => {
+    if (window.innerWidth < 900 && cardRefs[1].current) {
+      cardRefs[1].current.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+    }
+
+    const timer1 = setTimeout(() => {
+      setActiveCard('register');
+    }, 50);
+
+    const timer2 = setTimeout(() => {
+      setIsEntering(false);
+    }, 450);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
+
+  const handleCardClick = (cardType, index) => {
+    setActiveCard(cardType);
+    if (window.innerWidth < 900 && cardRefs[index].current) {
+      cardRefs[index].current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  };
+
+  const handleCardNavigation = (targetPath, targetIndex) => {
+    setActiveCard(null);
+    if (window.innerWidth < 900 && cardRefs[targetIndex].current) {
+      cardRefs[targetIndex].current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    setTimeout(() => {
+      navigate(targetPath);
+    }, 220);
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleScroll = (e) => {
+    setScrollLeft(e.currentTarget.scrollLeft);
+  };
+
+  const getCardProps = (index) => {
+    const isMobile = window.innerWidth < 900;
+    if (!isMobile) {
+      const angles = [-4, -1.5, 1.5, 4];
+      const offsets = [0, -12, -12, 0];
+      return { tiltAngle: angles[index], fanningY: offsets[index] };
+    }
+
+    const cardWidth = Math.max(300, Math.min(window.innerWidth * 0.85, 340));
+    const gap = 16;
+    const paddingLeft = 24;
+
+    // Position of card center relative to scroll container
+    const cardCenter = paddingLeft + index * (cardWidth + gap) + cardWidth / 2;
+    // Position of viewport center relative to scroll container
+    const viewportCenter = scrollLeft + window.innerWidth / 2;
+
+    const distance = cardCenter - viewportCenter;
+    const maxTilt = 8;
+    const tilt = (distance / window.innerWidth) * maxTilt;
+
+    return {
+      tiltAngle: Math.max(-10, Math.min(10, tilt)),
+      fanningY: 0
+    };
+  };
 
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback';
     script.async = true;
     script.defer = true;
-    document.body.appendChild(script);
+
+    // Delay script injection to prevent animation thread blocking
+    const timer = setTimeout(() => {
+      document.body.appendChild(script);
+    }, 600);
 
     window.onloadTurnstileCallback = () => {
       if (window.turnstile) {
@@ -70,9 +160,10 @@ const Register = () => {
     };
 
     return () => {
+      clearTimeout(timer);
       try {
         document.body.removeChild(script);
-      } catch (_e) {}
+      } catch (_e) { }
       delete window.onloadTurnstileCallback;
     };
   }, []);
@@ -124,12 +215,11 @@ const Register = () => {
         errorMsg = error.message;
       }
       setError(errorMsg);
-      
-      // Map error message to field for shake animation
+
       if (errorMsg.toLowerCase().includes('username')) setErrorField('username');
       else if (errorMsg.toLowerCase().includes('email')) setErrorField('email');
       else if (errorMsg.toLowerCase().includes('password')) setErrorField('password');
-      
+
       setTimeout(() => setErrorField(''), 1000);
     }
   };
@@ -138,223 +228,574 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const pageBackground = theme.palette.mode === 'dark'
-    ? 'linear-gradient(180deg, #000000 0%, #0a1128 50%, #1a2456 100%)'
-    : 'linear-gradient(180deg, #ffb199 0%, #ffd5c8 20%, #ffeae0 45%, #f7f4ea 75%, #f5f1e4 90%, #ffffff 100%)';
+  const pageBackground = getTimelineSurfaceTheme(theme).canvas;
 
   return (
     <>
-      <GlobalStyles styles={{ 'html, body': { background: pageBackground } }} />
+      <GlobalStyles styles={{ 'html, body': { background: pageBackground, overflow: 'hidden' } }} />
       <Box
+        onClick={() => setActiveCard(null)}
         sx={{
-          minHeight: '100vh',
-          width: '100%',
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
           background: pageBackground,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          mt: '-64px',
-          pt: 8,
-          pb: 6,
-          px: 3,
+          justifyContent: 'space-between',
+          pt: { xs: '72px', md: '88px' }, // Offset for the fixed top AppBar height to prevent visual leak
+          pb: { xs: 2, md: 3 },
+          px: 0, // Zero padding for edge-to-edge scrolling on mobile
           zIndex: 0,
-        }}
-    >
-      {/* ── Register card ───────────────────────────────────────────────── */}
-      <Container maxWidth="sm">
-        <Paper
-          elevation={3}
-          sx={{
-            ...getGlassDialogPaperSx(theme),
-            p: 4,
-            boxShadow:
-              theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.3)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-            position: 'relative',
-            zIndex: 1,
-            maxHeight: '80vh',
-            overflowY: 'auto',
-          }}
-        >
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            Register
-          </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-            <TextField fullWidth label="Username" name="username" value={formData.username} onChange={handleChange} margin="normal" required autoComplete="username" error={errorField === 'username'} />
-            <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" required autoComplete="email" error={errorField === 'email'} />
-            <TextField 
-              fullWidth 
-              label="Password" 
-              name="password" 
-              type="password" 
-              value={formData.password} 
-              onChange={handleChange} 
-              margin="normal" 
-              required 
-              autoComplete="new-password" 
-              error={errorField === 'password'} 
-              helperText="Must be at least 12 characters long"
-              FormHelperTextProps={{
-                sx: {
-                  color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-                  fontSize: '0.75rem',
-                  mt: 0.5,
-                }
-              }}
-            />
-            <TextField fullWidth label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="normal" required autoComplete="new-password" error={errorField === 'password'} />
-            
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  color="primary"
-                  sx={{
-                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
-                    '&.Mui-checked': {
-                      color: 'primary.main',
-                    }
-                  }}
-                />
-              }
-              label={
-                <Typography variant="body2" color="text.secondary">
-                  I accept the{' '}
-                  <Link component={RouterLink} to="/terms" target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
-                    Terms of Service
-                  </Link>{' '}
-                  &{' '}
-                  <span style={{ fontWeight: 'bold' }}>
-                    Privacy Policy
-                  </span>
-                </Typography>
-              }
-              sx={{ mt: 1.5, mb: 1, display: 'flex', alignItems: 'center' }}
-            />
-
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                mt: 1.5,
-                mb: 1.5,
-                width: '100%',
-                minHeight: '65px',
-              }}
-            >
-              <div id="turnstile-container"></div>
-            </Box>
-
-            <Button
-              type="submit" fullWidth variant="outlined"
-              sx={{ ...getGlassPillActionButtonSx(theme), mt: 2, mb: 2 }}
-            >
-              Register
-            </Button>
-            <Typography align="center">
-              Already have an account?{' '}
-              <Link component={RouterLink} to="/login">Login here</Link>
-            </Typography>
-          </Box>
-        </Paper>
-      </Container>
-
-      {/* ── "or" divider ────────────────────────────────────────────────── */}
-      <Divider
-        sx={{
-          width: '100%',
-          maxWidth: 'sm',
-          mt: 3,
-          mb: 2,
-          fontSize: '0.75rem',
-          color: 'text.disabled',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        or
-      </Divider>
-
-      {/* ── Goblin Mode portrait card ────────────────────────────────────── */}
-      <Box
-        sx={{
-          width: 190,
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor:
-            theme.palette.mode === 'dark'
-              ? 'rgba(134,239,172,0.25)'
-              : 'rgba(22,101,52,0.18)',
-          background:
-            theme.palette.mode === 'dark'
-              ? 'rgba(20,50,20,0.35)'
-              : 'rgba(220,252,231,0.45)',
-          backdropFilter: 'blur(8px)',
-          p: 2.5,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 1.5,
-        }}
-      >
-        <Avatar
-          src="/images/GUEST_img.png"
-          alt="Goblin guest"
+        {/* Floating background design elements */}
+        <Box
           sx={{
-            width: 86,
-            height: 86,
-            border: '2px solid',
-            borderColor:
-              theme.palette.mode === 'dark'
-                ? 'rgba(134,239,172,0.35)'
-                : 'rgba(22,101,52,0.25)',
-          }}
-        />
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={async () => {
-            await loginAsGuest();
-            const returnTo = consumeAuthReturnTo();
-            navigate(returnTo || '/home');
-          }}
-          sx={{
-            borderRadius: 99,
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            borderColor:
-              theme.palette.mode === 'dark' ? 'rgba(134,239,172,0.4)' : 'rgba(22,101,52,0.3)',
-            color: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
-            '&:hover': {
-              borderColor: theme.palette.mode === 'dark' ? '#86efac' : '#166534',
-              background:
-                theme.palette.mode === 'dark'
-                  ? 'rgba(134,239,172,0.08)'
-                  : 'rgba(22,101,52,0.05)',
+            position: 'absolute',
+            top: '-10%',
+            right: '-5%',
+            width: '40%',
+            height: '40%',
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.12)' : 'rgba(255, 255, 255, 0.4)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'float 8s ease-in-out infinite',
+            '@keyframes float': {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-30px)' },
             },
           }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: '-10%',
+            left: '-5%',
+            width: '35%',
+            height: '35%',
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark' ? 'rgba(103, 58, 183, 0.12)' : 'rgba(255, 255, 255, 0.3)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'float 10s ease-in-out infinite',
+            animationDelay: '1.5s',
+          }}
+        />
+
+        {/* ── Medieval Hanging Scroll Title Banner ────────────────────────── */}
+        <Box
+          onClick={(e) => {
+            e.stopPropagation();
+            if (activeCard) setActiveCard(null);
+          }}
+          sx={{
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            mb: { xs: 1.5, md: 3 },
+            flexShrink: 0,
+            cursor: activeCard ? 'pointer' : 'default',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            msUserSelect: 'none',
+            transition: 'transform 0.2s ease',
+            '&:active': activeCard ? {
+              transform: 'scale(0.98)',
+            } : {},
+          }}
         >
-          Goblin Mode
-        </Button>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          align="center"
-          sx={{ lineHeight: 1.45 }}
+          {/* Wooden Peg / Nail */}
+          <Box
+            sx={{
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#5c4033',
+              border: '1px solid rgba(0,0,0,0.4)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              zIndex: 3,
+              mb: -0.25,
+            }}
+          />
+
+          {/* Hanging Ropes Wrapper */}
+          <Box
+            sx={{
+              width: 120,
+              height: 25,
+              position: 'relative',
+              mb: -0.25,
+            }}
+          >
+            {/* Left rope line */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                width: '2px',
+                height: '30px',
+                background: theme.palette.mode === 'dark' ? '#bf9553' : '#5c4033',
+                transform: 'rotate(-32deg)',
+                transformOrigin: 'top center',
+              }}
+            />
+            {/* Right rope line */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                right: '50%',
+                width: '2px',
+                height: '30px',
+                background: theme.palette.mode === 'dark' ? '#bf9553' : '#5c4033',
+                transform: 'rotate(32deg)',
+                transformOrigin: 'top center',
+              }}
+            />
+          </Box>
+
+          {/* Scroll banner cylinder body */}
+          <Box
+            sx={{
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(180deg, #3a3227 0%, #241e16 100%)'
+                : 'linear-gradient(180deg, #faefe0 0%, #ebdcb9 100%)',
+              border: `2px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
+              borderRadius: '10px',
+              px: { xs: 4, md: 7 },
+              py: { xs: 1, md: 1.25 },
+              boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+              position: 'relative',
+              '&::before, &::after': {
+                content: '""',
+                position: 'absolute',
+                bottom: '-6px',
+                width: '16px',
+                height: '100%',
+                background: theme.palette.mode === 'dark' ? '#211a11' : '#d2bca0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? '#bfa36f' : '#5c4033'}`,
+                zIndex: -1,
+              },
+              '&::before': {
+                left: '-10px',
+                transform: 'skewY(-6deg)',
+                borderRight: 'none',
+                borderTopLeftRadius: '6px',
+                borderBottomLeftRadius: '6px',
+              },
+              '&::after': {
+                right: '-10px',
+                transform: 'skewY(6deg)',
+                borderLeft: 'none',
+                borderTopRightRadius: '6px',
+                borderBottomRightRadius: '6px',
+              },
+            }}
+          >
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{
+                color: theme.palette.mode === 'dark' ? '#fff5e6' : '#3d2b1f',
+                fontWeight: 800,
+                letterSpacing: 3,
+                textTransform: 'uppercase',
+                fontSize: { xs: '1.05rem', md: '1.35rem' },
+                textAlign: 'center',
+                fontFamily: 'serif',
+                textShadow: theme.palette.mode === 'dark'
+                  ? '0 2px 3px rgba(0,0,0,0.9)'
+                  : '0 1px 1px rgba(255,255,255,0.7)',
+              }}
+            >
+              Choose Your Path
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ── Trading Cards Horizontal Container ────────────────────────── */}
+        <Box
+          ref={containerRef}
+          onScroll={handleScroll}
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: { xs: 'flex-start', md: 'center' },
+            gap: { xs: 2, md: 3 },
+            width: '100%',
+            maxWidth: '100vw', // Bleed edge-to-edge
+            flexGrow: 1,
+            height: '100%',
+            overflowX: { xs: 'auto', md: 'visible' },
+            overflowY: 'visible',
+            mt: { xs: '-36px', md: 0 },
+            pt: { xs: 4, md: 5 },
+            pb: { xs: 4, md: 5 },
+            px: { xs: 3, md: 4 }, // Padding inside the scroll container for mobile and PC view consistent wide margin
+            scrollSnapType: 'x mandatory',
+            '&::-webkit-scrollbar': { display: 'none' },
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+          }}
         >
-          choose to login as a Guest with viewing-only
-        </Typography>
+          {/* Card 1: Login First */}
+          <TradingCard
+            ref={cardRefs[0]}
+            active={activeCard === 'login'}
+            onClick={() => handleCardNavigation('/login', 0)}
+            cardType="login"
+            tiltAngle={getCardProps(0).tiltAngle}
+            fanningY={getCardProps(0).fanningY}
+            anyCardActive={anyCardActive}
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(30,58,138,0.35)' : 'rgba(219,234,254,0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.2)' : 'rgba(30,64,175,0.1)',
+                    color: theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af',
+                    fontSize: 40,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(147,197,253,0.35)' : 'rgba(30,64,175,0.25)',
+                  }}
+                >
+                  👤
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#93c5fd' : '#1e40af'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Login First
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  for full access & posting
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Navigating...</Typography>
+              </Box>
+            }
+          />
+
+          {/* Card 2: Join Timeline */}
+          <TradingCard
+            ref={cardRefs[1]}
+            active={activeCard === 'register'}
+            onClick={() => handleCardClick('register', 1)}
+            cardType="register"
+            tiltAngle={getCardProps(1).tiltAngle}
+            fanningY={getCardProps(1).fanningY}
+            anyCardActive={anyCardActive}
+            preHovered={isEntering && !activeCard}
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(120, 80, 20, 0.35)' : 'rgba(254, 243, 199, 0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(217, 119, 6, 0.1)',
+                    color: theme.palette.mode === 'dark' ? '#f59e0b' : '#b45309',
+                    fontSize: 40,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(217, 119, 6, 0.25)',
+                  }}
+                >
+                  📜
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#f59e0b' : '#b45309'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Join Timeline
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  claim your path
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                onClick={(e) => e.stopPropagation()}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  p: { xs: 1.5, sm: 2.5 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: 'transparent',
+                  border: '3px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.45)' : 'rgba(217, 119, 6, 0.4)',
+                  borderRadius: '10px',
+                  boxShadow: theme.palette.mode === 'dark' ? '0 20px 45px rgba(0, 0, 0, 0.45)' : '0 20px 45px rgba(255, 177, 153, 0.25)',
+                  '& .MuiTextField-root': getGlassInputSx(theme),
+                }}
+              >
+                <Box
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCard(null);
+                  }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    mb: 1,
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    '&:hover': { opacity: 0.8 },
+                    transition: 'opacity 0.2s ease',
+                  }}
+                >
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: 'rgba(245, 158, 11, 0.1)',
+                      color: '#f59e0b',
+                      fontSize: 20,
+                    }}
+                  >
+                    📜
+                  </Avatar>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Register</Typography>
+                </Box>
+
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, py: 0.5 }}>
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 1.5, py: 0 }}>
+                      {error}
+                    </Alert>
+                  )}
+                  <TextField fullWidth size="small" label="Username" name="username" value={formData.username} onChange={handleChange} margin="dense" required autoComplete="username" error={errorField === 'username'} />
+                  <TextField fullWidth size="small" label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="dense" required autoComplete="email" error={errorField === 'email'} />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Password"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    margin="dense"
+                    required
+                    autoComplete="new-password"
+                    error={errorField === 'password'}
+                    helperText="Must be at least 12 characters long"
+                    FormHelperTextProps={{
+                      sx: {
+                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                        fontSize: '0.65rem',
+                        mt: 0.25,
+                      }
+                    }}
+                  />
+                  <TextField fullWidth size="small" label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="dense" required autoComplete="new-password" error={errorField === 'password'} />
+
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        color="primary"
+                        size="small"
+                        sx={{
+                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                          '&.Mui-checked': {
+                            color: 'primary.main',
+                          }
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography variant="caption" color="text.secondary">
+                        I accept the{' '}
+                        <Link component={RouterLink} to="/terms" target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
+                          Terms of Service
+                        </Link>{' '}
+                        &{' '}
+                        <span style={{ fontWeight: 'bold' }}>
+                          Privacy Policy
+                        </span>
+                      </Typography>
+                    }
+                    sx={{ mt: 1, mb: 1, display: 'flex', alignItems: 'center' }}
+                  />
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      mt: 1,
+                      mb: 1,
+                      width: '100%',
+                      minHeight: '65px',
+                      overflow: 'hidden',
+                      // Scale down Turnstile on mobile screens to fit within the card bounds
+                      '& #turnstile-container': {
+                        transform: { xs: 'scale(0.76)', sm: 'scale(1)' },
+                        transformOrigin: 'center center',
+                      }
+                    }}
+                  >
+                    <div id="turnstile-container"></div>
+                  </Box>
+                </Box>
+
+                <Box sx={{ mt: 'auto', pt: 1.5 }}>
+                  <Button
+                    type="submit" fullWidth variant="outlined"
+                    sx={getGlassPillActionButtonSx(theme)}
+                  >
+                    Register
+                  </Button>
+                </Box>
+              </Box>
+            }
+          />
+
+          {/* Card 3: Forgot Keys */}
+          <TradingCard
+            ref={cardRefs[2]}
+            active={activeCard === 'recover'}
+            onClick={() => handleCardNavigation('/recover', 2)}
+            cardType="recover"
+            tiltAngle={getCardProps(2).tiltAngle}
+            fanningY={getCardProps(2).fanningY}
+            anyCardActive={anyCardActive}
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(88, 28, 135, 0.35)' : 'rgba(243, 232, 255, 0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.2)' : 'rgba(124, 58, 237, 0.1)',
+                    color: theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed',
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.35)' : 'rgba(124, 58, 237, 0.25)',
+                  }}
+                >
+                  <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '32px', zIndex: 1 }}>🚪</span>
+                    <span style={{ fontSize: '20px', position: 'absolute', bottom: -5, right: -5, zIndex: 2 }}>🔑</span>
+                  </Box>
+                </Avatar>
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Forgot Keys
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  lost keys & recovery
+                </Typography>
+              </Box>
+            }
+            front={
+              <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Navigating...</Typography>
+              </Box>
+            }
+          />
+
+          {/* Card 4: Goblin Mode */}
+          <TradingCard
+            ref={cardRefs[3]}
+            active={activeCard === 'goblin'}
+            onClick={() => handleCardClick('goblin', 3)}
+            cardType="goblin"
+            tiltAngle={getCardProps(3).tiltAngle}
+            fanningY={getCardProps(3).fanningY}
+            anyCardActive={anyCardActive}
+            back={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  background: theme.palette.mode === 'dark' ? 'rgba(20,50,20,0.35)' : 'rgba(220,252,231,0.45)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  p: { xs: 1.5, sm: 2.5, md: 3 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2.5,
+                }}
+              >
+                <Avatar
+                  src="/images/GUEST_img.png"
+                  alt="Goblin guest"
+                  sx={{
+                    width: 86,
+                    height: 86,
+                    border: '2px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(134, 239, 172, 0.35)' : 'rgba(22, 101, 52, 0.25)',
+                  }}
+                />
+                <Typography variant="h6" color={theme.palette.mode === 'dark' ? '#86efac' : '#166534'} sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Goblin Mode
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2, minHeight: 40 }}>
+                  choose to login as a Guest with viewing-only
+                </Typography>
+              </Box>
+            }
+            front={<GoblinModeFront theme={theme} active={activeCard === 'goblin'} />}
+          />
+        </Box>
       </Box>
-    </Box>
     </>
   );
 };

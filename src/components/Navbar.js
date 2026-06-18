@@ -49,6 +49,8 @@ import { displayUsername } from '../utils/usernameDisplay';
 import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
 const EventPopup = React.lazy(() => import('./timeline-v3/events/EventPopup'));
 
+const AUTH_PATHS = ['/login', '/register', '/recover'];
+
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1155,7 +1157,7 @@ function Navbar() {
             to={
               currentPath === '/profile/settings'
                 ? '/profile'
-                : (shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !['/login', '/register'].includes(currentPath) ? '/home' : '/'))
+                : (shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/'))
             }
             onClick={(e) => {
               if (currentPath === '/profile/settings') {
@@ -1164,7 +1166,7 @@ function Navbar() {
                 return;
               }
               // If already on the destination page, force a reload
-              const target = shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !['/login', '/register'].includes(currentPath) ? '/home' : '/');
+              const target = shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/');
               if (currentPath === target) {
                 e.preventDefault();
                 window.location.reload();
@@ -1276,7 +1278,7 @@ function Navbar() {
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {user && !['/login', '/register'].includes(currentPath) ? (
+            {user && !AUTH_PATHS.includes(currentPath) ? (
               <>
                 {isTimelinePage && !timelineWarningState?.active && timelineStatusMessage?.active && statusTone && statusIcon && (
                   <>
@@ -1762,7 +1764,7 @@ function Navbar() {
                   {profileTabs}
                 </Drawer>
                 {/* Hamburger menu — hidden in guest mode; replaced with CTA */}
-                {isGuest && !['/login', '/register'].includes(currentPath) ? (
+                {isGuest && !AUTH_PATHS.includes(currentPath) ? (
                   <Tooltip title="Create a full account to start posting and organizing timelines!">
                     <Button
                       variant="contained"
@@ -1772,18 +1774,18 @@ function Navbar() {
                         navigate('/register');
                       }}
                       sx={{
-                        mr: 1.5,
+                        mr: { xs: 1, sm: 1.5 },
                         borderRadius: 99,
                         background: theme.palette.mode === 'dark' 
                           ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' 
                           : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
                         color: '#fff',
                         fontWeight: 800,
-                        fontSize: '0.75rem',
+                        fontSize: { xs: '0.65rem', sm: '0.75rem' },
                         letterSpacing: 0.8,
                         textTransform: 'none',
-                        px: 2,
-                        py: 0.75,
+                        px: { xs: 1.25, sm: 2 },
+                        py: { xs: 0.5, sm: 0.75 },
                         boxShadow: theme.palette.mode === 'dark'
                           ? '0 4px 14px rgba(34, 197, 94, 0.35)'
                           : '0 4px 14px rgba(22, 101, 52, 0.2)',
@@ -1799,7 +1801,7 @@ function Navbar() {
                         transition: 'all 0.2s ease-in-out',
                       }}
                     >
-                      Join iTimeline
+                      Join<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, ml: 0.5 }}>iTimeline</Box>
                     </Button>
                   </Tooltip>
                 ) : (

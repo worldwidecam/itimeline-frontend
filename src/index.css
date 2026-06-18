@@ -65,6 +65,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+input, textarea, button, select, label {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
 /* Hide scrollbar globally while maintaining functionality */
 html,
 body {

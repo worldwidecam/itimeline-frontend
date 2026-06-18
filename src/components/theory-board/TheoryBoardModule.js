@@ -39,10 +39,10 @@ import { toRichContentPayload } from '../../utils/richContent';
 
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 2.1;
-const ZOOM_FACTOR = 1.15;
+const ZOOM_FACTOR = 1.25;
 const BASE_TEXTURE_TILE = 120;
 const BASE_CELL_SIZE = 162;
-const ABS_MIN_ZOOM = 0.002;
+const ABS_MIN_ZOOM = 0.01;
 const CUT_LIMP_DURATION_MS = 520;
 
 const TACK_COLORS = ['#cd4f56', '#4a78cf', '#4aa867', '#d9a248', '#8a67d8'];
@@ -55,13 +55,13 @@ const wrapOffset = (value, tileSize) => {
 };
 
 const mapZoomToDb = (zoom) => {
-  const clamped = Math.max(0.002, Math.min(2.1, zoom));
-  return Math.round(((clamped - 0.002) / 2.098) * 275 + 25);
+  const clamped = Math.max(0.01, Math.min(2.1, zoom));
+  return Math.round(((clamped - 0.01) / 2.09) * 275 + 25);
 };
 
 const mapDbToZoom = (dbZoom) => {
   const clamped = Math.max(25, Math.min(300, Number(dbZoom) || 100));
-  return ((clamped - 25) / 275) * 2.098 + 0.002;
+  return ((clamped - 25) / 275) * 2.09 + 0.01;
 };
 
 const isTheoryBoardStorageUnavailableError = (error) => {
@@ -411,15 +411,26 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     recenterFrameRef.current = window.requestAnimationFrame(animateStep);
   }, []);
 
-  const handleWheel = useCallback((event) => {
-    if (!isFullscreen) return;
-    event.preventDefault();
-    if (event.deltaY > 0) {
-      adjustZoom(zoom / ZOOM_FACTOR);
-    } else if (event.deltaY < 0) {
-      adjustZoom(zoom * ZOOM_FACTOR);
-    }
-  }, [isFullscreen, zoom, adjustZoom]);
+  useEffect(() => {
+    const viewportElement = viewportRef.current;
+    if (!viewportElement) return;
+
+    const handleWheelRaw = (event) => {
+      if (!isFullscreen) return;
+      event.preventDefault();
+      const currentZoom = zoomRef.current;
+      if (event.deltaY > 0) {
+        adjustZoom(currentZoom / ZOOM_FACTOR);
+      } else if (event.deltaY < 0) {
+        adjustZoom(currentZoom * ZOOM_FACTOR);
+      }
+    };
+
+    viewportElement.addEventListener('wheel', handleWheelRaw, { passive: false });
+    return () => {
+      viewportElement.removeEventListener('wheel', handleWheelRaw);
+    };
+  }, [isFullscreen, adjustZoom]);
 
   const handlePointerDown = useCallback((event) => {
     // Track active pointer touch coordinate
@@ -1364,7 +1375,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
 
           <Box
             ref={viewportRef}
-            onWheel={handleWheel}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -1531,6 +1541,16 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                   item?.type !== 'text' || !String(item?.value || '').trim()
                 ));
 
+              const scaleUpperBound = Math.min(MIN_ZOOM, dynamicMinZoom * 3.0);
+              const noteScale = zoom >= scaleUpperBound
+                ? 1.0
+                : (() => {
+                  const range = scaleUpperBound - dynamicMinZoom;
+                  if (range <= 0) return 1.0;
+                  const t = (zoom - dynamicMinZoom) / range;
+                  return 0.65 + 0.35 * Math.max(0, Math.min(1, t));
+                })();
+
               return (
                 <Box
                   key={`${pin.id}-content`}
@@ -1579,14 +1599,14 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                       : '2px 6px 12px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.12)',
                     p: (isChipOnlyContent || isEventReference) ? 0 : 1.2,
                     zIndex: 2,
-                    transform: `translateX(-50%) scale(${0.65 + 0.35 * zoom}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
+                    transform: `translateX(-50%) scale(${noteScale}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
                     transformOrigin: 'top center',
                     cursor: canOpenResolvedEventReference ? 'pointer' : 'default',
                     overflowWrap: 'anywhere',
                     wordBreak: 'break-word',
                     transition: 'transform 0.2s ease',
                     '&:hover': {
-                      transform: `translateX(-50%) scale(${(0.65 + 0.35 * zoom) * 1.02}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
+                      transform: `translateX(-50%) scale(${noteScale * 1.02}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
                       zIndex: 10,
                     }
                   }}
