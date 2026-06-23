@@ -58,7 +58,7 @@ const RemarkCard = forwardRef(({
     isLoading: voteLoading,
     error: voteError,
     handleVoteChange,
-  } = useEventVote(event?.id);
+  } = useEventVote(event?.id, { initialStats: event?.vote_totals });
 
   // Consensus derived values — for label and tie detection
   const positiveVotes = Math.round((positiveRatio || 0) * (totalVotes || 0));
@@ -552,7 +552,7 @@ const RemarkCard = forwardRef(({
                               whiteSpace: 'nowrap', lineHeight: 1,
                               color: isPositiveWinning ? theme.palette.success.main : theme.palette.error.main,
                             }}>
-                              {isPositiveWinning ? 'Good Moment' : 'Bad Moment'}
+                              {isPositiveWinning ? 'Good Take' : 'Bad Take'}
                             </Typography>
                           </motion.div>
                         )}
