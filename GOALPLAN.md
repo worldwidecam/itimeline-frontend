@@ -20,13 +20,25 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
+* voting on a post: someone voted a hashtag on a post and it took them to the timeline page? apparently?
+
+* frontend labeling on remarks should be different regarding post voting. instead of "good moment" or "bad moment" , it would make more sense to be "Good Take" or "Bad Take".
+
+* lets lower the guest login card countdown to 3 seconds
+
+* deleting a post is currently not working at all.
+
+* Remark event Popups are not fitting on the screen in mobile view.
+
+* "i should be able to open the app, or site, and be able to post something, but i can't until i refresh".
+
+* create push notification system.
+
 * add/create action hover markers
 
 * look into making this an app on apple and google play stores
 
 * app loading screen , so when a user taps the app , it opens up fast to this waiting area loading screen. examine CASHAPP for example
-
-
 
 ---
 

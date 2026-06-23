@@ -161,7 +161,7 @@ const EventPopup = ({
     isLoading: voteLoading,
     error: voteError,
     handleVoteChange,
-  } = useEventVote(event?.id, { enabled: open });
+  } = useEventVote(event?.id, { enabled: open, initialStats: event?.vote_totals });
   
   // Fetch reviewing and safeguarded status when popup opens
   useEffect(() => {
@@ -296,13 +296,13 @@ const EventPopup = ({
     if (votingInProgress) return;
     setVotingInProgress(true);
     try {
-      setIsVotingMode(false);
       const res = await api.post('/api/v1/events/' + event.id + '/tag-vote', { tag: tagName });
       setMyTagVote(tagName);
       if (res.data?.tags) {
         setLocalEventData((prev) => ({ ...(prev || event), tags: res.data.tags, my_tag_vote: tagName }));
       }
       window.dispatchEvent(new CustomEvent('refresh-timeline-events'));
+      setIsVotingMode(false);
     } catch (err) {
       console.error(err);
     } finally {

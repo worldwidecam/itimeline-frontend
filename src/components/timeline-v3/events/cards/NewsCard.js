@@ -78,7 +78,7 @@ const NewsCard = forwardRef(({
     isLoading: voteLoading,
     error: voteError,
     handleVoteChange,
-  } = useEventVote(event?.id);
+  } = useEventVote(event?.id, { initialStats: event?.vote_totals });
 
   // Consensus derived values — for label and tie detection
   const positiveVotes = Math.round((positiveRatio || 0) * (totalVotes || 0));

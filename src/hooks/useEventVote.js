@@ -110,7 +110,27 @@ const subscribe = (eventId, listener) => {
 };
 
 export const useEventVote = (eventId, options = {}) => {
-  const { enabled = true } = options;
+  const { enabled = true, initialStats = null } = options;
+
+  // Pre-populate cache if initialStats is provided and not already loaded/loading
+  if (eventId && initialStats) {
+    const current = voteStateById.get(eventId);
+    if (!current || (!current.loaded && !current.loading)) {
+      const stats = {
+        promote_count: Number(initialStats.promote ?? initialStats.promote_count ?? 0),
+        demote_count: Number(initialStats.demote ?? initialStats.demote_count ?? 0),
+        user_vote: initialStats.my_vote ?? initialStats.user_vote ?? null,
+      };
+      voteStateById.set(eventId, {
+        stats,
+        value: backendToUi(stats.user_vote),
+        loading: false,
+        error: null,
+        loaded: true,
+      });
+    }
+  }
+
   const [state, setLocalState] = useState(() => getState(eventId));
 
   useEffect(() => {

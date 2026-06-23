@@ -14,13 +14,13 @@ const consumeAuthReturnTo = () => {
 };
 
 const GoblinModeFront = ({ theme, active }) => {
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(3);
   const { loginAsGuest } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!active) {
-      setCountdown(5);
+      setCountdown(3);
       return;
     }
 
@@ -77,7 +77,7 @@ const GoblinModeFront = ({ theme, active }) => {
       <Box sx={{ position: 'relative', display: 'inline-flex', mt: 1 }}>
         <CircularProgress
           variant="determinate"
-          value={(countdown / 5) * 100}
+          value={(countdown / 3) * 100}
           color="success"
           size={70}
           thickness={4}
