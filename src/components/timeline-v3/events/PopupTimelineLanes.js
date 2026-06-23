@@ -168,9 +168,15 @@ const HashtagChips = ({
   const navigate = useNavigate();
   if (!tags.length) return null;
 
+  const lastClickTimeRef = React.useRef(0);
+
   // Handle hashtag click - open timeline in same tab by default
   const handleHashtagClick = async (e, tagName) => {
     e.stopPropagation();
+    if (Date.now() - lastClickTimeRef.current < 1000) {
+      console.log('Blocked tag navigation due to recent vote action');
+      return;
+    }
     try {
       // Strip any leading # and convert to uppercase for hashtag timeline name
       const baseName = (tagName || '').replace(/^#+/, '');
@@ -272,6 +278,7 @@ const HashtagChips = ({
               if (votingInProgress) return;
               if (isVotingMode && onHashtagVoteClick) {
                 e.stopPropagation();
+                lastClickTimeRef.current = Date.now();
                 onHashtagVoteClick(tagName);
               } else {
                 handleHashtagClick(e, tagName);
