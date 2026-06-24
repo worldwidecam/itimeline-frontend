@@ -554,7 +554,16 @@ const Register = () => {
               <Box
                 component="form"
                 onSubmit={handleSubmit}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  const isInteractive = e.target.closest(
+                    'input, button, a, label, textarea, [role="button"], [role="checkbox"], .MuiAlert-root, .MuiInputBase-root, .MuiFormHelperText-root'
+                  );
+                  if (!isInteractive) {
+                    setActiveCard(null);
+                  } else {
+                    e.stopPropagation();
+                  }
+                }}
                 sx={{
                   width: '100%',
                   height: '100%',
@@ -792,7 +801,7 @@ const Register = () => {
                 </Typography>
               </Box>
             }
-            front={<GoblinModeFront theme={theme} active={activeCard === 'goblin'} />}
+            front={<GoblinModeFront theme={theme} active={activeCard === 'goblin'} onClose={() => setActiveCard(null)} />}
           />
         </Box>
       </Box>

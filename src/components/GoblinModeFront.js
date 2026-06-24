@@ -13,7 +13,7 @@ const consumeAuthReturnTo = () => {
   return raw;
 };
 
-const GoblinModeFront = ({ theme, active }) => {
+const GoblinModeFront = ({ theme, active, onClose }) => {
   const [countdown, setCountdown] = useState(3);
   const { loginAsGuest } = useAuth();
   const navigate = useNavigate();
@@ -43,6 +43,7 @@ const GoblinModeFront = ({ theme, active }) => {
 
   return (
     <Box
+      onClick={onClose}
       sx={{
         height: '100%',
         display: 'flex',
