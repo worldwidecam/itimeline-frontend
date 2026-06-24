@@ -2332,19 +2332,21 @@ const HomePage = () => {
         return;
       }
       const timeAway = Date.now() - lastBlurTimeRef.current;
-      if (timeAway <= 60000) {
+      if (timeAway <= 180000) { // 3 minutes — avoids reload for brief app switches on mobile
         return;
       }
     }
-
-    setPageLoading(true);
-    setIsRefreshDone(false);
+    // Silent background refresh — no loading screen shown.
+    // Data updates quietly while the user sees their current content (like Instagram/Twitter).
+    // The full loading screen only appears on the very first page load (initialLoading).
     try {
-      await api.get('/api/v1/auth/me');
-
-      const response = await api.get('/api/v1/timelines', {
-        params: { limit: HOME_TIMELINES_FETCH_LIMIT },
-      });
+      // Run auth check and timeline fetch in parallel so neither blocks the other
+      const [, response] = await Promise.all([
+        api.get('/api/v1/auth/me'),
+        api.get('/api/v1/timelines', {
+          params: { limit: HOME_TIMELINES_FETCH_LIMIT },
+        }),
+      ]);
       const freshTimelines = response.data?.data || [];
       setTimelines(freshTimelines);
 
@@ -2424,12 +2426,6 @@ const HomePage = () => {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         window.location.href = '/login';
       }
-    } finally {
-      setIsRefreshDone(true);
-      setTimeout(() => {
-        setPageLoading(false);
-        setIsRefreshDone(false);
-      }, 1000);
     }
   }, [user?.id, activeHubTab, favoriteTimelineId, clearPopularCache, clearYourPageCache, fetchFollowedUsers, fetchFollowerUsers, logError]);
 
@@ -4190,16 +4186,19 @@ const HomePage = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      <NavFab
-        actions={hubActions}
-        expanded={isFabExpanded}
-        onToggleExpanded={() => setIsFabExpanded(!isFabExpanded)}
-        onCollapse={() => setIsFabExpanded(false)}
-        position="left"
-        left={24}
-        bottom={24}
-        containerZIndex={1100}
-      />
+      {/* Hide NavFab behind loading overlay — prevents it bleeding through on mobile */}
+      {!initialLoading && !pageLoading && (
+        <NavFab
+          actions={hubActions}
+          expanded={isFabExpanded}
+          onToggleExpanded={() => setIsFabExpanded(!isFabExpanded)}
+          onCollapse={() => setIsFabExpanded(false)}
+          position="left"
+          left={24}
+          bottom={24}
+          containerZIndex={1100}
+        />
+      )}
       <Box
         sx={{
           position: 'fixed',
@@ -4209,6 +4208,8 @@ const HomePage = () => {
           bottom: 0,
           zIndex: 0,
           background: appCanvasBackground,
+          // Suppress paint-through on mobile while loading overlay is active
+          visibility: (initialLoading || pageLoading) ? 'hidden' : 'visible',
         }}
       />
 
@@ -4226,6 +4227,8 @@ const HomePage = () => {
           gap: isExpandedHeight ? 2 : 1,
           overflow: 'hidden',
           transition: 'padding 850ms cubic-bezier(0.25, 0.8, 0.25, 1), gap 850ms cubic-bezier(0.25, 0.8, 0.25, 1)',
+          // Suppress paint-through on mobile while loading overlay is active
+          visibility: (initialLoading || pageLoading) ? 'hidden' : 'visible',
         }}
       >
         <motion.div

@@ -22,10 +22,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 
 
-* "i should be able to open the app, or site, and be able to post something, but i can't until i refresh". right now, when i open the site or navigate to the home page from elsewhere, the popular tab is empty and takes too long to populate.even when i press the navFAB button on home page, it takes a couple seconds to register and open. all things are slow.
--  we gotta do something about these never ending 400 and 403 errors, its slowing everything.maybe production should ignore all these and we just keep it to MAIN branch and STAGING branch.
-
-* on login/register/recover pages, we need to add clicking-to-close-the-card the the empty unused space on the cards as well. i had a focus group test the app and most didn't actually tap out of the card to close it, they tried tapping the lower empty half of the cards to close them.
 
 * create push notification system.
 
@@ -50,7 +46,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Completed
 
-* app loading screen with themed splash, party popper celebration emoji, falling confetti physics, and window focus/navbar soft refreshes (Complete)
+* on login/register/recover pages, cards can now be closed/flipped back face-down by clicking their empty background/padding space (Complete)
+
+* app loading screen with themed splash, party popper celebration emoji, falling confetti physics; mobile flicker fix; silent background refresh on window focus; covers stale-auth blocking posts, empty home page on arrival, and initial load lag (Complete)
 
 * on timeline pages > the timeline tool > the event counter > the event dot for the carousel, we can remove its little preview cards there that are for the event. (Complete)
 
