@@ -6,6 +6,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Close as CloseIcon } from '@mui/icons-material';
 import Navbar from './components/Navbar';
 import HomePage from './components/HomePage.js';
+import LoadingScreen from './components/LoadingScreen';
 import TimelineV3 from './components/timeline-v3/TimelineV3';
 import PersonalTimelineWrapper from './components/timeline-v3/PersonalTimelineWrapper';
 import Login from './components/Login';
@@ -165,11 +166,7 @@ const ProtectedRoute = ({ children }) => {
   }, [guestBootstrapFailed, guestEligiblePath, loading, location, loginAsGuest, user]);
 
   if (loading || guestBootstrapping) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingScreen message="Loading iTimeline..." />;
   }
 
   if (!user) {
@@ -198,11 +195,7 @@ const AuthRoute = ({ children }) => {
   const mustChangeUsername = isForcedRenameRequired(user);
 
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingScreen message="Loading iTimeline..." />;
   }
 
   if (!user) {

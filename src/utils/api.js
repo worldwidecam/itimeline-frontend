@@ -54,7 +54,7 @@ const normalizeLegacyApiRequest = (requestConfig) => {
   }
 
   const timelineEventsByIdMatch = url.match(/^\/api\/timeline-v3\/(\d+)\/events\/(\d+)$/);
-  if (timelineEventsByIdMatch) {
+  if (timelineEventsByIdMatch && method !== 'delete') {
     normalized.url = `/api/v1/events/${timelineEventsByIdMatch[2]}`;
     return normalized;
   }
@@ -232,6 +232,56 @@ const normalizeLegacyApiRequest = (requestConfig) => {
   return normalized;
 };
 
+export const isCdnUrlExpired = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  const lowercase = url.toLowerCase();
+  if (lowercase.includes('fbcdn.net') || lowercase.includes('cdninstagram.com')) {
+    try {
+      // Unescape HTML entities (e.g. &amp; -> &) to handle HTML-escaped feeds
+      const cleanUrl = url.replace(/&amp;/g, '&');
+      const urlObj = new URL(cleanUrl);
+      const oe = urlObj.searchParams.get('oe') || urlObj.searchParams.get('amp;oe');
+      if (oe) {
+        const expirationSec = parseInt(oe, 16);
+        if (!isNaN(expirationSec)) {
+          const currentSec = Math.floor(Date.now() / 1000);
+          return expirationSec < currentSec;
+        }
+      }
+    } catch (_) {}
+  }
+  return false;
+};
+
+const cleanExpiredCdnUrls = (obj) => {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    if (isCdnUrlExpired(obj)) {
+      console.warn(`[API Sanitizer] Expired FB/Instagram CDN URL neutralized to prevent 403 Forbidden console error: ${obj}`);
+      return null;
+    }
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      obj[i] = cleanExpiredCdnUrls(obj[i]);
+    }
+    return obj;
+  }
+  
+  if (typeof obj === 'object') {
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        obj[key] = cleanExpiredCdnUrls(obj[key]);
+      }
+    }
+    return obj;
+  }
+  
+  return obj;
+};
+
 // Add request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -258,6 +308,9 @@ api.interceptors.request.use(
 // Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
+    if (response && response.data) {
+      response.data = cleanExpiredCdnUrls(response.data);
+    }
     const shape = response?.config?.__legacyResponseShape;
     if (shape === 'timeline_list') {
       response.data = Array.isArray(response?.data?.data)
@@ -279,6 +332,11 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
+    const isProduction = import.meta.env.MODE === 'production';
+    if (isProduction && (status === 400 || status === 403)) {
+      console.warn(`[API Warning] Request to ${originalRequest?.url} failed with status ${status}:`, error.message);
+    }
     
     // Normalize new backend error shapes back to legacy string format
     if (error.response?.data?.error && typeof error.response.data.error === 'object') {

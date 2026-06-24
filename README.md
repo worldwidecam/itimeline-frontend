@@ -260,8 +260,86 @@ The GOALPLAN has been intentionally slimmed to active execution work. The follow
 - POPULAR target signal: timeline popularity (membership/follow + post volume) and post popularity (total votes).
 - YOUR PAGE target feed: community posts from memberships + posts by followed users (excluding personal posts) + posts from followed hashtags.
 
+---
+
+## Completed Context Migrated from GOALPLAN (June 2026)
+
+The following items were completed since the last archival pass and represent current platform capabilities.
+
+### Authentication UX — Trading Card Gateway (Completed)
+
+- Redesigned `/login`, `/register`, and `/recover` pages into a horizontal swipeable "trading card table" layout with curved hand-fanning tilts, raised arc elevations, and dynamic scroll-based physics tilts on mobile.
+- Implemented pure CSS 3D flip card animations, GPU text-antialiasing, collapsible scrollable input forms with locked submit footers, and a themed guest mode (Goblin Mode) doorway countdown with auto-login.
+- Symmetrized all three pages to identical 4-option card decks (Login First, Join Timeline, Forgot Keys, Goblin Mode) with consistent ordering and form design.
+- Perfected mobile view with `React.forwardRef` scroll-centering: active card snaps to screen center on mount and transitions smoothly on swipe or cross-page navigation.
+- Resolved PC Chrome text blur by standardizing active card scale to exactly `1.0`, eliminated `/register` mount lag by deferring Cloudflare Turnstile loading `600ms`.
+
+### Event Card & Popup Polish (Completed)
+
+- **Hashtag Chip Podium Indicators**: First 3 hashtag chips on event cards and popups display 🥇, 🥈, 🥉 medal emojis with scaled height hierarchy (30px, 28px, 26px) and size-appropriate font scaling.
+- **Link Card Image Protection**: Preview images on link event cards are protected with 2-line CSS line-clamping on descriptions and `flexShrink: 0` to prevent squeeze.
+- **Clickable Event IDs**: Event IDs on popups are now clickable to copy `~id` to clipboard with snackbar confirmation.
+- **Guest Mode Hashtag Gate**: Guest users no longer see the hashtag voting button (`#` trigger and voted tag chip) on event popup card footers in both media and text layouts.
+- **Tag Voting Navigation Bug**: Fixed accidental page navigation when users voted on a hashtag tag within a popup.
+- **Remark Voting Labels**: Changed Remark card consensus labels from "Good Moment" / "Bad Moment" to **"Good Take"** / **"Bad Take"** to better match the post format.
+
+### Unified Event Popup & Universal Media Display (Completed)
+
+- Merged `VideoEventPopup`, `ImageEventPopup`, `AudioMediaPopup`, and `NewsEventPopup` into a single master `EventPopup.js` component.
+- Implemented CSS-based "Entire-Popup Fullscreen" state transitions with smooth layout animations.
+- Fixed aspect ratio scaling and maintained audio/video playback continuity during mobile screen rotation.
+- Added partial swipe-down-to-dismiss improvements for normal popup media sheets on mobile.
+- Added `draggable="false"` and `WebkitUserDrag: "none"` to image/preview elements to block mobile browser native image-drag ghosting.
+- Added fullscreen header overlay (gradient, back button, title, drag handle) for exit-fullscreen affordance.
+
+### Remark Popups Mobile Layout Fix (Completed)
+
+- Fixed a flexbox height constraint bug where long descriptions in non-media Remark popups on mobile pushed dialog footer action buttons off the bottom of the screen.
+- Applied `overflow: "hidden"` to the inner wrapper `Box` and `flex: 1, minHeight: 0` to the `DialogContent` container.
+- Result: descriptions scroll internally and vote/comment/action footer buttons remain fully visible at all mobile viewport heights.
+
+### Event Deletion — Modern Backend Migration (Completed)
+
+- Deprecated the legacy `/api/timeline-v3/:id/events/:eventId` deletion endpoint.
+- Migrated both `TimelineV3.js` and `HomePage.js` deletion handlers to the modern `v1` endpoints:
+  - **Native event** (created on this timeline): `DELETE /api/v1/events/:eventId`
+  - **Shared event** (tagged to this timeline): `DELETE /api/v1/events/:eventId/shares/:timelineId`
+- Implemented real-time UI state updates on the Home Page across all tabs (popular, feed, favorites, search, creation) when a deletion succeeds.
+- Resolves prior 403 Forbidden and 404 Not Found errors caused by the legacy route bypassing the `identifySiteAdmin` middleware.
+
+### Guest Mode Countdown (Completed)
+
+- Reduced the Goblin Mode guest login card countdown from 5 seconds to **3 seconds**.
+
+### Link Events — Embedded Social Media Playback (Completed)
+
+- Expanded news-type link events to parse, embed, and inline-play: **TikTok**, **YouTube**, **Instagram**, **Twitter/X**, and **Bluesky** content previews.
+- Fixed live production YouTube thumbnails using the official oEmbed API with video-id fallbacks.
+- Resolved mobile TikTok short-link redirects in `EventForm`; updated parsing regex to make username optional.
+- Optimized scroll lock behaviors to prevent frozen page scrolls during embedded playback.
+
+### Notifications System (Completed)
+
+- Unified Activity Notifications feed with Preferences Settings, Quiet Mode, Milestones, custom Bubble Plop Sound, and avatar overlay country badges.
+
+### Query Batching Optimization (Completed)
+
+- Resolved 503 Service Unavailable / CORS errors on events retrieval by reducing database query overhead from N+1 to grouped batch queries.
+
+### Timeline Header Mobile Scaling (Completed)
+
+- Timeline header titles and username cards dynamically scale-shrink for mobile viewports to prevent overflow and clipping.
+
+### Theory Board Adaptive Zoom (Completed)
+
+- Zooming is now fully adaptive: minimum zoom dynamically recalculates to frame the dashed perimeter regardless of board size.
+- Zoom uses percentage-based multiplicative scaling at 15% intervals; decoupled zoom from recentering.
+- Database-safe zoom level integers mapped `[25, 300]` on the frontend.
+- Note box cards scale on zoom-out to prevent visual overlap.
+
 
 ## Previous Focus (October 2025)
+
 
 ### ✅ Community Timeline Implementation - COMPLETE!
 
