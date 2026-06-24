@@ -2272,8 +2272,8 @@ const handleViewModeTransition = (newViewMode) => {
         }, 100);
         
         // Set a longer timer to load events if the user hasn't interacted with filter views
-        const eventLoadDelay = userInteracted ? 0 : 2000;
-        const markerLoadDelay = userInteracted ? 0 : 1500;
+        const eventLoadDelay = userInteracted ? 0 : 1000;
+        const markerLoadDelay = userInteracted ? 0 : 750;
         const loadEventsTimer = setTimeout(async () => {
           clearInterval(structureLoadingInterval);
           setLoadingProgress(40); // Jump to 40% when starting event loading
@@ -2325,7 +2325,7 @@ const handleViewModeTransition = (newViewMode) => {
               clearInterval(markerLoadingInterval);
               setLoadingProgress(100);
               setProgressiveLoadingState('complete');
-            }, 2500); // Increased delay for markers and list to settle visually
+            }, 1250); // Delay for markers and list to settle visually (halved from 2500)
           }, markerLoadDelay); // Longer delay between events and markers
           
           return () => {

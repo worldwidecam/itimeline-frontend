@@ -3,6 +3,7 @@ import { Box, CardMedia, IconButton, Typography, Button, useTheme, useMediaQuery
 import { PlayArrow as PlayIcon, OpenInNew as OpenInNewIcon, VolumeUp as VolumeUpIcon, Fullscreen as FullscreenIcon, FullscreenExit as FullscreenExitIcon } from '@mui/icons-material';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import config from '../../../config';
+import { isCdnUrlExpired } from '../../../utils/api';
 
 // Centralized media URL normalization helper
 const normalizeMediaUrl = (url) => {
@@ -453,7 +454,8 @@ const UniversalMediaDisplay = ({
   }, [videoElement]);
 
   const safeType = (event.type || '').toLowerCase();
-  const mediaUrl = event.media_url || event.mediaUrl || event.url;
+  const rawMediaUrl = event.media_url || event.mediaUrl || event.url;
+  const mediaUrl = isCdnUrlExpired(rawMediaUrl) ? null : rawMediaUrl;
   const normalizedUrl = normalizeMediaUrl(mediaUrl);
   const embedData = getEmbedData(event.url || event.media_source || mediaUrl);
 
@@ -660,7 +662,8 @@ const UniversalMediaDisplay = ({
     }
 
     // Otherwise, normal article link (just open in new tab when clicked)
-    const previewImg = event.url_image || (mediaUrl && mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? mediaUrl : null) || '/images/fallbacks/news-link-fallback.jpg';
+    const rawPreviewImg = event.url_image || (mediaUrl && mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? mediaUrl : null) || '/images/fallbacks/news-link-fallback.jpg';
+    const previewImg = isCdnUrlExpired(rawPreviewImg) ? '/images/fallbacks/news-link-fallback.jpg' : rawPreviewImg;
     return (
       <Box
         onClick={() => {

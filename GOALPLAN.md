@@ -38,8 +38,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - data and compliance.need to explain why to any data we collect and for how long we intend to keep it.
  - IP infringement check. uspto.gov
 
-* app loading screen , so when a user taps the app , it opens up fast to this waiting area loading screen. examine CASHAPP for example
-
 * deleting a timeline ability.
 
 * deleting an account
@@ -51,6 +49,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* app loading screen with themed splash, party popper celebration emoji, falling confetti physics, and window focus/navbar soft refreshes (Complete)
 
 * on timeline pages > the timeline tool > the event counter > the event dot for the carousel, we can remove its little preview cards there that are for the event. (Complete)
 

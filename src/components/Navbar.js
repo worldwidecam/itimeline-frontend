@@ -485,36 +485,44 @@ function Navbar() {
   useEffect(() => {
     let active = true;
     const fetchWarningState = async () => {
-      if (!isTimelinePage || !timelineId) {
+      if (!isTimelinePage || !timelineId || isGuest) {
         if (active) setTimelineWarningState({ active: false });
         return;
       }
-      const warningState = await getTimelineWarningState(timelineId);
-      if (active) {
-        setTimelineWarningState(warningState || { active: false });
+      try {
+        const warningState = await getTimelineWarningState(timelineId);
+        if (active) {
+          setTimelineWarningState(warningState || { active: false });
+        }
+      } catch (_) {
+        if (active) setTimelineWarningState({ active: false });
       }
     };
     fetchWarningState();
     return () => {
       active = false;
     };
-  }, [isTimelinePage, timelineId, currentPath]);
+  }, [isTimelinePage, timelineId, currentPath, isGuest]);
 
   useEffect(() => {
     let active = true;
     const fetchStatusActionCard = async () => {
-      if (!isTimelinePage || !timelineId || !statusActionType) {
+      if (!isTimelinePage || !timelineId || !statusActionType || isGuest) {
         if (active) setStatusActionCard(null);
         return;
       }
 
-      const actionResponse = await getTimelineActions(timelineId);
-      const action = actionResponse?.success
-        ? (actionResponse.actions || []).find((item) => item?.action_type === statusActionType) || null
-        : null;
+      try {
+        const actionResponse = await getTimelineActions(timelineId);
+        const action = actionResponse?.success
+          ? (actionResponse.actions || []).find((item) => item?.action_type === statusActionType) || null
+          : null;
 
-      if (active) {
-        setStatusActionCard(action);
+        if (active) {
+          setStatusActionCard(action);
+        }
+      } catch (_) {
+        if (active) setStatusActionCard(null);
       }
     };
 
@@ -522,7 +530,7 @@ function Navbar() {
     return () => {
       active = false;
     };
-  }, [isTimelinePage, timelineId, statusActionType, currentPath]);
+  }, [isTimelinePage, timelineId, statusActionType, currentPath, isGuest]);
 
   useEffect(() => {
     let active = true;
@@ -533,7 +541,7 @@ function Navbar() {
         return;
       }
 
-      if (!user?.id) {
+      if (!user?.id || isGuest) {
         if (active) setIsStatusViewerMember(false);
         return;
       }
@@ -557,7 +565,7 @@ function Navbar() {
     return () => {
       active = false;
     };
-  }, [isTimelinePage, timelineId, user?.id, currentPath]);
+  }, [isTimelinePage, timelineId, user?.id, currentPath, isGuest]);
 
   useEffect(() => {
     if (!isTimelinePage || !timelineId || !timelineStatusMessage?.active || !statusType || timelineWarningState?.active) {
@@ -1169,7 +1177,11 @@ function Navbar() {
               const target = shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/');
               if (currentPath === target) {
                 e.preventDefault();
-                window.location.reload();
+                if (target === '/home') {
+                  window.dispatchEvent(new CustomEvent('refresh-homepage-data'));
+                } else {
+                  window.location.reload();
+                }
               }
             }}
             sx={{ 

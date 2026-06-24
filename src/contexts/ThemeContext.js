@@ -4,6 +4,8 @@ import { useAuth } from './AuthContext';
 import { updateUserPreferences } from '../utils/api';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import LoadingScreen from '../components/LoadingScreen';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ThemeContext = createContext();
 
@@ -12,46 +14,11 @@ export const useTheme = () => useContext(ThemeContext);
 export const CustomThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
+  const [isThemeDone, setIsThemeDone] = useState(false);
   const [overlayFading, setOverlayFading] = useState(false);
   const { user } = useAuth() || {};
 
-  // Inline overlay to avoid separate JSX module parse issues
-  const ThemeTransitionOverlay = () => (
-    <Box
-      aria-live="polite"
-      aria-busy="true"
-      role="status"
-      sx={{
-        position: 'fixed',
-        inset: 0,
-        background: isDarkMode ? '#000' : '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        pointerEvents: 'auto',
-        opacity: overlayFading ? 0 : 1,
-        transition: 'opacity 1000ms ease',
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          p: 0,
-          transform: overlayFading ? 'translateY(-8px) scale(0.98)' : 'translateY(0) scale(1)',
-          transition: 'transform 1000ms ease',
-        }}
-      >
-        <Box sx={{ fontWeight: 700, letterSpacing: '0.3px', color: 'text.primary', fontSize: 18, mb: 1 }}>
-          Loading your theme...
-        </Box>
-        <CircularProgress color="primary" size={48} thickness={4} />
-      </Box>
-    </Box>
-  );
+  // Premium LoadingScreen used in place of custom overlay to maintain styling standard
 
   const darkTheme = createTheme({
     palette: {
@@ -338,9 +305,9 @@ export const CustomThemeProvider = ({ children }) => {
           localStorage.setItem('darkMode', val.toString());
           // Two-phase hide: 3s total visible, fade last 1000ms with slight slide+scale
           if (val !== isDarkMode) {
-            setOverlayFading(false);
-            const t1 = setTimeout(() => setOverlayFading(true), 2000); // start fade
-            const t2 = setTimeout(() => setShowTransition(false), 3000); // unmount
+            setIsThemeDone(false);
+            const t1 = setTimeout(() => setIsThemeDone(true), 1200); // show "DONE!" and confetti
+            const t2 = setTimeout(() => setShowTransition(false), 2200); // unmount and fade
             return () => { clearTimeout(t1); clearTimeout(t2); };
           }
         }
@@ -379,7 +346,25 @@ export const CustomThemeProvider = ({ children }) => {
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme, applyPreferredTheme }}>
       <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
         {children}
-        {showTransition && <ThemeTransitionOverlay />}
+        <AnimatePresence>
+          {showTransition && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 9999,
+              }}
+            >
+              <LoadingScreen isDone={isThemeDone} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </ThemeProvider>
     </ThemeContext.Provider>
   );

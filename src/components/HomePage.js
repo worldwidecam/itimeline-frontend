@@ -94,6 +94,7 @@ import {
 import { displayUsername, usernameMatchesQuery } from '../utils/usernameDisplay';
 import GuestHubFiller from './shared/GuestHubFiller';
 import { motion, AnimatePresence } from 'framer-motion';
+import LoadingScreen from './LoadingScreen';
 
 const HOME_HERO_DEFAULT_ROTATE_MS = 75000;
 const HOME_HERO_DEFAULT_SLIDES = [
@@ -301,6 +302,8 @@ const POPULAR_FILTERS = [
   { key: 'timelines', label: 'Timelines' },
 ];
 
+let isInitialAppLoadComplete = false;
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { user, isGuest } = useAuth();
@@ -326,6 +329,7 @@ const HomePage = () => {
   const popularArrowVisibleRef = React.useRef(false);
   const popularScrollIdleTimeoutRef = React.useRef(null);
   const brokenEventReportDedupRef = React.useRef(new Map());
+  const lastBlurTimeRef = React.useRef(0);
 
   const getPopularCacheKey = React.useCallback(
     (userId) => `${POPULAR_HOME_CACHE_KEY_PREFIX}:${Number(userId || 0)}`,
@@ -345,7 +349,7 @@ const HomePage = () => {
         }
       });
     } catch (error) {
-      console.error('Error clearing Popular cache:', error);
+      logError('Error clearing Popular cache', error);
     }
   }, [getPopularCacheKey]);
 
@@ -367,7 +371,7 @@ const HomePage = () => {
         }
       });
     } catch (error) {
-      console.error('Error clearing Your Page cache:', error);
+      logError('Error clearing Your Page cache', error);
     }
   }, [getYourPageCacheKey]);
 
@@ -443,7 +447,7 @@ const HomePage = () => {
     try {
       window.localStorage.setItem('itimeline_hub_fab_expanded', String(isFabExpanded));
     } catch (e) {
-      console.error('Error saving Fab expansion state:', e);
+      logError('Error saving Fab expansion state', e);
     }
   }, [isFabExpanded]);
 
@@ -513,6 +517,21 @@ const HomePage = () => {
     timeline_mode: 'community',
   });
 
+  const [pageLoading, setPageLoading] = React.useState(false);
+  const [isRefreshDone, setIsRefreshDone] = React.useState(false);
+  const [initialLoading, setInitialLoading] = React.useState(!isInitialAppLoadComplete);
+  const [isInitialLoadDone, setIsInitialLoadDone] = React.useState(false);
+
+  const logError = React.useCallback((message, error) => {
+    const status = error?.response?.status;
+    const isProduction = import.meta.env.MODE === 'production';
+    if (isProduction && (status === 400 || status === 403 || status === 404)) {
+      console.warn(`[HomePage Warning] ${message}`, error?.message || error);
+    } else {
+      console.error(`[HomePage Error] ${message}`, error);
+    }
+  }, []);
+
   const getFavoriteTimelineKey = React.useCallback(
     (userId) => `${FAVORITE_TIMELINE_KEY_PREFIX}:${Number(userId || 0)}`,
     [],
@@ -529,15 +548,17 @@ const HomePage = () => {
     const hydrateFavoriteTimeline = async () => {
       let resolvedFavoriteTimelineId = null;
 
-      try {
-        const passportResponse = await api.get('/api/v1/user/passport');
-        const preferenceCandidate = passportResponse?.data?.preferences?.favorite_timeline_id;
-        const parsedPreference = Number(preferenceCandidate || 0);
-        if (parsedPreference > 0) {
-          resolvedFavoriteTimelineId = parsedPreference;
+      if (!isGuest) {
+        try {
+          const passportResponse = await api.get('/api/v1/user/passport');
+          const preferenceCandidate = passportResponse?.data?.preferences?.favorite_timeline_id;
+          const parsedPreference = Number(preferenceCandidate || 0);
+          if (parsedPreference > 0) {
+            resolvedFavoriteTimelineId = parsedPreference;
+          }
+        } catch (error) {
+          logError('Failed to hydrate favorite timeline from passport', error);
         }
-      } catch (error) {
-        console.warn('[HomePage] Failed to hydrate favorite timeline from passport:', error?.response?.data || error?.message || error);
       }
 
       if (!(resolvedFavoriteTimelineId > 0)) {
@@ -561,7 +582,7 @@ const HomePage = () => {
           const parsed = Number(raw || 0);
           resolvedFavoriteTimelineId = parsed > 0 ? parsed : null;
         } catch (error) {
-          console.error('Error reading favorite timeline from localStorage:', error);
+          logError('Error reading favorite timeline from localStorage', error);
           resolvedFavoriteTimelineId = null;
         }
       }
@@ -576,7 +597,7 @@ const HomePage = () => {
     return () => {
       isCancelled = true;
     };
-  }, [user?.id, getFavoriteTimelineKey]);
+  }, [user?.id, getFavoriteTimelineKey, isGuest]);
 
   React.useEffect(() => {
     if (!user?.id || favoriteTimelineId === undefined) return;
@@ -588,7 +609,7 @@ const HomePage = () => {
         window.localStorage.removeItem(key);
       }
     } catch (error) {
-      console.error('Error writing favorite timeline to localStorage:', error);
+      logError('Error writing favorite timeline to localStorage', error);
     }
   }, [user?.id, favoriteTimelineId, getFavoriteTimelineKey]);
 
@@ -598,8 +619,11 @@ const HomePage = () => {
   }, [user?.id]);
 
   React.useEffect(() => {
+    if (!user) {
+      setInitialLoading(false);
+      return;
+    }
     const fetchTimelines = async () => {
-      if (!user) return;
       try {
         setLoadingTimelines(true);
         const response = await api.get('/api/v1/timelines', {
@@ -607,9 +631,17 @@ const HomePage = () => {
         });
         setTimelines(response.data?.data || []);
       } catch (error) {
-        console.error('Error fetching timelines:', error);
+        logError('Error fetching timelines', error);
       } finally {
         setLoadingTimelines(false);
+        if (!isInitialAppLoadComplete) {
+          setIsInitialLoadDone(true);
+          setTimeout(() => {
+            isInitialAppLoadComplete = true;
+            setInitialLoading(false);
+            setIsInitialLoadDone(false);
+          }, 1800); // 1.8 seconds celebration delay to hide home page initial lag completely!
+        }
       }
     };
 
@@ -1148,11 +1180,10 @@ const HomePage = () => {
       && parsed.getDate() === now.getDate();
   }, []);
   const getEventVoteTotal = React.useCallback((event) => {
-    const totalCount = Number(event?.total_count ?? event?.totalCount ?? event?.popularity_votes ?? 0) || 0;
-    if (totalCount > 0) return totalCount;
-    const promoteCount = Number(event?.promote_count ?? event?.promoteCount ?? event?.promote ?? 0) || 0;
-    const demoteCount = Number(event?.demote_count ?? event?.demoteCount ?? event?.demote ?? 0) || 0;
-    return promoteCount + demoteCount;
+    const promoteCount = Number(event?.vote_totals?.promote ?? event?.promote_count ?? event?.promoteCount ?? event?.promote ?? 0) || 0;
+    const demoteCount = Number(event?.vote_totals?.demote ?? event?.demote_count ?? event?.demoteCount ?? event?.demote ?? 0) || 0;
+    const totalCount = Number(event?.total_count ?? event?.totalCount ?? event?.popularity_votes ?? 0) || (promoteCount + demoteCount);
+    return totalCount;
   }, []);
   const trendingCommunityTimeline = React.useMemo(() => {
     if (activeHeroSlide?.type !== 'trending_community') return null;
@@ -2216,7 +2247,7 @@ const HomePage = () => {
       setSearchEvents(dedupedById.slice(0, HOME_SEARCH_EVENTS_RESULT_LIMIT));
       setHasLoadedSearchEvents(true);
     } catch (error) {
-      console.error('Error fetching search events:', error);
+      logError('Error fetching search events', error);
       setSearchEvents([]);
     } finally {
       setLoadingSearchEvents(false);
@@ -2243,7 +2274,7 @@ const HomePage = () => {
       setSearchUsers(users.slice(0, HOME_SEARCH_USERS_RESULT_LIMIT));
     } catch (error) {
       if (error?.response?.status !== 404) {
-        console.error('Error fetching search users:', error);
+        logError('Error fetching search users', error);
       }
       setSearchUsers([]);
     } finally {
@@ -2262,7 +2293,7 @@ const HomePage = () => {
       const users = await getFollowedUsers();
       setFollowedUsers(Array.isArray(users) ? users.slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT) : []);
     } catch (error) {
-      console.error('Error fetching followed users:', error);
+      logError('Error fetching followed users', error);
       setFollowedUsers([]);
     } finally {
       setLoadingFollowedUsers(false);
@@ -2280,7 +2311,7 @@ const HomePage = () => {
       const users = await getFollowerUsers();
       setFollowerUsers(Array.isArray(users) ? users.slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT) : []);
     } catch (error) {
-      console.error('Error fetching follower users:', error);
+      logError('Error fetching follower users', error);
       setFollowerUsers([]);
     } finally {
       setLoadingFollowerUsers(false);
@@ -2294,6 +2325,139 @@ const HomePage = () => {
   React.useEffect(() => {
     fetchFollowerUsers();
   }, [fetchFollowerUsers]);
+
+  const refreshFeeds = React.useCallback(async (force = false) => {
+    if (!force) {
+      if (lastBlurTimeRef.current === 0) {
+        return;
+      }
+      const timeAway = Date.now() - lastBlurTimeRef.current;
+      if (timeAway <= 60000) {
+        return;
+      }
+    }
+
+    setPageLoading(true);
+    setIsRefreshDone(false);
+    try {
+      await api.get('/api/v1/auth/me');
+
+      const response = await api.get('/api/v1/timelines', {
+        params: { limit: HOME_TIMELINES_FETCH_LIMIT },
+      });
+      const freshTimelines = response.data?.data || [];
+      setTimelines(freshTimelines);
+
+      if (user?.id) {
+        clearPopularCache(user.id);
+        clearYourPageCache(user.id);
+      }
+
+      setHasLoadedPopular(false);
+      setHasLoadedYourPage(false);
+
+      await Promise.allSettled([
+        fetchFollowedUsers(),
+        fetchFollowerUsers()
+      ]);
+
+      if (activeHubTab === 'favorite' && favoriteTimelineId) {
+        const numericFavoriteId = Number(favoriteTimelineId);
+        const [quoteResponse, actionsResponse, statusResponse, warningResponse, favEventsResponse] = await Promise.allSettled([
+          getTimelineQuote(numericFavoriteId),
+          getTimelineActions(numericFavoriteId),
+          getTimelineStatusMessage(numericFavoriteId),
+          getTimelineWarningState(numericFavoriteId),
+          api.get(`/api/v1/events/by-timeline/${numericFavoriteId}`, {
+            params: { limit: HOME_FAVORITE_EVENTS_FETCH_LIMIT },
+          })
+        ]);
+
+        if (quoteResponse.status === 'fulfilled') {
+          const quoteText = String(quoteResponse.value?.quote?.text || '').trim();
+          const quoteAuthor = String(quoteResponse.value?.quote?.author || '').trim();
+          setFavoriteTimelineQuote({
+            text: quoteText || DEFAULT_FAVORITE_QUOTE.text,
+            author: quoteAuthor || DEFAULT_FAVORITE_QUOTE.author,
+          });
+        }
+
+        if (actionsResponse.status === 'fulfilled') {
+          const nextActions = Array.isArray(actionsResponse.value?.actions)
+            ? actionsResponse.value.actions
+              .filter((action) => action && action.action_type)
+              .filter((action) => hasMeaningfulActionCardContent(action))
+            : [];
+          setFavoriteTimelineActions(nextActions);
+        }
+
+        if (statusResponse.status === 'fulfilled') {
+          setFavoriteTimelineStatusMessage({
+            active: !!statusResponse.value?.active,
+            status_type: String(statusResponse.value?.status_type || statusResponse.value?.message_type || '').toLowerCase() || null,
+            title: String(statusResponse.value?.status_header || statusResponse.value?.title || '').trim(),
+            body: String(statusResponse.value?.status_body || statusResponse.value?.body || statusResponse.value?.message || '').trim(),
+          });
+        }
+
+        if (warningResponse.status === 'fulfilled') {
+          setFavoriteTimelineWarningState({
+            active: !!warningResponse.value?.active,
+            warning_scope: warningResponse.value?.warning_scope || null,
+            title: String(warningResponse.value?.title || '').trim(),
+            body: String(warningResponse.value?.body || warningResponse.value?.message || '').trim(),
+          });
+        }
+
+        if (favEventsResponse.status === 'fulfilled') {
+          const events = favEventsResponse.value?.data?.data || [];
+          setFavoriteTimelineEvents(
+            events.map(event => ({
+              ...event,
+              timeline_id: Number(event?.timeline_id || numericFavoriteId),
+            })).sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0))
+          );
+        }
+      }
+    } catch (error) {
+      logError('Window focus session validation failed (user might be logged out or offline)', error);
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        window.location.href = '/login';
+      }
+    } finally {
+      setIsRefreshDone(true);
+      setTimeout(() => {
+        setPageLoading(false);
+        setIsRefreshDone(false);
+      }, 1000);
+    }
+  }, [user?.id, activeHubTab, favoriteTimelineId, clearPopularCache, clearYourPageCache, fetchFollowedUsers, fetchFollowerUsers, logError]);
+
+  React.useEffect(() => {
+    const handleFocus = () => {
+      refreshFeeds(false);
+    };
+    const handleBlur = () => {
+      lastBlurTimeRef.current = Date.now();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [refreshFeeds]);
+
+  React.useEffect(() => {
+    const handleRefreshEvent = () => {
+      refreshFeeds(true);
+    };
+    window.addEventListener('refresh-homepage-data', handleRefreshEvent);
+    return () => {
+      window.removeEventListener('refresh-homepage-data', handleRefreshEvent);
+    };
+  }, [refreshFeeds]);
 
   React.useEffect(() => {
     if (!user?.id) {
@@ -2349,7 +2513,7 @@ const HomePage = () => {
       setHasLoadedPopular(true);
       setHasBootstrappedPopularCache(true);
     } catch (error) {
-      console.error('Error reading Popular cache:', error);
+      logError('Error reading Popular cache', error);
       setHasLoadedPopular(false);
       setPopularTimelines([]);
       setPopularEvents([]);
@@ -2475,8 +2639,8 @@ const HomePage = () => {
       const eventsNeedingVoteFetch = [];
 
       events.forEach((event) => {
-        const promoteRaw = event?.promote_count ?? event?.promoteCount ?? event?.promote ?? null;
-        const demoteRaw = event?.demote_count ?? event?.demoteCount ?? event?.demote ?? null;
+        const promoteRaw = event?.vote_totals?.promote ?? event?.promote_count ?? event?.promoteCount ?? event?.promote ?? null;
+        const demoteRaw = event?.vote_totals?.demote ?? event?.demote_count ?? event?.demoteCount ?? event?.demote ?? null;
 
         const hasInlineVoteStats = promoteRaw !== null || demoteRaw !== null;
 
@@ -2525,7 +2689,7 @@ const HomePage = () => {
       setHasLoadedPopular(true);
       setLoadingPopular(false);
     } catch (error) {
-      console.error('Error loading Popular data:', error);
+      logError('Error loading Popular data', error);
       setPopularTimelines([]);
       setPopularEvents([]);
       setHasLoadedPopular(true);
@@ -2539,7 +2703,7 @@ const HomePage = () => {
     if (hasLoadedPopular || loadingPopular) return;
 
     fetchPopularData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, loadingPopular, fetchPopularData, hasBootstrappedPopularCache]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, loadingPopular, fetchPopularData, hasBootstrappedPopularCache, normalizedTimelines.length]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -2554,7 +2718,7 @@ const HomePage = () => {
         cached_at: Date.now(),
       }));
     } catch (error) {
-      console.error('Error writing Popular cache:', error);
+      logError('Error writing Popular cache', error);
     }
   }, [user?.id, hasLoadedPopular, popularTimelines, popularEvents, normalizedTimelines.length, getPopularCacheKey]);
 
@@ -2621,7 +2785,7 @@ const HomePage = () => {
       setHasLoadedYourPage(true);
       setHasBootstrappedYourPageCache(true);
     } catch (error) {
-      console.error('Error reading Your Page cache:', error);
+      logError('Error reading Your Page cache', error);
       setHasLoadedYourPage(false);
       setYourPageTimelines([]);
       setYourPageEvents([]);
@@ -2819,7 +2983,7 @@ const HomePage = () => {
       setYourPageEvents(dedupedById.slice(0, HOME_YOUR_PAGE_EVENTS_RESULT_LIMIT));
       setHasLoadedYourPage(true);
     } catch (error) {
-      console.error('Error loading Your Page data:', error);
+      logError('Error loading Your Page data', error);
       setYourPageTimelines([]);
       setYourPageEvents([]);
       setHasLoadedYourPage(true);
@@ -2827,6 +2991,99 @@ const HomePage = () => {
       setLoadingYourPage(false);
     }
   }, [user, normalizedTimelines, followedUsers, currentUserId]);
+
+  const fetchYourPageTimelinesOnly = React.useCallback(async () => {
+    if (!user || isGuest) {
+      setYourPageTimelines([]);
+      return;
+    }
+
+    try {
+      const [syncedMembershipsResult, followedHashtagsResult] = await Promise.allSettled([
+        syncUserPassport(true),
+        getFollowedHashtagTimelines(),
+      ]);
+
+      const syncedMemberships = syncedMembershipsResult.status === 'fulfilled' && Array.isArray(syncedMembershipsResult.value)
+        ? syncedMembershipsResult.value
+        : [];
+      let memberships = syncedMemberships;
+      if (!memberships.length) {
+        try {
+          const fetchedMemberships = await fetchUserMemberships();
+          memberships = Array.isArray(fetchedMemberships) ? fetchedMemberships : [];
+        } catch (membershipError) {
+          console.warn('[HomePage] Membership fallback fetch failed in timelines only:', membershipError);
+          memberships = [];
+        }
+      }
+
+      const followedHashtags = followedHashtagsResult.status === 'fulfilled' && Array.isArray(followedHashtagsResult.value)
+        ? followedHashtagsResult.value
+        : [];
+
+      const timelineById = new Map();
+      normalizedTimelines.forEach((timeline) => {
+        const id = Number(timeline?.id || 0);
+        if (id > 0) timelineById.set(id, timeline);
+      });
+
+      const activeMemberships = memberships.filter((membership) => {
+        const timelineId = Number(membership?.timeline_id || 0);
+        return timelineId > 0 && membership?.is_active_member !== false;
+      });
+
+      const yourTimelineMap = new Map();
+
+      activeMemberships.forEach((membership) => {
+        const timelineId = Number(membership?.timeline_id || 0);
+        if (!(timelineId > 0)) return;
+
+        const type = String(membership?.timeline_type || '').toLowerCase();
+        if (type !== 'community' && type !== 'personal') return;
+
+        const known = timelineById.get(timelineId);
+        yourTimelineMap.set(timelineId, {
+          ...(known || {}),
+          ...(membership || {}),
+          id: timelineId,
+          name: known?.name || membership?.timeline_name || `Timeline ${timelineId}`,
+          description: known?.description || membership?.description || '',
+          timeline_type: known?.timeline_type || type,
+          visibility: known?.visibility || membership?.visibility || 'public',
+          created_by: known?.created_by || null,
+          created_at: known?.created_at || membership?.joined_at || null,
+        });
+      });
+
+      followedHashtags.forEach((timeline) => {
+        const timelineId = Number(timeline?.id || timeline?.timeline_id || 0);
+        if (!(timelineId > 0)) return;
+
+        const known = timelineById.get(timelineId);
+
+        yourTimelineMap.set(timelineId, {
+          ...(known || {}),
+          ...(timeline || {}),
+          id: timelineId,
+          name: known?.name || timeline?.name || `Timeline ${timelineId}`,
+          description: known?.description || timeline?.description || '',
+          timeline_type: 'hashtag',
+          visibility: known?.visibility || timeline?.visibility || 'public',
+          created_by: known?.created_by || timeline?.created_by || null,
+          created_at: known?.created_at || timeline?.created_at || timeline?.followed_at || null,
+        });
+      });
+
+      const mergedTimelines = Array.from(yourTimelineMap.values()).sort((a, b) => {
+        return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+      });
+
+      setYourPageTimelines(mergedTimelines);
+    } catch (error) {
+      logError('Failed to fetch timelines only', error);
+    }
+  }, [user, isGuest, normalizedTimelines]);
 
   React.useEffect(() => {
     if (!hasBootstrappedYourPageCache) return;
@@ -2836,7 +3093,7 @@ const HomePage = () => {
     if (isGuest) return; // Guests don't have passport data
 
     fetchYourPageData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest, normalizedTimelines.length]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -2851,7 +3108,7 @@ const HomePage = () => {
         cached_at: Date.now(),
       }));
     } catch (error) {
-      console.error('Error writing Your Page cache:', error);
+      logError('Error writing Your Page cache', error);
     }
   }, [user?.id, hasLoadedYourPage, yourPageTimelines, yourPageEvents, normalizedTimelines.length, getYourPageCacheKey]);
 
@@ -2888,7 +3145,7 @@ const HomePage = () => {
       setUserFollowSnackbarSeverity('success');
       setUserFollowSnackbarOpen(true);
     } catch (error) {
-      console.error('Error toggling user follow:', error);
+      logError('Error toggling user follow', error);
       const message = error?.response?.data?.error || `Could not update follow status for ${targetLabel}`;
       setUserFollowSnackbarMessage(message);
       setUserFollowSnackbarSeverity('error');
@@ -2944,7 +3201,7 @@ const HomePage = () => {
       setMyCreationEvents(dedupedById.slice(0, HOME_MY_CREATIONS_EVENTS_RESULT_LIMIT));
       setHasLoadedMyCreationEvents(true);
     } catch (error) {
-      console.error('Error fetching my creation events:', error);
+      logError('Error fetching my creation events', error);
       setMyCreationEvents([]);
     } finally {
       setLoadingMyCreationEvents(false);
@@ -3051,7 +3308,7 @@ const HomePage = () => {
       setUserFollowSnackbarSeverity('success');
       setUserFollowSnackbarOpen(true);
     } catch (error) {
-      console.error('Error deleting event:', error);
+      logError('Error deleting event', error);
       setUserFollowSnackbarMessage('Failed to delete event');
       setUserFollowSnackbarSeverity('error');
       setUserFollowSnackbarOpen(true);
@@ -3314,10 +3571,10 @@ const HomePage = () => {
     setPostTimelineSearchInput('');
     setPostTypeDialogOpen(true);
 
-    if (user?.id && !loadingYourPage) {
-      fetchYourPageData();
+    if (user?.id && yourPageTimelines.length === 0) {
+      fetchYourPageTimelinesOnly();
     }
-  }, [fetchYourPageData, loadingYourPage, user?.id]);
+  }, [fetchYourPageTimelinesOnly, yourPageTimelines.length, user?.id]);
 
   const handleCloseMakePostDialog = React.useCallback(() => {
     if (postFlowLoading) return;
@@ -3876,7 +4133,7 @@ const HomePage = () => {
     } catch (error) {
       setTimelineCreateError(true);
       setTimeout(() => setTimelineCreateError(false), 1000);
-      console.error('Error creating timeline:', error);
+      logError('Error creating timeline', error);
       setLoading(false);
     }
   };
@@ -3910,6 +4167,29 @@ const HomePage = () => {
 
   return (
     <>
+      <AnimatePresence>
+        {(pageLoading || initialLoading) && (
+          <motion.div
+            key="homepage-loader-overlay"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 9999,
+            }}
+          >
+            <LoadingScreen
+              message={initialLoading ? null : "Refreshing session and feeds..."}
+              isDone={initialLoading ? isInitialLoadDone : isRefreshDone}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <NavFab
         actions={hubActions}
         expanded={isFabExpanded}

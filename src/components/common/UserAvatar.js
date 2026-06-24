@@ -3,6 +3,7 @@ import { Avatar, Tooltip, Box } from '@mui/material';
 import { resolveAvatarColor, getInitial } from '../../utils/avatar';
 import { displayUsername } from '../../utils/usernameDisplay';
 import { getCachedUserIdentityColor } from '../../utils/userIdentityColor';
+import { isCdnUrlExpired } from '../../utils/api';
 
 export default function UserAvatar({
   name,
@@ -26,7 +27,9 @@ export default function UserAvatar({
 
   let resolvedAvatarUrl = avatarUrl;
   if (resolvedAvatarUrl) {
-    if (resolvedAvatarUrl.includes('/images/GUEST_img.png')) {
+    if (isCdnUrlExpired(resolvedAvatarUrl)) {
+      resolvedAvatarUrl = undefined;
+    } else if (resolvedAvatarUrl.includes('/images/GUEST_img.png')) {
       resolvedAvatarUrl = '/images/GUEST_img.png';
     } else if (resolvedAvatarUrl.includes('localhost:3000')) {
       try {
