@@ -54,7 +54,7 @@ const normalizeLegacyApiRequest = (requestConfig) => {
   }
 
   const timelineEventsByIdMatch = url.match(/^\/api\/timeline-v3\/(\d+)\/events\/(\d+)$/);
-  if (timelineEventsByIdMatch) {
+  if (timelineEventsByIdMatch && method !== 'delete') {
     normalized.url = `/api/v1/events/${timelineEventsByIdMatch[2]}`;
     return normalized;
   }

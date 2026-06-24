@@ -144,9 +144,9 @@ export const useSwipeDownToClose = (open, onClose) => {
         // Allow close if physical drag > 100px OR quick horizontal flick > 300px/s with > 20px movement
         if (Math.abs(currentX) > 100 || (Math.abs(velocityX) > 300 && Math.abs(currentX) > 20)) {
           if (typeof onClose === 'function') onClose();
-        } else {
-          animate(popupX, 0, { type: 'spring', damping: 25, stiffness: 200 });
         }
+        animate(popupX, 0, { type: 'spring', damping: 25, stiffness: 200 });
+        animate(popupY, 0, { type: 'spring', damping: 25, stiffness: 200 });
       }
       if (activeDragY) {
         activeDragY = false;
@@ -156,9 +156,9 @@ export const useSwipeDownToClose = (open, onClose) => {
         // A velocityY > 300 matches a quick downward flick.
         if (currentY > 50 || (velocityY > 300 && currentY > 10)) {
           if (typeof onClose === 'function') onClose();
-        } else {
-          animate(popupY, 0, { type: 'spring', damping: 25, stiffness: 200 });
         }
+        animate(popupX, 0, { type: 'spring', damping: 25, stiffness: 200 });
+        animate(popupY, 0, { type: 'spring', damping: 25, stiffness: 200 });
       }
     };
 

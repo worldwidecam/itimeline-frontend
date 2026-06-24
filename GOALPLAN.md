@@ -20,25 +20,34 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* voting on a post: someone voted a hashtag on a post and it took them to the timeline page? apparently?
 
-* frontend labeling on remarks should be different regarding post voting. instead of "good moment" or "bad moment" , it would make more sense to be "Good Take" or "Bad Take".
 
-* lets lower the guest login card countdown to 3 seconds
 
-* deleting a post is currently not working at all.
 
-* Remark event Popups are not fitting on the screen in mobile view.
 
-* "i should be able to open the app, or site, and be able to post something, but i can't until i refresh".
+* event cards NEED to vertical grow if that is what it takes to fit entire titles. we're trying upgrade twitter posts, not BE WORSE than twitter posts.
+
+* "i should be able to open the app, or site, and be able to post something, but i can't until i refresh". right now, when i open the site or navigate to the home page from elsewhere, the popular tab is empty and takes too long to populate. we gotta do something about these never ending 400 and 403 errors, its slowing everything.maybe production should ignore all these and we just keep it to MAIN branch and STAGING branch.
+
+* on login/register/recover pages, we need to add clicking-to-close-the-card the the empty unused space on the cards as well. i had a focus group test the app and most didn't actually tap out of the card to close it, they tried tapping the lower empty half of the cards to close them.
 
 * create push notification system.
 
 * add/create action hover markers
 
+* search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags
+
 * look into making this an app on apple and google play stores
 
 * app loading screen , so when a user taps the app , it opens up fast to this waiting area loading screen. examine CASHAPP for example
+
+* deleting a timeline ability.
+
+* deleting an account
+
+* block list option within friends list on home page.
+
+* sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.
 
 ---
 
@@ -58,6 +67,14 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * Timeline header titles and username cards dynamic scale-shrinking for mobile views.
 * Enhanced Theory Board zooming to be fully adaptive (dynamically recalculating minimum zoom to frame the dashed perimeter regardless of board size) and smooth (implementing percentage-based multiplicative scaling at 15% intervals); decoupled zoom from recentering, mapped database-safe zoom level integers [25, 300] on the frontend, and added scaling to note box cards to prevent overlap on zoom out.
 
+* voting on a post: someone voted a hashtag on a post and it took them to the timeline page? apparently?
+
+* frontend labeling on remarks should be different regarding post voting. instead of "good moment" or "bad moment" , it would make more sense to be "Good Take" or "Bad Take".
+
+* lets lower the guest login card countdown to 3 seconds
+
+* Fixed event deletion: Deprecated legacy backend deletion endpoint and fully migrated the frontend to route deletion requests through the modern v1 endpoints: native event deletion calls DELETE /api/v1/events/:eventId, and unsharing a shared/tagged event calls DELETE /api/v1/events/:eventId/shares/:timelineId. Implemented the handleDelete callback on the Home Page to natively delete events and dynamically filter out the deleted event from all popular, feed, favorite, search, and creation user states in real-time.
+* Remark event Popups Mobile Layout: Fixed a flexbox height constraint bug where long descriptions in non-media Remark popups on mobile pushed the dialog footer action buttons off the bottom of the screen. Added overflow: "hidden" to the inner wrapper Box and flex: 1, minHeight: 0 to the DialogContent container, ensuring that descriptions scroll internally and action/vote buttons are fully visible at the bottom of the viewport.
 
 ---
 

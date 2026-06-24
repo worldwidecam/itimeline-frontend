@@ -263,7 +263,15 @@ const EventPopup = ({
       setCommentsOpen(false);
     }
   }, [open]);
-  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen && !isMediaFullscreen, onClose);
+  const handleSwipeDown = () => {
+    if (isMediaFullscreen) {
+      setIsMediaFullscreen(false);
+    } else if (typeof onClose === 'function') {
+      onClose();
+    }
+  };
+
+  const { popupX, popupY, paperRef, scrollContainerRef } = useSwipeDownToClose(open && !commentsOpen, handleSwipeDown);
   const [isVotingMode, setIsVotingMode] = useState(false);
   const [myTagVote, setMyTagVote] = useState(event?.my_tag_vote || null);
   const [votingInProgress, setVotingInProgress] = useState(false);
@@ -1139,7 +1147,7 @@ const EventPopup = ({
           border: 'none',
           display: 'flex',
           flexDirection: 'column',
-          transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
+          transition: 'width 0.5s cubic-bezier(0.25, 1, 0.5, 1), height 0.5s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.5s cubic-bezier(0.25, 1, 0.5, 1), margin 0.5s cubic-bezier(0.25, 1, 0.5, 1), max-height 0.5s cubic-bezier(0.25, 1, 0.5, 1), max-width 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
         },
         component: motion.div,
       }}
@@ -1175,6 +1183,100 @@ const EventPopup = ({
               isMediaFullscreen={isMediaFullscreen}
               setIsMediaFullscreen={setIsMediaFullscreen}
             />
+
+            {/* Subtle top drag-handle pill for normal mode on mobile/tablet */}
+            {!isMediaFullscreen && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '32px',
+                  display: { xs: 'flex', md: 'none' }, // Only on mobile
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 100%)',
+                  zIndex: 8,
+                  pointerEvents: 'auto',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: '40px',
+                    height: '4px',
+                    borderRadius: '2px',
+                    bgcolor: 'rgba(255, 255, 255, 0.5)',
+                  }}
+                />
+              </Box>
+            )}
+
+            {/* Fullscreen Header Overlay */}
+            {isMediaFullscreen && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '72px',
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  px: 2,
+                  zIndex: 12,
+                  color: 'white',
+                  pointerEvents: 'auto',
+                }}
+              >
+                {/* Back Button */}
+                <IconButton
+                  color="inherit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMediaFullscreen(false);
+                  }}
+                  sx={{ 
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+                    mr: 2
+                  }}
+                >
+                  <FullscreenExitIcon />
+                </IconButton>
+
+                {/* Title */}
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 600,
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  {event.title || 'Fullscreen Preview'}
+                </Typography>
+
+                {/* Center Drag Handle Pill (positioned absolutely to center of header) */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '40px',
+                    height: '4px',
+                    borderRadius: '2px',
+                    bgcolor: 'rgba(255,255,255,0.5)',
+                  }}
+                />
+              </Box>
+            )}
 
 
 
@@ -1475,7 +1577,7 @@ const EventPopup = ({
             </Box>
         </Box>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', overflow: 'hidden' }}>
 
           <DialogTitle sx={{ p: { xs: 2, sm: 3 }, pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
@@ -1548,6 +1650,8 @@ const EventPopup = ({
               WebkitOverflowScrolling: 'touch', // Better smooth scrolling on iOS
               touchAction: 'pan-y', // Allow horizontal swipe to bubble up to Paper drag
               overscrollBehaviorY: 'contain',
+              flex: 1,
+              minHeight: 0,
             }}
           >
             {/* Event Description */}

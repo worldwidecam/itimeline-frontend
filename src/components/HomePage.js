@@ -3028,6 +3028,36 @@ const HomePage = () => {
     }
   }, []);
 
+  const handleDelete = React.useCallback(async (eventOrId) => {
+    try {
+      const resolvedEvent = typeof eventOrId === 'object' ? eventOrId : null;
+      const resolvedEventId = resolvedEvent ? resolvedEvent.id : eventOrId;
+      if (!resolvedEventId) {
+        throw new Error('Missing event id for deletion');
+      }
+
+      await api.delete(`/api/v1/events/${resolvedEventId}`);
+
+      const filterOutDeleted = (eventsList) => 
+        (eventsList || []).filter(e => e.id !== resolvedEventId);
+
+      setPopularEvents(filterOutDeleted);
+      setYourPageEvents(filterOutDeleted);
+      setFavoriteTimelineEvents(filterOutDeleted);
+      setSearchEvents(filterOutDeleted);
+      setMyCreationEvents(filterOutDeleted);
+
+      setUserFollowSnackbarMessage('Event deleted successfully');
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      setUserFollowSnackbarMessage('Failed to delete event');
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    }
+  }, []);
+
   const handleCloseEditDialog = React.useCallback(() => {
     if (editSubmitLoading) return;
     setEditDialogOpen(false);
@@ -3139,11 +3169,11 @@ const HomePage = () => {
         event={event}
         variant="home"
         onEdit={handleEdit}
-        onDelete={() => { }}
+        onDelete={handleDelete}
         onMediaLoadError={handleMediaLoadError}
       />
     );
-  }, [handleEdit]);
+  }, [handleEdit, handleDelete]);
 
 
 
@@ -6043,7 +6073,7 @@ const HomePage = () => {
             event={heroEventPopupEvent}
             open
             onClose={() => setHeroEventPopupEvent(null)}
-            onDelete={undefined}
+            onDelete={handleDelete}
             onEdit={handleEdit}
             setIsPopupOpen={() => { }}
             reviewingEventIds={EMPTY_REVIEWING_EVENT_IDS}

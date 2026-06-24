@@ -2687,8 +2687,15 @@ const handleViewModeTransition = (newViewMode) => {
         throw new Error('Missing event id for deletion');
       }
 
-      // Use api utility which handles prefixes correctly
-      await api.delete(`/api/v1/timeline-v3/${timelineId}/events/${resolvedEventId}`);
+      // Determine if the event is native to this timeline
+      const resolvedEvent = typeof eventOrId === 'object' ? eventOrId : events.find(e => e.id === resolvedEventId);
+      const isNative = resolvedEvent && Number(resolvedEvent.timeline_id) === Number(timelineId);
+
+      if (isNative) {
+        await api.delete(`/api/v1/events/${resolvedEventId}`);
+      } else {
+        await api.delete(`/api/v1/events/${resolvedEventId}/shares/${timelineId}`);
+      }
       
       // Remove the deleted event from state
       const updatedEvents = events.filter(event => event.id !== resolvedEventId);
