@@ -1,10 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { Box, IconButton, useTheme, Paper, Fade, Popper, Typography, Tooltip } from '@mui/material';
+import { Box, IconButton, useTheme, Typography, Tooltip } from '@mui/material';
 import { darken, lighten } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { EVENT_TYPE_COLORS } from './EventTypes';
-import EventTooltip from './EventTooltip';
 import EventPopup from './EventPopup';
 
 // Empty state component (no hooks)
@@ -39,9 +38,6 @@ const PopulatedEventCarousel = ({
   onDelete
 }) => {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [popperPlacement, setPopperPlacement] = useState('bottom');
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupEvent, setPopupEvent] = useState(null);
   
@@ -104,27 +100,6 @@ const PopulatedEventCarousel = ({
       hover: theme.palette.mode === 'dark' ? colors?.hover?.dark : colors?.hover?.light,
     };
   }, [currentEvent, getMediaSubtypeColors, theme.palette.mode, theme.palette.primary.dark, theme.palette.primary.main]);
-
-  const handleMouseEnter = useCallback((event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const spaceAbove = rect.top;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    
-    // Choose placement based on available space
-    if (spaceBelow < 200 && spaceAbove > spaceBelow) {
-      setPopperPlacement('top');
-    } else {
-      setPopperPlacement('bottom');
-    }
-    
-    setAnchorEl(event.currentTarget);
-    setIsHovered(true);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setAnchorEl(null);
-    setIsHovered(false);
-  }, []);
 
   const handleDotClick = useCallback((e) => {
     e.stopPropagation(); // Prevent event bubbling
@@ -198,8 +173,6 @@ const PopulatedEventCarousel = ({
       </Tooltip>
 
       <Box
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
         onClick={handleDotClick}
         sx={{
           width: compact ? '10px' : '12px',
@@ -248,33 +221,6 @@ const PopulatedEventCarousel = ({
           <ChevronRightIcon fontSize={compact ? 'inherit' : 'small'} />
         </IconButton>
       </Tooltip>
-
-      <Popper
-        open={isHovered}
-        anchorEl={anchorEl}
-        placement={popperPlacement}
-        transition
-        sx={{ zIndex: 1000 }}
-      >
-        {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={200}>
-            <Paper 
-              elevation={3}
-              sx={{ 
-                p: 0.5,
-                bgcolor: 'background.paper',
-                maxWidth: '250px',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: '8px',
-                boxShadow: theme.shadows[3]
-              }}
-            >
-              <EventTooltip event={currentEvent} />
-            </Paper>
-          </Fade>
-        )}
-      </Popper>
     </Box>
     </>
   );

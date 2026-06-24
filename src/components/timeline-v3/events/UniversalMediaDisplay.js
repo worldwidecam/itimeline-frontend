@@ -3,6 +3,7 @@ import { Box, CardMedia, IconButton, Typography, Button, useTheme, useMediaQuery
 import { PlayArrow as PlayIcon, OpenInNew as OpenInNewIcon, VolumeUp as VolumeUpIcon, Fullscreen as FullscreenIcon, FullscreenExit as FullscreenExitIcon } from '@mui/icons-material';
 import AudioWaveformVisualizer from '../../../components/AudioWaveformVisualizer';
 import config from '../../../config';
+import { isCdnUrlExpired } from '../../../utils/api';
 
 // Centralized media URL normalization helper
 const normalizeMediaUrl = (url) => {
@@ -352,8 +353,6 @@ const UniversalMediaDisplay = ({
   const [videoElement, setVideoElement] = useState(null);
   const [videoFailed, setVideoFailed] = useState(false);
   const [isPaused, setIsPaused] = useState(true);
-  const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
   const audioVisualizerRef = useRef(null);
   const lastTapRef = useRef(0);
 
@@ -427,28 +426,7 @@ const UniversalMediaDisplay = ({
       setIsMediaFullscreen(!isMediaFullscreen);
     }
     lastTapRef.current = now;
-  };
-
-  const handleTouchStart = (e) => {
-    if (!isMediaFullscreen) return;
-    const touch = e.touches[0];
-    touchStartY.current = touch.clientY;
-    touchStartX.current = touch.clientX;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (!isMediaFullscreen) return;
-    const touch = e.changedTouches[0];
-    const diffY = touch.clientY - touchStartY.current;
-    const diffX = touch.clientX - touchStartX.current;
-
-    // Swipe down: vertical movement downwards of at least 60px, and mostly vertical
-    if (diffY > 60 && Math.abs(diffY) > Math.abs(diffX)) {
-      setIsMediaFullscreen(false);
-    }
-  };
-
-  const handleVideoClick = (e) => {
+  };  const handleVideoClick = (e) => {
     // Avoid play/pause toggle if clicking the fullscreen button or other controls
     if (e.target.closest('.no-toggle-play')) {
       return;
@@ -476,7 +454,8 @@ const UniversalMediaDisplay = ({
   }, [videoElement]);
 
   const safeType = (event.type || '').toLowerCase();
-  const mediaUrl = event.media_url || event.mediaUrl || event.url;
+  const rawMediaUrl = event.media_url || event.mediaUrl || event.url;
+  const mediaUrl = isCdnUrlExpired(rawMediaUrl) ? null : rawMediaUrl;
   const normalizedUrl = normalizeMediaUrl(mediaUrl);
   const embedData = getEmbedData(event.url || event.media_source || mediaUrl);
 
@@ -512,8 +491,6 @@ const UniversalMediaDisplay = ({
         return (
           <Box 
             onClick={handleContainerTap}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
             sx={{ 
               width: '100%', 
               height: '100%', 
@@ -567,8 +544,6 @@ const UniversalMediaDisplay = ({
         return (
           <Box 
             onClick={handleContainerTap}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
             sx={{ 
               width: '100%', 
               height: '100%', 
@@ -622,8 +597,6 @@ const UniversalMediaDisplay = ({
       return (
         <Box 
           onClick={handleContainerTap}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
           sx={{ 
             width: '100%', 
             height: '100%', 
@@ -689,7 +662,8 @@ const UniversalMediaDisplay = ({
     }
 
     // Otherwise, normal article link (just open in new tab when clicked)
-    const previewImg = event.url_image || (mediaUrl && mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? mediaUrl : null) || '/images/fallbacks/news-link-fallback.jpg';
+    const rawPreviewImg = event.url_image || (mediaUrl && mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? mediaUrl : null) || '/images/fallbacks/news-link-fallback.jpg';
+    const previewImg = isCdnUrlExpired(rawPreviewImg) ? '/images/fallbacks/news-link-fallback.jpg' : rawPreviewImg;
     return (
       <Box
         onClick={() => {
@@ -711,10 +685,13 @@ const UniversalMediaDisplay = ({
           component="img"
           src={previewImg}
           alt={event.title}
+          draggable="false"
           sx={{
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            WebkitUserDrag: 'none',
+            userSelect: 'none',
             transition: 'transform 0.5s ease',
             '&:hover': { transform: 'scale(1.03)' }
           }}
@@ -761,8 +738,6 @@ const UniversalMediaDisplay = ({
     return (
       <Box 
         onClick={handleVideoClick}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         sx={{ 
           width: '100%', 
           height: '100%', 
@@ -895,8 +870,6 @@ const UniversalMediaDisplay = ({
     return (
       <Box
         onClick={handleContainerTap}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         sx={{
           width: '100%',
           height: '100%',
@@ -911,12 +884,15 @@ const UniversalMediaDisplay = ({
           component="img"
           image={normalizedUrl}
           alt={event.title || 'Image Preview'}
+          draggable="false"
           sx={{
             maxWidth: '100%',
             maxHeight: '100%',
             objectFit: 'contain',
             display: 'block',
             cursor: 'pointer',
+            WebkitUserDrag: 'none',
+            userSelect: 'none',
             transition: 'transform 0.4s ease',
             '&:hover': {
               transform: isMediaFullscreen ? 'none' : 'scale(1.02)'

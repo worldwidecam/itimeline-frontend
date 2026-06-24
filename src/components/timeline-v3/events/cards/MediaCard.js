@@ -43,6 +43,7 @@ import config from '../../../../config';
 import UserAvatar from '../../../common/UserAvatar';
 import { useEventVote } from '../../../../hooks/useEventVote';
 import { displayUsername } from '../../../../utils/usernameDisplay';
+import { isCdnUrlExpired } from '../../../../utils/api';
 
 const normalizeMediaUrl = (url) => {
   if (!url) return '';
@@ -363,7 +364,7 @@ const MediaCard = forwardRef(({
   // Helper function to prepare media sources
   const prepareMediaSources = (mediaSource) => {
     let mediaSources = [];
-    if (!mediaSource) return { mediaSources, fullUrl: '' };
+    if (!mediaSource || isCdnUrlExpired(mediaSource)) return { mediaSources, fullUrl: '' };
 
     // Normalize input URL by removing localhost:5000 if present
     const normalizedInput = String(mediaSource).trim().replace(/^https?:\/\/localhost:5000\//, '/');
@@ -522,7 +523,7 @@ const MediaCard = forwardRef(({
         }}
       >
         <img
-          src={mediaSources[0]}
+          src={mediaSources[0] || '/images/fallbacks/news-link-fallback.jpg'}
           alt={event.title || "Media"}
           onError={(e) => {
             const currentSrc = e.target.src;

@@ -495,11 +495,6 @@ const RemarkCard = forwardRef(({
                       lineHeight: 1.3,
                       fontSize: 'clamp(1.05rem, 1.8vw, 1.35rem)',
                       color: theme.palette.text.primary,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 4,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
                       px: 0.2,
                     }}
                   >

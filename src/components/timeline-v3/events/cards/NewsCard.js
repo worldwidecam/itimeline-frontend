@@ -45,6 +45,7 @@ import { alpha } from '@mui/material/styles';
 import UserAvatar from '../../../common/UserAvatar';
 import { displayUsername } from '../../../../utils/usernameDisplay';
 import { useEventVote } from '../../../../hooks/useEventVote';
+import { isCdnUrlExpired } from '../../../../utils/api';
 
 const normalizeMediaUrl = (url) => {
   if (!url) return '';
@@ -394,7 +395,8 @@ const NewsCard = forwardRef(({
 
   const normalizedEventUrl = normalizeExternalUrl(event?.url);
   const fallbackImageUrl = getFallbackImage(event?.url) || NEWS_LINK_FALLBACK_IMAGE;
-  const previewImageUrl = useFallbackImage ? fallbackImageUrl : (event?.url_image || fallbackImageUrl);
+  const isImageExpired = isCdnUrlExpired(event?.url_image);
+  const previewImageUrl = (useFallbackImage || isImageExpired) ? fallbackImageUrl : (event?.url_image || fallbackImageUrl);
 
   useEffect(() => {
     setHidePreviewImage(false);
