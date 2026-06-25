@@ -330,6 +330,8 @@ const HomePage = () => {
   const popularScrollIdleTimeoutRef = React.useRef(null);
   const brokenEventReportDedupRef = React.useRef(new Map());
   const lastBlurTimeRef = React.useRef(0);
+  const hasRefreshedPopularRef = React.useRef(false);
+  const hasRefreshedYourPageRef = React.useRef(false);
 
   const getPopularCacheKey = React.useCallback(
     (userId) => `${POPULAR_HOME_CACHE_KEY_PREFIX}:${Number(userId || 0)}`,
@@ -616,6 +618,8 @@ const HomePage = () => {
   React.useEffect(() => {
     setHasBootstrappedPopularCache(false);
     setHasBootstrappedYourPageCache(false);
+    hasRefreshedPopularRef.current = false;
+    hasRefreshedYourPageRef.current = false;
   }, [user?.id]);
 
   React.useEffect(() => {
@@ -634,19 +638,24 @@ const HomePage = () => {
         logError('Error fetching timelines', error);
       } finally {
         setLoadingTimelines(false);
-        if (!isInitialAppLoadComplete) {
-          setIsInitialLoadDone(true);
-          setTimeout(() => {
-            isInitialAppLoadComplete = true;
-            setInitialLoading(false);
-            setIsInitialLoadDone(false);
-          }, 1800); // 1.8 seconds celebration delay to hide home page initial lag completely!
-        }
       }
     };
 
     fetchTimelines();
   }, [user]);
+
+  React.useEffect(() => {
+    if (isInitialAppLoadComplete) return;
+
+    if (initialLoading) {
+      const timelinesLoaded = !loadingTimelines;
+      const popularLoaded = hasLoadedPopular || (timelinesLoaded && timelines.length === 0);
+
+      if (timelinesLoaded && popularLoaded && !isInitialLoadDone) {
+        setIsInitialLoadDone(true);
+      }
+    }
+  }, [loadingTimelines, hasLoadedPopular, initialLoading, isInitialLoadDone, timelines.length]);
 
   React.useEffect(() => {
     let active = true;
@@ -2517,14 +2526,16 @@ const HomePage = () => {
     }
   }, [user?.id, getPopularCacheKey, clearPopularCache]);
 
-  const fetchPopularData = React.useCallback(async () => {
+  const fetchPopularData = React.useCallback(async ({ silent = false } = {}) => {
     if (!normalizedTimelines.length) {
       setHasLoadedPopular(false);
       return;
     }
 
     try {
-      setLoadingPopular(true);
+      if (!silent) {
+        setLoadingPopular(true);
+      }
 
       const baseTimelineMap = new Map();
       normalizedTimelines.forEach((timeline) => {
@@ -2583,111 +2594,22 @@ const HomePage = () => {
       });
 
       setPopularTimelines(rankedTimelines);
-      const rankedTimelineMap = new Map(
-        rankedTimelines.map((timeline) => [Number(timeline?.id || 0), timeline]),
-      );
 
-      const publicTimelineIds = rankedTimelines.map((timeline) => Number(timeline?.id || 0)).filter((id) => id > 0);
-      const timelineEventsResults = await Promise.allSettled(
-        publicTimelineIds.map((timelineId) => api.get(`/api/v1/events/by-timeline/${timelineId}`, {
-          params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
-        })),
-      );
+      // Fetch hot-ranked popular posts directly from the backend in a single call
+      const popularEventsResponse = await api.get('/api/v1/events/popular');
+      const fetchedEvents = Array.isArray(popularEventsResponse?.data)
+        ? popularEventsResponse.data
+        : (Array.isArray(popularEventsResponse?.data?.events) ? popularEventsResponse.data.events : []);
 
-      const eventById = new Map();
-
-      timelineEventsResults.forEach((result, index) => {
-        if (result.status !== 'fulfilled') return;
-
-        const timelineId = publicTimelineIds[index];
-        const timelineMeta = rankedTimelineMap.get(timelineId) || null;
-        const payload = result.value?.data;
-        const events = Array.isArray(payload?.events)
-          ? payload.events
-          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
-
-        events.forEach((event) => {
-          const eventId = Number(event?.id || 0);
-          if (!(eventId > 0)) return;
-
-          const timelineType = String(event?.timeline_type || timelineMeta?.timeline_type || '').toLowerCase();
-          const timelineVisibility = String(event?.timeline_visibility || event?.visibility || timelineMeta?.visibility || 'public').toLowerCase();
-
-          if (timelineType === 'personal') return;
-          if (timelineVisibility === 'private') return;
-
-          if (!eventById.has(eventId)) {
-            eventById.set(eventId, {
-              ...event,
-              timeline_id: event?.timeline_id || timelineId,
-              timeline_name: event?.timeline_name || timelineMeta?.name || '',
-              timeline_type: timelineType || 'hashtag',
-              timeline_visibility: timelineVisibility,
-            });
-          }
-        });
-      });
-
-      const events = Array.from(eventById.values())
-        .sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0))
-        .slice(0, HOME_POPULAR_EVENTS_RANKING_LIMIT);
-      const rankingWithKnownVotes = [];
-      const eventsNeedingVoteFetch = [];
-
-      events.forEach((event) => {
-        const promoteRaw = event?.vote_totals?.promote ?? event?.promote_count ?? event?.promoteCount ?? event?.promote ?? null;
-        const demoteRaw = event?.vote_totals?.demote ?? event?.demote_count ?? event?.demoteCount ?? event?.demote ?? null;
-
-        const hasInlineVoteStats = promoteRaw !== null || demoteRaw !== null;
-
-        if (hasInlineVoteStats) {
-          const promote = Number(promoteRaw || 0) || 0;
-          const demote = Number(demoteRaw || 0) || 0;
-          rankingWithKnownVotes.push({
-            ...event,
-            popularity_votes: promote + demote,
-          });
-          return;
-        }
-
-        eventsNeedingVoteFetch.push(event);
-      });
-
-      const voteResults = await Promise.allSettled(
-        eventsNeedingVoteFetch.map((event) => api.get(`/api/v1/events/${event.id}/votes`)),
-      );
-
-      const fetchedVoteRanked = eventsNeedingVoteFetch.map((event, index) => {
-        const votePayload = voteResults[index]?.status === 'fulfilled'
-          ? voteResults[index].value?.data
-          : null;
-        const promote = Number(votePayload?.promote_count || votePayload?.promoteCount || 0) || 0;
-        const demote = Number(votePayload?.demote_count || votePayload?.demoteCount || 0) || 0;
-        return {
-          ...event,
-          popularity_votes: promote + demote,
-        };
-      });
-
-      const rankedEvents = [...rankingWithKnownVotes, ...fetchedVoteRanked];
-
-      // Reddit-style hot ranking: log10(votes) + (created_at_epoch_seconds / scale)
-      // Scale of 7200 (2 hours) means a post ~2 hours newer needs ~10× fewer votes to rank equally.
-      const HOT_SCALE = 7200;
-      const hotScore = (event) => {
-        const votes = Math.max(event.popularity_votes || 0, 1);
-        const createdAtSec = new Date(event?.created_at || 0).getTime() / 1000;
-        return Math.log10(votes) + (createdAtSec / HOT_SCALE);
-      };
-      rankedEvents.sort((a, b) => hotScore(b) - hotScore(a));
-
-      setPopularEvents(rankedEvents);
+      setPopularEvents(fetchedEvents);
       setHasLoadedPopular(true);
       setLoadingPopular(false);
     } catch (error) {
       logError('Error loading Popular data', error);
-      setPopularTimelines([]);
-      setPopularEvents([]);
+      if (!silent) {
+        setPopularTimelines([]);
+        setPopularEvents([]);
+      }
       setHasLoadedPopular(true);
       setLoadingPopular(false);
     }
@@ -2696,10 +2618,16 @@ const HomePage = () => {
   React.useEffect(() => {
     if (!hasBootstrappedPopularCache) return;
     if (activeHubTab !== 'popular') return;
-    if (hasLoadedPopular || loadingPopular) return;
+    if (!normalizedTimelines.length) return;
 
-    fetchPopularData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, loadingPopular, fetchPopularData, hasBootstrappedPopularCache, normalizedTimelines.length]);
+    if (!hasLoadedPopular) {
+      fetchPopularData({ silent: false });
+      hasRefreshedPopularRef.current = true;
+    } else if (!hasRefreshedPopularRef.current) {
+      fetchPopularData({ silent: true });
+      hasRefreshedPopularRef.current = true;
+    }
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, fetchPopularData, hasBootstrappedPopularCache, normalizedTimelines.length]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -2789,7 +2717,7 @@ const HomePage = () => {
     }
   }, [user?.id, getYourPageCacheKey, clearYourPageCache]);
 
-  const fetchYourPageData = React.useCallback(async () => {
+  const fetchYourPageData = React.useCallback(async ({ silent = false } = {}) => {
     if (!user || isGuest) {
       setYourPageTimelines([]);
       setYourPageEvents([]);
@@ -2803,7 +2731,9 @@ const HomePage = () => {
     }
 
     try {
-      setLoadingYourPage(true);
+      if (!silent) {
+        setLoadingYourPage(true);
+      }
 
       const [syncedMembershipsResult, followedHashtagsResult] = await Promise.allSettled([
         syncUserPassport(true), // Force refresh to get latest memberships with timeline_type
@@ -2887,106 +2817,25 @@ const HomePage = () => {
 
       setYourPageTimelines(mergedTimelines);
 
-      const membershipTimelineIds = activeMemberships
-        .filter((membership) => {
-          const type = String(membership?.timeline_type || '').toLowerCase();
-          return type === 'community' || type === 'personal';
-        })
-        .map((membership) => Number(membership?.timeline_id || 0))
-        .filter((id) => id > 0);
+      // Fetch chronological Home feed posts directly from the backend in a single call
+      const homeEventsResponse = await api.get('/api/v1/events/home');
+      const fetchedEvents = Array.isArray(homeEventsResponse?.data)
+        ? homeEventsResponse.data
+        : (Array.isArray(homeEventsResponse?.data?.events) ? homeEventsResponse.data.events : []);
 
-      const followedHashtagTimelineIds = followedHashtags
-        .map((timeline) => Number(timeline?.id || timeline?.timeline_id || 0))
-        .filter((id) => id > 0);
-
-      const targetTimelineIds = Array.from(new Set([...membershipTimelineIds, ...followedHashtagTimelineIds]))
-        .slice(0, HOME_YOUR_PAGE_TIMELINE_SOURCE_LIMIT);
-
-      const followedUserIds = followedUsers
-        .map((profileUser) => Number(profileUser?.id || 0))
-        .filter((id) => id > 0 && id !== currentUserId)
-        .slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT);
-
-      const [timelineEventResults, followedUserEventResults] = await Promise.all([
-        Promise.allSettled(
-          targetTimelineIds.map((timelineId) => api.get(`/api/v1/events/by-timeline/${timelineId}`, {
-            params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
-          })),
-        ),
-        Promise.allSettled(
-          followedUserIds.map((followedId) => api.get(`/api/v1/users/${followedId}/events`, {
-            params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
-          })),
-        ),
-      ]);
-
-      const timelineEvents = [];
-      timelineEventResults.forEach((result, index) => {
-        if (result.status !== 'fulfilled') return;
-
-        const timelineId = targetTimelineIds[index];
-        const timelineMeta = yourTimelineMap.get(timelineId) || timelineById.get(timelineId) || null;
-        const payload = result.value?.data;
-        const events = Array.isArray(payload?.events)
-          ? payload.events
-          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
-
-        events.forEach((event) => {
-          timelineEvents.push({
-            ...event,
-            timeline_id: event?.timeline_id || timelineId,
-            timeline_name: event?.timeline_name || timelineMeta?.name || '',
-            timeline_type: event?.timeline_type || timelineMeta?.timeline_type || 'hashtag',
-          });
-        });
-      });
-
-      const followedUserEvents = [];
-      followedUserEventResults.forEach((result) => {
-        if (result.status !== 'fulfilled') return;
-
-        const payload = result.value?.data;
-        const events = Array.isArray(payload?.events)
-          ? payload.events
-          : (Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []));
-
-        events.forEach((event) => {
-          const timelineId = Number(event?.timeline_id || 0);
-          const knownTimeline = timelineById.get(timelineId) || yourTimelineMap.get(timelineId) || null;
-          const timelineType = String(event?.timeline_type || knownTimeline?.timeline_type || '').toLowerCase();
-          if (timelineType === 'personal') return;
-
-          followedUserEvents.push({
-            ...event,
-            timeline_id: event?.timeline_id || knownTimeline?.id || null,
-            timeline_name: event?.timeline_name || knownTimeline?.name || '',
-            timeline_type: timelineType || 'hashtag',
-          });
-        });
-      });
-
-      const dedupedById = [];
-      const seen = new Set();
-      [...timelineEvents, ...followedUserEvents].forEach((event) => {
-        const eventId = Number(event?.id || 0);
-        if (!(eventId > 0) || seen.has(eventId)) return;
-        seen.add(eventId);
-        dedupedById.push(event);
-      });
-
-      dedupedById.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
-
-      setYourPageEvents(dedupedById.slice(0, HOME_YOUR_PAGE_EVENTS_RESULT_LIMIT));
+      setYourPageEvents(fetchedEvents.slice(0, HOME_YOUR_PAGE_EVENTS_RESULT_LIMIT));
       setHasLoadedYourPage(true);
     } catch (error) {
       logError('Error loading Your Page data', error);
-      setYourPageTimelines([]);
-      setYourPageEvents([]);
+      if (!silent) {
+        setYourPageTimelines([]);
+        setYourPageEvents([]);
+      }
       setHasLoadedYourPage(true);
     } finally {
       setLoadingYourPage(false);
     }
-  }, [user, normalizedTimelines, followedUsers, currentUserId]);
+  }, [user, normalizedTimelines]);
 
   const fetchYourPageTimelinesOnly = React.useCallback(async () => {
     if (!user || isGuest) {
@@ -3085,11 +2934,17 @@ const HomePage = () => {
     if (!hasBootstrappedYourPageCache) return;
     if (activeHubTab !== 'your-page') return;
     if (isHubPhaseOneLoading) return;
-    if (hasLoadedYourPage || loadingYourPage) return;
-    if (isGuest) return; // Guests don't have passport data
+    if (isGuest) return;
+    if (!normalizedTimelines.length) return;
 
-    fetchYourPageData();
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, loadingYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest, normalizedTimelines.length]);
+    if (!hasLoadedYourPage) {
+      fetchYourPageData({ silent: false });
+      hasRefreshedYourPageRef.current = true;
+    } else if (!hasRefreshedYourPageRef.current) {
+      fetchYourPageData({ silent: true });
+      hasRefreshedYourPageRef.current = true;
+    }
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest, normalizedTimelines.length]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -4182,6 +4037,16 @@ const HomePage = () => {
             <LoadingScreen
               message={initialLoading ? null : "Refreshing session and feeds..."}
               isDone={initialLoading ? isInitialLoadDone : isRefreshDone}
+              onComplete={() => {
+                if (initialLoading) {
+                  isInitialAppLoadComplete = true;
+                  setInitialLoading(false);
+                  setIsInitialLoadDone(false);
+                } else {
+                  setIsRefreshDone(false);
+                  setPageLoading(false);
+                }
+              }}
             />
           </motion.div>
         )}

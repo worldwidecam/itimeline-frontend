@@ -303,12 +303,10 @@ export const CustomThemeProvider = ({ children }) => {
           setIsDarkMode(val);
           // Set global for compatibility with any legacy checks
           localStorage.setItem('darkMode', val.toString());
-          // Two-phase hide: 3s total visible, fade last 1000ms with slight slide+scale
           if (val !== isDarkMode) {
             setIsThemeDone(false);
-            const t1 = setTimeout(() => setIsThemeDone(true), 1200); // show "DONE!" and confetti
-            const t2 = setTimeout(() => setShowTransition(false), 2200); // unmount and fade
-            return () => { clearTimeout(t1); clearTimeout(t2); };
+            const t1 = setTimeout(() => setIsThemeDone(true), 500); // Trigger celebration after 500ms
+            return () => clearTimeout(t1);
           }
         }
       }
@@ -361,7 +359,15 @@ export const CustomThemeProvider = ({ children }) => {
                 zIndex: 9999,
               }}
             >
-              <LoadingScreen isDone={isThemeDone} />
+              <LoadingScreen 
+                isDone={isThemeDone} 
+                minLoadingTime={1000} // shorter loader phase for theme transition
+                celebrationTime={1200} // shorter celebration phase for theme transition
+                onComplete={() => {
+                  setShowTransition(false);
+                  setIsThemeDone(false);
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
