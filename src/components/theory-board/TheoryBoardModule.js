@@ -120,6 +120,26 @@ const detectMentionAtCursor = (text, cursorPos) => {
   return null;
 };
 
+const isSingleEmoji = (text) => {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    try {
+      const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+      const segments = Array.from(segmenter.segment(trimmed));
+      if (segments.length !== 1) return false;
+      const emojiRegex = /\p{Extended_Pictographic}/u;
+      return emojiRegex.test(trimmed);
+    } catch (_) {
+      // Fallback below
+    }
+  }
+
+  const fallbackRegex = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})\uFE0F?$/u;
+  return fallbackRegex.test(trimmed);
+};
+
 const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventReference = null }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -445,7 +465,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       const p1 = activePointersMapRef.current.get(pointerIds[0]);
       const p2 = activePointersMapRef.current.get(pointerIds[1]);
       const initialDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      
+
       pinchRef.current = {
         initialDistance,
         initialZoom: zoomRef.current,
@@ -453,17 +473,17 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
         centerClientX: (p1.clientX + p2.clientX) / 2,
         centerClientY: (p1.clientY + p2.clientY) / 2,
       };
-      
+
       // Suspend single-finger panning
       setIsDragging(false);
     } else if (activePointersMapRef.current.size === 1) {
       if (event.button !== 0) return;
-      
+
       // Deselect any active pin when clicking/dragging empty space
       setSelectedPinId(null);
 
       if (isOwner && interactionMode !== 'default') return;
-      
+
       const nextDrag = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -474,7 +494,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       dragRef.current = nextDrag;
       setIsDragging(true);
     }
-    
+
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [interactionMode, isOwner, pan.x, pan.y]);
 
@@ -492,21 +512,21 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       const p1 = activePointersMapRef.current.get(pointerIds[0]);
       const p2 = activePointersMapRef.current.get(pointerIds[1]);
       const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      
+
       const scale = currentDistance / pinchRef.current.initialDistance;
       const targetZoom = clamp(pinchRef.current.initialZoom * scale, dynamicMinZoom, MAX_ZOOM);
-      
+
       setZoom(targetZoom);
-      
+
       // Adjust pan to focus zoom directly on the pinch midpoint
       const zoomRatio = targetZoom / pinchRef.current.initialZoom;
       const rect = event.currentTarget.getBoundingClientRect();
       const midX = pinchRef.current.centerClientX - rect.left - (viewportSize.width / 2);
       const midY = pinchRef.current.centerClientY - rect.top - (viewportSize.height / 2);
-      
+
       const nextPanX = midX - (midX - pinchRef.current.initialPan.x) * zoomRatio;
       const nextPanY = midY - (midY - pinchRef.current.initialPan.y) * zoomRatio;
-      
+
       setPan({ x: nextPanX, y: nextPanY });
       return;
     }
@@ -551,12 +571,12 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
         pendingPanRef.current = null;
       }
     }
-    
+
     // Smooth transition back to single-finger drag on remaining touch pointer
     if (activePointersMapRef.current.size === 1) {
       const remainingId = Array.from(activePointersMapRef.current.keys())[0];
       const remaining = activePointersMapRef.current.get(remainingId);
-      
+
       dragRef.current = {
         pointerId: remainingId,
         startX: remaining.clientX,
@@ -914,7 +934,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
             Number(node?.grid_col) === pin.grid_col
             && Number(node?.grid_row) === pin.grid_row
           ));
-        
+
         const createdNode = createdNodeFromBoard || createdData;
         const createdNodeId = Number(createdNode?.id || 0);
 
@@ -1536,10 +1556,13 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
               const previewEvent = preview?.fullEvent || preview?.resolved || null;
               const canOpenResolvedEventReference = Boolean(isEventReference && eventId && previewEvent?.id);
               const richPayload = isEventReference ? null : toRichContentPayload(contentText);
-              const isChipOnlyContent = Boolean(richPayload?.content?.length)
+              const singleEmoji = isSingleEmoji(contentText);
+              const isChipOnlyContent = singleEmoji || (
+                Boolean(richPayload?.content?.length)
                 && richPayload.content.every((item) => (
                   item?.type !== 'text' || !String(item?.value || '').trim()
-                ));
+                ))
+              );
 
               const scaleUpperBound = Math.min(MIN_ZOOM, dynamicMinZoom * 3.0);
               const noteScale = zoom >= scaleUpperBound
@@ -1580,13 +1603,13 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     borderColor: isChipOnlyContent
                       ? 'transparent'
                       : isEventReference
-                      ? 'rgba(61, 32, 18, 0.45)'
-                      : 'rgba(67, 38, 23, 0.18)',
+                        ? 'rgba(61, 32, 18, 0.45)'
+                        : 'rgba(67, 38, 23, 0.18)',
                     bgcolor: (isChipOnlyContent || isEventReference)
                       ? 'transparent'
                       : (() => {
                         const hash = String(pin.id).split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
-                        const colors = theme.palette.mode === 'dark' 
+                        const colors = theme.palette.mode === 'dark'
                           ? ['#3e3b12', '#4a1a2c', '#1a4a32', '#1a324a', '#321a4a']
                           : ['#ffff88', '#ff80ab', '#80f0ff', '#b2ff59', '#ffd180', '#ea80fc'];
                         return colors[Math.abs(hash) % colors.length];
@@ -1684,23 +1707,37 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                       if (previewType === 'news') {
                         return (
                           <Box sx={{ pointerEvents: 'none' }}>
-                            <NewsEventMarker event={previewEvent} previewOnly onPreviewClick={() => {}} />
+                            <NewsEventMarker event={previewEvent} previewOnly onPreviewClick={() => { }} />
                           </Box>
                         );
                       }
                       if (previewType === 'media') {
                         return (
                           <Box sx={{ pointerEvents: 'none' }}>
-                            <MediaEventMarker event={previewEvent} previewOnly onPreviewClick={() => {}} />
+                            <MediaEventMarker event={previewEvent} previewOnly onPreviewClick={() => { }} />
                           </Box>
                         );
                       }
                       return (
                         <Box sx={{ pointerEvents: 'none' }}>
-                          <RemarkEventMarker event={previewEvent} previewOnly onPreviewClick={() => {}} avatarSide="left" />
+                          <RemarkEventMarker event={previewEvent} previewOnly onPreviewClick={() => { }} avatarSide="left" />
                         </Box>
                       );
                     })()
+                  ) : singleEmoji ? (
+                    <Box
+                      sx={{
+                        fontSize: '3.5rem',
+                        lineHeight: 1.1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        userSelect: 'none',
+                        filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.22))',
+                      }}
+                    >
+                      {contentText}
+                    </Box>
                   ) : (
                     <RichContentRenderer
                       content={richPayload}
