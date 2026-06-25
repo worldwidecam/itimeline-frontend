@@ -309,10 +309,11 @@ const EventCounter = ({
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 2,
+        gap: { xs: 0.75, sm: 2 },
         bgcolor: 'background.paper',
         borderRadius: 2,
         p: 1,
+        px: { xs: 0.75, sm: 1.5 },
         boxShadow: 1,
         border: '1px solid',
         borderColor: 'divider',
@@ -320,7 +321,7 @@ const EventCounter = ({
         ...style
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
         <Typography variant="subtitle2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
           Events
         </Typography>

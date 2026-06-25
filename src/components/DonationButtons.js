@@ -245,7 +245,7 @@ const DonationButtons = () => {
         fontWeight: 700,
         letterSpacing: '0.02em',
         whiteSpace: 'nowrap',
-        zIndex: 1002,
+        zIndex: 99999,
         opacity: opacity, // Apply manual opacity control
         ...bubbleAnimation
       }}>
@@ -260,7 +260,7 @@ const DonationButtons = () => {
           borderLeft: '10px solid transparent',
           borderRight: '10px solid transparent',
           borderTop: '20px solid #fff7e6',
-          zIndex: 1003
+          zIndex: 100000
         }} />
         {/* Speech bubble tail border */}
         <div style={{
@@ -272,7 +272,7 @@ const DonationButtons = () => {
           borderLeft: '13px solid transparent',
           borderRight: '13px solid transparent',
           borderTop: '23px solid #1f1f1f',
-          zIndex: 1002
+          zIndex: 99999
         }} />
       </animated.div>
     ) : null;
@@ -293,7 +293,7 @@ const DonationButtons = () => {
           borderRadius: '4px',
           fontSize: '14px',
           whiteSpace: 'nowrap',
-          zIndex: 1001,
+          zIndex: 99999,
           ...style
         }}>
           {text}
@@ -322,7 +322,7 @@ const DonationButtons = () => {
           position: 'fixed',
           bottom: 30,
           right: 30,
-          zIndex: 1000,
+          zIndex: 99999,
           ...cashAppButtonAnimation
         }}
         onClick={(e) => {
@@ -378,7 +378,7 @@ const DonationButtons = () => {
           position: 'fixed',
           bottom: 30,
           right: 30,
-          zIndex: 1000,
+          zIndex: 99999,
           ...gofundmeButtonAnimation
         }}
         onClick={(e) => {
@@ -475,7 +475,7 @@ const DonationButtons = () => {
           position: 'fixed',
           bottom: 30,
           right: 30,
-          zIndex: 1000,
+          zIndex: 99999,
           ...(!open && !isHoveringMain && pulseAnimation)
         }}
         onClick={(e) => {

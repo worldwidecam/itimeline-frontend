@@ -3607,12 +3607,16 @@ const handleRecenter = () => {
           onMouseUp={handleTouchEnd}
           onMouseLeave={handleTouchEnd}
           sx={{
-            width: '100%',
+            width: { xs: 'calc(100% + 32px)', sm: '100%' },
+            mx: { xs: -2, sm: 0 },
             height: '300px',
             background: timelineSurfaces.tool,
-            borderRadius: 2,
+            borderRadius: { xs: 0, sm: 2 },
             boxShadow: 1,
-            border: `1px solid ${timelineSurfaces.toolBorder}`,
+            borderLeft: { xs: 'none', sm: `1px solid ${timelineSurfaces.toolBorder}` },
+            borderRight: { xs: 'none', sm: `1px solid ${timelineSurfaces.toolBorder}` },
+            borderTop: `1px solid ${timelineSurfaces.toolBorder}`,
+            borderBottom: `1px solid ${timelineSurfaces.toolBorder}`,
             backdropFilter: timelineSurfaces.toolBlur,
             position: 'relative',
             overflow: 'hidden',
@@ -3882,7 +3886,7 @@ const handleRecenter = () => {
           {/* Center Group: EventCounter + View Mode Buttons (always on the same row, never stack!) */}
           <Stack 
             direction="row"
-            spacing={{ xs: 1.5, sm: 3 }}
+            spacing={{ xs: 0.5, sm: 3 }}
             alignItems="center"
             justifyContent="center"
             sx={{ flexGrow: 1, width: 'auto', flexWrap: 'nowrap' }}
@@ -3997,7 +4001,7 @@ const handleRecenter = () => {
             {/* View Mode Buttons */}
             <Stack 
               direction="row" 
-              spacing={{ xs: 0.5, sm: 1 }} 
+              spacing={{ xs: 0.25, sm: 1 }} 
               alignItems="center"
               justifyContent="center"
             >
@@ -4006,7 +4010,7 @@ const handleRecenter = () => {
                 size="small"
                 onClick={() => handleViewModeTransition(viewMode === 'day' ? 'position' : 'day')}
                 disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
               >
                 Day
               </Button>
@@ -4015,7 +4019,7 @@ const handleRecenter = () => {
                 size="small"
                 onClick={() => handleViewModeTransition(viewMode === 'week' ? 'position' : 'week')}
                 disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
               >
                 Week
               </Button>
@@ -4024,7 +4028,7 @@ const handleRecenter = () => {
                 size="small"
                 onClick={() => handleViewModeTransition(viewMode === 'month' ? 'position' : 'month')}
                 disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
               >
                 Month
               </Button>
@@ -4033,7 +4037,7 @@ const handleRecenter = () => {
                 size="small"
                 onClick={() => handleViewModeTransition(viewMode === 'year' ? 'position' : 'year')}
                 disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, minWidth: { xs: '45px', sm: '64px' } }}
+                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
               >
                 Year
               </Button>
