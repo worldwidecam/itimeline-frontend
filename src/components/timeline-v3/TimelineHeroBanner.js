@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Box, Typography, Skeleton } from '@mui/material';
+import { Box, Typography, Skeleton, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
@@ -20,6 +20,8 @@ export const TimelineHeroBanner = ({
   sx = {}
 }) => {
   const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const xTranslationFactor = isDesktop ? 0.9 : 0.9 * (8 / 4.5);
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const cleanCoverImageUrl = String(coverImageUrl || '').trim();
 
@@ -64,6 +66,8 @@ export const TimelineHeroBanner = ({
   return (
     <Box
       sx={{
+        width: '100%',
+        maxWidth: '100%',
         mb: 3,
         mt: 2,
         minHeight: { xs: 80, md: 120 },
@@ -100,7 +104,7 @@ export const TimelineHeroBanner = ({
             filter: coverUploadEnabled
               ? 'brightness(1.05) saturate(1.04)'
               : 'blur(18px) saturate(0.42)',
-            transform: `translate(${(Number(coverLandscapeX ?? 50) - 50) * 0.9}%, ${(Number(coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${coverUploadEnabled ? (Number(coverZoom ?? 1) || 1) : ((Number(coverZoom ?? 1) || 1) + 0.08)})`,
+            transform: `translate(${(Number(coverLandscapeX ?? 50) - 50) * xTranslationFactor}%, ${(Number(coverLandscapeY ?? 50) - 50) * 0.9}%) scale(${coverUploadEnabled ? (Number(coverZoom ?? 1) || 1) : ((Number(coverZoom ?? 1) || 1) + 0.08)})`,
           }}
         />
       )}

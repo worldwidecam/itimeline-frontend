@@ -20,8 +20,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
+* landing page demo timeline should use actual posts, with nuance  of course. the posts must be publically allowed.
 
-
+* 
 
 * create push notification system.
 
@@ -53,6 +54,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * on timeline pages > the timeline tool > the event counter > the event dot for the carousel, we can remove its little preview cards there that are for the event. (Complete)
 
 * event cards NEED to vertical grow if that is what it takes to fit entire titles. we're trying upgrade twitter posts, not BE WORSE than twitter posts. (Complete)
+
+* timeline page mobile layout improvements: expanded timeline visualizer edge-to-edge (no buffer space), centered cover image banner container (width constrained to fit viewport), shrunk view filter buttons to fit without stacking or wrapping, and implemented a responsive coordinate scaling factor to keep user-defined cover framing identical on mobile viewports (Complete)
 
 > Historical completion notes have been migrated to `README.md` under the **"Completed Context Migrated from GOALPLAN"** section for durable reference. Only the most recent completions are held here briefly before migration.
 

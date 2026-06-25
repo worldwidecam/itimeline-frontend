@@ -276,9 +276,9 @@ const LandingPage = () => {
                 component="span"
                 sx={{
                   position: 'absolute',
-                  top: '55%',
-                  left: '100%',
-                  marginLeft: { xs: '8px', sm: '12px' },
+                  top: { xs: '105%', sm: '105%', md: '55%' },
+                  left: { xs: '65%', sm: '75%', md: '100%' },
+                  marginLeft: { xs: '0px', md: '12px' },
                   transform: 'translateY(-50%) rotate(-6deg)',
                   fontSize: { xs: '0.65rem', sm: '0.85rem' },
                   fontFamily: '"Comic Sans MS", "Comic Neue", sans-serif',
@@ -296,23 +296,25 @@ const LandingPage = () => {
                   '&::before': {
                     content: '""',
                     position: 'absolute',
-                    left: '-14px',
-                    bottom: '8px',
+                    left: { xs: '15px', md: '-14px' },
+                    bottom: { xs: 'auto', md: '8px' },
+                    top: { xs: '-14px', md: 'auto' },
                     width: '16px',
                     height: '16px',
                     backgroundColor: '#1f1f1f',
-                    clipPath: 'polygon(100% 0, 0 50%, 100% 100%)',
+                    clipPath: { xs: 'polygon(50% 0, 0 100%, 100% 100%)', md: 'polygon(100% 0, 0 50%, 100% 100%)' },
                     zIndex: -1
                   },
                   '&::after': {
                     content: '""',
                     position: 'absolute',
-                    left: '-10px',
-                    bottom: '9px',
+                    left: { xs: '17px', md: '-10px' },
+                    bottom: { xs: 'auto', md: '9px' },
+                    top: { xs: '-10px', md: 'auto' },
                     width: '12px',
                     height: '12px',
                     backgroundColor: '#fff7e6',
-                    clipPath: 'polygon(100% 0, 0 50%, 100% 100%)',
+                    clipPath: { xs: 'polygon(50% 0, 0 100%, 100% 100%)', md: 'polygon(100% 0, 0 50%, 100% 100%)' },
                     zIndex: 1
                   }
                 }}
