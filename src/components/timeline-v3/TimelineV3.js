@@ -109,6 +109,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [postingMinRole, setPostingMinRole] = useState('moderator');
   const [accessDenied, setAccessDenied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'success', 'error', or null
   const [joinSnackbarOpen, setJoinSnackbarOpen] = useState(false);
@@ -185,10 +186,24 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       
       try {
         setIsLoading(true);
+        setLoadFailed(false);
         // Use the getTimelineDetails utility function instead of direct API call
         // Import the getTimelineDetails function from api.js
         const { getTimelineDetails } = await import('../../utils/api');
-        const timelineData = await getTimelineDetails(timelineId);
+
+        // Retry up to 2 times on transient non-403 errors.
+        // getTimelineDetails swallows all errors into a fallback object with error:true,
+        // so we detect that and retry rather than silently displaying "Timeline <id>".
+        const RETRY_DELAYS = [600, 1500];
+        let timelineData = null;
+        for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+          timelineData = await getTimelineDetails(timelineId);
+          // 403 is an expected/permanent state — don't retry it
+          if (!timelineData.error || timelineData.statusCode === 403) break;
+          if (attempt < RETRY_DELAYS.length) {
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS[attempt]));
+          }
+        }
 
         if (timelineData && timelineData.error && timelineData.statusCode === 403) {
           // Mark this timeline as locked for the current user and clear any stale name
@@ -197,7 +212,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           return;
         }
         
-        if (timelineData && timelineData.name) {
+        if (timelineData && timelineData.name && !timelineData.error) {
           setTimelineName(timelineData.name);
           setTimelineDescription(String(timelineData.description || ''));
           setTimelineType(timelineData.timeline_type || 'hashtag');
@@ -237,7 +252,8 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           setCoverUploadEnabled(timelineData.cover_upload_enabled !== false);
           setTimelineIsSafeguarded(Boolean(timelineData.is_safeguarded));
         } else {
-          console.error('Timeline data is missing or incomplete:', response.data);
+          console.error('Timeline data is missing or incomplete after retries:', timelineData);
+          setLoadFailed(true);
         }
       } catch (error) {
         if (error?.response?.status === 403) {
@@ -249,6 +265,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           console.error('Error response:', error.response);
           console.error('Error request:', error.request);
           console.error('Error config:', error.config);
+          setLoadFailed(true);
         }
       } finally {
         setIsLoading(false);
@@ -267,6 +284,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       fetchTimelineDetails();
     }
   }, [timelineId, hookStatus]);
+
 
   useEffect(() => {
     let active = true;
@@ -3161,6 +3179,10 @@ const handleRecenter = () => {
   // returns a 403 for the current user. Treat that as the single source of truth.
   if (!joinLoading && hookStatus === 'locked') {
     return <PersonalTimelineLock username={routeUsername} slug={routeSlug} />;
+  }
+
+  if (loadFailed) {
+    throw new Error('Could not load timeline details.');
   }
 
   const shouldShowInitialTimelineShell = Boolean(timelineId && timelineId !== 'new') && (joinLoading || isLoading);

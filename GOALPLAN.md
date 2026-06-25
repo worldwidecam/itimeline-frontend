@@ -20,10 +20,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* landing page demo timeline should use actual posts, with nuance  of course. the posts must be publically allowed.
-
-* 
-
 * create push notification system.
 
 * add/create action hover markers
@@ -43,9 +39,24 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.
 
+* the B Pointer arrow+element is not properly refreshing upon timeline change. i am on one timeline page > i click an event > the pointer B element appears below it > i navigate to another timeline page > it loads > the pointer B element remains where it was from the previous page.
 ---
 
 ## Completed
+
+* upgraded Theory Board emojis containing single emojis to render as polished stickers with a solid contour silhouette backing (stacked text-shadow outline) and drop-shadow, removing visible background container cards (Complete)
+
+* resolved empty Popular and Home tabs when returning to homepage by loading cached data immediately and silently revalidating data in the background (Complete)
+
+* designed and built a global popular posts API on the backend and integrated it into the frontend Popular tab, reducing network requests from 20+ down to 1 single call (Complete)
+
+* optimized the Home feed query path with a bulk API and integrated it into the frontend Home tab, reducing network requests from 20+ down to 1 single call (Complete)
+
+* perfected the loading screen's celebration confetti animation timing and resolved the hook timer cleanup race condition (Complete)
+
+* when i am on home page, coordinated the loading screen to wait for the popular event posts list to finish loading before dismissing (Complete)
+
+* when navigating to a timeline page (e.g. from hashtag chips), added 2 retry attempts on transient failures; if retries still fail, render the ErrorPage component instead of silently displaying a fake/blank "Timeline <id>" page (Complete)
 
 * on login/register/recover pages, cards can now be closed/flipped back face-down by clicking their empty background/padding space (Complete)
 

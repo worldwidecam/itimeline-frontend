@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, CircularProgress, Typography, useTheme, alpha } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import TimelineIcon from '@mui/icons-material/Event';
 
 const ConfettiParticle = ({ delay, angle, color }) => {
@@ -36,6 +36,9 @@ const ConfettiParticle = ({ delay, angle, color }) => {
         borderRadius: Math.random() > 0.5 ? '50%' : '2px',
         backgroundColor: color,
         transform: `translate(var(--startX), var(--startY)) scale(0)`,
+        willChange: 'transform, opacity',
+        transformStyle: 'preserve-3d',
+        backfaceVisibility: 'hidden',
         animation: `explode 1.8s cubic-bezier(0.1, 0.8, 0.25, 1) forwards`,
         animationDelay: `${delay}s`,
         '@keyframes explode': {
@@ -57,9 +60,61 @@ const ConfettiParticle = ({ delay, angle, color }) => {
   );
 };
 
-function LoadingScreen({ message, cycle = true, isDone = false }) {
+function LoadingScreen({ 
+  message, 
+  cycle = true, 
+  isDone = false,
+  onComplete,
+  minLoadingTime = 2500, // Enforce 2.5s minimum loading duration for consistent pacing
+  celebrationTime = 1800 // Enforce 1.8s celebration/confetti animation duration
+}) {
   const theme = useTheme();
   const [currentMessage, setCurrentMessage] = React.useState(message || "Loading theme...");
+  
+  // Phase state: 'loading' | 'celebration' | 'complete'
+  const [phase, setPhase] = React.useState('loading');
+  const [minTimeElapsed, setMinTimeElapsed] = React.useState(false);
+  const [showConfetti, setShowConfetti] = React.useState(false);
+
+  // 1. Min loading duration timer
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinTimeElapsed(true);
+    }, minLoadingTime);
+    return () => clearTimeout(timer);
+  }, [minLoadingTime]);
+
+  // 2. Transition from 'loading' to 'celebration' once loaded AND min time passed
+  React.useEffect(() => {
+    if (phase === 'loading' && isDone && minTimeElapsed) {
+      setPhase('celebration');
+    }
+  }, [phase, isDone, minTimeElapsed]);
+
+  // 2b. Start confetti delay once we enter celebration phase
+  React.useEffect(() => {
+    if (phase === 'celebration') {
+      const timer = setTimeout(() => {
+        setShowConfetti(true);
+      }, 360); // Trigger confetti exactly when the emoji reaches its maximum size (60% of its 0.6s bounce animation)
+      return () => clearTimeout(timer);
+    }
+  }, [phase]);
+
+  // 3. Transition from 'celebration' to 'complete' and invoke callback
+  React.useEffect(() => {
+    if (phase === 'celebration') {
+      const timer = setTimeout(() => {
+        setPhase('complete');
+        if (onComplete) {
+          onComplete();
+        }
+      }, celebrationTime);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, celebrationTime, onComplete]);
+
+  const showDone = phase === 'celebration' || phase === 'complete';
 
   React.useEffect(() => {
     if (message) {
@@ -78,10 +133,11 @@ function LoadingScreen({ message, cycle = true, isDone = false }) {
     const interval = setInterval(() => {
       index = (index + 1) % messages.length;
       setCurrentMessage(messages[index]);
-    }, 700);
+    }, 1200); // Relaxed cycle to keep updates smooth and legible
 
     return () => clearInterval(interval);
   }, [message, cycle]);
+
 
   return (
     <Box
@@ -173,17 +229,28 @@ function LoadingScreen({ message, cycle = true, isDone = false }) {
           }}
         >
           {/* Animated Pulsing Icon */}
-          <motion.div
-            animate={{
-              scale: [1, 1.08, 1],
-              opacity: [0.9, 1, 0.9],
+          <Box
+            sx={{
+              marginBottom: 3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              willChange: 'transform, opacity',
+              animation: showDone ? 'none' : 'pulseSmooth 2.2s ease-in-out infinite',
+              '@keyframes pulseSmooth': {
+                '0%, 100%': {
+                  transform: 'scale(1)',
+                  opacity: 0.9,
+                },
+                '50%': {
+                  transform: 'scale(1.08)',
+                  opacity: 1,
+                }
+              },
+              transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease',
+              transform: showDone ? 'scale(1)' : 'none',
+              opacity: showDone ? 0.9 : 'initial',
             }}
-            transition={{
-              duration: 2.2,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-            style={{ marginBottom: 24 }}
           >
             <Box
               sx={{
@@ -210,7 +277,7 @@ function LoadingScreen({ message, cycle = true, isDone = false }) {
                 }}
               />
             </Box>
-          </motion.div>
+          </Box>
  
           {/* App Title */}
           <Typography
@@ -240,17 +307,17 @@ function LoadingScreen({ message, cycle = true, isDone = false }) {
             }}
           >
             {/* The Spinner (shrinks and fades when done) */}
-            <motion.div
-              animate={{
-                scale: isDone ? 0 : 1,
-                opacity: isDone ? 0 : 1,
-              }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-              style={{
+            <Box
+              sx={{
                 position: 'absolute',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                willChange: 'transform, opacity',
+                transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+                transform: showDone ? 'scale(0)' : 'scale(1)',
+                opacity: showDone ? 0 : 1,
+                pointerEvents: showDone ? 'none' : 'auto',
               }}
             >
               <Box
@@ -268,80 +335,136 @@ function LoadingScreen({ message, cycle = true, isDone = false }) {
                   }
                 }}
               />
-            </motion.div>
+            </Box>
 
             {/* Bouncy Celebration Emoji & Confetti (scales up when done) */}
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{
-                scale: isDone ? 1.2 : 0,
-                opacity: isDone ? 1 : 0,
-              }}
-              transition={{
-                type: 'spring',
-                stiffness: 260,
-                damping: 15,
-              }}
-              style={{
-                position: 'absolute',
-                fontSize: '3rem',
-                zIndex: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <span style={{ position: 'relative', zIndex: 3 }}>🎉</span>
-              {isDone && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    width: 0,
-                    height: 0,
-                    overflow: 'visible',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    pointerEvents: 'none',
-                    zIndex: 1,
-                  }}
-                >
-                  {Array.from({ length: 24 }).map((_, i) => {
-                    const angleDeg = -95 + (i * 110) / 23; // spray between -95deg and 15deg (top-right cone)
-                    const delay = (i % 4) * 0.08; // smooth staggered start
-                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#eab308'];
-                    const color = colors[i % colors.length];
-                    return (
-                      <ConfettiParticle
-                        key={i}
-                        angle={angleDeg}
-                        delay={delay}
-                        color={color}
-                      />
-                    );
-                  })}
-                </Box>
-              )}
-            </motion.div>
+            {showDone && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  fontSize: '3rem',
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  willChange: 'transform, opacity',
+                  animation: 'emojiBouncy 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                  '@keyframes emojiBouncy': {
+                    '0%': {
+                      transform: 'scale(0)',
+                      opacity: 0,
+                    },
+                    '60%': {
+                      transform: 'scale(1.35)',
+                      opacity: 1,
+                    },
+                    '100%': {
+                      transform: 'scale(1.2)',
+                      opacity: 1,
+                    }
+                  }
+                }}
+              >
+                <span style={{ position: 'relative', zIndex: 3 }}>🎉</span>
+                {showConfetti && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      width: 0,
+                      height: 0,
+                      overflow: 'visible',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      pointerEvents: 'none',
+                      zIndex: 1,
+                    }}
+                  >
+                    {Array.from({ length: 24 }).map((_, i) => {
+                      const angleDeg = -95 + (i * 110) / 23; // spray between -95deg and 15deg (top-right cone)
+                      const delay = (i % 4) * 0.08; // smooth staggered start
+                      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#eab308'];
+                      const color = colors[i % colors.length];
+                      return (
+                        <ConfettiParticle
+                          key={i}
+                          angle={angleDeg}
+                          delay={delay}
+                          color={color}
+                        />
+                      );
+                    })}
+                  </Box>
+                )}
+              </Box>
+            )}
           </Box>
  
           {/* Status Message */}
-          <Box sx={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: isDone ? 800 : 600,
-                color: isDone ? '#10b981' : theme.palette.text.secondary,
-                px: 2,
-                whiteSpace: 'nowrap',
-                transition: 'all 0.3s ease',
-                transform: isDone ? 'scale(1.1)' : 'scale(1)',
-              }}
-            >
-              {isDone ? "DONE!" : currentMessage}
-            </Typography>
+          <Box sx={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', width: '100%' }}>
+            {!showDone ? (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentMessage}
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.7, opacity: 0 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 280,
+                    damping: 18,
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 600,
+                      color: theme.palette.text.secondary,
+                      px: 2,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {currentMessage}
+                  </Typography>
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <Box
+                sx={{
+                  willChange: 'transform, opacity',
+                  animation: 'doneBouncy 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                  '@keyframes doneBouncy': {
+                    '0%': {
+                      transform: 'scale(0.5)',
+                      opacity: 0,
+                    },
+                    '60%': {
+                      transform: 'scale(1.2)',
+                      opacity: 1,
+                    },
+                    '100%': {
+                      transform: 'scale(1.15)',
+                      opacity: 1,
+                    }
+                  }
+                }}
+              >
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 800,
+                    color: '#10b981',
+                    px: 2,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  DONE!
+                </Typography>
+              </Box>
+            )}
           </Box>
         </Box>
       </motion.div>

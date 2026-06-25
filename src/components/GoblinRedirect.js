@@ -9,6 +9,7 @@ import {
   Stack,
   useTheme,
   GlobalStyles,
+  Divider,
 } from '@mui/material';
 import {
   Lock as LockIcon,
