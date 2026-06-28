@@ -11,11 +11,16 @@ import {
   InputAdornment,
   GlobalStyles,
   Avatar,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { recoverAccount } from '../utils/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import api, { recoverAccount } from '../utils/api';
 import {
   getGlassInputSx,
   getGlassPillActionButtonSx,
@@ -51,6 +56,126 @@ const AccountRecoveryPage = () => {
   const [activeCard, setActiveCard] = useState(null);
   const anyCardActive = !!activeCard;
   const [isEntering, setIsEntering] = useState(true);
+
+  // Email Code Recovery States
+  const [recoveryMethod, setRecoveryMethod] = useState(null); // null (selection) | 'email' | 'key'
+  const [emailCode, setEmailCode] = useState('');
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const handleSendCode = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setShake(false);
+
+    const email = formData.email.trim();
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      triggerErrorShake();
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await api.post('/api/v1/auth/send-recovery-code', { email });
+      setEmailCodeSent(true);
+      setSuccessMessage('A 6-digit recovery code has been sent to your email!');
+    } catch (e) {
+      const message = e?.response?.data?.error || e?.message || 'Failed to send recovery code';
+      setError(message);
+      triggerErrorShake();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResetWithCode = async (event) => {
+    event.preventDefault();
+    setError('');
+    setShake(false);
+
+    const email = formData.email.trim();
+    const code = emailCode.trim();
+    const newPassword = formData.newPassword;
+    const confirmPassword = formData.confirmPassword;
+
+    if (!email || !code || !newPassword || !confirmPassword) {
+      setError('All fields are required.');
+      triggerErrorShake();
+      return;
+    }
+
+    if (code.length !== 6) {
+      setError('Please enter the 6-digit verification code.');
+      triggerErrorShake();
+      return;
+    }
+
+    if (newPassword.length < 12) {
+      setError('New password must be at least 12 characters long.');
+      triggerErrorShake();
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match.');
+      triggerErrorShake();
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await api.post('/api/v1/auth/reset-password-with-code', {
+        email,
+        code,
+        new_password: newPassword
+      });
+
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+      }
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+      }
+
+      localStorage.removeItem('user');
+      localStorage.setItem('itl_recovery_nudge', 'true');
+      window.location.href = '/home';
+    } catch (e) {
+      const message = e?.response?.data?.error || e?.message || 'Failed to reset password';
+      setError(message);
+      triggerErrorShake();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getFormSubmitHandler = () => {
+    if (recoveryMethod === 'key') return handleSubmit;
+    return emailCodeSent ? handleResetWithCode : handleSendCode;
+  };
+
+  const getButtonText = () => {
+    if (submitting) {
+      return recoveryMethod === 'email' && !emailCodeSent ? 'Sending…' : 'Recovering…';
+    }
+    if (recoveryMethod === 'email' && !emailCodeSent) {
+      return 'Send Recovery Code';
+    }
+    return 'Recover';
+  };
+
+  const isButtonDisabled = () => {
+    if (submitting) return true;
+    if (recoveryMethod === 'key') {
+      return !formData.email || !formData.backupPassword || !formData.newPassword || !formData.confirmPassword;
+    }
+    if (!emailCodeSent) {
+      return !formData.email;
+    }
+    return !formData.email || !emailCode || !formData.newPassword || !formData.confirmPassword;
+  };
 
   const containerRef = React.useRef(null);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -588,7 +713,7 @@ const AccountRecoveryPage = () => {
             front={
               <Box
                 component="form"
-                onSubmit={handleSubmit}
+                onSubmit={getFormSubmitHandler()}
                 onClick={(e) => {
                   const isInteractive = e.target.closest(
                     'input, button, a, label, textarea, [role="button"], [role="checkbox"], .MuiAlert-root, .MuiInputBase-root, .MuiFormHelperText-root'
@@ -644,61 +769,216 @@ const AccountRecoveryPage = () => {
                   <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Recovery</Typography>
                 </Box>
 
-                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, py: 0.5 }}>
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, py: 0.5, display: 'flex', flexDirection: 'column' }}>
                   {error && (
-                    <Alert severity="error" sx={{ mb: 1.5, py: 0 }}>
+                    <Alert severity="error" sx={{ mb: 1.5, py: 0, flexShrink: 0 }}>
                       {error}
                     </Alert>
                   )}
-                  <TextField
-                    fullWidth size="small" required label="Registered Email or User ID" name="email" type="text"
-                    value={formData.email} onChange={handleChange} autoComplete="username" margin="dense"
-                  />
-                  <TextField
-                    fullWidth size="small" required label="Backup Password" name="backupPassword"
-                    type={showBackupPassword ? 'text' : 'password'} value={formData.backupPassword} onChange={handleChange}
-                    autoComplete="off" margin="dense"
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => setShowBackupPassword(!showBackupPassword)} edge="end" sx={{ color: 'text.secondary' }}>
-                            {showBackupPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    fullWidth size="small" required label="New Password" name="newPassword"
-                    type={showNewPassword ? 'text' : 'password'} value={formData.newPassword} onChange={handleChange}
-                    autoComplete="new-password" margin="dense"
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end" sx={{ color: 'text.secondary' }}>
-                            {showNewPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    fullWidth size="small" required label="Confirm New Password" name="confirmPassword"
-                    type={showNewPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleChange}
-                    autoComplete="new-password" margin="dense"
-                  />
+                  {successMessage && (
+                    <Alert severity="success" sx={{ mb: 1.5, py: 0, flexShrink: 0 }}>
+                      {successMessage}
+                    </Alert>
+                  )}
+
+                  <AnimatePresence mode="wait" initial={false}>
+                    {recoveryMethod === null ? (
+                      <motion.div
+                        key="selection"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 15 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          gap: 24,
+                          flexGrow: 1,
+                          paddingTop: 32,
+                          paddingBottom: 32,
+                          width: '100%'
+                        }}
+                      >
+                        <Button
+                          variant="outlined"
+                          onClick={() => setRecoveryMethod('email')}
+                          sx={{
+                            ...getGlassPillActionButtonSx(theme),
+                            width: '80%',
+                            maxWidth: '260px',
+                            py: 1.85,
+                            fontSize: '0.95rem',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            gap: 1.5,
+                          }}
+                        >
+                          <span>📧</span> Email Yourself
+                        </Button>
+
+                        <Button
+                          variant="outlined"
+                          onClick={() => setRecoveryMethod('key')}
+                          sx={{
+                            ...getGlassPillActionButtonSx(theme),
+                            width: '80%',
+                            maxWidth: '260px',
+                            py: 1.85,
+                            fontSize: '0.95rem',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            gap: 1.5,
+                          }}
+                        >
+                          <span>🔑</span> Recovery Key
+                        </Button>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="form-fields"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 15 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}
+                      >
+                        {/* Active Method Floating Capsule Indicator (Entirely clickable to close) */}
+                        <Box
+                          role="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRecoveryMethod(null);
+                            setEmailCodeSent(false);
+                            setError('');
+                            setSuccessMessage('');
+                          }}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            alignSelf: 'center',
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.15)' : 'rgba(124, 58, 237, 0.08)',
+                            border: '1px solid',
+                            borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.3)' : 'rgba(124, 58, 237, 0.2)',
+                            borderRadius: '999px',
+                            px: 3,
+                            py: 0.75,
+                            mb: 2,
+                            width: 'fit-content',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.25)' : 'rgba(124, 58, 237, 0.15)',
+                              borderColor: theme.palette.mode === 'dark' ? 'rgba(192, 132, 252, 0.5)' : 'rgba(124, 58, 237, 0.4)',
+                              transform: 'scale(1.02)'
+                            },
+                            '&:active': {
+                              transform: 'scale(0.98)'
+                            }
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.mode === 'dark' ? '#c084fc' : '#7c3aed', letterSpacing: '0.02em' }}>
+                            {recoveryMethod === 'email' ? '📧 Email Yourself' : '🔑 Recovery Key'}
+                          </Typography>
+                        </Box>
+
+                        {recoveryMethod === 'key' ? (
+                          <>
+                            <TextField
+                              fullWidth size="small" required label="Registered Email or User ID" name="email" type="text"
+                              value={formData.email} onChange={handleChange} autoComplete="username" margin="dense"
+                            />
+                            <TextField
+                              fullWidth size="small" required label="Backup Password" name="backupPassword"
+                              type={showBackupPassword ? 'text' : 'password'} value={formData.backupPassword} onChange={handleChange}
+                              autoComplete="off" margin="dense"
+                              InputProps={{
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    <IconButton onClick={() => setShowBackupPassword(!showBackupPassword)} edge="end" sx={{ color: 'text.secondary' }}>
+                                      {showBackupPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                            <TextField
+                              fullWidth size="small" required label="New Password" name="newPassword"
+                              type={showNewPassword ? 'text' : 'password'} value={formData.newPassword} onChange={handleChange}
+                              autoComplete="new-password" margin="dense"
+                              InputProps={{
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end" sx={{ color: 'text.secondary' }}>
+                                      {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                            <TextField
+                              fullWidth size="small" required label="Confirm New Password" name="confirmPassword"
+                              type={showNewPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleChange}
+                              autoComplete="new-password" margin="dense"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <TextField
+                              fullWidth size="small" required label="Registered Email" name="email" type="email"
+                              value={formData.email} onChange={handleChange} autoComplete="email" margin="dense"
+                              disabled={emailCodeSent}
+                            />
+                            {emailCodeSent && (
+                              <>
+                                <TextField
+                                  fullWidth size="small" required label="6-Digit Verification Code" name="emailCode"
+                                  value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                  autoComplete="off" margin="dense"
+                                />
+                                <TextField
+                                  fullWidth size="small" required label="New Password" name="newPassword"
+                                  type={showNewPassword ? 'text' : 'password'} value={formData.newPassword} onChange={handleChange}
+                                  autoComplete="new-password" margin="dense"
+                                  InputProps={{
+                                    endAdornment: (
+                                      <InputAdornment position="end">
+                                        <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end" sx={{ color: 'text.secondary' }}>
+                                          {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                />
+                                <TextField
+                                  fullWidth size="small" required label="Confirm New Password" name="confirmPassword"
+                                  type={showNewPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleChange}
+                                  autoComplete="new-password" margin="dense"
+                                />
+                              </>
+                            )}
+                          </>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Box>
 
-                <Box sx={{ mt: 'auto', pt: 1.5 }}>
-                  <Button
-                    type="submit" variant="outlined" size="large"
-                    disabled={submitting || !formData.email || !formData.backupPassword || !formData.newPassword || !formData.confirmPassword}
-                    fullWidth
-                    sx={getGlassPillActionButtonSx(theme)}
-                  >
-                    {submitting ? 'Recovering…' : 'Recover'}
-                  </Button>
-                </Box>
+                {recoveryMethod !== null && (
+                  <Box sx={{ mt: 'auto', pt: 1.5, flexShrink: 0 }}>
+                    <Button
+                      type="submit" variant="outlined" size="large"
+                      disabled={isButtonDisabled()}
+                      fullWidth
+                      sx={getGlassPillActionButtonSx(theme)}
+                    >
+                      {getButtonText()}
+                    </Button>
+                  </Box>
+                )}
               </Box>
             }
           />

@@ -20,6 +20,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
+* STAGE 3: Create the STAGING environment (provision staging D1/R2/KV on Cloudflare, configure wrangler.toml, and set up the staging branch web service on Render).
+
+* fix loading screen text.
+
 * create push notification system.
 
 * add/create action hover markers
@@ -43,6 +47,12 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* STAGE 4: Implemented outbound email account recovery using Cloudflare's native email service and a dual-choice recovery card UI (Complete)
+
+* STAGE 2: Added a password visibility "eye" toggle icon to the password input field on the Login card (Complete)
+
+* STAGE 1: Attempted manual password reset and lockout clearance for father-in-law, but login still failed (Marked as Failed/Postponed; moving to Stage 2/4 for robust fixes)
 
 * upgraded Theory Board emojis containing single emojis to render as polished stickers with a solid contour silhouette backing (stacked text-shadow outline) and drop-shadow, removing visible background container cards (Complete)
 

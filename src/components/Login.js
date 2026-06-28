@@ -9,7 +9,11 @@ import {
   Alert,
   useTheme,
   GlobalStyles,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getGlassInputSx,
@@ -35,6 +39,7 @@ const Login = () => {
   const theme = useTheme();
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState('');
   const [activeCard, setActiveCard] = useState(null);
@@ -501,11 +506,21 @@ const Login = () => {
                     error={errorField === 'all'}
                   />
                   <TextField
-                    fullWidth label="Password" name="password" type="password"
+                    fullWidth label="Password" name="password" 
+                    type={showPassword ? 'text' : 'password'}
                     value={formData.password} onChange={handleChange}
                     margin="dense" required autoComplete="current-password"
                     InputLabelProps={{ shrink: true }}
                     error={errorField === 'all'}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ color: 'text.secondary' }}>
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
                   />
                 </Box>
 
