@@ -2011,11 +2011,15 @@ const HomePage = () => {
 
   React.useEffect(() => {
     const numericFavoriteId = Number(favoriteTimelineId || 0);
-    if (!(numericFavoriteId > 0) || activeHubTab !== 'favorite') {
+    if (!(numericFavoriteId > 0)) {
+      // No favorite timeline is set — clear the events list
       setFavoriteTimelineEvents([]);
       setLoadingFavoriteTimelineEvents(false);
       return;
     }
+    // If the user is not currently on the favorite tab, do nothing —
+    // keep the last loaded events in memory so they are still visible when the user returns
+    if (activeHubTab !== 'favorite') return;
 
     let isCancelled = false;
     const loadFavoriteTimelineEvents = async () => {
@@ -2364,8 +2368,11 @@ const HomePage = () => {
         clearYourPageCache(user.id);
       }
 
-      setHasLoadedPopular(false);
-      setHasLoadedYourPage(false);
+      // Reset refresh guards so the trigger effects will silently re-fetch when the tabs become active.
+      // We deliberately do NOT reset hasLoadedPopular / hasLoadedYourPage here —
+      // keeping them true means the UI continues to show the last known data instead of going blank.
+      hasRefreshedPopularRef.current = false;
+      hasRefreshedYourPageRef.current = false;
 
       await Promise.allSettled([
         fetchFollowedUsers(),
@@ -2621,7 +2628,8 @@ const HomePage = () => {
     if (!normalizedTimelines.length) return;
 
     if (!hasLoadedPopular) {
-      fetchPopularData({ silent: false });
+      // Use silent:true so any existing data stays visible while the fresh load happens
+      fetchPopularData({ silent: true });
       hasRefreshedPopularRef.current = true;
     } else if (!hasRefreshedPopularRef.current) {
       fetchPopularData({ silent: true });
@@ -2938,7 +2946,8 @@ const HomePage = () => {
     if (!normalizedTimelines.length) return;
 
     if (!hasLoadedYourPage) {
-      fetchYourPageData({ silent: false });
+      // Use silent:true so any existing data stays visible while the fresh load happens
+      fetchYourPageData({ silent: true });
       hasRefreshedYourPageRef.current = true;
     } else if (!hasRefreshedYourPageRef.current) {
       fetchYourPageData({ silent: true });
