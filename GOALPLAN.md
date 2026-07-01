@@ -20,10 +20,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* fix loading screen text.
-
-* we really do gotta fix this returning bug that plagues us still. when i return to home page after a time, the popular tab,home tab, and favorite tab are just all returning nothing. BUT the 'my creations' tab always works perfectly. what gives. maybe that is our hint to how to do it right.
-
 * add/create action hover markers
 
 * search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags
@@ -48,7 +44,15 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * the B Pointer arrow+element is not properly refreshing upon timeline change. i am on one timeline page > i click an event > the pointer B element appears below it > i navigate to another timeline page > it loads > the pointer B element remains where it was from the previous page.
 ---
 
+## Awaiting Confirmation
+
+* Returning home page bug — Popular, Home, and Favorite tabs were going blank after navigating away. Fixed by keeping last-loaded data in memory during silent background refreshes instead of wiping state. Awaiting confirmation on live production.
+
+---
+
 ## Completed
+
+* fix loading screen text — messages now play through once (no looping) at 2 seconds each. (Complete)
 
 * STAGE 3: Created the STAGING environment (provisioned staging D1/R2/KV on Cloudflare, configured wrangler.toml, and set up the staging branch custom domain/env variables on Cloudflare Pages) (Complete)
 
