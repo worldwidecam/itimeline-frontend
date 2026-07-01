@@ -222,8 +222,7 @@ function LoadingScreen({
               ? '0 20px 50px rgba(0, 0, 0, 0.35)'
               : '0 20px 50px rgba(15, 23, 42, 0.06)',
             textAlign: 'center',
-            maxWidth: 420,
-            width: '100%',
+            width: { xs: '290px', sm: '380px' },
             minHeight: 330,
             justifyContent: 'center',
           }}

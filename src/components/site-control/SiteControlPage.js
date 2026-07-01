@@ -58,6 +58,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
+import LinkIcon from '@mui/icons-material/Link';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTimelineSurfaceTheme } from '../timeline-v3/timelineSurfaceTheme';
 import api, {
