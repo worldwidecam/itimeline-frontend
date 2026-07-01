@@ -20,15 +20,13 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* STAGE 3: Create the STAGING environment (provision staging D1/R2/KV on Cloudflare, configure wrangler.toml, and set up the staging branch web service on Render).
-
 * fix loading screen text.
-
-* create push notification system.
 
 * add/create action hover markers
 
 * search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags
+
+* NSFW filters site-wide blurr implementation
 
 * look into making this an app on apple and google play stores.
  - probably need a privacy policy.
@@ -43,10 +41,16 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.
 
+* create push notification system.
+
 * the B Pointer arrow+element is not properly refreshing upon timeline change. i am on one timeline page > i click an event > the pointer B element appears below it > i navigate to another timeline page > it loads > the pointer B element remains where it was from the previous page.
 ---
 
 ## Completed
+
+* STAGE 3: Created the STAGING environment (provisioned staging D1/R2/KV on Cloudflare, configured wrangler.toml, and set up the staging branch custom domain/env variables on Cloudflare Pages) (Complete)
+
+* is it possible to make shared remarks URL previews its word bubble container with title in it, also with the user image that said it. i'm trying to make remark events compete with twitter. (Complete)
 
 * STAGE 4: Implemented outbound email account recovery using Cloudflare's native email service and a dual-choice recovery card UI (Complete)
 
