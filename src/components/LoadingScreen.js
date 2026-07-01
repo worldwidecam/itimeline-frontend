@@ -129,11 +129,20 @@ function LoadingScreen({
       "Loading posts...",
       "Loading timelines..."
     ];
+
+    // Start at the first message
+    setCurrentMessage(messages[0]);
     let index = 0;
+
     const interval = setInterval(() => {
-      index = (index + 1) % messages.length;
+      index += 1;
+      if (index >= messages.length) {
+        // Reached the last message — stop cycling, stay on it
+        clearInterval(interval);
+        return;
+      }
       setCurrentMessage(messages[index]);
-    }, 1200); // Relaxed cycle to keep updates smooth and legible
+    }, 2000); // 2 seconds per message so users can read it
 
     return () => clearInterval(interval);
   }, [message, cycle]);
