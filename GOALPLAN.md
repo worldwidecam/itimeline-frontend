@@ -22,6 +22,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * fix loading screen text.
 
+* we really do gotta fix this returning bug that plagues us still. when i return to home page after a time, the popular tab,home tab, and favorite tab are just all returning nothing. BUT the 'my creations' tab always works perfectly. what gives. maybe that is our hint to how to do it right.
+
 * add/create action hover markers
 
 * search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags

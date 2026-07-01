@@ -61,38 +61,45 @@ function generateRemarkSvg(event) {
   const userColor = event.created_by_user_color || '#CE93D8';
   const initial = String(usernameRaw).replace(/^@/, '').charAt(0).toUpperCase() || '?';
 
-  let lines = wrapText(event.title || '', 35);
-  if (lines.length > 5) {
-    lines = lines.slice(0, 5);
-    const lastLine = lines[4];
+  let lines = wrapText(event.title || '', 38);
+  if (lines.length > 4) {
+    lines = lines.slice(0, 4);
+    const lastLine = lines[3];
     if (lastLine) {
-      lines[4] = lastLine.slice(0, 32) + '...';
+      lines[3] = lastLine.slice(0, 32) + '...';
     }
   }
+
+  const startY = 345 - ((lines.length - 1) * 24);
 
   let avatarMarkup = '';
   if (hasAvatar) {
     avatarMarkup = `
       <g clip-path="url(#avatar-clip)">
-        <image href="${esc(avatarUrl)}" x="200" y="180" width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+        <image href="${esc(avatarUrl)}" x="100" y="255" width="120" height="120" preserveAspectRatio="xMidYMid slice" />
       </g>
-      <circle cx="250" cy="230" r="50" fill="none" stroke="rgba(255,255,255,0.24)" stroke-width="3" />
+      <circle cx="160" cy="315" r="60" fill="none" stroke="#CE93D8" stroke-width="4" />
     `;
   } else {
     avatarMarkup = `
-      <circle cx="250" cy="230" r="50" fill="${esc(userColor)}" stroke="rgba(255,255,255,0.24)" stroke-width="3" />
-      <text x="250" y="246" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" fill="#ffffff" font-weight="bold" text-anchor="middle">${esc(initial)}</text>
+      <circle cx="160" cy="315" r="60" fill="${esc(userColor)}" stroke="none" />
+      <text x="160" y="333" font-family="'Inter', -apple-system, sans-serif" font-size="56" fill="#ffffff" font-weight="bold" text-anchor="middle">${esc(initial)}</text>
+      <circle cx="160" cy="315" r="60" fill="none" stroke="#CE93D8" stroke-width="4" />
     `;
   }
 
   let textMarkup = '';
   lines.forEach((line, idx) => {
-    const y = 345 + idx * 48;
-    textMarkup += `<text x="200" y="${y}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="36" fill="#ffffff" font-weight="500">${esc(line)}</text>`;
+    const y = startY + idx * 48;
+    textMarkup += `<text x="310" y="${y}" font-family="'Inter', -apple-system, sans-serif" font-size="36" fill="#ffffff" font-weight="500">${esc(line)}</text>`;
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="100%" height="100%">
     <defs>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Lobster&amp;display=swap');
+      </style>
       <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#0a1128" />
         <stop offset="100%" stop-color="#040814" />
@@ -102,7 +109,7 @@ function generateRemarkSvg(event) {
         <stop offset="100%" stop-color="#0a0b16" stop-opacity="0.96" />
       </linearGradient>
       <clipPath id="avatar-clip">
-        <circle cx="250" cy="230" r="50" />
+        <circle cx="160" cy="315" r="60" />
       </clipPath>
       <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
         <feDropShadow dx="8" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.5" />
@@ -114,17 +121,23 @@ function generateRemarkSvg(event) {
     <!-- Branding -->
     <text x="1100" y="70" font-family="'Lobster', cursive, -apple-system, sans-serif" font-size="32" fill="#CE93D8" text-anchor="end" opacity="0.8">iTimeline</text>
 
+    <!-- Word Bubble Pointer Arrow -->
+    <path d="M 262 290 L 230 315 L 262 340" fill="url(#bubble-gradient)" stroke="#CE93D8" stroke-width="4" />
+
     <!-- Word Bubble Container -->
-    <rect x="150" y="120" width="900" height="390" rx="24" ry="24" fill="url(#bubble-gradient)" stroke="#CE93D8" stroke-width="4" filter="url(#shadow)" />
+    <rect x="260" y="210" width="800" height="250" rx="24" ry="24" fill="url(#bubble-gradient)" stroke="#CE93D8" stroke-width="4" filter="url(#shadow)" />
     
-    <!-- Large Curly Quotes decoration in background -->
-    <text x="180" y="360" font-family="'Lobster', cursive, Georgia, serif" font-size="160" fill="#CE93D8" opacity="0.08" pointer-events="none">“</text>
+    <!-- Cover/hide the bubble border where the pointer connects -->
+    <path d="M 262 288 L 262 342" fill="none" stroke="url(#bubble-gradient)" stroke-width="6" />
+
+    <!-- Username & Says Label -->
+    <text x="260" y="180" font-family="'Inter', -apple-system, sans-serif" font-size="36" font-weight="700" fill="#58a6ff">
+      ${esc(username)}
+      <tspan font-weight="400" fill="#8b949e"> Says</tspan>
+    </text>
 
     <!-- Avatar -->
     ${avatarMarkup}
-
-    <!-- Username -->
-    <text x="320" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="40" fill="#ffffff" font-weight="bold">${esc(username)}</text>
 
     <!-- Remark Text lines -->
     ${textMarkup}
@@ -141,8 +154,8 @@ export async function onRequestGet(context) {
   if (!isBot(ua) && !isImageRequest) return next();
 
   const eventId = params.eventId;
-  const apiBase = env.API_URL || 'https://api.i-timeline.com';
-  const frontendBase = env.FRONTEND_URL || 'https://i-timeline.com';
+  const apiBase = env.API_URL || env.VITE_API_URL || 'https://api.i-timeline.com';
+  const frontendBase = env.FRONTEND_URL || urlObj.origin || 'https://i-timeline.com';
 
   let event = null;
   try {
