@@ -35,6 +35,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * deleting an account
 
+* voting on a hashtag on a post doesn't seem to update that event card , at least temporarily.
+
 * block list option within friends list on home page.
 
 * sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.

@@ -2379,10 +2379,7 @@ const HomePage = () => {
       const freshTimelines = response.data?.data || [];
       setTimelines(freshTimelines);
 
-      if (user?.id) {
-        clearPopularCache(user.id);
-        clearYourPageCache(user.id);
-      }
+
 
       // Reset refresh guards so the trigger effects will silently re-fetch when the tabs become active.
       // We deliberately do NOT reset hasLoadedPopular / hasLoadedYourPage here —
@@ -2525,14 +2522,7 @@ const HomePage = () => {
         return;
       }
 
-      const sourceTimelineCount = Number(parsed?.source_timeline_count || 0);
-      if (sourceTimelineCount <= 0) {
-        setHasLoadedPopular(false);
-        setPopularTimelines([]);
-        setPopularEvents([]);
-        setHasBootstrappedPopularCache(true);
-        return;
-      }
+
       const cachedTimelines = Array.isArray(parsed?.timelines) ? parsed.timelines : [];
       const cachedEvents = Array.isArray(parsed?.events) ? parsed.events : [];
 
@@ -2572,49 +2562,43 @@ const HomePage = () => {
         .filter((id) => id > 0);
 
       const uniqueCandidateIds = Array.from(new Set(candidateIds)).slice(0, HOME_POPULAR_TIMELINE_SOURCE_LIMIT);
-      if (!uniqueCandidateIds.length) {
-        setPopularTimelines([]);
-        setPopularEvents([]);
-        setHasLoadedPopular(true);
-        setLoadingPopular(false);
-        return;
-      }
-
       const rankedTimelines = [];
 
-      uniqueCandidateIds.forEach((timelineId) => {
-        const base = baseTimelineMap.get(timelineId) || null;
-        const timelineType = String(base?.timeline_type || '').toLowerCase();
-        const visibility = String(base?.visibility || 'public').toLowerCase();
+      if (uniqueCandidateIds.length > 0) {
+        uniqueCandidateIds.forEach((timelineId) => {
+          const base = baseTimelineMap.get(timelineId) || null;
+          const timelineType = String(base?.timeline_type || '').toLowerCase();
+          const visibility = String(base?.visibility || 'public').toLowerCase();
 
-        if (timelineType === 'personal') return;
-        if (visibility === 'private') return;
+          if (timelineType === 'personal') return;
+          if (visibility === 'private') return;
 
-        const memberCount = Number(base?.member_count || 0) || 0;
+          const memberCount = Number(base?.member_count || 0) || 0;
 
-        const followCount = Number(
-          base?.follow_count
-          || base?.followers_count
-          || 0,
-        ) || 0;
+          const followCount = Number(
+            base?.follow_count
+            || base?.followers_count
+            || 0,
+          ) || 0;
 
-        rankedTimelines.push({
-          ...(base || {}),
-          id: timelineId,
-          timeline_type: timelineType || 'hashtag',
-          visibility,
-          member_count: memberCount,
-          follow_count: followCount,
-          popularity_count: Math.max(memberCount, followCount),
+          rankedTimelines.push({
+            ...(base || {}),
+            id: timelineId,
+            timeline_type: timelineType || 'hashtag',
+            visibility,
+            member_count: memberCount,
+            follow_count: followCount,
+            popularity_count: Math.max(memberCount, followCount),
+          });
         });
-      });
 
-      rankedTimelines.sort((a, b) => {
-        if ((b.popularity_count || 0) !== (a.popularity_count || 0)) {
-          return (b.popularity_count || 0) - (a.popularity_count || 0);
-        }
-        return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
-      });
+        rankedTimelines.sort((a, b) => {
+          if ((b.popularity_count || 0) !== (a.popularity_count || 0)) {
+            return (b.popularity_count || 0) - (a.popularity_count || 0);
+          }
+          return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+        });
+      }
 
       setPopularTimelines(rankedTimelines);
 
@@ -2641,7 +2625,7 @@ const HomePage = () => {
   React.useEffect(() => {
     if (!hasBootstrappedPopularCache) return;
     if (activeHubTab !== 'popular') return;
-    if (!normalizedTimelines.length) return;
+    if (loadingTimelines) return;
 
     if (!hasLoadedPopular) {
       // Use silent:true so any existing data stays visible while the fresh load happens
@@ -2651,12 +2635,12 @@ const HomePage = () => {
       fetchPopularData({ silent: true });
       hasRefreshedPopularRef.current = true;
     }
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, fetchPopularData, hasBootstrappedPopularCache, normalizedTimelines.length]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedPopular, fetchPopularData, hasBootstrappedPopularCache, loadingTimelines]);
 
   React.useEffect(() => {
     if (!user?.id) return;
     if (!hasLoadedPopular) return;
-    if (!normalizedTimelines.length) return;
+    if (loadingTimelines) return;
 
     try {
       window.sessionStorage.setItem(getPopularCacheKey(user.id), JSON.stringify({
@@ -2719,14 +2703,7 @@ const HomePage = () => {
         return;
       }
 
-      const sourceTimelineCount = Number(parsed?.source_timeline_count || 0);
-      if (sourceTimelineCount <= 0) {
-        setHasLoadedYourPage(false);
-        setYourPageTimelines([]);
-        setYourPageEvents([]);
-        setHasBootstrappedYourPageCache(true);
-        return;
-      }
+
 
       setYourPageTimelines(Array.isArray(parsed?.timelines) ? parsed.timelines : []);
       setYourPageEvents(Array.isArray(parsed?.events) ? parsed.events : []);
@@ -2750,7 +2727,7 @@ const HomePage = () => {
     }
 
     if (!normalizedTimelines.length) {
-      setHasLoadedYourPage(false);
+      setHasLoadedYourPage(true);
       return;
     }
 
@@ -2958,7 +2935,7 @@ const HomePage = () => {
     if (!hasBootstrappedYourPageCache) return;
     if (isHubPhaseOneLoading) return;
     if (isGuest) return;
-    if (!normalizedTimelines.length) return;
+    if (loadingTimelines) return;
 
     if (!hasLoadedYourPage) {
       // Use silent:true so initial loading runs quietly in background on mount
@@ -2968,12 +2945,12 @@ const HomePage = () => {
       fetchYourPageData({ silent: true });
       hasRefreshedYourPageRef.current = true;
     }
-  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest, normalizedTimelines.length]);
+  }, [activeHubTab, isHubPhaseOneLoading, hasLoadedYourPage, fetchYourPageData, hasBootstrappedYourPageCache, isGuest, loadingTimelines]);
 
   React.useEffect(() => {
     if (!user?.id) return;
     if (!hasLoadedYourPage) return;
-    if (!normalizedTimelines.length) return;
+    if (loadingTimelines) return;
 
     try {
       window.sessionStorage.setItem(getYourPageCacheKey(user.id), JSON.stringify({
