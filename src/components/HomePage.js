@@ -78,6 +78,7 @@ import { STATUS_ACTION_TYPE_MAP, STATUS_VARIANT_MAP, formatActionSchedule, getAc
 import TradingCard from './common/TradingCard';
 import TimelineCard from './common/TimelineCard';
 import EventDialog from './timeline-v3/events/EventDialog';
+import ActionCard from './timeline-v3/community/ActionCard';
 import EventPopup from './timeline-v3/events/EventPopup';
 import UserCard from './common/UserCard';
 import NavFab, { TimelineMarkerIcon } from './timeline-v3/community/NavFab';
@@ -491,6 +492,8 @@ const HomePage = () => {
   const [favoriteTimelineStatusMessage, setFavoriteTimelineStatusMessage] = React.useState({ active: false, status_type: null, title: '', body: '' });
   const [favoriteTimelineWarningState, setFavoriteTimelineWarningState] = React.useState({ active: false, warning_scope: null, title: '', body: '' });
   const [loadingFavoriteTimelineContext, setLoadingFavoriteTimelineContext] = React.useState(false);
+  const [hasLoadedFavoriteEvents, setHasLoadedFavoriteEvents] = React.useState(false);
+  const [hasLoadedFavoriteContext, setHasLoadedFavoriteContext] = React.useState(false);
   const [favoriteVoteLoadingByType, setFavoriteVoteLoadingByType] = React.useState({ bronze: false, silver: false, gold: false });
   const [heroEventPopupEvent, setHeroEventPopupEvent] = React.useState(null);
   const [heroEventPopupLoading, setHeroEventPopupLoading] = React.useState(false);
@@ -614,6 +617,11 @@ const HomePage = () => {
       logError('Error writing favorite timeline to localStorage', error);
     }
   }, [user?.id, favoriteTimelineId, getFavoriteTimelineKey]);
+
+  React.useEffect(() => {
+    setHasLoadedFavoriteEvents(false);
+    setHasLoadedFavoriteContext(false);
+  }, [favoriteTimelineId]);
 
   React.useEffect(() => {
     setHasBootstrappedPopularCache(false);
@@ -2015,11 +2023,13 @@ const HomePage = () => {
       // No favorite timeline is set — clear the events list
       setFavoriteTimelineEvents([]);
       setLoadingFavoriteTimelineEvents(false);
+      setHasLoadedFavoriteEvents(false);
       return;
     }
-    // If the user is not currently on the favorite tab, do nothing —
-    // keep the last loaded events in memory so they are still visible when the user returns
-    if (activeHubTab !== 'favorite') return;
+    // Load if not loaded yet (background load on mount),
+    // OR if active tab is 'favorite' and we want to refresh
+    const shouldLoad = !hasLoadedFavoriteEvents || activeHubTab === 'favorite';
+    if (!shouldLoad) return;
 
     let isCancelled = false;
     const loadFavoriteTimelineEvents = async () => {
@@ -2050,6 +2060,7 @@ const HomePage = () => {
             }))
             .sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0)),
         );
+        setHasLoadedFavoriteEvents(true);
       } catch (error) {
         if (!isCancelled) {
           console.warn('[HomePage] Failed to fetch favorite timeline events:', error?.response?.data || error?.message || error);
@@ -2066,18 +2077,22 @@ const HomePage = () => {
     return () => {
       isCancelled = true;
     };
-  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline]);
+  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline, hasLoadedFavoriteEvents]);
 
   React.useEffect(() => {
     const numericFavoriteId = Number(favoriteTimelineId || 0);
-    if (!(numericFavoriteId > 0) || activeHubTab !== 'favorite') {
+    if (!(numericFavoriteId > 0)) {
       setFavoriteTimelineQuote(DEFAULT_FAVORITE_QUOTE);
       setFavoriteTimelineActions([]);
       setFavoriteTimelineStatusMessage({ active: false, status_type: null, title: '', body: '' });
       setFavoriteTimelineWarningState({ active: false, warning_scope: null, title: '', body: '' });
       setLoadingFavoriteTimelineContext(false);
+      setHasLoadedFavoriteContext(false);
       return;
     }
+
+    const shouldLoad = !hasLoadedFavoriteContext || activeHubTab === 'favorite';
+    if (!shouldLoad) return;
 
     let isCancelled = false;
     const loadFavoriteTimelineContext = async () => {
@@ -2143,6 +2158,7 @@ const HomePage = () => {
           title: String(warningResponse?.title || '').trim(),
           body: String(warningResponse?.body || warningResponse?.message || '').trim(),
         });
+        setHasLoadedFavoriteContext(true);
       } catch (error) {
         if (!isCancelled) {
           console.warn('[HomePage] Failed to load favorite timeline context:', error?.response?.data || error?.message || error);
@@ -2162,7 +2178,7 @@ const HomePage = () => {
     return () => {
       isCancelled = true;
     };
-  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline?.id, selectedFavoriteTimeline?.created_by, selectedFavoriteTimeline?.user_id]);
+  }, [favoriteTimelineId, activeHubTab, selectedFavoriteTimeline, hasLoadedFavoriteContext]);
 
   React.useEffect(() => {
     setVisibleFavoritePostCount(HOME_LIST_BATCH_SIZE);
@@ -2940,16 +2956,15 @@ const HomePage = () => {
 
   React.useEffect(() => {
     if (!hasBootstrappedYourPageCache) return;
-    if (activeHubTab !== 'your-page') return;
     if (isHubPhaseOneLoading) return;
     if (isGuest) return;
     if (!normalizedTimelines.length) return;
 
     if (!hasLoadedYourPage) {
-      // Use silent:true so any existing data stays visible while the fresh load happens
+      // Use silent:true so initial loading runs quietly in background on mount
       fetchYourPageData({ silent: true });
       hasRefreshedYourPageRef.current = true;
-    } else if (!hasRefreshedYourPageRef.current) {
+    } else if (activeHubTab === 'your-page' && !hasRefreshedYourPageRef.current) {
       fetchYourPageData({ silent: true });
       hasRefreshedYourPageRef.current = true;
     }
@@ -5131,7 +5146,7 @@ const HomePage = () => {
                     })}
                   </Box>
 
-                  {loadingYourPage ? (
+                  {loadingYourPage || !hasLoadedYourPage ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                       <CircularProgress />
                     </Box>
@@ -5204,7 +5219,7 @@ const HomePage = () => {
                       </Typography>
                     </Box>
                     {selectedFavoriteTimeline?.id ? (
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Stack direction="row" spacing={1}>
                         <Button
                           variant="contained"
                           onClick={handleOpenFavoritePostDialog}
@@ -5406,7 +5421,7 @@ const HomePage = () => {
                                 <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
                                   Status Card
                                 </Typography>
-                                {loadingFavoriteTimelineContext ? (
+                                {loadingFavoriteTimelineContext || !hasLoadedFavoriteContext ? (
                                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.8 }}>
                                     <CircularProgress size={20} />
                                   </Box>
@@ -5501,164 +5516,15 @@ const HomePage = () => {
                                   <Stack spacing={1.05} sx={{ mt: 0.8 }}>
                                     {favoriteTimelineActions.map((action) => {
                                       const actionType = String(action?.action_type || '').toLowerCase();
-                                      const actionSchedule = formatActionSchedule(action?.due_date);
-                                      const actionProgress = getActionProgressMeta(action);
-                                      const actionLocked = actionProgress.isUnlocked === false;
                                       const actionVoteLoading = favoriteVoteLoadingByType[actionType] === true;
-                                      const actionStyles = {
-                                        bronze: {
-                                          strip: 'linear-gradient(90deg, #cd7f32, #e1a66b, #cd7f32)',
-                                          bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #2d2520, #1a1512)' : 'linear-gradient(145deg, #f8f0e8, #e6d0c0)',
-                                          edge: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.22)' : 'rgba(205,127,50,0.35)',
-                                          accent: '#cd7f32',
-                                          title: 'BRONZE ACTION',
-                                        },
-                                        silver: {
-                                          strip: 'linear-gradient(90deg, #c0c0c0, #e6e6e6, #c0c0c0)',
-                                          bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #2d2d32, #1a1a1f)' : 'linear-gradient(145deg, #f8f8fa, #e6e6e9)',
-                                          edge: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.2)' : 'rgba(192,192,192,0.34)',
-                                          accent: '#c0c0c0',
-                                          title: 'SILVER ACTION',
-                                        },
-                                        gold: {
-                                          strip: 'linear-gradient(90deg, #d4af37, #f5d970, #d4af37)',
-                                          bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #2d2a20, #19160f)' : 'linear-gradient(145deg, #f8f3e6, #eadcb0)',
-                                          edge: theme.palette.mode === 'dark' ? 'rgba(212,175,55,0.24)' : 'rgba(212,175,55,0.38)',
-                                          accent: '#d4af37',
-                                          title: 'GOLD ACTION',
-                                        },
-                                      }[actionType] || {
-                                        strip: 'linear-gradient(90deg, #64748b, #94a3b8, #64748b)',
-                                        bg: theme.palette.mode === 'dark' ? 'linear-gradient(145deg, #1f2937, #111827)' : 'linear-gradient(145deg, #f1f5f9, #e2e8f0)',
-                                        edge: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.22)' : 'rgba(100,116,139,0.3)',
-                                        accent: '#64748b',
-                                        title: String(actionType || 'ACTION').toUpperCase(),
-                                      };
-
                                       return (
-                                        <Box
+                                        <ActionCard
                                           key={`favorite-action-${action.id || action.action_type}`}
-                                          sx={{
-                                            position: 'relative',
-                                            borderRadius: 2,
-                                            width: { xs: 'calc(100% + 20px)', sm: '100%' },
-                                            ml: { xs: -1.25, sm: 0 },
-                                            transform: { xs: 'scale(0.92)', sm: 'none' },
-                                            transformOrigin: 'top center',
-                                            background: actionStyles.bg,
-                                            boxShadow: theme.palette.mode === 'dark'
-                                              ? `0 8px 16px rgba(0,0,0,0.35), 0 0 0 1px ${actionStyles.edge}`
-                                              : `0 8px 16px rgba(0,0,0,0.1), 0 0 0 1px ${actionStyles.edge}`,
-                                            overflow: 'hidden',
-                                            '&::before': {
-                                              content: '""',
-                                              position: 'absolute',
-                                              top: 0,
-                                              left: 0,
-                                              right: 0,
-                                              height: '3px',
-                                              background: actionStyles.strip,
-                                            },
-                                          }}
-                                        >
-                                          <Box sx={{ p: 1.15, pt: 1.35 }}>
-                                            {actionLocked ? (
-                                              <Box
-                                                sx={{
-                                                  position: 'absolute',
-                                                  top: 0,
-                                                  left: 0,
-                                                  right: 0,
-                                                  bottom: 0,
-                                                  backgroundColor: 'rgba(0, 0, 0, 0.72)',
-                                                  backdropFilter: 'blur(10px)',
-                                                  display: 'flex',
-                                                  flexDirection: 'column',
-                                                  justifyContent: 'center',
-                                                  alignItems: 'center',
-                                                  zIndex: 10,
-                                                  p: 2,
-                                                  textAlign: 'center',
-                                                }}
-                                              >
-                                                <Typography variant="body2" sx={{ color: '#fff', mb: 0.8, fontWeight: 700 }}>
-                                                  {actionStyles.title} Locked
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1 }}>
-                                                  {actionProgress.label || 'Help unlock this action by contributing progress.'}
-                                                </Typography>
-                                                <Box sx={{ width: '100%', maxWidth: 220, mb: 1.5 }}>
-                                                  <LinearProgress
-                                                    variant="determinate"
-                                                    value={Math.round((actionProgress.ratio || 0) * 100)}
-                                                    sx={{
-                                                      height: 7,
-                                                      borderRadius: 999,
-                                                      bgcolor: 'rgba(255,255,255,0.2)',
-                                                      '& .MuiLinearProgress-bar': {
-                                                        bgcolor: actionStyles.accent,
-                                                      },
-                                                    }}
-                                                  />
-                                                </Box>
-                                                {canVoteForAction(action) ? (
-                                                  <Button
-                                                    size="small"
-                                                    variant={action?.progress?.user_voted ? 'outlined' : 'contained'}
-                                                    onClick={() => handleFavoriteActionVote(actionType)}
-                                                    disabled={actionVoteLoading || !!action?.progress?.user_voted}
-                                                    sx={{
-                                                      color: '#fff',
-                                                      borderColor: alpha(actionStyles.accent, 0.8),
-                                                      bgcolor: action?.progress?.user_voted
-                                                        ? 'transparent'
-                                                        : alpha(actionStyles.accent, 0.25),
-                                                    }}
-                                                  >
-                                                    {action?.progress?.user_voted
-                                                      ? 'Vote Counted'
-                                                      : (actionVoteLoading ? 'Voting...' : 'Count me in!')}
-                                                  </Button>
-                                                ) : null}
-                                              </Box>
-                                            ) : null}
-                                            <Typography variant="caption" sx={{ textTransform: 'uppercase', fontWeight: 800, letterSpacing: 0.6, color: actionStyles.accent }}>
-                                              {actionStyles.title}
-                                            </Typography>
-                                            <Typography sx={{ fontWeight: 700, lineHeight: 1.25, mt: 0.3 }}>
-                                              {action.title || 'Untitled action'}
-                                            </Typography>
-                                            {action.description ? (
-                                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45 }}>
-                                                {action.description}
-                                              </Typography>
-                                            ) : null}
-                                            {actionSchedule ? (
-                                              <Typography variant="caption" sx={{ display: 'block', mt: 0.6, opacity: 0.8 }}>
-                                                Day of Action: {actionSchedule.dateLabel} · {actionSchedule.timeLabel}
-                                              </Typography>
-                                            ) : null}
-                                            {actionProgress.label ? (
-                                              <Box sx={{ mt: 0.6 }}>
-                                                <Typography variant="caption" sx={{ display: 'block', mb: 0.4, opacity: 0.85 }}>
-                                                  Progress: {actionProgress.label}
-                                                </Typography>
-                                                <LinearProgress
-                                                  variant="determinate"
-                                                  value={Math.round((actionProgress.ratio || 0) * 100)}
-                                                  sx={{
-                                                    height: 6,
-                                                    borderRadius: 999,
-                                                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
-                                                    '& .MuiLinearProgress-bar': {
-                                                      bgcolor: actionStyles.accent,
-                                                    },
-                                                  }}
-                                                />
-                                              </Box>
-                                            ) : null}
-                                          </Box>
-                                        </Box>
+                                          action={action}
+                                          onVote={() => handleFavoriteActionVote(actionType)}
+                                          voteLoading={actionVoteLoading}
+                                          displayMode="sidebar"
+                                        />
                                       );
                                     })}
                                   </Stack>
@@ -5680,7 +5546,7 @@ const HomePage = () => {
                               <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
                                 Favorite Timeline Feed ({favoriteTimelineEvents.length})
                               </Typography>
-                              {loadingFavoriteTimelineEvents ? (
+                              {loadingFavoriteTimelineEvents || !hasLoadedFavoriteEvents ? (
                                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                   <CircularProgress size={22} />
                                 </Box>

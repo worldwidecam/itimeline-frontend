@@ -133,4 +133,6 @@ export const getActionProgressMeta = (action) => {
   };
 };
 
-export const canVoteForAction = (action) => action?.progress?.threshold_type === 'votes';
+export const canVoteForAction = (action) => 
+  action?.progress?.threshold_type === 'votes' || 
+  action?.progress?.thresholdType === 'votes';
