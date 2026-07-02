@@ -20,11 +20,11 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* add/create action hover markers
-
 * search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags
 
 * NSFW filters site-wide blurr implementation
+
+* add theory board module to community timelines.
 
 * look into making this an app on apple and google play stores.
  - probably need a privacy policy.
@@ -51,6 +51,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* Designed, implemented, and refined Action Hover Markers on the timeline ruler (with double-sized emoji pins, glowing stems, baseline alignment, and title bubble popups on hover) and unified duplicate community action layouts under a reusable, robust, responsive `<ActionCard />` component (Complete)
 
 * fix loading screen text — messages now play through once (no looping) at 2 seconds each. (Complete)
 
