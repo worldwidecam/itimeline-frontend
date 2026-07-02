@@ -47,6 +47,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TagIcon from '@mui/icons-material/Tag';
 import QuoteDisplay from './QuoteDisplay';
+import ActionCard from './ActionCard';
 import UserAvatar from '../../common/UserAvatar';
 import CommunityLockView from './CommunityLockView';
 import CommunityInfoCardsDisplay from './CommunityInfoCardsDisplay';
@@ -553,6 +554,7 @@ const MemberListTab = () => {
               newThresholds.silver = action.threshold_value || 10;
               const silverActionData = {
                 id: action.id,
+                action_type: 'silver',
                 title: action.title || 'Silver Community Action',
                 description: action.description || 'Complete this action to unlock silver benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
@@ -569,6 +571,7 @@ const MemberListTab = () => {
               newThresholds.gold = action.threshold_value || 25;
               const goldActionData = {
                 id: action.id,
+                action_type: 'gold',
                 title: action.title || 'Gold Community Action',
                 description: action.description || 'Complete this action to unlock gold benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
@@ -584,6 +587,7 @@ const MemberListTab = () => {
               foundActions.bronze = true;
               const bronzeActionData = {
                 id: action.id,
+                action_type: 'bronze',
                 title: action.title || 'Bronze Community Action',
                 description: action.description || 'Complete this action to unlock bronze benefits.',
                 dueDate: action.due_date,  // Convert to camelCase
@@ -884,269 +888,12 @@ const MemberListTab = () => {
               />
             </motion.div>
           ) : (
-            <Card
-              sx={{
-              position: 'relative',
-              mb: 3,
-              mt: 1,
-              borderRadius: 2,
-              background: `linear-gradient(145deg, 
-                ${theme.palette.mode === 'dark' ? '#2d2a20' : '#f8f3e2'}, 
-                ${theme.palette.mode === 'dark' ? '#1a1712' : '#e6d7b0'})`,
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 10px 20px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,215,0,0.1), 0 0 0 1px rgba(255,215,0,0.2)'
-                : '0 10px 20px rgba(0,0,0,0.1), inset 0 0 10px rgba(255,215,0,0.2), 0 0 0 1px rgba(255,215,0,0.3)',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '4px',
-                background: 'linear-gradient(90deg, #ffd700, #ffec99, #ffd700)',
-                boxShadow: '0 0 10px rgba(255,215,0,0.5)'
-              }
-            }}
-          >
-            <CardContent
-              sx={{
-                p: 3,
-                position: 'relative',
-                pr: goldActionSchedule ? { xs: 3, md: '200px' } : 3,
-                minHeight: goldActionSchedule ? { xs: 'auto', md: 220 } : 'auto',
-              }}
-            >
-              {isGoldActionLoading ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Skeleton variant="circular" width={24} height={24} />
-                    <Skeleton variant="text" width={180} height={32} />
-                  </Box>
-                  <Skeleton variant="text" width="90%" height={24} />
-                  <Skeleton variant="text" width="60%" height={24} />
-                </Box>
-              ) : goldAction ? (
-                <>
-                  {goldActionSchedule && (
-                    <Box
-                      sx={{
-                        position: { xs: 'relative', md: 'absolute' },
-                        top: { md: 20 },
-                        right: { md: 20 },
-                        width: { xs: '100%', md: 160 },
-                        minHeight: { xs: 112, md: 148 },
-                        mb: { xs: 1.75, md: 0 },
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        border: '1px solid',
-                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.5)' : 'rgba(139,111,31,0.4)',
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 8px 16px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,215,0,0.15)'
-                          : '0 8px 16px rgba(139,111,31,0.2), 0 0 0 1px rgba(255,215,0,0.2)',
-                        zIndex: 2,
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          px: 1,
-                          py: 0.5,
-                          textAlign: 'center',
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.24)' : 'rgba(255,215,0,0.32)',
-                          borderBottom: '1px solid',
-                          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,215,0,0.45)' : 'rgba(139,111,31,0.35)',
-                        }}
-                      >
-                        <Typography sx={{ fontSize: '0.68rem', letterSpacing: '0.65px', fontWeight: 800, textTransform: 'uppercase' }}>
-                          Day of Action
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          minHeight: { xs: 80, md: 112 },
-                          px: 1.25,
-                          py: 1,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          textAlign: 'center',
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(12,10,6,0.55)' : 'rgba(255,250,235,0.82)',
-                        }}
-                      >
-                        <Typography sx={{ fontWeight: 700, fontSize: '0.92rem', lineHeight: 1.2 }}>
-                          {goldActionSchedule.dateLabel}
-                        </Typography>
-                        <Typography sx={{ mt: 0.45, opacity: 0.85, fontSize: '0.8rem', fontWeight: 600 }}>
-                          {goldActionSchedule.timeLabel}
-                        </Typography>
-                        {goldActionDayLabel && (
-                          <Typography sx={{ mt: 0.6, opacity: 0.72, fontSize: '0.68rem' }}>
-                            {goldActionDayLabel}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  )}
-
-                  {/* Locked overlay - only shown when goldActionLocked is true */}
-                  {goldActionLocked && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.72)',
-                        backdropFilter: 'blur(10px)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 10,
-                        p: 3,
-                        borderRadius: 2
-                      }}
-                    >
-                      <LockIcon 
-                        sx={{ 
-                          fontSize: 40, 
-                          color: '#ffd700',
-                          mb: 2,
-                          filter: 'drop-shadow(0 0 5px rgba(255,215,0,0.5))'
-                        }} 
-                      />
-                      <Typography 
-                        variant="h6" 
-                        align="center"
-                        sx={{ 
-                          color: '#fff',
-                          textShadow: '0 0 5px rgba(0,0,0,0.5)',
-                          mb: 1
-                        }}
-                      >
-                        Gold Action Locked
-                      </Typography>
-                      <Typography 
-                        variant="body2" 
-                        align="center"
-                        sx={{ 
-                          color: 'rgba(255,255,255,0.8)',
-                          maxWidth: '80%',
-                          mb: 1,
-                        }}
-                      >
-                        {goldProgress.label || 'Help unlock this action by contributing progress.'}
-                      </Typography>
-                      <Box sx={{ width: '100%', maxWidth: 280, mb: 2 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={Math.round((goldProgress.ratio || 0) * 100)}
-                          sx={{
-                            height: 8,
-                            borderRadius: 999,
-                            bgcolor: 'rgba(255,255,255,0.2)',
-                            '& .MuiLinearProgress-bar': {
-                              bgcolor: '#ffd700',
-                            },
-                          }}
-                        />
-                      </Box>
-                      {canVoteForAction(goldAction) && (
-                        <Button
-                          size="small"
-                          variant={goldAction?.progress?.user_voted ? 'outlined' : 'contained'}
-                          onClick={() => handleVoteAction('gold')}
-                          disabled={voteLoadingByType.gold || !!goldAction?.progress?.user_voted}
-                          sx={{
-                            color: '#fff',
-                            borderColor: 'rgba(255,215,0,0.8)',
-                            bgcolor: goldAction?.progress?.user_voted ? 'transparent' : 'rgba(255,215,0,0.25)',
-                            '&:hover': {
-                              bgcolor: 'rgba(255,215,0,0.35)',
-                              borderColor: '#ffd700',
-                            },
-                          }}
-                        >
-                          {goldAction?.progress?.user_voted ? 'Vote Counted' : (voteLoadingByType.gold ? 'Voting...' : 'Count me in!')}
-                        </Button>
-                      )}
-                    </Box>
-                  )}
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <FlagIcon 
-                      sx={{ 
-                        mr: 1.5, 
-                        color: '#ffd700',
-                        filter: 'drop-shadow(0 0 2px rgba(255,215,0,0.5))'
-                      }} 
-                    />
-                    <Typography 
-                      variant="h6" 
-                      component="h2"
-                      sx={{ 
-                        fontFamily: '"Playfair Display", serif',
-                        fontWeight: 700,
-                        letterSpacing: '0.5px',
-                        color: theme.palette.mode === 'dark' ? '#ffd700' : '#8B6F1F',
-                        textShadow: theme.palette.mode === 'dark' 
-                          ? '0 0 5px rgba(255,215,0,0.3)' 
-                          : '0 0 2px rgba(139,111,31,0.2)'
-                      }}
-                    >
-                      GOLD ACTION
-                    </Typography>
-                  </Box>
-                  
-                  <Typography 
-                    variant="h5" 
-                    gutterBottom
-                    sx={{ 
-                      fontWeight: 600,
-                      color: theme.palette.mode === 'dark' ? '#fff' : '#000',
-                      textAlign: 'center'
-                    }}
-                  >
-                    {goldAction.title}
-                  </Typography>
-                  
-                  <Typography 
-                    variant="body1"
-                    sx={{ 
-                      mb: 1.5,
-                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
-                      textAlign: 'center'
-                    }}
-                  >
-                    {goldAction.description}
-                  </Typography>
-
-                  {goldProgress.label && (
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85 }}>
-                        Progress: {goldProgress.label}
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.round((goldProgress.ratio || 0) * 100)}
-                        sx={{
-                          height: 7,
-                          borderRadius: 999,
-                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
-                          '& .MuiLinearProgress-bar': {
-                            bgcolor: '#d4af37',
-                          },
-                        }}
-                      />
-                    </Box>
-                  )}
-                  
-                </>
-              ) : null}
-            </CardContent>
-          </Card>
+            <ActionCard
+              action={goldAction}
+              onVote={() => handleVoteAction('gold')}
+              voteLoading={voteLoadingByType.gold}
+              displayMode="list"
+            />
           )}
         </motion.div>
       ) : (
@@ -1201,530 +948,67 @@ const MemberListTab = () => {
           ...actionWarningBlurSx,
         }}>
           {/* Bronze Action or Quote Fallback */}
-          {!isBronzeActionLoading && !hasActionContent(bronzeAction) ? (
-            <QuoteDisplay 
-              quote={customQuote.text}
-              author={customQuote.author}
-              variant="bronze"
-            />
-          ) : (
-            <Card
-              sx={{
-                flex: 1,
-                position: 'relative',
-                borderRadius: 2,
-                background: `linear-gradient(145deg, 
-                  ${theme.palette.mode === 'dark' ? '#2d2520' : '#f8f0e8'}, 
-                  ${theme.palette.mode === 'dark' ? '#1a1512' : '#e6d0c0'})`,
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 8px 16px rgba(0,0,0,0.4), inset 0 0 8px rgba(205,127,50,0.1), 0 0 0 1px rgba(205,127,50,0.2)'
-                  : '0 8px 16px rgba(0,0,0,0.1), inset 0 0 8px rgba(205,127,50,0.2), 0 0 0 1px rgba(205,127,50,0.3)',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '3px',
-                  background: 'linear-gradient(90deg, #cd7f32, #e1a66b, #cd7f32)',
-                  boxShadow: '0 0 8px rgba(205,127,50,0.5)'
-                }
-              }}
-            >
-              <CardContent
-                sx={{
-                  p: 2,
-                  position: 'relative',
-                  pr: bronzeActionSchedule ? { xs: 2, md: '170px' } : 2,
-                  minHeight: bronzeActionSchedule ? { xs: 'auto', md: 180 } : 'auto',
-                }}
-              >
-                {isBronzeActionLoading ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Skeleton variant="circular" width={20} height={20} />
-                      <Skeleton variant="text" width={140} height={24} />
-                    </Box>
-                    <Skeleton variant="text" width="90%" height={20} />
-                  </Box>
-                ) : bronzeAction ? (
-                  <>
-                    {bronzeActionSchedule && (
-                      <Box
-                        sx={{
-                          position: { xs: 'relative', md: 'absolute' },
-                          top: { md: 14 },
-                          right: { md: 14 },
-                          width: { xs: '100%', md: 136 },
-                          minHeight: { xs: 96, md: 132 },
-                          mb: { xs: 1.5, md: 0 },
-                          borderRadius: 1.75,
-                          overflow: 'hidden',
-                          border: '1px solid',
-                          borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.5)' : 'rgba(139,90,43,0.45)',
-                          boxShadow: theme.palette.mode === 'dark'
-                            ? '0 6px 14px rgba(0,0,0,0.35), 0 0 0 1px rgba(205,127,50,0.14)'
-                            : '0 6px 14px rgba(139,90,43,0.22), 0 0 0 1px rgba(205,127,50,0.2)',
-                          zIndex: 2,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            px: 1,
-                            py: 0.45,
-                            textAlign: 'center',
-                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.24)' : 'rgba(205,127,50,0.30)',
-                            borderBottom: '1px solid',
-                            borderColor: theme.palette.mode === 'dark' ? 'rgba(205,127,50,0.45)' : 'rgba(139,90,43,0.38)',
-                          }}
-                        >
-                          <Typography sx={{ fontSize: '0.66rem', letterSpacing: '0.58px', fontWeight: 800, textTransform: 'uppercase' }}>
-                            Day of Action
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            minHeight: { xs: 68, md: 95 },
-                            px: 1,
-                            py: 0.8,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(16,9,4,0.55)' : 'rgba(255,247,240,0.86)',
-                          }}
-                        >
-                          <Typography sx={{ fontWeight: 700, fontSize: '0.84rem', lineHeight: 1.2 }}>
-                            {bronzeActionSchedule.dateLabel}
-                          </Typography>
-                          <Typography sx={{ mt: 0.35, opacity: 0.85, fontSize: '0.76rem', fontWeight: 600 }}>
-                            {bronzeActionSchedule.timeLabel}
-                          </Typography>
-                          {bronzeActionDayLabel && (
-                            <Typography sx={{ mt: 0.45, opacity: 0.72, fontSize: '0.62rem' }}>
-                              {bronzeActionDayLabel}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                    )}
-
-                    {bronzeActionLocked && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundColor: 'rgba(0, 0, 0, 0.72)',
-                          backdropFilter: 'blur(10px)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          zIndex: 10,
-                          p: 2,
-                        }}
-                      >
-                        <LockIcon sx={{ color: '#cd7f32', mb: 1 }} />
-                        <Typography variant="body2" align="center" sx={{ color: '#fff', mb: 1 }}>
-                          Bronze Action Locked
-                        </Typography>
-                        <Typography variant="caption" align="center" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1 }}>
-                          {bronzeProgress.label || 'Help unlock this action by contributing progress.'}
-                        </Typography>
-                        <Box sx={{ width: '100%', maxWidth: 220, mb: 1.5 }}>
-                          <LinearProgress
-                            variant="determinate"
-                            value={Math.round((bronzeProgress.ratio || 0) * 100)}
-                            sx={{
-                              height: 7,
-                              borderRadius: 999,
-                              bgcolor: 'rgba(255,255,255,0.2)',
-                              '& .MuiLinearProgress-bar': {
-                                bgcolor: '#cd7f32',
-                              },
-                            }}
-                          />
-                        </Box>
-                        {canVoteForAction(bronzeAction) && (
-                          <Button
-                            size="small"
-                            variant={bronzeAction?.progress?.user_voted ? 'outlined' : 'contained'}
-                            onClick={() => handleVoteAction('bronze')}
-                            disabled={voteLoadingByType.bronze || !!bronzeAction?.progress?.user_voted}
-                            sx={{
-                              color: '#fff',
-                              borderColor: 'rgba(205,127,50,0.8)',
-                              bgcolor: bronzeAction?.progress?.user_voted ? 'transparent' : 'rgba(205,127,50,0.25)',
-                            }}
-                          >
-                            {bronzeAction?.progress?.user_voted ? 'Vote Counted' : (voteLoadingByType.bronze ? 'Voting...' : 'Count me in!')}
-                          </Button>
-                        )}
-                      </Box>
-                    )}
-
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <FlagIcon 
-                        sx={{ 
-                          mr: 1, 
-                          color: '#cd7f32',
-                          fontSize: '1.1rem',
-                          filter: 'drop-shadow(0 0 2px rgba(205,127,50,0.5))'
-                        }} 
-                      />
-                      <Typography 
-                        variant="subtitle1" 
-                        component="h3"
-                        sx={{ 
-                          fontFamily: '"Playfair Display", serif',
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          letterSpacing: '0.5px',
-                          color: theme.palette.mode === 'dark' ? '#cd7f32' : '#8B5A2B',
-                          textShadow: theme.palette.mode === 'dark' 
-                            ? '0 0 4px rgba(205,127,50,0.3)' 
-                            : '0 0 2px rgba(139,90,43,0.2)'
-                        }}
-                      >
-                        BRONZE ACTION
-                      </Typography>
-                    </Box>
-                    
-                    <Typography 
-                      variant="h6" 
-                      gutterBottom
-                      sx={{ 
-                        fontWeight: 600,
-                        fontSize: '1rem',
-                        color: theme.palette.mode === 'dark' ? '#fff' : '#000'
-                      }}
-                    >
-                      {bronzeAction.title}
-                    </Typography>
-                    
-                    <Typography 
-                      variant="body2"
-                      sx={{ 
-                        mb: 1,
-                        fontSize: '0.8rem',
-                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
-                      }}
-                    >
-                      {bronzeAction.description}
-                    </Typography>
-
-                    {bronzeProgress.label && (
-                      <Box sx={{ mb: 1 }}>
-                        <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85 }}>
-                          Progress: {bronzeProgress.label}
-                        </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={Math.round((bronzeProgress.ratio || 0) * 100)}
-                          sx={{
-                            height: 6,
-                            borderRadius: 999,
-                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
-                            '& .MuiLinearProgress-bar': {
-                              bgcolor: '#cd7f32',
-                            },
-                          }}
-                        />
-                      </Box>
-                    )}
-                    
-                  </>
-                ) : null}
-              </CardContent>
-            </Card>
-          )}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {!isBronzeActionLoading && !hasActionContent(bronzeAction) ? (
+              <QuoteDisplay 
+                quote={customQuote.text}
+                author={customQuote.author}
+                variant="bronze"
+              />
+            ) : (
+              <ActionCard
+                action={bronzeAction}
+                onVote={() => handleVoteAction('bronze')}
+                voteLoading={voteLoadingByType.bronze}
+                displayMode="list"
+              />
+            )}
+          </Box>
           
           {/* Silver Action - Always show quote fallback if no content, show conditional lock if has content but threshold not met */}
           {(!hasActionContent(silverAction) || showSilverAction || silverAction) ? (
-            !isSilverActionLoading && !hasActionContent(silverAction) ? (
-              <Box sx={{
-                flex: 1,
-                ml: { xs: 0, sm: 2 },
-                mt: { xs: 2, sm: 0 },
-              }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              {!isSilverActionLoading && !hasActionContent(silverAction) ? (
                 <QuoteDisplay 
                   quote={customQuote.text}
                   author={customQuote.author}
                   variant="silver"
                 />
-              </Box>
-            ) : (
+              ) : (
+                <ActionCard
+                  action={silverAction}
+                  onVote={() => handleVoteAction('silver')}
+                  voteLoading={voteLoadingByType.silver}
+                  displayMode="list"
+                />
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Card
                 sx={{
-                  flex: 1,
                   position: 'relative',
                   borderRadius: 2,
-                  ml: { xs: 0, sm: 2 },
-                  mt: { xs: 2, sm: 0 },
-                  background: `linear-gradient(145deg, 
-                    ${theme.palette.mode === 'dark' ? '#2d2d32' : '#f8f8fa'}, 
-                    ${theme.palette.mode === 'dark' ? '#1a1a1f' : '#e6e6e9'})`,
+                  background: theme.palette.mode === 'dark' ? 'rgba(45,45,50,0.6)' : 'rgba(248,248,250,0.6)',
                   boxShadow: theme.palette.mode === 'dark' 
-                    ? '0 8px 16px rgba(0,0,0,0.4), inset 0 0 8px rgba(192,192,192,0.1), 0 0 0 1px rgba(192,192,192,0.2)'
-                    : '0 8px 16px rgba(0,0,0,0.1), inset 0 0 8px rgba(192,192,192,0.2), 0 0 0 1px rgba(192,192,192,0.3)',
-                  overflow: 'hidden',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '3px',
-                    background: 'linear-gradient(90deg, #c0c0c0, #e6e6e6, #c0c0c0)',
-                    boxShadow: '0 0 8px rgba(192,192,192,0.5)'
-                  }
+                    ? '0 8px 16px rgba(0,0,0,0.3)'
+                    : '0 8px 16px rgba(0,0,0,0.1)',
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  minHeight: 150
                 }}
               >
-                <CardContent
-                  sx={{
-                    p: 2,
-                    position: 'relative',
-                    pl: silverActionSchedule ? { xs: 2, md: '170px' } : 2,
-                    minHeight: silverActionSchedule ? { xs: 'auto', md: 180 } : 'auto',
-                  }}
-                >
-                  {isSilverActionLoading ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Skeleton variant="circular" width={20} height={20} />
-                        <Skeleton variant="text" width={140} height={24} />
-                      </Box>
-                      <Skeleton variant="text" width="90%" height={20} />
-                    </Box>
-                  ) : silverAction ? (
-                    <>
-                      {silverActionSchedule && (
-                        <Box
-                          sx={{
-                            position: { xs: 'relative', md: 'absolute' },
-                            top: { md: 14 },
-                            left: { md: 14 },
-                            width: { xs: '100%', md: 136 },
-                            minHeight: { xs: 96, md: 132 },
-                            mb: { xs: 1.5, md: 0 },
-                            borderRadius: 1.75,
-                            overflow: 'hidden',
-                            border: '1px solid',
-                            borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.52)' : 'rgba(112,112,112,0.42)',
-                            boxShadow: theme.palette.mode === 'dark'
-                              ? '0 6px 14px rgba(0,0,0,0.35), 0 0 0 1px rgba(192,192,192,0.12)'
-                              : '0 6px 14px rgba(112,112,112,0.18), 0 0 0 1px rgba(192,192,192,0.2)',
-                            zIndex: 2,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              px: 1,
-                              py: 0.45,
-                              textAlign: 'center',
-                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.22)' : 'rgba(192,192,192,0.30)',
-                              borderBottom: '1px solid',
-                              borderColor: theme.palette.mode === 'dark' ? 'rgba(192,192,192,0.44)' : 'rgba(112,112,112,0.35)',
-                            }}
-                          >
-                            <Typography sx={{ fontSize: '0.66rem', letterSpacing: '0.58px', fontWeight: 800, textTransform: 'uppercase' }}>
-                              Day of Action
-                            </Typography>
-                          </Box>
-                          <Box
-                            sx={{
-                              minHeight: { xs: 68, md: 95 },
-                              px: 1,
-                              py: 0.8,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              textAlign: 'center',
-                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(12,12,14,0.55)' : 'rgba(252,252,253,0.9)',
-                            }}
-                          >
-                            <Typography sx={{ fontWeight: 700, fontSize: '0.84rem', lineHeight: 1.2 }}>
-                              {silverActionSchedule.dateLabel}
-                            </Typography>
-                            <Typography sx={{ mt: 0.35, opacity: 0.85, fontSize: '0.76rem', fontWeight: 600 }}>
-                              {silverActionSchedule.timeLabel}
-                            </Typography>
-                            {silverActionDayLabel && (
-                              <Typography sx={{ mt: 0.45, opacity: 0.72, fontSize: '0.62rem' }}>
-                                {silverActionDayLabel}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      )}
-
-                      {silverActionLocked && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.72)',
-                            backdropFilter: 'blur(10px)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            zIndex: 10,
-                            p: 2,
-                          }}
-                        >
-                          <LockIcon sx={{ color: '#c0c0c0', mb: 1 }} />
-                          <Typography variant="body2" align="center" sx={{ color: '#fff', mb: 1 }}>
-                            Silver Action Locked
-                          </Typography>
-                          <Typography variant="caption" align="center" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1 }}>
-                            {silverProgress.label || 'Help unlock this action by contributing progress.'}
-                          </Typography>
-                          <Box sx={{ width: '100%', maxWidth: 220, mb: 1.5 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={Math.round((silverProgress.ratio || 0) * 100)}
-                              sx={{
-                                height: 7,
-                                borderRadius: 999,
-                                bgcolor: 'rgba(255,255,255,0.2)',
-                                '& .MuiLinearProgress-bar': {
-                                  bgcolor: '#c0c0c0',
-                                },
-                              }}
-                            />
-                          </Box>
-                          {canVoteForAction(silverAction) && (
-                            <Button
-                              size="small"
-                              variant={silverAction?.progress?.user_voted ? 'outlined' : 'contained'}
-                              onClick={() => handleVoteAction('silver')}
-                              disabled={voteLoadingByType.silver || !!silverAction?.progress?.user_voted}
-                              sx={{
-                                color: '#fff',
-                                borderColor: 'rgba(192,192,192,0.8)',
-                                bgcolor: silverAction?.progress?.user_voted ? 'transparent' : 'rgba(192,192,192,0.25)',
-                              }}
-                            >
-                              {silverAction?.progress?.user_voted ? 'Vote Counted' : (voteLoadingByType.silver ? 'Voting...' : 'Count me in!')}
-                            </Button>
-                          )}
-                        </Box>
-                      )}
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 1 }}>
-                        <FlagIcon 
-                          sx={{ 
-                            mr: 1,
-                            color: '#c0c0c0',
-                            fontSize: '1.1rem',
-                            filter: 'drop-shadow(0 0 2px rgba(192,192,192,0.5))'
-                          }} 
-                        />
-                        <Typography 
-                          variant="subtitle1" 
-                          component="h3"
-                          sx={{ 
-                            fontFamily: '"Playfair Display", serif',
-                            fontWeight: 700,
-                            fontSize: '0.9rem',
-                            letterSpacing: '0.5px',
-                            color: theme.palette.mode === 'dark' ? '#c0c0c0' : '#707070',
-                            textShadow: theme.palette.mode === 'dark' 
-                              ? '0 0 4px rgba(192,192,192,0.3)' 
-                              : '0 0 2px rgba(112,112,112,0.2)'
-                          }}
-                        >
-                          SILVER ACTION
-                        </Typography>
-                      </Box>
-                      
-                      <Typography 
-                        variant="h6" 
-                        gutterBottom
-                        sx={{ 
-                          fontWeight: 600,
-                          fontSize: '1rem',
-                          color: theme.palette.mode === 'dark' ? '#fff' : '#000',
-                          textAlign: 'right'
-                        }}
-                      >
-                        {silverAction.title}
-                      </Typography>
-                      
-                      <Typography 
-                        variant="body2"
-                        sx={{ 
-                          mb: 1,
-                          fontSize: '0.8rem',
-                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
-                          textAlign: 'right'
-                        }}
-                      >
-                        {silverAction.description}
-                      </Typography>
-
-                      {silverProgress.label && (
-                        <Box sx={{ mb: 1 }}>
-                          <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85, textAlign: 'right' }}>
-                            Progress: {silverProgress.label}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={Math.round((silverProgress.ratio || 0) * 100)}
-                            sx={{
-                              height: 6,
-                              borderRadius: 999,
-                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)',
-                              '& .MuiLinearProgress-bar': {
-                                bgcolor: '#c0c0c0',
-                              },
-                            }}
-                          />
-                        </Box>
-                      )}
-                      
-                    </>
-                  ) : null}
-                </CardContent>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1 }}>
+                  Silver actions unlock when the community reaches {memberThresholds.silver} members
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic' }}>
+                  Currently {members.length} member{members.length !== 1 ? 's' : ''}
+                </Typography>
               </Card>
-            )
-          ) : (
-            <Card
-              sx={{
-                flex: 1,
-                position: 'relative',
-                borderRadius: 2,
-                ml: { xs: 0, sm: 2 },
-                mt: { xs: 2, sm: 0 },
-                background: theme.palette.mode === 'dark' ? 'rgba(45,45,50,0.6)' : 'rgba(248,248,250,0.6)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 8px 16px rgba(0,0,0,0.3)'
-                  : '0 8px 16px rgba(0,0,0,0.1)',
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minHeight: 150
-              }}
-            >
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1 }}>
-                Silver actions unlock when the community reaches {memberThresholds.silver} members
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic' }}>
-                Currently {members.length} member{members.length !== 1 ? 's' : ''}
-              </Typography>
-            </Card>
+            </Box>
           )}
         </Box>
       </motion.div>

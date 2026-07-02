@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Container, useTheme, alpha, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline } from '../../utils/api';
+import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline, getTimelineActions, voteTimelineAction } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import { displayUsername } from '../../utils/usernameDisplay';
 import config from '../../config';
@@ -10,6 +10,8 @@ import { differenceInMilliseconds, subDays, addDays, subMonths, addMonths, subYe
 import TimelineBackground from './TimelineBackground';
 import TimelineBar from './TimelineBar';
 import TimeMarkers from './TimeMarkers';
+import ActionMarkers from './ActionMarkers';
+import ActionCard from './community/ActionCard';
 import HoverMarker from './HoverMarker';
 import PointBIndicator from './PointBIndicator';
 import EventMarker from './events/EventMarker';
@@ -116,6 +118,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [timelineActions, setTimelineActions] = useState([]);
+  const [activeAction, setActiveAction] = useState(null);
+  const [dialogVoteLoading, setDialogVoteLoading] = useState(false);
   const [isMember, setIsMember] = useState(null); // Track if user is a member of the community timeline (null = loading)
   const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
   const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
@@ -300,6 +305,64 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       active = false;
     };
   }, [timelineId]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchActions = async () => {
+      if (!timelineId || timelineId === 'new') {
+        setTimelineActions([]);
+        return;
+      }
+      try {
+        const response = await getTimelineActions(timelineId);
+        if (active && response?.success) {
+          setTimelineActions(response.actions || []);
+        }
+      } catch (err) {
+        console.error('[TimelineV3] Error fetching timeline actions:', err);
+      }
+    };
+    fetchActions();
+    return () => {
+      active = false;
+    };
+  }, [timelineId]);
+
+  const handleActionDialogVote = async () => {
+    if (!activeAction || dialogVoteLoading) return;
+    const actionType = activeAction.action_type;
+    try {
+      setDialogVoteLoading(true);
+      const response = await voteTimelineAction(timelineId, actionType);
+      if (response?.success) {
+        // Fetch fresh actions to update the counters
+        const freshActions = await getTimelineActions(timelineId);
+        if (freshActions?.success) {
+          const updatedActions = freshActions.actions || [];
+          setTimelineActions(updatedActions);
+          // Also update the active action in dialog
+          const matched = updatedActions.find(a => a.action_type === actionType);
+          if (matched) {
+            setActiveAction(matched);
+          }
+        }
+        setSnackbarMessage('Vote recorded successfully!');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+      } else {
+        setSnackbarMessage(response?.message || 'Failed to submit vote.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    } catch (err) {
+      console.error('[TimelineV3] Failed to vote:', err);
+      setSnackbarMessage('Error submitting vote. Please try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setDialogVoteLoading(false);
+    }
+  };
 
   // Action: Manual sync passport when blocked banner is shown
   const handleSyncPassport = async () => {
@@ -3841,6 +3904,25 @@ const handleRecenter = () => {
               />
             </div>
           </Fade>
+
+          {/* Action Markers - Render community actions pins */}
+          <Fade
+            in={!timelineElementsLoading}
+            timeout={{ enter: 500, exit: 200 }}
+            style={{ transitionDelay: '150ms' }}
+          >
+            <div>
+              <ActionMarkers
+                actions={timelineActions}
+                timelineOffset={timelineOffset}
+                markerSpacing={100}
+                viewMode={viewMode}
+                theme={theme}
+                workspaceWidth={timelineWorkspaceBounds?.width}
+                onActionClick={(action) => setActiveAction(action)}
+              />
+            </div>
+          </Fade>
           
           {/* Wrap HoverMarker in Fade component for smoother transitions */}
           <Fade
@@ -4538,6 +4620,40 @@ const handleRecenter = () => {
         </Box>
       )}
       
+      {/* Dialog for displaying clicked action card details */}
+      <Dialog
+        open={!!activeAction}
+        onClose={() => setActiveAction(null)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          backdrop: {
+            sx: {
+              backdropFilter: 'blur(8px)',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            }
+          }
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: 'transparent',
+            boxShadow: 'none',
+            border: 'none',
+            overflow: 'visible', // allow shadows inside ActionCard to shine
+          }
+        }}
+      >
+        <Box sx={{ position: 'relative' }}>
+          <ActionCard
+            action={activeAction}
+            displayMode="sidebar"
+            onVote={handleActionDialogVote}
+            voteLoading={dialogVoteLoading}
+          />
+        </Box>
+      </Dialog>
+
       {/* Snackbar for event actions */}
       <Snackbar
         open={snackbarOpen}
