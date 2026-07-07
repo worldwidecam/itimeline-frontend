@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef, useCallback } from 'react';
 import {
   Typography,
   IconButton,
@@ -67,18 +67,18 @@ const MediaCard = forwardRef(({
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  
+
   // Reset error state when event changes
   useEffect(() => {
     setHasError(false);
   }, [event]);
-  
+
   // If there's an error, show a fallback UI
   if (hasError) {
     return (
-      <Box sx={{ 
-        p: 2, 
-        border: '1px solid', 
+      <Box sx={{
+        p: 2,
+        border: '1px solid',
         borderColor: 'error.main',
         borderRadius: 1,
         bgcolor: 'background.paper',
@@ -108,12 +108,68 @@ const MediaCard = forwardRef(({
   const winningCount = isPositiveWinning ? positiveVotes : negativeVotes;
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
-  
+  const observerRef = useRef(null);
+  const [isIntersecting, setIsIntersecting] = useState(false);
+
+  // Callback ref to register element and observer dynamically when it mounts
+  const videoCallbackRef = useCallback((node) => {
+    videoRef.current = node;
+
+    // Disconnect previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    // Set up new observer on the DOM node
+    if (node) {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          setIsIntersecting(entry.isIntersecting);
+        },
+        {
+          rootMargin: '400px 0px 400px 0px', // Preplay/pause zone (400px above/below viewport)
+          threshold: 0,
+        }
+      );
+      observer.observe(node);
+      observerRef.current = observer;
+    }
+  }, []);
+
+  // Cleanup observer on component unmount
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  // Effect to play/pause video dynamically based on visibility/intersection
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (isIntersecting) {
+      // Play only if it is within viewport/margin
+      videoElement.play().catch((err) => {
+        // Muted video autoplay is typically allowed by browser policies
+        console.log('MediaCard: Autoplay prevented by browser policy:', err);
+      });
+    } else {
+      // Pause video when out of viewport/margin
+      if (!videoElement.paused) {
+        videoElement.pause();
+      }
+    }
+  }, [isIntersecting]);
+
   // Determine media subtype and apply specific colors
   const getMediaTypeAndColor = () => {
     // Check for media subtype first
     if (event && event.media_subtype) {
-      switch(event.media_subtype) {
+      switch (event.media_subtype) {
         case 'image':
           return { type: 'image', color: '#009688', icon: MediaIcon }; // Teal
         case 'video':
@@ -124,35 +180,35 @@ const MediaCard = forwardRef(({
           break;
       }
     }
-    
+
     // Fall back to detection logic
     const mediaSource = event.media_url || event.url;
     if (mediaSource) {
       const fileExt = mediaSource.split('.').pop()?.toLowerCase();
-      const isImage = 
+      const isImage =
         (fileExt && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('image'));
-      const isVideo = 
+      const isVideo =
         (fileExt && ['mp4', 'webm', 'ogg', 'mov'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('video'));
-      const isAudio = 
+      const isAudio =
         (fileExt && ['mp3', 'wav', 'ogg', 'aac'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('audio'));
-      
+
       if (isImage) return { type: 'image', color: '#009688', icon: MediaIcon };
       if (isVideo) return { type: 'video', color: '#4a148c', icon: MovieIcon };
       if (isAudio) return { type: 'audio', color: '#e65100', icon: MusicNoteIcon };
     }
-    
+
     // Default fallback to purple media color
     const typeColors = EVENT_TYPE_COLORS[EVENT_TYPES.MEDIA];
-    return { 
-      type: 'unknown', 
+    return {
+      type: 'unknown',
       color: theme.palette.mode === 'dark' ? typeColors.dark : typeColors.light,
-      icon: MediaIcon 
+      icon: MediaIcon
     };
   };
-  
+
   const { type: mediaType, color, icon: TypeIcon } = getMediaTypeAndColor();
 
   const reportMediaLoadError = ({ mediaKind, mediaUrl, stage, browserMessage }) => {
@@ -165,7 +221,7 @@ const MediaCard = forwardRef(({
       browserMessage,
     });
   };
-  
+
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     setPopupOpen: (open) => {
@@ -191,7 +247,7 @@ const MediaCard = forwardRef(({
       }
     }
   }), [videoRef]); // Add videoRef to dependency array
-  
+
   // Effect to pause video when card is deselected
   useEffect(() => {
     if (!isSelected && videoRef.current && !videoRef.current.paused) {
@@ -203,10 +259,10 @@ const MediaCard = forwardRef(({
 
   const handleMenuOpen = (e) => {
     e.stopPropagation();
-    
+
     if (!isSelected && onEdit && typeof onEdit === 'function') {
       onEdit({ type: 'select', event });
-      
+
       setTimeout(() => {
         setMenuAnchorEl(e.currentTarget);
       }, 300);
@@ -223,7 +279,7 @@ const MediaCard = forwardRef(({
   const handleEdit = (e) => {
     if (e) e.stopPropagation(); // Prevent event bubbling
     handleMenuClose();
-    
+
     // Check if this is a special action
     if (typeof e === 'object' && e !== null && e.type === 'openPopup') {
       console.log('MediaCard: Opening popup from handleEdit');
@@ -242,13 +298,13 @@ const MediaCard = forwardRef(({
 
   const handleDetailsClick = (e) => {
     if (e) e.stopPropagation();
-    
+
     // Pause the video if it's playing
     if (videoRef.current && !videoRef.current.paused) {
       videoRef.current.pause();
       setIsPlaying(false);
     }
-    
+
     setPopupOpen(true);
   };
 
@@ -260,32 +316,32 @@ const MediaCard = forwardRef(({
       console.log('Video detected via media_subtype');
       return true;
     }
-    
+
     // 2. Check media_url for video extensions
     if (event.media_url && /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/i.test(event.media_url)) {
       console.log('Video detected via file extension');
       return true;
     }
-    
+
     // 3. Check media_type field for video MIME types
     if (event.media_type && event.media_type.includes('video')) {
       console.log('Video detected via media_type');
       return true;
     }
-    
+
     // 4. Check if there's a video element in the DOM for this card
     const cardElement = document.getElementById(`media-card-${event.id}`);
     if (cardElement && cardElement.querySelector('video')) {
       console.log('Video detected via DOM element');
       return true;
     }
-    
+
     return false;
   };
 
   const handleCardClick = () => {
     console.log('MediaCard clicked');
-    
+
     if (onEdit && typeof onEdit === 'function') {
       if (isSelected) {
         // If already selected, open the popup (consistent behavior for all media types)
@@ -297,12 +353,12 @@ const MediaCard = forwardRef(({
       }
     }
   };
-  
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     openPopup: () => setPopupOpen(true)
   }));
-  
+
   // We no longer need to listen for custom events
   // The popup will be opened directly by the handleEdit function
 
@@ -368,25 +424,25 @@ const MediaCard = forwardRef(({
 
     // Normalize input URL by removing localhost:5000 if present
     const normalizedInput = String(mediaSource).trim().replace(/^https?:\/\/localhost:5000\//, '/');
-    
+
     const isCloudinaryUrl = (
       (normalizedInput && (
-        normalizedInput.includes('cloudinary.com') || 
+        normalizedInput.includes('cloudinary.com') ||
         normalizedInput.includes('res.cloudinary')
       )) ||
       (event.media_type && event.media_type.includes('cloudinary'))
     );
 
     const isR2Url = normalizedInput && (
-      normalizedInput.includes('r2.dev') || 
+      normalizedInput.includes('r2.dev') ||
       normalizedInput.includes('itimeline-media')
     );
 
     // Check if it's already an absolute URL
     const isAbsoluteUrl = normalizedInput.startsWith('http://') || normalizedInput.startsWith('https://');
-    
+
     let fullUrl = normalizedInput;
-    
+
     if (isCloudinaryUrl || isR2Url || isAbsoluteUrl) {
       fullUrl = normalizedInput;
     }
@@ -396,27 +452,27 @@ const MediaCard = forwardRef(({
     }
     else {
       // Shorthand path, append config.API_URL (and clean it up if it points to localhost)
-      const baseUrl = config.API_URL?.endsWith('/') 
-        ? config.API_URL.slice(0, -1) 
+      const baseUrl = config.API_URL?.endsWith('/')
+        ? config.API_URL.slice(0, -1)
         : (config.API_URL || '');
-      
+
       if (baseUrl.includes('localhost:5000')) {
         fullUrl = `/${normalizedInput}`;
       } else {
         fullUrl = `${baseUrl}/${normalizedInput}`;
       }
     }
-    
+
     // If media_url is already a complete Cloudinary, R2, or absolute URL, use it directly
     if ((isCloudinaryUrl || isR2Url || isAbsoluteUrl) && fullUrl) {
       mediaSources.push(fullUrl);
     }
-    
+
     // Only try to construct URLs from cloudinary_id if we don't already have a valid Cloudinary/R2 URL
     // and if the ID doesn't look like an R2 key (which contains slashes or extensions)
-    const looksLikeCloudinaryId = event.cloudinary_id && 
-                                !event.cloudinary_id.includes('/') && 
-                                !event.cloudinary_id.includes('.');
+    const looksLikeCloudinaryId = event.cloudinary_id &&
+      !event.cloudinary_id.includes('/') &&
+      !event.cloudinary_id.includes('.');
 
     if (looksLikeCloudinaryId && !isCloudinaryUrl && !isR2Url) {
       const cloudName = 'dnjwvuxn7';
@@ -446,11 +502,11 @@ const MediaCard = forwardRef(({
     if (!isCloudinaryUrl && fullUrl) {
       mediaSources.push(fullUrl);
     }
-    
+
     if (normalizedInput && normalizedInput.startsWith('/uploads/')) {
       mediaSources.push(normalizedInput);
     }
-    
+
     // De-duplicate while preserving order
     const deduped = Array.from(new Set(mediaSources));
     return { mediaSources: deduped, fullUrl };
@@ -485,7 +541,7 @@ const MediaCard = forwardRef(({
     render() {
       if (this.state.hasError) {
         return (
-          <Box sx={{ 
+          <Box sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -508,10 +564,10 @@ const MediaCard = forwardRef(({
   // Render image media
   const renderImageMedia = (mediaSource) => {
     const { mediaSources } = prepareMediaSources(mediaSource);
-    
+
     return (
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           position: 'absolute',
           top: 0,
           left: 0,
@@ -528,7 +584,7 @@ const MediaCard = forwardRef(({
           onError={(e) => {
             const currentSrc = e.target.src;
             const currentIndex = mediaSources.indexOf(currentSrc);
-            
+
             if (currentIndex >= 0 && currentIndex < mediaSources.length - 1) {
               e.target.src = mediaSources[currentIndex + 1];
             } else {
@@ -546,7 +602,7 @@ const MediaCard = forwardRef(({
                 stage: 'image_all_sources_failed',
                 browserMessage: 'Image failed to load from all available sources',
               });
-              
+
               e.target.style.display = 'none';
               e.target.parentNode.innerHTML += `
                 <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
@@ -567,7 +623,7 @@ const MediaCard = forwardRef(({
             borderRadius: 'inherit'
           }}
         />
-        <Box 
+        <Box
           sx={{
             position: 'absolute',
             top: 0,
@@ -596,10 +652,10 @@ const MediaCard = forwardRef(({
           browserMessage: 'Video source missing',
         });
         return (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             justifyContent: 'center',
             height: '100%',
             color: theme.palette.text.secondary,
@@ -616,9 +672,9 @@ const MediaCard = forwardRef(({
       // BUT if it's an R2 URL, skip the Cloudinary logic
       const derivedPublicId = getCloudinaryPublicIdFromUrl(mediaSource || event?.media_url || event?.url);
       const cloudinaryPublicId = normalizeCloudinaryPublicId((event && event.cloudinary_id) || derivedPublicId);
-      
+
       const isR2Url = (mediaSource && (mediaSource.includes('r2.dev') || mediaSource.includes('itimeline-media') || (mediaSource.startsWith('http') && !mediaSource.includes('cloudinary')))) ||
-                     (event.media_url && (event.media_url.includes('r2.dev') || event.media_url.includes('itimeline-media') || (event.media_url.startsWith('http') && !event.media_url.includes('cloudinary'))));
+        (event.media_url && (event.media_url.includes('r2.dev') || event.media_url.includes('itimeline-media') || (event.media_url.startsWith('http') && !event.media_url.includes('cloudinary'))));
 
       if (cloudinaryPublicId && !isR2Url) {
         const base = `https://res.cloudinary.com/dnjwvuxn7/video/upload/${cloudinaryPublicId}`;
@@ -629,13 +685,13 @@ const MediaCard = forwardRef(({
           ? [srcOriginal]
           : [srcMp4, srcWebm, base];
         // Construct poster URL for Cloudinary if applicable - use so_auto to find a representative frame
-        const posterUrl = sourceCandidates[0].includes('cloudinary') 
-          ? sourceCandidates[0].replace(/\/video\/upload\//, '/video/upload/so_auto/').replace(/\.[^.]+$/, '.jpg') 
+        const posterUrl = sourceCandidates[0].includes('cloudinary')
+          ? sourceCandidates[0].replace(/\/video\/upload\//, '/video/upload/so_auto/').replace(/\.[^.]+$/, '.jpg')
           : undefined;
 
         return (
-          <Box 
-            sx={{ 
+          <Box
+            sx={{
               position: 'absolute',
               top: 0,
               left: 0,
@@ -652,9 +708,9 @@ const MediaCard = forwardRef(({
             }}
             onClick={handleDetailsClick}
           >
-            <Box sx={{ 
-              width: '100%', 
-              height: '100%', 
+            <Box sx={{
+              width: '100%',
+              height: '100%',
               position: 'relative',
               borderRadius: 'inherit',
               overflow: 'hidden',
@@ -662,7 +718,7 @@ const MediaCard = forwardRef(({
               transition: 'background-color 1s ease'
             }}>
               <motion.video
-                ref={videoRef}
+                ref={videoCallbackRef}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -720,11 +776,11 @@ const MediaCard = forwardRef(({
         }
         return 'mp4';
       })();
-      
+
       return (
         <VideoErrorBoundary>
-          <Box 
-            sx={{ 
+          <Box
+            sx={{
               position: 'absolute',
               top: 0,
               left: 0,
@@ -741,11 +797,11 @@ const MediaCard = forwardRef(({
           >
             {hasValidSource ? (
               <>
-                <Box 
-                  sx={{ 
-                    position: 'relative', 
-                    width: '100%', 
-                    height: '100%', 
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
                     cursor: 'pointer',
                     borderRadius: 'inherit',
                     overflow: 'hidden',
@@ -754,7 +810,7 @@ const MediaCard = forwardRef(({
                   onClick={handleDetailsClick}
                 >
                   <motion.video
-                    ref={videoRef}
+                    ref={videoCallbackRef}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -794,7 +850,7 @@ const MediaCard = forwardRef(({
                 </Box>
               </>
             ) : (
-              <Box sx={{ 
+              <Box sx={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -821,7 +877,7 @@ const MediaCard = forwardRef(({
         browserMessage: error?.message || 'Error rendering video media',
       });
       return (
-        <Box sx={{ 
+        <Box sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -841,17 +897,17 @@ const MediaCard = forwardRef(({
 
   // Reference to the audio visualizer component for controlling playback
   const audioVisualizerRef = useRef(null);
-  
+
   // Render audio media with AudioWaveformVisualizer in preview mode
   const renderAudioMedia = (mediaSource) => {
     try {
       const { mediaSources, fullUrl } = prepareMediaSources(mediaSource);
-      
+
       // If no valid media sources, show error state
       if (!mediaSources || !mediaSources.length) {
         return (
-          <Box 
-            sx={{ 
+          <Box
+            sx={{
               position: 'absolute',
               top: 0,
               left: 0,
@@ -859,9 +915,9 @@ const MediaCard = forwardRef(({
               bottom: 0,
               borderRadius: 'inherit',
               overflow: 'hidden',
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
               color: theme.palette.text.secondary,
@@ -875,27 +931,27 @@ const MediaCard = forwardRef(({
           </Box>
         );
       }
-      
+
       // Handle details click for audio media - pause audio when opening popup
       const handleAudioDetailsClick = (e) => {
         e.stopPropagation();
         handleDetailsClick();
       };
-      
+
       // Create a click handler for the entire card to toggle audio playback
       const handleCardClick = (e) => {
         e.stopPropagation(); // Prevent event bubbling
-        
+
         // The visualizer will handle the audio playback internally
         // We just need to make sure the card is selected
         if (!isSelected && onEdit && typeof onEdit === 'function') {
           onEdit({ type: 'select', event });
         }
       };
-      
+
       return (
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             position: 'absolute',
             top: 0,
             left: 0,
@@ -910,9 +966,9 @@ const MediaCard = forwardRef(({
           onClick={handleCardClick}
         >
           {/* The AudioWaveformVisualizer handles audio playback internally */}
-          <AudioWaveformVisualizer 
+          <AudioWaveformVisualizer
             ref={audioVisualizerRef}
-            audioUrl={mediaSources[0]} 
+            audioUrl={mediaSources[0]}
             title={event.title || "Audio"}
             previewMode={false} // Set to false to enable full functionality
             showTitle={false} // Hide the title in the card view to avoid duplication
@@ -927,7 +983,7 @@ const MediaCard = forwardRef(({
               }
             }}
           />
-          
+
           {/* Corner button removed as outdated */}
         </Box>
       );
@@ -935,8 +991,8 @@ const MediaCard = forwardRef(({
       console.error('Error rendering audio media:', error);
       // Fallback UI for audio rendering errors
       return (
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             position: 'absolute',
             top: 0,
             left: 0,
@@ -961,8 +1017,8 @@ const MediaCard = forwardRef(({
   // Render default media
   const renderDefaultMedia = (mediaSource) => {
     return (
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           position: 'absolute',
           top: 0,
           left: 0,
@@ -989,14 +1045,14 @@ const MediaCard = forwardRef(({
   const renderMedia = () => {
     try {
       const mediaSource = event.media_url || event.url;
-      
+
       if (!mediaSource) {
         return (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            height: '100%', 
+            height: '100%',
             width: '100%',
             bgcolor: 'background.paper',
             color: 'text.secondary'
@@ -1007,12 +1063,12 @@ const MediaCard = forwardRef(({
           </Box>
         );
       }
-      
+
       // Check for media subtype first (new approach)
       if (event && event.media_subtype) {
         console.log('MediaCard - Using media_subtype:', event.media_subtype);
         // Use the subtype to determine rendering
-        switch(event.media_subtype) {
+        switch (event.media_subtype) {
           case 'image':
           case 'image/jpeg':
           case 'image/png':
@@ -1035,24 +1091,24 @@ const MediaCard = forwardRef(({
             break;
         }
       }
-      
+
       // If no subtype or unknown subtype, fall back to detection logic
       const { fullUrl } = prepareMediaSources(mediaSource);
-      
+
       // Determine media type from URL or event.media_type
       const fileExt = fullUrl.split('.').pop()?.toLowerCase();
-      const isImage = 
+      const isImage =
         (fileExt && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('image'));
-      
-      const isVideo = 
+
+      const isVideo =
         (fileExt && ['mp4', 'webm', 'ogg', 'mov'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('video'));
-      
-      const isAudio = 
+
+      const isAudio =
         (fileExt && ['mp3', 'wav', 'ogg', 'aac'].includes(fileExt)) ||
         (event.media_type && event.media_type.includes('audio'));
-      
+
       if (isImage) {
         return renderImageMedia(mediaSource);
       } else if (isVideo) {
@@ -1065,11 +1121,11 @@ const MediaCard = forwardRef(({
     } catch (error) {
       console.error('Error in renderMedia:', error);
       return (
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
-          height: '100%', 
+          height: '100%',
           width: '100%',
           bgcolor: 'background.paper',
           color: 'error.main',
@@ -1086,7 +1142,8 @@ const MediaCard = forwardRef(({
 
   return (
     <>
-      <motion.div
+      <Box
+        component={motion.div}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -1097,32 +1154,39 @@ const MediaCard = forwardRef(({
           console.log('MediaCard motion.div clicked');
           handleCardClick();
         }}
+        sx={{
+          borderRadius: 2,
+          boxShadow: isSelected
+            ? '0 4px 8px rgba(0,0,0,0.4)'
+            : '0 2px 4px rgba(0,0,0,0.1)',
+          transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+          height: '100%',
+          bgcolor: 'background.paper',
+          cursor: 'pointer',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            '& .card-border-highlight': {
+              opacity: 0,
+            },
+            '& .event-actions': {
+              opacity: 1,
+            },
+          },
+        }}
       >
         <Box
           id={`media-card-${event.id}`}
           sx={{
             position: 'relative',
-            borderRadius: 2,
+            borderRadius: 'inherit',
             overflow: 'hidden',
+            WebkitMaskImage: '-webkit-radial-gradient(white, black)',
             minHeight: { xs: 200, sm: 280, md: 320 },
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: isSelected
-              ? `0 0 0 2px ${color}, 0 4px 8px rgba(0,0,0,0.4)`
-              : '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'box-shadow 0.3s ease, transform 0.3s ease',
-            cursor: 'pointer',
-            bgcolor: 'background.paper',
-            '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              '& .event-actions': {
-                opacity: 1,
-              },
-            },
             height: '100%',
           }}
         >
-          {/* Vote overlay for EventList cards */}
           {showVoteOverlay && (
             <VoteOverlay
               value={voteValue}
@@ -1132,24 +1196,28 @@ const MediaCard = forwardRef(({
               hasError={!!voteError}
             />
           )}
-          
+
           {/* Media Content - Full card background */}
           {renderMedia()}
-          
+
           {/* Info Content - Overlaid with reduced opacity */}
-          <Box 
-            sx={{ 
-              p: 2, 
+          <Box
+            sx={{
+              p: 2,
               mt: 'auto',
-              display: 'flex', 
+              ml: '-1px',
+              mr: '-1px',
+              mb: '-1px',
+              display: 'flex',
               flexDirection: 'column',
               position: 'relative',
               zIndex: 3,
-              bgcolor: theme.palette.mode === 'dark' 
-                ? 'rgba(18, 18, 18, 0.75)' 
+              bgcolor: theme.palette.mode === 'dark'
+                ? 'rgba(18, 18, 18, 0.75)'
                 : 'rgba(255, 255, 255, 0.75)',
               backdropFilter: 'blur(8px)',
-              borderRadius: '0 0 16px 16px',
+              borderBottomLeftRadius: 2,
+              borderBottomRightRadius: 2,
             }}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1, width: '100%' }}>
@@ -1189,18 +1257,18 @@ const MediaCard = forwardRef(({
                 {event.title}
               </Typography>
             </Box>
-            
+
             {/* Event description */}
             {event.description && (
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 {limitDescription(event.description)}
               </Typography>
             )}
-            
+
             {/* Tags row (EventCard V2) */}
             <Box sx={{ mb: 1.5 }}>
-              <EventCardChipsRow 
-                tags={event.tags} 
+              <EventCardChipsRow
+                tags={event.tags}
                 associatedTimelines={event.associated_timelines || []}
                 removedTimelineIds={event.removed_timeline_ids || []}
               />
@@ -1321,14 +1389,33 @@ const MediaCard = forwardRef(({
               </Box>
             </Box>
           </Box>
+
+          {/* Border Highlight Overlay */}
+          {isSelected && (
+            <Box
+              className="card-border-highlight"
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                border: `2px solid ${color}`,
+                borderRadius: 'inherit',
+                pointerEvents: 'none',
+                zIndex: 5,
+                transition: 'opacity 0.3s ease',
+              }}
+            />
+          )}
         </Box>
-      </motion.div>
-      
+      </Box>
+
       {/* QUARANTINED: Event menu removed
           The edit and delete functionality was incomplete and caused issues
           Pending impact review for possible deletion
       */}
-      
+
       {/* Event popup */}
       <EventPopup
         open={popupOpen}

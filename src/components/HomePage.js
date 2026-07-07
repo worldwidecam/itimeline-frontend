@@ -4702,10 +4702,10 @@ const HomePage = () => {
                   onClick={handleLoadMoreFromLeftHub}
                   sx={{
                     justifyContent: 'center',
-                    borderRadius: 2,
+                    borderRadius: '50%',
                     minWidth: { xs: 32, sm: 42 },
                     width: { xs: 32, sm: 42 },
-                    height: 42,
+                    height: { xs: 32, sm: 42 },
                     px: 0,
                     color: 'text.primary',
                     border: '1px solid',
@@ -4720,7 +4720,7 @@ const HomePage = () => {
                     },
                   }}
                 >
-                  <RefreshIcon fontSize="small" />
+                  <NorthIcon sx={{ fontSize: 13, fontWeight: 900, transform: 'rotate(180deg)' }} />
                 </Button>
               </Box>
             </Stack>
