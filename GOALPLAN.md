@@ -44,6 +44,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * create push notification system.
 
 * the B Pointer arrow+element is not properly refreshing upon timeline change. i am on one timeline page > i click an event > the pointer B element appears below it > i navigate to another timeline page > it loads > the pointer B element remains where it was from the previous page.
+
+* expand on theory board module. offer possible stencils. like a simple timeline stencil, or perhaps a lineage tree stencil
 ---
 
 ## Awaiting Confirmation
@@ -53,6 +55,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* Refined Left Hub Load More button style and icon to be a circular button with a 180-degree rotated NorthIcon (Complete)
+
+* Optimized video feed playback in MediaCard.js utilizing IntersectionObserver with a 400px rootMargin, stopping off-screen background videos from playing (Complete)
 
 * Designed, implemented, and refined Action Hover Markers on the timeline ruler (with double-sized emoji pins, glowing stems, baseline alignment, and title bubble popups on hover) and unified duplicate community action layouts under a reusable, robust, responsive `<ActionCard />` component (Complete)
 
