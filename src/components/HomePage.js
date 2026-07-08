@@ -50,6 +50,7 @@ import {
   HowToVote as HowToVoteIcon,
   Add as AddIcon,
   FlagOutlined as FlagOutlinedIcon,
+  Settings as GearIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api, {
@@ -81,6 +82,8 @@ import EventDialog from './timeline-v3/events/EventDialog';
 import ActionCard from './timeline-v3/community/ActionCard';
 import EventPopup from './timeline-v3/events/EventPopup';
 import UserCard from './common/UserCard';
+import UserAvatar from './common/UserAvatar';
+import RichContentRenderer from './timeline-v3/events/RichContentRenderer';
 import NavFab, { TimelineMarkerIcon } from './timeline-v3/community/NavFab';
 import EventIcon from '@mui/icons-material/Event';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
@@ -151,7 +154,7 @@ const HOME_TIMELINE_CARD_SECTIONS = {
   cover: true,
   typeChip: true,
   audience: true,
-  description: false,
+  description: true,
   createdDate: true,
   favoriteToggle: true,
   openAction: true,
@@ -277,8 +280,8 @@ const LEFT_HUB_TABS = [
 ];
 
 const SEARCH_SUB_FILTERS = [
-  { key: 'all', label: 'All', mode: 'mixed' },
-  { key: 'timelines', label: 'TIMELINES', mode: 'timeline' },
+  { key: 'explore', label: 'EXPLORE', mode: 'explore' },
+  { key: 'communities', label: 'COMMUNITIES', mode: 'community' },
   { key: 'posts', label: 'POSTS', mode: 'post' },
   { key: 'users', label: 'USERS', mode: 'user' },
 ];
@@ -433,7 +436,7 @@ const HomePage = () => {
   const [showActiveHubScrollTop, setShowActiveHubScrollTop] = React.useState(false);
   const [showActiveHubLoadMore, setShowActiveHubLoadMore] = React.useState(false);
   const [isMyCreationsSubTabPhaseOneLoading, setIsMyCreationsSubTabPhaseOneLoading] = React.useState(false);
-  const [searchSubFilter, setSearchSubFilter] = React.useState('all');
+  const [searchSubFilter, setSearchSubFilter] = React.useState('explore');
   const [popularFilter, setPopularFilter] = React.useState('posts');
   const [myCreationsFilter, setMyCreationsFilter] = React.useState('posts');
   const [yourPageFilter, setYourPageFilter] = React.useState('posts');
@@ -457,8 +460,13 @@ const HomePage = () => {
   const [friendsListFilter, setFriendsListFilter] = React.useState('following');
   const [timelineSearchInput, setTimelineSearchInput] = React.useState('');
   const [timelineSearch, setTimelineSearch] = React.useState('');
+  const [exploreDossier, setExploreDossier] = React.useState(null);
+  const [trendingTags, setTrendingTags] = React.useState([]);
+  const [loadingExplore, setLoadingExplore] = React.useState(false);
+  const [loadingTrending, setLoadingTrending] = React.useState(false);
   const [isSearchSubmitting, setIsSearchSubmitting] = React.useState(false);
   const [isSearchResultsVisible, setIsSearchResultsVisible] = React.useState(true);
+  const [isSearchLoadingVisual, setIsSearchLoadingVisual] = React.useState(false);
   const [userFollowSnackbarOpen, setUserFollowSnackbarOpen] = React.useState(false);
   const [userFollowSnackbarMessage, setUserFollowSnackbarMessage] = React.useState('');
   const [userFollowSnackbarSeverity, setUserFollowSnackbarSeverity] = React.useState('success');
@@ -1057,9 +1065,10 @@ const HomePage = () => {
 
   const hasSearchQuery = timelineSearch.trim().length > 0;
   const hasSearchDraft = timelineSearchInput.trim().length > 0;
-  const isTimelineSearchScope = searchSubFilter === 'all' || searchSubFilter === 'timelines';
-  const isPostSearchScope = searchSubFilter === 'all' || searchSubFilter === 'posts';
-  const isUserSearchScope = searchSubFilter === 'all' || searchSubFilter === 'users';
+  const isExploreSearchScope = searchSubFilter === 'explore';
+  const isTimelineSearchScope = searchSubFilter === 'communities';
+  const isPostSearchScope = searchSubFilter === 'posts';
+  const isUserSearchScope = searchSubFilter === 'users';
   const isFollowersFriendsListFilter = friendsListFilter === 'followers';
   const currentUserId = Number(user?.id || 0);
   const followedUserIdSet = React.useMemo(() => {
@@ -1120,6 +1129,15 @@ const HomePage = () => {
     let count = 0;
 
     if (isTimelineSearchScope) {
+      count += searchableTimelines.filter((timeline) => {
+        if (timeline.timeline_type !== 'community') return false;
+        const name = String(timeline?.name || '').toLowerCase();
+        const description = String(timeline?.description || '').toLowerCase();
+        return name.includes(previewQuery) || description.includes(previewQuery);
+      }).length;
+    }
+
+    if (isExploreSearchScope) {
       count += searchableTimelines.filter((timeline) => {
         const name = String(timeline?.name || '').toLowerCase();
         const description = String(timeline?.description || '').toLowerCase();
@@ -1677,6 +1695,9 @@ const HomePage = () => {
     const q = timelineSearch.trim().toLowerCase();
     const qNormalized = q.replace(/\s+/g, '_');
     const rankTimeline = (timeline) => {
+      // Focus purely on community timelines, excluding hashtags
+      if (timeline?.timeline_type !== 'community') return 999;
+
       const name = String(timeline?.name || '').toLowerCase();
       const description = String(timeline?.description || '').toLowerCase();
 
@@ -1706,71 +1727,14 @@ const HomePage = () => {
   const filteredPosts = React.useMemo(() => {
     if (!isPostSearchScope) return [];
     if (!hasSearchQuery) return [];
-
-    const q = timelineSearch.trim().toLowerCase();
-    const qNormalized = q.replace(/\s+/g, '_');
-    const rankEvent = (event) => {
-      const title = String(event?.title || '').toLowerCase();
-      const description = String(event?.description || '').toLowerCase();
-
-      if (title === qNormalized || title === q) return 0;
-      if (title.startsWith(qNormalized) || title.startsWith(q)) return 1;
-      if (title.includes(qNormalized) || title.includes(q)) return 2;
-      if (description.includes(q)) return 3;
-      return 999;
-    };
-
-    return searchEvents
-      .map((event) => ({
-        event,
-        rank: rankEvent(event),
-      }))
-      .filter((entry) => entry.rank < 999)
-      .sort((a, b) => {
-        if (a.rank !== b.rank) return a.rank - b.rank;
-        const aTitleLength = String(a.event?.title || '').length;
-        const bTitleLength = String(b.event?.title || '').length;
-        if (aTitleLength !== bTitleLength) return aTitleLength - bTitleLength;
-        return new Date(b.event?.created_at || 0) - new Date(a.event?.created_at || 0);
-      })
-      .map((entry) => entry.event);
-  }, [searchEvents, timelineSearch, isPostSearchScope, hasSearchQuery]);
+    return searchEvents;
+  }, [searchEvents, isPostSearchScope, hasSearchQuery]);
 
   const filteredUsers = React.useMemo(() => {
     if (!isUserSearchScope) return [];
     if (!hasSearchQuery) return [];
-
-    const q = timelineSearch.trim().toLowerCase();
-    // Golden rule: normalize query so spaces match underscores
-    const qNormalized = q.replace(/\s+/g, '_');
-    const rankUser = (profileUser) => {
-      const username = String(profileUser?.username || '').toLowerCase();
-      const usernameDisplay = displayUsername(username);
-      const bio = String(profileUser?.bio || '').toLowerCase();
-
-      // Match against both stored form (underscores) and display form (spaces)
-      if (username === qNormalized || usernameDisplay === q) return 0;
-      if (username.startsWith(qNormalized) || usernameDisplay.startsWith(q)) return 1;
-      if (username.includes(qNormalized) || usernameDisplay.includes(q)) return 2;
-      if (bio.includes(q)) return 3;
-      return 999;
-    };
-
-    return searchUsers
-      .map((profileUser) => ({
-        profileUser,
-        rank: rankUser(profileUser),
-      }))
-      .filter((entry) => entry.rank < 999)
-      .sort((a, b) => {
-        if (a.rank !== b.rank) return a.rank - b.rank;
-        const aNameLength = String(a.profileUser?.username || '').length;
-        const bNameLength = String(b.profileUser?.username || '').length;
-        if (aNameLength !== bNameLength) return aNameLength - bNameLength;
-        return Number(a.profileUser?.id || 0) - Number(b.profileUser?.id || 0);
-      })
-      .map((entry) => entry.profileUser);
-  }, [searchUsers, timelineSearch, isUserSearchScope, hasSearchQuery]);
+    return searchUsers;
+  }, [searchUsers, isUserSearchScope, hasSearchQuery]);
 
   const visibleTimelines = React.useMemo(() => {
     return filteredTimelines.slice(0, visibleTimelineCount);
@@ -1791,6 +1755,362 @@ const HomePage = () => {
   const visibleUsers = React.useMemo(() => {
     return filteredUsers.slice(0, visibleTimelineCount);
   }, [filteredUsers, visibleTimelineCount]);
+
+  const trackerItems = React.useMemo(() => {
+    if (!hasSearchQuery) return [];
+    if (searchSubFilter === 'explore') {
+      const items = [];
+      if (exploreDossier?.top_user) {
+        items.push({ id: `user-${exploreDossier.top_user.id}`, label: "User Found" });
+      }
+      if (exploreDossier?.top_personal) {
+        items.push({ id: `search-timeline-${exploreDossier.top_personal.id}`, label: "Personal" });
+      }
+      if (exploreDossier?.top_community) {
+        items.push({ id: `search-timeline-${exploreDossier.top_community.id}`, label: "     Community" });
+      }
+      if (exploreDossier?.top_hashtag) {
+        items.push({ id: `search-timeline-${exploreDossier.top_hashtag.id}`, label: "#   " });
+      }
+      if (exploreDossier?.top_news) {
+        items.push({ id: `event-${exploreDossier.top_news.id}`, label: "Link" });
+      }
+      if (exploreDossier?.top_media) {
+        items.push({ id: `event-${exploreDossier.top_media.id}`, label: "Post" });
+      }
+      if (exploreDossier?.top_remark) {
+        items.push({ id: `event-${exploreDossier.top_remark.id}`, label: "Post" });
+      }
+      if (exploreDossier?.top_comment) {
+        items.push({ id: `comment-${exploreDossier.top_comment.id}`, label: "Comment" });
+      }
+      return items.slice(0, 6);
+    }
+    if (searchSubFilter === 'communities') {
+      return visibleTimelines.map((t) => ({ id: `search-timeline-${t.id}`, label: "     Community" }));
+    }
+    if (searchSubFilter === 'posts') {
+      return visiblePosts.map((p) => {
+        const isComment = p.searchResultType === 'comment';
+        const isLink = p.type === 'news' || p.type === 'link';
+        const label = isComment ? "Comment" : (isLink ? "Link" : "Post");
+        return {
+          id: isComment ? `comment-${p.id}` : `event-${p.id}`,
+          label,
+        };
+      });
+    }
+    if (searchSubFilter === 'users') {
+      return visibleUsers.map((u) => ({ id: `user-${u.id}`, label: "User Found" }));
+    }
+    return [];
+  }, [hasSearchQuery, searchSubFilter, exploreDossier, visibleTimelines, visiblePosts, visibleUsers]);
+
+  const handleTrackerItemClick = (elementId) => {
+    const el = document.getElementById(elementId);
+    if (el && resultsScrollRef.current) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleOpenEventById = React.useCallback(async (eventId) => {
+    const numericEventId = Number(eventId || 0);
+    if (!(numericEventId > 0)) return;
+
+    try {
+      setHeroEventPopupLoading(true);
+      const response = await api.get(`/api/v1/events/${numericEventId}`);
+      const fetchedEvent = response?.data;
+      if (fetchedEvent?.id) {
+        setHeroEventPopupEvent(fetchedEvent);
+      }
+    } catch (error) {
+      console.warn('[HomePage] Failed to fetch event by id:', error);
+    } finally {
+      setHeroEventPopupLoading(false);
+    }
+  }, []);
+
+  const renderCommentSearchResultCard = (comment) => {
+    const isDarkMode = theme.palette.mode === 'dark';
+    const textPrimary = theme.palette.text.primary;
+    const textSecondary = theme.palette.text.secondary;
+    const charcoalBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(80, 70, 60, 0.2)';
+
+    const isOp = Number(comment.userId) === Number(comment.eventCreatorId);
+
+    // Dynamic style based on type and OP status (matching discussion popup drawer)
+    let bubbleBg = isDarkMode 
+      ? 'linear-gradient(135deg, rgba(143, 172, 154, 0.06) 0%, rgba(143, 172, 154, 0.18) 100%)' 
+      : 'rgba(143, 172, 154, 0.15)';
+    let bubbleBorder = isDarkMode ? 'rgba(143, 172, 154, 0.25)' : 'rgba(143, 172, 154, 0.3)';
+    let bubbleShadow = '0 2px 5px rgba(0,0,0,0.03)';
+    let bubbleTransform = 'none';
+
+    if (comment.type === 'system') {
+      // Lavender/Plum
+      bubbleBg = isDarkMode 
+        ? 'linear-gradient(135deg, rgba(168, 143, 184, 0.08) 0%, rgba(168, 143, 184, 0.22) 100%)' 
+        : 'rgba(168, 143, 184, 0.2)';
+      bubbleBorder = isDarkMode ? 'rgba(168, 143, 184, 0.25)' : 'rgba(168, 143, 184, 0.35)';
+    } else if (isOp) {
+      // Sunset Gold
+      bubbleBg = isDarkMode 
+        ? 'linear-gradient(135deg, rgba(224, 175, 104, 0.18) 0%, rgba(212, 163, 89, 0.08) 100%)' 
+        : 'rgba(212, 163, 89, 0.2)';
+      bubbleBorder = isDarkMode ? 'rgba(224, 175, 104, 0.55)' : 'rgba(212, 163, 89, 0.4)';
+      bubbleShadow = isDarkMode ? '0 4px 12px rgba(224, 175, 104, 0.22)' : '0 4px 10px rgba(0,0,0,0.08)';
+      bubbleTransform = 'translateY(-1px)';
+    } else if (comment.parentId) {
+      // Warm Coral
+      bubbleBg = isDarkMode 
+        ? 'linear-gradient(135deg, rgba(235, 130, 110, 0.15) 0%, rgba(216, 110, 130, 0.06) 100%)' 
+        : 'rgba(216, 179, 161, 0.15)';
+      bubbleBorder = isDarkMode ? 'rgba(235, 130, 110, 0.25)' : 'rgba(216, 179, 161, 0.3)';
+      bubbleShadow = '0 1px 3px rgba(0,0,0,0.02)';
+    }
+
+    const displayName = comment.type === 'system'
+      ? 'System Generated'
+      : (comment.user?.display_username || comment.user?.username || 'Anonymous');
+
+    return (
+      <Box
+        id={`comment-${comment.id}`}
+        sx={{
+          display: 'flex',
+          gap: 1.5,
+          alignItems: 'flex-start',
+          p: 2,
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(30, 41, 59, 0.08)',
+          background: isDarkMode ? 'rgba(15, 23, 42, 0.25)' : 'rgba(255, 255, 255, 0.45)',
+          backdropFilter: 'blur(8px)',
+          boxShadow: isDarkMode ? 'none' : '0 4px 12px rgba(0,0,0,0.03)',
+        }}
+      >
+        {comment.type === 'system' ? (
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: textSecondary,
+              border: '1px solid ' + charcoalBorder,
+            }}
+          >
+            <GearIcon sx={{ fontSize: 16 }} />
+          </Box>
+        ) : (
+          <UserAvatar
+            name={displayName}
+            avatarUrl={comment.user?.avatar_url}
+            id={comment.userId}
+            size={32}
+          />
+        )}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {/* Username & Metadata */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: textPrimary, fontSize: '0.85rem', textTransform: comment.type === 'system' ? 'none' : 'capitalize' }}>
+              {displayName}
+            </Typography>
+            <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.7rem' }}>
+              {formatDate(comment.created_at)}
+            </Typography>
+          </Box>
+
+          {/* Comment Bubble */}
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: '4px 16px 16px 16px',
+              background: bubbleBg,
+              border: '1px solid',
+              borderColor: bubbleBorder,
+              color: textPrimary,
+              boxShadow: bubbleShadow,
+              transform: bubbleTransform,
+              width: 'fit-content',
+              maxWidth: '100%',
+              mb: 1,
+            }}
+          >
+            <RichContentRenderer content={comment.content} theme={theme} inheritTextColor={true} />
+          </Box>
+
+          {/* Action Row */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <Button
+              size="small"
+              onClick={() => handleOpenEventById(comment.eventId)}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: 'primary.main',
+                padding: '4px 10px',
+                borderRadius: 1.5,
+                border: '1px solid rgba(14, 165, 233, 0.25)',
+                bgcolor: 'rgba(14, 165, 233, 0.04)',
+                '&:hover': {
+                  bgcolor: 'rgba(14, 165, 233, 0.12)',
+                },
+              }}
+            >
+              Under post: {comment.eventTitle || 'View Post'}
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+    );
+  };
+
+  const renderExploreDashboard = () => {
+    const dossier = exploreDossier;
+    if (!dossier) return null;
+
+    const hasAnyTarget =
+      dossier.top_community ||
+      dossier.top_personal ||
+      dossier.top_hashtag ||
+      dossier.top_news ||
+      dossier.top_media ||
+      dossier.top_remark ||
+      dossier.top_comment ||
+      dossier.top_user;
+
+    if (!hasAnyTarget) {
+      return (
+        <Box sx={{ py: 6, textAlign: 'center' }}>
+          <Typography color="text.secondary">
+            No dossier targets match this search term. Try another query!
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <Stack spacing={2.5}>
+        {/* Top User */}
+        {dossier.top_user && (
+          <Box id={`user-${dossier.top_user.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="error.main" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top User Profile
+            </Typography>
+            <Box sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 2.4, sm: 2.9 } }}>
+              <UserCard
+                user={dossier.top_user}
+                currentUserId={currentUserId}
+                followedUserIdSet={followedUserIdSet}
+                followActionByUserId={followActionByUserId}
+                onToggleFollow={handleToggleUserFollow}
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* Top Personal Timeline */}
+        {dossier.top_personal && (
+          <Box id={`search-timeline-${dossier.top_personal.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="#c084fc" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top Personal Timeline
+            </Typography>
+            <TimelineCard
+              timeline={dossier.top_personal}
+              sections={HOME_TIMELINE_CARD_SECTIONS}
+              allowFavoriteToggle
+              isFavoriteTimeline={Number(dossier.top_personal?.id || 0) > 0 && favoriteTimelineId === Number(dossier.top_personal?.id || 0)}
+              onToggleFavorite={handleToggleFavoriteTimeline}
+              onOpenTimeline={handleOpenTimelineCard}
+              formatDate={formatDate}
+            />
+          </Box>
+        )}
+
+        {/* Top Community */}
+        {dossier.top_community && (
+          <Box id={`search-timeline-${dossier.top_community.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="primary.main" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top Community
+            </Typography>
+            <TimelineCard
+              timeline={dossier.top_community}
+              sections={HOME_TIMELINE_CARD_SECTIONS}
+              allowFavoriteToggle
+              isFavoriteTimeline={Number(dossier.top_community?.id || 0) > 0 && favoriteTimelineId === Number(dossier.top_community?.id || 0)}
+              onToggleFavorite={handleToggleFavoriteTimeline}
+              onOpenTimeline={handleOpenTimelineCard}
+              formatDate={formatDate}
+            />
+          </Box>
+        )}
+
+        {/* Top Hashtag */}
+        {dossier.top_hashtag && (
+          <Box id={`search-timeline-${dossier.top_hashtag.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="success.main" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top Hashtag
+            </Typography>
+            <TimelineCard
+              timeline={dossier.top_hashtag}
+              sections={HOME_TIMELINE_CARD_SECTIONS}
+              allowFavoriteToggle
+              isFavoriteTimeline={Number(dossier.top_hashtag?.id || 0) > 0 && favoriteTimelineId === Number(dossier.top_hashtag?.id || 0)}
+              onToggleFavorite={handleToggleFavoriteTimeline}
+              onOpenTimeline={handleOpenTimelineCard}
+              formatDate={formatDate}
+            />
+          </Box>
+        )}
+
+        {/* Top News */}
+        {dossier.top_news && (
+          <Box id={`event-${dossier.top_news.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="warning.main" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top News / Link Event
+            </Typography>
+            {renderSearchEventCard(dossier.top_news)}
+          </Box>
+        )}
+
+        {/* Top Media */}
+        {dossier.top_media && (
+          <Box id={`event-${dossier.top_media.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="secondary.main" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top Media Event
+            </Typography>
+            {renderSearchEventCard(dossier.top_media)}
+          </Box>
+        )}
+
+        {/* Top Remark */}
+        {dossier.top_remark && (
+          <Box id={`event-${dossier.top_remark.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="info.main" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top Remark Event
+            </Typography>
+            {renderSearchEventCard(dossier.top_remark)}
+          </Box>
+        )}
+
+        {/* Top Comment */}
+        {dossier.top_comment && (
+          <Box id={`comment-${dossier.top_comment.id}`} sx={{ scrollMarginTop: 16 }}>
+            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.75, letterSpacing: 0.8, fontWeight: 900 }}>
+              Top Comment
+            </Typography>
+            {renderCommentSearchResultCard(dossier.top_comment)}
+          </Box>
+        )}
+      </Stack>
+    );
+  };
 
   const visibleOwnedTimelines = React.useMemo(() => {
     return ownedTimelines.slice(0, visibleMyCreationsTimelineCount);
@@ -2227,84 +2547,39 @@ const HomePage = () => {
     }
   }, [favoriteTimelineId]);
 
-  const fetchSearchEvents = React.useCallback(async () => {
-    if (loadingSearchEvents || hasLoadedSearchEvents || !searchableTimelines.length) return;
+  const fetchExploreDossier = React.useCallback(async (q) => {
+    try {
+      setLoadingExplore(true);
+      const res = await api.get('/api/v1/search/explore', { params: { q } });
+      setExploreDossier(res?.data || null);
+    } catch (err) {
+      logError('Error fetching explore dossier', err);
+      setExploreDossier(null);
+    } finally {
+      setLoadingExplore(false);
+    }
+  }, []);
 
+  const fetchSearchPosts = React.useCallback(async (q) => {
     try {
       setLoadingSearchEvents(true);
-
-      const targetTimelines = searchableTimelines.slice(0, HOME_SEARCH_TIMELINE_SOURCE_LIMIT);
-
-      const requests = targetTimelines.map((timeline) =>
-        api.get(`/api/v1/events/by-timeline/${timeline.id}`, {
-          params: { limit: HOME_PER_TIMELINE_EVENTS_FETCH_LIMIT },
-        }),
-      );
-      const results = await Promise.allSettled(requests);
-
-      const merged = [];
-      for (let i = 0; i < results.length; i += 1) {
-        const result = results[i];
-        const timeline = targetTimelines[i];
-
-        if (result.status !== 'fulfilled') continue;
-
-        const payload = result.value?.data;
-        const events = Array.isArray(payload?.data)
-          ? payload.data
-          : (Array.isArray(payload) ? payload : []);
-
-        events.forEach((event) => {
-          merged.push({
-            ...event,
-            timeline_id: event?.timeline_id || timeline?.id,
-            timeline_name: timeline?.name || event?.timeline_name || '',
-            timeline_type: timeline?.timeline_type || event?.timeline_type || 'hashtag',
-            timeline_created_by: timeline?.created_by || timeline?.creator_id || timeline?.owner_id || timeline?.user_id || null,
-          });
-        });
-      }
-
-      const dedupedById = [];
-      const seen = new Set();
-      merged.forEach((event) => {
-        if (!event?.id || seen.has(event.id)) return;
-        seen.add(event.id);
-        dedupedById.push(event);
-      });
-
-      setSearchEvents(dedupedById.slice(0, HOME_SEARCH_EVENTS_RESULT_LIMIT));
-      setHasLoadedSearchEvents(true);
-    } catch (error) {
-      logError('Error fetching search events', error);
+      const res = await api.get('/api/v1/search/posts', { params: { q } });
+      setSearchEvents(res?.data?.data || []);
+    } catch (err) {
+      logError('Error fetching search posts', err);
       setSearchEvents([]);
     } finally {
       setLoadingSearchEvents(false);
     }
-  }, [loadingSearchEvents, hasLoadedSearchEvents, searchableTimelines]);
+  }, []);
 
-  const fetchSearchUsers = React.useCallback(async (rawQuery) => {
-    const nextQuery = String(rawQuery || '').trim().replace(/^@+/, '');
-    if (!nextQuery) {
-      setSearchUsers([]);
-      return;
-    }
-
+  const fetchSearchUsers = React.useCallback(async (q) => {
     try {
       setLoadingSearchUsers(true);
-
-      const response = await api.get('/api/v1/users/search', {
-        params: { username: nextQuery },
-      });
-      const payload = response?.data;
-
-      const users = Array.isArray(payload) ? payload : [];
-
-      setSearchUsers(users.slice(0, HOME_SEARCH_USERS_RESULT_LIMIT));
-    } catch (error) {
-      if (error?.response?.status !== 404) {
-        logError('Error fetching search users', error);
-      }
+      const res = await api.get('/api/v1/search/users', { params: { q } });
+      setSearchUsers(res?.data?.data || []);
+    } catch (err) {
+      logError('Error fetching search users', err);
       setSearchUsers([]);
     } finally {
       setLoadingSearchUsers(false);
@@ -3842,51 +4117,112 @@ const HomePage = () => {
     }
   };
 
-  const handleSearchSubmit = React.useCallback((forcedQuery = null) => {
+  const handleSearchSubmit = React.useCallback((forcedQuery = null, immediate = false) => {
     const nextQuery = typeof forcedQuery === 'string' ? forcedQuery.trim() : timelineSearchInput.trim();
-    const shouldLoadPostScope = nextQuery.length > 0 && isPostSearchScope;
-    const shouldLoadUserScope = nextQuery.length > 0 && isUserSearchScope;
     setIsSearchSubmitting(true);
     setIsSearchResultsVisible(false);
-
+    setIsSearchLoadingVisual(true);
+ 
     if (searchSubmitTimeoutRef.current) {
       window.clearTimeout(searchSubmitTimeoutRef.current);
     }
     if (searchRevealTimeoutRef.current) {
       window.clearTimeout(searchRevealTimeoutRef.current);
     }
-
+ 
+    const delay = immediate ? 0 : SEARCH_SUBMIT_DELAY_MS;
+ 
     searchSubmitTimeoutRef.current = window.setTimeout(async () => {
-      if (shouldLoadPostScope) {
-        await fetchSearchEvents();
+      const startTime = Date.now();
+      try {
+        if (nextQuery.length > 0) {
+          const promises = [fetchExploreDossier(nextQuery)];
+          if (isPostSearchScope) {
+            promises.push(fetchSearchPosts(nextQuery));
+          } else if (isUserSearchScope) {
+            promises.push(fetchSearchUsers(nextQuery));
+          }
+          await Promise.all(promises);
+        } else {
+          setExploreDossier(null);
+          setSearchEvents([]);
+          setSearchUsers([]);
+        }
+      } catch (error) {
+        logError('Error submitting search', error);
       }
-      if (shouldLoadUserScope) {
-        await fetchSearchUsers(nextQuery);
-      } else {
-        setSearchUsers([]);
-      }
-
+ 
       setTimelineSearch(nextQuery);
       setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
       if (resultsScrollRef.current) {
         resultsScrollRef.current.scrollTop = 0;
       }
-      setIsSearchResultsVisible(true);
-
-      searchRevealTimeoutRef.current = window.setTimeout(() => {
-        setIsSearchSubmitting(false);
-      }, SEARCH_RESULT_HANDOFF_MS);
-    }, SEARCH_SUBMIT_DELAY_MS);
-  }, [timelineSearchInput, isPostSearchScope, isUserSearchScope, fetchSearchEvents, fetchSearchUsers]);
+ 
+      const elapsed = Date.now() - startTime;
+      const minDuration = 550; // enforce 550ms minimum visual loader window to prevent flickering
+      const remaining = Math.max(minDuration - elapsed, 0);
+ 
+      window.setTimeout(() => {
+        setIsSearchResultsVisible(true);
+        setIsSearchLoadingVisual(false);
+ 
+        searchRevealTimeoutRef.current = window.setTimeout(() => {
+          setIsSearchSubmitting(false);
+        }, SEARCH_RESULT_HANDOFF_MS);
+      }, remaining);
+    }, delay);
+  }, [
+    timelineSearchInput,
+    isExploreSearchScope,
+    isPostSearchScope,
+    isUserSearchScope,
+    fetchExploreDossier,
+    fetchSearchPosts,
+    fetchSearchUsers,
+    logError,
+  ]);
 
   const handleClearSearch = React.useCallback(() => {
+    if (searchSubmitTimeoutRef.current) {
+      window.clearTimeout(searchSubmitTimeoutRef.current);
+    }
+    if (searchRevealTimeoutRef.current) {
+      window.clearTimeout(searchRevealTimeoutRef.current);
+    }
     setTimelineSearchInput('');
+    setTimelineSearch('');
+    setExploreDossier(null);
+    setSearchEvents([]);
+    setSearchUsers([]);
+    setIsSearchSubmitting(false);
+    setIsSearchResultsVisible(true);
     setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
     if (resultsScrollRef.current) {
       resultsScrollRef.current.scrollTop = 0;
     }
-    handleSearchSubmit('');
-  }, [handleSearchSubmit]);
+  }, []);
+
+  React.useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        setLoadingTrending(true);
+        const res = await api.get('/api/v1/search/trending-tags');
+        setTrendingTags(res?.data?.tags || []);
+      } catch (err) {
+        logError('Error fetching trending tags', err);
+      } finally {
+        setLoadingTrending(false);
+      }
+    };
+    fetchTrending();
+  }, []);
+
+  React.useEffect(() => {
+    if (activeHubTab === 'timeline-search' && timelineSearch.trim().length > 0) {
+      handleSearchSubmit(timelineSearch, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchSubFilter, activeHubTab, timelineSearch]);
 
   const handleDialogClose = () => {
     setDialogOpen(false);
@@ -5722,6 +6058,130 @@ const HomePage = () => {
                         ),
                       }}
                     />
+
+                    <Box
+                      sx={{
+                        height: 132,
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          mt: 2.5,
+                          mb: 1.5,
+                          px: 0,
+                          width: '100%',
+                          maxWidth: '100%',
+                          overflowX: 'auto',
+                          overflowY: 'hidden',
+                          '&::-webkit-scrollbar': {
+                            height: '4px',
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            background: 'transparent',
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                            borderRadius: '4px',
+                          },
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            width: '100%',
+                            height: 100,
+                            minWidth: hasSearchQuery && trackerItems.length > 0 ? Math.max(trackerItems.length * 85, 340) : '100%',
+                            borderBottom: '2px solid rgba(14, 165, 233, 0.45)',
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            justifyContent: 'space-around',
+                            pb: 0,
+                          }}
+                        >
+                          {hasSearchQuery && trackerItems.map((item, idx) => {
+                            const stemHeight = 45 - idx * 5;
+                            return (
+                              <Box
+                                key={`tracker-item-${searchSubFilter}-${item.id}-${idx}`}
+                                onClick={() => handleTrackerItemClick(item.id)}
+                                sx={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  position: 'relative',
+                                  cursor: 'pointer',
+                                  transition: 'all 200ms ease',
+                                  '&:hover': {
+                                    transform: 'translateY(-2px)',
+                                    '& .stem': {
+                                      backgroundColor: '#0ea5e9',
+                                    },
+                                    '& .flag': {
+                                      background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+                                      color: '#fff',
+                                    },
+                                  },
+                                }}
+                              >
+                                <Box
+                                  className="flag"
+                                  sx={{
+                                    fontSize: '0.62rem',
+                                    fontWeight: 900,
+                                    letterSpacing: 0.5,
+                                    textTransform: 'uppercase',
+                                    padding: '3px 8px',
+                                    borderRadius: 1,
+                                    background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    color: 'text.secondary',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    maxWidth: 120,
+                                    transform: 'rotate(-8deg)',
+                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                                    [`@keyframes flagFadeIn-${idx}`]: {
+                                      '0%': { opacity: 0, transform: 'rotate(-8deg) scale(0.9) translateY(5px)' },
+                                      '100%': { opacity: 1, transform: 'rotate(-8deg) scale(1) translateY(0px)' }
+                                    },
+                                    animation: `flagFadeIn-${idx} 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+                                    animationDelay: `${idx * 50 + 150}ms`,
+                                    opacity: 0,
+                                    transition: 'all 200ms ease',
+                                  }}
+                                >
+                                  {item.label}
+                                </Box>
+                                <Box
+                                  className="stem"
+                                  sx={{
+                                    width: 2,
+                                    height: stemHeight,
+                                    backgroundColor: 'rgba(14, 165, 233, 0.22)',
+                                    [`@keyframes stemGrow-${stemHeight}`]: {
+                                      '0%': { height: 0, opacity: 0 },
+                                      '100%': { height: stemHeight, opacity: 1 }
+                                    },
+                                    animation: `stemGrow-${stemHeight} 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+                                    animationDelay: `${idx * 50}ms`,
+                                    opacity: 0,
+                                    transition: 'all 200ms ease',
+                                    mt: 0.5,
+                                  }}
+                                />
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                    </Box>
+
                     <Box
                       sx={{
                         mt: 1.5,
@@ -5776,15 +6236,69 @@ const HomePage = () => {
                     </Box>
                   </Box>
 
+                  {/* Hacker Terminal Header & taglines fixed above the scrollable viewport */}
+                  {hasSearchQuery && (
+                    <Box sx={{ px: 2, pt: 2, pb: 1.5, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
+                      {/* Hacker Terminal Header */}
+                      <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center' }}>
+                        <Typography
+                          variant="h4"
+                          sx={{
+                            fontFamily: '"Courier New", Courier, monospace',
+                            fontWeight: 900,
+                            letterSpacing: 3,
+                            textTransform: 'uppercase',
+                            transform: 'scaleX(1.15)',
+                            transformOrigin: 'left center',
+                            color: theme.palette.text.primary,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {timelineSearch}
+                          <Box
+                            component="span"
+                            sx={{
+                              width: 14,
+                              height: 24,
+                              backgroundColor: 'currentColor',
+                              display: 'inline-block',
+                              ml: 1,
+                              animation: 'blinkingCursor 1.2s infinite steps(1)',
+                              '@keyframes blinkingCursor': {
+                                '0%, 100%': { opacity: 1 },
+                                '50%': { opacity: 0 },
+                              },
+                            }}
+                          />
+                        </Typography>
+                      </Box>
+
+                      {/* Sub-Tab Custom Taglines */}
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.85 }}>
+                        {searchSubFilter === 'communities' && `Check out all these Communities relating to "${timelineSearch}"`}
+                        {searchSubFilter === 'posts' && `Explore events and moments matching "${timelineSearch}" across time`}
+                        {searchSubFilter === 'users' && `What I got on "${timelineSearch}"`}
+                        {searchSubFilter === 'explore' && `Everything we got on "${timelineSearch}"`}
+                      </Typography>
+                    </Box>
+                  )}
+
                   <Box ref={resultsScrollRef} sx={{ p: 2, overflowY: 'auto', flex: 1, minHeight: 0 }} onScroll={handleHubScroll}>
-                    <Box sx={{ position: 'relative', minHeight: 120 }}>
+                    <Box sx={{ position: 'relative', minHeight: 120, pb: 4 }}>
                       <Box
+                        key={searchSubFilter}
                         sx={{
                           opacity: isSearchResultsVisible ? (isSearchSubmitting ? 0.38 : 1) : 0,
                           transform: isSearchResultsVisible ? 'translateY(0px)' : 'translateY(7px)',
                           filter: isSearchSubmitting ? 'blur(1px)' : 'blur(0px)',
                           transition: 'opacity 320ms ease, transform 320ms ease, filter 220ms ease',
                           pointerEvents: isSearchSubmitting ? 'none' : 'auto',
+                          '@keyframes resultsFadeIn': {
+                            '0%': { opacity: 0, transform: 'translateY(12px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0px)' }
+                          },
+                          animation: 'resultsFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
                         }}
                       >
                         {timelineSearchInput.trim().length > 0 && timelineSearchInput.trim() !== timelineSearch ? (
@@ -5795,94 +6309,179 @@ const HomePage = () => {
                             </Typography>
                           </Box>
                         ) : !hasSearchQuery ? (
-                          <Box sx={{ py: 6, textAlign: 'center' }}>
-                            <Typography sx={{ fontWeight: 700, mb: 1 }}>Start searching</Typography>
-                            <Typography color="text.secondary">
-                              Enter a search term to explore timelines. This keeps SEARCH focused instead of showing a default list.
+                          <Box sx={{ py: 4 }}>
+                            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2, textAlign: 'center', letterSpacing: 0.8, fontWeight: 700 }}>
+                              Explore Trending Tags
                             </Typography>
+                            {loadingTrending ? (
+                              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={24} /></Box>
+                            ) : trendingTags.length > 0 ? (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 2, px: 2, py: 2 }}>
+                                {trendingTags.map((tag, idx) => (
+                                  <Chip
+                                    key={`trending-tag-${tag}`}
+                                    label={tag}
+                                    onClick={() => {
+                                      setTimelineSearchInput(tag);
+                                      handleSearchSubmit(tag, true);
+                                    }}
+                                    sx={{
+                                      cursor: 'pointer',
+                                      fontWeight: 800,
+                                      fontSize: '0.95rem',
+                                      px: 1.5,
+                                      py: 2.2,
+                                      borderRadius: '12px',
+                                      color: theme.palette.mode === 'dark' ? '#38bdf8' : '#0369a1',
+                                      borderColor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.25)',
+                                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.05)' : 'rgba(2, 132, 199, 0.03)',
+                                      boxShadow: theme.palette.mode === 'dark' 
+                                        ? '0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                                        : '0 4px 12px rgba(0, 0, 0, 0.04)',
+                                      '@keyframes tagFloat': {
+                                        '0%, 100%': { transform: 'translateY(0px)' },
+                                        '50%': { transform: 'translateY(-7px)' }
+                                      },
+                                      animation: 'tagFloat 5s ease-in-out infinite',
+                                      animationDelay: `${idx * 0.25}s`,
+                                      '&:hover': {
+                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(2, 132, 199, 0.12)',
+                                        borderColor: theme.palette.mode === 'dark' ? '#38bdf8' : '#0284c7',
+                                        color: theme.palette.mode === 'dark' ? '#7dd3fc' : '#0284c7',
+                                        animationPlayState: 'paused',
+                                        transform: 'translateY(-10px) scale(1.1)',
+                                        boxShadow: theme.palette.mode === 'dark'
+                                          ? '0 12px 28px rgba(56, 189, 248, 0.35), 0 4px 8px rgba(56, 189, 248, 0.15)'
+                                          : '0 12px 28px rgba(2, 132, 199, 0.22), 0 4px 8px rgba(2, 132, 199, 0.1)',
+                                      },
+                                      transition: 'all 280ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                    }}
+                                    variant="outlined"
+                                  />
+                                ))}
+                              </Box>
+                            ) : (
+                              <Box sx={{ textAlign: 'center', py: 2 }}>
+                                <Typography color="text.secondary" variant="body2">
+                                  No trending tags found yet. Enter a search term to begin exploring!
+                                </Typography>
+                              </Box>
+                            )}
                           </Box>
-                        ) : loadingTimelines || loadingSearchEvents || loadingSearchUsers ? (
+                        ) : isSearchLoadingVisual ? (
                           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-                        ) : visibleTimelines.length > 0 || visiblePosts.length > 0 || visibleUsers.length > 0 ? (
-                          <Stack spacing={2}>
-                            {isTimelineSearchScope && visibleTimelines.length > 0 ? (
-                              <>
-                                {searchSubFilter === 'all' ? (
-                                  <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
-                                    Timelines
-                                  </Typography>
-                                ) : null}
-                                <Stack spacing={1.5}>
-                                  {visibleTimelines.map((timeline, index) => (
-                                    <TimelineCard
-                                      key={`search-timeline-${timeline?.id || timeline?.name || index}`}
-                                      timeline={timeline}
-                                      sections={HOME_TIMELINE_CARD_SECTIONS}
-                                      allowFavoriteToggle
-                                      isFavoriteTimeline={Number(timeline?.id || 0) > 0 && favoriteTimelineId === Number(timeline?.id || 0)}
-                                      onToggleFavorite={handleToggleFavoriteTimeline}
-                                      onOpenTimeline={handleOpenTimelineCard}
-                                      formatDate={formatDate}
-                                    />
-                                  ))}
-                                </Stack>
-                              </>
-                            ) : null}
-
-                            {isPostSearchScope && visiblePosts.length > 0 ? (
-                              <>
-                                {searchSubFilter === 'all' ? (
-                                  <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
-                                    Posts / Events
-                                  </Typography>
-                                ) : null}
-                                <Stack spacing={1.5}>
-                                  {visiblePosts.map((event) => (
-                                    <Box key={`event-${event.id}`}>
-                                      {renderSearchEventCard(event)}
-                                    </Box>
-                                  ))}
-                                </Stack>
-                              </>
-                            ) : null}
-
-                            {isUserSearchScope && visibleUsers.length > 0 ? (
-                              <>
-                                {searchSubFilter === 'all' ? (
-                                  <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
-                                    Users
-                                  </Typography>
-                                ) : null}
-                                <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 2.4, sm: 2.9 } }}>
-                                  {visibleUsers.map((profileUser) => (
-                                    <UserCard
-                                      key={`user-${profileUser.id}`}
-                                      user={profileUser}
-                                      currentUserId={currentUserId}
-                                      followedUserIdSet={followedUserIdSet}
-                                      followActionByUserId={followActionByUserId}
-                                      onToggleFollow={handleToggleUserFollow}
-                                    />
-                                  ))}
-                                </Stack>
-                              </>
-                            ) : null}
-                          </Stack>
                         ) : (
-                          <Box sx={{ py: 6, textAlign: 'center' }}>
-                            <Typography color="text.secondary">
-                              {searchSubFilter === 'posts'
-                                ? 'No posts/events matched your search.'
-                                : searchSubFilter === 'users'
-                                  ? 'No user profiles matched your search. Try exact username (without @) for now.'
-                                  : 'No search results matched your query.'}
-                            </Typography>
+                          <Box>
+                            {/* Main Result Swapper */}
+                            {searchSubFilter === 'explore' ? (
+                              renderExploreDashboard()
+                            ) : (
+                              <Stack spacing={2}>
+                                {isTimelineSearchScope && visibleTimelines.length > 0 ? (
+                                  <Stack spacing={1.5}>
+                                    {visibleTimelines.map((timeline, index) => (
+                                      <TimelineCard
+                                        key={`search-timeline-${timeline?.id || timeline?.name || index}`}
+                                        timeline={timeline}
+                                        sections={HOME_TIMELINE_CARD_SECTIONS}
+                                        allowFavoriteToggle
+                                        isFavoriteTimeline={Number(timeline?.id || 0) > 0 && favoriteTimelineId === Number(timeline?.id || 0)}
+                                        onToggleFavorite={handleToggleFavoriteTimeline}
+                                        onOpenTimeline={handleOpenTimelineCard}
+                                        formatDate={formatDate}
+                                      />
+                                    ))}
+                                  </Stack>
+                                ) : isTimelineSearchScope ? (
+                                  <Box sx={{ py: 4, textAlign: 'center' }}>
+                                    <Typography color="text.secondary">No communities matched your search.</Typography>
+                                  </Box>
+                                ) : null}
+
+                                {isPostSearchScope && visiblePosts.length > 0 ? (
+                                  <Stack spacing={1.5}>
+                                    {visiblePosts.map((item, idx) => (
+                                      <Box key={item.searchResultType === 'comment' ? `comment-${item.id}` : `event-${item.id}-${idx}`}>
+                                        {item.searchResultType === 'comment' ? (
+                                          renderCommentSearchResultCard(item)
+                                        ) : (
+                                          renderSearchEventCard(item)
+                                        )}
+                                      </Box>
+                                    ))}
+                                  </Stack>
+                                ) : isPostSearchScope ? (
+                                  <Box sx={{ py: 4, textAlign: 'center' }}>
+                                    <Typography color="text.secondary">No posts matched your search.</Typography>
+                                  </Box>
+                                ) : null}
+
+                                {isUserSearchScope && visibleUsers.length > 0 ? (
+                                  <Stack spacing={1.25} sx={{ pl: { xs: 3, sm: 4 }, pt: { xs: 2.4, sm: 2.9 } }}>
+                                    {visibleUsers.map((profileUser) => (
+                                      <UserCard
+                                        key={`user-${profileUser.id}`}
+                                        user={profileUser}
+                                        currentUserId={currentUserId}
+                                        followedUserIdSet={followedUserIdSet}
+                                        followActionByUserId={followActionByUserId}
+                                        onToggleFollow={handleToggleUserFollow}
+                                      />
+                                    ))}
+                                  </Stack>
+                                ) : isUserSearchScope ? (
+                                  <Box sx={{ py: 4, textAlign: 'center' }}>
+                                    <Typography color="text.secondary">No user profiles matched your search.</Typography>
+                                  </Box>
+                                ) : null}
+                              </Stack>
+                            )}
                           </Box>
                         )}
 
-                        {showActiveHubLoadMore && !activeHubCanLoadMore && !loadingTimelines && !loadingSearchEvents && !loadingSearchUsers && hasSearchQuery ? (
-                          <Box sx={{ py: 2.25, textAlign: 'center' }}>
+                        {hasSearchQuery && !loadingTimelines && !loadingSearchEvents && !loadingSearchUsers && !loadingExplore && (
+                          <Box sx={{ height: '70vh', pointerEvents: 'none' }} />
+                        )}
+
+                        {(!activeHubCanLoadMore || searchSubFilter === 'explore') && !loadingTimelines && !loadingSearchEvents && !loadingSearchUsers && !loadingExplore && hasSearchQuery ? (
+                          <Box sx={{ py: 4, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             <Typography color="text.secondary">You have reached the end</Typography>
+
+                            {/* Related Tags (Dossier compilation bottom chips) */}
+                            {exploreDossier?.related_tags && exploreDossier.related_tags.length > 0 && (
+                              <Box sx={{ mt: 2, width: '100%', maxWidth: 460, px: 2 }}>
+                                <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1.5, letterSpacing: 1.2, fontWeight: 800 }}>
+                                  Closely Related Tags
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.25 }}>
+                                  {exploreDossier.related_tags.map((tag) => (
+                                    <Chip
+                                      key={`related-tag-${tag}`}
+                                      label={tag}
+                                      onClick={() => {
+                                        setTimelineSearchInput(tag);
+                                        handleSearchSubmit(tag, true);
+                                      }}
+                                      sx={{
+                                        cursor: 'pointer',
+                                        fontWeight: 800,
+                                        fontSize: '0.85rem',
+                                        borderRadius: '8px',
+                                        color: theme.palette.mode === 'dark' ? '#38bdf8' : '#0284c7',
+                                        borderColor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.2)',
+                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.05)' : 'rgba(2, 132, 199, 0.03)',
+                                        '&:hover': {
+                                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.1)',
+                                          borderColor: theme.palette.mode === 'dark' ? '#38bdf8' : '#0284c7',
+                                        },
+                                        transition: 'all 150ms ease',
+                                      }}
+                                      variant="outlined"
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            )}
                           </Box>
                         ) : null}
 

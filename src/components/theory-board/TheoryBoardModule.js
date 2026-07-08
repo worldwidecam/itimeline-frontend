@@ -1564,15 +1564,15 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 ))
               );
 
-              const scaleUpperBound = Math.min(MIN_ZOOM, dynamicMinZoom * 3.0);
-              const noteScale = zoom >= scaleUpperBound
-                ? 1.0
-                : (() => {
-                  const range = scaleUpperBound - dynamicMinZoom;
-                  if (range <= 0) return 1.0;
-                  const t = (zoom - dynamicMinZoom) / range;
-                  return 0.65 + 0.35 * Math.max(0, Math.min(1, t));
-                })();
+              const noteScale = (() => {
+                if (zoom >= 1.0) {
+                  return 1.0 + (zoom - 1.0) * 1.8;
+                }
+                const range = 1.0 - dynamicMinZoom;
+                if (range <= 0) return 1.0;
+                const t = (zoom - dynamicMinZoom) / range;
+                return 0.65 + 0.35 * Math.max(0, Math.min(1, t));
+              })();
 
               return (
                 <Box
