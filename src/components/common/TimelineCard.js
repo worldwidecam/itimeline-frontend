@@ -137,16 +137,24 @@ function TimelineCard({
             width: { xs: '100%', lg: 240 },
             minWidth: { xs: '100%', lg: 240 },
             height: { xs: 76, lg: 'auto' },
-            px: 1.5,
+            minHeight: { xs: 76, lg: 120 },
+            px: 2,
+            py: 2,
             display: 'flex',
             alignItems: 'flex-end',
             position: 'relative',
             overflow: 'hidden',
-            pb: 1.25,
-            background: fallbackCoverGradient,
+            background: coverImageUrl 
+              ? 'transparent' 
+              : 'rgba(15, 23, 42, 0.62)',
+            backdropFilter: coverImageUrl ? 'none' : 'blur(10px)',
+            borderRight: { xs: 'none', lg: coverImageUrl ? 'none' : '1px solid' },
+            borderRightColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15, 23, 42, 0.12)',
+            borderBottom: { xs: coverImageUrl ? 'none' : '1px solid', lg: 'none' },
+            borderBottomColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15, 23, 42, 0.12)',
           }}
         >
-          {coverImageUrl ? (
+          {coverImageUrl && (
             <>
               <Box
                 component="img"
@@ -169,7 +177,7 @@ function TimelineCard({
                 sx={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'linear-gradient(180deg, rgba(6,10,19,0.04) 0%, rgba(6,10,19,0.22) 100%)',
+                  background: 'linear-gradient(180deg, rgba(6,10,19,0.3) 0%, rgba(6,10,19,0.68) 100%)',
                 }}
               />
               {!isImagePrivilegeEnabled ? (
@@ -177,8 +185,10 @@ function TimelineCard({
                   size="small"
                   label="Image Privilege Off"
                   sx={{
-                    position: 'relative',
-                    zIndex: 1,
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    zIndex: 2,
                     color: '#fff',
                     borderColor: 'rgba(255,255,255,0.45)',
                     background: 'rgba(9,14,28,0.66)',
@@ -188,21 +198,42 @@ function TimelineCard({
                 />
               ) : null}
             </>
-          ) : (
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 }}>
-              Timeline banner placeholder (future image slot)
-            </Typography>
           )}
-        </Box>
-      ) : null}
 
-      <CardContent sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Box
-          sx={{
-            minHeight: 'auto',
-            mb: 1.1,
-          }}
-        >
+          {!coverImageUrl && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                opacity: 0.08,
+                color: '#fff',
+                pointerEvents: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1,
+              }}
+            >
+              {isCommunity && <GroupsIcon sx={{ fontSize: 130 }} />}
+              {isHashtag && <TagIcon sx={{ fontSize: 130 }} />}
+              {isPersonal && (
+                <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 130, height: 130 }}>
+                  <HeartIcon sx={{ fontSize: 130 }} />
+                  <LockIcon
+                    sx={{
+                      fontSize: 60,
+                      position: 'absolute',
+                      bottom: -8,
+                      right: -12,
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+
           {resolvedSections.typeChip ? (() => {
             const renderTypeIcon = () => {
               if (isCommunity) return <GroupsIcon fontSize="small" />;
@@ -227,8 +258,10 @@ function TimelineCard({
                 icon={renderTypeIcon()}
                 label={typeLabel}
                 sx={{
-                  position: 'relative',
-                  mb: 0.85,
+                  position: 'absolute',
+                  bottom: 12,
+                  left: 12,
+                  zIndex: 2,
                   px: 0.35,
                   height: { xs: 22, sm: 24 },
                   borderRadius: 1.6,
@@ -251,14 +284,20 @@ function TimelineCard({
               />
             );
           })() : null}
+        </Box>
+      ) : null}
+
+      <CardContent sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', py: 2 }}>
+        <Box sx={{ mb: 1.5 }}>
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: { xs: 'flex-start', lg: 'center' },
-              gap: 0.9,
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 1.5,
               flexWrap: 'wrap',
               width: '100%',
+              mb: 1.5,
             }}
           >
             <Typography
@@ -276,7 +315,7 @@ function TimelineCard({
                 maxWidth: '100%',
                 overflowWrap: 'anywhere',
                 wordBreak: 'break-word',
-                textAlign: { xs: 'left', lg: 'center' },
+                textAlign: 'left',
                 '&::after': {
                   content: '""',
                   position: 'absolute',
@@ -296,22 +335,24 @@ function TimelineCard({
             >
               {displayTimelineTitle}
             </Typography>
+
             {resolvedSections.audience ? (
               <Box
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.8,
-                  position: 'relative',
                   px: 1.15,
-                  py: 0.6,
+                  py: 0.4,
                   borderRadius: 999,
                   border: '1px solid',
                   borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(30,41,59,0.2)',
                   background: theme.palette.mode === 'dark'
                     ? 'linear-gradient(120deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))'
                     : 'linear-gradient(120deg, rgba(255,255,255,0.9), rgba(255,244,227,0.84))',
+                  position: 'relative',
                   overflow: 'hidden',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                   '&::before': {
                     content: '""',
                     position: 'absolute',
@@ -322,13 +363,13 @@ function TimelineCard({
                   },
                 }}
               >
-                <LocalFireDepartmentIcon sx={{ fontSize: { xs: 15, sm: 17 }, color: '#d97706', position: 'relative', zIndex: 1 }} />
+                <LocalFireDepartmentIcon sx={{ fontSize: { xs: 14, sm: 16 }, color: '#d97706', position: 'relative', zIndex: 1 }} />
                 <Typography
                   variant="body2"
                   sx={{
                     fontWeight: 900,
                     letterSpacing: 0.35,
-                    fontSize: { xs: '0.78rem', sm: '0.86rem' },
+                    fontSize: { xs: '0.74rem', sm: '0.8rem' },
                     color: theme.palette.text.primary,
                     position: 'relative',
                     zIndex: 1,
@@ -339,12 +380,26 @@ function TimelineCard({
               </Box>
             ) : null}
           </Box>
+
+          {resolvedSections.description && description ? (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                mb: 1.5,
+                fontStyle: 'italic',
+                lineHeight: 1.45,
+                display: 'block',
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <span style={{ fontSize: '1.15rem', fontWeight: 900, marginRight: '4px', verticalAlign: 'middle', opacity: 0.65, fontFamily: 'Georgia, serif' }}>“</span>
+              {description}
+              <span style={{ fontSize: '1.15rem', fontWeight: 900, marginLeft: '4px', verticalAlign: 'middle', opacity: 0.65, fontFamily: 'Georgia, serif' }}>”</span>
+            </Typography>
+          ) : null}
         </Box>
-        {resolvedSections.description && description ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            {description}
-          </Typography>
-        ) : null}
+
         {resolvedSections.createdDate ? (
           <Typography variant="caption" color="text.secondary">
             Created: {formatCreatedDate(createdAt)}

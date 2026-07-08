@@ -22,6 +22,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags
 
+* on profile page > theory board , we should increase the notes size increase upon zooming in . its not growing large enough to match zoom-in scale.
+
 * NSFW filters site-wide blurr implementation
 
 * add theory board module to community timelines.
@@ -55,6 +57,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* Restructured and refined the layout of Timeline Cards (moving type chip to the absolute bottom-left of the left column, placing follower count chip directly next to the title, enabling description text, and wrapping descriptions in decorative quotation marks) (Complete)
 
 * Refined Left Hub Load More button style and icon to be a circular button with a 180-degree rotated NorthIcon (Complete)
 

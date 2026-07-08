@@ -273,6 +273,45 @@ export default function UserCard({
             </Typography>
           </Box>
 
+          {(user.timelines_created_count !== undefined || user.events_posted_count !== undefined) && (
+            <Box sx={{ display: 'flex', gap: 1, my: 0.65, flexWrap: 'wrap', ml: 0.25 }}>
+              {user.timelines_created_count !== undefined && (
+                <Box
+                  sx={{
+                    fontSize: '0.64rem',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)',
+                    border: '1px solid rgba(14, 165, 233, 0.22)',
+                    color: theme.palette.mode === 'dark' ? '#38bdf8' : '#0284c7',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.35,
+                  }}
+                >
+                  Created {user.timelines_created_count} Timelines
+                </Box>
+              )}
+              {user.events_posted_count !== undefined && (
+                <Box
+                  sx={{
+                    fontSize: '0.64rem',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)',
+                    border: '1px solid rgba(244, 63, 94, 0.22)',
+                    color: '#f43f5e',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.35,
+                  }}
+                >
+                  Posted {user.events_posted_count} Events
+                </Box>
+              )}
+            </Box>
+          )}
+
           <Typography
             sx={{
               fontFamily: 'Playfair Display, Georgia, serif',
