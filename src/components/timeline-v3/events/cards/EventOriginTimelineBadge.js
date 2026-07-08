@@ -4,6 +4,7 @@ import { alpha } from '@mui/material/styles';
 import {
   People as CommunityIcon,
   FavoriteBorder as PersonalIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import HashtagIcon from '../../../common/HashtagIcon';
 
@@ -90,13 +91,26 @@ const EventOriginTimelineBadge = ({ event }) => {
     ? theme.palette.secondary.main
     : (origin.type === 'personal' ? theme.palette.primary.main : theme.palette.success.main);
 
+  const iconColor = theme.palette.mode === 'dark' ? '#fcf6e4' : accentColor;
+
   const icon = origin.type === 'community'
     ? <CommunityIcon sx={{ fontSize: '1.25rem' }} />
     : (origin.type === 'personal'
-      ? <PersonalIcon sx={{ fontSize: '1.25rem' }} />
+      ? (
+        <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20 }}>
+          <PersonalIcon sx={{ fontSize: '1.25rem' }} />
+          <LockIcon
+            sx={{
+              fontSize: '0.72rem',
+              position: 'absolute',
+              bottom: -2,
+              right: -3,
+              color: iconColor,
+            }}
+          />
+        </Box>
+      )
       : <HashtagIcon sx={{ fontSize: '1.05rem' }} />);
-
-  const iconColor = theme.palette.mode === 'dark' ? '#fcf6e4' : accentColor;
 
   return (
     <Tooltip title={`Created on ${origin.type}: ${origin.name}`} arrow>
