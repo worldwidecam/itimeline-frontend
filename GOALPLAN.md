@@ -20,9 +20,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* search tab on home page should have something when initial blank. maybe like fun screensaver bubbles of trending tags
-
-* on profile page > theory board , we should increase the notes size increase upon zooming in . its not growing large enough to match zoom-in scale.
+* on the LIVE website (production branch) it takes a REALLY long time to initially load the website. and secondly, 'my creations' tab > timelines sub-tab specifically takes a REALLY long time to load as well.
 
 * NSFW filters site-wide blurr implementation
 
@@ -57,6 +55,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* search tab on home page should have something when initial blank — implemented fun screensaver bubbles of trending tags on the blank search state (Complete)
+
+* on profile page > theory board, increased the notes size upon zooming in so it grows large enough to match zoom-in scale (Complete)
 
 * Restructured and refined the layout of Timeline Cards (moving type chip to the absolute bottom-left of the left column, placing follower count chip directly next to the title, enabling description text, and wrapping descriptions in decorative quotation marks) (Complete)
 
