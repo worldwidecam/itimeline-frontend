@@ -397,6 +397,10 @@ const HomePage = () => {
   const [followActionByUserId, setFollowActionByUserId] = React.useState({});
   const [hasLoadedSearchEvents, setHasLoadedSearchEvents] = React.useState(false);
   const [hasLoadedMyCreationEvents, setHasLoadedMyCreationEvents] = React.useState(false);
+  // Owned timelines — fetched lazily from /me/timelines/created, independent of public list
+  const [ownedTimelinesServer, setOwnedTimelinesServer] = React.useState([]);
+  const [loadingOwnedTimelines, setLoadingOwnedTimelines] = React.useState(false);
+  const [hasLoadedOwnedTimelines, setHasLoadedOwnedTimelines] = React.useState(false);
   const [loadingTimelines, setLoadingTimelines] = React.useState(true);
   const [heroIndex, setHeroIndex] = React.useState(0);
   const [heroTransitionPending, setHeroTransitionPending] = React.useState(false);
@@ -3362,6 +3366,44 @@ const HomePage = () => {
     fetchMyCreationEvents,
   ]);
 
+  // Fetch ALL timelines created by the logged-in user from the dedicated endpoint.
+  // Lazy: only fires when the user navigates to the My Creations tab.
+  const fetchOwnedTimelines = React.useCallback(async () => {
+    if (loadingOwnedTimelines || hasLoadedOwnedTimelines) return;
+    if (!(currentUserId > 0)) {
+      setOwnedTimelinesServer([]);
+      setHasLoadedOwnedTimelines(true);
+      return;
+    }
+    try {
+      setLoadingOwnedTimelines(true);
+      const response = await api.get('/api/v1/users/me/timelines/created', {
+        params: { limit: 200 },
+      });
+      const data = Array.isArray(response?.data?.data) ? response.data.data : [];
+      setOwnedTimelinesServer(data);
+      setHasLoadedOwnedTimelines(true);
+    } catch (error) {
+      logError('Error fetching owned timelines', error);
+      setOwnedTimelinesServer([]);
+    } finally {
+      setLoadingOwnedTimelines(false);
+    }
+  }, [loadingOwnedTimelines, hasLoadedOwnedTimelines, currentUserId]);
+
+  React.useEffect(() => {
+    if (activeHubTab !== 'my-creations') return;
+    if (isHubPhaseOneLoading) return;
+    if (hasLoadedOwnedTimelines || loadingOwnedTimelines) return;
+    fetchOwnedTimelines();
+  }, [
+    activeHubTab,
+    isHubPhaseOneLoading,
+    hasLoadedOwnedTimelines,
+    loadingOwnedTimelines,
+    fetchOwnedTimelines,
+  ]);
+
   const handleToggleFavoriteTimeline = React.useCallback(async (timelineId) => {
     const numericTimelineId = Number(timelineId || 0);
     if (!(numericTimelineId > 0)) return;
@@ -5177,18 +5219,18 @@ const HomePage = () => {
                           <CircularProgress />
                         </Box>
                       ) : myCreationsFilter === 'timelines' ? (
-                        loadingTimelines ? (
+                        loadingOwnedTimelines ? (
                           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                             <CircularProgress />
                           </Box>
                         ) : (
                           <Box>
                             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.8 }}>
-                              Created Timelines ({ownedTimelines.length})
+                              Created Timelines ({ownedTimelinesServer.length})
                             </Typography>
-                            {ownedTimelines.length > 0 ? (
+                            {ownedTimelinesServer.length > 0 ? (
                               <Stack spacing={1.5} sx={{ mt: 0.75 }}>
-                                {visibleOwnedTimelines.map((timeline, index) => (
+                                {ownedTimelinesServer.map((timeline, index) => (
                                   <TimelineCard
                                     key={`owned-timeline-${timeline?.id || timeline?.name || index}`}
                                     timeline={timeline}
