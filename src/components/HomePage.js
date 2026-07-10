@@ -30,6 +30,7 @@ import {
   Snackbar,
   Alert,
   Tooltip,
+  GlobalStyles,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -1844,8 +1845,8 @@ const HomePage = () => {
     const isOp = Number(comment.userId) === Number(comment.eventCreatorId);
 
     // Dynamic style based on type and OP status (matching discussion popup drawer)
-    let bubbleBg = isDarkMode 
-      ? 'linear-gradient(135deg, rgba(143, 172, 154, 0.06) 0%, rgba(143, 172, 154, 0.18) 100%)' 
+    let bubbleBg = isDarkMode
+      ? 'linear-gradient(135deg, rgba(143, 172, 154, 0.06) 0%, rgba(143, 172, 154, 0.18) 100%)'
       : 'rgba(143, 172, 154, 0.15)';
     let bubbleBorder = isDarkMode ? 'rgba(143, 172, 154, 0.25)' : 'rgba(143, 172, 154, 0.3)';
     let bubbleShadow = '0 2px 5px rgba(0,0,0,0.03)';
@@ -1853,22 +1854,22 @@ const HomePage = () => {
 
     if (comment.type === 'system') {
       // Lavender/Plum
-      bubbleBg = isDarkMode 
-        ? 'linear-gradient(135deg, rgba(168, 143, 184, 0.08) 0%, rgba(168, 143, 184, 0.22) 100%)' 
+      bubbleBg = isDarkMode
+        ? 'linear-gradient(135deg, rgba(168, 143, 184, 0.08) 0%, rgba(168, 143, 184, 0.22) 100%)'
         : 'rgba(168, 143, 184, 0.2)';
       bubbleBorder = isDarkMode ? 'rgba(168, 143, 184, 0.25)' : 'rgba(168, 143, 184, 0.35)';
     } else if (isOp) {
       // Sunset Gold
-      bubbleBg = isDarkMode 
-        ? 'linear-gradient(135deg, rgba(224, 175, 104, 0.18) 0%, rgba(212, 163, 89, 0.08) 100%)' 
+      bubbleBg = isDarkMode
+        ? 'linear-gradient(135deg, rgba(224, 175, 104, 0.18) 0%, rgba(212, 163, 89, 0.08) 100%)'
         : 'rgba(212, 163, 89, 0.2)';
       bubbleBorder = isDarkMode ? 'rgba(224, 175, 104, 0.55)' : 'rgba(212, 163, 89, 0.4)';
       bubbleShadow = isDarkMode ? '0 4px 12px rgba(224, 175, 104, 0.22)' : '0 4px 10px rgba(0,0,0,0.08)';
       bubbleTransform = 'translateY(-1px)';
     } else if (comment.parentId) {
       // Warm Coral
-      bubbleBg = isDarkMode 
-        ? 'linear-gradient(135deg, rgba(235, 130, 110, 0.15) 0%, rgba(216, 110, 130, 0.06) 100%)' 
+      bubbleBg = isDarkMode
+        ? 'linear-gradient(135deg, rgba(235, 130, 110, 0.15) 0%, rgba(216, 110, 130, 0.06) 100%)'
         : 'rgba(216, 179, 161, 0.15)';
       bubbleBorder = isDarkMode ? 'rgba(235, 130, 110, 0.25)' : 'rgba(216, 179, 161, 0.3)';
       bubbleShadow = '0 1px 3px rgba(0,0,0,0.02)';
@@ -2819,8 +2820,10 @@ const HomePage = () => {
   }, [user?.id, getPopularCacheKey, clearPopularCache]);
 
   const fetchPopularData = React.useCallback(async ({ silent = false } = {}) => {
+    // If the timelines list hasn't been fetched yet, don't wipe the loaded
+    // state — the triggering effect gates on loadingTimelines, so this
+    // callback will be called again once timelines are ready.
     if (!normalizedTimelines.length) {
-      setHasLoadedPopular(false);
       return;
     }
 
@@ -2904,7 +2907,7 @@ const HomePage = () => {
   React.useEffect(() => {
     if (!hasBootstrappedPopularCache) return;
     if (activeHubTab !== 'popular') return;
-    if (loadingTimelines) return;
+    if (loadingTimelines) return; // wait for timelines before triggering fetch
 
     if (!hasLoadedPopular) {
       // Use silent:true so any existing data stays visible while the fresh load happens
@@ -3006,7 +3009,9 @@ const HomePage = () => {
     }
 
     if (!normalizedTimelines.length) {
-      setHasLoadedYourPage(true);
+      // Timelines haven't loaded yet — exit silently and wait. Do NOT mark
+      // hasLoadedYourPage=true with empty data; the triggering effect already
+      // guards on loadingTimelines and will re-call this once timelines arrive.
       return;
     }
 
@@ -3464,7 +3469,7 @@ const HomePage = () => {
 
       await api.delete(`/api/v1/events/${resolvedEventId}`);
 
-      const filterOutDeleted = (eventsList) => 
+      const filterOutDeleted = (eventsList) =>
         (eventsList || []).filter(e => e.id !== resolvedEventId);
 
       setPopularEvents(filterOutDeleted);
@@ -4164,16 +4169,16 @@ const HomePage = () => {
     setIsSearchSubmitting(true);
     setIsSearchResultsVisible(false);
     setIsSearchLoadingVisual(true);
- 
+
     if (searchSubmitTimeoutRef.current) {
       window.clearTimeout(searchSubmitTimeoutRef.current);
     }
     if (searchRevealTimeoutRef.current) {
       window.clearTimeout(searchRevealTimeoutRef.current);
     }
- 
+
     const delay = immediate ? 0 : SEARCH_SUBMIT_DELAY_MS;
- 
+
     searchSubmitTimeoutRef.current = window.setTimeout(async () => {
       const startTime = Date.now();
       try {
@@ -4193,21 +4198,21 @@ const HomePage = () => {
       } catch (error) {
         logError('Error submitting search', error);
       }
- 
+
       setTimelineSearch(nextQuery);
       setVisibleTimelineCount(HOME_LIST_BATCH_SIZE);
       if (resultsScrollRef.current) {
         resultsScrollRef.current.scrollTop = 0;
       }
- 
+
       const elapsed = Date.now() - startTime;
       const minDuration = 550; // enforce 550ms minimum visual loader window to prevent flickering
       const remaining = Math.max(minDuration - elapsed, 0);
- 
+
       window.setTimeout(() => {
         setIsSearchResultsVisible(true);
         setIsSearchLoadingVisual(false);
- 
+
         searchRevealTimeoutRef.current = window.setTimeout(() => {
           setIsSearchSubmitting(false);
         }, SEARCH_RESULT_HANDOFF_MS);
@@ -4397,6 +4402,7 @@ const HomePage = () => {
 
   return (
     <>
+      <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground } }} />
       <AnimatePresence>
         {(pageLoading || initialLoading) && (
           <motion.div
@@ -5562,7 +5568,7 @@ const HomePage = () => {
                 <Box
                   ref={favoriteScrollRef}
                   onScroll={handleFavoriteScroll}
-                  sx={{ p: { xs: 1.25, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
+                  sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5, mb: 2.1, flexWrap: 'wrap' }}>
                     <Box>
@@ -5719,8 +5725,8 @@ const HomePage = () => {
                           <Box
                             sx={{
                               display: 'grid',
-                              gap: { xs: 1.25, sm: 2 },
-                              gridTemplateColumns: { xs: '1fr', sm: '300px 1fr', lg: 'minmax(260px, 33%) minmax(0, 1fr)' },
+                              gap: { xs: 1.25, md: 2 },
+                              gridTemplateColumns: { xs: '1fr', md: '300px 1fr', lg: 'minmax(260px, 33%) minmax(0, 1fr)' },
                               alignItems: 'start',
                             }}
                           >
@@ -5795,10 +5801,10 @@ const HomePage = () => {
                                       background: statusTone.body,
                                       color: statusTone.text,
                                       boxShadow: '0 10px 24px rgba(15,23,42,0.15)',
-                                      width: { xs: 'calc(100% + 20px)', sm: '100%' },
-                                      ml: { xs: -1.25, sm: 0 },
-                                      transform: { xs: 'scale(0.92)', sm: 'none' },
-                                      transformOrigin: 'top center',
+                                      width: '100%',
+                                      ml: 0,
+                                      transform: { xs: 'scale(0.90)', sm: 'none' },
+                                      transformOrigin: 'top left',
                                     }}
                                   >
                                     <Box sx={{ px: 1.6, py: 1.2, background: statusTone.header, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -5908,7 +5914,15 @@ const HomePage = () => {
                               ) : favoriteTimelineEvents.length > 0 ? (
                                 <Stack spacing={1.5} sx={{ mt: 0.75 }}>
                                   {visibleFavoritePosts.map((event) => (
-                                    <Box key={`favorite-event-${event.id}`}>
+                                    <Box
+                                      key={`favorite-event-${event.id}`}
+                                      sx={{
+                                        width: '100%',
+                                        transform: { xs: 'scale(0.90)', sm: 'none' },
+                                        transformOrigin: 'top left',
+                                        my: { xs: -1.2, sm: 0 },
+                                      }}
+                                    >
                                       {renderSearchEventCard(event)}
                                     </Box>
                                   ))}
@@ -6377,7 +6391,7 @@ const HomePage = () => {
                                       color: theme.palette.mode === 'dark' ? '#38bdf8' : '#0369a1',
                                       borderColor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.25)',
                                       bgcolor: theme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.05)' : 'rgba(2, 132, 199, 0.03)',
-                                      boxShadow: theme.palette.mode === 'dark' 
+                                      boxShadow: theme.palette.mode === 'dark'
                                         ? '0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
                                         : '0 4px 12px rgba(0, 0, 0, 0.04)',
                                       '@keyframes tagFloat': {

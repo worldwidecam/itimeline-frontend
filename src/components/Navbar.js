@@ -1766,6 +1766,9 @@ function Navbar() {
                       height: 'calc(100% - 64px)',
                       boxSizing: 'border-box',
                       zIndex: 1600, // Higher than timeline floating buttons (which go up to 1530)
+                      backgroundColor: theme => theme.palette.mode === 'dark' 
+                        ? '#0a1128' 
+                        : '#ffeae0',
                     },
                     zIndex: 1600, // Apply to the Drawer component itself
                   }}

@@ -75,7 +75,6 @@ html,
 body {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
-  overflow-y: scroll !important; /* Maintain scrolling functionality */
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
