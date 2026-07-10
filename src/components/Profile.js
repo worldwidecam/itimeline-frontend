@@ -38,6 +38,7 @@ import {
   Switch,
   FormControlLabel,
   Avatar,
+  GlobalStyles,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -1042,50 +1043,56 @@ const Profile = () => {
 
   if (!user && !userId) {
     return (
-      <Box
-        sx={{
-          minHeight: 'calc(100vh - 64px)',
-          width: '100%',
-          position: 'relative',
-          background: appCanvasBackground,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          pt: 8
-        }}
-      >
-        <Container maxWidth="md">
-          <Paper sx={{
-            p: 4,
-            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 2,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)'
-              : '0 8px 32px rgba(0, 0, 0, 0.1)'
-          }}>
-            <Typography variant="h5">Please log in to view your profile</Typography>
-          </Paper>
-        </Container>
-      </Box>
+      <>
+        <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+        <Box
+          sx={{
+            minHeight: 'calc(100vh - 64px)',
+            width: '100%',
+            position: 'relative',
+            background: appCanvasBackground,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            pt: 8
+          }}
+        >
+          <Container maxWidth="md">
+            <Paper sx={{
+              p: 4,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: 2,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+                : '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}>
+              <Typography variant="h5">Please log in to view your profile</Typography>
+            </Paper>
+          </Container>
+        </Box>
+      </>
     );
   }
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: 'calc(100vh - 64px)',
-          width: '100%',
-          position: 'relative',
-          background: appCanvasBackground,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}
-      >
-        <CircularProgress />
-      </Box>
+      <>
+        <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+        <Box
+          sx={{
+            minHeight: 'calc(100vh - 64px)',
+            width: '100%',
+            position: 'relative',
+            background: appCanvasBackground,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </>
     );
   }
 
@@ -1240,122 +1247,130 @@ const Profile = () => {
     }
 
     return (
-      <Box
-        sx={{
-          minHeight: 'calc(100vh - 64px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          px: 2,
-          background: appCanvasBackground,
-        }}
-      >
-        <Paper sx={{ p: 3, width: '100%', maxWidth: 520, ...getGlassDialogPaperSx(theme) }}>
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.8 }}>
-            Private Profile
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {profileAccessVisibility === 'private'
-              ? 'Only the owner and users they follow can view this profile without a key.'
-              : 'This profile requires access.'}
-          </Typography>
+      <>
+        <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+        <Box
+          sx={{
+            minHeight: 'calc(100vh - 64px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 2,
+            background: appCanvasBackground,
+          }}
+        >
+          <Paper sx={{ p: 3, width: '100%', maxWidth: 520, ...getGlassDialogPaperSx(theme) }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.8 }}>
+              Private Profile
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>
+              {profileAccessVisibility === 'private'
+                ? 'Only the owner and users they follow can view this profile without a key.'
+                : 'This profile requires access.'}
+            </Typography>
 
-          {!showProfileAccessInput ? (
-            <Button
-              variant="contained"
-              onClick={() => setShowProfileAccessInput(true)}
-              sx={getGlassPillActionButtonSx(theme)}
-            >
-              Enter Access Key
-            </Button>
-          ) : (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.1}>
-              <TextField
-                fullWidth
-                size="small"
-                type="password"
-                placeholder="Enter access key"
-                value={profileAccessKeyDraft}
-                onChange={(event) => setProfileAccessKeyDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    handleSubmitProfileAccessKey();
-                  }
-                }}
-                sx={getGlassInputSx(theme)}
-              />
+            {!showProfileAccessInput ? (
               <Button
                 variant="contained"
-                onClick={handleSubmitProfileAccessKey}
-                disabled={profileAccessSubmitting || !String(profileAccessKeyDraft || '').trim()}
+                onClick={() => setShowProfileAccessInput(true)}
                 sx={getGlassPillActionButtonSx(theme)}
               >
-                {profileAccessSubmitting ? 'Checking...' : 'Submit'}
+                Enter Access Key
               </Button>
-            </Stack>
-          )}
+            ) : (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="password"
+                  placeholder="Enter access key"
+                  value={profileAccessKeyDraft}
+                  onChange={(event) => setProfileAccessKeyDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleSubmitProfileAccessKey();
+                    }
+                  }}
+                  sx={getGlassInputSx(theme)}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleSubmitProfileAccessKey}
+                  disabled={profileAccessSubmitting || !String(profileAccessKeyDraft || '').trim()}
+                  sx={getGlassPillActionButtonSx(theme)}
+                >
+                  {profileAccessSubmitting ? 'Checking...' : 'Submit'}
+                </Button>
+              </Stack>
+            )}
 
-          {profileAccessMessage ? (
-            <Typography color="error" sx={{ mt: 1.2, fontWeight: 700 }}>
-              {profileAccessMessage}
-            </Typography>
-          ) : null}
-        </Paper>
-      </Box>
+            {profileAccessMessage ? (
+              <Typography color="error" sx={{ mt: 1.2, fontWeight: 700 }}>
+                {profileAccessMessage}
+              </Typography>
+            ) : null}
+          </Paper>
+        </Box>
+      </>
     );
   }
 
   if (error || !profileUser) {
     return (
-      <Box
-        sx={{
-          minHeight: 'calc(100vh - 64px)',
-          width: '100%',
-          position: 'relative',
-          background: appCanvasBackground,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          pt: 8
-        }}
-      >
-        <Container maxWidth="md">
-          <Paper sx={{
-            p: 4,
-            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 2,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px rgba(0, 0, 0, 0.3)'
-              : '0 8px 32px rgba(0, 0, 0, 0.1)'
-          }}>
-            <Typography variant="h5" color="error">{error || 'User not found'}</Typography>
-          </Paper>
-        </Container>
-      </Box>
+      <>
+        <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+        <Box
+          sx={{
+            minHeight: 'calc(100vh - 64px)',
+            width: '100%',
+            position: 'relative',
+            background: appCanvasBackground,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            pt: 8
+          }}
+        >
+          <Container maxWidth="md">
+            <Paper sx={{
+              p: 4,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: 2,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+                : '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}>
+              <Typography variant="h5" color="error">{error || 'User not found'}</Typography>
+            </Paper>
+          </Container>
+        </Box>
+      </>
     );
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: 'calc(100vh - 64px + 120px)',
-        width: '100%',
-        position: 'relative',
-        background: appCanvasBackground,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-start',
-        alignItems: 'flex-start',
-        mt: '-120px',
-        pt: 'calc(32px + 120px)',
-        '@media (max-width: 1100px)': {
-          pt: showMusic ? 'calc(32px + 120px + 72px)' : 'calc(32px + 120px)',
-        },
-        pb: 4
-      }}
-    >
+    <>
+      <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 64px + 120px)',
+          width: '100%',
+          position: 'relative',
+          background: appCanvasBackground,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
+          alignItems: 'flex-start',
+          mt: '-120px',
+          pt: 'calc(32px + 120px)',
+          '@media (max-width: 1100px)': {
+            pt: showMusic ? 'calc(32px + 120px + 72px)' : 'calc(32px + 120px)',
+          },
+          pb: 4
+        }}
+      >
       {/* Music Player - show for any profile that has music data */}
       {showMusic && musicData && (
         <Fade in={showMusic} timeout={800}>
@@ -2310,6 +2325,7 @@ const Profile = () => {
         </Alert>
       </Snackbar>
     </Box>
+    </>
   );
 };
 

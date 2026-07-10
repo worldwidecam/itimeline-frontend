@@ -8,3 +8,5 @@ When doing file updates or replacements using search/replace tools:
 # Core Memory — Variable Initialization and Hook Ordering
 - **Avoid accessing variables before initialization (Temporal Dead Zone)**: When inserting hooks (like `useEffect` or `useMemo`), make sure you do not reference derived variables (e.g., `normalizedTimelines`) before their declaration in the file. Always use raw state variables (e.g., `timelines`) if the hook is placed above their derivation.
 
+# Core Memory — Import Completeness
+- **Always verify imports when introducing new JSX components or hooks**: If a new component (e.g., `CircularProgress`, `Tooltip`, `Skeleton`) is added inside JSX, confirm it is present in the file's import block before saving. The build may succeed (tree-shaking) but the runtime will crash with `ReferenceError: X is not defined`.

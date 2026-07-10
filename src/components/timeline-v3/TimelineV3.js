@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Container, useTheme, alpha, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton } from '@mui/material';
+import { Box, Container, useTheme, alpha, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton, GlobalStyles } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline, getTimelineActions, voteTimelineAction } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -3329,9 +3329,11 @@ const handleRecenter = () => {
   }
 
   return (
-    <Box sx={{ 
-      display: 'flex',
-      flexDirection: 'column',
+    <>
+      <GlobalStyles styles={{ 'html, body': { background: timelineSurfaces.canvas, overflowY: 'auto !important' } }} />
+      <Box sx={{ 
+        display: 'flex',
+        flexDirection: 'column',
       minHeight: '400px',
       background: timelineSurfaces.shell,
       overflowX: 'hidden',
@@ -4692,6 +4694,7 @@ const handleRecenter = () => {
         </Alert>
       </Snackbar>
     </Box>
+    </>
   );
 }
 

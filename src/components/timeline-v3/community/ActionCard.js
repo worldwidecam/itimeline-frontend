@@ -65,10 +65,10 @@ const ActionCard = ({
       sx={{
         position: 'relative',
         borderRadius: 2,
-        width: isSidebar ? { xs: 'calc(100% + 20px)', sm: '100%' } : '100%',
-        ml: isSidebar ? { xs: -1.25, sm: 0 } : 0,
-        transform: isSidebar ? { xs: 'scale(0.92)', sm: 'none' } : 'none',
-        transformOrigin: 'top center',
+        width: '100%',
+        ml: 0,
+        transform: isSidebar ? { xs: 'scale(0.90)', sm: 'none' } : 'none',
+        transformOrigin: 'top left',
         background: actionStyles.bg,
         boxShadow: theme.palette.mode === 'dark'
           ? `0 8px 16px rgba(0,0,0,0.35), 0 0 0 1px ${actionStyles.edge}`
