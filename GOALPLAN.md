@@ -20,7 +20,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* on the LIVE website (production branch) it takes a REALLY long time to initially load the website. and secondly, 'my creations' tab > timelines sub-tab specifically takes a REALLY long time to load as well.
+* on the LIVE website (production branch) it takes a REALLY long time to initially load the website. we gotta optimize the heck out of this. check for redundancies and all that
 
 * NSFW filters site-wide blurr implementation
 
@@ -58,7 +58,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * search tab on home page should have something when initial blank — implemented fun screensaver bubbles of trending tags on the blank search state (Complete)
 
-* on profile page > theory board, increased the notes size upon zooming in so it grows large enough to match zoom-in scale (Complete)
+* on profile page > theory board, synchronized notes scaling with grid zoom (using linear scaling and a 0.35 floor limit) so they grow/shrink smoothly (Complete)
 
 * Restructured and refined the layout of Timeline Cards (moving type chip to the absolute bottom-left of the left column, placing follower count chip directly next to the title, enabling description text, and wrapping descriptions in decorative quotation marks) (Complete)
 

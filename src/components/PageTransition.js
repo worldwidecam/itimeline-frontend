@@ -19,7 +19,7 @@ const PageTransition = ({ children }) => {
   return (
     <Fade in={isVisible} timeout={600}>
       <Box sx={{
-        minHeight: '100vh',
+        minHeight: '100svh',
         backgroundColor: theme => theme.palette.mode === 'light' 
           ? theme.palette.background.default 
           : '#000',

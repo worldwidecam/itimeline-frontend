@@ -199,6 +199,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   const selectedPinInputRef = useRef(null);
   const cutLimpTimeoutsRef = useRef({});
   const suppressDirtyTrackingRef = useRef(true);
+  const hasDraggedRef = useRef(false);
 
   const occupiedCellBounds = useMemo(() => {
     if (pins.length === 0) {
@@ -216,12 +217,10 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     let maxY = Number.NEGATIVE_INFINITY;
 
     pins.forEach((pin) => {
-      const cellX = toCellCoord(pin.worldX);
-      const cellY = toCellCoord(pin.worldY);
-      minX = Math.min(minX, cellX);
-      maxX = Math.max(maxX, cellX);
-      minY = Math.min(minY, cellY);
-      maxY = Math.max(maxY, cellY);
+      minX = Math.min(minX, pin.worldX);
+      maxX = Math.max(maxX, pin.worldX);
+      minY = Math.min(minY, pin.worldY);
+      maxY = Math.max(maxY, pin.worldY);
     });
 
     return {
@@ -237,14 +236,13 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     const occupiedCellWidthUnits = (occupiedCellBounds.maxX - occupiedCellBounds.minX + 1) + (perforationPaddingCells * 2);
     const occupiedCellHeightUnits = (occupiedCellBounds.maxY - occupiedCellBounds.minY + 1) + (perforationPaddingCells * 2);
 
-    const fitZoomX = viewportSize.width > 0
-      ? (viewportSize.width * 0.84) / (BASE_CELL_SIZE * occupiedCellWidthUnits)
-      : MIN_ZOOM;
-    const fitZoomY = viewportSize.height > 0
-      ? (viewportSize.height * 0.78) / (BASE_CELL_SIZE * occupiedCellHeightUnits)
-      : MIN_ZOOM;
+    const visibleWidth = viewportSize.width > 0 ? Math.min(viewportSize.width, window.innerWidth) : window.innerWidth;
+    const visibleHeight = viewportSize.height > 0 ? Math.min(viewportSize.height, window.innerHeight) : window.innerHeight;
 
-    return Math.max(ABS_MIN_ZOOM, Math.min(MIN_ZOOM, fitZoomX, fitZoomY) * 0.95);
+    const fitZoomX = (visibleWidth - 36) / (BASE_CELL_SIZE * occupiedCellWidthUnits);
+    const fitZoomY = (visibleHeight - 36) / (BASE_CELL_SIZE * occupiedCellHeightUnits);
+
+    return Math.max(ABS_MIN_ZOOM, Math.min(MIN_ZOOM, fitZoomX, fitZoomY) * 0.65);
   }, [occupiedCellBounds, viewportSize]);
 
   const applyBoardSnapshot = useCallback((board) => {
@@ -1075,6 +1073,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       startWorldY: pin.worldY,
     };
 
+    hasDraggedRef.current = false;
     setActivePinDragId(pin.id);
     setSelectedPinId(pin.id);
 
@@ -1085,8 +1084,14 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     if (pinDragRef.current.pointerId !== event.pointerId || !pinDragRef.current.pinId) return;
     event.stopPropagation();
 
-    const deltaWorldX = (event.clientX - pinDragRef.current.startX) / scaledCell;
-    const deltaWorldY = (event.clientY - pinDragRef.current.startY) / scaledCell;
+    const dx = event.clientX - pinDragRef.current.startX;
+    const dy = event.clientY - pinDragRef.current.startY;
+    if (Math.hypot(dx, dy) > 5) {
+      hasDraggedRef.current = true;
+    }
+
+    const deltaWorldX = dx / scaledCell;
+    const deltaWorldY = dy / scaledCell;
 
     const nextWorldX = pinDragRef.current.startWorldX + deltaWorldX;
     const nextWorldY = pinDragRef.current.startWorldY + deltaWorldY;
@@ -1564,22 +1569,24 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 ))
               );
 
-              const noteScale = (() => {
-                if (zoom >= 1.0) {
-                  return 1.0 + (zoom - 1.0) * 1.8;
-                }
-                const range = 1.0 - dynamicMinZoom;
-                if (range <= 0) return 1.0;
-                const t = (zoom - dynamicMinZoom) / range;
-                return 0.65 + 0.35 * Math.max(0, Math.min(1, t));
-              })();
+              const minNoteScale = 0.55;
+              const noteScale = minNoteScale * (zoom / dynamicMinZoom);
 
               return (
                 <Box
                   key={`${pin.id}-content`}
-                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => {
+                    handlePinPointerDown(pin, event);
+                  }}
+                  onPointerMove={handlePinPointerMove}
+                  onPointerUp={handlePinPointerUp}
+                  onPointerCancel={handlePinPointerUp}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (hasDraggedRef.current) {
+                      hasDraggedRef.current = false;
+                      return;
+                    }
                     if (!canOpenResolvedEventReference) return;
                     handleOpenEventReference({
                       eventId,
@@ -1587,6 +1594,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     });
                   }}
                   sx={{
+                    touchAction: 'none',
                     position: 'absolute',
                     left: pin.screenX,
                     top: pin.screenY + 14,
@@ -1627,7 +1635,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     cursor: canOpenResolvedEventReference ? 'pointer' : 'default',
                     overflowWrap: 'anywhere',
                     wordBreak: 'break-word',
-                    transition: 'transform 0.2s ease',
                     '&:hover': {
                       transform: `translateX(-50%) scale(${noteScale * 1.02}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
                       zIndex: 10,
