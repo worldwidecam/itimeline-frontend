@@ -56,6 +56,12 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Completed
 
+* Renamed all timeline description input labels to "Info & Rules" across frontend (create dialog, personal settings panel, community admin panel) to differentiate from event description fields (Complete)
+
+* Added clickable timeline title on timeline page that smoothly folds down a collapsible "Info & Rules" panel showing the timeline description; falls back to a type-specific message if no description is set; clicking anywhere outside collapses it (Complete)
+
+* Increased padding/height of the timeline page header container so the title no longer clips near the top edge (Complete)
+
 * search tab on home page should have something when initial blank — implemented fun screensaver bubbles of trending tags on the blank search state (Complete)
 
 * on profile page > theory board, synchronized notes scaling with grid zoom (using linear scaling and a 0.35 floor limit) so they grow/shrink smoothly (Complete)

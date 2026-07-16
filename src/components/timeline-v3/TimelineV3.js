@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Container, useTheme, alpha, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton, GlobalStyles } from '@mui/material';
+import { Box, Container, useTheme, alpha, Button, Fade, Stack, Typography, Fab, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Snackbar, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Chip, Avatar, Skeleton, GlobalStyles, Collapse } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { checkMembershipStatus, checkMembershipFromUserData, fetchUserMemberships, requestTimelineAccess, getBlockedMembers, fetchUserPassport, debugTimelineMembers, listReports, getUserByUsername, getPersonalTimelineViewers, addPersonalTimelineViewer, removePersonalTimelineViewer, submitTimelineReport, getTimelineWarningState, getTimelineFollowStatus, followTimeline, unfollowTimeline, getTimelineActions, voteTimelineAction } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
@@ -60,6 +60,7 @@ import Groups from '@mui/icons-material/Groups';
 import Tag from '@mui/icons-material/Tag';
 import Person from '@mui/icons-material/Person';
 import MyLocation from '@mui/icons-material/MyLocation';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 
 // Define icon components to match the names used in the component
 const AddIcon = Add;
@@ -79,6 +80,7 @@ const GroupsIcon = Groups;
 const TagIcon = Tag;
 const PersonIcon = Person;
 const MyLocationIcon = MyLocation;
+const ExpandMoreIcon = ExpandMore;
 const BannedTimelineLock = React.lazy(() => import('./community/BannedTimelineLock'));
 const PrivateTimelineLock = React.lazy(() => import('./community/PrivateTimelineLock'));
 const BlockedFromCommunity = React.lazy(() => import('./community/BlockedFromCommunity'));
@@ -125,6 +127,9 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isBlocked, setIsBlocked] = useState(false); // Track if user is blocked on this timeline
   const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
   const [reviewingEventIds, setReviewingEventIds] = useState(new Set()); // Track event IDs that are "in review" on this timeline
+  const [infoOpen, setInfoOpen] = useState(false); // Collapsible Info & Rules panel on the timeline title
+  const infoTitleRef = useRef(null); // ref for the clickable title
+  const infoPanelRef = useRef(null); // ref for the collapsible panel
   const timelineWorkspaceRef = useRef(null);
   const [timelineWorkspaceBounds, setTimelineWorkspaceBounds] = useState({
     left: 0,
@@ -180,6 +185,22 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       setTimelineId(effectiveId);
     }
   }, [effectiveId, timelineId]);
+
+  // Close the Info & Rules panel when clicking outside both the title and the panel
+  useEffect(() => {
+    if (!infoOpen) return;
+    const handleDocClick = (e) => {
+      if (
+        infoTitleRef.current && infoTitleRef.current.contains(e.target)
+      ) return; // clicking the title toggles, don't double-close
+      if (
+        infoPanelRef.current && infoPanelRef.current.contains(e.target)
+      ) return; // clicking inside the panel keeps it open
+      setInfoOpen(false);
+    };
+    document.addEventListener('mousedown', handleDocClick);
+    return () => document.removeEventListener('mousedown', handleDocClick);
+  }, [infoOpen]);
 
   // Fetch timeline details when component mounts or timelineId changes (membership handled by useJoinStatus)
   useEffect(() => {
@@ -3344,13 +3365,13 @@ const handleRecenter = () => {
       position: 'relative',
       mb: 3
     }}>
-      <Container maxWidth={false}>
+      <Container maxWidth={false} sx={{ pt: 2.5, pb: 1 }}>
 
         <Stack 
           direction="row" 
           spacing={2} 
           sx={{ 
-            mb: 2, 
+            mb: 2.5, 
             alignItems: 'center', 
             justifyContent: 'space-between',
             width: '100%',
@@ -3364,7 +3385,19 @@ const handleRecenter = () => {
             alignItems="center"
             sx={{ width: 'auto', flexWrap: 'nowrap', minWidth: 0, flexShrink: 1, flexGrow: 1 }}
           >
-            <Box sx={{ color: theme.palette.primary.main, minWidth: 0, flexShrink: 1, flexGrow: 1, overflow: 'hidden' }}>
+            <Box
+              ref={infoTitleRef}
+              onClick={() => setInfoOpen((prev) => !prev)}
+              sx={{
+                color: theme.palette.primary.main,
+                minWidth: 0,
+                flexShrink: 1,
+                flexGrow: 1,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
               {!isLoading && (
                 <TimelineNameDisplay 
                   name={timelineName} 
@@ -3683,7 +3716,56 @@ const handleRecenter = () => {
           />
 
         </Stack>
-        
+
+        {/* Collapsible Info & Rules panel — click title to open, click away to close */}
+        <Collapse in={infoOpen} timeout={280} unmountOnExit>
+          <Box
+            ref={infoPanelRef}
+            sx={{
+              mb: 2,
+              px: { xs: 2, sm: 3 },
+              py: 2,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              background:
+                theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.04)'
+                  : 'rgba(0,0,0,0.025)',
+              backdropFilter: 'blur(6px)',
+            }}
+          >
+            <Typography
+              variant="overline"
+              sx={{
+                display: 'block',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                color: 'text.secondary',
+                mb: 1,
+                fontSize: '0.7rem',
+              }}
+            >
+              📋 Info & Rules
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: timelineDescription ? 'text.primary' : 'text.secondary',
+                lineHeight: 1.75,
+                whiteSpace: 'pre-wrap',
+                fontStyle: timelineDescription ? 'normal' : 'italic',
+              }}
+            >
+              {timelineDescription ||
+                (timeline_type === 'community'
+                  ? 'Community timelines are for groups of people or organizations. No specific rules have been set by the owner yet.'
+                  : timeline_type === 'personal'
+                  ? 'Personal timelines are for private thoughts and memories. This is a private space.'
+                  : 'Hashtag timelines are public records — anyone can contribute events related to this topic. No specific rules have been set yet.')}
+            </Typography>
+          </Box>
+        </Collapse>
+
         <Box 
           ref={timelineWorkspaceRef}
           onTouchStart={handleTouchStart}

@@ -5573,11 +5573,20 @@ const HomePage = () => {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5, mb: 2.1, flexWrap: 'wrap' }}>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.45 }}>
-                        Favorite Timeline
+                        {selectedFavoriteTimeline?.name
+                          ? (() => {
+                              const _type = String(selectedFavoriteTimeline?.timeline_type || 'hashtag').toLowerCase();
+                              const _name = String(selectedFavoriteTimeline?.name || '').trim();
+                              const _prefix = _type === 'community' ? 'i-' : _type === 'personal' ? 'My-' : '#';
+                              return `${_prefix}${_name}`;
+                            })()
+                          : 'Favorite Timeline'}
                       </Typography>
-                      <Typography color="text.secondary">
-                        This tab is bound to your one selected favorite timeline and its recent posts.
-                      </Typography>
+                      {!selectedFavoriteTimeline?.name && (
+                        <Typography color="text.secondary">
+                          This tab is bound to your one selected favorite timeline and its recent posts.
+                        </Typography>
+                      )}
                     </Box>
                     {selectedFavoriteTimeline?.id ? (
                       <Stack direction="row" spacing={1}>
@@ -6922,8 +6931,8 @@ const HomePage = () => {
                 />
                 <TextField
                   name="description"
-                  label="Description"
-                  placeholder="Describe what this timeline is about"
+                  label="Info & Rules"
+                  placeholder="Describe your timeline's info & rules"
                   fullWidth
                   multiline
                   rows={3}
