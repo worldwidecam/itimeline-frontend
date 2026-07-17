@@ -322,7 +322,7 @@ const HomePageRuntime = () => {
             />
             <TextField
               name="description"
-              label="Description"
+              label="Info & Rules"
               fullWidth
               multiline
               rows={3}

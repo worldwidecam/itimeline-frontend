@@ -20,9 +20,13 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* on the LIVE website (production branch) it takes a REALLY long time to initially load the website. and secondly, 'my creations' tab > timelines sub-tab specifically takes a REALLY long time to load as well.
+* on the LIVE website (production branch) it takes a REALLY long time to initially load the website. we gotta optimize the heck out of this. check for redundancies and all that
 
 * NSFW filters site-wide blurr implementation
+
+* voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
+
+* delete feature for users and timelines
 
 * add theory board module to community timelines.
 
@@ -50,15 +54,21 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Awaiting Confirmation
 
-* Returning home page bug — Popular, Home, and Favorite tabs were going blank after navigating away. Fixed by keeping last-loaded data in memory during silent background refreshes instead of wiping state. Awaiting confirmation on live production.
-
 ---
 
 ## Completed
 
+* Returning home page bug — Popular, Home, and Favorite tabs were going blank after navigating away. Fixed by keeping last-loaded data in memory during silent background refreshes instead of wiping state (Complete)
+
+* Renamed all timeline description input labels to "Info & Rules" across frontend (create dialog, personal settings panel, community admin panel) to differentiate from event description fields (Complete)
+
+* Added clickable timeline title on timeline page that smoothly folds down a collapsible "Info & Rules" panel showing the timeline description; falls back to a type-specific message if no description is set; clicking anywhere outside collapses it (Complete)
+
+* Increased padding/height of the timeline page header container so the title no longer clips near the top edge (Complete)
+
 * search tab on home page should have something when initial blank — implemented fun screensaver bubbles of trending tags on the blank search state (Complete)
 
-* on profile page > theory board, increased the notes size upon zooming in so it grows large enough to match zoom-in scale (Complete)
+* on profile page > theory board, synchronized notes scaling with grid zoom (using linear scaling and a 0.35 floor limit) so they grow/shrink smoothly (Complete)
 
 * Restructured and refined the layout of Timeline Cards (moving type chip to the absolute bottom-left of the left column, placing follower count chip directly next to the title, enabling description text, and wrapping descriptions in decorative quotation marks) (Complete)
 

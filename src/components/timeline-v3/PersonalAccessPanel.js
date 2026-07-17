@@ -730,7 +730,7 @@ const PersonalAccessPanel = ({
             {/* Description */}
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Timeline Description
+                Info & Rules
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.2 }}>
                 This appears in places like your Favorite tab when a custom quote is not set.
@@ -739,7 +739,7 @@ const PersonalAccessPanel = ({
                 fullWidth
                 multiline
                 minRows={3}
-                label="Description"
+                label="Info & Rules"
                 value={timelineDescription}
                 onChange={(event) => {
                   setTimelineDescription(event.target.value);

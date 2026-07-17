@@ -31,6 +31,8 @@ import RichContentRenderer from './RichContentRenderer';
 import api from '../../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { getGlassSquareActionButtonSx } from '../../../utils/formStyleGuide';
+import RichEditor from '../../common/RichEditor';
+
 
 // Session cache for comments and scroll states to persist across mount/unmount transitions
 const commentsCache = {}; // eventId -> comments array
@@ -1596,22 +1598,18 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
               )}
 
               <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                <TextField
+                <RichEditor
                   fullWidth
+                  sx={{ flex: 1, minWidth: 0 }}
                   inputRef={commentInputRef}
-                  size="small"
-                  variant="outlined"
                   placeholder={isGuest ? 'Log in to join the discussion...' : 'Write a comment...'}
                   disabled={isGuest || submitting}
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: 'off',
-                    'data-lpignore': 'true',
-                    'data-1p-ignore': 'true',
-                  }}
-                  sx={{
+                  onChange={setInputValue}
+                  rows={2}
+                  helperText=""
+                  label=""
+                  inputSx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
                       backgroundColor: inputBg,
