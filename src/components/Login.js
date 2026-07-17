@@ -11,6 +11,7 @@ import {
   GlobalStyles,
   InputAdornment,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -42,6 +43,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [activeCard, setActiveCard] = useState(null);
   const anyCardActive = !!activeCard;
   const [isEntering, setIsEntering] = useState(true);
@@ -132,7 +134,9 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setError('');
+    setIsLoading(true);
     try {
       const loggedInUser = await login(formData.email, formData.password);
       setFormData({ email: '', password: '' });
@@ -161,6 +165,8 @@ const Login = () => {
         setErrorField('all');
         setTimeout(() => setErrorField(''), 1000);
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -527,9 +533,10 @@ const Login = () => {
                 <Box sx={{ mt: 'auto', pt: 1.5 }}>
                   <Button
                     type="submit" fullWidth variant="outlined"
+                    disabled={isLoading}
                     sx={getGlassPillActionButtonSx(theme)}
                   >
-                    Login
+                    {isLoading ? <CircularProgress size={20} color="inherit" /> : 'Login'}
                   </Button>
                 </Box>
               </Box>

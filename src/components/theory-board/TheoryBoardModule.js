@@ -31,8 +31,9 @@ import HashtagIcon from '../common/HashtagIcon';
 import NewsEventMarker from '../timeline-v3/events/markers/NewsEventMarker';
 import MediaEventMarker from '../timeline-v3/events/markers/MediaEventMarker';
 import RemarkEventMarker from '../timeline-v3/events/markers/RemarkEventMarker';
-import RichContentRenderer from '../timeline-v3/events/RichContentRenderer';
 import { useLocation } from 'react-router-dom';
+import RichEditor from '../common/RichEditor';
+import RichContentRenderer from '../timeline-v3/events/RichContentRenderer';
 import api from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { toRichContentPayload } from '../../utils/richContent';
@@ -99,26 +100,6 @@ const createYarnLink = (pinAId, pinBId) => {
   };
 };
 
-const detectMentionAtCursor = (text, cursorPos) => {
-  const beforeCursor = String(text || '').substring(0, Math.max(0, cursorPos));
-
-  const atMatch = beforeCursor.match(/@([a-zA-Z0-9_]*)$/);
-  if (atMatch) return { type: 'user', label: 'Tagging', partial: atMatch[1], color: 'rgba(33, 150, 243, 0.15)' };
-
-  const hashMatch = beforeCursor.match(/#([a-zA-Z0-9_]*)$/);
-  if (hashMatch) return { type: 'hashtag', label: 'Hashtag', partial: hashMatch[1], color: 'rgba(76, 175, 80, 0.15)' };
-
-  const commMatch = beforeCursor.match(/i-([a-zA-Z0-9_]*)$/);
-  if (commMatch) return { type: 'community', label: 'Community', partial: commMatch[1], color: 'rgba(156, 39, 176, 0.15)' };
-
-  const wwwMatch = beforeCursor.match(/www\.([a-zA-Z0-9._-]*)$/);
-  if (wwwMatch) return { type: 'url', label: 'URL', partial: wwwMatch[1], color: 'rgba(255, 152, 0, 0.15)' };
-
-  const eventMatch = beforeCursor.match(/~([0-9]*)$/);
-  if (eventMatch) return { type: 'event', label: 'Event', partial: eventMatch[1], color: 'rgba(103, 58, 183, 0.15)' };
-
-  return null;
-};
 
 const isSingleEmoji = (text) => {
   const trimmed = text.trim();
@@ -184,8 +165,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   const [activePinDragId, setActivePinDragId] = useState(null);
   const [selectedPinId, setSelectedPinId] = useState(null);
   const [selectedPinDraft, setSelectedPinDraft] = useState('');
-  const [selectedPinCursor, setSelectedPinCursor] = useState(0);
-  const [selectedPinIndicatorAnchorEl, setSelectedPinIndicatorAnchorEl] = useState(null);
   const [interactionMode, setInteractionMode] = useState('default');
   const [pendingYarnStartPinId, setPendingYarnStartPinId] = useState(null);
   const [yarnPreviewPoint, setYarnPreviewPoint] = useState(null);
@@ -199,6 +178,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
   const selectedPinInputRef = useRef(null);
   const cutLimpTimeoutsRef = useRef({});
   const suppressDirtyTrackingRef = useRef(true);
+  const hasDraggedRef = useRef(false);
 
   const occupiedCellBounds = useMemo(() => {
     if (pins.length === 0) {
@@ -216,12 +196,10 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     let maxY = Number.NEGATIVE_INFINITY;
 
     pins.forEach((pin) => {
-      const cellX = toCellCoord(pin.worldX);
-      const cellY = toCellCoord(pin.worldY);
-      minX = Math.min(minX, cellX);
-      maxX = Math.max(maxX, cellX);
-      minY = Math.min(minY, cellY);
-      maxY = Math.max(maxY, cellY);
+      minX = Math.min(minX, pin.worldX);
+      maxX = Math.max(maxX, pin.worldX);
+      minY = Math.min(minY, pin.worldY);
+      maxY = Math.max(maxY, pin.worldY);
     });
 
     return {
@@ -237,14 +215,13 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     const occupiedCellWidthUnits = (occupiedCellBounds.maxX - occupiedCellBounds.minX + 1) + (perforationPaddingCells * 2);
     const occupiedCellHeightUnits = (occupiedCellBounds.maxY - occupiedCellBounds.minY + 1) + (perforationPaddingCells * 2);
 
-    const fitZoomX = viewportSize.width > 0
-      ? (viewportSize.width * 0.84) / (BASE_CELL_SIZE * occupiedCellWidthUnits)
-      : MIN_ZOOM;
-    const fitZoomY = viewportSize.height > 0
-      ? (viewportSize.height * 0.78) / (BASE_CELL_SIZE * occupiedCellHeightUnits)
-      : MIN_ZOOM;
+    const visibleWidth = viewportSize.width > 0 ? Math.min(viewportSize.width, window.innerWidth) : window.innerWidth;
+    const visibleHeight = viewportSize.height > 0 ? Math.min(viewportSize.height, window.innerHeight) : window.innerHeight;
 
-    return Math.max(ABS_MIN_ZOOM, Math.min(MIN_ZOOM, fitZoomX, fitZoomY) * 0.95);
+    const fitZoomX = (visibleWidth - 36) / (BASE_CELL_SIZE * occupiedCellWidthUnits);
+    const fitZoomY = (visibleHeight - 36) / (BASE_CELL_SIZE * occupiedCellHeightUnits);
+
+    return Math.max(ABS_MIN_ZOOM, Math.min(MIN_ZOOM, fitZoomX, fitZoomY) * 0.65);
   }, [occupiedCellBounds, viewportSize]);
 
   const applyBoardSnapshot = useCallback((board) => {
@@ -748,21 +725,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
 
   useEffect(() => {
     setSelectedPinDraft(selectedPin ? String(selectedPin.content || '') : '');
-    setSelectedPinCursor(selectedPin ? String(selectedPin.content || '').length : 0);
   }, [selectedPin]);
-
-  const selectedPinDraftIndicator = useMemo(
-    () => detectMentionAtCursor(selectedPinDraft, selectedPinCursor),
-    [selectedPinCursor, selectedPinDraft]
-  );
-
-  useEffect(() => {
-    if (selectedPinDraftIndicator && selectedPinInputRef.current) {
-      setSelectedPinIndicatorAnchorEl(selectedPinInputRef.current);
-      return;
-    }
-    setSelectedPinIndicatorAnchorEl(null);
-  }, [selectedPinDraftIndicator]);
 
   const selectedPinScreenPosition = useMemo(() => {
     if (!selectedPin) return null;
@@ -1075,6 +1038,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
       startWorldY: pin.worldY,
     };
 
+    hasDraggedRef.current = false;
     setActivePinDragId(pin.id);
     setSelectedPinId(pin.id);
 
@@ -1085,8 +1049,14 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
     if (pinDragRef.current.pointerId !== event.pointerId || !pinDragRef.current.pinId) return;
     event.stopPropagation();
 
-    const deltaWorldX = (event.clientX - pinDragRef.current.startX) / scaledCell;
-    const deltaWorldY = (event.clientY - pinDragRef.current.startY) / scaledCell;
+    const dx = event.clientX - pinDragRef.current.startX;
+    const dy = event.clientY - pinDragRef.current.startY;
+    if (Math.hypot(dx, dy) > 5) {
+      hasDraggedRef.current = true;
+    }
+
+    const deltaWorldX = dx / scaledCell;
+    const deltaWorldY = dy / scaledCell;
 
     const nextWorldX = pinDragRef.current.startWorldX + deltaWorldX;
     const nextWorldY = pinDragRef.current.startWorldY + deltaWorldY;
@@ -1564,22 +1534,24 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 ))
               );
 
-              const noteScale = (() => {
-                if (zoom >= 1.0) {
-                  return 1.0 + (zoom - 1.0) * 1.8;
-                }
-                const range = 1.0 - dynamicMinZoom;
-                if (range <= 0) return 1.0;
-                const t = (zoom - dynamicMinZoom) / range;
-                return 0.65 + 0.35 * Math.max(0, Math.min(1, t));
-              })();
+              const minNoteScale = 0.55;
+              const noteScale = minNoteScale * (zoom / dynamicMinZoom);
 
               return (
                 <Box
                   key={`${pin.id}-content`}
-                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => {
+                    handlePinPointerDown(pin, event);
+                  }}
+                  onPointerMove={handlePinPointerMove}
+                  onPointerUp={handlePinPointerUp}
+                  onPointerCancel={handlePinPointerUp}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (hasDraggedRef.current) {
+                      hasDraggedRef.current = false;
+                      return;
+                    }
                     if (!canOpenResolvedEventReference) return;
                     handleOpenEventReference({
                       eventId,
@@ -1587,6 +1559,7 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     });
                   }}
                   sx={{
+                    touchAction: 'none',
                     position: 'absolute',
                     left: pin.screenX,
                     top: pin.screenY + 14,
@@ -1627,7 +1600,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                     cursor: canOpenResolvedEventReference ? 'pointer' : 'default',
                     overflowWrap: 'anywhere',
                     wordBreak: 'break-word',
-                    transition: 'transform 0.2s ease',
                     '&:hover': {
                       transform: `translateX(-50%) scale(${noteScale * 1.02}) rotate(${((String(pin.id).length % 7) - 3) * 0.6}deg)`,
                       zIndex: 10,
@@ -1821,44 +1793,23 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                 >
                   <Stack direction="row" spacing={0.6} alignItems="flex-start">
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <TextField
-                        ref={selectedPinInputRef}
+                      <RichEditor
+                        inputRef={selectedPinInputRef}
                         value={selectedPinDraft}
-                        onChange={(event) => {
-                          const nextValue = event.target.value.slice(0, 1200);
-                          const nextCursor = event.target.selectionStart ?? event.target.value.length;
-                          setSelectedPinDraft(nextValue);
-                          setSelectedPinCursor(nextCursor);
-                          const mention = detectMentionAtCursor(nextValue, nextCursor);
-                          setSelectedPinIndicatorAnchorEl(mention && selectedPinInputRef.current ? selectedPinInputRef.current : null);
-                        }}
-                        onClick={(event) => {
-                          const nextCursor = event.target.selectionStart ?? selectedPinDraft.length;
-                          setSelectedPinCursor(nextCursor);
-                          const mention = detectMentionAtCursor(selectedPinDraft, nextCursor);
-                          setSelectedPinIndicatorAnchorEl(mention && selectedPinInputRef.current ? selectedPinInputRef.current : null);
-                        }}
-                        onKeyUp={(event) => {
-                          const nextCursor = event.currentTarget.selectionStart ?? selectedPinDraft.length;
-                          setSelectedPinCursor(nextCursor);
-                          const mention = detectMentionAtCursor(selectedPinDraft, nextCursor);
-                          setSelectedPinIndicatorAnchorEl(mention && selectedPinInputRef.current ? selectedPinInputRef.current : null);
-                        }}
+                        onChange={(value) => setSelectedPinDraft(value.slice(0, 1200))}
                         onKeyDown={(event) => {
                           if (event.key !== 'Enter') return;
                           if (event.shiftKey) return;
                           event.preventDefault();
                           submitSelectedPinContent();
                         }}
-                        size="small"
+                        placeholder="@ # i- www or ~124"
                         variant="outlined"
                         fullWidth
-                        placeholder="@ # i- www or ~124"
-                        multiline
-                        minRows={1}
-                        maxRows={3}
-                        inputProps={{ maxLength: 1200 }}
-                        sx={{
+                        rows={1}
+                        helperText=""
+                        label=""
+                        inputSx={{
                           '& .MuiInputBase-root': {
                             fontSize: '0.75rem',
                             borderRadius: 1,
@@ -1866,36 +1817,6 @@ const TheoryBoardModule = ({ profileUserId = 0, isOwner = false, onOpenEventRefe
                           },
                         }}
                       />
-                      <Popper
-                        open={Boolean(selectedPinDraftIndicator && selectedPinIndicatorAnchorEl)}
-                        anchorEl={selectedPinIndicatorAnchorEl}
-                        placement="bottom-start"
-                        sx={{ zIndex: 6 }}
-                      >
-                        <Paper
-                          sx={{
-                            mt: 0.8,
-                            px: 1.2,
-                            py: 0.8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.7,
-                            bgcolor: selectedPinDraftIndicator?.color || 'rgba(255,255,255,0.92)',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            pointerEvents: 'none',
-                          }}
-                        >
-                          {selectedPinDraftIndicator?.type === 'user' && <PersonIcon sx={{ fontSize: 14 }} />}
-                          {selectedPinDraftIndicator?.type === 'hashtag' && <HashtagIcon sx={{ fontSize: 14 }} />}
-                          {selectedPinDraftIndicator?.type === 'community' && <CommunityIcon sx={{ fontSize: 14 }} />}
-                          {(selectedPinDraftIndicator?.type === 'url' || selectedPinDraftIndicator?.type === 'link') && <LinkIcon sx={{ fontSize: 14 }} />}
-                          {selectedPinDraftIndicator?.type === 'event' && <EventOutlinedIcon sx={{ fontSize: 14 }} />}
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            {`${selectedPinDraftIndicator?.label || ''}${selectedPinDraftIndicator?.partial ? ` ${selectedPinDraftIndicator.partial}` : ''}`}
-                          </Typography>
-                        </Paper>
-                      </Popper>
                     </Box>
                     <Box
                       sx={{

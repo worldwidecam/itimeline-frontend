@@ -632,8 +632,49 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = setTimeout(() => {
       checkAndRestoreSession();
     }, 100); // Small delay to ensure localStorage is available
+
+    // Safety net: if auth init is still pending after 4 seconds (e.g. browser
+    // throttled timers while the tab was backgrounded), force loading=false so
+    // the UI is never permanently stuck in a non-interactive state.
+    const safetyTimeout = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) {
+          console.warn('[Auth] Safety timeout reached — forcing loading=false to unblock UI');
+        }
+        return false;
+      });
+    }, 4000);
     
-    return () => clearTimeout(initializeAuth);
+    return () => {
+      clearTimeout(initializeAuth);
+      clearTimeout(safetyTimeout);
+    };
+  }, []);
+
+  // Re-validate session when the tab comes back into focus after being
+  // backgrounded (e.g. phone screen locked/unlocked). This is the general
+  // fix for the "idle page" login failure — the auth state may have become
+  // stale while the browser throttled timers and network activity.
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
+      // Only re-validate for real (non-guest) logged-in users
+      const storedUser = (() => {
+        try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
+      })();
+      const isGuestStored = localStorage.getItem('guest_session') === 'true';
+      if (!storedUser || isGuestStored) return;
+
+      try {
+        console.log('[Auth] Tab became visible — silently re-validating session');
+        await fetchCurrentUser();
+      } catch (err) {
+        console.warn('[Auth] Silent re-validation on visibility change failed:', err);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const updateProfile = async (updatedData) => {

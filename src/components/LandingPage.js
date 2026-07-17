@@ -18,7 +18,8 @@ import {
   Tooltip,
   useTheme,
   Collapse,
-  keyframes
+  keyframes,
+  GlobalStyles,
 } from '@mui/material';
 import {
   Timeline as TimelineIcon,
@@ -215,16 +216,18 @@ const LandingPage = () => {
   `;
 
   return (
-    <Box 
-      sx={{ 
-        minHeight: 'calc(100vh - 64px)',
-        background: appCanvasBackground,
-        pt: 6,
-        pb: 8,
-        position: 'relative',
-        overflowX: 'hidden' // Prevent horizontal scrolling
-      }}
-    >
+    <>
+      <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+      <Box 
+        sx={{ 
+          minHeight: 'calc(100vh - 64px)',
+          background: appCanvasBackground,
+          pt: 6,
+          pb: 8,
+          position: 'relative',
+          overflowX: 'hidden' // Prevent horizontal scrolling
+        }}
+      >
       <Container maxWidth="lg">
         {/* Hero Section */}
         <Box sx={{ textAlign: 'center', mb: 6 }}>
@@ -493,6 +496,7 @@ const LandingPage = () => {
       {/* Donation Floating Action Buttons */}
       <DonationButtons />
     </Box>
+    </>
   );
 };
 

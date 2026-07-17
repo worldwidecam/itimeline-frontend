@@ -542,8 +542,8 @@ const HomePage = () => {
               />
               <TextField
                 name="description"
-                label="Description"
-                placeholder="Describe what this timeline is about"
+                label="Info & Rules"
+                placeholder="Describe your timeline's info & rules"
                 type="text"
                 fullWidth
                 multiline

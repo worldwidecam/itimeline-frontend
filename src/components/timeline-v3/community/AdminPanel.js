@@ -187,131 +187,7 @@ const extractKeyFromUrl = (url) => {
   }
 };
 
-// Rich Editor Component for Status Cards
-const StatusRichEditor = ({ value, onChange, disabled, placeholder }) => {
-  const [cursorPos, setCursorPos] = useState(0);
-  const [indicator, setIndicator] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const textFieldRef = useRef(null);
-
-  const detectMention = (text, pos) => {
-    const beforeCursor = text.substring(0, pos);
-    
-    const atMatch = beforeCursor.match(/@([a-zA-Z0-9_]*)$/);
-    if (atMatch) {
-      return { type: 'user', label: 'Tagging', partial: atMatch[1], color: 'rgba(33, 150, 243, 0.15)' };
-    }
-    
-    const hashMatch = beforeCursor.match(/#([a-zA-Z0-9_]*)$/);
-    if (hashMatch) {
-      return { type: 'hashtag', label: 'Hashtag', partial: hashMatch[1], color: 'rgba(76, 175, 80, 0.15)' };
-    }
-    
-    const commMatch = beforeCursor.match(/i-([a-zA-Z0-9_]*)$/);
-    if (commMatch) {
-      return { type: 'community', label: 'Community', partial: commMatch[1], color: 'rgba(156, 39, 176, 0.15)' };
-    }
-    
-    const wwwMatch = beforeCursor.match(/www\.([a-zA-Z0-9._-]*)$/);
-    if (wwwMatch) {
-      return { type: 'url', label: 'URL', partial: wwwMatch[1], color: 'rgba(255, 152, 0, 0.15)' };
-    }
-
-    const eventRefMatch = beforeCursor.match(/~([0-9]*)$/);
-    if (eventRefMatch) {
-      return { type: 'event', label: 'Event', partial: eventRefMatch[1], color: 'rgba(103, 58, 183, 0.15)' };
-    }
-    
-    return null;
-  };
-
-  const handleChange = (e) => {
-    const newValue = e.target.value;
-    const newCursorPos = e.target.selectionStart;
-    
-    onChange(newValue);
-    setCursorPos(newCursorPos);
-    
-    const mention = detectMention(newValue, newCursorPos);
-    if (mention) {
-      setIndicator(mention);
-      setAnchorEl(textFieldRef.current);
-    } else {
-      setIndicator(null);
-      setAnchorEl(null);
-    }
-  };
-
-  const getIndicatorIcon = () => {
-    if (!indicator) return null;
-    switch (indicator.type) {
-      case 'user':
-        return <PersonIcon fontSize="small" />;
-      case 'hashtag':
-        return <HashtagIcon fontSize="small" />;
-      case 'community':
-        return <PeopleIcon fontSize="small" />;
-      case 'link':
-      case 'url':
-        return <LinkIcon fontSize="small" />;
-      case 'event':
-        return <EventOutlinedIcon fontSize="small" />;
-      default:
-        return null;
-    }
-  };
-
-  const getIndicatorText = () => {
-    if (!indicator) return '';
-    const text = indicator.partial ? ` ${indicator.partial}` : '';
-    return `${indicator.label}${text}`;
-  };
-
-  return (
-    <Box sx={{ position: 'relative' }}>
-      <TextField
-        ref={textFieldRef}
-        label="Status message body"
-        fullWidth
-        multiline
-        rows={3}
-        value={value}
-        onChange={handleChange}
-        placeholder={placeholder || "Write a short update for your community"}
-        disabled={disabled}
-        helperText={`${value.length}/320 chars • Use @ # i- www. or ~123 for mentions`}
-        error={value.length > 320}
-      />
-      
-      <Popper
-        open={Boolean(indicator && anchorEl)}
-        anchorEl={anchorEl}
-        placement="bottom-start"
-        style={{ zIndex: 1300 }}
-      >
-        <Paper
-          sx={{
-            mt: 1,
-            px: 2,
-            py: 1.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            bgcolor: indicator?.color,
-            border: '1px solid',
-            borderColor: 'divider',
-            pointerEvents: 'none'
-          }}
-        >
-          {getIndicatorIcon()}
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            {getIndicatorText()}
-          </Typography>
-        </Paper>
-      </Popper>
-    </Box>
-  );
-};
+import RichEditor from '../../common/RichEditor';
 
 const AdminPanel = () => {
   const { id } = useParams();
@@ -5394,14 +5270,14 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
           >
             <Box sx={{ mb: 4 }}>
               <Typography variant="subtitle1" gutterBottom>
-                Timeline Description
+                Info & Rules
               </Typography>
               
               <Box sx={{ mt: 2 }}>
                 
                 <TextField
                   fullWidth
-                  label="Description"
+                  label="Info & Rules"
                   variant="outlined"
                   multiline
                   rows={3}
@@ -5719,7 +5595,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                     error={(statusHeader.trim() ? statusHeader.trim().split(/\s+/).length : 0) > 4 || statusHeader.length > 120}
                     sx={{ mb: 2 }}
                   />
-                  <StatusRichEditor
+                  <RichEditor
                     value={statusBody}
                     onChange={(value) => {
                       setStatusBody(value);
@@ -5727,6 +5603,11 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
                       setHasUnsavedChanges(true);
                     }}
                     disabled={false}
+                    label="Status message body"
+                    placeholder="Write a short update for your community"
+                    helperText={`${statusBody.length}/320 chars • Use @ # i- www. or ~123 for mentions`}
+                    error={statusBody.length > 320}
+                    rows={3}
                   />
                 </Box>
               </Paper>

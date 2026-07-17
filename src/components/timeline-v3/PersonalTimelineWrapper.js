@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, CircularProgress, Typography, Button } from '@mui/material';
+import { Box, CircularProgress, Typography, Button, useTheme, GlobalStyles } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolvePersonalTimeline } from '../../utils/api';
 import PersonalTimelineLock from './PersonalTimelineLock';
+import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
 
 // Simple, local slug helper for Phase 1 (no backend coupling yet)
 const slugify = (name) => {
@@ -22,6 +23,8 @@ function PersonalTimelineWrapper() {
   const { username, slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const theme = useTheme();
+  const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
 
   const [status, setStatus] = useState('loading'); // 'loading' | 'resolved' | 'not_found' | 'unsupported' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
@@ -74,16 +77,19 @@ function PersonalTimelineWrapper() {
 
   if (status === 'loading') {
     return (
-      <Box
-        sx={{
-          minHeight: 'calc(100vh - 64px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <CircularProgress />
-      </Box>
+      <>
+        <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+        <Box
+          sx={{
+            minHeight: 'calc(100vh - 64px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </>
     );
   }
 
@@ -93,7 +99,12 @@ function PersonalTimelineWrapper() {
   }
 
   if (status === 'forbidden') {
-    return <PersonalTimelineLock username={username} slug={slug} />;
+    return (
+      <>
+        <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+        <PersonalTimelineLock username={username} slug={slug} />
+      </>
+    );
   }
 
   const title =
@@ -104,15 +115,17 @@ function PersonalTimelineWrapper() {
       : 'Personal timelines are coming soon';
 
   return (
-    <Box
-      sx={{
-        minHeight: 'calc(100vh - 64px)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        px: 2,
-        textAlign: 'center',
+    <>
+      <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+          textAlign: 'center',
       }}
     >
       <Typography variant="h4" gutterBottom>
@@ -141,6 +154,7 @@ function PersonalTimelineWrapper() {
         Back to Home
       </Button>
     </Box>
+    </>
   );
 }
 
