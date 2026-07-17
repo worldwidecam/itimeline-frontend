@@ -24,6 +24,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * NSFW filters site-wide blurr implementation
 
+* voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
+
+* delete feature for users and timelines
+
 * add theory board module to community timelines.
 
 * look into making this an app on apple and google play stores.
@@ -50,11 +54,11 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Awaiting Confirmation
 
-* Returning home page bug — Popular, Home, and Favorite tabs were going blank after navigating away. Fixed by keeping last-loaded data in memory during silent background refreshes instead of wiping state. Awaiting confirmation on live production.
-
 ---
 
 ## Completed
+
+* Returning home page bug — Popular, Home, and Favorite tabs were going blank after navigating away. Fixed by keeping last-loaded data in memory during silent background refreshes instead of wiping state (Complete)
 
 * Renamed all timeline description input labels to "Info & Rules" across frontend (create dialog, personal settings panel, community admin panel) to differentiate from event description fields (Complete)
 
