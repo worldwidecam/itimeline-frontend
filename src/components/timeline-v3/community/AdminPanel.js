@@ -2153,7 +2153,8 @@ const ManagePostsTab = ({ timelineId }) => {
       const allowedFields = [
         'title', 'description', 'content_json', 'event_date', 'raw_event_date',
         'url', 'url_title', 'url_description', 'url_image',
-        'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked'
+        'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked',
+        'is_blurred', 'tags', 'remove_association_ids'
       ];
       const patchPayload = {};
       for (const key of allowedFields) {

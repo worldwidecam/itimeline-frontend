@@ -67,10 +67,12 @@ const MediaCard = forwardRef(({
   // Add error boundary state
   const [hasError, setHasError] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
 
-  // Reset error state when event changes
+  // Reset state when event changes
   useEffect(() => {
     setHasError(false);
+    setIsRevealed(false);
   }, [event]);
 
   // If there's an error, show a fallback UI
@@ -623,17 +625,17 @@ const MediaCard = forwardRef(({
             borderRadius: 'inherit'
           }}
         />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
-            zIndex: 2
-          }}
-        />
+          <Box 
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.25) 100%)',
+              zIndex: 2
+            }}
+          />
       </Box>
     );
   };
@@ -1181,7 +1183,7 @@ const MediaCard = forwardRef(({
             borderRadius: 'inherit',
             overflow: 'hidden',
             WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-            minHeight: { xs: 200, sm: 280, md: 320 },
+            minHeight: { xs: 240, sm: 280, md: 320 },
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
@@ -1198,12 +1200,35 @@ const MediaCard = forwardRef(({
           )}
 
           {/* Media Content - Full card background */}
-          {renderMedia()}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              zIndex: 1,
+            }}
+          >
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                filter: event.is_blurred ? 'blur(22px)' : 'none',
+                transition: 'filter 0.3s ease',
+              }}
+            >
+              {renderMedia()}
+            </Box>
+          </Box>
 
           {/* Info Content - Overlaid with reduced opacity */}
           <Box
             sx={{
-              p: 2,
+              p: { xs: 1.25, sm: 2 },
               mt: 'auto',
               ml: '-1px',
               mr: '-1px',
@@ -1213,8 +1238,8 @@ const MediaCard = forwardRef(({
               position: 'relative',
               zIndex: 3,
               bgcolor: theme.palette.mode === 'dark'
-                ? 'rgba(18, 18, 18, 0.75)'
-                : 'rgba(255, 255, 255, 0.75)',
+                ? 'rgba(18, 18, 18, 0.45)'
+                : 'rgba(255, 255, 255, 0.45)',
               backdropFilter: 'blur(8px)',
               borderBottomLeftRadius: 2,
               borderBottomRightRadius: 2,
@@ -1226,6 +1251,21 @@ const MediaCard = forwardRef(({
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <TypeIcon sx={{ color, mt: 0.5 }} />
                   <EventOriginTimelineBadge event={event} />
+                  {event.is_blurred && (
+                    <Chip
+                      label="+NSFW"
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        bgcolor: '#d32f2f',
+                        color: 'white',
+                        borderRadius: '4px',
+                        '& .MuiChip-label': { px: 0.5 }
+                      }}
+                    />
+                  )}
                 </Box>
                 {event.event_date && (
                   <Chip
@@ -1259,7 +1299,7 @@ const MediaCard = forwardRef(({
             </Box>
 
             {/* Event description */}
-            {event.description && (
+            {!isMobile && event.description && (
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 {limitDescription(event.description)}
               </Typography>
@@ -1280,7 +1320,7 @@ const MediaCard = forwardRef(({
                 display: 'flex',
                 flexDirection: 'column',
                 mt: 'auto',
-                pt: 1,
+                pt: { xs: 0.75, sm: 1.5 },
                 borderTop: `1px solid ${theme.palette.divider}`,
                 gap: 1,
               }}
@@ -1390,6 +1430,40 @@ const MediaCard = forwardRef(({
             </Box>
           </Box>
 
+          {/* NSFW Stamp Overlay — visual only, click passes through to open popup */}
+          {event.is_blurred && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.35)',
+                backdropFilter: 'blur(3px)',
+                zIndex: 2, // Above absolute media (zIndex 1) but behind Info Content (zIndex 3)
+                pointerEvents: 'none',
+              }}
+            >
+              <Box
+                component="img"
+                src="/images/nsfw_stamp.png"
+                alt="NSFW"
+                sx={{
+                  width: { xs: 130, sm: 160 },
+                  height: 'auto',
+                  objectFit: 'contain',
+                  pointerEvents: 'none',
+                  filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.6))',
+                  transform: 'rotate(-10deg)',
+                }}
+              />
+            </Box>
+          )}
+
           {/* Border Highlight Overlay */}
           {isSelected && (
             <Box
@@ -1433,6 +1507,7 @@ const MediaCard = forwardRef(({
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
         timelineType={timelineType}
+        isAlreadyRevealed={isRevealed}
       />
     </>
   );

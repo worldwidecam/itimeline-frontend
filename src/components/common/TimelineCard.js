@@ -18,6 +18,8 @@ import {
   StarBorder as StarBorderIcon,
   FavoriteBorder as HeartIcon,
   Lock as LockIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import { normalizeTimelineCardData } from './timelineCardModel';
 import { displayUsername } from '../../utils/usernameDisplay';
@@ -31,6 +33,9 @@ function TimelineCard({
   formatDate,
   openTimelineLabel = 'Open Timeline',
   sections,
+  allowWatchToggle = false,
+  isWatched = false,
+  onToggleWatch,
 }) {
   const theme = useTheme();
 
@@ -416,7 +421,7 @@ function TimelineCard({
           flexDirection: { xs: 'row', lg: 'column' },
           alignItems: { xs: 'center', lg: 'center' },
           justifyContent: { xs: 'space-between', lg: 'space-between' },
-          gap: { xs: 1, lg: 0 },
+          gap: { xs: 1, lg: 1.5 },
         }}
       >
         {allowFavoriteToggle && resolvedSections.favoriteToggle ? (
@@ -431,6 +436,7 @@ function TimelineCard({
               }
             }}
             sx={{
+              alignSelf: { xs: 'auto', lg: 'flex-end' },
               border: '1px solid',
               borderColor: isFavoriteTimeline
                 ? (theme.palette.mode === 'dark' ? 'rgba(250,204,21,0.72)' : 'rgba(202,138,4,0.75)')
@@ -455,42 +461,91 @@ function TimelineCard({
             {isFavoriteTimeline ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
           </IconButton>
         ) : null}
-        {resolvedSections.openAction ? (
-          <Button
-            size="small"
-            variant="contained"
-            sx={{
-              minWidth: { xs: 124, sm: 136 },
-              borderRadius: 999,
-              px: { xs: 1.35, sm: 1.65 },
-              py: 0.55,
-              textTransform: 'none',
-              fontWeight: 800,
-              letterSpacing: 0.24,
-              color: theme.palette.mode === 'dark' ? '#fff' : '#0f172a',
-              background: theme.palette.mode === 'dark'
-                ? 'linear-gradient(135deg, rgba(37,99,235,0.86), rgba(29,78,216,0.76))'
-                : 'linear-gradient(135deg, rgba(147,197,253,0.86), rgba(96,165,250,0.86))',
-              border: '1px solid',
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.52)' : 'rgba(30,64,175,0.26)',
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 18px rgba(29,78,216,0.32)'
-                : '0 8px 14px rgba(59,130,246,0.24)',
-              '&:hover': {
+
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            width: { xs: 'auto', lg: '100%' },
+            justifyContent: 'flex-end',
+            ml: { xs: 'auto', lg: 0 },
+          }}
+        >
+          {isHashtag && allowWatchToggle ? (
+            <IconButton
+              size="small"
+              aria-label={isWatched ? 'Unwatch hashtag' : 'Watch hashtag'}
+              onClick={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (onToggleWatch) {
+                  onToggleWatch(timelineId);
+                }
+              }}
+              sx={{
+                border: '1px solid',
+                borderColor: isWatched
+                  ? (theme.palette.mode === 'dark' ? 'rgba(3,169,244,0.72)' : 'rgba(2,136,209,0.75)')
+                  : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.2)'),
+                color: isWatched
+                  ? (theme.palette.mode === 'dark' ? '#03a9f4' : '#0288d1')
+                  : 'text.secondary',
+                background: isWatched
+                  ? (theme.palette.mode === 'dark'
+                    ? 'linear-gradient(135deg, rgba(2,136,209,0.2), rgba(3,169,244,0.2))'
+                    : 'linear-gradient(135deg, rgba(224,242,254,0.9), rgba(186,230,253,0.9))')
+                  : 'transparent',
+                '&:hover': {
+                  background: isWatched
+                    ? (theme.palette.mode === 'dark'
+                      ? 'linear-gradient(135deg, rgba(2,136,209,0.28), rgba(3,169,244,0.28))'
+                      : 'linear-gradient(135deg, rgba(186,230,253,0.94), rgba(125,211,252,0.94))')
+                    : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'),
+                },
+              }}
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          ) : null}
+
+          {resolvedSections.openAction ? (
+            <Button
+              size="small"
+              variant="contained"
+              sx={{
+                minWidth: { xs: 124, sm: 136 },
+                borderRadius: 999,
+                px: { xs: 1.35, sm: 1.65 },
+                py: 0.55,
+                textTransform: 'none',
+                fontWeight: 800,
+                letterSpacing: 0.24,
+                color: theme.palette.mode === 'dark' ? '#fff' : '#0f172a',
                 background: theme.palette.mode === 'dark'
-                  ? 'linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.84))'
-                  : 'linear-gradient(135deg, rgba(96,165,250,0.9), rgba(59,130,246,0.9))',
-              },
-            }}
-            onClick={() => {
-              if (timelineId > 0) {
-                onOpenTimeline?.(timelineId, timeline);
-              }
-            }}
-          >
-            {openTimelineLabel}
-          </Button>
-        ) : null}
+                  ? 'linear-gradient(135deg, rgba(37,99,235,0.86), rgba(29,78,216,0.76))'
+                  : 'linear-gradient(135deg, rgba(147,197,253,0.86), rgba(96,165,250,0.86))',
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(191,219,254,0.52)' : 'rgba(30,64,175,0.26)',
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 8px 18px rgba(29,78,216,0.32)'
+                  : '0 8px 14px rgba(59,130,246,0.24)',
+                '&:hover': {
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.84))'
+                    : 'linear-gradient(135deg, rgba(96,165,250,0.9), rgba(59,130,246,0.9))',
+                },
+              }}
+              onClick={() => {
+                if (timelineId > 0) {
+                  onOpenTimeline?.(timelineId, timeline);
+                }
+              }}
+            >
+              {openTimelineLabel}
+            </Button>
+          ) : null}
+        </Box>
       </Box>
     </Card>
   );

@@ -82,6 +82,7 @@ const RichEditor = ({
   }, [isUserMention]);
 
   const detectMention = (text, pos) => {
+    if (text == null || pos == null) return null;
     const beforeCursor = text.substring(0, pos);
 
     const atMatch = beforeCursor.match(/@([a-zA-Z0-9_]*)$/);
