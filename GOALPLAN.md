@@ -20,8 +20,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* on the LIVE website (production branch) it takes a REALLY long time to initially load the website. we gotta optimize the heck out of this. check for redundancies and all that
-
 * NSFW filters site-wide blurr implementation
 
 * voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
@@ -57,6 +55,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* Optimize initial load time of the website on production (redundancy checks, batch APIs, cached loading screens) (Complete)
+
+* Fixed YouTube/TikTok link-type events preview generation on the backend by introducing a pre-fetch oEmbed intercept and a Google sorry/captcha redirect recovery parser (Complete)
 
 * Returning home page bug — Popular, Home, and Favorite tabs were going blank after navigating away. Fixed by keeping last-loaded data in memory during silent background refreshes instead of wiping state (Complete)
 

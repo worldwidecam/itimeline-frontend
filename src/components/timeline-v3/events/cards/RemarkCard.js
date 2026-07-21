@@ -51,6 +51,11 @@ const RemarkCard = forwardRef(({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  React.useEffect(() => {
+    setIsRevealed(false);
+  }, [event]);
   const {
     value: voteValue,
     totalVotes,
@@ -298,6 +303,21 @@ const RemarkCard = forwardRef(({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                 <RemarkIcon sx={{ color, fontSize: '1.2rem', mt: 0.5, mr: 0.5, flexShrink: 0 }} />
                 <EventOriginTimelineBadge event={event} />
+                {event.is_blurred && (
+                  <Chip
+                    label="+NSFW"
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      bgcolor: '#d32f2f',
+                      color: 'white',
+                      borderRadius: '4px',
+                      '& .MuiChip-label': { px: 0.5 }
+                    }}
+                  />
+                )}
               </Box>
               {event.event_date && (
                 <Chip
@@ -484,22 +504,24 @@ const RemarkCard = forwardRef(({
                     }
                   }}
                 >
-                  {/* Natural-Case Dominant Title */}
-                  <Typography
-                    variant="h6"
-                    component="div"
-                    sx={{
-                      fontWeight: 700,
-                      fontFamily: '"Playfair Display", Georgia, serif',
-                      letterSpacing: '0.01em',
-                      lineHeight: 1.3,
-                      fontSize: 'clamp(1.05rem, 1.8vw, 1.35rem)',
-                      color: theme.palette.text.primary,
-                      px: 0.2,
-                    }}
-                  >
-                    {headline}
-                  </Typography>
+                  <Box sx={{ width: '100%' }}>
+                    {/* Natural-Case Dominant Title */}
+                    <Typography
+                      variant="h6"
+                      component="div"
+                      sx={{
+                        fontWeight: 700,
+                        fontFamily: '"Playfair Display", Georgia, serif',
+                        letterSpacing: '0.01em',
+                        lineHeight: 1.3,
+                        fontSize: 'clamp(1.05rem, 1.8vw, 1.35rem)',
+                        color: theme.palette.text.primary,
+                        px: 0.2,
+                      }}
+                    >
+                      {headline}
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
             </Box>
@@ -608,6 +630,7 @@ const RemarkCard = forwardRef(({
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
         timelineType={timelineType}
+        isAlreadyRevealed={isRevealed}
       />
     </>
   );

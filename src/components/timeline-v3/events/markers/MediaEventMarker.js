@@ -263,25 +263,52 @@ const MediaEventMarker = ({ event, onDelete, onEdit }) => {
               : '0 8px 20px rgba(0,0,0,0.15), 0 2px 8px rgba(100,50,150,0.15)'
           }}
         >
-          {/* Image - Full view without overlay */}
-          <Box 
-            component="img"
-            src={mediaSource}
-            alt={event.title || 'Media'}
-            onError={(e) => {
-              // Fallback to a placeholder if image fails to load
-              e.target.onerror = null;
-              // Use local fallback image
-              e.target.src = '/images/fallbacks/news-link-fallback.jpg';
-            }}
-            sx={{
-              width: '100%',
-              height: 150,
-              objectFit: 'cover',
-              borderRadius: '12px 12px 0 0',
-              display: 'block'
-            }}
-          />
+        {/* Image - Full view without overlay */}
+          <Box sx={{ position: 'relative', borderRadius: '12px 12px 0 0', overflow: 'hidden' }}>
+            <Box 
+              component="img"
+              src={mediaSource}
+              alt={event.title || 'Media'}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = '/images/fallbacks/news-link-fallback.jpg';
+              }}
+              sx={{
+                width: '100%',
+                height: 150,
+                objectFit: 'cover',
+                borderRadius: '12px 12px 0 0',
+                display: 'block',
+                filter: event.is_blurred ? 'blur(12px)' : 'none',
+                transform: event.is_blurred ? 'scale(1.05)' : 'none',
+              }}
+            />
+            {event.is_blurred && (
+              <Box sx={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}>
+                <Box
+                  component="img"
+                  src="/images/nsfw_stamp.png"
+                  alt="NSFW"
+                  sx={{
+                    width: '60%',
+                    height: 'auto',
+                    opacity: 0.9,
+                    filter: 'drop-shadow(0 2px 8px rgba(211,47,47,0.6))',
+                    transform: 'rotate(-10deg)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </Box>
+            )}
+          </Box>
           
           {/* Title and date below image */}
           <Box sx={{
@@ -385,11 +412,40 @@ const MediaEventMarker = ({ event, onDelete, onEdit }) => {
                   objectFit: 'cover',
                   opacity: thumbnailLoaded ? 0.9 : 0,
                   transition: 'opacity 0.3s ease',
+                  filter: event.is_blurred ? 'blur(12px)' : 'none',
+                  transform: event.is_blurred ? 'scale(1.05)' : 'none',
                   '&:hover': {
                     opacity: thumbnailLoaded ? 0.8 : 0
                   }
                 }}
               />
+            )}
+
+            {/* NSFW stamp on video marker — visual only */}
+            {event.is_blurred && (
+              <Box sx={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                zIndex: 4,
+              }}>
+                <Box
+                  component="img"
+                  src="/images/nsfw_stamp.png"
+                  alt="NSFW"
+                  sx={{
+                    width: '60%',
+                    height: 'auto',
+                    opacity: 0.9,
+                    filter: 'drop-shadow(0 2px 8px rgba(211,47,47,0.6))',
+                    transform: 'rotate(-10deg)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </Box>
             )}
             
             {/* Fallback content when no thumbnail is available */}
