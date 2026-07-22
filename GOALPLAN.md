@@ -7,7 +7,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## RULES
 1. maintain safety of PRODUCTION while making improvements from MAIN branch. 
-2. analyze the elements before making changes. if the element exists elsewhere, consolidate its code into a single component/file.
+2. analyze the elements before making changes. if the element exists elsewhere, consolidate its code into a single component/file.Therefore, consider your fix may need to ask me if it should involve a more wide response. for exmaple, if i need a fix on a timeline page and its timeline title, consider that your fix is not just one specific timeline type but all timeline types.
 3. work on one objective at a time.
 4. after analyzing workspace and before beginning making changes, have at least one ideation response with me, so i can give my thoughts on the approach. then, good to proceed.
 5. once an objective is completed, add it to the completed section.
@@ -20,7 +20,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* NSFW filters site-wide blurr implementation
+
 
 * voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
 
@@ -55,6 +55,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* NSFW filters site-wide blurr implementation
+
+* Fixed timeline page mobile header title truncation by accounting for visual prefix length (My- / i - / #) when computing dynamic font scaling and mobile vertical row-stacking triggers (Complete)
 
 * Optimize initial load time of the website on production (redundancy checks, batch APIs, cached loading screens) (Complete)
 
