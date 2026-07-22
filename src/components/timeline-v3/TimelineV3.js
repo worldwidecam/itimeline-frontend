@@ -2525,6 +2525,7 @@ const handleViewModeTransition = (newViewMode) => {
           'title', 'description', 'content_json', 'event_date', 'raw_event_date',
           'url', 'url_title', 'url_description', 'url_image',
           'media_key', 'media_type', 'media_subtype', 'media_size', 'is_exact_user_time', 'edit_locked',
+          'is_blurred',
           // Allow description_append for tier B/C append-only edits
           'description_append',
           // Allow tags for tier C edits
@@ -2680,7 +2681,8 @@ const handleViewModeTransition = (newViewMode) => {
         media_subtype: mediaSubtype || null,
         media_size: eventData.media_size || 0,
         timeline_id: timelineId,
-        tags: eventData.tags || []
+        tags: eventData.tags || [],
+        is_blurred: eventData.is_blurred || false
       });
 
       // Add the new event to state and close form
@@ -3349,6 +3351,8 @@ const handleRecenter = () => {
     );
   }
 
+  const isTitleTooLong = timelineName && timelineName.length > 15;
+
   return (
     <>
       <GlobalStyles styles={{ 'html, body': { background: timelineSurfaces.canvas, overflowY: 'auto !important' } }} />
@@ -3380,10 +3384,10 @@ const handleRecenter = () => {
           }}
         >
           <Stack 
-            direction="row" 
-            spacing={1} 
-            alignItems="center"
-            sx={{ width: 'auto', flexWrap: 'nowrap', minWidth: 0, flexShrink: 1, flexGrow: 1 }}
+            direction={{ xs: isTitleTooLong ? 'column' : 'row', sm: 'row' }} 
+            spacing={{ xs: isTitleTooLong ? 1.5 : 1, sm: 1 }} 
+            alignItems={{ xs: isTitleTooLong ? 'flex-start' : 'center', sm: 'center' }}
+            sx={{ width: '100%', flexWrap: isTitleTooLong ? 'wrap' : 'nowrap', minWidth: 0, flexShrink: 1, flexGrow: 1 }}
           >
             <Box
               ref={infoTitleRef}
@@ -3396,6 +3400,7 @@ const handleRecenter = () => {
                 overflow: 'hidden',
                 cursor: 'pointer',
                 userSelect: 'none',
+                width: { xs: isTitleTooLong ? '100%' : 'auto', sm: 'auto' }
               }}
             >
               {!isLoading && (
@@ -3410,8 +3415,18 @@ const handleRecenter = () => {
                 />
               )}
             </Box>
-            <Box sx={{ position: 'relative', flexShrink: 0 }}>
-              {/* Button section */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                flexShrink: 0,
+                width: { xs: isTitleTooLong ? '100%' : 'auto', sm: 'auto' },
+                justifyContent: { xs: isTitleTooLong ? 'flex-end' : 'flex-start', sm: 'flex-start' }
+              }}
+            >
+              <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                {/* Button section */}
               {timeline_type === 'community' ? (
                 // Community timeline membership control
                 <CommunityMembershipControl
@@ -3685,6 +3700,7 @@ const handleRecenter = () => {
                 </Box>
               </Button>
             </Fade>
+          </Box>
           </Stack>
           <PersonalAccessPanel
             open={accessPanelOpen}

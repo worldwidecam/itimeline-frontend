@@ -141,10 +141,38 @@ const NewsEventMarker = ({ event, onDelete, onEdit }) => {
                 objectFit: imageSrc === fallbackImage ? 'contain' : 'cover',
                 display: 'block',
                 p: imageSrc === fallbackImage ? 1.5 : 0,
-                bgcolor: imageSrc === fallbackImage ? 'rgba(0,0,0,0.03)' : 'transparent'
+                bgcolor: imageSrc === fallbackImage ? 'rgba(0,0,0,0.03)' : 'transparent',
+                filter: event.is_blurred ? 'blur(12px)' : 'none',
+                transform: event.is_blurred ? 'scale(1.05)' : 'none',
               }}
             />
             
+            {/* NSFW stamp overlay on marker — no reveal, popup only */}
+            {event.is_blurred && (
+              <Box sx={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2,
+              }}>
+                <Box
+                  component="img"
+                  src="/images/nsfw_stamp.png"
+                  alt="NSFW"
+                  sx={{
+                    width: '60%',
+                    height: 'auto',
+                    opacity: 0.9,
+                    filter: 'drop-shadow(0 2px 8px rgba(211,47,47,0.6))',
+                    transform: 'rotate(-10deg)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </Box>
+            )}
+
             {/* Title overlay */}
             <Box sx={{
               position: 'absolute',

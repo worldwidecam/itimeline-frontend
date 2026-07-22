@@ -125,9 +125,21 @@ const getEmbedData = (url) => {
   return null;
 };
 
-const getAutoplayUrl = (embed) => {
+const getAutoplayUrl = (embed, isAutoplayEnabled = true) => {
   if (!embed) return '';
   const url = embed.embedUrl;
+  if (!isAutoplayEnabled) {
+    if (embed.type === 'youtube') {
+      return url + (url.includes('?') ? '&autoplay=0&mute=1' : '?autoplay=0&mute=1');
+    }
+    if (embed.type === 'facebook') {
+      return url + (url.includes('?') ? '&autoplay=false' : '?autoplay=false');
+    }
+    if (embed.type === 'tiktok') {
+      return url + (url.includes('?') ? '&autoplay=0' : '?autoplay=0');
+    }
+    return url;
+  }
   if (embed.type === 'youtube') {
     return url + (url.includes('?') ? '&autoplay=1&mute=0' : '?autoplay=1&mute=0');
   }
@@ -346,7 +358,9 @@ const UniversalMediaDisplay = ({
   isPlayerActive,
   setIsPlayerActive,
   isMediaFullscreen,
-  setIsMediaFullscreen
+  setIsMediaFullscreen,
+  localIsBlurred = false,
+  isRevealed = false
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -441,17 +455,22 @@ const UniversalMediaDisplay = ({
   };
 
   useEffect(() => {
-    // Autoplay native video element if popup is open
+    // Autoplay native video element if popup is open and player is active or video is not gated (blurred)
     if (videoElement) {
-      const timer = setTimeout(() => {
-        videoElement.muted = false;
-        videoElement.play().catch(err => {
-          console.log('Autoplay prevented by browser:', err);
-        });
-      }, 500);
-      return () => clearTimeout(timer);
+      const canAutoplay = !localIsBlurred || isRevealed || isPlayerActive;
+      if (canAutoplay) {
+        const timer = setTimeout(() => {
+          videoElement.muted = false;
+          videoElement.play().catch(err => {
+            console.log('Autoplay prevented by browser:', err);
+          });
+        }, 500);
+        return () => clearTimeout(timer);
+      } else {
+        videoElement.pause();
+      }
     }
-  }, [videoElement]);
+  }, [videoElement, isPlayerActive, localIsBlurred, isRevealed]);
 
   const safeType = (event.type || '').toLowerCase();
   const rawMediaUrl = event.media_url || event.mediaUrl || event.url;
@@ -499,7 +518,7 @@ const UniversalMediaDisplay = ({
             }}
           >
             <InstagramEmbed
-              embedUrl={getAutoplayUrl(embedData)}
+              embedUrl={getAutoplayUrl(embedData, !localIsBlurred || isRevealed || isPlayerActive)}
               title={event.title || 'Instagram'}
               isMediaFullscreen={isMediaFullscreen}
             />
@@ -552,7 +571,7 @@ const UniversalMediaDisplay = ({
             }}
           >
             <TikTokEmbed
-              embedUrl={getAutoplayUrl(embedData)}
+              embedUrl={getAutoplayUrl(embedData, !localIsBlurred || isRevealed || isPlayerActive)}
               title={event.title || 'TikTok'}
               isMediaFullscreen={isMediaFullscreen}
             />
@@ -608,7 +627,7 @@ const UniversalMediaDisplay = ({
           }}
         >
           <iframe
-            src={getAutoplayUrl(embedData)}
+            src={getAutoplayUrl(embedData, !localIsBlurred || isRevealed || isPlayerActive)}
             title={event.title || 'Embed'}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -720,7 +739,7 @@ const UniversalMediaDisplay = ({
         >
           <iframe
             title="cloudinary-player"
-            src={`https://player.cloudinary.com/embed/?cloud_name=dnjwvuxn7&public_id=${encodeURIComponent(cloudinaryId)}&profile=cld-default&autoplay=true&muted=false&controls=true`}
+            src={`https://player.cloudinary.com/embed/?cloud_name=dnjwvuxn7&public_id=${encodeURIComponent(cloudinaryId)}&profile=cld-default&autoplay=${(!localIsBlurred || isRevealed || isPlayerActive) ? 'true' : 'false'}&muted=${(!localIsBlurred || isRevealed || isPlayerActive) ? 'false' : 'true'}&controls=true`}
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
             style={{

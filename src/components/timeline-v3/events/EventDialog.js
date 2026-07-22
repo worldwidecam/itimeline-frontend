@@ -19,6 +19,8 @@ import {
   Tooltip,
   Popper,
   Paper,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
@@ -115,6 +117,7 @@ const EventDialog = ({
   const [associatedTimelineChips, setAssociatedTimelineChips] = useState([]);
   const [creatorTimelineChip, setCreatorTimelineChip] = useState(null);
   const [removeAssociationIds, setRemoveAssociationIds] = useState([]);
+  const [isBlurred, setIsBlurred] = useState(false);
   const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
   const isPersonalTimeline = String(timelineType || '').toLowerCase() === 'personal'
     || (typeof timelineName === 'string' && timelineName.startsWith('My-'));
@@ -169,6 +172,7 @@ const EventDialog = ({
       }
       setDescriptionAppend('');
       setEventDate(initialEvent.event_date ? new Date(initialEvent.event_date) : new Date());
+      setIsBlurred(Boolean(initialEvent.is_blurred));
       setUrl(initialEvent.url || '');
       const normalizedInitialTags = normalizeTags(initialEvent.tags || []);
       setTags(normalizedInitialTags);
@@ -318,6 +322,7 @@ const EventDialog = ({
     setAssociatedTimelineChips([]);
     setCreatorTimelineChip(null);
     setRemoveAssociationIds([]);
+    setIsBlurred(false);
   };
 
   const handleTypeChange = (event, newType) => {
@@ -571,6 +576,11 @@ const EventDialog = ({
       }
     } else if (!isEditing && tags.length > 0) {
       eventData.tags = tags;
+    }
+
+    const canEditBlur = canEditField('is_blurred');
+    if (!isEditing || canEditBlur) {
+      eventData.is_blurred = isBlurred;
     }
 
     console.log('[EventDialog] Final eventData:', eventData);
@@ -942,6 +952,30 @@ const EventDialog = ({
               helperText="Append your edit note. Existing content remains unchanged."
             />
           ) : null}
+
+          {(!isEditing || canEditField('is_blurred')) && (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isBlurred}
+                  onChange={(e) => setIsBlurred(e.target.checked)}
+                  color="error"
+                  disabled={isEditing && editPermissions?.tier === 'B' && Boolean(initialEvent?.is_blurred)}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Blur Content (NSFW)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    Blur post content on the timeline with a "+NSFW" warning.
+                  </Typography>
+                </Box>
+              }
+              sx={{ mt: 1, mb: 1, ml: 0 }}
+            />
+          )}
 
           <Box>
             <Box

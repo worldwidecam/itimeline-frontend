@@ -71,6 +71,8 @@ import api, {
   getTimelineStatusMessage,
   getTimelineWarningState,
   voteTimelineAction,
+  followTimeline,
+  unfollowTimeline,
 } from '../utils/api';
 import config from '../config';
 import { EVENT_TYPES } from './timeline-v3/events/EventTypes';
@@ -490,6 +492,20 @@ const HomePage = () => {
   const [hasLoadedPopular, setHasLoadedPopular] = React.useState(false);
   const [hasBootstrappedPopularCache, setHasBootstrappedPopularCache] = React.useState(false);
   const [yourPageTimelines, setYourPageTimelines] = React.useState([]);
+  const [followedHashtagIds, setFollowedHashtagIds] = React.useState(new Set());
+
+  React.useEffect(() => {
+    if (Array.isArray(yourPageTimelines)) {
+      const ids = new Set(
+        yourPageTimelines
+          .filter((t) => String(t?.timeline_type || '').toLowerCase() === 'hashtag')
+          .map((t) => Number(t?.id || 0))
+          .filter((id) => id > 0)
+      );
+      setFollowedHashtagIds(ids);
+    }
+  }, [yourPageTimelines]);
+
   const [yourPageEvents, setYourPageEvents] = React.useState([]);
   const [loadingYourPage, setLoadingYourPage] = React.useState(false);
   const [hasLoadedYourPage, setHasLoadedYourPage] = React.useState(false);
@@ -2034,6 +2050,9 @@ const HomePage = () => {
               onToggleFavorite={handleToggleFavoriteTimeline}
               onOpenTimeline={handleOpenTimelineCard}
               formatDate={formatDate}
+              allowWatchToggle
+              isWatched={followedHashtagIds.has(Number(dossier.top_personal?.id || 0))}
+              onToggleWatch={handleToggleWatchHashtag}
             />
           </Box>
         )}
@@ -2052,6 +2071,9 @@ const HomePage = () => {
               onToggleFavorite={handleToggleFavoriteTimeline}
               onOpenTimeline={handleOpenTimelineCard}
               formatDate={formatDate}
+              allowWatchToggle
+              isWatched={followedHashtagIds.has(Number(dossier.top_community?.id || 0))}
+              onToggleWatch={handleToggleWatchHashtag}
             />
           </Box>
         )}
@@ -2070,6 +2092,9 @@ const HomePage = () => {
               onToggleFavorite={handleToggleFavoriteTimeline}
               onOpenTimeline={handleOpenTimelineCard}
               formatDate={formatDate}
+              allowWatchToggle
+              isWatched={followedHashtagIds.has(Number(dossier.top_hashtag?.id || 0))}
+              onToggleWatch={handleToggleWatchHashtag}
             />
           </Box>
         )}
@@ -3097,6 +3122,15 @@ const HomePage = () => {
       });
 
       const mergedTimelines = Array.from(yourTimelineMap.values()).sort((a, b) => {
+        const typeA = String(a?.timeline_type || 'hashtag').toLowerCase();
+        const typeB = String(b?.timeline_type || 'hashtag').toLowerCase();
+        
+        const weightA = typeA === 'personal' ? 1 : typeA === 'community' ? 2 : 3;
+        const weightB = typeB === 'personal' ? 1 : typeB === 'community' ? 2 : 3;
+        
+        if (weightA !== weightB) {
+          return weightA - weightB;
+        }
         return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
       });
 
@@ -3206,6 +3240,15 @@ const HomePage = () => {
       });
 
       const mergedTimelines = Array.from(yourTimelineMap.values()).sort((a, b) => {
+        const typeA = String(a?.timeline_type || 'hashtag').toLowerCase();
+        const typeB = String(b?.timeline_type || 'hashtag').toLowerCase();
+        
+        const weightA = typeA === 'personal' ? 1 : typeA === 'community' ? 2 : 3;
+        const weightB = typeB === 'personal' ? 1 : typeB === 'community' ? 2 : 3;
+        
+        if (weightA !== weightB) {
+          return weightA - weightB;
+        }
         return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
       });
 
@@ -3431,6 +3474,63 @@ const HomePage = () => {
     }
   }, [favoriteTimelineId]);
 
+  const handleToggleWatchHashtag = React.useCallback(async (timelineId) => {
+    if (!(currentUserId > 0)) {
+      setUserFollowSnackbarMessage('Please log in to watch this hashtag timeline.');
+      setUserFollowSnackbarSeverity('info');
+      setUserFollowSnackbarOpen(true);
+      return;
+    }
+    
+    const numericId = Number(timelineId);
+    const isCurrentlyFollowing = followedHashtagIds.has(numericId);
+    
+    try {
+      if (isCurrentlyFollowing) {
+        await unfollowTimeline(numericId);
+        setFollowedHashtagIds((prev) => {
+          const next = new Set(prev);
+          next.delete(numericId);
+          return next;
+        });
+        setYourPageTimelines((prev) => prev.filter((t) => Number(t.id) !== numericId));
+        setUserFollowSnackbarMessage('Removed from your watched hashtags.');
+      } else {
+        await followTimeline(numericId, 'watch');
+        setFollowedHashtagIds((prev) => {
+          const next = new Set(prev);
+          next.add(numericId);
+          return next;
+        });
+        
+        const known = normalizedTimelines.find((t) => Number(t.id) === numericId);
+        if (known) {
+          setYourPageTimelines((prev) => {
+            const exists = prev.some((t) => Number(t.id) === numericId);
+            if (exists) return prev;
+            return [...prev, { ...known, timeline_type: 'hashtag', followed_at: new Date().toISOString() }].sort((a, b) => {
+              const typeA = String(a?.timeline_type || 'hashtag').toLowerCase();
+              const typeB = String(b?.timeline_type || 'hashtag').toLowerCase();
+              const weightA = typeA === 'personal' ? 1 : typeA === 'community' ? 2 : 3;
+              const weightB = typeB === 'personal' ? 1 : typeB === 'community' ? 2 : 3;
+              if (weightA !== weightB) return weightA - weightB;
+              return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+            });
+          });
+        }
+        setUserFollowSnackbarMessage('Added to your watched hashtags.');
+      }
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+      window.dispatchEvent(new CustomEvent('refresh-timeline-events'));
+    } catch (error) {
+      console.error('Error toggling watch status:', error);
+      setUserFollowSnackbarMessage('Failed to update watch status.');
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    }
+  }, [currentUserId, followedHashtagIds, normalizedTimelines]);
+
   // Edit event handlers (defined early to avoid temporal dead zone in renderSearchEventCard)
   const handleEdit = React.useCallback(async (event) => {
     if (!event?.id) return;
@@ -3508,7 +3608,8 @@ const HomePage = () => {
       const allowedFields = [
         'title', 'description', 'content_json', 'event_date', 'raw_event_date',
         'url', 'url_title', 'url_description', 'url_image',
-        'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked'
+        'media_key', 'media_type', 'media_subtype', 'is_exact_user_time', 'edit_locked',
+        'is_blurred', 'tags', 'remove_association_ids'
       ];
       const patchPayload = {};
       for (const key of allowedFields) {
@@ -3911,6 +4012,7 @@ const HomePage = () => {
         media_subtype: eventData?.media_subtype || null,
         timeline_id: targetTimelineId,
         tags: Array.isArray(eventData?.tags) ? eventData.tags : [],
+        is_blurred: eventData?.is_blurred || false,
       });
 
       setUserFollowSnackbarMessage('Post created. Opening timeline...');
@@ -5246,6 +5348,9 @@ const HomePage = () => {
                                     onToggleFavorite={handleToggleFavoriteTimeline}
                                     onOpenTimeline={handleOpenTimelineCard}
                                     formatDate={formatDate}
+                                    allowWatchToggle
+                                    isWatched={followedHashtagIds.has(Number(timeline?.id || 0))}
+                                    onToggleWatch={handleToggleWatchHashtag}
                                   />
                                 ))}
                               </Stack>
@@ -5392,6 +5497,9 @@ const HomePage = () => {
                               onToggleFavorite={handleToggleFavoriteTimeline}
                               onOpenTimeline={handleOpenTimelineCard}
                               formatDate={formatDate}
+                              allowWatchToggle
+                              isWatched={followedHashtagIds.has(Number(timeline?.id || 0))}
+                              onToggleWatch={handleToggleWatchHashtag}
                             />
                           ))}
                         </Stack>
@@ -5528,6 +5636,9 @@ const HomePage = () => {
                               onToggleFavorite={handleToggleFavoriteTimeline}
                               onOpenTimeline={handleOpenTimelineCard}
                               formatDate={formatDate}
+                              allowWatchToggle
+                              isWatched={followedHashtagIds.has(Number(timeline?.id || 0))}
+                              onToggleWatch={handleToggleWatchHashtag}
                             />
                           ))}
                         </Stack>
@@ -6454,6 +6565,9 @@ const HomePage = () => {
                                         onToggleFavorite={handleToggleFavoriteTimeline}
                                         onOpenTimeline={handleOpenTimelineCard}
                                         formatDate={formatDate}
+                                        allowWatchToggle
+                                        isWatched={followedHashtagIds.has(Number(timeline?.id || 0))}
+                                        onToggleWatch={handleToggleWatchHashtag}
                                       />
                                     ))}
                                   </Stack>

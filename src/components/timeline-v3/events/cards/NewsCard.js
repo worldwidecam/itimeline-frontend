@@ -72,6 +72,11 @@ const NewsCard = forwardRef(({
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [hidePreviewImage, setHidePreviewImage] = useState(false);
   const [useFallbackImage, setUseFallbackImage] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  useEffect(() => {
+    setIsRevealed(false);
+  }, [event]);
   const {
     value: voteValue,
     totalVotes,
@@ -476,6 +481,21 @@ const NewsCard = forwardRef(({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <LinkIcon sx={{ color, mt: 0.5 }} />
                 <EventOriginTimelineBadge event={event} />
+                {event.is_blurred && (
+                  <Chip
+                    label="+NSFW"
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      bgcolor: '#d32f2f',
+                      color: 'white',
+                      borderRadius: '4px',
+                      '& .MuiChip-label': { px: 0.5 }
+                    }}
+                  />
+                )}
               </Box>
               {event.event_date && (
                 <Chip
@@ -515,7 +535,6 @@ const NewsCard = forwardRef(({
             </Typography>
           </Box>
 
-          {/* URL Preview Card */}
           {hasUrlPreview && (
             <Box 
               sx={{ 
@@ -529,14 +548,24 @@ const NewsCard = forwardRef(({
                 }
               }}
             >
-              <Paper 
-                elevation={1} 
-                sx={{ 
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: '100%',
+                  borderRadius: 1,
                   overflow: 'hidden',
-                  transition: 'box-shadow 0.2s ease-in-out',
-                  backgroundColor: 'background.paper'
                 }}
-              >                {isLogoImage(previewImageUrl) ? (
+              >
+                <Paper 
+                  elevation={1} 
+                  sx={{ 
+                    overflow: 'hidden',
+                    transition: 'box-shadow 0.2s ease-in-out',
+                    backgroundColor: 'background.paper',
+                    filter: event.is_blurred ? 'blur(22px)' : 'none',
+                  }}
+                >
+                  {isLogoImage(previewImageUrl) ? (
                   <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                     {/* Image on the left */}
                     <Box sx={{
@@ -654,8 +683,42 @@ const NewsCard = forwardRef(({
                   </>
                 )}
               </Paper>
+
+              {/* NSFW Stamp Overlay — visual only, click passes through to open popup */}
+              {event.is_blurred && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.35)',
+                    backdropFilter: 'blur(3px)',
+                    zIndex: 2,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src="/images/nsfw_stamp.png"
+                    alt="NSFW"
+                    sx={{
+                      maxWidth: '55%',
+                      maxHeight: '55%',
+                      objectFit: 'contain',
+                      pointerEvents: 'none',
+                      filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.6))',
+                    }}
+                  />
+                </Box>
+              )}
             </Box>
-          )}
+          </Box>
+        )}
           <Box sx={{ mt: 'auto' }}>
             <EventCardChipsRow 
               tags={event.tags} 
@@ -796,6 +859,7 @@ const NewsCard = forwardRef(({
         setIsPopupOpen={setIsPopupOpen}
         reviewingEventIds={reviewingEventIds}
         timelineType={timelineType}
+        isAlreadyRevealed={isRevealed}
       />
     </>
   );

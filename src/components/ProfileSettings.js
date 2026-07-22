@@ -285,7 +285,7 @@ const upsertTheoryBoardModule = ({ modules, enabled, titleBase }) => {
 };
 
 const ProfileSettings = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, refreshAccessToken } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const { blurEmail, toggleBlurEmail, getBlurredEmail, getPrivacyEmail } = useEmailBlur();
   const theme = useMuiTheme();
@@ -826,6 +826,15 @@ const ProfileSettings = () => {
     setSuccess('');
     setIsSaving(true);
     setIsUploading(true);
+
+    // Pre-refresh token to prevent stale credentials during file upload
+    if (refreshAccessToken) {
+      try {
+        await refreshAccessToken();
+      } catch (authErr) {
+        console.warn('[ProfileSettings] Token refresh check failed:', authErr);
+      }
+    }
 
     const trimmedUsername = String(formData.username || '').trim();
 

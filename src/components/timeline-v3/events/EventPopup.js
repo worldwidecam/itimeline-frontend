@@ -144,6 +144,7 @@ const EventPopup = ({
   reviewingEventIds,
   timelineType = 'hashtag',
   hideActionMenu = false, // Hide ellipsis menu (for admin page view)
+  isAlreadyRevealed = false,
 }) => {
   const theme = useTheme();
   const location = useLocation();
@@ -154,6 +155,15 @@ const EventPopup = ({
   );
   const [isInReview, setIsInReview] = useState(false);
   const [isSafeguarded, setIsSafeguarded] = useState(Boolean(event?.is_safeguarded));
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [localIsBlurred, setLocalIsBlurred] = useState(Boolean(event?.is_blurred));
+
+  useEffect(() => {
+    if (open) {
+      setIsRevealed(Boolean(isAlreadyRevealed));
+      setLocalIsBlurred(Boolean(event?.is_blurred));
+    }
+  }, [open, isAlreadyRevealed, event]);
   const {
     value: voteValue,
     totalVotes,
@@ -599,6 +609,38 @@ const EventPopup = ({
       setError('Failed to copy Event ID');
       setSuccess('');
       setSnackbarOpen(true);
+    }
+  };
+
+  const handleToggleBlur = async () => {
+    try {
+      const nextBlurState = !localIsBlurred;
+      setError('');
+      setSuccess('');
+      // Call endpoint to update is_blurred state
+      await api.patch(`/api/v1/events/${event.id}`, {
+        is_blurred: nextBlurState
+      });
+      
+      setLocalIsBlurred(nextBlurState);
+      
+      // If we unblurred the post, we also reveal it locally
+      if (!nextBlurState) {
+        setIsRevealed(true);
+      }
+      
+      setSuccess(nextBlurState ? 'Post blurred (NSFW)' : 'Post unblurred');
+      setSnackbarOpen(true);
+      
+      // Dispatch event to refresh parent timeline lists
+      window.dispatchEvent(new CustomEvent('refresh-timeline-events'));
+    } catch (err) {
+      console.error('[EventPopup] Failed to toggle blur state:', err);
+      const msg = err?.response?.data?.error || err.message || 'Failed to update blur status';
+      setError(msg);
+      setSnackbarOpen(true);
+    } finally {
+      handleActionMenuClose();
     }
   };
   
@@ -1157,7 +1199,30 @@ const EventPopup = ({
         }
       }}
     >
-      {hasMedia ? (
+      <Box
+        sx={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            overflow: 'hidden',
+            width: '100%',
+            height: '100%',
+            filter: localIsBlurred && !isRevealed ? 'blur(28px)' : 'none',
+            transition: 'filter 0.4s ease',
+          }}
+        >
+          {hasMedia ? (
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: '100%', md: '100%' }, overflow: 'hidden' }}>
           {/* Left Container - Media Preview */}
           <Box
@@ -1182,6 +1247,8 @@ const EventPopup = ({
               setIsPlayerActive={setIsPlayerActive}
               isMediaFullscreen={isMediaFullscreen}
               setIsMediaFullscreen={setIsMediaFullscreen}
+              localIsBlurred={localIsBlurred}
+              isRevealed={isRevealed}
             />
 
             {/* Subtle top drag-handle pill for normal mode on mobile/tablet */}
@@ -1331,9 +1398,29 @@ const EventPopup = ({
                     <Box sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: eventColor }}>
                       <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
                     </Box>
-                    <Typography variant="h5" component="div" sx={{ fontWeight: 600, fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }, lineHeight: 1.2, wordBreak: 'break-word', color: 'text.primary' }}>
-                      {event.title || "Event details"}
-                    </Typography>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="h5" component="div" sx={{ fontWeight: 600, fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }, lineHeight: 1.2, wordBreak: 'break-word', color: 'text.primary' }}>
+                          {event.title || "Event details"}
+                        </Typography>
+                        {localIsBlurred && (
+                          <Chip
+                            label="+NSFW"
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              bgcolor: '#d32f2f',
+                              color: 'white',
+                              borderRadius: '4px',
+                              '& .MuiChip-label': { px: 0.5 },
+                              flexShrink: 0
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </Box>
                   </Box>
                   <IconButton edge="end" color="inherit" onClick={handleCloseButtonClick} aria-label="close" sx={{ color: 'text.secondary', mt: -0.5, mr: -0.5 }}>
                     <CloseIcon />
@@ -1569,6 +1656,14 @@ const EventPopup = ({
                         {!isSafeguarded && !isInReview && !isGuest && !user?.is_restricted && (
                           <MenuItem onClick={() => { handleActionMenuClose(); handleOpenReport(); }} disabled={reportedOnce}><ListItemIcon><RateReviewIcon fontSize="small" /></ListItemIcon><ListItemText primary={reportedOnce ? 'Reported' : 'Report'} /></MenuItem>
                         )}
+                        {(isSiteAdmin || isSiteOwner) && (
+                          <MenuItem onClick={handleToggleBlur}>
+                            <ListItemIcon sx={{ minWidth: '36px !important', fontSize: '1.2rem' }}>
+                              {localIsBlurred ? '👁️' : '🔞'}
+                            </ListItemIcon>
+                            <ListItemText primary={localIsBlurred ? 'Unblur Post' : 'Blur Post (NSFW)'} />
+                          </MenuItem>
+                        )}
                       </Menu>
                     </>
                   )}
@@ -1599,21 +1694,41 @@ const EventPopup = ({
                 >
                   <TypeIcon fontSize={theme.breakpoints.down('sm') ? "small" : "medium"} />
                 </Box>
-                <Typography 
-                  variant="h5" 
-                  component="div"
-                  sx={{ 
-                    fontWeight: 600,
-                    fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
-                    lineHeight: 1.2,
-                    wordBreak: 'break-word',
-                    color: theme.palette.mode === 'dark'
-                      ? 'rgba(255,255,255,0.95)'
-                      : 'rgba(0,0,0,0.85)',
-                  }}
-                >
-                  {event.title || "Untitled Event"}
-                </Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography 
+                      variant="h5" 
+                      component="div"
+                      sx={{ 
+                        fontWeight: 600,
+                        fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                        lineHeight: 1.2,
+                        wordBreak: 'break-word',
+                        color: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.95)'
+                          : 'rgba(0,0,0,0.85)',
+                      }}
+                    >
+                      {event.title || "Untitled Event"}
+                    </Typography>
+                    {localIsBlurred && (
+                      <Chip
+                        label="+NSFW"
+                        size="small"
+                        sx={{
+                          height: 18,
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          bgcolor: '#d32f2f',
+                          color: 'white',
+                          borderRadius: '4px',
+                          '& .MuiChip-label': { px: 0.5 },
+                          flexShrink: 0
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Box>
               </Box>
               <IconButton 
                 edge="end" 
@@ -2041,6 +2156,14 @@ const EventPopup = ({
                         <ListItemText primary={reportedOnce ? 'Reported' : 'Report'} />
                       </MenuItem>
                     )}
+                    {(isSiteAdmin || isSiteOwner) && (
+                      <MenuItem onClick={handleToggleBlur}>
+                        <ListItemIcon sx={{ minWidth: '36px !important', fontSize: '1.2rem' }}>
+                          {localIsBlurred ? '👁️' : '🔞'}
+                        </ListItemIcon>
+                        <ListItemText primary={localIsBlurred ? 'Unblur Post' : 'Blur Post (NSFW)'} />
+                      </MenuItem>
+                    )}
                   </Menu>
                 </>
               )}
@@ -2048,6 +2171,72 @@ const EventPopup = ({
           </Box>
         </Box>
       )}
+        </Box>
+
+        {/* Full-Popup NSFW Gate Overlay */}
+        {localIsBlurred && !isRevealed && (
+          <Box
+            onClick={() => {
+              setIsRevealed(true);
+              setIsPlayerActive(true);
+            }}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              bgcolor: 'rgba(10, 10, 15, 0.55)',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}
+            >
+              <Box
+                component="img"
+                src="/images/nsfw_stamp.png"
+                alt="NSFW"
+                sx={{
+                  width: { xs: 160, sm: 220 },
+                  height: 'auto',
+                  opacity: 0.92,
+                  filter: 'drop-shadow(0 4px 24px rgba(211,47,47,0.5))',
+                  transform: 'rotate(-10deg)',
+                }}
+              />
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'rgba(255,255,255,0.85)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  letterSpacing: 1.5,
+                  textTransform: 'uppercase',
+                  bgcolor: 'rgba(0,0,0,0.35)',
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: 2,
+                  border: '1px solid rgba(255,255,255,0.15)',
+                }}
+              >
+                Tap to proceed with caution
+              </Typography>
+            </motion.div>
+          </Box>
+        )}
+      </Box>
           
           {/* Success/Error Snackbar */}
           <Snackbar
