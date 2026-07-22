@@ -3351,7 +3351,9 @@ const handleRecenter = () => {
     );
   }
 
-  const isTitleTooLong = timelineName && timelineName.length > 15;
+  const prefixLength = timeline_type === 'personal' ? 3 : timeline_type === 'community' ? 3 : 1;
+  const totalTitleLength = (timelineName ? timelineName.length : 0) + prefixLength;
+  const isTitleTooLong = totalTitleLength > 15;
 
   return (
     <>
