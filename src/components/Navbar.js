@@ -1168,13 +1168,17 @@ function Navbar() {
                 : (shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/'))
             }
             onClick={(e) => {
-              if (currentPath === '/profile/settings') {
+              if (currentPath === '/profile/settings' || isTimelinePage) {
                 e.preventDefault();
-                navigate(-1);
+                if (window.history && window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate(user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/');
+                }
                 return;
               }
               // If already on the destination page, force a reload
-              const target = shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/');
+              const target = user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/';
               if (currentPath === target) {
                 e.preventDefault();
                 if (target === '/home') {

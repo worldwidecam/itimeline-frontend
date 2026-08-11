@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import api, { updateUserPreferences } from '../utils/api';
+import api, { updateUserPreferences, deleteMyAccount } from '../utils/api';
 import {
   Box,
   Container,
@@ -49,6 +49,9 @@ import PaletteIcon from '@mui/icons-material/Palette';
 import LockIcon from '@mui/icons-material/Lock';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LanguageIcon from '@mui/icons-material/Language';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import KeyIcon from '@mui/icons-material/Key';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
@@ -318,6 +321,60 @@ const ProfileSettings = () => {
     music_url: '',
     music_platform: 'youtube'
   });
+
+  // Account Deletion State
+  const [deleteStep, setDeleteStep] = useState(null); // null | 1 | 2 | 3
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteBackupKey, setDeleteBackupKey] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleOpenDeleteModal = () => {
+    setDeleteStep(1);
+    setDeletePassword('');
+    setDeleteBackupKey('');
+    setDeleteError('');
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isDeletingAccount) return;
+    setDeleteStep(null);
+    setDeletePassword('');
+    setDeleteBackupKey('');
+    setDeleteError('');
+  };
+
+  const handleProceedToDeleteStep2 = () => {
+    setDeleteStep(2);
+    setDeleteError('');
+  };
+
+  const handleProceedToDeleteStep3 = () => {
+    if (!deletePassword) {
+      setDeleteError('Please enter your current password.');
+      return;
+    }
+    setDeleteStep(3);
+    setDeleteError('');
+  };
+
+  const handleConfirmAccountDeletion = async () => {
+    if (!deleteBackupKey) {
+      setDeleteError('Emergency backup key is required.');
+      return;
+    }
+    try {
+      setIsDeletingAccount(true);
+      setDeleteError('');
+      await deleteMyAccount(deletePassword, deleteBackupKey);
+      window.location.href = '/';
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Account deletion failed.';
+      setDeleteError(msg);
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
   const [musicFile, setMusicFile] = useState(null);
   const [musicPreview, setMusicPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -335,7 +392,7 @@ const ProfileSettings = () => {
   const [showDobInput, setShowDobInput] = useState(false);
   const [profileModules, setProfileModules] = useState([]);
   const [textsModuleEnabled, setTextsModuleEnabled] = useState(false);
-  const [textsOverflowMode, setTextsOverflowMode] = useState('manual');
+  const [textsOverflowMode, setTextsOverflowMode] = useState('fifo');
   const [theoryBoardModuleEnabled, setTheoryBoardModuleEnabled] = useState(false);
   const [theoryBoardTitle, setTheoryBoardTitle] = useState('Theory');
   const [portraitX, setPortraitX] = useState(50);
@@ -2460,6 +2517,191 @@ const ProfileSettings = () => {
           </DialogActions>
         </Dialog>
       </Paper>
+
+      {/* ── Danger Zone (Account Deletion) ────────────────────────────────── */}
+      <Paper
+        elevation={0}
+        sx={{
+          mt: '100vh',
+          mb: 4,
+          p: { xs: 3, md: 4 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(220, 38, 38, 0.25)',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.04)' : 'rgba(254, 242, 242, 0.6)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+            : '0 8px 32px rgba(220, 38, 38, 0.05)',
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <WarningAmberIcon sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.error.main }}>
+              Danger Zone
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            Permanently delete your account and all associated personal data. This action is final and cannot be undone.
+          </Typography>
+          <Box sx={{ pt: 1 }}>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteForeverIcon />}
+              onClick={handleOpenDeleteModal}
+              sx={{
+                borderRadius: 99,
+                px: 3,
+                py: 1,
+                fontWeight: 600,
+                borderColor: theme.palette.error.main,
+                '&:hover': {
+                  bgcolor: theme.palette.error.main,
+                  color: 'white',
+                },
+              }}
+            >
+              Delete My Account
+            </Button>
+          </Box>
+        </Stack>
+      </Paper>
+
+      {/* ── Account Deletion 3-Step Dialog ────────────────────────────────────── */}
+      <Dialog
+        open={deleteStep !== null}
+        onClose={handleCloseDeleteModal}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            ...getGlassDialogPaperSx(theme),
+            p: 3,
+            border: '1px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(220, 38, 38, 0.2)',
+          },
+        }}
+      >
+        {deleteStep === 1 && (
+          <>
+            <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, color: theme.palette.error.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <WarningAmberIcon /> Step 1 of 3: Delete Account?
+            </DialogTitle>
+            <DialogContent sx={{ p: 0, py: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary">
+                  Deleting your account is permanent. The following will happen:
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, m: 0, '& li': { fontSize: '0.875rem', mb: 0.75, color: 'text.secondary' } }}>
+                  <li>All personal profile information will be permanently erased.</li>
+                  <li>Your personal timelines and their posts/media will be deleted.</li>
+                  <li>Your avatars, profile music, and social connections will be removed.</li>
+                  <li>Your posts on public timelines will remain visible, attributed to your username.</li>
+                </Box>
+                <Typography variant="caption" sx={{ color: theme.palette.error.main, fontWeight: 600 }}>
+                  This action cannot be undone or reverted by anyone.
+                </Typography>
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
+              <Button onClick={handleCloseDeleteModal} sx={{ borderRadius: 99 }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProceedToDeleteStep2}
+                variant="contained"
+                color="error"
+                sx={{ borderRadius: 99, px: 3 }}
+              >
+                I Understand, Proceed
+              </Button>
+            </DialogActions>
+          </>
+        )}
+
+        {deleteStep === 2 && (
+          <>
+            <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LockIcon color="primary" /> Step 2 of 3: Enter Password
+            </DialogTitle>
+            <DialogContent sx={{ p: 0, py: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary">
+                  Please confirm your current password to proceed.
+                </Typography>
+                {deleteError && (
+                  <Alert severity="error" sx={{ borderRadius: 2 }}>{deleteError}</Alert>
+                )}
+                <TextField
+                  fullWidth
+                  type="password"
+                  label="Current Password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  autoFocus
+                  sx={getGlassInputSx(theme)}
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
+              <Button onClick={handleCloseDeleteModal} sx={{ borderRadius: 99 }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProceedToDeleteStep3}
+                variant="contained"
+                disabled={!deletePassword}
+                sx={{ borderRadius: 99, px: 3 }}
+              >
+                Next Step
+              </Button>
+            </DialogActions>
+          </>
+        )}
+
+        {deleteStep === 3 && (
+          <>
+            <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, color: theme.palette.error.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <KeyIcon color="error" /> Step 3 of 3: Emergency Key
+            </DialogTitle>
+            <DialogContent sx={{ p: 0, py: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary">
+                  This is your final confirmation. Your emergency backup key is required to permanently delete your account.
+                </Typography>
+                {deleteError && (
+                  <Alert severity="error" sx={{ borderRadius: 2 }}>{deleteError}</Alert>
+                )}
+                <TextField
+                  fullWidth
+                  type="password"
+                  label="Emergency Backup Key"
+                  value={deleteBackupKey}
+                  onChange={(e) => setDeleteBackupKey(e.target.value)}
+                  autoFocus
+                  placeholder="Enter backup key"
+                  sx={getGlassInputSx(theme)}
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
+              <Button onClick={handleCloseDeleteModal} disabled={isDeletingAccount} sx={{ borderRadius: 99 }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmAccountDeletion}
+                variant="contained"
+                color="error"
+                disabled={!deleteBackupKey || isDeletingAccount}
+                sx={{ borderRadius: 99, px: 3 }}
+              >
+                {isDeletingAccount ? <CircularProgress size={20} color="inherit" /> : 'Permanently Delete Account'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Container>
     
     {/* Floating Action Button for Save Changes - Outside main container for proper fixed positioning */}

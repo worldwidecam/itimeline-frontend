@@ -40,6 +40,7 @@ import {
 import { getVoteStats } from '../../api/voteApi';
 import { getCookie } from '../../utils/cookies';
 import TradingCard from '../common/TradingCard';
+import DeletedTimelineRedirect from '../DeletedTimelineRedirect';
 
 // Material UI Icons - importing each icon separately to ensure they're properly loaded
 import Add from '@mui/icons-material/Add';
@@ -112,6 +113,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [postingRestrictionEnabled, setPostingRestrictionEnabled] = useState(false);
   const [postingMinRole, setPostingMinRole] = useState('moderator');
   const [accessDenied, setAccessDenied] = useState(false);
+  const [isDeletedTimeline, setIsDeletedTimeline] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [joinRequestSent, setJoinRequestSent] = useState(false);
@@ -238,6 +240,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           return;
         }
         
+        if (timelineData && (timelineData.is_deleted || timelineData.display_name === 'Deleted Timeline')) {
+          setIsDeletedTimeline(true);
+          setTimelineName(timelineData.display_name || timelineData.name || '');
+          return;
+        }
+
         if (timelineData && timelineData.name && !timelineData.error) {
           setTimelineName(timelineData.name);
           setTimelineDescription(String(timelineData.description || ''));
@@ -3263,6 +3271,10 @@ const handleRecenter = () => {
   // Personal timeline lock behavior should mirror the community lock pattern.
   // useJoinStatus marks locked timelines with status === 'locked' when getTimelineDetails
   // returns a 403 for the current user. Treat that as the single source of truth.
+  if (isDeletedTimeline) {
+    return <DeletedTimelineRedirect timelineName={timelineName} />;
+  }
+
   if (!joinLoading && hookStatus === 'locked') {
     return <PersonalTimelineLock username={routeUsername} slug={routeSlug} />;
   }
@@ -3351,7 +3363,9 @@ const handleRecenter = () => {
     );
   }
 
-  const isTitleTooLong = timelineName && timelineName.length > 15;
+  const prefixLength = timeline_type === 'personal' ? 3 : timeline_type === 'community' ? 3 : 1;
+  const totalTitleLength = (timelineName ? timelineName.length : 0) + prefixLength;
+  const isTitleTooLong = totalTitleLength > 15;
 
   return (
     <>

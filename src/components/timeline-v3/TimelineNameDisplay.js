@@ -44,7 +44,9 @@ const getResponsiveFontSize = (nameLength, variant) => {
  */
 const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typographyProps = {} }) => {
   const theme = useTheme();
-  const dynamicFontSize = getResponsiveFontSize(name.length, typographyProps.variant);
+  const prefixLength = type === 'personal' ? 3 : type === 'community' ? 3 : 1;
+  const visualLength = (name ? name.length : 0) + prefixLength;
+  const dynamicFontSize = getResponsiveFontSize(visualLength, typographyProps.variant);
 
   // For personal timelines, use "My-" prefix similar to community style
   if (type === 'personal') {

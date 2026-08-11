@@ -551,6 +551,7 @@ export const getTimelineMembers = async (timelineId, page = 1, limit = 20, retry
         joinDate: joinDate,
         country: userData.country || member.country || null,
         is_active_member: member.is_active_member !== false, // Default to true unless explicitly false
+        is_leader: Boolean(member.is_leader),
         isRestricted: member.is_restricted || member.isRestricted || false,
         isSuspended: member.is_suspended || member.isSuspended || false,
         isAvatarBlurred: member.is_avatar_blurred || member.isAvatarBlurred || false
@@ -2959,4 +2960,34 @@ export const recoverAccount = async (identifierOrEmail, backupPassword, newPassw
   return response.data;
 };
 
+/**
+ * Permanently delete the current user's account.
+ * Requires current password AND emergency backup key for confirmation.
+ */
+export const deleteMyAccount = async (password, backupPassword) => {
+  const response = await api.delete('/api/v1/users/me', {
+    data: { password, backup_password: backupPassword },
+  });
+  return response.data;
+};
+
+/**
+ * Permanently delete a community timeline.
+ * Requires actor's account password for confirmation.
+ */
+export const deleteTimeline = async (timelineId, password) => {
+  const response = await api.delete(`/api/v1/timelines/${timelineId}`, {
+    data: { password },
+  });
+  return response.data;
+};
+export const transferLeader = async (timelineId, newLeaderUserId) => {
+  const response = await api.put(`/api/v1/timelines/${timelineId}/leader`, {
+    new_leader_user_id: newLeaderUserId,
+  });
+  return response.data;
+};
+
 export default api;
+
+
