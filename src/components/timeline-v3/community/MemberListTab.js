@@ -230,6 +230,7 @@ const MemberListTab = () => {
   const [accessLoading, setAccessLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
   const [communityRole, setCommunityRole] = useState('');
+  const [leaderUserId, setLeaderUserId] = useState(null);
   const [timelineWarningState, setTimelineWarningState] = useState({ active: false });
   const [voteLoadingByType, setVoteLoadingByType] = useState({ bronze: false, silver: false, gold: false });
   const [snackbarState, setSnackbarState] = useState({ open: false, severity: 'info', message: '' });
@@ -436,11 +437,16 @@ const MemberListTab = () => {
         setIsLoading(true);
         setError(null);
         
-        const response = await getTimelineMembers(id);
-        const countResponse = await getTimelineMemberCount(id);
+        const [response, countResponse, detailsResponse] = await Promise.all([
+          getTimelineMembers(id),
+          getTimelineMemberCount(id),
+          getTimelineDetails(id).catch(() => null),
+        ]);
         console.log('[MemberListTab] API Response:', response);
         
         if (isMounted) {
+          const leaderId = detailsResponse?.created_by_id || detailsResponse?.created_by || detailsResponse?.createdBy || null;
+          if (leaderId) setLeaderUserId(leaderId);
           // The API returns { success: true, members: [...] } or direct array
           const membersData = Array.isArray(response) ? response : (response?.members || []);
           console.log('[MemberListTab] Raw members data:', membersData);
@@ -1297,6 +1303,20 @@ const MemberListTab = () => {
                             height: 20
                           }}
                         />
+                        {Boolean(member.is_leader || (leaderUserId && Number(member.userId ?? member.user_id ?? member.id) === Number(leaderUserId))) && (
+                          <Chip 
+                            label="Leader"
+                            size="small"
+                            sx={{ 
+                              bgcolor: '#DAA520', 
+                              color: '#fff',
+                              fontWeight: 700,
+                              mr: 1,
+                              fontSize: '0.7rem',
+                              height: 20
+                            }}
+                          />
+                        )}
                         <Typography variant="caption" color="text.secondary">
                           Joined {new Date(member.joinDate).toLocaleDateString()}
                         </Typography>

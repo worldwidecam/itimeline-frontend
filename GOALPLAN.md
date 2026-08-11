@@ -20,7 +20,13 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
+* IMPORTANT
+ - need to safe migrate new tables to staging
+ - need to safe migrate new tables to production once safe testing is confirmed on staging
 
+* the published date/time on all event cards should be simpler displaying. lets make it simply state things like "Published 5 minutes ago" or "Published an hour ago" or "Published yesterday" or "Published on in 2026".
+
+* we need to work on the fallbacks for link/news events. for instance, i posted a reddit link and the link event card showed the reddit backup pic, but its popup used our GENERIC fallback. we need to stay consistent. our dream ideal scenario would be that the website NEVER needs this farthest fallback.
 
 * voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
 
@@ -28,26 +34,44 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * add theory board module to community timelines.
 
+* making a private post on a personal timeline page and tagging it should NOT mean that the post made on a personal timeline is allowed to be viewed on that tagged timeline. currently, it does seem to allow it, and that is not right. for instance, i made a post on a personal timeline, therefore this post is private. but then i tagged it #dream_journal, and i went to that hashtag timeline as a Guest and i could still see the post. that should not be the case.
+    - also, the post doesn't even have the personal chip tagged in its personal category, so what's going on there?
+
+* things or worries we need to check on so we don't make these easily-made mistakes:
+ - uncompressed JSON
+ - illogical DB write methods
+ - single dependency bottleneck
+ - un-optimistic rendering
+ - non statically hosted site 
+
+* **[TODO] Create a Privacy Policy page.**
+ - Required for app store submissions (Google Play & Apple App Store).
+ - Must cover: what data we collect, why we collect it, how long we retain it, third parties, and user rights.
+ - Needs a `/privacy-policy` route and a styled `PrivacyPolicy.js` component matching the existing `TermsOfService.js` design.
+ - Should be linked in the footer, Register page, and any app store listing.
+
 * look into making this an app on apple and google play stores.
- - probably need a privacy policy.
- - data and compliance.need to explain why to any data we collect and for how long we intend to keep it.
+ - ~~probably need a privacy policy.~~ (tracked above)
+ - data and compliance. need to explain why we collect any data and for how long we intend to keep it.
  - IP infringement check. uspto.gov
 
-* deleting a timeline ability.
+* ~~deleting a timeline ability.~~ (Completed — safe re-homing for shared posts, R2 media purge for isolated posts, slug freeing, DeletedTimelineRedirect, and Admin Panel Danger Zone UI)
 
-* deleting an account
+* ~~deleting an account~~ (Completed — soft-scrub, R2 media cleanup, social graph removal, 3-step confirmation dialog with backup key requirement, and DeletedUserRedirect)
 
 * voting on a hashtag on a post doesn't seem to update that event card , at least temporarily.
 
 * block list option within friends list on home page.
 
-* sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.
+* sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.i somewhat fixed this on my own but still good to check. but what remains for sure is that if the inner description container on a popup isn't scrolled to its top already, then it doesn't let the popup itself be dragged downward to close.
 
 * create push notification system.
 
 * the B Pointer arrow+element is not properly refreshing upon timeline change. i am on one timeline page > i click an event > the pointer B element appears below it > i navigate to another timeline page > it loads > the pointer B element remains where it was from the previous page.
 
 * expand on theory board module. offer possible stencils. like a simple timeline stencil, or perhaps a lineage tree stencil
+
+* i'm thinking we should have the navFAB absorb the timeline status message system, so that we do not need to have the timeline status message system displayed in the top bar any longer.
 ---
 
 ## Awaiting Confirmation

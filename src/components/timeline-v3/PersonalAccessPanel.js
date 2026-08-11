@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Paper,
   Stack,
   TextField,
   Typography,
@@ -13,7 +15,10 @@ import {
   Slider,
   useTheme,
 } from '@mui/material';
-import api, { updateTimelineDetails } from '../../utils/api';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import LockIcon from '@mui/icons-material/Lock';
+import api, { updateTimelineDetails, deleteTimeline } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import { displayUsername } from '../../utils/usernameDisplay';
 import { TimelineHeroBanner } from './TimelineHeroBanner';
@@ -40,16 +45,16 @@ const buildCoverFallbackGradient = (mode) => (
 // Helper to extract storage key from R2/Cloudinary URL for backend
 const extractKeyFromUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
-  
+
   // If already a key (no protocol and doesn't start with /), return as-is
   if (!url.startsWith('http') && !url.startsWith('/')) {
     return url;
   }
-  
+
   try {
     const urlObj = url.startsWith('http') ? new URL(url) : null;
     const path = urlObj ? urlObj.pathname : url;
-    
+
     // R2 path format: /media/{purpose}/{filename}
     const mediaMatch = path.match(/\/media\/(avatars|covers|events|music)\/(.+)$/);
     if (mediaMatch) {
@@ -67,7 +72,7 @@ const extractKeyFromUrl = (url) => {
     if (legacyMatch) {
       return `timelines/${legacyMatch[1]}`;
     }
-    
+
     // Fallback: return path without leading slash
     return path.startsWith('/') ? path.slice(1) : path;
   } catch (e) {
@@ -126,6 +131,48 @@ const PersonalAccessPanel = ({
   const joystickRef = useRef(null);
   const joystickDragRef = useRef(null);
 
+  // --- Danger Zone: Personal Timeline Deletion ---
+  const [deleteStep, setDeleteStep] = useState(null); // null | 1 | 2
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeletingTimeline, setIsDeletingTimeline] = useState(false);
+
+  const handleOpenDeleteModal = () => {
+    setDeleteStep(1);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isDeletingTimeline) return;
+    setDeleteStep(null);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleProceedToDeleteStep2 = () => {
+    setDeleteStep(2);
+    setDeleteError('');
+  };
+
+  const handleConfirmDeleteTimeline = async () => {
+    if (!deletePassword) {
+      setDeleteError('Please enter your account password.');
+      return;
+    }
+    try {
+      setIsDeletingTimeline(true);
+      setDeleteError('');
+      await deleteTimeline(timelineId, deletePassword);
+      window.location.href = '/home';
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to delete timeline.';
+      setDeleteError(msg);
+    } finally {
+      setIsDeletingTimeline(false);
+    }
+  };
+
   // Derived preview URLs
   const portraitPreviewUrl = pendingCoverRemoval
     ? ''
@@ -164,7 +211,7 @@ const PersonalAccessPanel = ({
     }
     setPendingCoverLandscapePreviewUrl('');
     setPendingCoverLandscapeRemoval(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Cleanup blob URLs on unmount
@@ -233,34 +280,34 @@ const PersonalAccessPanel = ({
 
   const extractKeyFromUrl = (url) => {
     if (!url || typeof url !== 'string') return null;
-    
+
     // If already a key (no protocol and doesn't start with /), return as-is
     if (!url.startsWith('http') && !url.startsWith('/')) {
       return url;
     }
-    
+
     try {
       const urlObj = url.startsWith('http') ? new URL(url) : null;
       const path = urlObj ? urlObj.pathname : url;
-      
+
       // R2 path format: /media/{purpose}/{filename}
       const mediaMatch = path.match(/\/media\/(avatars|covers|events|music)\/(.+)$/);
       if (mediaMatch) {
         return `${mediaMatch[1]}/${mediaMatch[2]}`;
       }
-  
+
       // Fallback for root-level purposes
       const purposeMatch = path.match(/\/(avatars|covers|events|music)\/(.+)$/);
       if (purposeMatch) {
         return `${purposeMatch[1]}/${purposeMatch[2]}`;
       }
-  
+
       // Legacy path format: /timelines/{id}/{filename}
       const legacyMatch = path.match(/\/timelines\/[^/]+\/(.+)$/);
       if (legacyMatch) {
         return `timelines/${legacyMatch[1]}`;
       }
-      
+
       // Fallback: return path without leading slash
       return path.startsWith('/') ? path.slice(1) : path;
     } catch (e) {
@@ -368,7 +415,7 @@ const PersonalAccessPanel = ({
     if (event?.currentTarget?.releasePointerCapture && joystickDragRef.current?.pointerId !== undefined) {
       try {
         event.currentTarget.releasePointerCapture(joystickDragRef.current.pointerId);
-      } catch (_) {}
+      } catch (_) { }
     }
     joystickDragRef.current = null;
     setJoystickKnobOffset({ x: 0, y: 0 });
@@ -509,6 +556,7 @@ const PersonalAccessPanel = ({
   }, [pendingCoverLandscapePreviewUrl]);
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={onClose}
@@ -1081,9 +1129,58 @@ const PersonalAccessPanel = ({
                   </Box>
                 </Stack>
               )}
-              </Box>
             </Box>
           </Box>
+        </Box>
+
+          {/* ── Danger Zone ─────────────────────────────────────────────────────────
+               Placed far below so users must intentionally scroll to reach it. */}
+          <Box sx={{ mt: '80vh', mb: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 3, md: 4 },
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(220, 38, 38, 0.25)',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.04)' : 'rgba(254, 242, 242, 0.6)',
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 8px 32px rgba(0,0,0,0.3)'
+                  : '0 8px 32px rgba(220,38,38,0.05)',
+              }}
+            >
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <WarningAmberIcon sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.error.main }}>
+                    Danger Zone
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  Permanently delete this personal timeline. All events and their media will be erased. This action is final.
+                </Typography>
+                <Box sx={{ pt: 1 }}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteForeverIcon />}
+                    onClick={handleOpenDeleteModal}
+                    sx={{
+                      borderRadius: 99,
+                      px: 3,
+                      py: 1,
+                      fontWeight: 600,
+                      borderColor: theme.palette.error.main,
+                      '&:hover': { bgcolor: theme.palette.error.main, color: 'white' },
+                    }}
+                  >
+                    Delete This Timeline
+                  </Button>
+                </Box>
+              </Stack>
+            </Paper>
+          </Box>
+
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button
@@ -1109,6 +1206,93 @@ const PersonalAccessPanel = ({
         </Button>
       </DialogActions>
     </Dialog>
+
+      {/* ── Personal Timeline Deletion 2-Step Dialog ─────────────────────────────
+           Rendered as a sibling of the outer Dialog (not inside it) so MUI
+           can render the outer panel correctly. */}
+      <Dialog
+        open={deleteStep !== null}
+        onClose={handleCloseDeleteModal}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            ...getGlassDialogPaperSx(theme),
+            p: 3,
+            border: '1px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(220, 38, 38, 0.2)',
+          },
+        }}
+      >
+        {deleteStep === 1 && (
+          <>
+            <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, color: theme.palette.error.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <WarningAmberIcon /> Step 1 of 2: Delete Timeline?
+            </DialogTitle>
+            <DialogContent sx={{ p: 0, py: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary">
+                  Deleting this personal timeline is permanent. The following will happen:
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, m: 0, '& li': { fontSize: '0.875rem', mb: 0.75, color: 'text.secondary' } }}>
+                  <li>All events on this timeline will be permanently erased.</li>
+                  <li>All event media (images, videos) will be deleted from storage.</li>
+                  <li>Cover images for this timeline will be removed.</li>
+                  <li>Follow records for this timeline will be cleared.</li>
+                </Box>
+                <Typography variant="caption" sx={{ color: theme.palette.error.main, fontWeight: 600 }}>
+                  This action cannot be undone.
+                </Typography>
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
+              <Button onClick={handleCloseDeleteModal} sx={{ borderRadius: 99 }}>Cancel</Button>
+              <Button onClick={handleProceedToDeleteStep2} variant="contained" color="error" sx={{ borderRadius: 99, px: 3 }}>
+                I Understand, Proceed
+              </Button>
+            </DialogActions>
+          </>
+        )}
+        {deleteStep === 2 && (
+          <>
+            <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LockIcon color="primary" /> Step 2 of 2: Confirm Password
+            </DialogTitle>
+            <DialogContent sx={{ p: 0, py: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary">
+                  Please enter your account password to authorize timeline deletion.
+                </Typography>
+                {deleteError && (
+                  <Alert severity="error" sx={{ borderRadius: 2 }}>{deleteError}</Alert>
+                )}
+                <TextField
+                  fullWidth
+                  type="password"
+                  label="Your Password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  autoFocus
+                  sx={getGlassInputSx(theme)}
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
+              <Button onClick={handleCloseDeleteModal} disabled={isDeletingTimeline} sx={{ borderRadius: 99 }}>Cancel</Button>
+              <Button
+                onClick={handleConfirmDeleteTimeline}
+                variant="contained"
+                color="error"
+                disabled={!deletePassword || isDeletingTimeline}
+                sx={{ borderRadius: 99, px: 3 }}
+              >
+                {isDeletingTimeline ? 'Deleting...' : 'Permanently Delete Timeline'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+    </>
   );
 };
 

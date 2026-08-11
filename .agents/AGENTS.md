@@ -10,3 +10,9 @@ When doing file updates or replacements using search/replace tools:
 
 # Core Memory — Import Completeness
 - **Always verify imports when introducing new JSX components or hooks**: If a new component (e.g., `CircularProgress`, `Tooltip`, `Skeleton`) is added inside JSX, confirm it is present in the file's import block before saving. The build may succeed (tree-shaking) but the runtime will crash with `ReferenceError: X is not defined`.
+
+# Core Memory — MUI Dialog Child Structure
+- **Never place arbitrary JSX outside `DialogTitle`/`DialogContent`/`DialogActions` inside a MUI `<Dialog>`**: MUI Dialog only renders children that are one of those three slots. Placing a `<Box>`, `<Paper>`, or a second `<Dialog>` as a direct sibling inside a `<Dialog>` (after `</DialogActions>`) causes the panel to appear empty or broken at runtime.
+- **Correct pattern for sibling Dialogs**: If a component IS a `<Dialog>` (e.g. a panel), and you need to render a second `<Dialog>` (e.g. a confirmation modal) alongside it, wrap both in a React fragment `<>...</>` in the return statement so they are true siblings — not nested.
+- **Correct pattern for scrollable danger zones inside a Dialog**: Place the Danger Zone `<Paper>` **inside** `<DialogContent>` with a large `mt` (e.g. `mt: '80vh'`) so the user must scroll to reach it. Do not put it outside `</DialogContent>`.
+
