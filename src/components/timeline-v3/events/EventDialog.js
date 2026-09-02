@@ -489,7 +489,9 @@ const EventDialog = ({
 
   const handleSave = () => {
     if (!isEditing && !title.trim()) {
-      // Show error or validation message
+      // Guard: title is required but was empty or whitespace-only.
+      // The button disabled condition should prevent reaching here, but log in case it slips through.
+      console.warn('[EventDialog] handleSave: title was empty/whitespace — blocking submission');
       return;
     }
 
@@ -543,7 +545,12 @@ const EventDialog = ({
     }
 
     if ((!isEditing || canEditUrl) && eventType === EVENT_TYPES.NEWS && (urlPreview || url)) {
-      eventData.url = urlPreview?.url || url;
+      // Normalize URL: prepend https:// if user typed without protocol (e.g. 'www.youtube.com')
+      let normalizedUrl = (urlPreview?.url || url || '').trim();
+      if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+      eventData.url = normalizedUrl;
       eventData.url_title = urlPreview?.title || initialEvent?.url_title || '';
       eventData.url_description = urlPreview?.description || initialEvent?.url_description || '';
       eventData.url_image = urlPreview?.image || initialEvent?.url_image || '';
@@ -1128,7 +1135,7 @@ const EventDialog = ({
         <Button
           variant="contained"
           onClick={handleSave}
-          disabled={submitLoading || submitDisabled || !title || !eventDate || (showVerdictField && !(verdict || '').trim())}
+          disabled={submitLoading || submitDisabled || !title.trim() || !eventDate || (showVerdictField && !(verdict || '').trim())}
           sx={{
             ...getGlassPillActionButtonSx(theme),
             bgcolor: getTypeColor(),

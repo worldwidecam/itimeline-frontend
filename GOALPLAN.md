@@ -20,7 +20,76 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
+* IMPORTANT
+ - ~~need to safe migrate new tables to staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-staging`)
+ - need to safe migrate new tables to production once safe testing is confirmed on staging
 
+---
+
+### 🔴 Focus Group — Bugs (High Priority)
+
+* ~~**[FG-D] Personal timeline URL crashes to backend terminal screen when no cover image is set.**~~ (Completed — `share.ts` private timeline check now redirects to `FRONTEND_URL/timeline-v3/:id` instead of returning raw `c.text()`, so `PersonalTimelineLock` handles it gracefully on the frontend)
+
+* ~~**[FG-M] "Create Event" button does not detect stale session/data.**~~ (Completed — root cause was a `!title` vs `!title.trim()` inconsistency in `EventDialog.js` that silently blocked submission for whitespace-only titles with no feedback. Also added URL protocol normalization (`https://` prepend) to both `EventDialog.js` and `NewsEventCreator.js` to prevent silent backend 422 rejections. Diagnostic logging added to `NewsEventCreator.handleSubmit` for future tracing.)
+
+* **[FG-E] Editing a link-type event post after creation is broken or unreliable.**
+  - The link input box in edit mode doesn't work well. Users cannot reliably update their link post after it's been published.
+
+* **[FG-C] Failed login shows a confusing/technical error message.**
+  - User got a message that sounded like "infringes corpus" or similar — a raw or internal error message leaking to the user instead of a plain friendly message like "Incorrect password. Please try again."
+
+* **[FG-B] Rate limiting triggers far too easily.**
+  - Normal usage is hitting the rate limit threshold. The limit needs to be audited and raised or made smarter (e.g. per-user vs. per-IP).
+
+* **[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**
+  - This gesture shouldn't be active on the login/auth pages where it causes an unintended full reload.
+
+---
+
+### 🟡 Focus Group — UX Friction (Medium Priority)
+
+* **[FG-I] Register card is missing the password show/hide eye toggle.**
+  - The login card already has this feature. The register card does not. Needs to be added for consistency.
+
+* **[FG-J] Profile usernames and avatars should be clickable hyperlinks.**
+  - In profile notifications and on profile pages, usernames and profile pictures are plain — they should link to that user's profile page.
+
+* **[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.**
+  - Some parts of the UI say "Add Friend", others say "Follow/Unfollow". Needs to be unified to one clear term and behavior across all surfaces.
+
+* **[FG-Q] Home page right-hub tab header titles need to be larger.**
+  - The tab names (Popular, Home, Search, etc.) feel too small. Users want them to be more prominent and readable at a glance.
+
+* **[FG-O] On the timeline page, the event list below the fold isn't discoverable.**
+  - At first glance users think the timeline ruler/tool is all there is and don't realize there's a scrollable event list below it. Needs a visual cue or layout adjustment.
+
+---
+
+### 🟢 Focus Group — Design / Identity (Requires Discussion)
+
+* **[FG-H/N/P] Timeline types are not visually or conceptually distinct enough.** *(Three overlapping notes — treat as one unified objective)*
+  - Users couldn't tell personal, community, and hashtag timelines apart.
+  - The naming of personal timelines (`#USERNAME` vs `MY-USERNAME`) is confusing — needs clearer labels like "My Public Posts" / "My Private Posts". *You have thoughts on this.*
+  - Visual suggestion from focus group: add the timeline's banner image at low opacity behind the timeline tool area. *You noted we could go more drastic.*
+
+---
+
+### 🔵 Focus Group — Feature Requests (Lower Priority)
+
+* **[FG-A] Audit file upload path for zip-bomb protection.**
+  - When users upload files, do we guard against maliciously compressed archives that expand to enormous sizes server-side? Needs a security review.
+
+* **[FG-K] Add document upload support (PDF, DOCX).**
+  - Current media uploader only handles image, video, and audio. Users want to be able to attach documents to events.
+
+* **[FG-L] Timeline zooming and "follow your post" through filter levels.**
+  - Two related UX ideas: (1) pinch-to-zoom or scroll-to-zoom on the timeline view, and (2) a way to keep your own post tracked/in-view as you toggle through different filter zoom levels.
+
+---
+
+* the published date/time on all event cards should be simpler displaying. lets make it simply state things like "Published 5 minutes ago" or "Published an hour ago" or "Published yesterday" or "Published on in 2026".
+
+* we need to work on the fallbacks for link/news events. for instance, i posted a reddit link and the link event card showed the reddit backup pic, but its popup used our GENERIC fallback. we need to stay consistent. our dream ideal scenario would be that the website NEVER needs this farthest fallback.
 
 * voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
 
@@ -28,26 +97,44 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * add theory board module to community timelines.
 
+* making a private post on a personal timeline page and tagging it should NOT mean that the post made on a personal timeline is allowed to be viewed on that tagged timeline. currently, it does seem to allow it, and that is not right. for instance, i made a post on a personal timeline, therefore this post is private. but then i tagged it #dream_journal, and i went to that hashtag timeline as a Guest and i could still see the post. that should not be the case.
+    - also, the post doesn't even have the personal chip tagged in its personal category, so what's going on there?
+
+* things or worries we need to check on so we don't make these easily-made mistakes:
+ - uncompressed JSON
+ - illogical DB write methods
+ - single dependency bottleneck
+ - un-optimistic rendering
+ - non statically hosted site 
+
+* **[TODO] Create a Privacy Policy page.**
+ - Required for app store submissions (Google Play & Apple App Store).
+ - Must cover: what data we collect, why we collect it, how long we retain it, third parties, and user rights.
+ - Needs a `/privacy-policy` route and a styled `PrivacyPolicy.js` component matching the existing `TermsOfService.js` design.
+ - Should be linked in the footer, Register page, and any app store listing.
+
 * look into making this an app on apple and google play stores.
- - probably need a privacy policy.
- - data and compliance.need to explain why to any data we collect and for how long we intend to keep it.
+ - ~~probably need a privacy policy.~~ (tracked above)
+ - data and compliance. need to explain why we collect any data and for how long we intend to keep it.
  - IP infringement check. uspto.gov
 
-* deleting a timeline ability.
+* ~~deleting a timeline ability.~~ (Completed — safe re-homing for shared posts, R2 media purge for isolated posts, slug freeing, DeletedTimelineRedirect, and Admin Panel Danger Zone UI)
 
-* deleting an account
+* ~~deleting an account~~ (Completed — soft-scrub, R2 media cleanup, social graph removal, 3-step confirmation dialog with backup key requirement, and DeletedUserRedirect)
 
 * voting on a hashtag on a post doesn't seem to update that event card , at least temporarily.
 
 * block list option within friends list on home page.
 
-* sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.
+* sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.i somewhat fixed this on my own but still good to check. but what remains for sure is that if the inner description container on a popup isn't scrolled to its top already, then it doesn't let the popup itself be dragged downward to close.
 
 * create push notification system.
 
 * the B Pointer arrow+element is not properly refreshing upon timeline change. i am on one timeline page > i click an event > the pointer B element appears below it > i navigate to another timeline page > it loads > the pointer B element remains where it was from the previous page.
 
 * expand on theory board module. offer possible stencils. like a simple timeline stencil, or perhaps a lineage tree stencil
+
+* i'm thinking we should have the navFAB absorb the timeline status message system, so that we do not need to have the timeline status message system displayed in the top bar any longer.
 ---
 
 ## Awaiting Confirmation

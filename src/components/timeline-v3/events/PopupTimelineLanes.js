@@ -166,9 +166,9 @@ const HashtagChips = ({
 }) => {
   const theme = useTheme();
   const navigate = useNavigate();
-  if (!tags.length) return null;
-
   const lastClickTimeRef = React.useRef(0);
+
+  if (!tags.length) return null;
 
   // Handle hashtag click - open timeline in same tab by default
   const handleHashtagClick = async (e, tagName) => {

@@ -57,6 +57,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEmailBlur } from '../contexts/EmailBlurContext';
 import MusicPlayer from './MusicPlayer';
 import UserAvatar from './common/UserAvatar';
+import DeletedUserRedirect from './DeletedUserRedirect';
 import NavFab from './timeline-v3/community/NavFab';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import TheoryBoardModule from './theory-board/TheoryBoardModule';
@@ -1094,6 +1095,10 @@ const Profile = () => {
         </Box>
       </>
     );
+  }
+
+  if (profileUser?.is_deleted || profileUser?.isDeleted) {
+    return <DeletedUserRedirect username={profileUser?.username || profileUser?.display_username} />;
   }
 
   if (profileAccessLocked && !isOwnProfile) {
