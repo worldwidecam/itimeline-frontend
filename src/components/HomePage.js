@@ -683,14 +683,25 @@ const HomePage = () => {
 
   React.useEffect(() => {
     if (isInitialAppLoadComplete) return;
+    if (!initialLoading) return;
 
-    if (initialLoading) {
-      const timelinesLoaded = !loadingTimelines;
-      const popularLoaded = hasLoadedPopular || (timelinesLoaded && timelines.length === 0);
+    const timelinesLoaded = !loadingTimelines;
+    const popularLoaded = hasLoadedPopular || (timelinesLoaded && timelines.length === 0);
 
-      if (timelinesLoaded && popularLoaded && !isInitialLoadDone) {
+    // Normal fast path: everything loaded, dismiss immediately
+    if (timelinesLoaded && popularLoaded && !isInitialLoadDone) {
+      setIsInitialLoadDone(true);
+      return;
+    }
+
+    // Safety watchdog: if the loading screen is still stuck after 4s,
+    // force it to dismiss so a slow/hanging popular feed API doesn't
+    // trap the user on the loading screen when content is already rendered.
+    if (!isInitialLoadDone) {
+      const watchdog = setTimeout(() => {
         setIsInitialLoadDone(true);
-      }
+      }, 4000);
+      return () => clearTimeout(watchdog);
     }
   }, [loadingTimelines, hasLoadedPopular, initialLoading, isInitialLoadDone, timelines.length]);
 

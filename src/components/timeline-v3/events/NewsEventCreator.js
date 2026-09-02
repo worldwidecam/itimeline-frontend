@@ -50,6 +50,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
   const [currentTag, setCurrentTag] = useState('');
   const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
 
@@ -73,6 +74,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
     setTags([]);
     setCurrentTag('');
     setError(null);
+    setIsSubmitting(false);
     userEditedTitleRef.current = false;
     userEditedDescriptionRef.current = false;
   };
@@ -156,17 +158,34 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // [DIAG-1] Button click reached handleSubmit
+    console.log('[NewsEventCreator] handleSubmit fired', { title: title?.slice(0, 40), url: url?.slice(0, 60), isLoadingPreview, hasUrlPreview: !!urlPreview });
     try {
+      // Prevent double-submit
+      if (isSubmitting) return;
+
       // Validate form
       if (!title.trim()) {
+        console.warn('[NewsEventCreator] Blocked: title is empty');
         setError('Title is required');
         return;
       }
 
       if (!url.trim()) {
+        console.warn('[NewsEventCreator] Blocked: url is empty');
         setError('URL is required for Link events');
         return;
       }
+
+      // Normalize URL: prepend https:// if no protocol is present
+      // (e.g. user typed 'www.youtube.com' instead of 'https://www.youtube.com')
+      let normalizedUrl = url.trim();
+      if (!/^https?:\/\//i.test(normalizedUrl)) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+
+      setIsSubmitting(true);
+      setError(null);
 
       // Create event data
       const eventData = {
@@ -174,27 +193,40 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
         description,
         event_date: eventDate,
         type: EVENT_TYPES.NEWS,
-        url,
+        url: normalizedUrl,
         tags
       };
 
       // Add URL preview data if available
       if (urlPreview) {
-        eventData.url = urlPreview.url || url;
+        eventData.url = urlPreview.url || normalizedUrl;
         eventData.url_title = urlPreview.title || '';
         eventData.url_description = urlPreview.description || '';
         eventData.url_image = urlPreview.image || '';
         eventData.url_source = urlPreview.source || '';
       }
 
+      // [DIAG-2] About to call onSave
+      console.log('[NewsEventCreator] Calling onSave with eventData', { type: eventData.type, url: eventData.url?.slice(0, 60), title: eventData.title?.slice(0, 40), event_date: eventData.event_date });
+
       // Call the onSave callback with the event data
       await onSave(eventData);
       
+      // [DIAG-3] onSave resolved successfully
+      console.log('[NewsEventCreator] onSave resolved OK — closing dialog');
+
       // Close the dialog and reset the form
       onClose();
       resetForm();
     } catch (error) {
-      console.error('Error creating Link event:', error);
+      // [DIAG-4] onSave threw — log full error details
+      console.error('[NewsEventCreator] Error creating Link event:', {
+        message: error?.message,
+        status: error?.response?.status,
+        responseData: error?.response?.data,
+        stack: error?.stack?.slice(0, 300)
+      });
+      setIsSubmitting(false);
       setError(error.message || 'Failed to create Link event');
     }
   };
@@ -627,7 +659,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
         <Button 
           onClick={handleSubmit}
           variant="contained" 
-          disabled={!title.trim() || !url.trim()}
+          disabled={!title.trim() || !url.trim() || isSubmitting}
           sx={{ 
             fontWeight: 600, 
             textTransform: 'none', 
@@ -641,7 +673,7 @@ const NewsEventCreator = ({ open, onClose, onSave, timelineName }) => {
             }
           }}
         >
-          Create Link Event
+          {isSubmitting ? 'Creating...' : 'Create Link Event'}
         </Button>
       </DialogActions>
     </Dialog>
