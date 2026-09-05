@@ -276,7 +276,10 @@ export const AuthProvider = ({ children }) => {
         console.error('Error fetching passport after registration:', err);
       }
 
-      return userData;
+      return {
+        ...userData,
+        weak_password: Boolean(response?.data?.weak_password),
+      };
     } catch (error) {
       console.error('Registration error in AuthContext:', error);
       if (error.response?.data?.error) {

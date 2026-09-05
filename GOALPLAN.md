@@ -22,7 +22,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * IMPORTANT
  - ~~need to safe migrate new tables to staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-staging`)
- - need to safe migrate new tables to production once safe testing is confirmed on staging
+ - ~~need to safe migrate new tables to production once safe testing is confirmed on staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-prod`)
 
 ---
 
@@ -32,14 +32,11 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-M] "Create Event" button does not detect stale session/data.**~~ (Completed — root cause was a `!title` vs `!title.trim()` inconsistency in `EventDialog.js` that silently blocked submission for whitespace-only titles with no feedback. Also added URL protocol normalization (`https://` prepend) to both `EventDialog.js` and `NewsEventCreator.js` to prevent silent backend 422 rejections. Diagnostic logging added to `NewsEventCreator.handleSubmit` for future tracing.)
 
-* **[FG-E] Editing a link-type event post after creation is broken or unreliable.**
-  - The link input box in edit mode doesn't work well. Users cannot reliably update their link post after it's been published.
+* ~~**[FG-E] Editing a link-type event post after creation is broken or unreliable.**~~ (Completed — Confirmed solved)
 
-* **[FG-C] Failed login shows a confusing/technical error message.**
-  - User got a message that sounded like "infringes corpus" or similar — a raw or internal error message leaking to the user instead of a plain friendly message like "Incorrect password. Please try again."
+* ~~**[FG-C] Failed login shows a confusing/technical error message.**~~ (Completed — Identified "infringes corpus" as the HIBP "Password appears in breach corpus" rejection. Removed the hard-block wall on registration and password changes; converted into an advisory weak_password flag that only displays a gentle one-time snackbar on HomePage, preventing phantom-account lockout traps.)
 
-* **[FG-B] Rate limiting triggers far too easily.**
-  - Normal usage is hitting the rate limit threshold. The limit needs to be audited and raised or made smarter (e.g. per-user vs. per-IP).
+* ~~**[FG-B] Rate limiting triggers far too easily.**~~ (Completed — Raised loginIp from 10 to 30/min, registerHourIp from 3 to 25/hr, registerDayIp from 10 to 60/day, increased account lockout threshold to 20 attempts, and decreased lockout duration from 15m to 5m.)
 
 * **[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**
   - This gesture shouldn't be active on the login/auth pages where it causes an unintended full reload.
@@ -48,8 +45,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ### 🟡 Focus Group — UX Friction (Medium Priority)
 
-* **[FG-I] Register card is missing the password show/hide eye toggle.**
-  - The login card already has this feature. The register card does not. Needs to be added for consistency.
+* ~~**[FG-I] Register card is missing the password show/hide eye toggle.**~~ (Completed — Added Visibility and VisibilityOff icon toggles to both Password and Confirm Password inputs on Register card)
 
 * **[FG-J] Profile usernames and avatars should be clickable hyperlinks.**
   - In profile notifications and on profile pages, usernames and profile pictures are plain — they should link to that user's profile page.
@@ -142,6 +138,16 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* **[FG-C] Breach Corpus & Registration Wall Removed**: Replaced the hard-blocking "breach corpus" rejection with an advisory `weak_password` flag. Registered users can now proceed without getting trapped, and weak passwords trigger only a gentle, one-time home page snackbar that self-deletes from session storage. (Complete)
+
+* **[FG-B] Rate Limiting Relaxed**: Increased login rate limits from 10 to 30/min, hourly registration from 3 to 25/hr, daily registration from 10 to 60/day. Raised account lockout threshold from 10 to 20 attempts, and reduced lockout cooldown duration from 15m to 5m. (Complete)
+
+* **[FG-I] Register Card Password Visibility**: Added show/hide eye toggles to both the Password and Confirm Password input fields on the Register card. (Complete)
+
+* **Comment Drawer Enter-to-Submit**: Pressing `Enter` in the comment drawer now submits the comment immediately; `Shift+Enter` inserts a new line. (Complete)
+
+* Safely migrated new database tables/columns (`0010` and `0011` for soft deletion of users and timelines) to the live production Cloudflare D1 database (`itimeline-prod`) (Complete)
 
 * NSFW filters site-wide blurr implementation
 

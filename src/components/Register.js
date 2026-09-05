@@ -12,7 +12,11 @@ import {
   Checkbox,
   FormControlLabel,
   Link,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getGlassInputSx,
@@ -42,6 +46,8 @@ const Register = () => {
     password: '',
     confirmPassword: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState('');
   const [turnstileToken, setTurnstileToken] = useState(null);
@@ -196,6 +202,9 @@ const Register = () => {
 
     try {
       const response = await register(trimmedUsername, formData.email, formData.password, turnstileToken);
+      if (response?.weak_password) {
+        window.sessionStorage.setItem('pending_weak_password_notice', 'true');
+      }
       console.log('Registration successful:', response);
       const returnTo = consumeAuthReturnTo();
       navigate(response?.must_change_username ? '/account/required-username-change' : (returnTo || '/home'));
@@ -621,7 +630,7 @@ const Register = () => {
                     size="small"
                     label="Password"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={handleChange}
                     margin="dense"
@@ -636,8 +645,50 @@ const Register = () => {
                         mt: 0.25,
                       }
                     }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowPassword(!showPassword)}
+                            edge="end"
+                            size="small"
+                            sx={{ color: 'text.secondary' }}
+                            aria-label="toggle password visibility"
+                          >
+                            {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
                   />
-                  <TextField fullWidth size="small" label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} margin="dense" required autoComplete="new-password" error={errorField === 'password'} />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Confirm Password"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    margin="dense"
+                    required
+                    autoComplete="new-password"
+                    error={errorField === 'password'}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            edge="end"
+                            size="small"
+                            sx={{ color: 'text.secondary' }}
+                            aria-label="toggle confirm password visibility"
+                          >
+                            {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
 
                   <FormControlLabel
                     control={

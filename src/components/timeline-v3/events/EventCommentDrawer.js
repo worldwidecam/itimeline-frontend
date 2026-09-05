@@ -1606,6 +1606,14 @@ const EventCommentDrawer = ({ eventId, open, onClose, eventCreatorId, eventColor
                   disabled={isGuest || submitting}
                   value={inputValue}
                   onChange={setInputValue}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (inputValue.trim() && !submitting && !isGuest) {
+                        handleSubmit(e);
+                      }
+                    }
+                  }}
                   rows={2}
                   helperText=""
                   label=""
