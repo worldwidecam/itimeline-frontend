@@ -139,6 +139,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Completed
 
+* **[FG-M follow-up] Event form submit buttons now show loading state site-wide**: Added `isSubmitting` state + spinner + double-submit guard to `MediaEventCreator.js` and `RemarkEventCreator.js`. Wired `eventSubmitLoading` state in `TimelineV3.js` through `handleEventSubmit` (try/finally) and passed it as `submitLoading` / `submitDisabled` to `<EventDialog>`. `NewsEventCreator` and `AdminPanel` edit path were already correct. Also deleted confirmed dead code: `EventForm.js`, `TimelineV3.js.bak`, `EventMarker.js.bak`, `EventPopup.js.new`. (Complete)
+
 * **[FG-C] Breach Corpus & Registration Wall Removed**: Replaced the hard-blocking "breach corpus" rejection with an advisory `weak_password` flag. Registered users can now proceed without getting trapped, and weak passwords trigger only a gentle, one-time home page snackbar that self-deletes from session storage. (Complete)
 
 * **[FG-B] Rate Limiting Relaxed**: Increased login rate limits from 10 to 30/min, hourly registration from 3 to 25/hr, daily registration from 10 to 60/day. Raised account lockout threshold from 10 to 20 attempts, and reduced lockout cooldown duration from 15m to 5m. (Complete)
