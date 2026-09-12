@@ -28,6 +28,7 @@ import {
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import TradingCard from './TradingCard';
 import GoblinModeFront from './GoblinModeFront';
+import useSwipeDownToDismiss from '../hooks/useSwipeDownToDismiss';
 
 const AUTH_RETURN_TO_KEY = 'auth_return_to';
 
@@ -56,6 +57,9 @@ const AccountRecoveryPage = () => {
   const [activeCard, setActiveCard] = useState(null);
   const anyCardActive = !!activeCard;
   const [isEntering, setIsEntering] = useState(true);
+
+  // Swipe-down on mobile: block pull-to-refresh and flip the active card face-down
+  useSwipeDownToDismiss(anyCardActive, () => setActiveCard(null));
 
   // Email Code Recovery States
   const [recoveryMethod, setRecoveryMethod] = useState(null); // null (selection) | 'email' | 'key'
