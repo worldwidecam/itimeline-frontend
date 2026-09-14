@@ -843,6 +843,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [voteDotsLoading, setVoteDotsLoading] = useState(true);
   const [editingEvent, setEditingEvent] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [eventSubmitLoading, setEventSubmitLoading] = useState(false);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [remarkDialogOpen, setRemarkDialogOpen] = useState(false);
   const [newsDialogOpen, setNewsDialogOpen] = useState(false);
@@ -2526,6 +2527,7 @@ const handleViewModeTransition = (newViewMode) => {
   }, [routeId, navigate]);
 
   const handleEventSubmit = async (eventData) => {
+    setEventSubmitLoading(true);
     try {
       if (editingEvent?.id) {
         // Filter to only fields accepted by backend patchSchema
@@ -2740,6 +2742,8 @@ const handleViewModeTransition = (newViewMode) => {
       }
       setSubmitError(error.response?.data?.error || 'Failed to create event');
       throw error;
+    } finally {
+      setEventSubmitLoading(false);
     }
   };
 
@@ -4460,6 +4464,8 @@ const handleRecenter = () => {
         initialEvent={editingEvent}
         timelineName={timelineName}
         timelineType={timeline_type}
+        submitLoading={eventSubmitLoading}
+        submitDisabled={eventSubmitLoading}
       />
       
       {/* Media Event Creator */}

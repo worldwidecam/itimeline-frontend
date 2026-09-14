@@ -14,6 +14,7 @@ import {
   Chip,
   Divider,
   Paper,
+  CircularProgress,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
@@ -42,6 +43,7 @@ const RemarkEventCreator = ({ open, onClose, onSave, timelineName }) => {
   const [tags, setTags] = useState([]);
   const [currentTag, setCurrentTag] = useState('');
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
   const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
@@ -64,6 +66,7 @@ const RemarkEventCreator = ({ open, onClose, onSave, timelineName }) => {
     setTags([]);
     setCurrentTag('');
     setError(null);
+    setIsSubmitting(false);
   };
 
   // Handle tag input
@@ -110,12 +113,18 @@ const RemarkEventCreator = ({ open, onClose, onSave, timelineName }) => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent double-submit
+    if (isSubmitting) return;
+
     try {
       // Validate form
       if (!title.trim()) {
         setError('Title is required');
         return;
       }
+
+      setIsSubmitting(true);
+      setError(null);
 
       // Create event data
       const eventData = {
@@ -135,6 +144,8 @@ const RemarkEventCreator = ({ open, onClose, onSave, timelineName }) => {
     } catch (error) {
       console.error('Error creating remark event:', error);
       setError(error.message || 'Failed to create remark event');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -458,6 +469,7 @@ const RemarkEventCreator = ({ open, onClose, onSave, timelineName }) => {
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
+          disabled={!title.trim() || isSubmitting}
           sx={{ 
             fontWeight: 600, 
             textTransform: 'none', 
@@ -470,9 +482,13 @@ const RemarkEventCreator = ({ open, onClose, onSave, timelineName }) => {
               bgcolor: theme.palette.mode === 'dark' ? '#93C5FD' : '#2563EB',
             }
           }}
-          disabled={!title.trim()}
         >
-          Create Remark
+          {isSubmitting ? (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={16} color="inherit" />
+              <span>Submitting...</span>
+            </Stack>
+          ) : 'Create Remark'}
         </Button>
       </DialogActions>
     </Dialog>
