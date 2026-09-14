@@ -1918,7 +1918,8 @@ const Profile = () => {
                                     isRestricted={entry.author_is_restricted}
                                     isSuspended={entry.author_is_suspended}
                                     isAvatarBlurred={entry.author_is_avatar_blurred}
-                                    sx={{ mb: 0.5, flexShrink: 0 }}
+                                    sx={{ mb: 0.5, flexShrink: 0, cursor: !isOwnerEntry ? 'pointer' : 'default' }}
+                                    onClick={!isOwnerEntry && entry.author_id ? (e) => { e.stopPropagation(); navigate(`/profile/${entry.author_id}`); } : undefined}
                                   />
                                   <Card
                                     sx={{
@@ -1938,6 +1939,7 @@ const Profile = () => {
                                         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                                           <Typography
                                             variant="subtitle2"
+                                            onClick={!isOwnerEntry && entry.author_id ? (e) => { e.stopPropagation(); navigate(`/profile/${entry.author_id}`); } : undefined}
                                             sx={{
                                               fontWeight: 800,
                                               mb: 0.45,
@@ -1945,6 +1947,8 @@ const Profile = () => {
                                               textTransform: 'capitalize',
                                               color: isLeftBubble && theme.palette.mode === 'dark' ? 'rgba(18, 14, 11, 0.96)' : undefined,
                                               textShadow: isLeftBubble && theme.palette.mode === 'dark' ? '0 0 0.45px rgba(0, 0, 0, 0.72)' : 'none',
+                                              cursor: !isOwnerEntry ? 'pointer' : 'default',
+                                              '&:hover': !isOwnerEntry ? { textDecoration: 'underline' } : {},
                                             }}
                                           >
                                             {displayUsername(entry.author_username)}

@@ -572,6 +572,18 @@ const HomePage = () => {
   );
 
   React.useEffect(() => {
+    try {
+      const pendingWeakPassword = window.sessionStorage.getItem('pending_weak_password_notice');
+      if (pendingWeakPassword === 'true') {
+        window.sessionStorage.removeItem('pending_weak_password_notice');
+        setUserFollowSnackbarSeverity('warning');
+        setUserFollowSnackbarMessage('Your password is too weak. We suggest changing it.');
+        setUserFollowSnackbarOpen(true);
+      }
+    } catch (_) {}
+  }, []);
+
+  React.useEffect(() => {
     if (!user?.id) {
       setFavoriteTimelineId(null);
       lastSyncedFavoriteTimelineIdRef.current = null;

@@ -14,6 +14,7 @@ import {
   Chip,
   Divider,
   Paper,
+  CircularProgress,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
@@ -51,6 +52,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
   const [error, setError] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [isPersonalTimeline, setIsPersonalTimeline] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const clampTitle = (value) => String(value || '').slice(0, EVENT_TITLE_MAX_LENGTH);
 
@@ -76,6 +78,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
     setTags([]);
     setCurrentTag('');
     setError(null);
+    setIsSubmitting(false);
   };
 
   // Handle tag input
@@ -128,6 +131,9 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent double-submit
+    if (isSubmitting) return;
+
     // Require an upload result
     if (!uploadResult || !uploadResult.url) {
       setError('Please upload a media file before creating the event');
@@ -145,6 +151,9 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
       // If a MIME like 'video/mp4' is returned, map to 'video'
       fileType = uploadResult.type.startsWith('video') ? 'video' : uploadResult.type.startsWith('audio') ? 'audio' : 'image';
     }
+
+    setIsSubmitting(true);
+    setError(null);
 
     try {
       // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
@@ -184,7 +193,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
       }
 
       console.log('Final event data being submitted:', eventData);
-      onSave(eventData);
+      await onSave(eventData);
 
       // Reset form and close dialog
       resetForm();
@@ -192,6 +201,8 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
     } catch (err) {
       console.error('Submission error:', err);
       setError(err.response?.data?.error || 'Submission failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -590,7 +601,7 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
-          disabled={!title.trim() || !uploadResult}
+          disabled={!title.trim() || !uploadResult || isSubmitting}
           sx={{ 
             fontWeight: 600, 
             textTransform: 'none', 
@@ -604,7 +615,12 @@ const MediaEventCreator = ({ open, onClose, onSave, timelineName, timelineId, ze
             }
           }}
         >
-          Create Media Event
+          {isSubmitting ? (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={16} color="inherit" />
+              <span>Submitting...</span>
+            </Stack>
+          ) : 'Create Media Event'}
         </Button>
       </DialogActions>
     </Dialog>
