@@ -38,8 +38,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-B] Rate limiting triggers far too easily.**~~ (Completed — Raised loginIp from 10 to 30/min, registerHourIp from 3 to 25/hr, registerDayIp from 10 to 60/day, increased account lockout threshold to 20 attempts, and decreased lockout duration from 15m to 5m.)
 
-* **[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**
-  - This gesture shouldn't be active on the login/auth pages where it causes an unintended full reload.
+* ~~**[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**~~ (Completed — added `useSwipeDownToDismiss` hook that blocks pull-to-refresh while a card is face-up and interprets a ≥60px downward swipe as an intentional card-dismiss gesture, wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`)
 
 ---
 
@@ -47,10 +46,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-I] Register card is missing the password show/hide eye toggle.**~~ (Completed — Added Visibility and VisibilityOff icon toggles to both Password and Confirm Password inputs on Register card)
 
-* **[FG-J] Profile usernames and avatars should be clickable hyperlinks.**
-  - In profile notifications and on profile pages, usernames and profile pictures are plain — they should link to that user's profile page.
+* ~~**[FG-J] Profile usernames and avatars should be clickable hyperlinks.**~~ (Completed — Made author avatar and username in profile text bubbles clickable, navigating to the sender's `/profile/:id`. Only applies to visitor bubbles; owner's own bubbles are intentionally skipped. Comment drawer avatars were already wired; username text there is intentionally left as-is per design. RemarkEventMarker avatar left unchanged — tabled for future discussion.)
 
-* **[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.**
+* 👉 **[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.** ← *NEXT*
   - Some parts of the UI say "Add Friend", others say "Follow/Unfollow". Needs to be unified to one clear term and behavior across all surfaces.
 
 * **[FG-Q] Home page right-hub tab header titles need to be larger.**
@@ -138,6 +136,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* **[FG-F] Swipe-down pull-to-refresh on auth pages**: Created `useSwipeDownToDismiss` hook that (1) blocks native pull-to-refresh while a card is face-up and (2) interprets a downward swipe ≥60px as a deliberate dismiss, flipping the card face-down. Wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`. (Complete)
 
 * **[FG-M follow-up] Event form submit buttons now show loading state site-wide**: Added `isSubmitting` state + spinner + double-submit guard to `MediaEventCreator.js` and `RemarkEventCreator.js`. Wired `eventSubmitLoading` state in `TimelineV3.js` through `handleEventSubmit` (try/finally) and passed it as `submitLoading` / `submitDisabled` to `<EventDialog>`. `NewsEventCreator` and `AdminPanel` edit path were already correct. Also deleted confirmed dead code: `EventForm.js`, `TimelineV3.js.bak`, `EventMarker.js.bak`, `EventPopup.js.new`. (Complete)
 
