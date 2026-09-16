@@ -40,6 +40,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**~~ (Completed — added `useSwipeDownToDismiss` hook that blocks pull-to-refresh while a card is face-up and interprets a ≥60px downward swipe as an intentional card-dismiss gesture, wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`)
 
+* **[FG-N2] Goblin login is broken.**
+  - Logging in as the goblin test account fails. Needs investigation into what is causing the failure (session, credentials, account state, etc.).
+
 ---
 
 ### 🟡 Focus Group — UX Friction (Medium Priority)
@@ -60,6 +63,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ### 🟢 Focus Group — Design / Identity (Requires Discussion)
+
+* **[FG-LAND] Landing page needs a real redesign.**
+  - The current landing page is functional but not impressive. We should make it actually good — visually striking, clearly communicates what iTimeline is, and makes a strong first impression on new visitors.
 
 * **[FG-H/N/P] Timeline types are not visually or conceptually distinct enough.** *(Three overlapping notes — treat as one unified objective)*
   - Users couldn't tell personal, community, and hashtag timelines apart.
