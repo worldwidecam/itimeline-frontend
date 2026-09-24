@@ -74,7 +74,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
               style={{ 
                 fontFamily: 'Lobster, cursive',
                 marginRight: '4px',
-                color: theme.palette.primary.main,
+                color: theme.palette.secondary.main,
                 flexShrink: 0,
               }}
               aria-hidden="true"
@@ -115,7 +115,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             <span 
               style={{ 
                 marginRight: '4px',
-                color: theme.palette.primary.main,
+                color: theme.palette.success.main,
                 flexShrink: 0,
               }}
               aria-hidden="true"

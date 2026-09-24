@@ -51,11 +51,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-J] Profile usernames and avatars should be clickable hyperlinks.**~~ (Completed — Made author avatar and username in profile text bubbles clickable, navigating to the sender's `/profile/:id`. Only applies to visitor bubbles; owner's own bubbles are intentionally skipped. Comment drawer avatars were already wired; username text there is intentionally left as-is per design. RemarkEventMarker avatar left unchanged — tabled for future discussion.)
 
-* 👉 **[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.** ← *NEXT*
-  - Some parts of the UI say "Add Friend", others say "Follow/Unfollow". Needs to be unified to one clear term and behavior across all surfaces.
+* ~~**[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.**~~ (Completed — Analyzed all 4 surfaces: tab label "FRIENDS LIST", UserCard "Follow/Unfollow", Profile FAB "Follow user/Unfollow user", Timeline "Watch/Watching". Underlying system is a one-way follow model. Wording is intentionally kept as-is — "Friends List" as friendly tab branding, "Follow/Unfollow" on action buttons, "Watch" for timelines. No code change required.)
 
-* **[FG-Q] Home page right-hub tab header titles need to be larger.**
-  - The tab names (Popular, Home, Search, etc.) feel too small. Users want them to be more prominent and readable at a glance.
+* ~~**[FG-Q] Home page right-hub tab header titles need to be larger.**~~ (Completed — Bumped all 7 content panel section headings from MUI `variant="h6"` to `variant="h5"` across Popular, Your Home Page, My Creations, Favorite, Friends List, Search, and the generic fallback. Build verified clean.)
 
 * **[FG-O] On the timeline page, the event list below the fold isn't discoverable.**
   - At first glance users think the timeline ruler/tool is all there is and don't realize there's a scrollable event list below it. Needs a visual cue or layout adjustment.

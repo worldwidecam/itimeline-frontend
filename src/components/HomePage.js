@@ -5279,7 +5279,7 @@ const HomePage = () => {
                   onScroll={handleMyCreationsScroll}
                   sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.75 }}>
                     My Creations
                   </Typography>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
@@ -5427,7 +5427,7 @@ const HomePage = () => {
                   sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.45 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800 }}>
                       Popular
                     </Typography>
                     <IconButton
@@ -5566,7 +5566,7 @@ const HomePage = () => {
                   sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.45 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800 }}>
                       Your Home Page
                     </Typography>
                     <IconButton
@@ -5706,7 +5706,7 @@ const HomePage = () => {
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5, mb: 2.1, flexWrap: 'wrap' }}>
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.45 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.45 }}>
                         {selectedFavoriteTimeline?.name
                           ? (() => {
                               const _type = String(selectedFavoriteTimeline?.timeline_type || 'hashtag').toLowerCase();
@@ -6094,7 +6094,7 @@ const HomePage = () => {
                   onScroll={handleFriendsListScroll}
                   sx={{ p: { xs: 2, md: 2.5 }, overflowY: 'auto', flex: 1, minHeight: 0 }}
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.75 }}>
                     Friends List
                   </Typography>
                   <Typography color="text.secondary" sx={{ mb: 2.25 }}>
@@ -6176,7 +6176,7 @@ const HomePage = () => {
                 </Box>
               ) : activeHubTab !== 'timeline-search' ? (
                 <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
                     {LEFT_HUB_TABS.find((tab) => tab.key === activeHubTab)?.label}
                   </Typography>
                   <Typography color="text.secondary">
@@ -6186,7 +6186,7 @@ const HomePage = () => {
               ) : (
                 <>
                   <Box sx={{ p: 2, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>Search</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>Search</Typography>
                     <TextField
                       fullWidth
                       size="small"
