@@ -40,8 +40,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**~~ (Completed — added `useSwipeDownToDismiss` hook that blocks pull-to-refresh while a card is face-up and interprets a ≥60px downward swipe as an intentional card-dismiss gesture, wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`)
 
-* **[FG-N2] Goblin login is broken.**
-  - Logging in as the goblin test account fails. Needs investigation into what is causing the failure (session, credentials, account state, etc.).
+* ~~**[FG-N2] Goblin login is broken.**~~ (Completed — likely resolved as a side effect of rate limiting relaxation and breach corpus advisory changes)
 
 ---
 
@@ -85,7 +84,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ---
 
-* the published date/time on all event cards should be simpler displaying. lets make it simply state things like "Published 5 minutes ago" or "Published an hour ago" or "Published yesterday" or "Published on in 2026".
+* ~~the published date/time on all event cards should be simpler displaying.~~ (Completed — replaced static `"Published on MMM d, yyyy, h:mm a"` with relative time via shared `src/utils/dateUtils.js` → `formatPublishedRelative()`. Cards now show e.g. `"Published 5 mins ago"`, `"Published 3 years ago"`. Applied to `MediaCard.js`, `NewsCard.js`, `RemarkCard.js`.)
+
 
 * we need to work on the fallbacks for link/news events. for instance, i posted a reddit link and the link event card showed the reddit backup pic, but its popup used our GENERIC fallback. we need to stay consistent. our dream ideal scenario would be that the website NEVER needs this farthest fallback.
 

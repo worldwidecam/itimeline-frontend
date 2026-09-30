@@ -35,6 +35,7 @@ import VoteOverlay from '../VoteOverlay';
 import UserAvatar from '../../../common/UserAvatar';
 import { useEventVote } from '../../../../hooks/useEventVote';
 import { displayUsername } from '../../../../utils/usernameDisplay';
+import { formatPublishedRelative } from '../../../../utils/dateUtils';
 
 const RemarkCard = forwardRef(({
   event,
@@ -189,21 +190,7 @@ const RemarkCard = forwardRef(({
   // We no longer need to listen for custom events
   // The popup will be opened directly by the handleEdit function
 
-  const formatDate = (dateStr) => {
-    try {
-      if (!dateStr) return 'Invalid date';
-
-      // Parse the ISO string into a Date object
-      const date = parseISO(dateStr);
-
-      // Format with "Published on" prefix, without seconds
-      // Use explicit formatting to ensure consistency
-      return `Published on ${format(date, 'MMM d, yyyy, h:mm a')}`;
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Invalid date';
-    }
-  };
+  const formatDate = (dateStr) => formatPublishedRelative(dateStr);
 
   const formatEventDate = (dateStr) => {
     try {
