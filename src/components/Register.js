@@ -716,9 +716,9 @@ const Register = () => {
                           Terms of Service
                         </Link>{' '}
                         &{' '}
-                        <span style={{ fontWeight: 'bold' }}>
+                        <Link component={RouterLink} to="/privacy-policy" target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
                           Privacy Policy
-                        </span>
+                        </Link>
                       </Typography>
                     }
                     sx={{ mt: 1, mb: 1, display: 'flex', alignItems: 'center' }}

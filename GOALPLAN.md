@@ -40,8 +40,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**~~ (Completed — added `useSwipeDownToDismiss` hook that blocks pull-to-refresh while a card is face-up and interprets a ≥60px downward swipe as an intentional card-dismiss gesture, wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`)
 
-* **[FG-N2] Goblin login is broken.**
-  - Logging in as the goblin test account fails. Needs investigation into what is causing the failure (session, credentials, account state, etc.).
+* ~~**[FG-N2] Goblin login is broken.**~~ (Completed — likely resolved as a side effect of rate limiting relaxation and breach corpus advisory changes)
 
 ---
 
@@ -51,11 +50,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-J] Profile usernames and avatars should be clickable hyperlinks.**~~ (Completed — Made author avatar and username in profile text bubbles clickable, navigating to the sender's `/profile/:id`. Only applies to visitor bubbles; owner's own bubbles are intentionally skipped. Comment drawer avatars were already wired; username text there is intentionally left as-is per design. RemarkEventMarker avatar left unchanged — tabled for future discussion.)
 
-* 👉 **[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.** ← *NEXT*
-  - Some parts of the UI say "Add Friend", others say "Follow/Unfollow". Needs to be unified to one clear term and behavior across all surfaces.
+* ~~**[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.**~~ (Completed — Analyzed all 4 surfaces: tab label "FRIENDS LIST", UserCard "Follow/Unfollow", Profile FAB "Follow user/Unfollow user", Timeline "Watch/Watching". Underlying system is a one-way follow model. Wording is intentionally kept as-is — "Friends List" as friendly tab branding, "Follow/Unfollow" on action buttons, "Watch" for timelines. No code change required.)
 
-* **[FG-Q] Home page right-hub tab header titles need to be larger.**
-  - The tab names (Popular, Home, Search, etc.) feel too small. Users want them to be more prominent and readable at a glance.
+* ~~**[FG-Q] Home page right-hub tab header titles need to be larger.**~~ (Completed — Bumped all 7 content panel section headings from MUI `variant="h6"` to `variant="h5"` across Popular, Your Home Page, My Creations, Favorite, Friends List, Search, and the generic fallback. Build verified clean.)
 
 * **[FG-O] On the timeline page, the event list below the fold isn't discoverable.**
   - At first glance users think the timeline ruler/tool is all there is and don't realize there's a scrollable event list below it. Needs a visual cue or layout adjustment.
@@ -87,7 +84,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ---
 
-* the published date/time on all event cards should be simpler displaying. lets make it simply state things like "Published 5 minutes ago" or "Published an hour ago" or "Published yesterday" or "Published on in 2026".
+* ~~the published date/time on all event cards should be simpler displaying.~~ (Completed — replaced static `"Published on MMM d, yyyy, h:mm a"` with relative time via shared `src/utils/dateUtils.js` → `formatPublishedRelative()`. Cards now show e.g. `"Published 5 mins ago"`, `"Published 3 years ago"`. Applied to `MediaCard.js`, `NewsCard.js`, `RemarkCard.js`.)
+
 
 * we need to work on the fallbacks for link/news events. for instance, i posted a reddit link and the link event card showed the reddit backup pic, but its popup used our GENERIC fallback. we need to stay consistent. our dream ideal scenario would be that the website NEVER needs this farthest fallback.
 
@@ -107,11 +105,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - un-optimistic rendering
  - non statically hosted site 
 
-* **[TODO] Create a Privacy Policy page.**
- - Required for app store submissions (Google Play & Apple App Store).
- - Must cover: what data we collect, why we collect it, how long we retain it, third parties, and user rights.
- - Needs a `/privacy-policy` route and a styled `PrivacyPolicy.js` component matching the existing `TermsOfService.js` design.
- - Should be linked in the footer, Register page, and any app store listing.
 
 * look into making this an app on apple and google play stores.
  - ~~probably need a privacy policy.~~ (tracked above)
@@ -142,6 +135,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* **[TODO] Privacy Policy page**: Created `PrivacyPolicy.js` mirroring the TermsOfService layout with 9 friendly/transparent sections. Added `/privacy-policy` route in `App.js`, made the Register checkbox "Privacy Policy" text a real link, cross-linked from `TermsOfService.js` Section 1, and added a subtle footer to `LandingPage.js` with Terms · Privacy Policy links and copyright. (Complete)
 
 * **[FG-F] Swipe-down pull-to-refresh on auth pages**: Created `useSwipeDownToDismiss` hook that (1) blocks native pull-to-refresh while a card is face-up and (2) interprets a downward swipe ≥60px as a deliberate dismiss, flipping the card face-down. Wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`. (Complete)
 

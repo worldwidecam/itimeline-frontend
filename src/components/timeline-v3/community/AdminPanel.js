@@ -1947,6 +1947,8 @@ const AdminPanel = () => {
                 <CardsTab
                   key="cards"
                   id={id}
+                  userRole={userRole}
+                  currentUserId={currentUserId}
                   onTimelineUpdated={handleTimelineUpdated}
                   onSettingsSaveFabVisibilityChange={setSettingsSaveFabVisible}
                 />
@@ -1956,6 +1958,8 @@ const AdminPanel = () => {
                   key="settings"
                   id={id}
                   mode="timeline"
+                  userRole={userRole}
+                  currentUserId={currentUserId}
                   onTimelineUpdated={handleTimelineUpdated}
                   onSaveFabVisibilityChange={setSettingsSaveFabVisible}
                 />
@@ -1992,11 +1996,57 @@ const AdminPanel = () => {
         mainTooltipClosed="Show Event Options"
         mainTooltipOpen="Hide Options"
       />
+
+      {/* Transfer Leadership Dialog */}
+      <Dialog
+        open={transferLeaderDialogOpen}
+        onClose={handleCloseTransferLeaderModal}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            ...getGlassDialogPaperSx(theme),
+            p: 3,
+            border: '1px solid',
+            borderColor: 'warning.main',
+          },
+        }}
+      >
+        <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
+          <EmojiEventsIcon /> Transfer Leadership?
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, py: 1 }}>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Are you sure you want to transfer Community Leadership to <strong>@{targetLeaderMember?.name || targetLeaderMember?.username || 'this admin'}</strong>?
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              • They will become the official Leader of this community.<br />
+              • Only the Leader (or site admins) can delete this community timeline.<br />
+              • You will remain an Admin member of the community.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
+          <Button onClick={handleCloseTransferLeaderModal} disabled={isTransferringLeader} sx={{ borderRadius: 99 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmTransferLeader}
+            variant="contained"
+            color="warning"
+            disabled={isTransferringLeader}
+            sx={{ borderRadius: 99, px: 3, fontWeight: 700 }}
+          >
+            {isTransferringLeader ? 'Transferring...' : 'Transfer Leadership'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
-const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) => {
+const CardsTab = ({ id, userRole, currentUserId, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [cardsTabValue, setCardsTabValue] = useState(0);
@@ -2041,6 +2091,8 @@ const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) 
                 key="cards-status"
                 id={id}
                 mode="status"
+                userRole={userRole}
+                currentUserId={currentUserId}
                 onTimelineUpdated={onTimelineUpdated}
                 onSaveFabVisibilityChange={onSettingsSaveFabVisibilityChange}
               />
@@ -2050,6 +2102,8 @@ const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) 
                 key="cards-quote"
                 id={id}
                 mode="quote"
+                userRole={userRole}
+                currentUserId={currentUserId}
                 onTimelineUpdated={onTimelineUpdated}
                 onSaveFabVisibilityChange={onSettingsSaveFabVisibilityChange}
               />
@@ -2059,6 +2113,8 @@ const CardsTab = ({ id, onTimelineUpdated, onSettingsSaveFabVisibilityChange }) 
                 key="cards-actions"
                 id={id}
                 mode="actions"
+                userRole={userRole}
+                currentUserId={currentUserId}
                 onTimelineUpdated={onTimelineUpdated}
                 onSaveFabVisibilityChange={onSettingsSaveFabVisibilityChange}
               />
@@ -4084,7 +4140,7 @@ const StandaloneMemberManagementTab = ({ timelineId, userRole, currentUserId, ti
 };
 
 // Settings Tab Component
-const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityChange }) => {
+const SettingsTab = ({ id, mode = 'all', userRole: userRoleProp, currentUserId: currentUserIdProp, onTimelineUpdated, onSaveFabVisibilityChange }) => {
   const theme = useTheme();
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const adminFallbackGradient = theme.palette.mode === 'dark'
@@ -4323,7 +4379,7 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
     y: 50 + joystickKnobOffset.y,
   };
 
-  const canManageImagePrivilege = isSiteAdmin || siteRole === 'SiteOwner';
+  const [currentUserIdState, setCurrentUserIdState] = useState(null);
 
   useEffect(() => {
     try {
@@ -4332,8 +4388,10 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       if (!(userId > 0)) {
         setSiteRole(null);
         setIsSiteAdmin(false);
+        setCurrentUserIdState(null);
         return;
       }
+      setCurrentUserIdState(userId);
       const passportKey = `user_passport_${userId}`;
       const passport = JSON.parse(localStorage.getItem(passportKey) || '{}');
       const resolvedSiteRole = passport?.site_role || (userId === 1 ? 'SiteOwner' : null);
@@ -4343,8 +4401,13 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
       console.warn('[SettingsTab] Failed to parse local passport for site admin role:', error);
       setSiteRole(null);
       setIsSiteAdmin(false);
+      setCurrentUserIdState(null);
     }
   }, []);
+
+  const currentUserId = currentUserIdProp ?? currentUserIdState;
+  const userRole = userRoleProp ?? (isSiteAdmin ? 'siteadmin' : siteRole);
+  const canManageImagePrivilege = isSiteAdmin || siteRole === 'SiteOwner';
 
   useEffect(() => {
     return () => {
@@ -6655,52 +6718,6 @@ const SettingsTab = ({ id, mode = 'all', onTimelineUpdated, onSaveFabVisibilityC
               <Button onClick={handleCloseActionResetDialog}>Cancel</Button>
               <Button variant="contained" color="error" onClick={handleConfirmActionReset}>
                 Yes, reset action
-              </Button>
-            </DialogActions>
-          </Dialog>
-
-          {/* Transfer Leadership Dialog */}
-          <Dialog
-            open={transferLeaderDialogOpen}
-            onClose={handleCloseTransferLeaderModal}
-            maxWidth="xs"
-            fullWidth
-            PaperProps={{
-              sx: {
-                ...getGlassDialogPaperSx(theme),
-                p: 3,
-                border: '1px solid',
-                borderColor: 'warning.main',
-              },
-            }}
-          >
-            <DialogTitle sx={{ p: 0, mb: 1, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
-              <EmojiEventsIcon /> Transfer Leadership?
-            </DialogTitle>
-            <DialogContent sx={{ p: 0, py: 1 }}>
-              <Stack spacing={2}>
-                <Typography variant="body2" color="text.secondary">
-                  Are you sure you want to transfer Community Leadership to <strong>@{targetLeaderMember?.name || targetLeaderMember?.username || 'this admin'}</strong>?
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  • They will become the official Leader of this community.<br />
-                  • Only the Leader (or site admins) can delete this community timeline.<br />
-                  • You will remain an Admin member of the community.
-                </Typography>
-              </Stack>
-            </DialogContent>
-            <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
-              <Button onClick={handleCloseTransferLeaderModal} disabled={isTransferringLeader} sx={{ borderRadius: 99 }}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleConfirmTransferLeader}
-                variant="contained"
-                color="warning"
-                disabled={isTransferringLeader}
-                sx={{ borderRadius: 99, px: 3, fontWeight: 700 }}
-              >
-                {isTransferringLeader ? 'Transferring...' : 'Transfer Leadership'}
               </Button>
             </DialogActions>
           </Dialog>

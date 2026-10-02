@@ -1165,16 +1165,21 @@ function Navbar() {
             to={
               currentPath === '/profile/settings'
                 ? '/profile'
-                : (shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/'))
+                : (isTimelinePage ? (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/') : (shouldNavigateToTimeline ? `/timeline-v3/${timelineId}` : (user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/')))
             }
             onClick={(e) => {
-              if (currentPath === '/profile/settings' || isTimelinePage) {
+              if (currentPath === '/profile/settings') {
                 e.preventDefault();
                 if (window.history && window.history.length > 1) {
                   navigate(-1);
                 } else {
-                  navigate(user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/');
+                  navigate('/profile');
                 }
+                return;
+              }
+              if (isTimelinePage) {
+                e.preventDefault();
+                navigate(user && !AUTH_PATHS.includes(currentPath) ? '/home' : '/');
                 return;
               }
               // If already on the destination page, force a reload

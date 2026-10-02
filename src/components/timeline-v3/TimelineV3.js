@@ -1238,6 +1238,38 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     && (!isCommunityTimeline || canCreateCommunityEvents);
   const canManageHashtagSettings = isHashtagTimeline && (isSiteOwner || isSiteAdmin);
   const canManagePersonalAccessPanel = isPersonalTimeline && isCreator;
+
+  const timelineAccentColor = isPersonalTimeline
+    ? theme.palette.secondary.main
+    : isHashtagTimeline
+      ? theme.palette.success.main
+      : theme.palette.primary.main;
+
+  const fabAccentSx = useMemo(() => {
+    if (isPersonalTimeline) {
+      return {
+        bgcolor: theme.palette.mode === 'dark' ? theme.palette.secondary.dark : theme.palette.secondary.main,
+        '&:hover': {
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.secondary.main : theme.palette.secondary.dark,
+        },
+      };
+    }
+    if (isHashtagTimeline) {
+      return {
+        bgcolor: theme.palette.mode === 'dark' ? theme.palette.success.dark : theme.palette.success.main,
+        '&:hover': {
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.success.main : theme.palette.success.dark,
+        },
+      };
+    }
+    return {
+      bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.dark : theme.palette.primary.main,
+      '&:hover': {
+        bgcolor: theme.palette.mode === 'dark' ? theme.palette.primary.main : theme.palette.primary.dark,
+      },
+    };
+  }, [isPersonalTimeline, isHashtagTimeline, theme.palette.mode, theme.palette.secondary, theme.palette.success, theme.palette.primary]);
+
   const nonCommunityFabActions = useMemo(() => {
     const actions = [];
 
@@ -3387,7 +3419,31 @@ const handleRecenter = () => {
       position: 'relative',
       mb: 3
     }}>
-      <Container maxWidth={false} sx={{ pt: 2.5, pb: 1 }}>
+      {/* Ambient Cover Image Glow */}
+      {coverLandscapeUrl && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: { xs: 240, sm: 300 },
+            backgroundImage: `url(${coverLandscapeUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: `${coverLandscapePosition?.x ?? 50}% ${coverLandscapePosition?.y ?? 50}%`,
+            opacity: theme.palette.mode === 'dark' ? 0.30 : 0.40,
+            filter: theme.palette.mode === 'dark' 
+              ? 'blur(12px) brightness(1.15) saturate(1.25)' 
+              : 'blur(12px) brightness(1.05) saturate(1.35) contrast(1.05)',
+            transform: 'scale(1.08)',
+            maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+      )}
+      <Container maxWidth={false} sx={{ pt: 2.5, pb: 1, position: 'relative', zIndex: 1 }}>
 
         <Stack 
           direction="row" 
@@ -3411,7 +3467,7 @@ const handleRecenter = () => {
               ref={infoTitleRef}
               onClick={() => setInfoOpen((prev) => !prev)}
               sx={{
-                color: theme.palette.primary.main,
+                color: timelineAccentColor,
                 minWidth: 0,
                 flexShrink: 1,
                 flexGrow: 1,
@@ -4621,6 +4677,7 @@ const handleRecenter = () => {
               setFloatingButtonsExpanded(false);
             }}
             createEmphasis
+            mainFabSx={fabAccentSx}
           />
         ) : null}
         {showShareTradingCard ? (
@@ -4687,6 +4744,7 @@ const handleRecenter = () => {
             mainTooltipOpen="Hide Options"
             mainTooltipDisabled="Posting Restricted"
             enableClickAway={false}
+            mainFabSx={fabAccentSx}
           />
         ) : null}
         

@@ -231,49 +231,40 @@ const HashtagSettingsDialog = ({
     if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(pendingCoverPreviewUrl);
     }
-
-    setPendingCoverFile(nextFile);
-    setPendingCoverPreviewUrl(URL.createObjectURL(nextFile));
-    setPendingCoverRemoval(false);
-    setHasUnsavedChanges(true);
-  }, [pendingCoverPreviewUrl, validateCoverFile]);
-
-  const handleSelectLandscapeCoverFile = useCallback((event) => {
-    const nextFile = event?.target?.files?.[0];
-    if (event?.target) {
-      event.target.value = '';
-    }
-    if (!nextFile || !validateCoverFile(nextFile)) return;
-
-    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:') && pendingCoverLandscapePreviewUrl !== pendingCoverPreviewUrl) {
       URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
     }
 
+    const nextBlobUrl = URL.createObjectURL(nextFile);
+    setPendingCoverFile(nextFile);
+    setPendingCoverPreviewUrl(nextBlobUrl);
+    setPendingCoverRemoval(false);
+
     setPendingCoverLandscapeFile(nextFile);
-    setPendingCoverLandscapePreviewUrl(URL.createObjectURL(nextFile));
+    setPendingCoverLandscapePreviewUrl(nextBlobUrl);
     setPendingCoverLandscapeRemoval(false);
     setHasUnsavedChanges(true);
-  }, [pendingCoverLandscapePreviewUrl, validateCoverFile]);
+  }, [pendingCoverPreviewUrl, pendingCoverLandscapePreviewUrl, validateCoverFile]);
+
+  const handleSelectLandscapeCoverFile = handleSelectCoverFile;
 
   const handleClearCover = useCallback(() => {
     setPendingCoverRemoval(true);
+    setPendingCoverLandscapeRemoval(true);
     if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(pendingCoverPreviewUrl);
     }
-    setPendingCoverPreviewUrl('');
-    setPendingCoverFile(null);
-    setHasUnsavedChanges(true);
-  }, [pendingCoverPreviewUrl]);
-
-  const handleClearLandscapeCover = useCallback(() => {
-    setPendingCoverLandscapeRemoval(true);
-    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:') && pendingCoverLandscapePreviewUrl !== pendingCoverPreviewUrl) {
       URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
     }
+    setPendingCoverPreviewUrl('');
+    setPendingCoverFile(null);
     setPendingCoverLandscapePreviewUrl('');
     setPendingCoverLandscapeFile(null);
     setHasUnsavedChanges(true);
-  }, [pendingCoverLandscapePreviewUrl]);
+  }, [pendingCoverPreviewUrl, pendingCoverLandscapePreviewUrl]);
+
+  const handleClearLandscapeCover = handleClearCover;
 
   const uploadCoverFile = useCallback(async (file) => {
     if (!file) return '';
@@ -301,24 +292,18 @@ const HashtagSettingsDialog = ({
     try {
       setIsSaving(true);
 
-      // Resolve portrait
-      let resolvedPortraitUrl = pendingCoverRemoval ? '' : coverPortraitUrl;
-      let newPortraitSize = null;
-      if (pendingCoverRemoval) {
-        resolvedPortraitUrl = '';
-      } else if (pendingCoverFile) {
-        resolvedPortraitUrl = await uploadCoverFile(pendingCoverFile);
-        newPortraitSize = pendingCoverFile.size;
-      }
+      // Resolve single image for both portrait card and landscape banner
+      const isRemoving = pendingCoverRemoval || pendingCoverLandscapeRemoval;
+      const fileToUpload = pendingCoverFile || pendingCoverLandscapeFile;
 
-      // Resolve landscape
-      let resolvedLandscapeUrl = pendingCoverLandscapeRemoval ? '' : coverLandscapeUrl;
-      let newLandscapeSize = null;
-      if (pendingCoverLandscapeRemoval) {
-        resolvedLandscapeUrl = '';
-      } else if (pendingCoverLandscapeFile) {
-        resolvedLandscapeUrl = await uploadCoverFile(pendingCoverLandscapeFile);
-        newLandscapeSize = pendingCoverLandscapeFile.size;
+      let resolvedImageUrl = isRemoving ? '' : (coverPortraitUrl || coverLandscapeUrl);
+      let newFileSize = null;
+
+      if (isRemoving) {
+        resolvedImageUrl = '';
+      } else if (fileToUpload) {
+        resolvedImageUrl = await uploadCoverFile(fileToUpload);
+        newFileSize = fileToUpload.size;
       }
 
       // Build payload using _key fields (required by backend strict Zod schema)
@@ -332,29 +317,28 @@ const HashtagSettingsDialog = ({
         cover_landscape_zoom: clampZoom(coverLandscapeZoom ?? 1),
       };
 
-      if (resolvedPortraitUrl) {
-        payload.cover_portrait_key = extractKeyFromUrl(resolvedPortraitUrl);
-        if (newPortraitSize !== null) payload.cover_portrait_size = newPortraitSize;
+      if (resolvedImageUrl) {
+        const imageKey = extractKeyFromUrl(resolvedImageUrl);
+        payload.cover_portrait_key = imageKey;
+        payload.cover_landscape_key = imageKey;
+        if (newFileSize !== null) {
+          payload.cover_portrait_size = newFileSize;
+          payload.cover_landscape_size = newFileSize;
+        }
       } else {
         payload.cover_portrait_key = null;
-      }
-
-      if (resolvedLandscapeUrl) {
-        payload.cover_landscape_key = extractKeyFromUrl(resolvedLandscapeUrl);
-        if (newLandscapeSize !== null) payload.cover_landscape_size = newLandscapeSize;
-      } else {
         payload.cover_landscape_key = null;
       }
 
       const updatedTimeline = await updateTimelineDetails(timelineId, payload);
 
       const nextDescription = String(updatedTimeline?.description ?? description ?? '');
-      const nextCoverPortraitUrl = String(updatedTimeline?.cover_portrait_image_url || resolvedPortraitUrl || '').trim();
+      const nextCoverPortraitUrl = String(updatedTimeline?.cover_portrait_image_url || resolvedImageUrl || '').trim();
       const nextCoverPortraitX = clampFramePosition(updatedTimeline?.cover_portrait_x ?? coverPortraitPosition?.x ?? 50, 50);
       const nextCoverPortraitY = clampFramePosition(updatedTimeline?.cover_portrait_y ?? coverPortraitPosition?.y ?? 50, 50);
       const nextCoverPortraitZoom = clampZoom(updatedTimeline?.cover_portrait_zoom ?? coverPortraitZoom ?? 1);
 
-      const nextCoverLandscapeUrl = String(updatedTimeline?.cover_landscape_image_url || resolvedLandscapeUrl || '').trim();
+      const nextCoverLandscapeUrl = String(updatedTimeline?.cover_landscape_image_url || resolvedImageUrl || '').trim();
       const nextCoverLandscapeX = clampFramePosition(updatedTimeline?.cover_landscape_x ?? coverLandscapePosition?.x ?? 50, 50);
       const nextCoverLandscapeY = clampFramePosition(updatedTimeline?.cover_landscape_y ?? coverLandscapePosition?.y ?? 50, 50);
       const nextCoverLandscapeZoom = clampZoom(updatedTimeline?.cover_landscape_zoom ?? coverLandscapeZoom ?? 1);
@@ -376,11 +360,10 @@ const HashtagSettingsDialog = ({
       if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(pendingCoverPreviewUrl);
       }
-      setPendingCoverPreviewUrl('');
-
-      if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:')) {
+      if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:') && pendingCoverLandscapePreviewUrl !== pendingCoverPreviewUrl) {
         URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
       }
+      setPendingCoverPreviewUrl('');
       setPendingCoverLandscapePreviewUrl('');
 
       setHasUnsavedChanges(false);
@@ -591,7 +574,7 @@ const HashtagSettingsDialog = ({
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap">
                       <Button variant="outlined" component="label" disabled={isSaving}>
-                        Choose portrait
+                        Choose image
                         <input 
                           hidden 
                           accept="image/*" 
@@ -603,11 +586,14 @@ const HashtagSettingsDialog = ({
                         variant="text"
                         color="error"
                         onClick={handleClearCover}
-                        disabled={isSaving || !(coverPortraitUrl || pendingCoverPreviewUrl || pendingCoverRemoval)}
+                        disabled={isSaving || !(coverPortraitUrl || coverLandscapeUrl || pendingCoverPreviewUrl || pendingCoverLandscapePreviewUrl)}
                       >
                         Remove
                       </Button>
                     </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      One upload sets image for both Trading Card and Banner.
+                    </Typography>
                     {pendingCoverFile && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                         Ready: {pendingCoverFile.name} ({(pendingCoverFile.size / (1024 * 1024)).toFixed(2)} MB)
@@ -730,7 +716,7 @@ const HashtagSettingsDialog = ({
                       </Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap">
                         <Button variant="outlined" component="label" disabled={isSaving}>
-                          Choose landscape
+                          Choose image
                           <input 
                             hidden 
                             accept="image/*" 
@@ -742,11 +728,14 @@ const HashtagSettingsDialog = ({
                           variant="text"
                           color="error"
                           onClick={handleClearLandscapeCover}
-                          disabled={isSaving || !(coverLandscapeUrl || pendingCoverLandscapePreviewUrl || pendingCoverLandscapeRemoval)}
+                          disabled={isSaving || !(coverPortraitUrl || coverLandscapeUrl || pendingCoverPreviewUrl || pendingCoverLandscapePreviewUrl)}
                         >
                           Remove
                         </Button>
                       </Stack>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                        One upload sets image for both Trading Card and Banner.
+                      </Typography>
                       {pendingCoverLandscapeFile && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                           Ready: {pendingCoverLandscapeFile.name} ({(pendingCoverLandscapeFile.size / (1024 * 1024)).toFixed(2)} MB)
