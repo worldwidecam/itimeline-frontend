@@ -105,11 +105,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - un-optimistic rendering
  - non statically hosted site 
 
-* **[TODO] Create a Privacy Policy page.**
- - Required for app store submissions (Google Play & Apple App Store).
- - Must cover: what data we collect, why we collect it, how long we retain it, third parties, and user rights.
- - Needs a `/privacy-policy` route and a styled `PrivacyPolicy.js` component matching the existing `TermsOfService.js` design.
- - Should be linked in the footer, Register page, and any app store listing.
 
 * look into making this an app on apple and google play stores.
  - ~~probably need a privacy policy.~~ (tracked above)
@@ -140,6 +135,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* **[TODO] Privacy Policy page**: Created `PrivacyPolicy.js` mirroring the TermsOfService layout with 9 friendly/transparent sections. Added `/privacy-policy` route in `App.js`, made the Register checkbox "Privacy Policy" text a real link, cross-linked from `TermsOfService.js` Section 1, and added a subtle footer to `LandingPage.js` with Terms · Privacy Policy links and copyright. (Complete)
 
 * **[FG-F] Swipe-down pull-to-refresh on auth pages**: Created `useSwipeDownToDismiss` hook that (1) blocks native pull-to-refresh while a card is face-up and (2) interprets a downward swipe ≥60px as a deliberate dismiss, flipping the card face-down. Wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`. (Complete)
 

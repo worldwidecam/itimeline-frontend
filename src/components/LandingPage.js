@@ -495,6 +495,64 @@ const LandingPage = () => {
       
       {/* Donation Floating Action Buttons */}
       <DonationButtons />
+
+      {/* Footer */}
+      <Box
+        component="footer"
+        sx={{
+          mt: 6,
+          py: 3,
+          px: 2,
+          textAlign: 'center',
+          borderTop: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.08)'
+            : '1px solid rgba(0,0,0,0.08)',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 1 }}>
+          <Link
+            component={RouterLink}
+            to="/terms"
+            underline="hover"
+            sx={{
+              fontSize: '0.8rem',
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)',
+              '&:hover': { color: 'primary.main' },
+              transition: 'color 0.2s',
+            }}
+          >
+            Terms of Service
+          </Link>
+          <Box
+            component="span"
+            sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)', fontSize: '0.75rem' }}
+          >
+            ·
+          </Box>
+          <Link
+            component={RouterLink}
+            to="/privacy-policy"
+            underline="hover"
+            sx={{
+              fontSize: '0.8rem',
+              color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)',
+              '&:hover': { color: 'primary.main' },
+              transition: 'color 0.2s',
+            }}
+          >
+            Privacy Policy
+          </Link>
+        </Box>
+        <Typography
+          variant="caption"
+          sx={{
+            color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)',
+            fontSize: '0.72rem',
+          }}
+        >
+          © {new Date().getFullYear()} iTimeline. All rights reserved.
+        </Typography>
+      </Box>
     </Box>
     </>
   );
