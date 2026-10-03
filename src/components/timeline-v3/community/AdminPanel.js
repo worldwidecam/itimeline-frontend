@@ -1701,6 +1701,7 @@ const AdminPanel = () => {
         <TimelineHeroBanner
           timelineName={timelineData.name}
           timelineType="community"
+          visibility={timelineData.visibility}
           coverImageUrl={adminCoverImageUrl}
           coverLandscapeX={timelineData.coverLandscapeX}
           coverLandscapeY={timelineData.coverLandscapeY}

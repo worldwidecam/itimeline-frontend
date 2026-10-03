@@ -5848,6 +5848,7 @@ const HomePage = () => {
                           <TimelineHeroBanner
                             timelineName={prefixedTitle}
                             timelineType={timelineType}
+                            visibility={selectedFavoriteTimeline?.visibility}
                             coverImageUrl={bannerImageUrl}
                             coverLandscapeX={coverLandscapePosition.x}
                             coverLandscapeY={coverLandscapePosition.y}

@@ -4399,6 +4399,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
             <TimelineHeroBanner
               timelineName={timelineName}
               timelineType={timeline_type}
+              visibility={visibility}
               coverImageUrl={coverLandscapeUrl}
               coverLandscapeX={coverLandscapePosition.x}
               coverLandscapeY={coverLandscapePosition.y}
@@ -4696,6 +4697,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           initialCoverLandscapeZoom={coverLandscapeZoom}
           onSaved={handleHashtagSettingsSaved}
           onNotify={handleAccessPanelNotice}
+          events={events}
         />
 
         {/* Animated Floating Action Buttons */}

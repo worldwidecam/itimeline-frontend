@@ -11,7 +11,10 @@ import {
   TextField,
   Typography,
   useTheme,
+  CircularProgress,
+  Chip,
 } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import api, { updateTimelineDetails } from '../../utils/api';
 import { TimelineHeroBanner } from './TimelineHeroBanner';
 import TradingCard from '../common/TradingCard';
@@ -65,12 +68,104 @@ const extractKeyFromUrl = (url) => {
       return `timelines/${legacyMatch[1]}`;
     }
     
+    // If it's a full external URL, return as-is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
     // Fallback: return path without leading slash
     return path.startsWith('/') ? path.slice(1) : path;
   } catch (e) {
     // If URL parsing fails, return original
     return url;
   }
+};
+
+const isMediaVideoOrAudio = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim().toLowerCase();
+  return (
+    /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv|mp3|wav|m4a|aac|flac)($|\?)/i.test(clean) ||
+    clean.includes('/video/upload/') ||
+    clean.includes('/audio/upload/')
+  );
+};
+
+const getEventImageUrl = (event) => {
+  if (!event) return null;
+
+  // 1. Strictly narrow down to media events (skip remark, news, links, etc.)
+  const eventType = String(event.type || event.event_type || '').toLowerCase();
+  if (eventType && eventType !== 'media') return null;
+
+  // 2. Filter out audio and video media events
+  const subtype = String(event.media_subtype || event.media?.media_subtype || '').toLowerCase();
+  if (subtype === 'video' || subtype === 'audio') return null;
+
+  const mediaTypeHint = String(event.media_type || event.media?.type || '').toLowerCase();
+  if (mediaTypeHint.includes('video') || mediaTypeHint.includes('audio')) return null;
+
+  // 3. Extract candidate exclusively from media fields (never use event.url which points to external articles/sites)
+  let candidate = (
+    event.media_url ||
+    event.mediaUrl ||
+    (event.media && (event.media.url || event.media.media_url)) ||
+    ''
+  );
+
+  // Fallback for Cloudinary public ID if media_url was not pre-resolved
+  if (!candidate && event.cloudinary_id && typeof event.cloudinary_id === 'string' && !event.cloudinary_id.includes('/')) {
+    candidate = `https://res.cloudinary.com/dnjwvuxn7/image/upload/${event.cloudinary_id}`;
+  }
+
+  if (!candidate || typeof candidate !== 'string') return null;
+  const trimmed = candidate.trim();
+  if (!trimmed || isMediaVideoOrAudio(trimmed)) return null;
+
+  // Must be a valid absolute or protocol-relative web URL
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('/')) return null;
+
+  return trimmed;
+};
+
+const getEventVotes = (event) => {
+  if (!event) return 0;
+  if (event.vote_totals) {
+    return (Number(event.vote_totals.promote) || 0) + (Number(event.vote_totals.demote) || 0);
+  }
+  return Number(event.vote_count ?? event.votes ?? event.total_votes ?? 0);
+};
+
+const findEligibleCandidates = (rawEvents) => {
+  if (!Array.isArray(rawEvents) || rawEvents.length === 0) return [];
+  
+  const eligible = [];
+  const seenUrls = new Set();
+  
+  for (const ev of rawEvents) {
+    const imgUrl = getEventImageUrl(ev);
+    if (imgUrl && !seenUrls.has(imgUrl)) {
+      seenUrls.add(imgUrl);
+      const votes = getEventVotes(ev);
+      const date = ev.event_date ? new Date(ev.event_date).getTime() : 0;
+      eligible.push({
+        event: ev,
+        imageUrl: imgUrl,
+        title: String(ev.title || 'Untitled Event').trim(),
+        votes,
+        date,
+      });
+    }
+  }
+
+  // Sort primarily by votes descending, secondarily by date descending
+  eligible.sort((a, b) => {
+    if (b.votes !== a.votes) return b.votes - a.votes;
+    return b.date - a.date;
+  });
+
+  console.log(`[HashtagSettingsDialog] Filtered ${rawEvents.length} events -> ${eligible.length} image media candidate(s).`);
+  return eligible;
 };
 
 const HashtagSettingsDialog = ({
@@ -88,6 +183,7 @@ const HashtagSettingsDialog = ({
   initialCoverLandscapeZoom,
   onSaved,
   onNotify,
+  events = [],
 }) => {
   const theme = useTheme();
   const [description, setDescription] = useState('');
@@ -97,6 +193,11 @@ const HashtagSettingsDialog = ({
   const [pendingCoverFile, setPendingCoverFile] = useState(null);
   const [pendingCoverPreviewUrl, setPendingCoverPreviewUrl] = useState('');
   const [pendingCoverRemoval, setPendingCoverRemoval] = useState(false);
+
+  // Auto-pick from events candidates and state
+  const [eventCandidates, setEventCandidates] = useState([]);
+  const [currentCandidateIndex, setCurrentCandidateIndex] = useState(-1);
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
 
   // Landscape cover states
   const [coverLandscapeUrl, setCoverLandscapeUrl] = useState('');
@@ -169,6 +270,14 @@ const HashtagSettingsDialog = ({
 
     setActiveFrameTarget('portrait');
     setHasUnsavedChanges(false);
+
+    // Reset auto-pick candidate tracking and pre-parse candidates if events provided
+    setCurrentCandidateIndex(-1);
+    if (Array.isArray(events) && events.length > 0) {
+      setEventCandidates(findEligibleCandidates(events));
+    } else {
+      setEventCandidates([]);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
@@ -181,6 +290,7 @@ const HashtagSettingsDialog = ({
     initialCoverLandscapePosition?.x,
     initialCoverLandscapePosition?.y,
     initialCoverLandscapeZoom,
+    events,
   ]);
 
   useEffect(() => () => {
@@ -243,6 +353,7 @@ const HashtagSettingsDialog = ({
     setPendingCoverLandscapeFile(nextFile);
     setPendingCoverLandscapePreviewUrl(nextBlobUrl);
     setPendingCoverLandscapeRemoval(false);
+    setCurrentCandidateIndex(-1);
     setHasUnsavedChanges(true);
   }, [pendingCoverPreviewUrl, pendingCoverLandscapePreviewUrl, validateCoverFile]);
 
@@ -261,10 +372,71 @@ const HashtagSettingsDialog = ({
     setPendingCoverFile(null);
     setPendingCoverLandscapePreviewUrl('');
     setPendingCoverLandscapeFile(null);
+    setCoverPortraitUrl('');
+    setCoverLandscapeUrl('');
+    setCurrentCandidateIndex(-1);
     setHasUnsavedChanges(true);
   }, [pendingCoverPreviewUrl, pendingCoverLandscapePreviewUrl]);
 
   const handleClearLandscapeCover = handleClearCover;
+
+  // Auto-Pick or Re-roll cover photo from the timeline's events
+  const handleAutoPickOrReRoll = useCallback(async () => {
+    let candidates = eventCandidates;
+
+    if (!candidates || candidates.length === 0) {
+      let sourceEvents = Array.isArray(events) ? events : [];
+      let found = findEligibleCandidates(sourceEvents);
+
+      // If in-memory events have no image media candidates, query the timeline's full event list from the server
+      if (found.length === 0 && timelineId) {
+        try {
+          setIsLoadingCandidates(true);
+          const res = await api.get(`/api/v1/events/by-timeline/${timelineId}?limit=100`);
+          const fetchedEvents = res.data?.data || res.data?.events || [];
+          found = findEligibleCandidates(fetchedEvents);
+        } catch (err) {
+          console.error('[HashtagSettingsDialog] Failed to fetch events for auto-pick:', err);
+        } finally {
+          setIsLoadingCandidates(false);
+        }
+      }
+
+      candidates = found;
+      setEventCandidates(candidates);
+
+      if (candidates.length === 0) {
+        emitNotice('No image media events found on this timeline.', 'info');
+        return;
+      }
+    }
+
+    const nextIndex = (currentCandidateIndex + 1) % candidates.length;
+    setCurrentCandidateIndex(nextIndex);
+
+    const chosen = candidates[nextIndex];
+
+    setCoverPortraitUrl(chosen.imageUrl);
+    setCoverLandscapeUrl(chosen.imageUrl);
+    setPendingCoverFile(null);
+    setPendingCoverLandscapeFile(null);
+    if (pendingCoverPreviewUrl && pendingCoverPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pendingCoverPreviewUrl);
+    }
+    if (pendingCoverLandscapePreviewUrl && pendingCoverLandscapePreviewUrl.startsWith('blob:') && pendingCoverLandscapePreviewUrl !== pendingCoverPreviewUrl) {
+      URL.revokeObjectURL(pendingCoverLandscapePreviewUrl);
+    }
+    setPendingCoverPreviewUrl('');
+    setPendingCoverLandscapePreviewUrl('');
+    setPendingCoverRemoval(false);
+    setPendingCoverLandscapeRemoval(false);
+    setHasUnsavedChanges(true);
+
+    emitNotice(
+      `Selected photo ${nextIndex + 1} of ${candidates.length}: "${chosen.title}" (${chosen.votes} vote${chosen.votes === 1 ? '' : 's'})`,
+      'success'
+    );
+  }, [eventCandidates, events, timelineId, currentCandidateIndex, pendingCoverPreviewUrl, pendingCoverLandscapePreviewUrl, emitNotice]);
 
   const uploadCoverFile = useCallback(async (file) => {
     if (!file) return '';
@@ -572,7 +744,7 @@ const HashtagSettingsDialog = ({
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
                       Upload controls
                     </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
                       <Button variant="outlined" component="label" disabled={isSaving}>
                         Choose image
                         <input 
@@ -583,6 +755,15 @@ const HashtagSettingsDialog = ({
                         />
                       </Button>
                       <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={handleAutoPickOrReRoll}
+                        disabled={isSaving || isLoadingCandidates}
+                        startIcon={isLoadingCandidates ? <CircularProgress size={16} color="inherit" /> : (currentCandidateIndex >= 0 ? <RefreshIcon /> : null)}
+                      >
+                        {currentCandidateIndex >= 0 ? 'Re-roll Event Photo' : 'Auto-Pick from Events'}
+                      </Button>
+                      <Button
                         variant="text"
                         color="error"
                         onClick={handleClearCover}
@@ -591,6 +772,17 @@ const HashtagSettingsDialog = ({
                         Remove
                       </Button>
                     </Stack>
+                    {currentCandidateIndex >= 0 && eventCandidates.length > 0 && (
+                      <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          label={`Photo ${currentCandidateIndex + 1} of ${eventCandidates.length}: "${eventCandidates[currentCandidateIndex]?.title || 'Event'}" (${eventCandidates[currentCandidateIndex]?.votes} vote${eventCandidates[currentCandidateIndex]?.votes === 1 ? '' : 's'})`}
+                          onDelete={handleClearCover}
+                        />
+                      </Box>
+                    )}
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                       One upload sets image for both Trading Card and Banner.
                     </Typography>
@@ -714,7 +906,7 @@ const HashtagSettingsDialog = ({
                       <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
                         Upload controls
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                      <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
                         <Button variant="outlined" component="label" disabled={isSaving}>
                           Choose image
                           <input 
@@ -725,6 +917,15 @@ const HashtagSettingsDialog = ({
                           />
                         </Button>
                         <Button
+                          variant="outlined"
+                          color="primary"
+                          onClick={handleAutoPickOrReRoll}
+                          disabled={isSaving || isLoadingCandidates}
+                          startIcon={isLoadingCandidates ? <CircularProgress size={16} color="inherit" /> : (currentCandidateIndex >= 0 ? <RefreshIcon /> : null)}
+                        >
+                          {currentCandidateIndex >= 0 ? 'Re-roll Event Photo' : 'Auto-Pick from Events'}
+                        </Button>
+                        <Button
                           variant="text"
                           color="error"
                           onClick={handleClearLandscapeCover}
@@ -733,6 +934,17 @@ const HashtagSettingsDialog = ({
                           Remove
                         </Button>
                       </Stack>
+                      {currentCandidateIndex >= 0 && eventCandidates.length > 0 && (
+                        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            label={`Photo ${currentCandidateIndex + 1} of ${eventCandidates.length}: "${eventCandidates[currentCandidateIndex]?.title || 'Event'}" (${eventCandidates[currentCandidateIndex]?.votes} vote${eventCandidates[currentCandidateIndex]?.votes === 1 ? '' : 's'})`}
+                            onDelete={handleClearLandscapeCover}
+                          />
+                        </Box>
+                      )}
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                         One upload sets image for both Trading Card and Banner.
                       </Typography>

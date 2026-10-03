@@ -24,6 +24,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - ~~need to safe migrate new tables to staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-staging`)
  - ~~need to safe migrate new tables to production once safe testing is confirmed on staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-prod`)
 
+* ~~**Automatic Media Cover for Hashtag Timelines**~~ (Completed — Added "Auto-Pick from Events" / "Re-roll Event Photo" to `HashtagSettingsDialog.js`, strictly filtered to image media events sorted by community votes, synchronized across both Trading Card and Banner previews with full joystick/zoom framing and remove controls intact, and backend R2 URL passthrough support verified.)
+
+* ~~**Banner Title & Brand Prefix Display**~~ (Completed — Displayed timeline title with brand-specific prefixes `i -`, `My-`, `#`, private lock indicator, and uppercase eyebrow category tag directly on `TimelineHeroBanner` with high-contrast text shadows, synchronized across Timeline, Members, Admin, and Home views.)
+
 ---
 
 ### 🔴 Focus Group — Bugs (High Priority)
