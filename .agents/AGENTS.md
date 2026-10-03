@@ -3,6 +3,7 @@
 When doing file updates or replacements using search/replace tools:
 - **Always preserve bracket match hygiene**: Carefully verify matching braces `{}` and parentheses `()` inside targeted blocks.
 - **Double-check replace chunks**: Ensure no closing block brackets or function signatures are accidentally removed or duplicated during partial replacements.
+- **Inspect EOF after replacement**: When using multi-replace tools on large files, always inspect the tail of the file to verify that no orphaned or duplicate code was left after `export default` or closing tags.
 - **Run build checks**: Always execute a production build to check for syntax correctness right after any change.
 
 # Core Memory — Variable Initialization and Hook Ordering

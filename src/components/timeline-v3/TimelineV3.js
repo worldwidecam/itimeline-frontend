@@ -130,9 +130,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isPendingApproval, setIsPendingApproval] = useState(false); // Track if user has a pending membership request
   const [reviewingEventIds, setReviewingEventIds] = useState(new Set()); // Track event IDs that are "in review" on this timeline
   const [infoOpen, setInfoOpen] = useState(false); // Collapsible Info & Rules panel on the timeline title
+  // Timeline tool collapse preference — global (not per-timeline), remembered across sessions
+  const [timelineToolOpen, setTimelineToolOpen] = useState(() => {
+    const saved = localStorage.getItem('timeline_tool_open');
+    return saved !== null ? saved === 'true' : true; // Default: open
+  });
   const infoTitleRef = useRef(null); // ref for the clickable title
   const infoPanelRef = useRef(null); // ref for the collapsible panel
   const timelineWorkspaceRef = useRef(null);
+  const eventListContainerRef = useRef(null); // scroll container for the EventList panel
   const [timelineWorkspaceBounds, setTimelineWorkspaceBounds] = useState({
     left: 0,
     width: window.innerWidth,
@@ -211,7 +217,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         setIsLoading(false);
         return;
       }
-      
+
       try {
         setIsLoading(true);
         setLoadFailed(false);
@@ -239,7 +245,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
           setTimelineName('');
           return;
         }
-        
+
         if (timelineData && (timelineData.is_deleted || timelineData.display_name === 'Deleted Timeline')) {
           setIsDeletedTimeline(true);
           setTimelineName(timelineData.display_name || timelineData.name || '');
@@ -514,19 +520,19 @@ function TimelineV3({ timelineId: timelineIdProp }) {
 
   const getExactTimePosition = () => {
     const now = getCurrentDateTime();
-    
+
     if (viewMode === 'year') {
       return getYearProgress();
     }
-    
+
     if (viewMode === 'month') {
       return getMonthProgress();
     }
-    
+
     if (viewMode === 'week') {
       return getDayProgress();
     }
-    
+
     // Day view - Calculate position relative to current hour
     const currentMinute = now.getMinutes();
     return currentMinute / 60; // Returns a value between 0 and 1
@@ -610,11 +616,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const params = new URLSearchParams(window.location.search);
     return params.get('view') || 'day';
   });
-  
+
   // ============================================================================
   // POINT B STATE - Dual Reference System (Decoupled Arrow + Reference)
   // ============================================================================
-  
+
   /**
    * Point B represents a user-selected focus point on the timeline.
    * When active, the timeline UI follows Point B instead of Point A (current time).
@@ -628,18 +634,18 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Quarantine mode: keep Point B limited to pointer arrow + label only
   const B_POINTER_MINIMAL = true;
   const [pointB_active, setPointB_active] = useState(false);
-  
+
   // Arrow position (visual, fractional) - shows exact click location
   const [pointB_arrow_markerValue, setPointB_arrow_markerValue] = useState(0);
   const [pointB_arrow_pixelOffset, setPointB_arrow_pixelOffset] = useState(0);
-  
+
   // Reference position (calculation, integer) - what EventMarkers calculate from
   const [pointB_reference_markerValue, setPointB_reference_markerValue] = useState(0);
   const [pointB_reference_timestamp, setPointB_reference_timestamp] = useState(null);
-  
+
   const [pointB_viewMode, setPointB_viewMode] = useState('day');
   const [pointB_eventId, setPointB_eventId] = useState(null); // Optional: track which event Point B is focused on
-  
+
   // TIMELINE V4: Cache Point B's view interpretations (closest LEFT integer marker for each view)
   // This allows instant view switching without recalculating from timestamp
   const [pointB_cached_interpretations, setPointB_cached_interpretations] = useState({
@@ -695,7 +701,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const markerSpacing = 100;
     const visibleMarkers = Math.ceil(viewportWidth / markerSpacing);
     const baseMargin = Math.ceil(visibleMarkers / 2); // Half viewport
-    
+
     // View-specific buffer scaling to prevent year view from loading decades
     const bufferMultipliers = {
       'day': 1.5,    // ±1.5x viewport (e.g., ~27 hours if viewport shows 18 hours)
@@ -704,7 +710,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       'year': 0.3,   // placeholder, overridden below for strict per-year margin
       'position': 1.5 // Default for coordinate view
     };
-    
+
     // STRICT year margin: remain within the selected year's single marker band
     if (currentViewMode === 'year') {
       return 0.49; // Less than one marker so crossing into next year updates reference
@@ -722,17 +728,17 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   // Point A state (current time tracking)
   const [pointA_currentTime, setPointA_currentTime] = useState(new Date());
   const [pointA_markerValue, setPointA_markerValue] = useState(0); // Always 0 in current implementation
-  
+
   // Pre-load buffer for smooth scrolling (especially important for touch gestures)
   const PRELOAD_MARGIN_MULTIPLIER = 2.5; // Pre-load 2.5x viewport width on each side
-  
+
   // ============================================================================
-  
+
   // Track debounce timers with refs for wheel event handling
   const wheelTimer = useRef(null);
   const wheelDebounceTimer = useRef(null);
   const wheelEvents = useRef([]);
-  
+
   // Touch/drag handling refs
   const touchStartX = useRef(null);
   const touchStartOffset = useRef(null);
@@ -740,7 +746,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const settleTimer = useRef(null);
   const MOTION_SETTLE_DELAY = 450;
   const [isSettled, setIsSettled] = useState(true); // Timeline is settled (not moving)
-  
+
   /**
    * Touch/Drag event handlers for smooth timeline scrolling
    * Provides real-time feedback as user drags the timeline
@@ -750,60 +756,60 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     touchStartX.current = touch.clientX;
     touchStartOffset.current = timelineOffset;
     isDragging.current = true;
-    
+
     // Mark as not settled ONCE when drag starts (not on every move!)
     setIsSettled(false);
-    
+
     // Set cursor to grabbing
     if (event.currentTarget) {
       event.currentTarget.style.cursor = 'grabbing';
     }
   };
-  
+
   const handleTouchMove = (event) => {
     if (!isDragging.current || touchStartX.current === null) return;
-    
+
     // Only prevent default for mouse events to avoid console warnings (touchAction: 'none' handles touches naturally)
     if (event.type === 'mousemove' && event.preventDefault) {
       event.preventDefault();
     }
-    
+
     // NO setIsSettled here! It's already set in handleTouchStart
     // Calling it here causes hundreds of re-renders = choppy drag
-    
+
     const touch = event.touches ? event.touches[0] : event;
     const deltaX = touch.clientX - touchStartX.current;
     const newOffset = touchStartOffset.current + deltaX;
-    
+
     // Update offset in real-time (no debounce for immediate feedback)
     setTimelineOffset(newOffset);
-    
+
   };
-  
+
   const handleTouchEnd = (event) => {
     if (!isDragging.current) return;
-    
+
     isDragging.current = false;
     touchStartX.current = null;
     touchStartOffset.current = null;
-    
+
     // Reset cursor to grab
     if (event.currentTarget) {
       event.currentTarget.style.cursor = 'grab';
     }
-    
+
     // Detect when timeline has settled after drag
     clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       setIsSettled(true); // Triggers event marker fade in
     }, MOTION_SETTLE_DELAY);
-    
+
     // Optional: Snap to nearest marker for cleaner positioning
     // Uncomment if you want snapping behavior
     // const nearestMarker = Math.round(timelineOffset / 100) * 100;
     // setTimelineOffset(nearestMarker);
   };
-  
+
   const [hoverPosition, setHoverPosition] = useState(getExactTimePosition());
 
   useEffect(() => {
@@ -819,7 +825,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isMoving, setIsMoving] = useState(false); // New state to track timeline movement
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  
+
   // Refs for event cards to access their methods
   const eventRefs = useRef({});
 
@@ -902,11 +908,11 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ''}`, { replace: true });
     }
   }, [timelineId, events, location.pathname, location.search, navigate]);
-  
+
   const handleAddEventClick = (event) => {
     setAddEventAnchorEl(event.currentTarget);
   };
-  
+
   const handleAddEventMenuClose = () => {
     setAddEventAnchorEl(null);
   };
@@ -997,10 +1003,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       const backendViewers = await addPersonalTimelineViewer(timelineId, userData.id);
       const mapped = Array.isArray(backendViewers)
         ? backendViewers.map((v) => ({
-            id: v.id,
-            username: v.username,
-            avatarUrl: v.avatar_url || null,
-          }))
+          id: v.id,
+          username: v.username,
+          avatarUrl: v.avatar_url || null,
+        }))
         : [];
 
       setAllowedViewers(mapped);
@@ -1016,10 +1022,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       const backendViewers = await removePersonalTimelineViewer(timelineId, viewerId);
       const mapped = Array.isArray(backendViewers)
         ? backendViewers.map((v) => ({
-            id: v.id,
-            username: v.username,
-            avatarUrl: v.avatar_url || null,
-          }))
+          id: v.id,
+          username: v.username,
+          avatarUrl: v.avatar_url || null,
+        }))
         : [];
 
       setAllowedViewers(mapped);
@@ -1120,15 +1126,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     const handleStorageChange = () => {
       setSortOrder(localStorage.getItem('timeline_sort_preference') || 'newest');
     };
-    
+
     const handleSortChange = (event) => {
       setSortOrder(event.detail.sortOrder);
     };
-    
+
     // Listen for both the storage event and our custom sort change event
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('timeline_sort_change', handleSortChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('timeline_sort_change', handleSortChange);
@@ -1476,10 +1482,10 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         const viewers = await getPersonalTimelineViewers(timelineId);
         const mapped = Array.isArray(viewers)
           ? viewers.map((v) => ({
-              id: v.id,
-              username: v.username,
-              avatarUrl: v.avatar_url || null,
-            }))
+            id: v.id,
+            username: v.username,
+            avatarUrl: v.avatar_url || null,
+          }))
           : [];
         setAllowedViewers(mapped);
       } catch (e) {
@@ -1495,7 +1501,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     setShouldScrollToEvent(true);
     // Lock selection so auto-sync (carousel or others) doesn't override right away
     lockUserSelection(1500);
-    
+
     // Also update the currentEventIndex to keep carousel in sync
     const eventIndex = events.findIndex(e => e.id === event.id);
     if (eventIndex !== -1) {
@@ -1514,12 +1520,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     if (!event.event_date || currentViewMode === 'position') {
       return 0;
     }
-    
+
     const eventDate = new Date(event.event_date);
     // Use current time as the base reference; positioning is handled via timelineOffset
     const currentDate = pointA_currentTime || new Date();
     let markerValue;
-    
+
     switch (currentViewMode) {
       case 'day': {
         const dayDiffMs = differenceInMilliseconds(
@@ -1581,7 +1587,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
       default:
         markerValue = 0;
     }
-    
+
     return markerValue;
   };
 
@@ -1591,26 +1597,26 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // ============================================================================
     if (event.event_date && viewMode !== 'position') {
       const eventDate = new Date(event.event_date);
-      
+
       // Calculate exact marker position using helper function
       const markerValue = calculateEventMarkerPosition(event, viewMode);
       // Treat dot click as an explicit user selection; lock to prevent overrides
       lockUserSelection(1500);
-      
+
       // Activate Point B at this position
       activatePointB(markerValue, eventDate, viewMode, event.id, false, 0);
     }
-    
+
     // Find the index of the clicked event in the events array
     const eventIndex = events.findIndex(e => e.id === event.id);
-    
+
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
     setShouldScrollToEvent(false);
-    
+
     // Select the event to highlight it in the list
     setSelectedEventId(event.id);
     setCurrentEventIndex(eventIndex);
-    
+
     // Find the card reference for this event
     let cardRef;
     if (event.type?.toLowerCase() === 'news') {
@@ -1620,7 +1626,7 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     } else {
       cardRef = eventRefs.current[`remark-card-${event.id}`];
     }
-    
+
     // If we have a reference to the card, directly call its setPopupOpen method
     if (cardRef?.current?.setPopupOpen) {
       cardRef.current.setPopupOpen(true);
@@ -1643,12 +1649,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         }
         return true;
       }
-      
+
       if (!event.event_date) return false;
-      
+
       const currentDate = getCurrentTimeReference();
       let startDate, endDate;
-      
+
       // Determine visible marker range with a safe fallback when visibleMarkers isn't ready
       let rangeMin, rangeMax;
       if (visibleMarkers && visibleMarkers.length > 0) {
@@ -1663,15 +1669,15 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
         rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
       }
-      
+
       // Use only the visible markers without any buffer
       // This ensures we only show events that are actually visible on screen
-      
+
       switch (viewMode) {
         case 'day': {
           startDate = new Date(currentDate);
           startDate.setHours(startDate.getHours() + rangeMin);
-          
+
           endDate = new Date(currentDate);
           endDate.setHours(endDate.getHours() + rangeMax);
           break;
@@ -1694,16 +1700,16 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         default:
           return true;
       }
-      
+
       const eventDate = new Date(event.event_date);
       const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
-      
+
       // Apply type filter if selected
       if (selectedType) {
         const eventType = (event.type || '').toLowerCase();
         return passesDateFilter && eventType === selectedType.toLowerCase();
       }
-      
+
       return passesDateFilter;
     });
   };
@@ -1714,27 +1720,27 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     // Note: exactMarkerValue can be 0 (valid), so check for undefined/null specifically
     if (event.event_date && viewMode !== 'position' && exactMarkerValue != null) {
       const eventDate = new Date(event.event_date);
-      
+
       // Activate Point B at this event's EXACT position (not rounded)
       activatePointB(exactMarkerValue, eventDate, viewMode, event.id, false, markerPixelOffset);
     } else {
       console.warn('[Point B] Skipped activation - exactMarkerValue:', exactMarkerValue, 'event_date:', event.event_date, 'viewMode:', viewMode);
     }
-    
+
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
     setShouldScrollToEvent(false);
     // Prevent immediate auto-selection overrides (EventCounter sync)
     lockUserSelection(1500);
-    
+
     // Set the selected event ID to highlight it in the list (shows hover card)
     setSelectedEventId(event.id);
-    
+
     // Get the filtered events array that's used by the EventCounter
     const filteredEvents = getFilteredEventsForCounter();
-    
+
     // Find the index of the clicked event in the filtered events array
     const filteredIndex = filteredEvents.findIndex(e => e.id === event.id);
-    
+
     // Update the current event index to keep the carousel in sync
     if (filteredIndex !== -1) {
       setCurrentEventIndex(filteredIndex);
@@ -1749,12 +1755,12 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   const [userInteracted, setUserInteracted] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0); // Track loading progress for visual feedback
   const [showLoadingBar, setShowLoadingBar] = useState(false); // Control loading bar visibility with delay
-  
+
   // Add a delay before showing the loading bar to prevent flashing
   useEffect(() => {
     let showBarTimeout;
     let hideBarTimeout;
-    
+
     if (progressiveLoadingState !== 'complete') {
       // Only show loading bar after a delay to prevent flashing for quick loads
       showBarTimeout = setTimeout(() => {
@@ -1766,16 +1772,16 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         setShowLoadingBar(false);
       }, 100);
     }
-    
+
     return () => {
       clearTimeout(showBarTimeout);
       clearTimeout(hideBarTimeout);
     };
   }, [progressiveLoadingState]);
-  
+
   // Scoped blur flag: only for community timelines, while membership is loading or when blocked
   const shouldBlur = (timeline_type === 'community') && (isMember === null || isBlocked === true);
-  
+
   // View transition states
   const [isViewTransitioning, setIsViewTransitioning] = useState(false);
   const [pendingViewMode, setPendingViewMode] = useState(null);
@@ -2110,26 +2116,26 @@ function TimelineV3({ timelineId: timelineIdProp }) {
   }, [viewMode, visibleEvents.length, updateTimelineWorkspaceBounds]);
 
   // Scan line system removed (vote-dot glow now handled by Canvas V2).
-  
+
   // Function to navigate to the next event in the carousel and update the selected marker
   const navigateToNextEvent = () => {
     if (!events.length) return;
-    
+
     // Get the filtered events based on current view mode
     const filteredEvents = events.filter(e => {
       // Apply the same filtering logic as in EventList
       if (viewMode === 'position') return true;
-      
+
       if (!e.event_date) return false;
-      
+
       const currentDate = getCurrentTimeReference();
       let startDate, endDate;
-      
+
       switch (viewMode) {
         case 'day': {
           startDate = new Date(currentDate);
           startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
-          
+
           endDate = new Date(currentDate);
           endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
           break;
@@ -2152,57 +2158,57 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         default:
           return true;
       }
-      
+
       const eventDate = new Date(e.event_date);
       return eventDate >= startDate && eventDate <= endDate;
     });
-    
+
     if (!filteredEvents.length) return;
-    
+
     // Find the current index in the filtered events
     const currentFilteredIndex = filteredEvents.findIndex(e => e.id === selectedEventId);
-    
+
     // Calculate the next index (with wraparound)
-    const nextFilteredIndex = currentFilteredIndex === -1 || currentFilteredIndex === filteredEvents.length - 1 
-      ? 0 
+    const nextFilteredIndex = currentFilteredIndex === -1 || currentFilteredIndex === filteredEvents.length - 1
+      ? 0
       : currentFilteredIndex + 1;
-    
+
     // Get the next event
     const nextEvent = filteredEvents[nextFilteredIndex];
-    
+
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
     // to prevent EventList from scrolling when the ID changes
     setShouldScrollToEvent(false);
-    
+
     // Update the selected event ID and current event index
     setSelectedEventId(nextEvent.id);
-    
+
     // Find the index in the full events array
     const fullEventsIndex = events.findIndex(e => e.id === nextEvent.id);
     if (fullEventsIndex !== -1) {
       setCurrentEventIndex(fullEventsIndex);
     }
   };
-  
+
   // Function to navigate to the previous event in the carousel and update the selected marker
   const navigateToPrevEvent = () => {
     if (!events.length) return;
-    
+
     // Get the filtered events based on current view mode
     const filteredEvents = events.filter(e => {
       // Apply the same filtering logic as in EventList
       if (viewMode === 'position') return true;
-      
+
       if (!e.event_date) return false;
-      
+
       const currentDate = getCurrentTimeReference();
       let startDate, endDate;
-      
+
       switch (viewMode) {
         case 'day': {
           startDate = new Date(currentDate);
           startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
-          
+
           endDate = new Date(currentDate);
           endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
           break;
@@ -2225,31 +2231,31 @@ function TimelineV3({ timelineId: timelineIdProp }) {
         default:
           return true;
       }
-      
+
       const eventDate = new Date(e.event_date);
       return eventDate >= startDate && eventDate <= endDate;
     });
-    
+
     if (!filteredEvents.length) return;
-    
+
     // Find the current index in the filtered events
     const currentFilteredIndex = filteredEvents.findIndex(e => e.id === selectedEventId);
-    
+
     // Calculate the previous index (with wraparound)
-    const prevFilteredIndex = currentFilteredIndex === -1 || currentFilteredIndex === 0 
-      ? filteredEvents.length - 1 
+    const prevFilteredIndex = currentFilteredIndex === -1 || currentFilteredIndex === 0
+      ? filteredEvents.length - 1
       : currentFilteredIndex - 1;
-    
+
     // Get the previous event
     const prevEvent = filteredEvents[prevFilteredIndex];
-    
+
     // IMPORTANT: Disable auto-scroll BEFORE updating selectedEventId
     // to prevent EventList from scrolling when the ID changes
     setShouldScrollToEvent(false);
-    
+
     // Update the selected event ID and current event index
     setSelectedEventId(prevEvent.id);
-    
+
     // Find the index in the full events array
     const fullEventsIndex = events.findIndex(e => e.id === prevEvent.id);
     if (fullEventsIndex !== -1) {
@@ -2257,141 +2263,161 @@ function TimelineV3({ timelineId: timelineIdProp }) {
     }
   };
 
-// Handle view mode transitions with a multi-phase approach
-const handleViewModeTransition = (newViewMode) => {
-  // Don't do anything if we're already transitioning or if it's the same mode
-  if (isViewTransitioning || newViewMode === viewMode) return;
+  // Handle view mode transitions with a multi-phase approach
+  const handleViewModeTransition = (newViewMode) => {
+    // Don't do anything if we're already transitioning or if it's the same mode
+    if (isViewTransitioning || newViewMode === viewMode) return;
 
-  const FADE_OUT_DELAY_MS = 650;
-  
-  // Store the currently selected event ID and index to restore after transition
-  const currentlySelectedEventId = selectedEventId;
-  const currentlySelectedEventIndex = currentEventIndex;
-    
-  // TIMELINE V4: Store Point B state before transition
-  const pointBWasActive = pointB_active;
-  const pointBTimestamp = pointB_reference_timestamp;
-  const pointBEventId = pointB_eventId;
+    const FADE_OUT_DELAY_MS = 650;
 
-  // Quarantine: forcibly deactivate Point B before switching views
-  if (pointB_active) {
-    deactivatePointB();
-  }
-  
-  // Mark that user has interacted to bypass progressive loading delays
-  setUserInteracted(true);
-  
-  // Phase 1: Fade out rungs before starting the transition
-  setIsFullyFaded(true);
+    // Store the currently selected event ID and index to restore after transition
+    const currentlySelectedEventId = selectedEventId;
+    const currentlySelectedEventIndex = currentEventIndex;
 
-  setTimeout(() => {
-    // Start the transition process
-    setIsViewTransitioning(true);
-    setPendingViewMode(newViewMode);
-    setViewTransitionPhase('fadeOut');
-    beginPhaseTransition();
-    
-    // Phase 2: Timeline structure transition (200ms after transition starts)
+    // TIMELINE V4: Store Point B state before transition
+    const pointBWasActive = pointB_active;
+    const pointBTimestamp = pointB_reference_timestamp;
+    const pointBEventId = pointB_eventId;
+
+    // Quarantine: forcibly deactivate Point B before switching views
+    if (pointB_active) {
+      deactivatePointB();
+    }
+
+    // Mark that user has interacted to bypass progressive loading delays
+    setUserInteracted(true);
+
+    // Phase 1: Fade out rungs before starting the transition
+    setIsFullyFaded(true);
+
     setTimeout(() => {
-      // Actually change the view mode to update the timeline structure
-      setViewMode(newViewMode);
-      setViewTransitionPhase('structureTransition');
-      
-      // Quarantine: skip all Point B conversions/recentering during view switch
-      if (!B_POINTER_MINIMAL && pointBWasActive && pointBTimestamp) {
-        const converted = convertPointBToViewMode(newViewMode);
-        if (converted) {
-          const { arrowPosition, referencePosition } = converted;
-          setPointB_arrow_markerValue(arrowPosition);
-          setPointB_reference_markerValue(referencePosition);
-          setPointB_viewMode(newViewMode);
-          const targetOffset = -(arrowPosition * 100);
-          setTimelineOffset(targetOffset);
+      // Start the transition process
+      setIsViewTransitioning(true);
+      setPendingViewMode(newViewMode);
+      setViewTransitionPhase('fadeOut');
+      beginPhaseTransition();
+
+      // Phase 2: Timeline structure transition (200ms after transition starts)
+      setTimeout(() => {
+        // Actually change the view mode to update the timeline structure
+        setViewMode(newViewMode);
+        setViewTransitionPhase('structureTransition');
+
+        // Quarantine: skip all Point B conversions/recentering during view switch
+        if (!B_POINTER_MINIMAL && pointBWasActive && pointBTimestamp) {
+          const converted = convertPointBToViewMode(newViewMode);
+          if (converted) {
+            const { arrowPosition, referencePosition } = converted;
+            setPointB_arrow_markerValue(arrowPosition);
+            setPointB_reference_markerValue(referencePosition);
+            setPointB_viewMode(newViewMode);
+            const targetOffset = -(arrowPosition * 100);
+            setTimelineOffset(targetOffset);
+          }
+        }
+
+        // Phase 3: Data processing (200ms after structure transition)
+        setTimeout(() => {
+          setViewTransitionPhase('dataProcessing');
+
+          // Phase 4: Progressive content rendering (300ms after data processing)
+          setTimeout(() => {
+            setViewTransitionPhase('fadeIn');
+            setIsFullyFaded(false); // Start fading in the content
+            finishPhaseTransition();
+
+            // Restore the selected event if it exists in the new view
+            if (currentlySelectedEventId) {
+              // Check if the event is visible in the new view mode
+              const isEventVisibleInNewView = events.some(event => {
+                if (event.id !== currentlySelectedEventId) return false;
+
+                // For position view, all events are visible
+                if (newViewMode === 'position') return true;
+
+                // For other views, check if the event is within the visible range
+                if (!event.event_date) return false;
+
+                const currentDate = getCurrentTimeReference();
+                let startDate, endDate;
+
+                switch (newViewMode) {
+                  case 'day': {
+                    startDate = new Date(currentDate);
+                    startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
+
+                    endDate = new Date(currentDate);
+                    endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'week': {
+                    startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addDays(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'month': {
+                    startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addMonths(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  case 'year': {
+                    startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
+                    endDate = addYears(currentDate, Math.max(...visibleMarkers));
+                    break;
+                  }
+                  default:
+                    return true;
+                }
+
+                const eventDate = new Date(event.event_date);
+                return eventDate >= startDate && eventDate <= endDate;
+              });
+
+              // If the event is visible in the new view, keep it selected
+              if (isEventVisibleInNewView) {
+                setSelectedEventId(currentlySelectedEventId);
+                setCurrentEventIndex(currentlySelectedEventIndex);
+              } else {
+                // If not visible, clear the selection
+                setSelectedEventId(null);
+                setCurrentEventIndex(-1);
+              }
+            }
+
+            // Complete the transition after the fade-in animation
+            setTimeout(() => {
+              setIsViewTransitioning(false);
+              setViewTransitionPhase('idle');
+              setPendingViewMode(null);
+            }, 300); // Fade-in duration
+
+          }, 300); // Data processing duration
+
+        }, 200); // Structure transition duration
+
+      }, 200); // Fade-out duration
+    }, FADE_OUT_DELAY_MS);
+  };
+
+  // Banner click handler: collapses/expands the timeline tool.
+  // When collapsing, switch from narrower views (day/week/month) to year view immediately so EventList has events visible instantly.
+  const handleTimelineToolToggle = useCallback(() => {
+    setTimelineToolOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('timeline_tool_open', String(next));
+      if (!next) {
+        // Collapsing: switch from any narrower view (day, week, month) to year view immediately
+        if (['day', 'week', 'month'].includes(viewMode)) {
+          setPointB_active(false);
+          setPointB_eventId(null);
+          setPointB_reference_timestamp(null);
+          setUserInteracted(true);
+          setViewMode('year');
         }
       }
-      
-      // Phase 3: Data processing (200ms after structure transition)
-      setTimeout(() => {
-        setViewTransitionPhase('dataProcessing');
-        
-        // Phase 4: Progressive content rendering (300ms after data processing)
-        setTimeout(() => {
-          setViewTransitionPhase('fadeIn');
-          setIsFullyFaded(false); // Start fading in the content
-          finishPhaseTransition();
-          
-          // Restore the selected event if it exists in the new view
-          if (currentlySelectedEventId) {
-            // Check if the event is visible in the new view mode
-            const isEventVisibleInNewView = events.some(event => {
-              if (event.id !== currentlySelectedEventId) return false;
-              
-              // For position view, all events are visible
-              if (newViewMode === 'position') return true;
-              
-              // For other views, check if the event is within the visible range
-              if (!event.event_date) return false;
-              
-              const currentDate = getCurrentTimeReference();
-              let startDate, endDate;
-              
-              switch (newViewMode) {
-                case 'day': {
-                  startDate = new Date(currentDate);
-                  startDate.setHours(startDate.getHours() + Math.min(...visibleMarkers));
-                  
-                  endDate = new Date(currentDate);
-                  endDate.setHours(endDate.getHours() + Math.max(...visibleMarkers));
-                  break;
-                }
-                case 'week': {
-                  startDate = subDays(currentDate, Math.abs(Math.min(...visibleMarkers)));
-                  endDate = addDays(currentDate, Math.max(...visibleMarkers));
-                  break;
-                }
-                case 'month': {
-                  startDate = subMonths(currentDate, Math.abs(Math.min(...visibleMarkers)));
-                  endDate = addMonths(currentDate, Math.max(...visibleMarkers));
-                  break;
-                }
-                case 'year': {
-                  startDate = subYears(currentDate, Math.abs(Math.min(...visibleMarkers)));
-                  endDate = addYears(currentDate, Math.max(...visibleMarkers));
-                  break;
-                }
-                default:
-                  return true;
-              }
-              
-              const eventDate = new Date(event.event_date);
-              return eventDate >= startDate && eventDate <= endDate;
-            });
-            
-            // If the event is visible in the new view, keep it selected
-            if (isEventVisibleInNewView) {
-              setSelectedEventId(currentlySelectedEventId);
-              setCurrentEventIndex(currentlySelectedEventIndex);
-            } else {
-              // If not visible, clear the selection
-              setSelectedEventId(null);
-              setCurrentEventIndex(-1);
-            }
-          }
-          
-          // Complete the transition after the fade-in animation
-          setTimeout(() => {
-            setIsViewTransitioning(false);
-            setViewTransitionPhase('idle');
-            setPendingViewMode(null);
-          }, 300); // Fade-in duration
-          
-        }, 300); // Data processing duration
-        
-      }, 200); // Structure transition duration
-      
-    }, 200); // Fade-out duration
-  }, FADE_OUT_DELAY_MS);
-};
+      return next;
+    });
+  }, [viewMode]);
 
   useEffect(() => {
     if ((hookStatus === 'locked' || hookStatus === 'banned') || !timelineId || timelineId === 'new') return; // Respect locked/banned timelines and skip placeholder
@@ -2402,7 +2428,7 @@ const handleViewModeTransition = (newViewMode) => {
         // First set the loading state to timeline structure only
         setProgressiveLoadingState('timeline');
         setLoadingProgress(0);
-        
+
         // Simulate timeline structure loading completion with a progress indicator
         const structureLoadingInterval = setInterval(() => {
           setLoadingProgress(prev => {
@@ -2413,14 +2439,14 @@ const handleViewModeTransition = (newViewMode) => {
             return Math.min(newProgress, 30); // Cap at 30% for structure loading
           });
         }, 100);
-        
+
         // Set a longer timer to load events if the user hasn't interacted with filter views
         const eventLoadDelay = userInteracted ? 0 : 1000;
         const markerLoadDelay = userInteracted ? 0 : 750;
         const loadEventsTimer = setTimeout(async () => {
           clearInterval(structureLoadingInterval);
           setLoadingProgress(40); // Jump to 40% when starting event loading
-          
+
           // Simulate event loading progress
           const eventLoadingInterval = setInterval(() => {
             setLoadingProgress(prev => {
@@ -2431,7 +2457,7 @@ const handleViewModeTransition = (newViewMode) => {
               return Math.min(newProgress, 70); // Cap at 70% for events loading
             });
           }, 150);
-          
+
           // Actually fetch the events - use api utility which handles prefixes correctly
           try {
             const response = await api.get(`/api/v1/events/by-timeline/${timelineId}`);
@@ -2444,12 +2470,12 @@ const handleViewModeTransition = (newViewMode) => {
             }
             throw error;
           }
-          
+
           // Update the loading state to events loaded
           setProgressiveLoadingState('events');
           clearInterval(eventLoadingInterval);
           setLoadingProgress(75); // Jump to 75% when events are loaded
-          
+
           // Set another timer to load markers
           const loadMarkersTimer = setTimeout(() => {
             // Simulate marker loading progress
@@ -2462,7 +2488,7 @@ const handleViewModeTransition = (newViewMode) => {
                 return Math.min(newProgress, 100);
               });
             }, 100);
-            
+
             // Complete the loading after a longer delay to ensure the UI settles
             setTimeout(() => {
               clearInterval(markerLoadingInterval);
@@ -2470,13 +2496,13 @@ const handleViewModeTransition = (newViewMode) => {
               setProgressiveLoadingState('complete');
             }, 1250); // Delay for markers and list to settle visually (halved from 2500)
           }, markerLoadDelay); // Longer delay between events and markers
-          
+
           return () => {
             clearTimeout(loadMarkersTimer);
             clearInterval(eventLoadingInterval);
           };
         }, eventLoadDelay); // Delay before loading events
-        
+
         return () => {
           clearTimeout(loadEventsTimer);
           clearInterval(structureLoadingInterval);
@@ -2501,7 +2527,7 @@ const handleViewModeTransition = (newViewMode) => {
   useEffect(() => {
     const fetchReviewingReports = async () => {
       if (!timelineId || timelineId === 'new' || !isAuthenticated) return;
-      
+
       try {
         // Fetch both pending and reviewing statuses
         const [pendingResponse, reviewingResponse] = await Promise.all([
@@ -2521,10 +2547,10 @@ const handleViewModeTransition = (newViewMode) => {
     };
 
     fetchReviewingReports();
-    
+
     // Also set up an interval to refresh every 10 seconds
     const interval = setInterval(fetchReviewingReports, 10000);
-    
+
     return () => clearInterval(interval);
   }, [timelineId, isAuthenticated]);
 
@@ -2533,12 +2559,12 @@ const handleViewModeTransition = (newViewMode) => {
     const createTimeline = async () => {
       // Only run if we're on the 'new' route
       if (routeId !== 'new') return;
-      
+
       try {
         // Get timeline name from URL parameters
         const params = new URLSearchParams(window.location.search);
         const timelineName = params.get('name') || 'Timeline V3';
-        
+
         // Use api utility which handles prefixes correctly
         const response = await api.post('/api/v1/timelines', {
           name: timelineName,
@@ -2547,14 +2573,14 @@ const handleViewModeTransition = (newViewMode) => {
         });
         const newTimelineId = response.data.id;
         setTimelineId(newTimelineId);
-        
+
         // Navigate to the new timeline URL (replace history to avoid back button going to 'new')
         navigate(`/timeline-v3/${newTimelineId}`, { replace: true });
       } catch (error) {
         console.error('Error creating timeline:', error);
       }
     };
-    
+
     createTimeline();
   }, [routeId, navigate]);
 
@@ -2686,24 +2712,24 @@ const handleViewModeTransition = (newViewMode) => {
 
       // Create a new date object from the event_date
       const originalDate = new Date(eventData.event_date);
-      
+
       // Extract date components for raw date string
       const year = originalDate.getFullYear();
       const month = originalDate.getMonth() + 1; // Month is 0-indexed in JS
       const day = originalDate.getDate();
       const hours = originalDate.getHours();
       const minutes = String(originalDate.getMinutes()).padStart(2, '0');
-      
+
       // Determine AM/PM
       const ampm = hours >= 12 ? 'PM' : 'AM';
-      
+
       // Convert to 12-hour format for display
       const displayHours = hours % 12;
       const displayHoursFormatted = displayHours ? displayHours : 12; // Convert 0 to 12
-      
+
       // Create the raw date string in the format: MM.DD.YYYY.HH.MM.AMPM
       const rawDateString = `${month}.${day}.${year}.${displayHoursFormatted}.${minutes}.${ampm}`;
-      
+
       // Use the original date in the request along with the raw date string
       // Use api utility which handles prefixes correctly
       const response = await api.post('/api/v1/events', {
@@ -2729,30 +2755,30 @@ const handleViewModeTransition = (newViewMode) => {
 
       // Add the new event to state and close form
       const newEvent = response.data;
-      
+
       // Add the new event to the events array
       const updatedEvents = [...events, newEvent];
       setEvents(updatedEvents);
-      
+
       // Select the new event
       setSelectedEventId(newEvent.id);
-      
+
       // Update the current event index to point to the new event
       setCurrentEventIndex(updatedEvents.length - 1);
-      
+
       // Ensure the timeline is refreshed to show the new event marker
       // This forces a re-render of the event markers
       window.timelineEventPositions = window.timelineEventPositions || [];
-      
+
       // Close the dialog
       setDialogOpen(false);
       setEditingEvent(null);
-      
+
       // Force a component re-render using the same technique as the hamburger menu
       // This ensures all markers are properly displayed without a full page reload
       const currentPath = window.location.pathname;
       navigate('/refresh-redirect', { replace: true });
-      
+
       // Then navigate back to the timeline
       // This will trigger a complete re-render and show the new event marker
       setTimeout(() => {
@@ -2786,7 +2812,7 @@ const handleViewModeTransition = (newViewMode) => {
       setSelectedEventId(event.event.id);
       return;
     }
-    
+
     // Check if this is an openPopup action
     if (event && event.type === 'openPopup' && event.event) {
       // This is an openPopup action, don't open the edit dialog
@@ -2826,7 +2852,7 @@ const handleViewModeTransition = (newViewMode) => {
       setSnackbarOpen(true);
     }
   };
-  
+
   // Add the missing handleEventDelete function
   const handleEventDelete = async (eventOrId) => {
     try {
@@ -2844,32 +2870,32 @@ const handleViewModeTransition = (newViewMode) => {
       } else {
         await api.delete(`/api/v1/events/${resolvedEventId}/shares/${timelineId}`);
       }
-      
+
       // Remove the deleted event from state
       const updatedEvents = events.filter(event => event.id !== resolvedEventId);
       setEvents(updatedEvents);
-      
+
       // Clear selection if the deleted event was selected
       if (selectedEventId === resolvedEventId) {
         setSelectedEventId(null);
         setCurrentEventIndex(null);
       }
-      
+
       // Show success message
       setSnackbarMessage('Event deleted successfully');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
-      
+
     } catch (error) {
       console.error('Error deleting event:', error);
-      
+
       // Show error message
       setSnackbarMessage('Failed to delete event');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     }
   };
-  
+
   // Function to force refresh membership status
   const refreshMembershipStatus = async () => {
     try {
@@ -2879,47 +2905,47 @@ const handleViewModeTransition = (newViewMode) => {
       } catch (e) {
         console.warn('Failed to clear localStorage cache:', e);
       }
-      
+
       // Force refresh user memberships from server
       await fetchUserMemberships();
-      
+
       // Check membership from refreshed user data
       const membershipStatus = await checkMembershipFromUserData(timelineId);
-      
+
       // Also do a direct API check as a backup
       const apiMembershipStatus = await checkMembershipStatus(timelineId, 0, true);
-      
+
       // Use the API response if it's valid and differs from user data
-      if (apiMembershipStatus && typeof apiMembershipStatus.is_member !== 'undefined' && 
-          apiMembershipStatus.is_member !== membershipStatus.is_member) {
+      if (apiMembershipStatus && typeof apiMembershipStatus.is_member !== 'undefined' &&
+        apiMembershipStatus.is_member !== membershipStatus.is_member) {
         Object.assign(membershipStatus, apiMembershipStatus);
       }
-      
+
       // Update state based on membership status
       if (membershipStatus && typeof membershipStatus.is_member !== 'undefined') {
         // Check if user has a pending request
         const hasPendingRequest = membershipStatus.status === 'pending';
         setIsPendingApproval(hasPendingRequest);
-        
+
         // Set isMember based on active membership (not pending)
         setIsMember(membershipStatus.is_member && !hasPendingRequest);
-        
+
         if (membershipStatus.is_member || hasPendingRequest) {
           setJoinRequestSent(true);
         } else {
           setJoinRequestSent(false);
         }
-        
+
         // Show success message
-        const statusMsg = hasPendingRequest 
-          ? 'Request pending approval' 
-          : membershipStatus.is_member 
-            ? 'You are a member' 
+        const statusMsg = hasPendingRequest
+          ? 'Request pending approval'
+          : membershipStatus.is_member
+            ? 'You are a member'
             : 'You are not a member';
         setSnackbarMessage(`Membership status refreshed: ${statusMsg}`);
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
-        
+
         return membershipStatus;
       }
     } catch (error) {
@@ -2930,13 +2956,13 @@ const handleViewModeTransition = (newViewMode) => {
     }
     return null;
   };
-  
+
   // Debug function to check timeline members
   const debugTimelineMembers = async () => {
     try {
       // First refresh membership status
       const refreshedStatus = await refreshMembershipStatus();
-      
+
       // Then get all members for debugging
       const { debugTimelineMembers } = await import('../../utils/api');
       const members = await debugTimelineMembers(timelineId);
@@ -2945,11 +2971,11 @@ const handleViewModeTransition = (newViewMode) => {
       setSnackbarMessage(`Found ${members.length} members. Membership refreshed: ${refreshedStatus?.is_member ? 'You are a member' : 'You are not a member'}. Check console for details.`);
       setSnackbarSeverity('info');
       setSnackbarOpen(true);
-      
+
       // Check if current user is a member
       const currentUserMember = members.find(m => m.user_id === user?.id);
       void currentUserMember;
-      
+
       // Check localStorage
       try {
         const membershipKey = `timeline_membership_${timelineId}`;
@@ -2967,7 +2993,7 @@ const handleViewModeTransition = (newViewMode) => {
       setSnackbarOpen(true);
     }
   };
-  
+
   // Handle join community button click
   const handleJoinCommunity = async () => {
     if (!user || isGuestUser) {
@@ -2976,7 +3002,7 @@ const handleViewModeTransition = (newViewMode) => {
       setJoinSnackbarOpen(true);
       return;
     }
-    
+
     // Check if the user was previously a member but was removed (inactive)
     // This helps us determine if this is a rejoin scenario
     let isRejoin = false;
@@ -2992,26 +3018,26 @@ const handleViewModeTransition = (newViewMode) => {
     } catch (checkError) {
       console.warn('Error checking previous membership status:', checkError);
     }
-    
+
     // Use the hook's join function which has optimistic updates and BroadcastChannel sync
     const result = await joinFromHook();
-    
+
     if (!result || result.success === false) {
       console.warn('Join request failed:', result);
       setJoinRequestStatus('error');
       setJoinSnackbarOpen(true);
       return;
     }
-    
+
     // Update UI state for success
     setJoinRequestStatus('success');
     setJoinSnackbarOpen(true);
-    
+
     // The hook's join function already refreshed and broadcast state
     // Just update local snackbar/message state based on the result
     const memberStatus = result.status || 'active';
     const isPending = memberStatus === 'pending';
-    
+
     // Update pending state
     if (isPending) {
       setIsPendingApproval(true);
@@ -3020,7 +3046,7 @@ const handleViewModeTransition = (newViewMode) => {
       setIsPendingApproval(false);
       setIsMember(true); // Full member
     }
-    
+
     // IMPORTANT: Store in the direct timeline membership key format
     // This ensures the checkMembershipFromUserData function finds it immediately
     try {
@@ -3031,15 +3057,15 @@ const handleViewModeTransition = (newViewMode) => {
         role: result.role || 'member',
         timeline_visibility: visibility
       };
-      
+
       localStorage.setItem(directMembershipKey, JSON.stringify(membershipData));
     } catch (e) {
       console.warn('Error storing direct membership data after join:', e);
     }
-    
+
     // Note: Passport sync endpoint not implemented yet
     // The membership data is already stored in localStorage above
-    
+
     // Force refresh membership status from server after a short delay
     // This ensures backend and frontend are in sync
     setTimeout(() => {
@@ -3051,7 +3077,7 @@ const handleViewModeTransition = (newViewMode) => {
         });
     }, 1000);
   };
-  
+
   const smoothScroll = (direction, amount = 100) => {
     // 1. Mark timeline as moving (triggers event marker fade out)
     setIsSettled(false);
@@ -3128,17 +3154,17 @@ const handleViewModeTransition = (newViewMode) => {
   // Calculate the temporal distance between an event and the current reference point
   const calculateTemporalDistance = (eventDate) => {
     if (!eventDate || viewMode === 'position') return 0;
-    
+
     const currentDate = getCurrentTimeReference();
     const eventDateObj = new Date(eventDate);
-    
+
     // Calculate the current position on the timeline based on the offset
     // A negative offset means we've moved right (into the future)
     // A positive offset means we've moved left (into the past)
     const currentPosition = -timelineOffset / 100; // Each marker is 100px
-    
+
     let distance = 0;
-    
+
     switch (viewMode) {
       case 'day': {
         // Calculate day difference and hour/minute position
@@ -3146,28 +3172,28 @@ const handleViewModeTransition = (newViewMode) => {
           new Date(eventDateObj.getFullYear(), eventDateObj.getMonth(), eventDateObj.getDate()),
           new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
         );
-        
+
         const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
         const currentHour = currentDate.getHours();
         const eventHour = eventDateObj.getHours();
         const eventMinute = eventDateObj.getMinutes();
-        
+
         // Position calculation (same as in EventMarker)
         const absoluteDistance = (dayDiff * 24) + eventHour - currentHour + (eventMinute / 60);
-        
+
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
         break;
       }
-      
+
       case 'week': {
         const dayDiffMs = differenceInMilliseconds(
           new Date(eventDateObj.getFullYear(), eventDateObj.getMonth(), eventDateObj.getDate()),
           new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
         );
-        
+
         const dayDiff = dayDiffMs / (1000 * 60 * 60 * 24);
-        
+
         let absoluteDistance;
         if (dayDiff === 0) {
           const totalMinutesInDay = 24 * 60;
@@ -3176,19 +3202,19 @@ const handleViewModeTransition = (newViewMode) => {
         } else {
           const eventHour = eventDateObj.getHours();
           const eventMinute = eventDateObj.getMinutes();
-          
+
           const totalMinutesInDay = 24 * 60;
           const eventMinutesIntoDay = eventHour * 60 + eventMinute;
           const eventFractionOfDay = eventMinutesIntoDay / totalMinutesInDay;
-          
+
           absoluteDistance = Math.floor(dayDiff) + eventFractionOfDay;
         }
-        
+
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
         break;
       }
-      
+
       case 'month': {
         const eventYear = eventDateObj.getFullYear();
         const currentYear = currentDate.getFullYear();
@@ -3196,103 +3222,103 @@ const handleViewModeTransition = (newViewMode) => {
         const currentMonth = currentDate.getMonth();
         const eventDay = eventDateObj.getDate();
         const daysInMonth = new Date(eventYear, eventMonth + 1, 0).getDate();
-        
+
         const monthYearDiff = eventYear - currentYear;
         const monthDiff = eventMonth - currentMonth + (monthYearDiff * 12);
-        
+
         const monthDayFraction = (eventDay - 1) / daysInMonth;
-        
+
         const absoluteDistance = monthDiff + monthDayFraction;
-        
+
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
         break;
       }
-      
+
       case 'year': {
         const yearDiff = eventDateObj.getFullYear() - currentDate.getFullYear();
-        
+
         const yearMonthContribution = eventDateObj.getMonth() / 12;
         const yearDayFraction = (eventDateObj.getDate() - 1) / new Date(eventDateObj.getFullYear(), eventDateObj.getMonth() + 1, 0).getDate();
         const yearDayContribution = yearDayFraction / 12;
-        
+
         const absoluteDistance = yearDiff + yearMonthContribution + yearDayContribution;
-        
+
         // Adjust for current timeline position
         distance = absoluteDistance - currentPosition;
         break;
       }
-      
+
       default:
         distance = 0;
     }
     return distance;
-};
+  };
 
-// State declarations for timeline elements were moved to the top of the component
+  // State declarations for timeline elements were moved to the top of the component
 
-const handleRecenter = () => {
-  const FADE_OUT_DELAY_MS = 650;
+  const handleRecenter = () => {
+    const FADE_OUT_DELAY_MS = 650;
 
-  // TIMELINE V4: Deactivate Point B when returning to present
-  if (pointB_active) {
-    deactivatePointB();
-  }
-  
-  // First, fade out rungs before starting recenter work
-  setIsFullyFaded(true);
-
-  setTimeout(() => {
-    // First, hide all elements with a fade
-    setIsRecentering(true);
-    setIsMoving(true); // Hide event markers
-    setMarkersLoading(true); // Prevent markers from showing during transition
-    setTimelineElementsLoading(true); // Hide timeline elements (bars, labels, etc.)
-    
-    // If an event is selected, close its popup during recentering
-    if (selectedEventId) {
-      setSelectedEventId(null);
+    // TIMELINE V4: Deactivate Point B when returning to present
+    if (pointB_active) {
+      deactivatePointB();
     }
 
-    // Reset timeline offset
-    setTimelineOffset(0);
-    
-    // Update URL without page reload
-    const searchParams = new URLSearchParams(window.location.search);
-    searchParams.set('view', viewMode);
-    navigate(`/timeline-v3/${timelineId}?${searchParams.toString()}`, { replace: true });
+    // First, fade out rungs before starting recenter work
+    setIsFullyFaded(true);
 
-    // Start staged fade-in sequence
     setTimeout(() => {
-      // Phase 1: Show the timeline structure (bars, labels, etc.)
-      setIsFullyFaded(false);
-      
-      // Use requestAnimationFrame to ensure the browser has completed rendering
-      requestAnimationFrame(() => {
-        // Phase 2: After a short delay, show the timeline elements
-        setTimeout(() => {
-          setTimelineElementsLoading(false);
-          setIsRecentering(false);
-          
-          // Phase 3: After timeline elements are visible, start loading markers
+      // First, hide all elements with a fade
+      setIsRecentering(true);
+      setIsMoving(true); // Hide event markers
+      setMarkersLoading(true); // Prevent markers from showing during transition
+      setTimelineElementsLoading(true); // Hide timeline elements (bars, labels, etc.)
+
+      // If an event is selected, close its popup during recentering
+      if (selectedEventId) {
+        setSelectedEventId(null);
+      }
+
+      // Reset timeline offset
+      setTimelineOffset(0);
+
+      // Update URL without page reload
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.set('view', viewMode);
+      navigate(`/timeline-v3/${timelineId}?${searchParams.toString()}`, { replace: true });
+
+      // Start staged fade-in sequence
+      setTimeout(() => {
+        // Phase 1: Show the timeline structure (bars, labels, etc.)
+        setIsFullyFaded(false);
+
+        // Use requestAnimationFrame to ensure the browser has completed rendering
+        requestAnimationFrame(() => {
+          // Phase 2: After a short delay, show the timeline elements
           setTimeout(() => {
-            setTimelineMarkersLoading(false);
-            
-            // Phase 4: Finally, make markers visible with staggered animation
+            setTimelineElementsLoading(false);
+            setIsRecentering(false);
+
+            // Phase 3: After timeline elements are visible, start loading markers
             setTimeout(() => {
-              setMarkersLoading(false);
-              
-              // Complete the transition by removing the moving state
+              setTimelineMarkersLoading(false);
+
+              // Phase 4: Finally, make markers visible with staggered animation
               setTimeout(() => {
-                setIsMoving(false);
-              }, 100);
-            }, 150);
-          }, 200);
-        }, 150);
-      });
-    }, 300);
-  }, FADE_OUT_DELAY_MS);
-};
+                setMarkersLoading(false);
+
+                // Complete the transition by removing the moving state
+                setTimeout(() => {
+                  setIsMoving(false);
+                }, 100);
+              }, 150);
+            }, 200);
+          }, 150);
+        });
+      }, 300);
+    }, FADE_OUT_DELAY_MS);
+  };
 
   // Banned/locked checks take priority over loading skeleton — once useJoinStatus has
   // resolved with a definitive status, show the lock page immediately.
@@ -3406,1374 +3432,1399 @@ const handleRecenter = () => {
   return (
     <>
       <GlobalStyles styles={{ 'html, body': { background: timelineSurfaces.canvas, overflowY: 'auto !important' } }} />
-      <Box sx={{ 
+      <Box sx={{
         display: 'flex',
         flexDirection: 'column',
-      minHeight: '400px',
-      background: timelineSurfaces.shell,
-      overflowX: 'hidden',
-      borderRadius: '8px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-      border: `1px solid ${timelineSurfaces.shellBorder}`,
-      ...(timelineSurfaces.shellBlur !== 'none' ? { backdropFilter: timelineSurfaces.shellBlur } : {}),
-      position: 'relative',
-      mb: 3
-    }}>
-      {/* Ambient Cover Image Glow */}
-      {coverLandscapeUrl && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: { xs: 240, sm: 300 },
-            backgroundImage: `url(${coverLandscapeUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: `${coverLandscapePosition?.x ?? 50}% ${coverLandscapePosition?.y ?? 50}%`,
-            opacity: theme.palette.mode === 'dark' ? 0.30 : 0.40,
-            filter: theme.palette.mode === 'dark' 
-              ? 'blur(12px) brightness(1.15) saturate(1.25)' 
-              : 'blur(12px) brightness(1.05) saturate(1.35) contrast(1.05)',
-            transform: 'scale(1.08)',
-            maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)',
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-      )}
-      <Container maxWidth={false} sx={{ pt: 2.5, pb: 1, position: 'relative', zIndex: 1 }}>
-
-        <Stack 
-          direction="row" 
-          spacing={2} 
-          sx={{ 
-            mb: 2.5, 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            width: '100%',
-            flexWrap: 'nowrap',
-            minWidth: 0
-          }}
-        >
-          <Stack 
-            direction={{ xs: isTitleTooLong ? 'column' : 'row', sm: 'row' }} 
-            spacing={{ xs: isTitleTooLong ? 1.5 : 1, sm: 1 }} 
-            alignItems={{ xs: isTitleTooLong ? 'flex-start' : 'center', sm: 'center' }}
-            sx={{ width: '100%', flexWrap: isTitleTooLong ? 'wrap' : 'nowrap', minWidth: 0, flexShrink: 1, flexGrow: 1 }}
-          >
-            <Box
-              ref={infoTitleRef}
-              onClick={() => setInfoOpen((prev) => !prev)}
-              sx={{
-                color: timelineAccentColor,
-                minWidth: 0,
-                flexShrink: 1,
-                flexGrow: 1,
-                overflow: 'hidden',
-                cursor: 'pointer',
-                userSelect: 'none',
-                width: { xs: isTitleTooLong ? '100%' : 'auto', sm: 'auto' }
-              }}
-            >
-              {!isLoading && (
-                <TimelineNameDisplay 
-                  name={timelineName} 
-                  type={timeline_type} 
-                  visibility={visibility}
-                  typographyProps={{
-                    variant: "h4",
-                    component: "div"
-                  }}
-                />
-              )}
-            </Box>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                flexShrink: 0,
-                width: { xs: isTitleTooLong ? '100%' : 'auto', sm: 'auto' },
-                justifyContent: { xs: isTitleTooLong ? 'flex-end' : 'flex-start', sm: 'flex-start' }
-              }}
-            >
-              <Box sx={{ position: 'relative', flexShrink: 0 }}>
-                {/* Button section */}
-              {timeline_type === 'community' ? (
-                // Community timeline membership control
-                <CommunityMembershipControl
-                  timelineId={timelineId}
-                  user={user}
-                  visibility={visibility}
-                  requiresApproval={requiresApproval}
-                  onJoinSuccess={(data) => {
-                    // Refresh membership status
-                    refreshMembership();
-                  }}
-                  onLeaveSuccess={() => {
-                    // Refresh membership status
-                    refreshMembership();
-                  }}
-                />
-              ) : isPersonalTimeline ? (
-                isCreator ? (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Button
-                      disabled
-                      startIcon={<VisibilityIcon sx={{ fontSize: '1.4rem' }} />}
-                      sx={{
-                        bgcolor: theme.palette.mode === 'dark'
-                          ? 'rgba(255, 255, 255, 0.08)'
-                          : 'rgba(25, 118, 210, 0.08)',
-                        color: theme.palette.mode === 'dark'
-                          ? theme.palette.primary.light
-                          : theme.palette.primary.main,
-                        fontSize: '0.9rem',
-                        fontWeight: 700,
-                        px: 2,
-                        py: 0.75,
-                        borderRadius: 2,
-                        border: `2px solid ${theme.palette.mode === 'dark'
-                          ? 'rgba(255, 255, 255, 0.12)'
-                          : theme.palette.primary.main}`,
-                        '&.Mui-disabled': {
-                          color: theme.palette.mode === 'dark'
-                            ? theme.palette.primary.light
-                            : theme.palette.primary.main,
-                        },
-                      }}
-                    >
-                      {viewerLabel}
-                    </Button>
-                  </Stack>
-                ) : isSiteOwner ? (
-                  <Button
-                    disabled
-                    startIcon={<SecurityIcon />}
-                    sx={{
-                      bgcolor: theme.palette.error.main,
-                      color: theme.palette.error.contrastText,
-                      fontWeight: 700,
-                      px: 2,
-                      py: 0.75,
-                      borderRadius: 2,
-                    }}
-                  >
-                    System Access
-                  </Button>
-                ) : (
-                  creatorProfile && (
-                    <Chip
-                      clickable
-                      onClick={() => navigate(`/profile/${creatorProfile.id}`)}
-                      avatar={
-                        <Avatar
-                          src={creatorProfile.avatar_url || undefined}
-                          alt={displayUsername(creatorProfile.username)}
-                          sx={{
-                            bgcolor: creatorProfile.avatar_url ? undefined : (creatorProfile.user_color || '#888'),
-                            color: creatorProfile.avatar_url ? undefined : '#111',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                          }}
-                        >
-                          {!creatorProfile.avatar_url ? displayUsername(creatorProfile.username || 'U')[0]?.toUpperCase() : null}
-                        </Avatar>
-                      }
-                      label={`@${displayUsername(creatorProfile.username)}`}
-                      sx={{
-                        ml: 1.5,
-                        px: 1.5,
-                        py: 0.25,
-                        borderRadius: 999,
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                        background:
-                          theme.palette.mode === 'dark'
-                            ? 'linear-gradient(135deg, rgba(144, 202, 249, 0.16), rgba(206, 147, 216, 0.18))'
-                            : 'linear-gradient(135deg, rgba(129, 212, 250, 0.18), rgba(244, 143, 177, 0.22))',
-                        color: theme.palette.mode === 'dark'
-                          ? theme.palette.primary.light
-                          : theme.palette.primary.main,
-                        boxShadow:
-                          theme.palette.mode === 'dark'
-                            ? '0 4px 12px rgba(0, 0, 0, 0.45)'
-                            : '0 4px 12px rgba(0, 0, 0, 0.18)',
-                        '& .MuiChip-avatar': {
-                          width: 28,
-                          height: 28,
-                        },
-                        '&:hover': {
-                          boxShadow:
-                            theme.palette.mode === 'dark'
-                              ? '0 6px 18px rgba(0, 0, 0, 0.55)'
-                              : '0 6px 18px rgba(0, 0, 0, 0.24)',
-                          transform: 'translateY(-1px)',
-                        },
-                        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-                      }}
-                    />
-                  )
-                )
-              ) : (isHashtagTimeline && !isGuestUser) ? (
-                <Button
-                  onClick={handleToggleHashtagFollow}
-                  variant={isFollowingHashtag ? 'outlined' : 'contained'}
-                  disabled={isLoading || isHashtagFollowLoading || isHashtagFollowUpdating}
-                  startIcon={
-                    isHashtagFollowLoading || isHashtagFollowUpdating ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : (
-                      <VisibilityIcon />
-                    )
-                  }
-                  sx={{
-                    borderRadius: 2,
-                    px: 2,
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    ...(isFollowingHashtag
-                      ? {
-                          borderColor: theme.palette.info.main,
-                          color: theme.palette.info.main,
-                          '&:hover': {
-                            borderColor: theme.palette.info.dark,
-                            backgroundColor:
-                              theme.palette.mode === 'dark'
-                                ? 'rgba(3, 169, 244, 0.12)'
-                                : 'rgba(3, 169, 244, 0.08)',
-                          },
-                        }
-                      : {
-                          bgcolor: theme.palette.info.main,
-                          color: '#fff',
-                          '&:hover': {
-                            bgcolor: theme.palette.info.dark,
-                          },
-                          boxShadow: 2,
-                        }),
-                  }}
-                >
-                  {isHashtagFollowLoading
-                    ? 'Loading...'
-                    : isFollowingHashtag
-                    ? `Watching${hashtagFollowKind && hashtagFollowKind !== 'watch' ? ` (${hashtagFollowKind})` : ''}`
-                    : 'Watch'}
-                </Button>
-              ) : (
-                // Only show Add Event for non-personal, non-community timelines
-                // and only after we've finished loading the basic timeline metadata.
-                (!isLoading && !isPersonalTimeline && timeline_type !== 'community' && canCreateOrReport) ? (
-                  <Button
-                    onClick={handleAddEventClick}
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    endIcon={<ArrowDropDownIcon />}
-                    sx={{
-                      bgcolor: theme.palette.success.main,
-                      color: 'white',
-                      '&:hover': {
-                        bgcolor: theme.palette.success.dark,
-                      },
-                      boxShadow: 2
-                    }}
-                  >
-                    Add Event
-                  </Button>
-                ) : (
-                  <Button
-                    disabled
-                    sx={{
-                      bgcolor: 'rgba(0, 0, 0, 0.12)',
-                      color: theme.palette.text.secondary,
-                      '&.Mui-disabled': { color: theme.palette.text.secondary }
-                    }}
-                  >
-                    {!isLoading && !canCreateOrReport ? 'Posting Restricted' : 'Loading...'}
-                  </Button>
-                )
-              )}
-              {/* Only show the add-event menu when event creation is allowed on this timeline */}
-              {!isHashtagTimeline && timeline_type !== 'community' && canCreateTimelineEvents && (
-                <Menu
-                  anchorEl={addEventAnchorEl}
-                  open={Boolean(addEventAnchorEl)}
-                  onClose={handleAddEventMenuClose}
-                  sx={{ mt: 1 }}
-                >
-                  <MenuItem onClick={() => {
-                    handleAddEventMenuClose();
-                    setRemarkDialogOpen(true);
-                  }}>
-                    <ListItemIcon>
-                      <CommentIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2' }} />
-                    </ListItemIcon>
-                    <ListItemText>Add Remark</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={() => {
-                    handleAddEventMenuClose();
-                    setNewsDialogOpen(true);
-                  }}>
-                    <ListItemIcon>
-                      <LinkIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
-                    </ListItemIcon>
-                    <ListItemText>Add Links</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={() => {
-                    handleAddEventMenuClose();
-                    setMediaDialogOpen(true);
-                  }}>
-                    <ListItemIcon>
-                      <PermMediaIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0' }} />
-                    </ListItemIcon>
-                    <ListItemText>Add Media</ListItemText>
-                  </MenuItem>
-                </Menu>
-              )}
-            </Box>
-            <Fade in={timelineOffset !== 0}>
-              <Button
-                onClick={handleRecenter}
-                variant="contained"
-                sx={{
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
-                    : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  color: 'white',
-                  border: theme.palette.mode === 'dark' ? '1px solid rgba(147, 197, 253, 0.4)' : '1px solid rgba(255, 255, 255, 0.25)',
-                  borderRadius: 2.25,
-                  px: { xs: 0, sm: 2.5 },
-                  py: 0.75,
-                  width: { xs: '36px', sm: 'auto' },
-                  height: { xs: '36px', sm: 'auto' },
-                  minWidth: { xs: '36px', sm: 'auto' },
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: theme.palette.mode === 'dark' ? '0 4px 14px rgba(59, 130, 246, 0.25)' : '0 4px 12px rgba(37, 99, 235, 0.15)',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: theme.palette.mode === 'dark' ? '0 8px 24px rgba(59, 130, 246, 0.45)' : '0 8px 20px rgba(37, 99, 235, 0.3)',
-                    filter: 'brightness(1.08)'
-                  }
-                }}
-              >
-                <MyLocationIcon sx={{ fontSize: '0.9rem', mr: { xs: 0, sm: 1 } }} />
-                <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
-                  Back to Present
-                </Box>
-                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
-                  Present
-                </Box>
-              </Button>
-            </Fade>
-          </Box>
-          </Stack>
-          <PersonalAccessPanel
-            open={accessPanelOpen}
-            onClose={handleCloseAccessPanel}
-            user={user}
-            allowedViewers={allowedViewers}
-            newViewerUsername={newViewerUsername}
-            setNewViewerUsername={setNewViewerUsername}
-            viewerError={viewerError}
-            onAddViewer={handleAddViewer}
-            onRemoveViewer={handleRemoveViewer}
-            timelineId={timelineId}
-            timelineType={timeline_type}
-            timelineDescription={timelineDescription}
-            setTimelineDescription={setTimelineDescription}
-            coverPortraitUrl={coverPortraitUrl}
-            setCoverPortraitUrl={setCoverPortraitUrl}
-            coverPortraitPosition={coverPortraitPosition}
-            setCoverPortraitPosition={setCoverPortraitPosition}
-            coverPortraitZoom={coverPortraitZoom}
-            setCoverPortraitZoom={setCoverPortraitZoom}
-            coverLandscapeUrl={coverLandscapeUrl}
-            setCoverLandscapeUrl={setCoverLandscapeUrl}
-            coverLandscapePosition={coverLandscapePosition}
-            setCoverLandscapePosition={setCoverLandscapePosition}
-            coverLandscapeZoom={coverLandscapeZoom}
-            setCoverLandscapeZoom={setCoverLandscapeZoom}
-            onNotify={handleAccessPanelNotice}
-          />
-
-        </Stack>
-
-        {/* Collapsible Info & Rules panel — click title to open, click away to close */}
-        <Collapse in={infoOpen} timeout={280} unmountOnExit>
+        minHeight: '400px',
+        background: timelineSurfaces.shell,
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+        border: `1px solid ${timelineSurfaces.shellBorder}`,
+        ...(timelineSurfaces.shellBlur !== 'none' ? { backdropFilter: timelineSurfaces.shellBlur } : {}),
+        position: 'relative',
+        mb: 3
+      }}>
+        {/* Ambient Cover Image Glow — contained in its own clipped box so outer shell stays overflow: visible for sticky positioning */}
+        {coverLandscapeUrl && (
           <Box
-            ref={infoPanelRef}
             sx={{
-              mb: 2,
-              px: { xs: 2, sm: 3 },
-              py: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-              background:
-                theme.palette.mode === 'dark'
-                  ? 'rgba(255,255,255,0.04)'
-                  : 'rgba(0,0,0,0.025)',
-              backdropFilter: 'blur(6px)',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: { xs: 240, sm: 300 },
+              overflow: 'hidden',
+              borderRadius: '8px 8px 0 0',
+              pointerEvents: 'none',
+              zIndex: 0,
             }}
           >
-            <Typography
-              variant="overline"
-              sx={{
-                display: 'block',
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                color: 'text.secondary',
-                mb: 1,
-                fontSize: '0.7rem',
-              }}
-            >
-              📋 Info & Rules
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: timelineDescription ? 'text.primary' : 'text.secondary',
-                lineHeight: 1.75,
-                whiteSpace: 'pre-wrap',
-                fontStyle: timelineDescription ? 'normal' : 'italic',
-              }}
-            >
-              {timelineDescription ||
-                (timeline_type === 'community'
-                  ? 'Community timelines are for groups of people or organizations. No specific rules have been set by the owner yet.'
-                  : timeline_type === 'personal'
-                  ? 'Personal timelines are for private thoughts and memories. This is a private space.'
-                  : 'Hashtag timelines are public records — anyone can contribute events related to this topic. No specific rules have been set yet.')}
-            </Typography>
-          </Box>
-        </Collapse>
-
-        <Box 
-          ref={timelineWorkspaceRef}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleTouchStart}
-          onMouseMove={handleTouchMove}
-          onMouseUp={handleTouchEnd}
-          onMouseLeave={handleTouchEnd}
-          sx={{
-            width: { xs: 'calc(100% + 32px)', sm: '100%' },
-            mx: { xs: -2, sm: 0 },
-            height: '300px',
-            background: timelineSurfaces.tool,
-            borderRadius: { xs: 0, sm: 2 },
-            boxShadow: 1,
-            borderLeft: { xs: 'none', sm: `1px solid ${timelineSurfaces.toolBorder}` },
-            borderRight: { xs: 'none', sm: `1px solid ${timelineSurfaces.toolBorder}` },
-            borderTop: `1px solid ${timelineSurfaces.toolBorder}`,
-            borderBottom: `1px solid ${timelineSurfaces.toolBorder}`,
-            backdropFilter: timelineSurfaces.toolBlur,
-            position: 'relative',
-            overflow: 'hidden',
-            touchAction: 'none',
-            cursor: 'grab',
-            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            opacity: isViewTransitioning ? (viewTransitionPhase === 'fadeOut' ? 0.5 : 0.8) : 1,
-            transform: `
-              translate3d(0, 0, 0)
-              scale(${isViewTransitioning && viewTransitionPhase === 'structureTransition' ? '0.98' : '1'})
-              ${isFullyFaded ? 'translateY(-10px)' : 'translateY(0)'}
-            `,
-            pointerEvents: isViewTransitioning ? 'none' : 'auto',
-            willChange: 'transform, opacity',
-            filter: isViewTransitioning && viewTransitionPhase === 'dataProcessing' ? 'blur(1px)' : 'none'
-          }}
-        >
-          {shouldBlur && (
             <Box
               sx={{
                 position: 'absolute',
                 inset: 0,
-                zIndex: 2000,
-                backdropFilter: 'blur(12px)',
-                backgroundColor: 'rgba(0,0,0,0.30)',
-                pointerEvents: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                backgroundImage: `url(${coverLandscapeUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: `${coverLandscapePosition?.x ?? 50}% ${coverLandscapePosition?.y ?? 50}%`,
+                opacity: theme.palette.mode === 'dark' ? 0.30 : 0.40,
+                filter: theme.palette.mode === 'dark'
+                  ? 'blur(12px) brightness(1.15) saturate(1.25)'
+                  : 'blur(12px) brightness(1.05) saturate(1.35) contrast(1.05)',
+                transform: 'scale(1.08)',
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)',
               }}
-            >
-              <Box sx={{
-                px: 2,
-                py: 1,
-                borderRadius: 2,
-                background: timelineSurfaces.glass,
-                border: `1px solid ${timelineSurfaces.glassBorder}`,
-                boxShadow: 2,
-                fontSize: '0.85rem',
-                color: theme.palette.text.secondary
-              }}>
-                {isMember === null ? 'Checking access…' : 'Access blocked'}
-              </Box>
-            </Box>
-          )}
-          {/* View Transition Indicator */}
-          {isViewTransitioning && (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 1500, // Increased to be above all timeline elements including hover marker (900) and selected markers (1000)
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'rgba(0,0,0,0.05)',
-                backdropFilter: 'blur(2px)',
-                pointerEvents: 'none'
-              }}
-            >
-              <Box
-                sx={{
-                  px: 3,
-                  py: 1.5,
-                  borderRadius: 2,
-                  background: timelineSurfaces.panel,
-                  border: `1px solid ${timelineSurfaces.panelBorder}`,
-                  backdropFilter: timelineSurfaces.panelBlur,
-                  boxShadow: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 1
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-                  {viewTransitionPhase === 'fadeOut' && 'Preparing view...'}
-                  {viewTransitionPhase === 'structureTransition' && 'Updating timeline...'}
-                  {viewTransitionPhase === 'dataProcessing' && 'Processing events...'}
-                  {viewTransitionPhase === 'fadeIn' && 'Loading content...'}
-                </Typography>
-                <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2, overflow: 'hidden' }}>
-                  <Box 
-                    sx={{ 
-                      height: '100%', 
-                      width: viewTransitionPhase === 'fadeOut' ? '25%' : 
-                             viewTransitionPhase === 'structureTransition' ? '50%' : 
-                             viewTransitionPhase === 'dataProcessing' ? '75%' : '95%',
-                      bgcolor: theme.palette.primary.main,
-                      transition: 'width 0.3s ease-out',
-                      borderRadius: 2
-                    }} 
-                  />
-                </Box>
-              </Box>
-            </Box>
-          )}
-          {/* Track background clicks only (input handled on workspace container) */}
-          <TimelineBackground 
-            onBackgroundClick={handleBackgroundClick}
-          />
-          <TimelineBar
-            theme={theme}
-            style={timelineTransitionStyles}
-          />
-          {/* Event Markers - only show in time-based views and when loading is complete */}
-          {viewMode !== 'position' && progressiveLoadingState === 'complete' && (
-            <>
-              {/* Initialize the global event positions array for overlapping detection */}
-              {(() => {
-                window.timelineEventPositions = [];
-                return null;
-              })()}
-              
-              <EventMarkerCanvasV2
-                key={`canvas-rungs-${viewMode}`}
-                events={visibleEvents}
-                viewMode={viewMode}
-                timelineOffset={timelineOffset}
-                markerSpacing={100}
-                selectedEventId={selectedEventId}
-                onMarkerClick={handleMarkerClick}
-                onBackgroundClick={handleBackgroundClick}
-                voteDotsById={voteDotsById}
-                voteDotsLoading={voteDotsLoading}
-                calculateEventMarkerPosition={calculateEventMarkerPosition}
-                isFullyFaded={isFullyFaded}
-                markersLoading={markersLoading}
-                timelineMarkersLoading={timelineMarkersLoading}
-                progressiveLoadingState={progressiveLoadingState}
-                motionDissipate={!isSettled}
-                referenceDate={pointA_currentTime}
-              />
-              {selectedVisibleEvent && (
-                <Fade
-                  key={`marker-selected-${selectedVisibleEvent.id}`}
-                  in={!isMoving && isSettled}
-                  timeout={{ enter: 500, exit: 200 }}
-                >
-                  <div>
-                    <EventMarker
-                      event={selectedVisibleEvent}
-                      viewMode={viewMode}
-                      timelineOffset={timelineOffset}
-                      markerSpacing={100}
-                      index={selectedVisibleIndex}
-                      totalEvents={visibleEvents.length}
-                      currentIndex={currentEventIndex ?? -1}
-                      minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
-                      maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
-                      onClick={handleMarkerClick}
-                      selectedType={selectedType}
-                      isSelected
-                      isMoving={isMoving}
-                      disableHover
-                      disableSelectedPulse={false}
-                      showMarkerLine={true}
-                      showVoteDot={true}
-                      onDelete={handleEventDelete}
-                      onEdit={handleEventEdit}
-                      voteDot={voteDotsById[selectedVisibleEvent.id] || null}
-                      voteDotsLoading={voteDotsLoading}
-                      workspaceWidth={timelineWorkspaceBounds?.width}
-                      referenceDate={pointA_currentTime}
-                    />
-                  </div>
-                </Fade>
-              )}
-            </>
-          )}
-          {/* Wrap TimeMarkers in Fade component for smoother transitions */}
-          <Fade
-            in={!timelineElementsLoading}
-            timeout={{ enter: 500, exit: 200 }}
-          >
-            <div>
-              <TimeMarkers 
-                timelineOffset={timelineOffset}
-                markerSpacing={100}
-                markerStyles={markerStyles}
-                markers={visibleMarkers}
-                viewMode={viewMode}
-                theme={theme}
-                workspaceWidth={timelineWorkspaceBounds?.width}
-                style={timelineTransitionStyles}
-                pointB_active={B_POINTER_MINIMAL ? false : pointB_active}
-                pointB_reference_markerValue={B_POINTER_MINIMAL ? 0 : pointB_reference_markerValue}
-                pointB_reference_timestamp={pointB_reference_timestamp}
-                onMarkerClick={(markerValue, timestamp, viewMode) => {
-                  // Deselect any previously selected event when clicking a non-event marker
-                  if (selectedEventId) {
-                    setSelectedEventId(null);
-                    setCurrentEventIndex(-1);
-                  }
-                  activatePointB(markerValue, timestamp, viewMode, null, false, 0);
-                }}
-              />
-            </div>
-          </Fade>
-
-          {/* Action Markers - Render community actions pins */}
-          <Fade
-            in={!timelineElementsLoading}
-            timeout={{ enter: 500, exit: 200 }}
-            style={{ transitionDelay: '150ms' }}
-          >
-            <div>
-              <ActionMarkers
-                actions={timelineActions}
-                timelineOffset={timelineOffset}
-                markerSpacing={100}
-                viewMode={viewMode}
-                theme={theme}
-                workspaceWidth={timelineWorkspaceBounds?.width}
-                onActionClick={(action) => setActiveAction(action)}
-              />
-            </div>
-          </Fade>
-          
-          {/* Wrap HoverMarker in Fade component for smoother transitions */}
-          <Fade
-            in={!timelineElementsLoading}
-            timeout={{ enter: 600, exit: 150 }}
-            style={{ transitionDelay: '100ms' }} // Slight delay for staggered appearance
-          >
-            <div>
-              <HoverMarker 
-                position={hoverPosition} 
-                timelineOffset={timelineOffset}
-                markerSpacing={100}
-                viewMode={viewMode}
-                workspaceWidth={timelineWorkspaceBounds?.width}
-                theme={theme}
-                style={timelineTransitionStyles}
-              />
-            </div>
-          </Fade>
-          
-          {/* Point B Indicator - Shows where user focus is locked */}
-          <PointBIndicator
-            active={pointB_active}
-            markerValue={pointB_arrow_markerValue}
-            pixelOffset={pointB_arrow_pixelOffset}
-            timelineOffset={timelineOffset}
-            workspaceWidth={timelineWorkspaceBounds?.width}
-            label={pointB_active && pointB_reference_timestamp ? new Date(pointB_reference_timestamp).toLocaleString() : undefined}
-          />
-          
-        </Box>
-
-        {/* Unified Timeline Navigation & View Controls Row */}
-        {/* Unified Timeline Navigation & View Controls Row */}
-        <Stack
-          direction="row"
-          spacing={2}
-          alignItems="center"
-          justifyContent="center"
-          sx={{ mt: 2, mb: 2, width: '100%' }}
-        >
-          {/* Left Hooked - Tiny navigation button for desktop */}
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Button
-              size="small"
-              onClick={handleLeft}
-              sx={{
-                minWidth: 'auto',
-                px: 1.5,
-                py: 0.5,
-                background: timelineSurfaces.tool,
-                border: `1px solid ${timelineSurfaces.toolBorder}`,
-                color: theme.palette.text.secondary,
-                fontWeight: 'bold',
-                fontSize: '0.75rem',
-                '&:hover': {
-                  background: timelineSurfaces.glassHover,
-                }
-              }}
-            >
-              ◀ LEFT
-            </Button>
+            />
           </Box>
+        )}
+        <Collapse in={timelineToolOpen} timeout={300}>
+          <Container maxWidth={false} sx={{ pt: 2.5, pb: 1, position: 'relative', zIndex: 1 }}>
 
-          {/* Center Group: EventCounter + View Mode Buttons (always on the same row, never stack!) */}
-          <Stack 
-            direction="row"
-            spacing={{ xs: 0.5, sm: 3 }}
-            alignItems="center"
-            justifyContent="center"
-            sx={{ flexGrow: 1, width: 'auto', flexWrap: 'nowrap' }}
-          >
-            {/* Event Counter */}
-            {(() => {
-              // Compute filtered events for EventCounter (memoized inline)
-              const filteredEventsForCounter = isSettled ? events.filter(event => {
-                // Apply the same filtering logic as in EventList
-                if (viewMode === 'position') {
-                  if (selectedType) {
-                    const eventType = (event.type || '').toLowerCase();
-                    return eventType === selectedType.toLowerCase();
-                  }
-                  return true;
-                }
-                
-                if (!event.event_date) return false;
-                
-                const currentDate = getCurrentTimeReference();
-                let startDate, endDate;
-                
-                let rangeMin, rangeMax;
-                if (visibleMarkers && visibleMarkers.length > 0) {
-                  rangeMin = Math.min(...visibleMarkers);
-                  rangeMax = Math.max(...visibleMarkers);
-                } else {
-                  const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
-                  const markerWidth = 100;
-                  const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
-                  const centerMarkerPosition = -timelineOffset / markerWidth;
-                  const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
-                  rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
-                  rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
-                }
-                
-                switch (viewMode) {
-                  case 'day': {
-                    startDate = new Date(currentDate);
-                    startDate.setHours(startDate.getHours() + rangeMin);
-                    
-                    endDate = new Date(currentDate);
-                    endDate.setHours(endDate.getHours() + rangeMax);
-                    break;
-                  }
-                  case 'week': {
-                    startDate = subDays(currentDate, Math.abs(rangeMin));
-                    endDate = addDays(currentDate, rangeMax);
-                    break;
-                  }
-                  case 'month': {
-                    startDate = subMonths(currentDate, Math.abs(rangeMin));
-                    endDate = addMonths(currentDate, rangeMax);
-                    break;
-                  }
-                  case 'year': {
-                    startDate = subYears(currentDate, Math.abs(rangeMin));
-                    endDate = addYears(currentDate, rangeMax);
-                    break;
-                  }
-                  default:
-                    return true;
-                }
-                
-                const eventDate = new Date(event.event_date);
-                const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
-                
-                if (selectedType) {
-                  const eventType = (event.type || '').toLowerCase();
-                  return passesDateFilter && eventType === selectedType.toLowerCase();
-                }
-                
-                return passesDateFilter;
-              }) : [];
-              
-              return (
-                <EventCounter
-                  count={isSettled ? filteredEventsCount : 0}
-                  events={filteredEventsForCounter}
-                  currentIndex={currentEventIndex}
-                  onChangeIndex={(index) => {
-                    if (Date.now() < userSelectionLockUntilRef.current) {
-                      return;
-                    }
-                    
-                    const event = filteredEventsForCounter[index];
-                    if (!event) return;
-                    
-                    setCurrentEventIndex(index);
-                    setSelectedEventId(event.id);
-                    setShouldScrollToEvent(false);
-                    
-                    if (event.event_date && viewMode !== 'position') {
-                      const markerValue = calculateEventMarkerPosition(event, viewMode);
-                      activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false, 0);
-                    }
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{
+                mb: 2.5,
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                flexWrap: 'nowrap',
+                minWidth: 0
+              }}
+            >
+              <Stack
+                direction={{ xs: isTitleTooLong ? 'column' : 'row', sm: 'row' }}
+                spacing={{ xs: isTitleTooLong ? 1.5 : 1, sm: 1 }}
+                alignItems={{ xs: isTitleTooLong ? 'flex-start' : 'center', sm: 'center' }}
+                sx={{ width: '100%', flexWrap: isTitleTooLong ? 'wrap' : 'nowrap', minWidth: 0, flexShrink: 1, flexGrow: 1 }}
+              >
+                <Box
+                  ref={infoTitleRef}
+                  onClick={() => setInfoOpen((prev) => !prev)}
+                  sx={{
+                    color: timelineAccentColor,
+                    minWidth: 0,
+                    flexShrink: 1,
+                    flexGrow: 1,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    width: { xs: isTitleTooLong ? '100%' : 'auto', sm: 'auto' }
                   }}
-                  onDotClick={handleCarouselPopupOpen}
-                  onEdit={handleEventEdit}
-                  onDelete={handleEventDelete}
-                  timelineOffset={timelineOffset}
-                  goToPrevious={navigateToPrevEvent}
-                  goToNext={navigateToNextEvent}
-                  markerSpacing={100}
-                  sortOrder={sortOrder}
-                  selectedType={selectedType}
-                  motionDissipate={!isSettled}
-                />
-              );
-            })()}
-
-            {/* View Mode Buttons */}
-            <Stack 
-              direction="row" 
-              spacing={{ xs: 0.25, sm: 1 }} 
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Button
-                variant={viewMode === 'day' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'day' ? 'position' : 'day')}
-                disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
-              >
-                Day
-              </Button>
-              <Button
-                variant={viewMode === 'week' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'week' ? 'position' : 'week')}
-                disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
-              >
-                Week
-              </Button>
-              <Button
-                variant={viewMode === 'month' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'month' ? 'position' : 'month')}
-                disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
-              >
-                Month
-              </Button>
-              <Button
-                variant={viewMode === 'year' ? "contained" : "outlined"}
-                size="small"
-                onClick={() => handleViewModeTransition(viewMode === 'year' ? 'position' : 'year')}
-                disabled={isViewTransitioning}
-                sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
-              >
-                Year
-              </Button>
-            </Stack>
-          </Stack>
-
-          {/* Right Hooked - Tiny navigation button for desktop */}
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Button
-              size="small"
-              onClick={handleRight}
-              sx={{
-                minWidth: 'auto',
-                px: 1.5,
-                py: 0.5,
-                background: timelineSurfaces.tool,
-                border: `1px solid ${timelineSurfaces.toolBorder}`,
-                color: theme.palette.text.secondary,
-                fontWeight: 'bold',
-                fontSize: '0.75rem',
-                '&:hover': {
-                  background: timelineSurfaces.glassHover,
-                }
-              }}
-            >
-              RIGHT ▶
-            </Button>
-          </Box>
-        </Stack>
-      </Container>
-
-      {/* Timeline Hero Banner - Positioned below visualization and above EventList */}
-      {(timeline_type === 'community' || ((timeline_type === 'personal' || timeline_type === 'hashtag') && coverLandscapeUrl)) && (
-        <Container maxWidth={false}>
-          <TimelineHeroBanner
-            timelineName={timelineName}
-            timelineType={timeline_type}
-            coverImageUrl={coverLandscapeUrl}
-            coverLandscapeX={coverLandscapePosition.x}
-            coverLandscapeY={coverLandscapePosition.y}
-            coverZoom={coverLandscapeZoom}
-            coverUploadEnabled={coverUploadEnabled}
-            isLoading={isLoading}
-          />
-        </Container>
-      )}
-
-      {/* Visual Separator */}
-      <Box sx={{ height: 24 }} />
-      
-      {/* Event List Workspace - Enhanced smooth fade-in transition */}
-      <Box sx={{
-        opacity: progressiveLoadingState === 'complete' ? 1 : 0.6,
-        transform: progressiveLoadingState === 'complete' ? 'translateY(0)' : 'translateY(8px)',
-        transition: 'opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        position: 'relative',
-        filter: progressiveLoadingState === 'complete' ? 'blur(0)' : 'blur(1px)',
-        willChange: 'opacity, transform, filter'
-      }}>
-        {shouldBlur && (
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 2000,
-              backdropFilter: 'blur(12px)',
-              backgroundColor: 'rgba(0,0,0,0.30)',
-              pointerEvents: 'auto',
-              // Visual-only: no status text here to avoid duplicates
-            }}
-          />
-        )}
-        {/* Loading Indicator - Fixed to bottom left corner as overlay */}
-        {progressiveLoadingState !== 'complete' && (
-          <Box sx={{
-            position: 'fixed',
-            bottom: 16,
-            left: 16,
-            zIndex: 1200,
-            display: 'flex',
-            alignItems: 'center',
-            p: 1,
-            px: 2,
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.9)',
-            borderRadius: 20,
-            boxShadow: 2,
-            backdropFilter: 'blur(8px)',
-            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
-            maxWidth: '90%',
-            opacity: 0.9,
-            transition: 'opacity 0.3s ease',
-            '&:hover': {
-              opacity: 1
-            }
-          }}>
-            <Box sx={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              bgcolor: progressiveLoadingState === 'timeline' 
-                ? theme.palette.info.main 
-                : theme.palette.success.main,
-              boxShadow: `0 0 10px ${progressiveLoadingState === 'timeline' ? theme.palette.info.main : theme.palette.success.main}`,
-              animation: 'pulse 1.5s infinite'
-            }} />
-            <Typography variant="caption" sx={{ 
-              fontWeight: 'medium',
-              ml: 1.5,
-              fontSize: '0.75rem',
-              color: theme.palette.text.secondary
-            }}>
-              {progressiveLoadingState === 'timeline' 
-                ? 'Loading timeline...' 
-                : viewMode !== 'position' 
-                  ? `Loading events for ${viewMode} view...` 
-                  : 'Loading events...'}
-            </Typography>
-          </Box>
-        )}
-        
-        {/* Event List shell for initial timeline stage to avoid abrupt list pop-in */}
-        {shouldShowEventListShell ? (
-          <Box
-            sx={{
-              px: { xs: 1, sm: 0.5 },
-              pb: 1,
-              transform: 'scale(0.995)',
-              transformOrigin: 'top center',
-              transition: 'transform 320ms ease, opacity 320ms ease',
-              opacity: 0.92,
-            }}
-          >
-            <Box
-              sx={{
-                mb: 1.5,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.1)'}`,
-                background: theme.palette.mode === 'dark'
-                  ? 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.06) 100%)'
-                  : 'linear-gradient(180deg, rgba(15,23,42,0.03) 0%, rgba(15,23,42,0.05) 100%)',
-                p: 1.5,
-              }}
-            >
-              <Skeleton variant="text" width="34%" height={26} sx={{ mb: 0.5 }} />
-              <Skeleton variant="text" width="22%" height={20} />
-            </Box>
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <Box
-                key={`event-list-shell-row-${idx}`}
-                sx={{
-                  mb: 1.2,
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.08)'}`,
-                  background: theme.palette.mode === 'dark'
-                    ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 100%)'
-                    : 'linear-gradient(180deg, rgba(15,23,42,0.025) 0%, rgba(15,23,42,0.045) 100%)',
-                  p: 1.5,
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'center' }}>
-                  <Skeleton variant="text" width="56%" height={24} />
-                  <Skeleton variant="rounded" width={86} height={22} />
+                >
+                  {!isLoading && (
+                    <TimelineNameDisplay
+                      name={timelineName}
+                      type={timeline_type}
+                      visibility={visibility}
+                      typographyProps={{
+                        variant: "h4",
+                        component: "div"
+                      }}
+                    />
+                  )}
                 </Box>
-                <Skeleton variant="text" width="76%" height={20} />
-                <Skeleton variant="text" width="68%" height={20} />
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <EventList
-            events={isSettled ? events : []}
-            onEventEdit={handleEventEdit}
-            onEventDelete={handleEventDelete}
-            selectedEventId={selectedEventId}
-            onEventSelect={handleEventSelect}
-            shouldScrollToEvent={shouldScrollToEvent}
-            viewMode={viewMode}
-            minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
-            maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
-            onFilteredEventsCount={handleFilteredEventsCount}
-            isLoadingMarkers={progressiveLoadingState !== 'complete'}
-            goToPrevious={navigateToPrevEvent}
-            goToNext={navigateToNextEvent}
-            currentEventIndex={currentEventIndex}
-            setIsPopupOpen={setIsPopupOpen}
-            eventRefs={eventRefs}
-            reviewingEventIds={reviewingEventIds}
-            motionDissipate={!isSettled}
-            timelineType={timeline_type}
-          />
-        )}
-      </Box>
-
-      {/* Event Dialog */}
-      <EventDialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-          setEditingEvent(null);
-        }}
-        onSave={handleEventSubmit}
-        initialEvent={editingEvent}
-        timelineName={timelineName}
-        timelineType={timeline_type}
-        submitLoading={eventSubmitLoading}
-        submitDisabled={eventSubmitLoading}
-      />
-      
-      {/* Media Event Creator */}
-      <MediaEventCreator
-        open={mediaDialogOpen}
-        onClose={() => {
-          setMediaDialogOpen(false);
-        }}
-        onSave={handleEventSubmit}
-        timelineName={timelineName}
-      />
-      
-      {/* Remark Event Creator */}
-      <RemarkEventCreator
-        open={remarkDialogOpen}
-        onClose={() => {
-          setRemarkDialogOpen(false);
-        }}
-        onSave={handleEventSubmit}
-        timelineName={timelineName}
-      />
-      
-      {/* News Event Creator */}
-      <NewsEventCreator
-        open={newsDialogOpen}
-        onClose={() => {
-          setNewsDialogOpen(false);
-        }}
-        onSave={handleEventSubmit}
-        timelineName={timelineName}
-      />
-
-      <Dialog
-        open={timelineReportDialogOpen}
-        onClose={handleCloseTimelineReportDialog}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
-      >
-        <DialogTitle>Report Timeline</DialogTitle>
-        <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            This report creates a moderation ticket for Site Control.
-          </Typography>
-          <TextField
-            select
-            fullWidth
-            margin="dense"
-            label="Category"
-            value={timelineReportCategory}
-            onChange={(e) => setTimelineReportCategory(e.target.value)}
-          >
-            <MenuItem value="">Select a category</MenuItem>
-            <MenuItem value="website_policy">Website Policy</MenuItem>
-            <MenuItem value="government_policy">Government Policy</MenuItem>
-            <MenuItem value="unethical_boundary">Unethical Boundary</MenuItem>
-          </TextField>
-          <TextField
-            fullWidth
-            margin="dense"
-            multiline
-            minRows={3}
-            label="Reason (optional details)"
-            value={timelineReportReason}
-            onChange={(e) => setTimelineReportReason(e.target.value)}
-            placeholder="Add context for moderators"
-            sx={{ mt: 1.5 }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button
-            onClick={handleCloseTimelineReportDialog}
-            disabled={timelineReportSubmitting}
-            variant="contained"
-            sx={{
-              ...getGlassSquareActionButtonSx(theme),
-              width: 'auto',
-              minWidth: 84,
-              px: 2,
-              borderRadius: 1.4,
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.06)',
-              color: theme.palette.text.primary,
-              '&:hover': {
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.12)',
-              }
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmitTimelineReport}
-            variant="outlined"
-            disabled={timelineReportSubmitting || !timelineReportCategory}
-            sx={{
-              ...getGlassPillActionButtonSx(theme),
-              borderColor: 'error.main',
-              color: 'error.main',
-              '&:hover': {
-                borderColor: 'error.dark',
-                bgcolor: alpha('#ef4444', 0.1),
-              }
-            }}
-          >
-            {timelineReportSubmitting ? 'Submitting...' : 'Submit Report'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <HashtagSettingsDialog
-        open={hashtagSettingsOpen}
-        onClose={handleCloseHashtagSettings}
-        timelineId={timelineId}
-        timelineName={timelineName}
-        timelineType={timeline_type}
-        initialDescription={timelineDescription}
-        initialCoverPortraitUrl={coverPortraitUrl}
-        initialCoverPortraitPosition={coverPortraitPosition}
-        initialCoverPortraitZoom={coverPortraitZoom}
-        initialCoverLandscapeUrl={coverLandscapeUrl}
-        initialCoverLandscapePosition={coverLandscapePosition}
-        initialCoverLandscapeZoom={coverLandscapeZoom}
-        onSaved={handleHashtagSettingsSaved}
-        onNotify={handleAccessPanelNotice}
-      />
-
-      {/* Animated Floating Action Buttons */}
-      {!shouldBlur && (
-        <Box sx={{
-          position: 'fixed',
-          right: 32,
-          bottom: 32,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          zIndex: 1250
-        }}>
-        {timeline_type === 'community' && canOpenCommunityActionFab ? (
-          <NavFab
-            timelineId={timelineId}
-            pathname={location.pathname}
-            expanded={floatingButtonsExpanded}
-            onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
-            onCollapse={() => setFloatingButtonsExpanded(false)}
-            onNavigate={handleCommunityNavigate}
-            showReport={!isGuestUser && !timelineIsSafeguarded}
-            onReport={handleOpenTimelineReportDialog}
-            showCreate={canCreateEventAction}
-            showMembersNav={isMember === true}
-            showAdminNav={['moderator', 'admin', 'creator', 'siteowner'].includes(normalizedCommunityRole)}
-            onCreate={() => {
-              setEditingEvent(null);
-              setDialogOpen(true);
-              setFloatingButtonsExpanded(false);
-            }}
-            createEmphasis
-            mainFabSx={fabAccentSx}
-          />
-        ) : null}
-        {showShareTradingCard ? (
-          <TradingCard
-            onActivate={handleShareCardClick}
-            frameSx={{
-              position: 'absolute',
-              right: { xs: 70, sm: 82 },
-              bottom: 0,
-              boxShadow: floatingButtonsExpanded
-                ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
-                : '0 10px 24px rgba(15,23,42,0.18)',
-              transform: floatingButtonsExpanded
-                ? 'translateX(0) translateY(-6px) scale(1)'
-                : 'translateX(26px) translateY(6px) scale(0.92)',
-              opacity: floatingButtonsExpanded ? 1 : 0,
-              pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
-              transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
-              transitionDelay: floatingButtonsExpanded ? '0.24s' : '0s',
-              zIndex: 1490,
-              '&:hover .share-card-overlay': {
-                opacity: 1,
-              },
-              '&:hover .share-card-image': {
-                filter: coverUploadEnabled
-                  ? 'brightness(0.88) saturate(1.02)'
-                  : 'blur(18px) saturate(0.45)',
-              },
-            }}
-            imageUrl={coverPortraitUrl}
-            imageAlt={`${shareCardTitle} portrait cover`}
-            imageClassName="share-card-image"
-            imageSx={{
-              objectFit: shareCardImageObjectFit,
-              filter: coverUploadEnabled
-                ? 'brightness(1.08) saturate(1.08)'
-                : 'blur(18px) saturate(0.45)',
-              transform: buildCoverPortraitTransform(
-                coverPortraitPosition,
-                coverPortraitZoom,
-                coverUploadEnabled
-              ),
-            }}
-            fallbackClassName="share-card-image"
-            fallbackSx={{ background: communityFallbackGradient }}
-            label={shareCardLabel}
-            title={shareCardTitle}
-            qrUrl={shareQrUrl}
-            overlayClassName="share-card-overlay"
-            overlayText="Tap to Share"
-            isRestricted={timeline_type === 'personal' && (creatorProfile?.is_restricted || creatorProfile?.is_suspended)}
-          />
-        ) : null}
-        {timeline_type !== 'community' && !isGuestUser ? (
-          <NavFab
-            pathname={location.pathname}
-            expanded={floatingButtonsExpanded}
-            onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
-            onCollapse={() => setFloatingButtonsExpanded(false)}
-            actions={nonCommunityFabActions}
-            showMainFab
-            mainFabDisabled={!canCreateOrReport && !canManageHashtagSettings && !canManagePersonalAccessPanel}
-            mainTooltipClosed="Show Options"
-            mainTooltipOpen="Hide Options"
-            mainTooltipDisabled="Posting Restricted"
-            enableClickAway={false}
-            mainFabSx={fabAccentSx}
-          />
-        ) : null}
-        
-        {/* Conditional rendering based on timeline type and membership status */}
-        {timeline_type === 'community'
-          ? (
-              isPendingApproval ? (
-                // Show "Request Sent!" FAB for pending members
-                <Tooltip title="Request Pending Approval">
-                  <span>
-                    <Fab
-                      disabled
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    flexShrink: 0,
+                    width: { xs: isTitleTooLong ? '100%' : 'auto', sm: 'auto' },
+                    justifyContent: { xs: isTitleTooLong ? 'flex-end' : 'flex-start', sm: 'flex-start' }
+                  }}
+                >
+                  <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                    {/* Button section */}
+                    {timeline_type === 'community' ? (
+                      // Community timeline membership control
+                      <CommunityMembershipControl
+                        timelineId={timelineId}
+                        user={user}
+                        visibility={visibility}
+                        requiresApproval={requiresApproval}
+                        onJoinSuccess={(data) => {
+                          // Refresh membership status
+                          refreshMembership();
+                        }}
+                        onLeaveSuccess={() => {
+                          // Refresh membership status
+                          refreshMembership();
+                        }}
+                      />
+                    ) : isPersonalTimeline ? (
+                      isCreator ? (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            disabled
+                            startIcon={<VisibilityIcon sx={{ fontSize: '1.4rem' }} />}
+                            sx={{
+                              bgcolor: theme.palette.mode === 'dark'
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : 'rgba(25, 118, 210, 0.08)',
+                              color: theme.palette.mode === 'dark'
+                                ? theme.palette.primary.light
+                                : theme.palette.primary.main,
+                              fontSize: '0.9rem',
+                              fontWeight: 700,
+                              px: 2,
+                              py: 0.75,
+                              borderRadius: 2,
+                              border: `2px solid ${theme.palette.mode === 'dark'
+                                ? 'rgba(255, 255, 255, 0.12)'
+                                : theme.palette.primary.main}`,
+                              '&.Mui-disabled': {
+                                color: theme.palette.mode === 'dark'
+                                  ? theme.palette.primary.light
+                                  : theme.palette.primary.main,
+                              },
+                            }}
+                          >
+                            {viewerLabel}
+                          </Button>
+                        </Stack>
+                      ) : isSiteOwner ? (
+                        <Button
+                          disabled
+                          startIcon={<SecurityIcon />}
+                          sx={{
+                            bgcolor: theme.palette.error.main,
+                            color: theme.palette.error.contrastText,
+                            fontWeight: 700,
+                            px: 2,
+                            py: 0.75,
+                            borderRadius: 2,
+                          }}
+                        >
+                          System Access
+                        </Button>
+                      ) : (
+                        creatorProfile && (
+                          <Chip
+                            clickable
+                            onClick={() => navigate(`/profile/${creatorProfile.id}`)}
+                            avatar={
+                              <Avatar
+                                src={creatorProfile.avatar_url || undefined}
+                                alt={displayUsername(creatorProfile.username)}
+                                sx={{
+                                  bgcolor: creatorProfile.avatar_url ? undefined : (creatorProfile.user_color || '#888'),
+                                  color: creatorProfile.avatar_url ? undefined : '#111',
+                                  fontWeight: 600,
+                                  fontSize: '0.8rem',
+                                }}
+                              >
+                                {!creatorProfile.avatar_url ? displayUsername(creatorProfile.username || 'U')[0]?.toUpperCase() : null}
+                              </Avatar>
+                            }
+                            label={`@${displayUsername(creatorProfile.username)}`}
+                            sx={{
+                              ml: 1.5,
+                              px: 1.5,
+                              py: 0.25,
+                              borderRadius: 999,
+                              fontWeight: 600,
+                              fontSize: '0.85rem',
+                              background:
+                                theme.palette.mode === 'dark'
+                                  ? 'linear-gradient(135deg, rgba(144, 202, 249, 0.16), rgba(206, 147, 216, 0.18))'
+                                  : 'linear-gradient(135deg, rgba(129, 212, 250, 0.18), rgba(244, 143, 177, 0.22))',
+                              color: theme.palette.mode === 'dark'
+                                ? theme.palette.primary.light
+                                : theme.palette.primary.main,
+                              boxShadow:
+                                theme.palette.mode === 'dark'
+                                  ? '0 4px 12px rgba(0, 0, 0, 0.45)'
+                                  : '0 4px 12px rgba(0, 0, 0, 0.18)',
+                              '& .MuiChip-avatar': {
+                                width: 28,
+                                height: 28,
+                              },
+                              '&:hover': {
+                                boxShadow:
+                                  theme.palette.mode === 'dark'
+                                    ? '0 6px 18px rgba(0, 0, 0, 0.55)'
+                                    : '0 6px 18px rgba(0, 0, 0, 0.24)',
+                                transform: 'translateY(-1px)',
+                              },
+                              transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                            }}
+                          />
+                        )
+                      )
+                    ) : (isHashtagTimeline && !isGuestUser) ? (
+                      <Button
+                        onClick={handleToggleHashtagFollow}
+                        variant={isFollowingHashtag ? 'outlined' : 'contained'}
+                        disabled={isLoading || isHashtagFollowLoading || isHashtagFollowUpdating}
+                        startIcon={
+                          isHashtagFollowLoading || isHashtagFollowUpdating ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <VisibilityIcon />
+                          )
+                        }
+                        sx={{
+                          borderRadius: 2,
+                          px: 2,
+                          fontWeight: 700,
+                          textTransform: 'none',
+                          ...(isFollowingHashtag
+                            ? {
+                              borderColor: theme.palette.info.main,
+                              color: theme.palette.info.main,
+                              '&:hover': {
+                                borderColor: theme.palette.info.dark,
+                                backgroundColor:
+                                  theme.palette.mode === 'dark'
+                                    ? 'rgba(3, 169, 244, 0.12)'
+                                    : 'rgba(3, 169, 244, 0.08)',
+                              },
+                            }
+                            : {
+                              bgcolor: theme.palette.info.main,
+                              color: '#fff',
+                              '&:hover': {
+                                bgcolor: theme.palette.info.dark,
+                              },
+                              boxShadow: 2,
+                            }),
+                        }}
+                      >
+                        {isHashtagFollowLoading
+                          ? 'Loading...'
+                          : isFollowingHashtag
+                            ? `Watching${hashtagFollowKind && hashtagFollowKind !== 'watch' ? ` (${hashtagFollowKind})` : ''}`
+                            : 'Watch'}
+                      </Button>
+                    ) : (
+                      // Only show Add Event for non-personal, non-community timelines
+                      // and only after we've finished loading the basic timeline metadata.
+                      (!isLoading && !isPersonalTimeline && timeline_type !== 'community' && canCreateOrReport) ? (
+                        <Button
+                          onClick={handleAddEventClick}
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          endIcon={<ArrowDropDownIcon />}
+                          sx={{
+                            bgcolor: theme.palette.success.main,
+                            color: 'white',
+                            '&:hover': {
+                              bgcolor: theme.palette.success.dark,
+                            },
+                            boxShadow: 2
+                          }}
+                        >
+                          Add Event
+                        </Button>
+                      ) : (
+                        <Button
+                          disabled
+                          sx={{
+                            bgcolor: 'rgba(0, 0, 0, 0.12)',
+                            color: theme.palette.text.secondary,
+                            '&.Mui-disabled': { color: theme.palette.text.secondary }
+                          }}
+                        >
+                          {!isLoading && !canCreateOrReport ? 'Posting Restricted' : 'Loading...'}
+                        </Button>
+                      )
+                    )}
+                    {/* Only show the add-event menu when event creation is allowed on this timeline */}
+                    {!isHashtagTimeline && timeline_type !== 'community' && canCreateTimelineEvents && (
+                      <Menu
+                        anchorEl={addEventAnchorEl}
+                        open={Boolean(addEventAnchorEl)}
+                        onClose={handleAddEventMenuClose}
+                        sx={{ mt: 1 }}
+                      >
+                        <MenuItem onClick={() => {
+                          handleAddEventMenuClose();
+                          setRemarkDialogOpen(true);
+                        }}>
+                          <ListItemIcon>
+                            <CommentIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#42a5f5' : '#1976d2' }} />
+                          </ListItemIcon>
+                          <ListItemText>Add Remark</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => {
+                          handleAddEventMenuClose();
+                          setNewsDialogOpen(true);
+                        }}>
+                          <ListItemIcon>
+                            <LinkIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ef5350' : '#e53935' }} />
+                          </ListItemIcon>
+                          <ListItemText>Add Links</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => {
+                          handleAddEventMenuClose();
+                          setMediaDialogOpen(true);
+                        }}>
+                          <ListItemIcon>
+                            <PermMediaIcon fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ce93d8' : '#9c27b0' }} />
+                          </ListItemIcon>
+                          <ListItemText>Add Media</ListItemText>
+                        </MenuItem>
+                      </Menu>
+                    )}
+                  </Box>
+                  <Fade in={timelineOffset !== 0}>
+                    <Button
+                      onClick={handleRecenter}
+                      variant="contained"
                       sx={{
-                        bgcolor: theme.palette.warning.light,
-                        color: theme.palette.warning.contrastText,
-                        '&.Mui-disabled': {
-                          bgcolor: theme.palette.warning.light,
-                          color: theme.palette.warning.contrastText,
-                        },
-                        boxShadow: 3,
-                        zIndex: 1540
+                        background: theme.palette.mode === 'dark'
+                          ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                          : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                        color: 'white',
+                        border: theme.palette.mode === 'dark' ? '1px solid rgba(147, 197, 253, 0.4)' : '1px solid rgba(255, 255, 255, 0.25)',
+                        borderRadius: 2.25,
+                        px: { xs: 0, sm: 2.5 },
+                        py: 0.75,
+                        width: { xs: '36px', sm: 'auto' },
+                        height: { xs: '36px', sm: 'auto' },
+                        minWidth: { xs: '36px', sm: 'auto' },
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: theme.palette.mode === 'dark' ? '0 4px 14px rgba(59, 130, 246, 0.25)' : '0 4px 12px rgba(37, 99, 235, 0.15)',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: theme.palette.mode === 'dark' ? '0 8px 24px rgba(59, 130, 246, 0.45)' : '0 8px 20px rgba(37, 99, 235, 0.3)',
+                          filter: 'brightness(1.08)'
+                        }
                       }}
                     >
-                      <CheckCircleIcon />
-                    </Fab>
-                  </span>
-                </Tooltip>
-              ) : (!isGuestUser && !isMember && !joinRequestSent && !joinLoading && !isBlocked) 
-                ? (
+                      <MyLocationIcon sx={{ fontSize: '0.9rem', mr: { xs: 0, sm: 1 } }} />
+                      <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
+                        Back to Present
+                      </Box>
+                      <Box component="span" sx={{ display: { xs: 'none', sm: 'inline', md: 'none' } }}>
+                        Present
+                      </Box>
+                    </Button>
+                  </Fade>
+                </Box>
+              </Stack>
+              <PersonalAccessPanel
+                open={accessPanelOpen}
+                onClose={handleCloseAccessPanel}
+                user={user}
+                allowedViewers={allowedViewers}
+                newViewerUsername={newViewerUsername}
+                setNewViewerUsername={setNewViewerUsername}
+                viewerError={viewerError}
+                onAddViewer={handleAddViewer}
+                onRemoveViewer={handleRemoveViewer}
+                timelineId={timelineId}
+                timelineType={timeline_type}
+                timelineDescription={timelineDescription}
+                setTimelineDescription={setTimelineDescription}
+                coverPortraitUrl={coverPortraitUrl}
+                setCoverPortraitUrl={setCoverPortraitUrl}
+                coverPortraitPosition={coverPortraitPosition}
+                setCoverPortraitPosition={setCoverPortraitPosition}
+                coverPortraitZoom={coverPortraitZoom}
+                setCoverPortraitZoom={setCoverPortraitZoom}
+                coverLandscapeUrl={coverLandscapeUrl}
+                setCoverLandscapeUrl={setCoverLandscapeUrl}
+                coverLandscapePosition={coverLandscapePosition}
+                setCoverLandscapePosition={setCoverLandscapePosition}
+                coverLandscapeZoom={coverLandscapeZoom}
+                setCoverLandscapeZoom={setCoverLandscapeZoom}
+                onNotify={handleAccessPanelNotice}
+              />
+
+            </Stack>
+
+            {/* Collapsible Info & Rules panel — click title to open, click away to close */}
+            <Collapse in={infoOpen} timeout={280} unmountOnExit>
+              <Box
+                ref={infoPanelRef}
+                sx={{
+                  mb: 2,
+                  px: { xs: 2, sm: 3 },
+                  py: 2,
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                  background:
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.025)',
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                <Typography
+                  variant="overline"
+                  sx={{
+                    display: 'block',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    color: 'text.secondary',
+                    mb: 1,
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  📋 Info & Rules
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: timelineDescription ? 'text.primary' : 'text.secondary',
+                    lineHeight: 1.75,
+                    whiteSpace: 'pre-wrap',
+                    fontStyle: timelineDescription ? 'normal' : 'italic',
+                  }}
+                >
+                  {timelineDescription ||
+                    (timeline_type === 'community'
+                      ? 'Community timelines are for groups of people or organizations. No specific rules have been set by the owner yet.'
+                      : timeline_type === 'personal'
+                        ? 'Personal timelines are for private thoughts and memories. This is a private space.'
+                        : 'Hashtag timelines are public records — anyone can contribute events related to this topic. No specific rules have been set yet.')}
+                </Typography>
+              </Box>
+            </Collapse>
+
+            <Box
+              ref={timelineWorkspaceRef}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={handleTouchStart}
+              onMouseMove={handleTouchMove}
+              onMouseUp={handleTouchEnd}
+              onMouseLeave={handleTouchEnd}
+              sx={{
+                width: { xs: 'calc(100% + 32px)', sm: '100%' },
+                mx: { xs: -2, sm: 0 },
+                height: '300px',
+                background: timelineSurfaces.tool,
+                borderRadius: { xs: 0, sm: 2 },
+                boxShadow: 1,
+                borderLeft: { xs: 'none', sm: `1px solid ${timelineSurfaces.toolBorder}` },
+                borderRight: { xs: 'none', sm: `1px solid ${timelineSurfaces.toolBorder}` },
+                borderTop: `1px solid ${timelineSurfaces.toolBorder}`,
+                borderBottom: `1px solid ${timelineSurfaces.toolBorder}`,
+                backdropFilter: timelineSurfaces.toolBlur,
+                position: 'relative',
+                overflow: 'hidden',
+                touchAction: 'none',
+                cursor: 'grab',
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                opacity: isViewTransitioning ? (viewTransitionPhase === 'fadeOut' ? 0.5 : 0.8) : 1,
+                transform: `
+              translate3d(0, 0, 0)
+              scale(${isViewTransitioning && viewTransitionPhase === 'structureTransition' ? '0.98' : '1'})
+              ${isFullyFaded ? 'translateY(-10px)' : 'translateY(0)'}
+            `,
+                pointerEvents: isViewTransitioning ? 'none' : 'auto',
+                willChange: 'transform, opacity',
+                filter: isViewTransitioning && viewTransitionPhase === 'dataProcessing' ? 'blur(1px)' : 'none'
+              }}
+            >
+              {shouldBlur && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 2000,
+                    backdropFilter: 'blur(12px)',
+                    backgroundColor: 'rgba(0,0,0,0.30)',
+                    pointerEvents: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Box sx={{
+                    px: 2,
+                    py: 1,
+                    borderRadius: 2,
+                    background: timelineSurfaces.glass,
+                    border: `1px solid ${timelineSurfaces.glassBorder}`,
+                    boxShadow: 2,
+                    fontSize: '0.85rem',
+                    color: theme.palette.text.secondary
+                  }}>
+                    {isMember === null ? 'Checking access…' : 'Access blocked'}
+                  </Box>
+                </Box>
+              )}
+              {/* View Transition Indicator */}
+              {isViewTransitioning && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 1500, // Increased to be above all timeline elements including hover marker (900) and selected markers (1000)
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.05)',
+                    backdropFilter: 'blur(2px)',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <Box
+                    sx={{
+                      px: 3,
+                      py: 1.5,
+                      borderRadius: 2,
+                      background: timelineSurfaces.panel,
+                      border: `1px solid ${timelineSurfaces.panelBorder}`,
+                      backdropFilter: timelineSurfaces.panelBlur,
+                      boxShadow: 3,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 1
+                    }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                      {viewTransitionPhase === 'fadeOut' && 'Preparing view...'}
+                      {viewTransitionPhase === 'structureTransition' && 'Updating timeline...'}
+                      {viewTransitionPhase === 'dataProcessing' && 'Processing events...'}
+                      {viewTransitionPhase === 'fadeIn' && 'Loading content...'}
+                    </Typography>
+                    <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+                      <Box
+                        sx={{
+                          height: '100%',
+                          width: viewTransitionPhase === 'fadeOut' ? '25%' :
+                            viewTransitionPhase === 'structureTransition' ? '50%' :
+                              viewTransitionPhase === 'dataProcessing' ? '75%' : '95%',
+                          bgcolor: theme.palette.primary.main,
+                          transition: 'width 0.3s ease-out',
+                          borderRadius: 2
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+              {/* Track background clicks only (input handled on workspace container) */}
+              <TimelineBackground
+                onBackgroundClick={handleBackgroundClick}
+              />
+              <TimelineBar
+                theme={theme}
+                style={timelineTransitionStyles}
+              />
+              {/* Event Markers - only show in time-based views and when loading is complete */}
+              {viewMode !== 'position' && progressiveLoadingState === 'complete' && (
+                <>
+                  {/* Initialize the global event positions array for overlapping detection */}
+                  {(() => {
+                    window.timelineEventPositions = [];
+                    return null;
+                  })()}
+
+                  <EventMarkerCanvasV2
+                    key={`canvas-rungs-${viewMode}`}
+                    events={visibleEvents}
+                    viewMode={viewMode}
+                    timelineOffset={timelineOffset}
+                    markerSpacing={100}
+                    selectedEventId={selectedEventId}
+                    onMarkerClick={handleMarkerClick}
+                    onBackgroundClick={handleBackgroundClick}
+                    voteDotsById={voteDotsById}
+                    voteDotsLoading={voteDotsLoading}
+                    calculateEventMarkerPosition={calculateEventMarkerPosition}
+                    isFullyFaded={isFullyFaded}
+                    markersLoading={markersLoading}
+                    timelineMarkersLoading={timelineMarkersLoading}
+                    progressiveLoadingState={progressiveLoadingState}
+                    motionDissipate={!isSettled}
+                    referenceDate={pointA_currentTime}
+                  />
+                  {selectedVisibleEvent && (
+                    <Fade
+                      key={`marker-selected-${selectedVisibleEvent.id}`}
+                      in={!isMoving && isSettled}
+                      timeout={{ enter: 500, exit: 200 }}
+                    >
+                      <div>
+                        <EventMarker
+                          event={selectedVisibleEvent}
+                          viewMode={viewMode}
+                          timelineOffset={timelineOffset}
+                          markerSpacing={100}
+                          index={selectedVisibleIndex}
+                          totalEvents={visibleEvents.length}
+                          currentIndex={currentEventIndex ?? -1}
+                          minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
+                          maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
+                          onClick={handleMarkerClick}
+                          selectedType={selectedType}
+                          isSelected
+                          isMoving={isMoving}
+                          disableHover
+                          disableSelectedPulse={false}
+                          showMarkerLine={true}
+                          showVoteDot={true}
+                          onDelete={handleEventDelete}
+                          onEdit={handleEventEdit}
+                          voteDot={voteDotsById[selectedVisibleEvent.id] || null}
+                          voteDotsLoading={voteDotsLoading}
+                          workspaceWidth={timelineWorkspaceBounds?.width}
+                          referenceDate={pointA_currentTime}
+                        />
+                      </div>
+                    </Fade>
+                  )}
+                </>
+              )}
+              {/* Wrap TimeMarkers in Fade component for smoother transitions */}
+              <Fade
+                in={!timelineElementsLoading}
+                timeout={{ enter: 500, exit: 200 }}
+              >
+                <div>
+                  <TimeMarkers
+                    timelineOffset={timelineOffset}
+                    markerSpacing={100}
+                    markerStyles={markerStyles}
+                    markers={visibleMarkers}
+                    viewMode={viewMode}
+                    theme={theme}
+                    workspaceWidth={timelineWorkspaceBounds?.width}
+                    style={timelineTransitionStyles}
+                    pointB_active={B_POINTER_MINIMAL ? false : pointB_active}
+                    pointB_reference_markerValue={B_POINTER_MINIMAL ? 0 : pointB_reference_markerValue}
+                    pointB_reference_timestamp={pointB_reference_timestamp}
+                    onMarkerClick={(markerValue, timestamp, viewMode) => {
+                      // Deselect any previously selected event when clicking a non-event marker
+                      if (selectedEventId) {
+                        setSelectedEventId(null);
+                        setCurrentEventIndex(-1);
+                      }
+                      activatePointB(markerValue, timestamp, viewMode, null, false, 0);
+                    }}
+                  />
+                </div>
+              </Fade>
+
+              {/* Action Markers - Render community actions pins */}
+              <Fade
+                in={!timelineElementsLoading}
+                timeout={{ enter: 500, exit: 200 }}
+                style={{ transitionDelay: '150ms' }}
+              >
+                <div>
+                  <ActionMarkers
+                    actions={timelineActions}
+                    timelineOffset={timelineOffset}
+                    markerSpacing={100}
+                    viewMode={viewMode}
+                    theme={theme}
+                    workspaceWidth={timelineWorkspaceBounds?.width}
+                    onActionClick={(action) => setActiveAction(action)}
+                  />
+                </div>
+              </Fade>
+
+              {/* Wrap HoverMarker in Fade component for smoother transitions */}
+              <Fade
+                in={!timelineElementsLoading}
+                timeout={{ enter: 600, exit: 150 }}
+                style={{ transitionDelay: '100ms' }} // Slight delay for staggered appearance
+              >
+                <div>
+                  <HoverMarker
+                    position={hoverPosition}
+                    timelineOffset={timelineOffset}
+                    markerSpacing={100}
+                    viewMode={viewMode}
+                    workspaceWidth={timelineWorkspaceBounds?.width}
+                    theme={theme}
+                    style={timelineTransitionStyles}
+                  />
+                </div>
+              </Fade>
+
+              {/* Point B Indicator - Shows where user focus is locked */}
+              <PointBIndicator
+                active={pointB_active}
+                markerValue={pointB_arrow_markerValue}
+                pixelOffset={pointB_arrow_pixelOffset}
+                timelineOffset={timelineOffset}
+                workspaceWidth={timelineWorkspaceBounds?.width}
+                label={pointB_active && pointB_reference_timestamp ? new Date(pointB_reference_timestamp).toLocaleString() : undefined}
+              />
+
+            </Box>
+
+            {/* Unified Timeline Navigation & View Controls Row */}
+            {/* Unified Timeline Navigation & View Controls Row */}
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              justifyContent="center"
+              sx={{ mt: 2, mb: 2, width: '100%' }}
+            >
+              {/* Left Hooked - Tiny navigation button for desktop */}
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Button
+                  size="small"
+                  onClick={handleLeft}
+                  sx={{
+                    minWidth: 'auto',
+                    px: 1.5,
+                    py: 0.5,
+                    background: timelineSurfaces.tool,
+                    border: `1px solid ${timelineSurfaces.toolBorder}`,
+                    color: theme.palette.text.secondary,
+                    fontWeight: 'bold',
+                    fontSize: '0.75rem',
+                    '&:hover': {
+                      background: timelineSurfaces.glassHover,
+                    }
+                  }}
+                >
+                  ◀ LEFT
+                </Button>
+              </Box>
+
+              {/* Center Group: EventCounter + View Mode Buttons (always on the same row, never stack!) */}
+              <Stack
+                direction="row"
+                spacing={{ xs: 0.5, sm: 3 }}
+                alignItems="center"
+                justifyContent="center"
+                sx={{ flexGrow: 1, width: 'auto', flexWrap: 'nowrap' }}
+              >
+                {/* Event Counter */}
+                {(() => {
+                  // Compute filtered events for EventCounter (memoized inline)
+                  const filteredEventsForCounter = isSettled ? events.filter(event => {
+                    // Apply the same filtering logic as in EventList
+                    if (viewMode === 'position') {
+                      if (selectedType) {
+                        const eventType = (event.type || '').toLowerCase();
+                        return eventType === selectedType.toLowerCase();
+                      }
+                      return true;
+                    }
+
+                    if (!event.event_date) return false;
+
+                    const currentDate = getCurrentTimeReference();
+                    let startDate, endDate;
+
+                    let rangeMin, rangeMax;
+                    if (visibleMarkers && visibleMarkers.length > 0) {
+                      rangeMin = Math.min(...visibleMarkers);
+                      rangeMax = Math.max(...visibleMarkers);
+                    } else {
+                      const screenWidth = timelineWorkspaceBounds?.width || window.innerWidth;
+                      const markerWidth = 100;
+                      const visibleMarkerCount = Math.ceil(screenWidth / markerWidth);
+                      const centerMarkerPosition = -timelineOffset / markerWidth;
+                      const halfVisibleCount = Math.floor(visibleMarkerCount / 2);
+                      rangeMin = Math.floor(centerMarkerPosition - halfVisibleCount);
+                      rangeMax = Math.ceil(centerMarkerPosition + halfVisibleCount);
+                    }
+
+                    switch (viewMode) {
+                      case 'day': {
+                        startDate = new Date(currentDate);
+                        startDate.setHours(startDate.getHours() + rangeMin);
+
+                        endDate = new Date(currentDate);
+                        endDate.setHours(endDate.getHours() + rangeMax);
+                        break;
+                      }
+                      case 'week': {
+                        startDate = subDays(currentDate, Math.abs(rangeMin));
+                        endDate = addDays(currentDate, rangeMax);
+                        break;
+                      }
+                      case 'month': {
+                        startDate = subMonths(currentDate, Math.abs(rangeMin));
+                        endDate = addMonths(currentDate, rangeMax);
+                        break;
+                      }
+                      case 'year': {
+                        startDate = subYears(currentDate, Math.abs(rangeMin));
+                        endDate = addYears(currentDate, rangeMax);
+                        break;
+                      }
+                      default:
+                        return true;
+                    }
+
+                    const eventDate = new Date(event.event_date);
+                    const passesDateFilter = eventDate >= startDate && eventDate <= endDate;
+
+                    if (selectedType) {
+                      const eventType = (event.type || '').toLowerCase();
+                      return passesDateFilter && eventType === selectedType.toLowerCase();
+                    }
+
+                    return passesDateFilter;
+                  }) : [];
+
+                  return (
+                    <EventCounter
+                      count={isSettled ? filteredEventsCount : 0}
+                      events={filteredEventsForCounter}
+                      currentIndex={currentEventIndex}
+                      onChangeIndex={(index) => {
+                        if (Date.now() < userSelectionLockUntilRef.current) {
+                          return;
+                        }
+
+                        const event = filteredEventsForCounter[index];
+                        if (!event) return;
+
+                        setCurrentEventIndex(index);
+                        setSelectedEventId(event.id);
+                        setShouldScrollToEvent(false);
+
+                        if (event.event_date && viewMode !== 'position') {
+                          const markerValue = calculateEventMarkerPosition(event, viewMode);
+                          activatePointB(markerValue, new Date(event.event_date), viewMode, event.id, false, 0);
+                        }
+                      }}
+                      onDotClick={handleCarouselPopupOpen}
+                      onEdit={handleEventEdit}
+                      onDelete={handleEventDelete}
+                      timelineOffset={timelineOffset}
+                      goToPrevious={navigateToPrevEvent}
+                      goToNext={navigateToNextEvent}
+                      markerSpacing={100}
+                      sortOrder={sortOrder}
+                      selectedType={selectedType}
+                      motionDissipate={!isSettled}
+                    />
+                  );
+                })()}
+
+                {/* View Mode Buttons */}
+                <Stack
+                  direction="row"
+                  spacing={{ xs: 0.25, sm: 1 }}
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Button
+                    variant={viewMode === 'day' ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => handleViewModeTransition(viewMode === 'day' ? 'position' : 'day')}
+                    disabled={isViewTransitioning}
+                    sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
+                  >
+                    Day
+                  </Button>
+                  <Button
+                    variant={viewMode === 'week' ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => handleViewModeTransition(viewMode === 'week' ? 'position' : 'week')}
+                    disabled={isViewTransitioning}
+                    sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
+                  >
+                    Week
+                  </Button>
+                  <Button
+                    variant={viewMode === 'month' ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => handleViewModeTransition(viewMode === 'month' ? 'position' : 'month')}
+                    disabled={isViewTransitioning}
+                    sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
+                  >
+                    Month
+                  </Button>
+                  <Button
+                    variant={viewMode === 'year' ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => handleViewModeTransition(viewMode === 'year' ? 'position' : 'year')}
+                    disabled={isViewTransitioning}
+                    sx={{ fontSize: { xs: '0.65rem', sm: '0.8125rem' }, minWidth: { xs: '40px', sm: '64px' }, px: { xs: 0.75, sm: 1.5 } }}
+                  >
+                    Year
+                  </Button>
+                </Stack>
+              </Stack>
+
+              {/* Right Hooked - Tiny navigation button for desktop */}
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Button
+                  size="small"
+                  onClick={handleRight}
+                  sx={{
+                    minWidth: 'auto',
+                    px: 1.5,
+                    py: 0.5,
+                    background: timelineSurfaces.tool,
+                    border: `1px solid ${timelineSurfaces.toolBorder}`,
+                    color: theme.palette.text.secondary,
+                    fontWeight: 'bold',
+                    fontSize: '0.75rem',
+                    '&:hover': {
+                      background: timelineSurfaces.glassHover,
+                    }
+                  }}
+                >
+                  RIGHT ▶
+                </Button>
+              </Box>
+            </Stack>
+          </Container>
+        </Collapse>
+
+        {/* ── Sticky unit: Banner locks below navbar with an 8px buffer; EventList fills remaining height and scrolls internally ── */}
+        <Box
+          sx={{
+            position: 'sticky',
+            top: { xs: 64, sm: 72 }, // 8px buffer below fixed AppBar (xs: 56+8=64, sm: 64+8=72)
+            zIndex: 10,
+            height: { xs: 'calc(100vh - 64px)', sm: 'calc(100vh - 72px)' },
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Banner — flex-shrink: 0 so it takes its natural height */}
+          <Box sx={{ flexShrink: 0, px: { xs: 1, sm: 2 } }}>
+            <TimelineHeroBanner
+              timelineName={timelineName}
+              timelineType={timeline_type}
+              coverImageUrl={coverLandscapeUrl}
+              coverLandscapeX={coverLandscapePosition.x}
+              coverLandscapeY={coverLandscapePosition.y}
+              coverZoom={coverLandscapeZoom}
+              coverUploadEnabled={coverUploadEnabled}
+              isLoading={isLoading}
+              onClick={handleTimelineToolToggle}
+              isCollapsed={!timelineToolOpen}
+              sx={{ mb: 1, mt: 1 }}
+            />
+          </Box>
+
+          {/* EventList scroll zone — flex: 1 fills remaining height; overflowY: auto scrolls internally */}
+          <Box
+            ref={eventListContainerRef}
+            sx={{
+              flex: 1,
+              overflowY: 'auto',
+              minHeight: 0, // required for flex overflow to work correctly
+              position: 'relative',
+              opacity: progressiveLoadingState === 'complete' ? 1 : 0.6,
+              transform: progressiveLoadingState === 'complete' ? 'translateY(0)' : 'translateY(8px)',
+              transition: 'opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              filter: progressiveLoadingState === 'complete' ? 'blur(0)' : 'blur(1px)',
+              willChange: 'opacity, transform, filter',
+            }}
+          >
+            {shouldBlur && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2000,
+                  backdropFilter: 'blur(12px)',
+                  backgroundColor: 'rgba(0,0,0,0.30)',
+                  pointerEvents: 'auto',
+                }}
+              />
+            )}
+            {/* Loading Indicator - Fixed to bottom left corner as overlay */}
+            {progressiveLoadingState !== 'complete' && (
+              <Box sx={{
+                position: 'fixed',
+                bottom: 16,
+                left: 16,
+                zIndex: 1200,
+                display: 'flex',
+                alignItems: 'center',
+                p: 1,
+                px: 2,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.9)',
+                borderRadius: 20,
+                boxShadow: 2,
+                backdropFilter: 'blur(8px)',
+                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                maxWidth: '90%',
+                opacity: 0.9,
+                transition: 'opacity 0.3s ease',
+                '&:hover': { opacity: 1 }
+              }}>
+                <Box sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: progressiveLoadingState === 'timeline'
+                    ? theme.palette.info.main
+                    : theme.palette.success.main,
+                  boxShadow: `0 0 10px ${progressiveLoadingState === 'timeline' ? theme.palette.info.main : theme.palette.success.main}`,
+                  animation: 'pulse 1.5s infinite'
+                }} />
+                <Typography variant="caption" sx={{
+                  fontWeight: 'medium',
+                  ml: 1.5,
+                  fontSize: '0.75rem',
+                  color: theme.palette.text.secondary
+                }}>
+                  {progressiveLoadingState === 'timeline'
+                    ? 'Loading timeline...'
+                    : viewMode !== 'position'
+                      ? `Loading events for ${viewMode} view...`
+                      : 'Loading events...'}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Event List shell for initial timeline stage to avoid abrupt list pop-in */}
+            {shouldShowEventListShell ? (
+              <Box
+                sx={{
+                  px: { xs: 1, sm: 0.5 },
+                  pb: 1,
+                  transform: 'scale(0.995)',
+                  transformOrigin: 'top center',
+                  transition: 'transform 320ms ease, opacity 320ms ease',
+                  opacity: 0.92,
+                }}
+              >
+                <Box
+                  sx={{
+                    mb: 1.5,
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.1)'}`,
+                    background: theme.palette.mode === 'dark'
+                      ? 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.06) 100%)'
+                      : 'linear-gradient(180deg, rgba(15,23,42,0.03) 0%, rgba(15,23,42,0.05) 100%)',
+                    p: 1.5,
+                  }}
+                >
+                  <Skeleton variant="text" width="34%" height={26} sx={{ mb: 0.5 }} />
+                  <Skeleton variant="text" width="22%" height={20} />
+                </Box>
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <Box
+                    key={`event-list-shell-row-${idx}`}
+                    sx={{
+                      mb: 1.2,
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.08)'}`,
+                      background: theme.palette.mode === 'dark'
+                        ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 100%)'
+                        : 'linear-gradient(180deg, rgba(15,23,42,0.025) 0%, rgba(15,23,42,0.045) 100%)',
+                      p: 1.5,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'center' }}>
+                      <Skeleton variant="text" width="56%" height={24} />
+                      <Skeleton variant="rounded" width={86} height={22} />
+                    </Box>
+                    <Skeleton variant="text" width="76%" height={20} />
+                    <Skeleton variant="text" width="68%" height={20} />
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <EventList
+                events={isSettled ? events : []}
+                onEventEdit={handleEventEdit}
+                onEventDelete={handleEventDelete}
+                selectedEventId={selectedEventId}
+                onEventSelect={handleEventSelect}
+                shouldScrollToEvent={shouldScrollToEvent}
+                viewMode={viewMode}
+                minMarker={visibleMarkers.length > 0 ? Math.min(...visibleMarkers) : -10}
+                maxMarker={visibleMarkers.length > 0 ? Math.max(...visibleMarkers) : 10}
+                onFilteredEventsCount={handleFilteredEventsCount}
+                isLoadingMarkers={progressiveLoadingState !== 'complete'}
+                goToPrevious={navigateToPrevEvent}
+                goToNext={navigateToNextEvent}
+                currentEventIndex={currentEventIndex}
+                setIsPopupOpen={setIsPopupOpen}
+                eventRefs={eventRefs}
+                reviewingEventIds={reviewingEventIds}
+                motionDissipate={!isSettled}
+                timelineType={timeline_type}
+                timelineToolOpen={timelineToolOpen}
+                scrollContainerRef={eventListContainerRef}
+              />
+            )}
+          </Box>
+        </Box>
+
+        {/* Event Dialog */}
+        <EventDialog
+          open={dialogOpen}
+          onClose={() => {
+            setDialogOpen(false);
+            setEditingEvent(null);
+          }}
+          onSave={handleEventSubmit}
+          initialEvent={editingEvent}
+          timelineName={timelineName}
+          timelineType={timeline_type}
+          submitLoading={eventSubmitLoading}
+          submitDisabled={eventSubmitLoading}
+        />
+
+        {/* Media Event Creator */}
+        <MediaEventCreator
+          open={mediaDialogOpen}
+          onClose={() => {
+            setMediaDialogOpen(false);
+          }}
+          onSave={handleEventSubmit}
+          timelineName={timelineName}
+        />
+
+        {/* Remark Event Creator */}
+        <RemarkEventCreator
+          open={remarkDialogOpen}
+          onClose={() => {
+            setRemarkDialogOpen(false);
+          }}
+          onSave={handleEventSubmit}
+          timelineName={timelineName}
+        />
+
+        {/* News Event Creator */}
+        <NewsEventCreator
+          open={newsDialogOpen}
+          onClose={() => {
+            setNewsDialogOpen(false);
+          }}
+          onSave={handleEventSubmit}
+          timelineName={timelineName}
+        />
+
+        <Dialog
+          open={timelineReportDialogOpen}
+          onClose={handleCloseTimelineReportDialog}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+        >
+          <DialogTitle>Report Timeline</DialogTitle>
+          <DialogContent sx={{ '& .MuiTextField-root': getGlassInputSx(theme) }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              This report creates a moderation ticket for Site Control.
+            </Typography>
+            <TextField
+              select
+              fullWidth
+              margin="dense"
+              label="Category"
+              value={timelineReportCategory}
+              onChange={(e) => setTimelineReportCategory(e.target.value)}
+            >
+              <MenuItem value="">Select a category</MenuItem>
+              <MenuItem value="website_policy">Website Policy</MenuItem>
+              <MenuItem value="government_policy">Government Policy</MenuItem>
+              <MenuItem value="unethical_boundary">Unethical Boundary</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              margin="dense"
+              multiline
+              minRows={3}
+              label="Reason (optional details)"
+              value={timelineReportReason}
+              onChange={(e) => setTimelineReportReason(e.target.value)}
+              placeholder="Add context for moderators"
+              sx={{ mt: 1.5 }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2.5 }}>
+            <Button
+              onClick={handleCloseTimelineReportDialog}
+              disabled={timelineReportSubmitting}
+              variant="contained"
+              sx={{
+                ...getGlassSquareActionButtonSx(theme),
+                width: 'auto',
+                minWidth: 84,
+                px: 2,
+                borderRadius: 1.4,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.06)',
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.12)',
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitTimelineReport}
+              variant="outlined"
+              disabled={timelineReportSubmitting || !timelineReportCategory}
+              sx={{
+                ...getGlassPillActionButtonSx(theme),
+                borderColor: 'error.main',
+                color: 'error.main',
+                '&:hover': {
+                  borderColor: 'error.dark',
+                  bgcolor: alpha('#ef4444', 0.1),
+                }
+              }}
+            >
+              {timelineReportSubmitting ? 'Submitting...' : 'Submit Report'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <HashtagSettingsDialog
+          open={hashtagSettingsOpen}
+          onClose={handleCloseHashtagSettings}
+          timelineId={timelineId}
+          timelineName={timelineName}
+          timelineType={timeline_type}
+          initialDescription={timelineDescription}
+          initialCoverPortraitUrl={coverPortraitUrl}
+          initialCoverPortraitPosition={coverPortraitPosition}
+          initialCoverPortraitZoom={coverPortraitZoom}
+          initialCoverLandscapeUrl={coverLandscapeUrl}
+          initialCoverLandscapePosition={coverLandscapePosition}
+          initialCoverLandscapeZoom={coverLandscapeZoom}
+          onSaved={handleHashtagSettingsSaved}
+          onNotify={handleAccessPanelNotice}
+        />
+
+        {/* Animated Floating Action Buttons */}
+        {!shouldBlur && (
+          <Box sx={{
+            position: 'fixed',
+            right: 32,
+            bottom: 32,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            zIndex: 1250
+          }}>
+            {timeline_type === 'community' && canOpenCommunityActionFab ? (
+              <NavFab
+                timelineId={timelineId}
+                pathname={location.pathname}
+                expanded={floatingButtonsExpanded}
+                onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
+                onCollapse={() => setFloatingButtonsExpanded(false)}
+                onNavigate={handleCommunityNavigate}
+                showReport={!isGuestUser && !timelineIsSafeguarded}
+                onReport={handleOpenTimelineReportDialog}
+                showCreate={canCreateEventAction}
+                showMembersNav={isMember === true}
+                showAdminNav={['moderator', 'admin', 'creator', 'siteowner'].includes(normalizedCommunityRole)}
+                onCreate={() => {
+                  setEditingEvent(null);
+                  setDialogOpen(true);
+                  setFloatingButtonsExpanded(false);
+                }}
+                createEmphasis
+                mainFabSx={fabAccentSx}
+              />
+            ) : null}
+            {showShareTradingCard ? (
+              <TradingCard
+                onActivate={handleShareCardClick}
+                frameSx={{
+                  position: 'absolute',
+                  right: { xs: 70, sm: 82 },
+                  bottom: 0,
+                  boxShadow: floatingButtonsExpanded
+                    ? '0 18px 40px rgba(15,23,42,0.35), 0 0 0 1px rgba(148,163,184,0.45)'
+                    : '0 10px 24px rgba(15,23,42,0.18)',
+                  transform: floatingButtonsExpanded
+                    ? 'translateX(0) translateY(-6px) scale(1)'
+                    : 'translateX(26px) translateY(6px) scale(0.92)',
+                  opacity: floatingButtonsExpanded ? 1 : 0,
+                  pointerEvents: floatingButtonsExpanded ? 'auto' : 'none',
+                  transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease',
+                  transitionDelay: floatingButtonsExpanded ? '0.24s' : '0s',
+                  zIndex: 1490,
+                  '&:hover .share-card-overlay': {
+                    opacity: 1,
+                  },
+                  '&:hover .share-card-image': {
+                    filter: coverUploadEnabled
+                      ? 'brightness(0.88) saturate(1.02)'
+                      : 'blur(18px) saturate(0.45)',
+                  },
+                }}
+                imageUrl={coverPortraitUrl}
+                imageAlt={`${shareCardTitle} portrait cover`}
+                imageClassName="share-card-image"
+                imageSx={{
+                  objectFit: shareCardImageObjectFit,
+                  filter: coverUploadEnabled
+                    ? 'brightness(1.08) saturate(1.08)'
+                    : 'blur(18px) saturate(0.45)',
+                  transform: buildCoverPortraitTransform(
+                    coverPortraitPosition,
+                    coverPortraitZoom,
+                    coverUploadEnabled
+                  ),
+                }}
+                fallbackClassName="share-card-image"
+                fallbackSx={{ background: communityFallbackGradient }}
+                label={shareCardLabel}
+                title={shareCardTitle}
+                qrUrl={shareQrUrl}
+                overlayClassName="share-card-overlay"
+                overlayText="Tap to Share"
+                isRestricted={timeline_type === 'personal' && (creatorProfile?.is_restricted || creatorProfile?.is_suspended)}
+              />
+            ) : null}
+            {timeline_type !== 'community' && !isGuestUser ? (
+              <NavFab
+                pathname={location.pathname}
+                expanded={floatingButtonsExpanded}
+                onToggleExpanded={() => setFloatingButtonsExpanded((prev) => !prev)}
+                onCollapse={() => setFloatingButtonsExpanded(false)}
+                actions={nonCommunityFabActions}
+                showMainFab
+                mainFabDisabled={!canCreateOrReport && !canManageHashtagSettings && !canManagePersonalAccessPanel}
+                mainTooltipClosed="Show Options"
+                mainTooltipOpen="Hide Options"
+                mainTooltipDisabled="Posting Restricted"
+                enableClickAway={false}
+                mainFabSx={fabAccentSx}
+              />
+            ) : null}
+
+            {/* Conditional rendering based on timeline type and membership status */}
+            {timeline_type === 'community'
+              ? (
+                isPendingApproval ? (
+                  // Show "Request Sent!" FAB for pending members
+                  <Tooltip title="Request Pending Approval">
+                    <span>
+                      <Fab
+                        disabled
+                        sx={{
+                          bgcolor: theme.palette.warning.light,
+                          color: theme.palette.warning.contrastText,
+                          '&.Mui-disabled': {
+                            bgcolor: theme.palette.warning.light,
+                            color: theme.palette.warning.contrastText,
+                          },
+                          boxShadow: 3,
+                          zIndex: 1540
+                        }}
+                      >
+                        <CheckCircleIcon />
+                      </Fab>
+                    </span>
+                  </Tooltip>
+                ) : (!isGuestUser && !isMember && !joinRequestSent && !joinLoading && !isBlocked)
+                  ? (
                     // Show Join only when verdict is "not a member" and not blocked/loading/pending
                     <Tooltip title={visibility === 'private' ? "Request to Join Community" : "Join Community"}>
                       <Fab
@@ -4792,86 +4843,87 @@ const handleRecenter = () => {
                       </Fab>
                     </Tooltip>
                   )
-                : null
-            )
-          : null}
-        </Box>
-      )}
-      
-      {/* Dialog for displaying clicked action card details */}
-      <Dialog
-        open={!!activeAction}
-        onClose={() => setActiveAction(null)}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{
-          backdrop: {
-            sx: {
-              backdropFilter: 'blur(8px)',
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  : null
+              )
+              : null}
+          </Box>
+        )}
+
+        {/* Dialog for displaying clicked action card details */}
+        <Dialog
+          open={!!activeAction}
+          onClose={() => setActiveAction(null)}
+          maxWidth="xs"
+          fullWidth
+          slotProps={{
+            backdrop: {
+              sx: {
+                backdropFilter: 'blur(8px)',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              }
             }
-          }
-        }}
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            background: 'transparent',
-            boxShadow: 'none',
-            border: 'none',
-            overflow: 'visible', // allow shadows inside ActionCard to shine
-          }
-        }}
-      >
-        <Box sx={{ position: 'relative' }}>
-          <ActionCard
-            action={activeAction}
-            displayMode="sidebar"
-            onVote={handleActionDialogVote}
-            voteLoading={dialogVoteLoading}
-          />
-        </Box>
-      </Dialog>
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              background: 'transparent',
+              boxShadow: 'none',
+              border: 'none',
+              overflow: 'visible', // allow shadows inside ActionCard to shine
+            }
+          }}
+        >
+          <Box sx={{ position: 'relative' }}>
+            <ActionCard
+              action={activeAction}
+              displayMode="sidebar"
+              onVote={handleActionDialogVote}
+              voteLoading={dialogVoteLoading}
+            />
+          </Box>
+        </Dialog>
 
-      {/* Snackbar for event actions */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
+        {/* Snackbar for event actions */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
           onClose={() => setSnackbarOpen(false)}
-          severity={snackbarSeverity}
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={snackbarSeverity}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
 
-      {/* Snackbar for join request status */}
-      <Snackbar
-        open={joinSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setJoinSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setJoinSnackbarOpen(false)} 
-          severity={joinRequestStatus} 
-          sx={{ width: '100%' }}
+        {/* Snackbar for join request status */}
+        <Snackbar
+          open={joinSnackbarOpen}
+          autoHideDuration={6000}
+          onClose={() => setJoinSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {joinRequestStatus === 'success' 
-            ? isPendingApproval
-              ? 'Request Sent! An admin will review your request.' 
-              : 'You have successfully joined this community timeline!'
-            : !user 
-              ? 'Please log in to join this community timeline.' 
-              : 'There was an error processing your request. Please try again.'}
-        </Alert>
-      </Snackbar>
-    </Box>
+          <Alert
+            onClose={() => setJoinSnackbarOpen(false)}
+            severity={joinRequestStatus}
+            sx={{ width: '100%' }}
+          >
+            {joinRequestStatus === 'success'
+              ? isPendingApproval
+                ? 'Request Sent! An admin will review your request.'
+                : 'You have successfully joined this community timeline!'
+              : !user
+                ? 'Please log in to join this community timeline.'
+                : 'There was an error processing your request. Please try again.'}
+          </Alert>
+        </Snackbar>
+      </Box>
     </>
   );
 }
 
 export default TimelineV3;
+

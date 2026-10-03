@@ -54,8 +54,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-Q] Home page right-hub tab header titles need to be larger.**~~ (Completed — Bumped all 7 content panel section headings from MUI `variant="h6"` to `variant="h5"` across Popular, Your Home Page, My Creations, Favorite, Friends List, Search, and the generic fallback. Build verified clean.)
 
-* **[FG-O] On the timeline page, the event list below the fold isn't discoverable.**
-  - At first glance users think the timeline ruler/tool is all there is and don't realize there's a scrollable event list below it. Needs a visual cue or layout adjustment.
+* ~~**[FG-O] On the timeline page, the event list below the fold isn't discoverable.**~~ (Completed — Made TimelineHeroBanner an interactive toggle handle with explicit "Show Timeline" / "Hide Timeline" controls and smooth chevron animation; added collapse-aware event filter bypass so events are immediately visible upon collapse; added "Most Votes" sort option; fixed scroll-locking so the banner detects the fixed top navbar and locks directly beneath it with breathing buffer space upon approach in uncollapsed mode while preserving pinned collapsed mode.)
 
 ---
 

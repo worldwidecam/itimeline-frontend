@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Box, Typography, Skeleton, useMediaQuery } from '@mui/material';
+import { Box, Typography, Skeleton, useMediaQuery, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import LockIcon from '@mui/icons-material/Lock';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
 
 export const TimelineHeroBanner = ({
@@ -17,6 +18,8 @@ export const TimelineHeroBanner = ({
   coverZoom = 1,
   coverUploadEnabled = true,
   isLoading = false,
+  onClick = null,      // When provided, banner becomes a toggle handle
+  isCollapsed = false, // Controls chevron direction
   sx = {}
 }) => {
   const theme = useTheme();
@@ -64,30 +67,47 @@ export const TimelineHeroBanner = ({
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: '100%',
-        mb: 3,
-        mt: 2,
-        minHeight: { xs: 80, md: 120 },
-        aspectRatio: { xs: '4.5 / 1', md: '8 / 1' },
-        borderRadius: 2.25,
-        border: '1px solid',
-        borderColor: timelineSurfaces.shellBorder,
-        boxShadow: theme.palette.mode === 'dark'
-          ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
-          : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
-        overflow: 'hidden',
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'flex-end',
-        px: { xs: 2.5, md: 4 },
-        pb: { xs: 2, md: 3 },
-        background: fallbackGradient,
-        ...sx,
-      }}
+    <Tooltip
+      title={onClick ? (isCollapsed ? 'Show Timeline' : 'Hide Timeline') : ''}
+      placement="top"
+      disableHoverListener={!onClick}
     >
+      <Box
+        onClick={onClick || undefined}
+        sx={{
+          width: '100%',
+          maxWidth: '100%',
+          mb: 3,
+          mt: 2,
+          minHeight: { xs: 80, md: 120 },
+          aspectRatio: { xs: '4.5 / 1', md: '8 / 1' },
+          borderRadius: 2.25,
+          border: '1px solid',
+          borderColor: timelineSurfaces.shellBorder,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
+            : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'flex-end',
+          px: { xs: 2.5, md: 4 },
+          pb: { xs: 2, md: 3 },
+          background: fallbackGradient,
+          // Clickable affordance
+          ...(onClick ? {
+            cursor: 'pointer',
+            transition: 'box-shadow 0.2s ease, filter 0.2s ease',
+            '&:hover': {
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 12px 32px rgba(2,6,23,0.6), 0 0 0 1.5px rgba(255,255,255,0.18)'
+                : '0 12px 32px rgba(15,23,42,0.22), 0 0 0 1.5px rgba(15,23,42,0.16)',
+              filter: 'brightness(1.06)',
+            },
+          } : {}),
+          ...sx,
+        }}
+      >
       {/* Cover Image - strictly utilizing 'contain' to honor positioning settings */}
       {!isLoading && cleanCoverImageUrl && (
         <Box
@@ -146,11 +166,50 @@ export const TimelineHeroBanner = ({
             {String(timelineType || 'community').toUpperCase()} TIMELINE
           </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* Collapse/Expand chevron — only shown when banner is wired as a toggle */}
+            {onClick && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  bgcolor: 'rgba(0,0,0,0.35)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  borderRadius: '20px',
+                  px: 1.25,
+                  py: 0.4,
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'rgba(255,255,255,0.85)',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    lineHeight: 1,
+                  }}
+                >
+                  {isCollapsed ? 'Show Timeline' : 'Hide Timeline'}
+                </Typography>
+                <ExpandMoreIcon
+                  sx={{
+                    color: 'rgba(255,255,255,0.85)',
+                    fontSize: 16,
+                    transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+                    transition: 'transform 0.3s ease',
+                  }}
+                />
+              </Box>
+            )}
             {renderIcon()}
           </Box>
         </Box>
       )}
     </Box>
+    </Tooltip>
   );
 };
