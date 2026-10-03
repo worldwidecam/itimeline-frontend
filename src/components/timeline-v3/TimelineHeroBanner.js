@@ -8,6 +8,8 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import LockIcon from '@mui/icons-material/Lock';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
+import { useAuth } from '../../contexts/AuthContext';
+import { getTimelineDisplayTitle } from '../../utils/timelineTitle';
 
 export const TimelineHeroBanner = ({
   timelineName = 'Timeline',
@@ -24,6 +26,7 @@ export const TimelineHeroBanner = ({
   sx = {}
 }) => {
   const theme = useTheme();
+  const { user } = useAuth();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const xTranslationFactor = isDesktop ? 0.9 : 0.9 * (8 / 4.5);
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
@@ -35,15 +38,10 @@ export const TimelineHeroBanner = ({
   const isCommunity = normType === 'community';
   const isHashtag = !isPersonal && !isCommunity;
 
-  // Clean raw timeline name to avoid duplicated prefixes if caller already formatted it
+  // Resolves contextual display title (Private Posts / My Public Posts if matching current user)
   const cleanName = useMemo(() => {
-    let raw = String(timelineName || 'Timeline').trim();
-    if (raw.startsWith('i - ')) raw = raw.slice(4).trim();
-    else if (raw.startsWith('i-')) raw = raw.slice(2).trim();
-    else if (raw.startsWith('My-')) raw = raw.slice(3).trim();
-    else if (raw.startsWith('#')) raw = raw.slice(1).trim();
-    return raw || 'Timeline';
-  }, [timelineName]);
+    return getTimelineDisplayTitle(timelineName, timelineType, user);
+  }, [timelineName, timelineType, user]);
 
   // Dark vs light mode fallback background gradients
   const fallbackGradient = theme.palette.mode === 'dark'

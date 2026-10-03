@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link as RouterLink, useNavigate, useLocation, useParams } from 'react-router-dom';
-import TimelineNameDisplay from './timeline-v3/TimelineNameDisplay';
+import { getTimelineDisplayTitle } from '../utils/timelineTitle';
 import {
   AppBar,
   Toolbar,
@@ -62,6 +62,7 @@ function Navbar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [currentTimelineName, setCurrentTimelineName] = React.useState('');
+  const [currentTimelineType, setCurrentTimelineType] = React.useState('');
   const [lastVisitedTimeline, setLastVisitedTimeline] = React.useState(null);
   const [lastVisitedTimelines, setLastVisitedTimelines] = React.useState([]);
   const [siteRole, setSiteRole] = React.useState(null);
@@ -710,14 +711,16 @@ function Navbar() {
           const response = await api.get(`/api/v1/timelines/${timelineId}`);
           if (response.data && response.data.name) {
             const timelineName = response.data.name;
+            const timelineType = response.data.timeline_type || 'hashtag';
             setCurrentTimelineName(timelineName);
+            setCurrentTimelineType(timelineType);
             
             // Save this timeline as the last visited timeline
             const timelineData = {
               id: timelineId,
               name: timelineName,
               path: currentPath,
-              timeline_type: response.data.timeline_type || 'hashtag' // Include timeline_type with fallback
+              timeline_type: timelineType // Include timeline_type with fallback
             };
             localStorage.setItem('lastVisitedTimeline', JSON.stringify(timelineData));
             setLastVisitedTimeline(timelineData);
@@ -744,12 +747,14 @@ function Navbar() {
           // For locked personal timelines, a 403 here is expected; avoid noisy logging
           if (error?.response?.status === 403) {
             setCurrentTimelineName('');
+            setCurrentTimelineType('');
             return;
           }
           console.error('Error fetching timeline name:', error);
         }
       } else {
         setCurrentTimelineName('');
+        setCurrentTimelineType('');
       }
     };
     
@@ -863,7 +868,7 @@ function Navbar() {
             }}
           >
             <ListItemIcon>
-              {lastVisitedTimeline?.timeline_type === 'community' ? (
+              {(currentTimelineType || lastVisitedTimeline?.timeline_type) === 'community' ? (
                 <span style={{ 
                   fontFamily: 'Lobster, cursive', 
                   color: 'inherit', // Use the theme's color
@@ -872,7 +877,7 @@ function Navbar() {
                 }}>
                   i
                 </span>
-              ) : lastVisitedTimeline?.timeline_type === 'personal' ? (
+              ) : (currentTimelineType || lastVisitedTimeline?.timeline_type) === 'personal' ? (
                 <span
                   aria-hidden="true"
                   style={{
@@ -906,7 +911,7 @@ function Navbar() {
               noWrap
               sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
             >
-              {currentTimelineName}
+              {displayUsername(getTimelineDisplayTitle({ name: currentTimelineName, timeline_type: currentTimelineType || lastVisitedTimeline?.timeline_type }, currentTimelineType || lastVisitedTimeline?.timeline_type, user))}
             </Typography>
           </ListItem>
         )}
@@ -1131,7 +1136,7 @@ function Navbar() {
                     noWrap
                     sx={{ maxWidth: '180px' }} // Prevent very long timeline names from breaking layout
                   >
-                    {displayUsername(t.name)}
+                    {displayUsername(getTimelineDisplayTitle(t, t.timeline_type, user))}
                   </Typography>
                 </ListItem>
               ))}

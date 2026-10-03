@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Typography, Tooltip, useTheme } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
+import { useAuth } from '../../contexts/AuthContext';
+import { getTimelineDisplayTitle } from '../../utils/timelineTitle';
 
 // Helper to dynamically calculate font size based on text length for title variant 'h4'
 const getResponsiveFontSize = (nameLength, variant) => {
@@ -44,8 +46,10 @@ const getResponsiveFontSize = (nameLength, variant) => {
  */
 const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typographyProps = {} }) => {
   const theme = useTheme();
+  const { user } = useAuth();
+  const displayName = getTimelineDisplayTitle(name, type, user);
   const prefixLength = type === 'personal' ? 3 : type === 'community' ? 3 : 1;
-  const visualLength = (name ? name.length : 0) + prefixLength;
+  const visualLength = (displayName ? displayName.length : 0) + prefixLength;
   const dynamicFontSize = getResponsiveFontSize(visualLength, typographyProps.variant);
 
   // For personal timelines, use "My-" prefix similar to community style
@@ -53,7 +57,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
     return (
       <Box 
         sx={{ display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden', ...sx }}
-        aria-label={`Personal timeline: ${name}`}
+        aria-label={`Personal timeline: ${displayName}`}
       >
         <Tooltip title="Personal Timeline" arrow placement="top">
           <Typography 
@@ -82,7 +86,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
               My-
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
-              {name}
+              {displayName}
             </span>
           </Typography>
         </Tooltip>
@@ -95,7 +99,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
     return (
       <Box 
         sx={{ display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden', ...sx }}
-        aria-label={`Hashtag timeline: ${name}`}
+        aria-label={`Hashtag timeline: ${displayName}`}
       >
         <Tooltip title="Hashtag Timeline" arrow placement="top">
           <Typography 
@@ -123,7 +127,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
               #
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
-              {name}
+              {displayName}
             </span>
           </Typography>
         </Tooltip>
@@ -133,7 +137,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
 
   // For community timelines, add the "i-" prefix with Lobster font
   const tooltipTitle = visibility === 'private' ? 'Private Community Timeline' : 'Community Timeline';
-  const ariaLabel = visibility === 'private' ? `Private community timeline: ${name}` : `Community timeline: ${name}`;
+  const ariaLabel = visibility === 'private' ? `Private community timeline: ${displayName}` : `Community timeline: ${displayName}`;
   
   // Create a combined component that includes both the prefix and name
   // This matches how hashtag timelines display the "#" symbol
@@ -169,7 +173,7 @@ const TimelineNameDisplay = ({ name, type, visibility = 'public', sx = {}, typog
             i -
           </span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
-            {name}
+            {displayName}
           </span>
           
           {/* Show lock icon for private community timelines */}
