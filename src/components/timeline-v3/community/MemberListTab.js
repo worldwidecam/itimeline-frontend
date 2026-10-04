@@ -859,6 +859,7 @@ const MemberListTab = () => {
       <TimelineHeroBanner
         timelineName={timelineHeader.name}
         timelineType="community"
+        visibility={timelineHeader.visibility}
         coverImageUrl={timelineHeader.coverImageUrl}
         coverLandscapeX={timelineHeader.coverLandscapeX}
         coverLandscapeY={timelineHeader.coverLandscapeY}

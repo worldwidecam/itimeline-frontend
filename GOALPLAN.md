@@ -24,6 +24,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - ~~need to safe migrate new tables to staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-staging`)
  - ~~need to safe migrate new tables to production once safe testing is confirmed on staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-prod`)
 
+* ~~**Automatic Media Cover for Hashtag Timelines**~~ (Completed — Added "Auto-Pick from Events" / "Re-roll Event Photo" to `HashtagSettingsDialog.js`, strictly filtered to image media events sorted by community votes, synchronized across both Trading Card and Banner previews with full joystick/zoom framing and remove controls intact, and backend R2 URL passthrough support verified.)
+
+* ~~**Banner Title & Brand Prefix Display**~~ (Completed — Displayed timeline title with brand-specific prefixes `i -`, `My-`, `#`, private lock indicator, and uppercase eyebrow category tag directly on `TimelineHeroBanner` with high-contrast text shadows, synchronized across Timeline, Members, Admin, and Home views.)
+
 ---
 
 ### 🔴 Focus Group — Bugs (High Priority)
@@ -54,8 +58,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-Q] Home page right-hub tab header titles need to be larger.**~~ (Completed — Bumped all 7 content panel section headings from MUI `variant="h6"` to `variant="h5"` across Popular, Your Home Page, My Creations, Favorite, Friends List, Search, and the generic fallback. Build verified clean.)
 
-* **[FG-O] On the timeline page, the event list below the fold isn't discoverable.**
-  - At first glance users think the timeline ruler/tool is all there is and don't realize there's a scrollable event list below it. Needs a visual cue or layout adjustment.
+* ~~**[FG-O] On the timeline page, the event list below the fold isn't discoverable.**~~ (Completed — Made TimelineHeroBanner an interactive toggle handle with explicit "Show Timeline" / "Hide Timeline" controls and smooth chevron animation; added collapse-aware event filter bypass so events are immediately visible upon collapse; added "Most Votes" sort option; fixed scroll-locking so the banner detects the fixed top navbar and locks directly beneath it with breathing buffer space upon approach in uncollapsed mode while preserving pinned collapsed mode.)
 
 ---
 
@@ -64,10 +67,10 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * **[FG-LAND] Landing page needs a real redesign.**
   - The current landing page is functional but not impressive. We should make it actually good — visually striking, clearly communicates what iTimeline is, and makes a strong first impression on new visitors.
 
-* **[FG-H/N/P] Timeline types are not visually or conceptually distinct enough.** *(Three overlapping notes — treat as one unified objective)*
-  - Users couldn't tell personal, community, and hashtag timelines apart.
-  - The naming of personal timelines (`#USERNAME` vs `MY-USERNAME`) is confusing — needs clearer labels like "My Public Posts" / "My Private Posts". *You have thoughts on this.*
-  - Visual suggestion from focus group: add the timeline's banner image at low opacity behind the timeline tool area. *You noted we could go more drastic.*
+* ~~**[FG-H/N/P] Contextual Titles: "My Public Posts" and "Private Posts"**~~ (Completed — Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current & recent timelines).)
+
+* **[TODO] Prevent private posts from appearing on community and hashtag pages**
+  - Add redundancy to hashtag timeline pages and community timeline pages to ensure private posts from other users never appear there under any circumstances. (Awaiting user confirmation & explanation in their own words before planning/implementing).
 
 ---
 
@@ -135,6 +138,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* **[FG-H/N/P] Contextual Titles: "My Public Posts" & "Private Posts"**: Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current and recent timelines). (Complete)
 
 * **[TODO] Privacy Policy page**: Created `PrivacyPolicy.js` mirroring the TermsOfService layout with 9 friendly/transparent sections. Added `/privacy-policy` route in `App.js`, made the Register checkbox "Privacy Policy" text a real link, cross-linked from `TermsOfService.js` Section 1, and added a subtle footer to `LandingPage.js` with Terms · Privacy Policy links and copyright. (Complete)
 

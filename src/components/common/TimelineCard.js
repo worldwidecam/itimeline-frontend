@@ -23,6 +23,8 @@ import {
 } from '@mui/icons-material';
 import { normalizeTimelineCardData } from './timelineCardModel';
 import { displayUsername } from '../../utils/usernameDisplay';
+import { useAuth } from '../../contexts/AuthContext';
+import { getTimelineDisplayTitle } from '../../utils/timelineTitle';
 
 function TimelineCard({
   timeline,
@@ -38,6 +40,7 @@ function TimelineCard({
   onToggleWatch,
 }) {
   const theme = useTheme();
+  const { user } = useAuth();
 
   if (!timeline) return null;
 
@@ -113,7 +116,8 @@ function TimelineCard({
     });
   };
   const TITLE_VISUAL_CHAR_LIMIT = 62;
-  const timelineTitle = displayUsername(timelineName || '').trim();
+  const rawDisplayTitle = getTimelineDisplayTitle(timeline, timeline?.timeline_type, user);
+  const timelineTitle = displayUsername(rawDisplayTitle || timelineName || '').trim();
   const displayTimelineTitle = timelineTitle.length > TITLE_VISUAL_CHAR_LIMIT
     ? `${timelineTitle.slice(0, TITLE_VISUAL_CHAR_LIMIT - 1)}…`
     : timelineTitle;
@@ -338,7 +342,22 @@ function TimelineCard({
                 },
               }}
             >
-              {displayTimelineTitle}
+              {isCommunity && (
+                <span style={{ fontFamily: 'Lobster, cursive', marginRight: '6px', color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1976d2', flexShrink: 0 }}>
+                  i -
+                </span>
+              )}
+              {isPersonal && (
+                <span style={{ fontFamily: 'Lobster, cursive', marginRight: '6px', color: theme.palette.mode === 'dark' ? '#c084fc' : '#9c27b0', flexShrink: 0 }}>
+                  My-
+                </span>
+              )}
+              {isHashtag && (
+                <span style={{ marginRight: '4px', color: theme.palette.mode === 'dark' ? '#4ade80' : '#2e7d32', fontWeight: 900, flexShrink: 0 }}>
+                  #
+                </span>
+              )}
+              <span>{displayTimelineTitle}</span>
             </Typography>
 
             {resolvedSections.audience ? (

@@ -66,7 +66,9 @@ const EventList = ({
   currentEventIndex, // Current event index for carousel navigation
   reviewingEventIds = new Set(), // Set of event IDs that are "in review" on this timeline
   eventRefs: externalEventRefs, // Optional shared refs for TimelineV3 integration
-  timelineType = 'hashtag' // Timeline type for report court routing
+  timelineType = 'hashtag', // Timeline type for report court routing
+  timelineToolOpen = true, // When false, bypass the viewMode date filter and show all events
+  scrollContainerRef = null, // When provided, scroll ops target this element instead of window
 }) => {
   const theme = useTheme();
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
@@ -120,19 +122,13 @@ const EventList = ({
 
   const scrollToEvent = (eventId) => {
     const eventElement = eventRefs.current[eventId];
-    console.log('Scrolling to event:', eventId, 'Element:', eventElement); // Debug log
     if (eventElement) {
-      // Use a small timeout to ensure the DOM has updated
       setTimeout(() => {
-        const { top, height } = eventElement.getBoundingClientRect();
-        const centerOffset = (window.innerHeight / 2) - (height / 2);
-        window.scrollTo({
-          top: top + window.scrollY - centerOffset,
-          behavior: 'smooth'
-        });
+        // scrollIntoView works correctly for both window scroll and container scroll
+        eventElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
     } else {
-      console.error('Event element not found:', eventId); // Debug log
+      console.error('Event element not found:', eventId);
     }
   };
 
@@ -165,12 +161,7 @@ const EventList = ({
   useEffect(() => {
     if (selectedEventId && eventRefs.current[selectedEventId] && shouldScrollToEvent) {
       const cardElement = eventRefs.current[selectedEventId];
-      const { top, height } = cardElement.getBoundingClientRect();
-      const centerOffset = (window.innerHeight / 2) - (height / 2);
-      window.scrollTo({
-        top: top + window.scrollY - centerOffset,
-        behavior: 'smooth'
-      });
+      cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [selectedEventId, shouldScrollToEvent]);
 
@@ -273,12 +264,7 @@ const EventList = ({
             // Scroll to center the card
             const cardElement = eventRefs.current[event.id];
             if (cardElement) {
-              const { top, height } = cardElement.getBoundingClientRect();
-              const centerOffset = (window.innerHeight / 2) - (height / 2);
-              window.scrollTo({
-                top: top + window.scrollY - centerOffset,
-                behavior: 'smooth'
-              });
+              cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else {
               console.warn('No reference found for event ID:', event.id);
             }
@@ -309,10 +295,14 @@ const EventList = ({
     );
   };
 
-  // Filter events based on the current view mode and visible marker range
-  // Optimized for performance with large numbers of events
+  // Filter events based on the current view mode and visible marker range.
+  // When timelineToolOpen is false, this is bypassed entirely so the list shows all events.
   const filterEventsByViewMode = (events) => {
     if (!events || events.length === 0) return [];
+    
+    // If the timeline tool is collapsed, show every event regardless of view mode.
+    // The user is browsing the full list independently of the ruler.
+    if (!timelineToolOpen) return events;
     
     // In base coordinate view, show all events
     if (viewMode === 'position') return events;
@@ -423,6 +413,18 @@ const EventList = ({
     
     // Performance optimization: Use a stable sort algorithm with cached dates
     const sorted = [...filteredEvents].sort((a, b) => {
+      if (sortOrder === 'popular') {
+        // Popular = total engagement (promote + demote combined).
+        // Both vote types count equally — the number signals how much people care.
+        const aTotalVotes = (a.vote_totals?.promote || 0) + (a.vote_totals?.demote || 0);
+        const bTotalVotes = (b.vote_totals?.promote || 0) + (b.vote_totals?.demote || 0);
+        if (bTotalVotes !== aTotalVotes) return bTotalVotes - aTotalVotes;
+        // Tiebreak: more recent first
+        if (!a._cachedDate) return 1;
+        if (!b._cachedDate) return -1;
+        return b._cachedDate.getTime() - a._cachedDate.getTime();
+      }
+      
       // Handle null dates
       if (!a._cachedDate) return 1;
       if (!b._cachedDate) return -1;
@@ -436,7 +438,7 @@ const EventList = ({
     console.log('After sorting:', sorted.length, 'events', 'Sort order:', sortOrder);
     
     return sorted;
-  }, [events, searchQuery, selectedType, sortOrder, viewMode, minMarker, maxMarker]);
+  }, [events, searchQuery, selectedType, sortOrder, viewMode, minMarker, maxMarker, timelineToolOpen]);
   
   // Determine which events to display based on pagination settings
   // Performance optimization: Apply windowing for large event sets
@@ -483,21 +485,24 @@ const EventList = ({
   
   // Add scroll event listener for To Top button
   useEffect(() => {
+    const container = scrollContainerRef?.current || window;
     const handleScroll = () => {
-      // Show To Top button when scrolled down 500px or more
-      setShowToTop(window.scrollY > 500);
+      const scrollTop = scrollContainerRef?.current
+        ? scrollContainerRef.current.scrollTop
+        : window.scrollY;
+      setShowToTop(scrollTop > 500);
     };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [scrollContainerRef]);
   
   // Function to scroll back to top
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
+    if (scrollContainerRef?.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -579,6 +584,7 @@ const EventList = ({
           >
             <MenuItem value="newest">Newest First</MenuItem>
             <MenuItem value="oldest">Oldest First</MenuItem>
+            <MenuItem value="popular">Most Votes</MenuItem>
           </Select>
         </FormControl>
       </Stack>

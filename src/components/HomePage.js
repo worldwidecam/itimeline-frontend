@@ -99,6 +99,7 @@ import {
 } from '../utils/formStyleGuide';
 
 import { displayUsername, usernameMatchesQuery } from '../utils/usernameDisplay';
+import { getTimelineDisplayTitle } from '../utils/timelineTitle';
 import GuestHubFiller from './shared/GuestHubFiller';
 import { motion, AnimatePresence } from 'framer-motion';
 import LoadingScreen from './LoadingScreen';
@@ -5763,7 +5764,8 @@ const HomePage = () => {
                   ) : (
                     (() => {
                       const timelineType = String(selectedFavoriteTimeline?.timeline_type || 'hashtag').toLowerCase();
-                      const timelineName = String(selectedFavoriteTimeline?.name || 'Timeline').trim() || 'Timeline';
+                      const rawTimelineName = String(selectedFavoriteTimeline?.name || 'Timeline').trim() || 'Timeline';
+                      const timelineName = getTimelineDisplayTitle(selectedFavoriteTimeline, timelineType, user);
                       const titlePrefix = timelineType === 'community'
                         ? 'i-'
                         : (timelineType === 'personal' ? 'My-' : (timelineType === 'hashtag' ? '#' : ''));
@@ -5848,6 +5850,7 @@ const HomePage = () => {
                           <TimelineHeroBanner
                             timelineName={prefixedTitle}
                             timelineType={timelineType}
+                            visibility={selectedFavoriteTimeline?.visibility}
                             coverImageUrl={bannerImageUrl}
                             coverLandscapeX={coverLandscapePosition.x}
                             coverLandscapeY={coverLandscapePosition.y}
@@ -6736,7 +6739,7 @@ const HomePage = () => {
                 <Box sx={{ textAlign: 'left' }}>
                   <Typography variant="button" sx={{ display: 'block', lineHeight: 1.1 }}>Public Post</Typography>
                   <Typography variant="caption" sx={{ opacity: 0.86 }}>
-                    Uses your #{displayUsername(String(user?.username || '').trim()).toUpperCase()} timeline.
+                    Uses your My Public Posts (#{displayUsername(String(user?.username || '').trim()).toUpperCase()}) timeline.
                   </Typography>
                 </Box>
               </Button>
@@ -6750,7 +6753,7 @@ const HomePage = () => {
                 <Box sx={{ textAlign: 'left' }}>
                   <Typography variant="button" sx={{ display: 'block', lineHeight: 1.1 }}>Private Post</Typography>
                   <Typography variant="caption" sx={{ opacity: 0.86 }}>
-                    Uses your My-{displayUsername(String(user?.username || '').trim()).toUpperCase()} personal timeline.
+                    Uses your Private Posts (My-{displayUsername(String(user?.username || '').trim()).toUpperCase()}) timeline.
                   </Typography>
                 </Box>
               </Button>
