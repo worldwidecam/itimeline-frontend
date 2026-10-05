@@ -69,8 +69,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-H/N/P] Contextual Titles: "My Public Posts" and "Private Posts"**~~ (Completed — Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current & recent timelines).)
 
-* **[TODO] Prevent private posts from appearing on community and hashtag pages**
-  - Add redundancy to hashtag timeline pages and community timeline pages to ensure private posts from other users never appear there under any circumstances. (Awaiting user confirmation & explanation in their own words before planning/implementing).
+* ~~**Prevent private posts from appearing on community and hashtag pages**~~ (Completed — Added backend origin privacy filtering in `itimeline-backend/src/repos/event.ts` -> `listEventsByTimeline` and `src/services/events.ts` -> `listByTimelineDTO`. Posts originating from personal timelines that are shared to hashtag or community timelines are 100% hidden from guests and other users, while remaining visible to the author who created them.)
 
 ---
 
@@ -134,6 +133,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Awaiting Confirmation
+
+* **Prevent private posts from appearing on community and hashtag pages**: Added backend origin privacy filtering in `itimeline-backend/src/repos/event.ts` -> `listEventsByTimeline` and `src/services/events.ts` -> `listByTimelineDTO`. Posts originating from personal timelines or private community timelines that are shared/tagged into hashtag or other community timelines are 100% hidden from guests and non-members, while remaining visible to the author and active members/viewers of that origin timeline.
 
 ---
 
