@@ -27,10 +27,7 @@ import {
   Search as SearchIcon,
   Share as ShareIcon,
   ChevronRight as ChevronRightIcon,
-  ChevronLeft as ChevronLeftIcon,
-  BugReport as BugReportIcon,
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon
+  ChevronLeft as ChevronLeftIcon
 } from '@mui/icons-material';
 import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,97 +38,12 @@ import AnimatedTagline from './AnimatedTagline';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
 import UserCountChip from './common/UserCountChip';
 
-// API Health Check Component
-const ApiHealthCheck = () => {
-  const [healthData, setHealthData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [expanded, setExpanded] = useState(false);
-
-  const checkApiHealth = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await api.get('/api/v1/health');
-      setHealthData(response.data);
-    } catch (err) {
-      console.error('API Health check failed:', err);
-      setError(err.message || 'Failed to connect to API');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card sx={{ mt: 2, overflow: 'visible' }}>
-      <CardContent sx={{ pb: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
-            <BugReportIcon sx={{ mr: 1 }} /> API Diagnostics
-          </Typography>
-          <Button 
-            variant="outlined" 
-            size="small" 
-            onClick={checkApiHealth}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={16} /> : null}
-          >
-            Check Connection
-          </Button>
-        </Box>
-        
-        <Divider sx={{ my: 1 }} />
-        
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        
-        {healthData && (
-          <>
-            <Alert 
-              severity={healthData.status === 'ok' ? 'success' : 'warning'}
-              sx={{ mb: 2 }}
-              action={
-                <Button size="small" onClick={() => setExpanded(!expanded)}>
-                  {expanded ? 'Hide' : 'Details'}
-                </Button>
-              }
-            >
-              {healthData.status === 'ok' ? 'API is connected and healthy' : 'API connected with issues'}
-            </Alert>
-            
-            <Collapse in={expanded}>
-              <Box sx={{ 
-                p: 2, 
-                backgroundColor: 'background.paper', 
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'divider',
-                fontSize: '0.75rem',
-                fontFamily: 'monospace',
-                maxHeight: 300,
-                overflow: 'auto'
-              }}>
-                <pre>{JSON.stringify(healthData, null, 2)}</pre>
-              </Box>
-            </Collapse>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
 // Main Landing Page Component
 const LandingPage = () => {
   const theme = useTheme();
   const appCanvasBackground = getTimelineSurfaceTheme(theme).canvas;
   const navigate = useNavigate();
   const { user, isGuest } = useAuth();
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [badgeText, setBadgeText] = useState('Coming Soon!');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
   const [siteUserCount, setSiteUserCount] = useState(null);
@@ -382,11 +294,11 @@ const LandingPage = () => {
           }}
         >
           <Typography variant="h4" component="h2" sx={{ mb: 2, textAlign: 'center' }}>
-            Try Our Interactive Timeline
+            Tap a line to open a post
           </Typography>
           
           <Typography variant="body1" sx={{ mb: 4, textAlign: 'center', maxWidth: '800px' }}>
-            Drag the timeline left and right to explore events. This is just a preview of what you can create!
+            Every line is a real post from the iTimeline community, placed at the moment it's about.
           </Typography>
           
           <Box sx={{ width: '100%', maxWidth: '100%' }}>
@@ -473,23 +385,6 @@ const LandingPage = () => {
               </Card>
             </Grid>
           </Grid>
-        </Box>
-        
-        {/* Developer Tools Section */}
-        <Box sx={{ textAlign: 'center', mt: 8 }}>
-          <Button 
-            variant="text" 
-            color="inherit" 
-            size="small"
-            onClick={() => setShowDiagnostics(!showDiagnostics)}
-            sx={{ opacity: 0.7 }}
-          >
-            {showDiagnostics ? 'Hide Developer Tools' : 'Developer Tools'}
-          </Button>
-          
-          <Collapse in={showDiagnostics}>
-            <ApiHealthCheck />
-          </Collapse>
         </Box>
       </Container>
       

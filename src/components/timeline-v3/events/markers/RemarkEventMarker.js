@@ -23,7 +23,7 @@ const bubblePop = keyframes`
   }
 `;
 
-const RemarkEventMarker = ({ event, onDelete, onEdit, avatarSide = 'left' }) => {
+const RemarkEventMarker = ({ event, onDelete, onEdit, avatarSide = 'left', isLandingPreview = false }) => {
   const theme = useTheme();
   const [popupOpen, setPopupOpen] = useState(false);
   const isAvatarRight = avatarSide === 'right';
@@ -45,6 +45,7 @@ const RemarkEventMarker = ({ event, onDelete, onEdit, avatarSide = 'left' }) => 
         event={event}
         onDelete={onDelete}
         onEdit={onEdit}
+        isLandingPreview={isLandingPreview}
       />
       <Paper
         elevation={3}
