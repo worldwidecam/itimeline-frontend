@@ -20,13 +20,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* IMPORTANT
- - ~~need to safe migrate new tables to staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-staging`)
- - ~~need to safe migrate new tables to production once safe testing is confirmed on staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-prod`)
-
-* ~~**Automatic Media Cover for Hashtag Timelines**~~ (Completed — Added "Auto-Pick from Events" / "Re-roll Event Photo" to `HashtagSettingsDialog.js`, strictly filtered to image media events sorted by community votes, synchronized across both Trading Card and Banner previews with full joystick/zoom framing and remove controls intact, and backend R2 URL passthrough support verified.)
-
-* ~~**Banner Title & Brand Prefix Display**~~ (Completed — Displayed timeline title with brand-specific prefixes `i -`, `My-`, `#`, private lock indicator, and uppercase eyebrow category tag directly on `TimelineHeroBanner` with high-contrast text shadows, synchronized across Timeline, Members, Admin, and Home views.)
+* **[FG-LAND-2] Designing the next showcase tool below the timeline on the landing page** (Active TODO — ideation & requirements)
 
 ---
 
@@ -62,15 +56,13 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ---
 
-### 🟢 Focus Group — Design / Identity (Requires Discussion)
-
-* **[FG-LAND] Landing page needs a real redesign.**
-  - The current landing page is functional but not impressive. We should make it actually good — visually striking, clearly communicates what iTimeline is, and makes a strong first impression on new visitors.
+* **[FG-LAND] Landing page redesign**
+  - ~~[FG-LAND-1] Replace mock landing timeline with live, safety-filtered Popular Posts interactive timeline tool~~ (Completed — Created `/api/v1/events/popular/landing` with strict safety rules, wired genuine hover preview cards, instructional header, mission quote, and guest login barrier on popup)
+  - **[FG-LAND-2] Designing the next showcase tool below the timeline on the landing page** (Active TODO — ideation & requirements)
 
 * ~~**[FG-H/N/P] Contextual Titles: "My Public Posts" and "Private Posts"**~~ (Completed — Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current & recent timelines).)
 
-* **[TODO] Prevent private posts from appearing on community and hashtag pages**
-  - Add redundancy to hashtag timeline pages and community timeline pages to ensure private posts from other users never appear there under any circumstances. (Awaiting user confirmation & explanation in their own words before planning/implementing).
+* ~~**Prevent private posts from appearing on community and hashtag pages**~~ (Completed — Added backend origin privacy filtering in `itimeline-backend/src/repos/event.ts` -> `listEventsByTimeline` and `src/services/events.ts` -> `listByTimelineDTO`. Posts originating from personal timelines that are shared to hashtag or community timelines are 100% hidden from guests and other users, while remaining visible to the author who created them.)
 
 ---
 
@@ -85,6 +77,11 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * **[FG-L] Timeline zooming and "follow your post" through filter levels.**
   - Two related UX ideas: (1) pinch-to-zoom or scroll-to-zoom on the timeline view, and (2) a way to keep your own post tracked/in-view as you toggle through different filter zoom levels.
 
+* **[FG-SUB] Community Membership Subscriptions & Strike Solidarity Fund**
+  - Allow verified communities to offer membership subscriptions so members can financially support their organization.
+  - Platform-wide Solidarity Fund: A portion of all site subscriptions pools into a general fund to help support employees and members while they strike.
+  - Community Announcements: Allow communities to create and run promoted announcements/ads across the platform.
+
 ---
 
 * ~~the published date/time on all event cards should be simpler displaying.~~ (Completed — replaced static `"Published on MMM d, yyyy, h:mm a"` with relative time via shared `src/utils/dateUtils.js` → `formatPublishedRelative()`. Cards now show e.g. `"Published 5 mins ago"`, `"Published 3 years ago"`. Applied to `MediaCard.js`, `NewsCard.js`, `RemarkCard.js`.)
@@ -98,8 +95,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * add theory board module to community timelines.
 
-* making a private post on a personal timeline page and tagging it should NOT mean that the post made on a personal timeline is allowed to be viewed on that tagged timeline. currently, it does seem to allow it, and that is not right. for instance, i made a post on a personal timeline, therefore this post is private. but then i tagged it #dream_journal, and i went to that hashtag timeline as a Guest and i could still see the post. that should not be the case.
-    - also, the post doesn't even have the personal chip tagged in its personal category, so what's going on there?
+* (needs check) a post made on a personal timeline and tagged with a hashtag (e.g. #dream_journal) didn't show the personal chip in its personal category. verify if this still happens. (privacy leak part of this was fixed — see Completed)
 
 * things or worries we need to check on so we don't make these easily-made mistakes:
  - uncompressed JSON
@@ -131,13 +127,25 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * expand on theory board module. offer possible stencils. like a simple timeline stencil, or perhaps a lineage tree stencil
 
 * i'm thinking we should have the navFAB absorb the timeline status message system, so that we do not need to have the timeline status message system displayed in the top bar any longer.
+
+* **Backend API security audit.** Review all backend routes for: correct auth/permission checks on every route, rate limits on sensitive calls, and data exposure (making sure responses never return more info than the caller should see). Came up while removing the public "Developer Tools" button from the landing page — note that hiding a frontend button does NOT secure the endpoint behind it.
 ---
 
 ## Awaiting Confirmation
 
+* (none)
+
 ---
 
 ## Completed
+
+* **[FG-LAND-1] Landing Page Popular Posts Timeline Tool**: Replaced the outdated fake mystery demo timeline with a live, safety-filtered Popular Posts timeline. Added `/api/v1/events/popular/landing` with strict community safety checks (no NSFW, no open reports, no user account restrictions, 7-day author age minimum, 3-hour post age, 2-vote threshold, Reddit hot ranking, and 5-min KV caching). Updated landing page with instructional title/subtitle, Option 3 mission statement, removed Developer Tools, wired genuine Remark/News/Media hover cards, and added guest login redirection layer on `<EventPopup>`. (Complete)
+
+* **Automatic Media Cover for Hashtag Timelines**: Added "Auto-Pick from Events" / "Re-roll Event Photo" to `HashtagSettingsDialog.js`, strictly filtered to image media events sorted by community votes, synchronized across both Trading Card and Banner previews with full joystick/zoom framing and remove controls intact, and backend R2 URL passthrough support verified. (Complete)
+
+* **Banner Title & Brand Prefix Display**: Displayed timeline title with brand-specific prefixes `i -`, `My-`, `#`, private lock indicator, and uppercase eyebrow category tag directly on `TimelineHeroBanner` with high-contrast text shadows, synchronized across Timeline, Members, Admin, and Home views. (Complete)
+
+* **Prevent private posts from appearing on community and hashtag pages**: Added backend origin privacy filtering in `itimeline-backend/src/repos/event.ts` -> `listEventsByTimeline` and `src/services/events.ts` -> `listByTimelineDTO`. Posts originating from personal timelines or private community timelines that are shared/tagged into hashtag or other community timelines are hidden from guests and non-members, while remaining visible to the author and active members/viewers of that origin timeline. Tested by user for both personal and private community origins. (Complete)
 
 * **[FG-H/N/P] Contextual Titles: "My Public Posts" & "Private Posts"**: Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current and recent timelines). (Complete)
 

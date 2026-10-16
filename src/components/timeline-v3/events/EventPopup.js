@@ -145,8 +145,10 @@ const EventPopup = ({
   timelineType = 'hashtag',
   hideActionMenu = false, // Hide ellipsis menu (for admin page view)
   isAlreadyRevealed = false,
+  isLandingPreview = false,
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const location = useLocation();
   const { user, isGuest } = useAuth();
   const effectiveReviewingEventIds = React.useMemo(
@@ -1200,6 +1202,26 @@ const EventPopup = ({
       }}
     >
       <Box
+        onClickCapture={(e) => {
+          if (!isLandingPreview) return;
+          if (user && !isGuest) return;
+
+          const target = e.target;
+          if (!target || !target.closest) return;
+
+          const isAllowed = target.closest('[data-guest-allowed="true"]') ||
+                            target.closest('button[aria-label="close"]') ||
+                            target.closest('[aria-label="Exit Fullscreen"]') ||
+                            target.closest('.media-fullscreen-control');
+          if (isAllowed) return;
+
+          const isInteractive = target.closest('button, a, [role="button"], input, textarea, .MuiChip-root, .MuiIconButton-root, .MuiButton-root');
+          if (isInteractive) {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate('/login');
+          }
+        }}
         sx={{
           position: 'relative',
           width: '100%',
@@ -1226,6 +1248,7 @@ const EventPopup = ({
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, flex: 1, height: { xs: '100%', md: '100%' }, overflow: 'hidden' }}>
           {/* Left Container - Media Preview */}
           <Box
+            data-guest-allowed="true"
             sx={{
               flex: isMediaFullscreen ? '1 1 100%' : { xs: '0 0 auto', md: '0 0 60%' },
               width: isMediaFullscreen ? '100%' : { xs: '100%', md: '60%' },
@@ -1300,6 +1323,7 @@ const EventPopup = ({
                 {/* Back Button */}
                 <IconButton
                   color="inherit"
+                  data-guest-allowed="true"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMediaFullscreen(false);
@@ -1351,6 +1375,7 @@ const EventPopup = ({
             {isMediaFullscreen && (
               <Button
                 variant="contained"
+                data-guest-allowed="true"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMediaFullscreen(false);
@@ -1422,7 +1447,7 @@ const EventPopup = ({
                       </Box>
                     </Box>
                   </Box>
-                  <IconButton edge="end" color="inherit" onClick={handleCloseButtonClick} aria-label="close" sx={{ color: 'text.secondary', mt: -0.5, mr: -0.5 }}>
+                  <IconButton edge="end" color="inherit" onClick={handleCloseButtonClick} aria-label="close" data-guest-allowed="true" sx={{ color: 'text.secondary', mt: -0.5, mr: -0.5 }}>
                     <CloseIcon />
                   </IconButton>
                 </Box>
@@ -1446,6 +1471,7 @@ const EventPopup = ({
                 {safeEventType === EVENT_TYPES.NEWS && event.media_source && (
                   <Paper 
                     elevation={0} 
+                    data-guest-allowed="true"
                     onClick={() => {
                       const normalized = normalizeExternalUrl(event.url || event.media_source);
                       if (normalized) window.open(normalized, '_blank', 'noopener,noreferrer');
