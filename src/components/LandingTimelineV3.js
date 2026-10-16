@@ -100,10 +100,30 @@ function LandingTimelineV3() {
     const loadPopularEvents = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/api/v1/events/popular/landing');
-        if (!active) return;
+        let fetchedEvents = [];
+        try {
+          const res = await api.get('/api/v1/events/popular/landing');
+          fetchedEvents = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        } catch (landingErr) {
+          // Graceful fallback if Cloudflare Worker has not been deployed with /popular/landing yet
+          console.warn('[LandingTimelineV3] /popular/landing not found on backend yet; falling back to public timeline events');
+          try {
+            const timelinesRes = await api.get('/api/v1/timelines', { params: { limit: 10 } });
+            const publicTimelines = (timelinesRes.data?.data || []).filter(t => t.visibility === 'public');
+            for (const tl of publicTimelines) {
+              const eventsRes = await api.get(`/api/v1/events/by-timeline/${tl.id}`, { params: { limit: 20 } });
+              const items = Array.isArray(eventsRes.data?.data) ? eventsRes.data.data : [];
+              if (items.length > 0) {
+                fetchedEvents = items;
+                break;
+              }
+            }
+          } catch (fallbackErr) {
+            console.error('[LandingTimelineV3] Fallback failed:', fallbackErr);
+          }
+        }
 
-        const fetchedEvents = Array.isArray(res.data) ? res.data : [];
+        if (!active) return;
         setEvents(fetchedEvents);
 
         if (fetchedEvents.length > 0) {
