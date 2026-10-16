@@ -77,6 +77,11 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * **[FG-L] Timeline zooming and "follow your post" through filter levels.**
   - Two related UX ideas: (1) pinch-to-zoom or scroll-to-zoom on the timeline view, and (2) a way to keep your own post tracked/in-view as you toggle through different filter zoom levels.
 
+* **[FG-SUB] Community Membership Subscriptions & Strike Solidarity Fund**
+  - Allow verified communities to offer membership subscriptions so members can financially support their organization.
+  - Platform-wide Solidarity Fund: A portion of all site subscriptions pools into a general fund to help support employees and members while they strike.
+  - Community Announcements: Allow communities to create and run promoted announcements/ads across the platform.
+
 ---
 
 * ~~the published date/time on all event cards should be simpler displaying.~~ (Completed — replaced static `"Published on MMM d, yyyy, h:mm a"` with relative time via shared `src/utils/dateUtils.js` → `formatPublishedRelative()`. Cards now show e.g. `"Published 5 mins ago"`, `"Published 3 years ago"`. Applied to `MediaCard.js`, `NewsCard.js`, `RemarkCard.js`.)

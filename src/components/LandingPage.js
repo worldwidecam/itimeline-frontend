@@ -27,12 +27,22 @@ import {
   Search as SearchIcon,
   Share as ShareIcon,
   ChevronRight as ChevronRightIcon,
-  ChevronLeft as ChevronLeftIcon
+  ChevronLeft as ChevronLeftIcon,
+  AccountTree as HierarchyIcon,
+  EmojiEvents as TrophyIcon,
+  Info as InfoIcon,
+  Security as SecurityIcon,
+  Public as PublicIcon,
+  Place as PlaceIcon,
+  Campaign as CampaignIcon,
+  Groups as GroupsIcon
 } from '@mui/icons-material';
 import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import api, { getLandingRotatorSettings, getSiteUserCount } from '../utils/api';
 import LandingTimelineV3 from './LandingTimelineV3';
+import LandingCommunityShowcase from './landing/LandingCommunityShowcase';
+import LandingHeatmapShowcase from './landing/LandingHeatmapShowcase';
 import DonationButtons from './DonationButtons';
 import AnimatedTagline from './AnimatedTagline';
 import { getTimelineSurfaceTheme } from './timeline-v3/timelineSurfaceTheme';
@@ -47,6 +57,97 @@ const LandingPage = () => {
   const [badgeText, setBadgeText] = useState('Coming Soon!');
   const [badgeEnabled, setBadgeEnabled] = useState(true);
   const [siteUserCount, setSiteUserCount] = useState(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  const slides = [
+    {
+      id: 'document',
+      title: 'A social media for the Working Class',
+      subtitle: 'Every movement begins with a shared record of what happened.',
+      buttonLabel: '1. Document',
+      buttonSub: 'Visual History',
+      features: [
+        {
+          icon: <TimelineIcon sx={{ fontSize: 44, color: 'primary.main' }} />,
+          title: 'Infinite Timeline',
+          desc: 'Create chronological records with unlimited events extending in both directions.'
+        },
+        {
+          icon: <EventIcon sx={{ fontSize: 44, color: 'primary.main' }} />,
+          title: 'Rich Event Cards',
+          desc: 'Document moments with media, links, remarks, and genuine community upvotes.'
+        },
+        {
+          icon: <SearchIcon sx={{ fontSize: 44, color: 'primary.main' }} />,
+          title: 'Smart Filtering',
+          desc: 'Filter history by hashtags, categories, or date ranges without algorithmic suppression.'
+        },
+        {
+          icon: <ShareIcon sx={{ fontSize: 44, color: 'primary.main' }} />,
+          title: 'Easy Sharing',
+          desc: 'Share verified timelines anywhere with instant previews for articles, videos, and news.'
+        }
+      ]
+    },
+    {
+      id: 'organize',
+      title: 'Tools to Build Real Community Power',
+      subtitle: 'Help unions and join communities.',
+      buttonLabel: '2. Organize',
+      buttonSub: 'Community Power',
+      features: [
+        {
+          icon: <HierarchyIcon sx={{ fontSize: 44, color: 'primary.main' }} />,
+          title: 'Workplace Branches',
+          desc: 'Connect big general communities down to your specific company and local store.'
+        },
+        {
+          icon: <TrophyIcon sx={{ fontSize: 44, color: '#ffd700' }} />,
+          title: 'Goals We Vote On',
+          desc: 'Bronze, Silver, and Gold milestones with real progress bars and group voting.'
+        },
+        {
+          icon: <InfoIcon sx={{ fontSize: 44, color: 'info.main' }} />,
+          title: 'Helpful Notes & Info',
+          desc: 'Keep worker rights, shift notes, and meeting dates pinned for everyone.'
+        },
+        {
+          icon: <SecurityIcon sx={{ fontSize: 44, color: 'success.main' }} />,
+          title: 'Real Coworkers Only',
+          desc: 'Vetted member approvals keep private workplace organizing safe from outsiders.'
+        }
+      ]
+    },
+    {
+      id: 'mobilize',
+      title: 'See Where Your Community Has Real Impact',
+      subtitle: 'Taking digital solidarity into the physical world.',
+      buttonLabel: '3. Mobilize',
+      buttonSub: 'Impact Heat-Map',
+      features: [
+        {
+          icon: <PublicIcon sx={{ fontSize: 44, color: 'primary.main' }} />,
+          title: 'Geographic Density',
+          desc: 'Visualize where your community has physical presence from nations down to counties.'
+        },
+        {
+          icon: <GroupsIcon sx={{ fontSize: 44, color: '#ff5722' }} />,
+          title: 'Live Member Indexes',
+          desc: 'Track verified member concentrations to direct organizing resources where needed most.'
+        },
+        {
+          icon: <CampaignIcon sx={{ fontSize: 44, color: 'secondary.main' }} />,
+          title: 'Coordinated Actions',
+          desc: 'Turn online momentum into real boots on the ground with scheduled rallies and pickets.'
+        },
+        {
+          icon: <PlaceIcon sx={{ fontSize: 44, color: 'error.main' }} />,
+          title: 'Local Autonomy',
+          desc: 'Empower municipal chapters while keeping everyone united under the larger movement.'
+        }
+      ]
+    }
+  ];
 
   useEffect(() => {
     let active = true;
@@ -293,97 +394,75 @@ const LandingPage = () => {
             alignItems: 'center'
           }}
         >
-          <Typography variant="h4" component="h2" sx={{ mb: 2, textAlign: 'center' }}>
-            Tap a line to open a post
+          <Typography variant="h4" component="h2" sx={{ mb: 1.5, textAlign: 'center', fontWeight: 800 }}>
+            {slides[activeSlide].title}
           </Typography>
           
-          <Typography variant="body1" sx={{ mb: 4, textAlign: 'center', maxWidth: '800px' }}>
-            Every line is a real post from the iTimeline community, placed at the moment it's about.
+          <Typography variant="body1" sx={{ mb: 3.5, textAlign: 'center', maxWidth: '800px', color: 'text.secondary' }}>
+            {slides[activeSlide].subtitle}
           </Typography>
+
+          {/* 3-Button Slide Switcher */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 1, sm: 2 }, mb: 4, flexWrap: 'wrap' }}>
+            {slides.map((s, index) => (
+              <Button
+                key={s.id}
+                variant={activeSlide === index ? 'contained' : 'outlined'}
+                color="primary"
+                onClick={() => setActiveSlide(index)}
+                sx={{
+                  borderRadius: 2,
+                  px: { xs: 2, sm: 3 },
+                  py: 1,
+                  textTransform: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  fontWeight: 700,
+                  fontSize: { xs: '0.85rem', sm: '0.95rem' },
+                  boxShadow: activeSlide === index ? '0 4px 14px rgba(69, 104, 220, 0.4)' : 'none',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+              >
+                <span>{s.buttonLabel}</span>
+                <Typography variant="caption" sx={{ opacity: 0.85, fontSize: '0.72rem', fontWeight: 500 }}>
+                  {s.buttonSub}
+                </Typography>
+              </Button>
+            ))}
+          </Box>
           
           <Box sx={{ width: '100%', maxWidth: '100%' }}>
-            <LandingTimelineV3 />
+            {activeSlide === 0 && <LandingTimelineV3 />}
+            {activeSlide === 1 && <LandingCommunityShowcase />}
+            {activeSlide === 2 && <LandingHeatmapShowcase />}
           </Box>
         </Box>
         
         {/* Features Section */}
-        <Box sx={{ mb: 6 }}>
-          <Typography 
-            variant="h4" 
-            component="h3" 
-            gutterBottom
-            sx={{ 
-              textAlign: 'center',
-              mb: 4
-            }}
-          >
-            Key Features
-          </Typography>
+        <Box sx={{ mb: 6, mt: 4 }}>
           
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ textAlign: 'center', mb: 2 }}>
-                    <TimelineIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-                  </Box>
-                  <Typography variant="h6" component="h4" gutterBottom textAlign="center">
-                    Infinite Timeline
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Create timelines with unlimited events that can extend infinitely in both directions.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ textAlign: 'center', mb: 2 }}>
-                    <EventIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-                  </Box>
-                  <Typography variant="h6" component="h4" gutterBottom textAlign="center">
-                    Rich Event Cards
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Add media, links, and formatted text to create engaging event cards.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ textAlign: 'center', mb: 2 }}>
-                    <SearchIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-                  </Box>
-                  <Typography variant="h6" component="h4" gutterBottom textAlign="center">
-                    Smart Filtering
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Use hashtags and search to quickly find and filter events in your timeline.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ textAlign: 'center', mb: 2 }}>
-                    <ShareIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-                  </Box>
-                  <Typography variant="h6" component="h4" gutterBottom textAlign="center">
-                    Easy Sharing
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Share your timelines with others and collaborate on event creation.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            {slides[activeSlide]?.features?.map((feat, idx) => (
+              <Grid item xs={12} sm={6} md={3} key={idx}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', transition: 'all 0.2s ease', '&:hover': { transform: 'translateY(-3px)' } }}>
+                  <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', p: 3 }}>
+                    <Box sx={{ mb: 2 }}>
+                      {feat.icon}
+                    </Box>
+                    <Typography variant="h6" component="h4" gutterBottom sx={{ fontWeight: 700 }}>
+                      {feat.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                      {feat.desc}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
         </Box>
       </Container>

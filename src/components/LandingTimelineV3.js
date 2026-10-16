@@ -396,7 +396,7 @@ function LandingTimelineV3() {
         }}
       >
         <Typography variant="body2" sx={{ fontWeight: 500, letterSpacing: '0.2px', color: 'rgba(255,255,255,0.9)' }}>
-          A social network for the working class. Every movement begins with a shared record of what happened.
+          Tap a line to open a post
         </Typography>
       </Box>
 
