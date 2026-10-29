@@ -74,7 +74,15 @@ function TermsOfService() {
                 1. Acceptance of Terms
               </Typography>
               <Typography variant="body1" color="text.primary">
-                By registering for an account, accessing, or using iTimeline (the "Service"), you agree to be bound by these Terms of Service ("Terms") and our Privacy Policy. If you do not agree to these Terms, please do not use the Service.
+                By registering for an account, accessing, or using iTimeline (the "Service"), you agree to be bound by these Terms of Service ("Terms") and our{' '}
+                <Box
+                  component={RouterLink}
+                  to="/privacy-policy"
+                  sx={{ color: 'primary.main', fontWeight: 'bold', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                >
+                  Privacy Policy
+                </Box>
+                . If you do not agree to these Terms, please do not use the Service.
               </Typography>
             </Box>
 

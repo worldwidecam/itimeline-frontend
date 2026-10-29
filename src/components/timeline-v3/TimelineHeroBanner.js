@@ -1,29 +1,47 @@
 import React, { useMemo } from 'react';
-import { Box, Typography, Skeleton, useMediaQuery } from '@mui/material';
+import { Box, Typography, Skeleton, useMediaQuery, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import LockIcon from '@mui/icons-material/Lock';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getTimelineSurfaceTheme } from './timelineSurfaceTheme';
+import { useAuth } from '../../contexts/AuthContext';
+import { getTimelineDisplayTitle } from '../../utils/timelineTitle';
 
 export const TimelineHeroBanner = ({
   timelineName = 'Timeline',
   timelineType = 'community',
+  visibility = 'public',
   coverImageUrl = '',
   coverLandscapeX = 50,
   coverLandscapeY = 50,
   coverZoom = 1,
   coverUploadEnabled = true,
   isLoading = false,
+  onClick = null,      // When provided, banner becomes a toggle handle
+  isCollapsed = false, // Controls chevron direction
   sx = {}
 }) => {
   const theme = useTheme();
+  const { user } = useAuth();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const xTranslationFactor = isDesktop ? 0.9 : 0.9 * (8 / 4.5);
   const timelineSurfaces = useMemo(() => getTimelineSurfaceTheme(theme), [theme]);
   const cleanCoverImageUrl = String(coverImageUrl || '').trim();
+
+  // Normalized type flags
+  const normType = String(timelineType || 'community').toLowerCase();
+  const isPersonal = normType === 'personal';
+  const isCommunity = normType === 'community';
+  const isHashtag = !isPersonal && !isCommunity;
+
+  // Resolves contextual display title (Private Posts / My Public Posts if matching current user)
+  const cleanName = useMemo(() => {
+    return getTimelineDisplayTitle(timelineName, timelineType, user);
+  }, [timelineName, timelineType, user]);
 
   // Dark vs light mode fallback background gradients
   const fallbackGradient = theme.palette.mode === 'dark'
@@ -64,36 +82,56 @@ export const TimelineHeroBanner = ({
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: '100%',
-        mb: 3,
-        mt: 2,
-        minHeight: { xs: 80, md: 120 },
-        aspectRatio: { xs: '4.5 / 1', md: '8 / 1' },
-        borderRadius: 2.25,
-        border: '1px solid',
-        borderColor: timelineSurfaces.shellBorder,
-        boxShadow: theme.palette.mode === 'dark'
-          ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
-          : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
-        overflow: 'hidden',
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'flex-end',
-        px: { xs: 2.5, md: 4 },
-        pb: { xs: 2, md: 3 },
-        background: fallbackGradient,
-        ...sx,
-      }}
+    <Tooltip
+      title={onClick ? (isCollapsed ? 'Show Timeline' : 'Hide Timeline') : ''}
+      placement="top"
+      disableHoverListener={!onClick}
     >
+      <Box
+        onClick={onClick || undefined}
+        sx={{
+          width: '100%',
+          maxWidth: '100%',
+          mb: 3,
+          mt: 2,
+          minHeight: { xs: 80, md: 120 },
+          aspectRatio: { xs: '4.5 / 1', md: '8 / 1' },
+          borderRadius: 2.25,
+          border: '1px solid',
+          borderColor: timelineSurfaces.shellBorder,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 12px 24px rgba(2,6,23,0.45), 0 0 0 1px rgba(255,255,255,0.06)'
+            : '0 12px 24px rgba(15,23,42,0.16), 0 0 0 1px rgba(15,23,42,0.08)',
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'flex-end',
+          px: { xs: 2.5, md: 4 },
+          pb: { xs: 2, md: 3 },
+          background: fallbackGradient,
+          // Clickable affordance
+          ...(onClick ? {
+            cursor: 'pointer',
+            transition: 'box-shadow 0.2s ease, filter 0.2s ease',
+            '&:hover': {
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 12px 32px rgba(2,6,23,0.6), 0 0 0 1.5px rgba(255,255,255,0.18)'
+                : '0 12px 32px rgba(15,23,42,0.22), 0 0 0 1.5px rgba(15,23,42,0.16)',
+              filter: 'brightness(1.06)',
+            },
+          } : {}),
+          ...sx,
+        }}
+      >
       {/* Cover Image - strictly utilizing 'contain' to honor positioning settings */}
       {!isLoading && cleanCoverImageUrl && (
         <Box
           component="img"
           src={cleanCoverImageUrl}
           alt={`${timelineName} cover`}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
           sx={{
             position: 'absolute',
             inset: 0,
@@ -109,48 +147,191 @@ export const TimelineHeroBanner = ({
         />
       )}
 
-      {/* Shadow overlay overlay to keep text highly legible */}
+      {/* Shadow overlay to keep text and controls crystal clear */}
       <Box
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.42) 100%)',
+          background: 'linear-gradient(180deg, rgba(2,6,23,0.04) 0%, rgba(2,6,23,0.28) 42%, rgba(2,6,23,0.78) 100%)',
+          pointerEvents: 'none',
         }}
       />
 
       {/* Loading Skeleton Mode */}
       {isLoading && (
         <Box sx={{ position: 'relative', zIndex: 1, width: '100%' }}>
-          <Skeleton variant="text" width={220} height={36} sx={{ bgcolor: 'rgba(255,255,255,0.25)' }} />
-          <Skeleton variant="text" width={140} height={24} sx={{ bgcolor: 'rgba(255,255,255,0.22)' }} />
+          <Skeleton variant="text" width={110} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.25)', mb: 0.5 }} />
+          <Skeleton variant="text" width={240} height={36} sx={{ bgcolor: 'rgba(255,255,255,0.28)' }} />
         </Box>
       )}
 
-      {/* Banner text label & Icon */}
+      {/* Banner text label & Controls */}
       {!isLoading && (
-        <Box sx={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'rgba(248,250,252,0.95)',
-              textShadow: `
-                0 2px 4px rgba(2,6,23,0.8), 
-                0 4px 12px rgba(2,6,23,0.6), 
-                0 0 20px rgba(2,6,23,0.4)
-              `,
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.15em',
-            }}
-          >
-            {String(timelineType || 'community').toUpperCase()} TIMELINE
-          </Typography>
+        <Box
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            gap: 2,
+            minWidth: 0,
+          }}
+        >
+          {/* Left Column: Eyebrow + Title with brand prefix */}
+          <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                color: 'rgba(248,250,252,0.85)',
+                textShadow: '0 1px 3px rgba(2,6,23,0.9), 0 2px 8px rgba(2,6,23,0.7)',
+                fontWeight: 700,
+                fontSize: { xs: '0.58rem', sm: '0.66rem', md: '0.72rem' },
+                textTransform: 'uppercase',
+                letterSpacing: '0.14em',
+                lineHeight: 1.2,
+                mb: 0.35,
+              }}
+            >
+              {normType.toUpperCase()} TIMELINE
+            </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography
+              component="div"
+              sx={{
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: { xs: '1.05rem', sm: '1.3rem', md: '1.65rem' },
+                lineHeight: 1.2,
+                letterSpacing: '-0.01em',
+                textShadow: '0 2px 4px rgba(2,6,23,0.9), 0 4px 12px rgba(2,6,23,0.75), 0 0 24px rgba(2,6,23,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+              }}
+            >
+              {isCommunity && (
+                <span
+                  style={{
+                    fontFamily: 'Lobster, cursive',
+                    marginRight: '6px',
+                    color: theme.palette.mode === 'dark' ? '#60a5fa' : '#93c5fd',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                >
+                  i -
+                </span>
+              )}
+              {isPersonal && (
+                <span
+                  style={{
+                    fontFamily: 'Lobster, cursive',
+                    marginRight: '6px',
+                    color: theme.palette.mode === 'dark' ? '#c084fc' : '#e9d5ff',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                >
+                  My-
+                </span>
+              )}
+              {isHashtag && (
+                <span
+                  style={{
+                    marginRight: '4px',
+                    color: theme.palette.mode === 'dark' ? '#4ade80' : '#86efac',
+                    flexShrink: 0,
+                    fontWeight: 900,
+                  }}
+                  aria-hidden="true"
+                >
+                  #
+                </span>
+              )}
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 1,
+                  minWidth: 0,
+                }}
+              >
+                {cleanName}
+              </span>
+              {isCommunity && visibility === 'private' && (
+                <Tooltip title="Private timeline" arrow placement="top">
+                  <LockIcon
+                    sx={{
+                      ml: 0.75,
+                      fontSize: { xs: '0.85rem', sm: '1rem' },
+                      color: 'rgba(255,255,255,0.85)',
+                      filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))',
+                      flexShrink: 0,
+                    }}
+                  />
+                </Tooltip>
+              )}
+            </Typography>
+          </Box>
+
+          {/* Right Column: Toggle button & Type Icon */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            {/* Collapse/Expand chevron — only shown when banner is wired as a toggle */}
+            {onClick && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  bgcolor: 'rgba(0,0,0,0.4)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  borderRadius: '20px',
+                  px: 1.25,
+                  py: 0.4,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    bgcolor: 'rgba(0,0,0,0.55)',
+                  },
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'rgba(255,255,255,0.92)',
+                    fontSize: { xs: '0.62rem', sm: '0.68rem' },
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    lineHeight: 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isCollapsed ? 'Show Timeline' : 'Hide Timeline'}
+                </Typography>
+                <ExpandMoreIcon
+                  sx={{
+                    color: 'rgba(255,255,255,0.92)',
+                    fontSize: 16,
+                    transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+                    transition: 'transform 0.3s ease',
+                  }}
+                />
+              </Box>
+            )}
             {renderIcon()}
           </Box>
         </Box>
       )}
     </Box>
+    </Tooltip>
   );
 };

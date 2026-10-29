@@ -27,6 +27,7 @@ import SuspendedPage from './components/SuspendedPage';
 import GoblinRedirect from './components/GoblinRedirect';
 import EventSharePage from './components/timeline-v3/events/EventSharePage';
 import TermsOfService from './components/TermsOfService';
+import PrivacyPolicy from './components/PrivacyPolicy';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
@@ -1236,6 +1237,7 @@ function App() {
                   <Route path="/suspended" element={<SuspendedPage />} />
                   <Route path="/goblin-redirect" element={<GoblinRedirect />} />
                   <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
                   {/* Protected routes */}
                   <Route path="/home" element={

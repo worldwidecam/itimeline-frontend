@@ -835,6 +835,52 @@ export const unfollowUser = async (userId) => {
   }
 };
 
+export const getBlockedUsers = async () => {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = Number(currentUser?.id || 0);
+    if (!(userId > 0)) return [];
+
+    const response = await api.get(`/api/v1/users/${userId}/blocked`);
+    const rows = Array.isArray(response?.data?.data) ? response.data.data : [];
+    return rows.filter((row) => row && Number(row.id || row.blocked_id) > 0).map((row) => ({
+      ...row,
+      id: Number(row.id || row.blocked_id),
+    }));
+  } catch (error) {
+    console.error('[API] Error fetching blocked users:', error);
+    throw error;
+  }
+};
+
+export const blockUser = async (userId) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  try {
+    const response = await api.post(`/api/v1/users/${userId}/block`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error blocking user:', error);
+    throw error;
+  }
+};
+
+export const unblockUser = async (userId) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  try {
+    const response = await api.delete(`/api/v1/users/${userId}/block`);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error unblocking user:', error);
+    throw error;
+  }
+};
+
 export const getTimelineFollowStatus = async (timelineId) => {
   if (!timelineId) {
     throw new Error('timelineId is required');

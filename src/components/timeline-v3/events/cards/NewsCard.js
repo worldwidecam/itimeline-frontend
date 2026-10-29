@@ -46,6 +46,7 @@ import UserAvatar from '../../../common/UserAvatar';
 import { displayUsername } from '../../../../utils/usernameDisplay';
 import { useEventVote } from '../../../../hooks/useEventVote';
 import { isCdnUrlExpired } from '../../../../utils/api';
+import { formatPublishedRelative } from '../../../../utils/dateUtils';
 
 const normalizeMediaUrl = (url) => {
   if (!url) return '';
@@ -194,23 +195,10 @@ const NewsCard = forwardRef(({
   // We no longer need to listen for custom events
   // The popup will be opened directly by the handleEdit function
 
-  const formatDate = (dateStr) => {
-    try {
-        if (!dateStr) return 'Invalid date';
-        
-        // Parse the ISO string into a Date object
-        const date = parseISO(dateStr);
-        
-        // Format with "Published on" prefix, without seconds
-        // Use explicit formatting to ensure consistency
-        return `Published on ${format(date, 'MMM d, yyyy, h:mm a')}`;
-    } catch (error) {
-        console.error('Error formatting date:', error);
-        return 'Invalid date';
-    }
-  };
+  const formatDate = (dateStr) => formatPublishedRelative(dateStr);
 
   const formatEventDate = (dateStr) => {
+
     try {
         if (!dateStr) return 'Invalid date';
         

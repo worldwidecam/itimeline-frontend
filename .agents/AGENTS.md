@@ -3,6 +3,8 @@
 When doing file updates or replacements using search/replace tools:
 - **Always preserve bracket match hygiene**: Carefully verify matching braces `{}` and parentheses `()` inside targeted blocks.
 - **Double-check replace chunks**: Ensure no closing block brackets or function signatures are accidentally removed or duplicated during partial replacements.
+- **Inspect EOF after replacement**: When using multi-replace tools on large files, always inspect the tail of the file to verify that no orphaned or duplicate code was left after `export default` or closing tags. Line additions in early chunks can shift line positions in later chunks; always re-verify line ranges or prefer contiguous single replacements when editing near file boundaries.
+- **Immediate syntax error remediation**: If a build or transform error occurs (such as esbuild parse errors), immediately clean the orphaned code and verify that no trailing duplicate JSX remains outside component closing brackets.
 - **Run build checks**: Always execute a production build to check for syntax correctness right after any change.
 
 # Core Memory — Variable Initialization and Hook Ordering
@@ -10,6 +12,7 @@ When doing file updates or replacements using search/replace tools:
 
 # Core Memory — Import Completeness
 - **Always verify imports when introducing new JSX components or hooks**: If a new component (e.g., `CircularProgress`, `Tooltip`, `Skeleton`) is added inside JSX, confirm it is present in the file's import block before saving. The build may succeed (tree-shaking) but the runtime will crash with `ReferenceError: X is not defined`.
+- **Always verify MUI icon existence before importing from `@mui/icons-material`**: Some intuitive icon names (such as `Eco`, `Park`) might not be exported by the installed `@mui/icons-material` version. Always verify icon resolution (e.g. `node -e "require('@mui/icons-material/...')"` or existing usage) before importing.
 
 # Core Memory — MUI Dialog Child Structure
 - **Never place arbitrary JSX outside `DialogTitle`/`DialogContent`/`DialogActions` inside a MUI `<Dialog>`**: MUI Dialog only renders children that are one of those three slots. Placing a `<Box>`, `<Paper>`, or a second `<Dialog>` as a direct sibling inside a `<Dialog>` (after `</DialogActions>`) causes the panel to appear empty or broken at runtime.

@@ -20,9 +20,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* IMPORTANT
- - ~~need to safe migrate new tables to staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-staging`)
- - ~~need to safe migrate new tables to production once safe testing is confirmed on staging~~ (Completed — `0010` and `0011` applied to remote `itimeline-prod`)
+* **[BLOCK] Block list option within friends list on home page.** (Implemented locally — awaiting confirmation)
 
 ---
 
@@ -40,6 +38,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-F] Swipe-down pull-to-refresh fires on the login page on mobile.**~~ (Completed — added `useSwipeDownToDismiss` hook that blocks pull-to-refresh while a card is face-up and interprets a ≥60px downward swipe as an intentional card-dismiss gesture, wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`)
 
+* ~~**[FG-N2] Goblin login is broken.**~~ (Completed — likely resolved as a side effect of rate limiting relaxation and breach corpus advisory changes)
+
 ---
 
 ### 🟡 Focus Group — UX Friction (Medium Priority)
@@ -48,23 +48,21 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * ~~**[FG-J] Profile usernames and avatars should be clickable hyperlinks.**~~ (Completed — Made author avatar and username in profile text bubbles clickable, navigating to the sender's `/profile/:id`. Only applies to visitor bubbles; owner's own bubbles are intentionally skipped. Comment drawer avatars were already wired; username text there is intentionally left as-is per design. RemarkEventMarker avatar left unchanged — tabled for future discussion.)
 
-* 👉 **[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.** ← *NEXT*
-  - Some parts of the UI say "Add Friend", others say "Follow/Unfollow". Needs to be unified to one clear term and behavior across all surfaces.
+* ~~**[FG-G] "Add Friend" vs "Follow/Unfollow" wording is inconsistent.**~~ (Completed — Analyzed all 4 surfaces: tab label "FRIENDS LIST", UserCard "Follow/Unfollow", Profile FAB "Follow user/Unfollow user", Timeline "Watch/Watching". Underlying system is a one-way follow model. Wording is intentionally kept as-is — "Friends List" as friendly tab branding, "Follow/Unfollow" on action buttons, "Watch" for timelines. No code change required.)
 
-* **[FG-Q] Home page right-hub tab header titles need to be larger.**
-  - The tab names (Popular, Home, Search, etc.) feel too small. Users want them to be more prominent and readable at a glance.
+* ~~**[FG-Q] Home page right-hub tab header titles need to be larger.**~~ (Completed — Bumped all 7 content panel section headings from MUI `variant="h6"` to `variant="h5"` across Popular, Your Home Page, My Creations, Favorite, Friends List, Search, and the generic fallback. Build verified clean.)
 
-* **[FG-O] On the timeline page, the event list below the fold isn't discoverable.**
-  - At first glance users think the timeline ruler/tool is all there is and don't realize there's a scrollable event list below it. Needs a visual cue or layout adjustment.
+* ~~**[FG-O] On the timeline page, the event list below the fold isn't discoverable.**~~ (Completed — Made TimelineHeroBanner an interactive toggle handle with explicit "Show Timeline" / "Hide Timeline" controls and smooth chevron animation; added collapse-aware event filter bypass so events are immediately visible upon collapse; added "Most Votes" sort option; fixed scroll-locking so the banner detects the fixed top navbar and locks directly beneath it with breathing buffer space upon approach in uncollapsed mode while preserving pinned collapsed mode.)
 
 ---
 
-### 🟢 Focus Group — Design / Identity (Requires Discussion)
+* **[FG-LAND] Landing page redesign**
+  - ~~[FG-LAND-1] Replace mock landing timeline with live, safety-filtered Popular Posts interactive timeline tool~~ (Completed — Created `/api/v1/events/popular/landing` with strict safety rules, wired genuine hover preview cards, instructional header, mission quote, and guest login barrier on popup)
+  - **[FG-LAND-2] Designing the next showcase tool below the timeline on the landing page** (Paused — moved out of Current TODOs in favor of launch blockers)
 
-* **[FG-H/N/P] Timeline types are not visually or conceptually distinct enough.** *(Three overlapping notes — treat as one unified objective)*
-  - Users couldn't tell personal, community, and hashtag timelines apart.
-  - The naming of personal timelines (`#USERNAME` vs `MY-USERNAME`) is confusing — needs clearer labels like "My Public Posts" / "My Private Posts". *You have thoughts on this.*
-  - Visual suggestion from focus group: add the timeline's banner image at low opacity behind the timeline tool area. *You noted we could go more drastic.*
+* ~~**[FG-H/N/P] Contextual Titles: "My Public Posts" and "Private Posts"**~~ (Completed — Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current & recent timelines).)
+
+* ~~**Prevent private posts from appearing on community and hashtag pages**~~ (Completed — Added backend origin privacy filtering in `itimeline-backend/src/repos/event.ts` -> `listEventsByTimeline` and `src/services/events.ts` -> `listByTimelineDTO`. Posts originating from personal timelines that are shared to hashtag or community timelines are 100% hidden from guests and other users, while remaining visible to the author who created them.)
 
 ---
 
@@ -79,9 +77,15 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * **[FG-L] Timeline zooming and "follow your post" through filter levels.**
   - Two related UX ideas: (1) pinch-to-zoom or scroll-to-zoom on the timeline view, and (2) a way to keep your own post tracked/in-view as you toggle through different filter zoom levels.
 
+* **[FG-SUB] Community Membership Subscriptions & Strike Solidarity Fund**
+  - Allow verified communities to offer membership subscriptions so members can financially support their organization.
+  - Platform-wide Solidarity Fund: A portion of all site subscriptions pools into a general fund to help support employees and members while they strike.
+  - Community Announcements: Allow communities to create and run promoted announcements/ads across the platform.
+
 ---
 
-* the published date/time on all event cards should be simpler displaying. lets make it simply state things like "Published 5 minutes ago" or "Published an hour ago" or "Published yesterday" or "Published on in 2026".
+* ~~the published date/time on all event cards should be simpler displaying.~~ (Completed — replaced static `"Published on MMM d, yyyy, h:mm a"` with relative time via shared `src/utils/dateUtils.js` → `formatPublishedRelative()`. Cards now show e.g. `"Published 5 mins ago"`, `"Published 3 years ago"`. Applied to `MediaCard.js`, `NewsCard.js`, `RemarkCard.js`.)
+
 
 * we need to work on the fallbacks for link/news events. for instance, i posted a reddit link and the link event card showed the reddit backup pic, but its popup used our GENERIC fallback. we need to stay consistent. our dream ideal scenario would be that the website NEVER needs this farthest fallback.
 
@@ -91,8 +95,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * add theory board module to community timelines.
 
-* making a private post on a personal timeline page and tagging it should NOT mean that the post made on a personal timeline is allowed to be viewed on that tagged timeline. currently, it does seem to allow it, and that is not right. for instance, i made a post on a personal timeline, therefore this post is private. but then i tagged it #dream_journal, and i went to that hashtag timeline as a Guest and i could still see the post. that should not be the case.
-    - also, the post doesn't even have the personal chip tagged in its personal category, so what's going on there?
+* (needs check) a post made on a personal timeline and tagged with a hashtag (e.g. #dream_journal) didn't show the personal chip in its personal category. verify if this still happens. (privacy leak part of this was fixed — see Completed)
 
 * things or worries we need to check on so we don't make these easily-made mistakes:
  - uncompressed JSON
@@ -101,11 +104,6 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - un-optimistic rendering
  - non statically hosted site 
 
-* **[TODO] Create a Privacy Policy page.**
- - Required for app store submissions (Google Play & Apple App Store).
- - Must cover: what data we collect, why we collect it, how long we retain it, third parties, and user rights.
- - Needs a `/privacy-policy` route and a styled `PrivacyPolicy.js` component matching the existing `TermsOfService.js` design.
- - Should be linked in the footer, Register page, and any app store listing.
 
 * look into making this an app on apple and google play stores.
  - ~~probably need a privacy policy.~~ (tracked above)
@@ -118,7 +116,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * voting on a hashtag on a post doesn't seem to update that event card , at least temporarily.
 
-* block list option within friends list on home page.
+* ~~block list option within friends list on home page.~~ (Moved to Current TODOs as [BLOCK])
 
 * sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.i somewhat fixed this on my own but still good to check. but what remains for sure is that if the inner description container on a popup isn't scrolled to its top already, then it doesn't let the popup itself be dragged downward to close.
 
@@ -129,13 +127,29 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 * expand on theory board module. offer possible stencils. like a simple timeline stencil, or perhaps a lineage tree stencil
 
 * i'm thinking we should have the navFAB absorb the timeline status message system, so that we do not need to have the timeline status message system displayed in the top bar any longer.
+
+* **Backend API security audit.** Review all backend routes for: correct auth/permission checks on every route, rate limits on sensitive calls, and data exposure (making sure responses never return more info than the caller should see). Came up while removing the public "Developer Tools" button from the landing page — note that hiding a frontend button does NOT secure the endpoint behind it.
 ---
 
 ## Awaiting Confirmation
 
+* **[BLOCK] User Block List & Two-Way Content Filtering**: Added `user_blocks` table (`0012_user_blocks.sql`), block/unblock/list endpoints, two-way content hiding across feeds/timelines/comments/profile-texts/notifications, empty `[USER] has Blocked you.` profile state when blocked by target, and Block/Unblock actions in Friends List (`Blocked` filter), `UserCard` Actions menu, and `Profile` `NavFab`.
+
 ---
 
 ## Completed
+
+* **[FG-LAND-1] Landing Page Popular Posts Timeline Tool**: Replaced the outdated fake mystery demo timeline with a live, safety-filtered Popular Posts timeline. Added `/api/v1/events/popular/landing` with strict community safety checks (no NSFW, no open reports, no user account restrictions, 7-day author age minimum, 3-hour post age, 2-vote threshold, Reddit hot ranking, and 5-min KV caching). Updated landing page with instructional title/subtitle, Option 3 mission statement, removed Developer Tools, wired genuine Remark/News/Media hover cards, and added guest login redirection layer on `<EventPopup>`. (Complete)
+
+* **Automatic Media Cover for Hashtag Timelines**: Added "Auto-Pick from Events" / "Re-roll Event Photo" to `HashtagSettingsDialog.js`, strictly filtered to image media events sorted by community votes, synchronized across both Trading Card and Banner previews with full joystick/zoom framing and remove controls intact, and backend R2 URL passthrough support verified. (Complete)
+
+* **Banner Title & Brand Prefix Display**: Displayed timeline title with brand-specific prefixes `i -`, `My-`, `#`, private lock indicator, and uppercase eyebrow category tag directly on `TimelineHeroBanner` with high-contrast text shadows, synchronized across Timeline, Members, Admin, and Home views. (Complete)
+
+* **Prevent private posts from appearing on community and hashtag pages**: Added backend origin privacy filtering in `itimeline-backend/src/repos/event.ts` -> `listEventsByTimeline` and `src/services/events.ts` -> `listByTimelineDTO`. Posts originating from personal timelines or private community timelines that are shared/tagged into hashtag or other community timelines are hidden from guests and non-members, while remaining visible to the author and active members/viewers of that origin timeline. Tested by user for both personal and private community origins. (Complete)
+
+* **[FG-H/N/P] Contextual Titles: "My Public Posts" & "Private Posts"**: Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current and recent timelines). (Complete)
+
+* **[TODO] Privacy Policy page**: Created `PrivacyPolicy.js` mirroring the TermsOfService layout with 9 friendly/transparent sections. Added `/privacy-policy` route in `App.js`, made the Register checkbox "Privacy Policy" text a real link, cross-linked from `TermsOfService.js` Section 1, and added a subtle footer to `LandingPage.js` with Terms · Privacy Policy links and copyright. (Complete)
 
 * **[FG-F] Swipe-down pull-to-refresh on auth pages**: Created `useSwipeDownToDismiss` hook that (1) blocks native pull-to-refresh while a card is face-up and (2) interprets a downward swipe ≥60px as a deliberate dismiss, flipping the card face-down. Wired into `Login.js`, `Register.js`, and `AccountRecoveryPage.js`. (Complete)
 
