@@ -57,8 +57,11 @@ import { useAuth } from '../contexts/AuthContext';
 import api, {
   getFollowedUsers,
   getFollowerUsers,
+  getBlockedUsers,
   followUser,
   unfollowUser,
+  blockUser,
+  unblockUser,
   fetchUserMemberships,
   getFollowedHashtagTimelines,
   syncUserPassport,
@@ -293,6 +296,7 @@ const SEARCH_SUB_FILTERS = [
 const FRIENDS_LIST_FILTERS = [
   { key: 'following', label: 'Following' },
   { key: 'followers', label: 'Followers' },
+  { key: 'blocked', label: 'Blocked' },
 ];
 
 const MY_CREATIONS_FILTERS = [
@@ -392,13 +396,17 @@ const HomePage = () => {
   const [searchUsers, setSearchUsers] = React.useState([]);
   const [followedUsers, setFollowedUsers] = React.useState([]);
   const [followerUsers, setFollowerUsers] = React.useState([]);
+  const [blockedUsers, setBlockedUsers] = React.useState([]);
   const [myCreationEvents, setMyCreationEvents] = React.useState([]);
   const [loadingSearchEvents, setLoadingSearchEvents] = React.useState(false);
   const [loadingSearchUsers, setLoadingSearchUsers] = React.useState(false);
   const [loadingFollowedUsers, setLoadingFollowedUsers] = React.useState(false);
   const [loadingFollowerUsers, setLoadingFollowerUsers] = React.useState(false);
+  const [loadingBlockedUsers, setLoadingBlockedUsers] = React.useState(false);
   const [loadingMyCreationEvents, setLoadingMyCreationEvents] = React.useState(false);
   const [followActionByUserId, setFollowActionByUserId] = React.useState({});
+  const [blockActionByUserId, setBlockActionByUserId] = React.useState({});
+  const [confirmBlockTarget, setConfirmBlockTarget] = React.useState(null);
   const [hasLoadedSearchEvents, setHasLoadedSearchEvents] = React.useState(false);
   const [hasLoadedMyCreationEvents, setHasLoadedMyCreationEvents] = React.useState(false);
   // Owned timelines — fetched lazily from /me/timelines/created, independent of public list
@@ -1115,6 +1123,7 @@ const HomePage = () => {
   const isPostSearchScope = searchSubFilter === 'posts';
   const isUserSearchScope = searchSubFilter === 'users';
   const isFollowersFriendsListFilter = friendsListFilter === 'followers';
+  const isBlockedFriendsListFilter = friendsListFilter === 'blocked';
   const currentUserId = Number(user?.id || 0);
   const followedUserIdSet = React.useMemo(() => {
     return new Set(
@@ -1123,8 +1132,23 @@ const HomePage = () => {
         .filter((id) => id > 0),
     );
   }, [followedUsers]);
-  const activeFriendsUsers = isFollowersFriendsListFilter ? followerUsers : followedUsers;
-  const activeFriendsLoading = isFollowersFriendsListFilter ? loadingFollowerUsers : loadingFollowedUsers;
+  const blockedUserIdSet = React.useMemo(() => {
+    return new Set(
+      blockedUsers
+        .map((profileUser) => Number(profileUser?.id || profileUser?.blocked_id || 0))
+        .filter((id) => id > 0),
+    );
+  }, [blockedUsers]);
+  const activeFriendsUsers = isBlockedFriendsListFilter
+    ? blockedUsers
+    : isFollowersFriendsListFilter
+      ? followerUsers
+      : followedUsers;
+  const activeFriendsLoading = isBlockedFriendsListFilter
+    ? loadingBlockedUsers
+    : isFollowersFriendsListFilter
+      ? loadingFollowerUsers
+      : loadingFollowedUsers;
 
   const normalizedTimelines = React.useMemo(() => {
     return [...timelines].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
@@ -2055,6 +2079,9 @@ const HomePage = () => {
                 followedUserIdSet={followedUserIdSet}
                 followActionByUserId={followActionByUserId}
                 onToggleFollow={handleToggleUserFollow}
+                blockedUserIdSet={blockedUserIdSet}
+                blockActionByUserId={blockActionByUserId}
+                onToggleBlock={handleToggleUserBlock}
               />
             </Box>
           </Box>
@@ -2676,6 +2703,24 @@ const HomePage = () => {
     }
   }, [user]);
 
+  const fetchBlockedUsers = React.useCallback(async () => {
+    if (!user || isGuest) {
+      setBlockedUsers([]);
+      return;
+    }
+
+    try {
+      setLoadingBlockedUsers(true);
+      const users = await getBlockedUsers();
+      setBlockedUsers(Array.isArray(users) ? users.slice(0, HOME_FOLLOWED_USERS_SOURCE_LIMIT) : []);
+    } catch (error) {
+      logError('Error fetching blocked users', error);
+      setBlockedUsers([]);
+    } finally {
+      setLoadingBlockedUsers(false);
+    }
+  }, [user, isGuest]);
+
   React.useEffect(() => {
     fetchFollowedUsers();
   }, [fetchFollowedUsers]);
@@ -2683,6 +2728,10 @@ const HomePage = () => {
   React.useEffect(() => {
     fetchFollowerUsers();
   }, [fetchFollowerUsers]);
+
+  React.useEffect(() => {
+    fetchBlockedUsers();
+  }, [fetchBlockedUsers]);
 
   const refreshFeeds = React.useCallback(async (force = false) => {
     if (!force) {
@@ -2718,7 +2767,8 @@ const HomePage = () => {
 
       await Promise.allSettled([
         fetchFollowedUsers(),
-        fetchFollowerUsers()
+        fetchFollowerUsers(),
+        fetchBlockedUsers()
       ]);
 
       if (activeHubTab === 'favorite' && favoriteTimelineId) {
@@ -3357,6 +3407,77 @@ const HomePage = () => {
       setFollowActionByUserId((prev) => ({ ...prev, [targetId]: false }));
     }
   }, [currentUserId, fetchFollowedUsers, fetchFollowerUsers, followActionByUserId, followedUserIdSet]);
+
+  const handleToggleUserBlock = React.useCallback(async (profileUser) => {
+    const targetId = Number(profileUser?.id || profileUser?.blocked_id || 0);
+    if (!(targetId > 0) || (currentUserId > 0 && targetId === currentUserId)) return;
+    if (blockActionByUserId[targetId]) return;
+
+    const currentlyBlocked = blockedUserIdSet.has(targetId) || Boolean(profileUser?.is_blocked_by_me);
+    const targetLabel = profileUser?.username ? `@${displayUsername(profileUser.username)}` : 'this user';
+
+    if (!currentlyBlocked) {
+      setConfirmBlockTarget({ ...profileUser, id: targetId });
+      return;
+    }
+
+    try {
+      setBlockActionByUserId((prev) => ({ ...prev, [targetId]: true }));
+      await unblockUser(targetId);
+      setUserFollowSnackbarMessage(`Unblocked ${targetLabel}`);
+      await fetchBlockedUsers();
+      if (currentUserId > 0) {
+        clearPopularCache(currentUserId);
+        clearYourPageCache(currentUserId);
+      }
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+    } catch (error) {
+      logError('Error unblocking user', error);
+      const message = error?.response?.data?.error || `Could not unblock ${targetLabel}`;
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    } finally {
+      setBlockActionByUserId((prev) => ({ ...prev, [targetId]: false }));
+    }
+  }, [currentUserId, blockActionByUserId, blockedUserIdSet, fetchBlockedUsers, clearPopularCache, clearYourPageCache]);
+
+  const handleConfirmBlockUser = React.useCallback(async () => {
+    const profileUser = confirmBlockTarget;
+    const targetId = Number(profileUser?.id || 0);
+    if (!(targetId > 0)) {
+      setConfirmBlockTarget(null);
+      return;
+    }
+
+    const targetLabel = profileUser?.username ? `@${displayUsername(profileUser.username)}` : 'this user';
+    try {
+      setBlockActionByUserId((prev) => ({ ...prev, [targetId]: true }));
+      await blockUser(targetId);
+      setConfirmBlockTarget(null);
+      setUserFollowSnackbarMessage(`Blocked ${targetLabel}`);
+      await Promise.allSettled([
+        fetchBlockedUsers(),
+        fetchFollowedUsers(),
+        fetchFollowerUsers(),
+      ]);
+      if (currentUserId > 0) {
+        clearPopularCache(currentUserId);
+        clearYourPageCache(currentUserId);
+      }
+      setUserFollowSnackbarSeverity('success');
+      setUserFollowSnackbarOpen(true);
+    } catch (error) {
+      logError('Error blocking user', error);
+      const message = error?.response?.data?.error || `Could not block ${targetLabel}`;
+      setUserFollowSnackbarMessage(message);
+      setUserFollowSnackbarSeverity('error');
+      setUserFollowSnackbarOpen(true);
+    } finally {
+      setBlockActionByUserId((prev) => ({ ...prev, [targetId]: false }));
+    }
+  }, [confirmBlockTarget, currentUserId, fetchBlockedUsers, fetchFollowedUsers, fetchFollowerUsers, clearPopularCache, clearYourPageCache]);
 
 
 
@@ -6111,7 +6232,11 @@ const HomePage = () => {
                   <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', mb: 2.1 }}>
                     {FRIENDS_LIST_FILTERS.map((filter) => {
                       const isActive = friendsListFilter === filter.key;
-                      const tally = filter.key === 'followers' ? followerUsers.length : followedUsers.length;
+                      const tally = filter.key === 'blocked'
+                        ? blockedUsers.length
+                        : filter.key === 'followers'
+                          ? followerUsers.length
+                          : followedUsers.length;
                       return (
                         <Button
                           key={filter.key}
@@ -6164,15 +6289,20 @@ const HomePage = () => {
                           followedUserIdSet={followedUserIdSet}
                           followActionByUserId={followActionByUserId}
                           onToggleFollow={handleToggleUserFollow}
+                          blockedUserIdSet={blockedUserIdSet}
+                          blockActionByUserId={blockActionByUserId}
+                          onToggleBlock={handleToggleUserBlock}
                         />
                       ))}
                     </Stack>
                   ) : (
                     <Box sx={{ py: 6, textAlign: 'center' }}>
                       <Typography color="text.secondary">
-                        {isFollowersFriendsListFilter
-                          ? 'No one follows you yet.'
-                          : 'You are not following anyone yet. Use Search → Users and tap Follow.'}
+                        {isBlockedFriendsListFilter
+                          ? 'You have not blocked any users.'
+                          : isFollowersFriendsListFilter
+                            ? 'No one follows you yet.'
+                            : 'You are not following anyone yet. Use Search → Users and tap Follow.'}
                       </Typography>
                     </Box>
                   )}
@@ -6631,6 +6761,9 @@ const HomePage = () => {
                                         followedUserIdSet={followedUserIdSet}
                                         followActionByUserId={followActionByUserId}
                                         onToggleFollow={handleToggleUserFollow}
+                                        blockedUserIdSet={blockedUserIdSet}
+                                        blockActionByUserId={blockActionByUserId}
+                                        onToggleBlock={handleToggleUserBlock}
                                       />
                                     ))}
                                   </Stack>
@@ -7100,6 +7233,45 @@ const HomePage = () => {
               sx={getGlassPillActionButtonSx(theme)}
             >
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Create Timeline'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={Boolean(confirmBlockTarget)}
+          onClose={() => {
+            if (!blockActionByUserId[Number(confirmBlockTarget?.id || 0)]) {
+              setConfirmBlockTarget(null);
+            }
+          }}
+          maxWidth="xs"
+          fullWidth
+          PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+        >
+          <DialogTitle sx={{ fontWeight: 800 }}>
+            Block @{displayUsername(confirmBlockTarget?.username) || 'User'}?
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">
+              They will be unfollowed, won&apos;t be able to view your profile or follow you, and posts &amp; comments from either of you will be hidden from the other. You can unblock them anytime from Friends List → Blocked.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2.2 }}>
+            <Button
+              onClick={() => setConfirmBlockTarget(null)}
+              disabled={Boolean(blockActionByUserId[Number(confirmBlockTarget?.id || 0)])}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleConfirmBlockUser}
+              disabled={Boolean(blockActionByUserId[Number(confirmBlockTarget?.id || 0)])}
+              sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 999, px: 2.5 }}
+            >
+              {blockActionByUserId[Number(confirmBlockTarget?.id || 0)] ? 'Blocking...' : 'Block User'}
             </Button>
           </DialogActions>
         </Dialog>

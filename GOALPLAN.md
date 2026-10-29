@@ -20,7 +20,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* **[FG-LAND-2] Designing the next showcase tool below the timeline on the landing page** (Active TODO — ideation & requirements)
+* **[BLOCK] Block list option within friends list on home page.** (Implemented locally — awaiting confirmation)
 
 ---
 
@@ -58,7 +58,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * **[FG-LAND] Landing page redesign**
   - ~~[FG-LAND-1] Replace mock landing timeline with live, safety-filtered Popular Posts interactive timeline tool~~ (Completed — Created `/api/v1/events/popular/landing` with strict safety rules, wired genuine hover preview cards, instructional header, mission quote, and guest login barrier on popup)
-  - **[FG-LAND-2] Designing the next showcase tool below the timeline on the landing page** (Active TODO — ideation & requirements)
+  - **[FG-LAND-2] Designing the next showcase tool below the timeline on the landing page** (Paused — moved out of Current TODOs in favor of launch blockers)
 
 * ~~**[FG-H/N/P] Contextual Titles: "My Public Posts" and "Private Posts"**~~ (Completed — Created `src/utils/timelineTitle.js` to dynamically label the user's personal timeline named after their username as "Private Posts" and their username hashtag timeline as "My Public Posts", while keeping brand prefixes `My-` and `#` intact. Preserves custom-named personal timelines and preserves standard username displays for visiting users. Wired across `TimelineHeroBanner`, `TimelineNameDisplay`, `TimelineCard`, `HomePage`, and `Navbar.js` hamburger menu (current & recent timelines).)
 
@@ -116,7 +116,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * voting on a hashtag on a post doesn't seem to update that event card , at least temporarily.
 
-* block list option within friends list on home page.
+* ~~block list option within friends list on home page.~~ (Moved to Current TODOs as [BLOCK])
 
 * sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.i somewhat fixed this on my own but still good to check. but what remains for sure is that if the inner description container on a popup isn't scrolled to its top already, then it doesn't let the popup itself be dragged downward to close.
 
@@ -133,7 +133,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Awaiting Confirmation
 
-* (none)
+* **[BLOCK] User Block List & Two-Way Content Filtering**: Added `user_blocks` table (`0012_user_blocks.sql`), block/unblock/list endpoints, two-way content hiding across feeds/timelines/comments/profile-texts/notifications, empty `[USER] has Blocked you.` profile state when blocked by target, and Block/Unblock actions in Friends List (`Blocked` filter), `UserCard` Actions menu, and `Profile` `NavFab`.
 
 ---
 

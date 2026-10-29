@@ -51,6 +51,9 @@ export default function UserCard({
   followedUserIdSet = new Set(),
   followActionByUserId = {},
   onToggleFollow,
+  blockedUserIdSet = new Set(),
+  blockActionByUserId = {},
+  onToggleBlock,
   sx = {},
 }) {
   const theme = useTheme();
@@ -72,8 +75,10 @@ export default function UserCard({
   } = cardData;
 
   const isFollowing = followedUserIdSet.has(profileUserId);
+  const isBlocked = blockedUserIdSet.has(profileUserId) || Boolean(user?.is_blocked_by_me);
   const isSelf = currentUserId > 0 && profileUserId === currentUserId;
   const followBusy = !!followActionByUserId[profileUserId];
+  const blockBusy = !!blockActionByUserId[profileUserId];
   const isActionMenuOpen = Boolean(anchorEl);
 
   const handleOpenMenu = (event) => {
@@ -388,9 +393,9 @@ export default function UserCard({
               View Profile
             </MenuItem>
 
-            {!isSelf && (
+            {!isSelf && !isBlocked && onToggleFollow && (
               <MenuItem
-                disabled={followBusy}
+                disabled={followBusy || blockBusy}
                 onClick={(event) => handleAction(event, () => onToggleFollow && onToggleFollow(cardData.raw))}
                 sx={{
                   color: isFollowing
@@ -400,6 +405,21 @@ export default function UserCard({
                 }}
               >
                 {followBusy ? 'Saving...' : isFollowing ? 'Unfollow' : 'Follow'}
+              </MenuItem>
+            )}
+
+            {!isSelf && onToggleBlock && (
+              <MenuItem
+                disabled={blockBusy || followBusy}
+                onClick={(event) => handleAction(event, () => onToggleBlock(cardData.raw))}
+                sx={{
+                  color: isBlocked
+                    ? (theme.palette.mode === 'dark' ? 'rgb(134,239,172)' : 'rgb(22,101,52)')
+                    : (theme.palette.mode === 'dark' ? 'rgb(248,113,113)' : 'rgb(185,28,28)'),
+                  fontWeight: 700,
+                }}
+              >
+                {blockBusy ? 'Saving...' : isBlocked ? 'Unblock' : 'Block'}
               </MenuItem>
             )}
           </Menu>
