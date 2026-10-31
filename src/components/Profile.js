@@ -7,7 +7,9 @@ import api, {
   listModerationActions,
   getFollowedUsers,
   followUser,
-  unfollowUser
+  unfollowUser,
+  blockUser,
+  unblockUser
 } from '../utils/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -51,6 +53,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import KeyboardDoubleArrowDownRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowDownRounded';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import BlockIcon from '@mui/icons-material/Block';
 import CloseIcon from '@mui/icons-material/Close';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useAuth } from '../contexts/AuthContext';
@@ -279,6 +282,11 @@ const Profile = () => {
   const [resolvedTargetUserId, setResolvedTargetUserId] = useState(null);
   const [followedUserIdSet, setFollowedUserIdSet] = useState(new Set());
   const [followActionLoading, setFollowActionLoading] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const [blockedByTarget, setBlockedByTarget] = useState(false);
+  const [blockedTargetUsername, setBlockedTargetUsername] = useState('');
+  const [blockActionLoading, setBlockActionLoading] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
   const normalizedUserIdParam = String(userId || '').trim().toLowerCase();
   const isGuestProfileRoute = normalizedUserIdParam === 'guest';
@@ -534,6 +542,68 @@ const Profile = () => {
     }
   }, [profileUser, user?.id, isGuest, followedUserIdSet, followActionLoading, fetchFollowedUsers]);
 
+  const handleToggleBlockFromFab = useCallback(async () => {
+    const profileId = Number(profileUser?.id || 0);
+    if (!profileId || !user?.id || isGuest || blockActionLoading) return;
+    setFabOpen(false);
+
+    if (!blockedByMe) {
+      setBlockDialogOpen(true);
+      return;
+    }
+
+    try {
+      setBlockActionLoading(true);
+      await unblockUser(profileId);
+      setBlockedByMe(false);
+      setSnackbar({
+        open: true,
+        message: `Unblocked ${displayUsername(profileUser.username)}`,
+        severity: 'success',
+      });
+    } catch (err) {
+      console.error('[Profile] Unblock error:', err);
+      setSnackbar({
+        open: true,
+        message: err?.response?.data?.error || 'Failed to unblock user',
+        severity: 'error',
+      });
+    } finally {
+      setBlockActionLoading(false);
+    }
+  }, [profileUser, user?.id, isGuest, blockActionLoading, blockedByMe]);
+
+  const handleConfirmBlockFromDialog = useCallback(async () => {
+    const profileId = Number(profileUser?.id || 0);
+    if (!profileId || !user?.id || isGuest || blockActionLoading) return;
+
+    try {
+      setBlockActionLoading(true);
+      await blockUser(profileId);
+      setBlockedByMe(true);
+      setBlockDialogOpen(false);
+      setFollowedUserIdSet((prev) => {
+        const next = new Set(prev);
+        next.delete(profileId);
+        return next;
+      });
+      setSnackbar({
+        open: true,
+        message: `Blocked ${displayUsername(profileUser.username)}`,
+        severity: 'success',
+      });
+    } catch (err) {
+      console.error('[Profile] Block error:', err);
+      setSnackbar({
+        open: true,
+        message: err?.response?.data?.error || 'Failed to block user',
+        severity: 'error',
+      });
+    } finally {
+      setBlockActionLoading(false);
+    }
+  }, [profileUser, user?.id, isGuest, blockActionLoading]);
+
   const handleTextsScroll = useCallback(() => {
     if (!textsContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = textsContainerRef.current;
@@ -650,6 +720,8 @@ const Profile = () => {
         setLoading(true);
         setError(null);
         setProfileAccessLocked(false);
+        setBlockedByTarget(false);
+        setBlockedByMe(false);
 
         if (isOwnProfile) {
           setProfileAccessMessage('');
@@ -751,6 +823,13 @@ const Profile = () => {
           }
 
           if (!active) return;
+          setBlockedByMe(Boolean(accessDecision?.blocked_by_me));
+          if (accessDecision?.blocked_by_target) {
+            setBlockedByTarget(true);
+            setBlockedTargetUsername(String(accessDecision?.username || ''));
+            setProfileAccessLocked(true);
+            return;
+          }
           const visibility = String(accessDecision?.visibility || 'public').toLowerCase();
           setProfileAccessVisibility(['private', 'key-gated'].includes(visibility) ? 'private' : 'public');
 
@@ -1102,6 +1181,28 @@ const Profile = () => {
   }
 
   if (profileAccessLocked && !isOwnProfile) {
+    if (blockedByTarget) {
+      return (
+        <>
+          <GlobalStyles styles={{ 'html, body': { background: appCanvasBackground, overflowY: 'auto !important' } }} />
+          <Box
+            sx={{
+              minHeight: 'calc(100vh - 64px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              px: 2,
+              background: appCanvasBackground,
+            }}
+          >
+            <Typography variant="h5" sx={{ fontWeight: 800, textAlign: 'center' }}>
+              {displayUsername(blockedTargetUsername) || 'User'} has Blocked you.
+            </Typography>
+          </Box>
+        </>
+      );
+    }
+
     if (isGuest) {
       return (
         <Box
@@ -2204,7 +2305,7 @@ const Profile = () => {
               step: 58,
               accent: { dark: '#EF5350', light: '#D32F2F' },
             }] : []),
-            ...(!isOwnProfile && !isGuest && profileUser?.id ? [{
+            ...(!isOwnProfile && !isGuest && profileUser?.id && !blockedByMe ? [{
               key: 'follow-user',
               tooltip: followedUserIdSet.has(Number(profileUser.id)) ? 'Unfollow user' : 'Follow user',
               icon: followedUserIdSet.has(Number(profileUser.id)) ? <PersonRemoveIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />,
@@ -2213,6 +2314,16 @@ const Profile = () => {
               accent: followedUserIdSet.has(Number(profileUser.id))
                 ? { dark: '#EF5350', light: '#D32F2F' }
                 : { dark: '#4FC3F7', light: '#039BE5' },
+            }] : []),
+            ...(!isOwnProfile && !isGuest && profileUser?.id ? [{
+              key: 'block-user',
+              tooltip: blockedByMe ? 'Unblock user' : 'Block user',
+              icon: <BlockIcon fontSize="small" />,
+              onClick: handleToggleBlockFromFab,
+              step: 58,
+              accent: blockedByMe
+                ? { dark: '#81C784', light: '#388E3C' }
+                : { dark: '#E57373', light: '#C62828' },
             }] : []),
           ]}
           tradingCard={{
@@ -2315,6 +2426,43 @@ const Profile = () => {
             }}
           >
             {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={blockDialogOpen}
+        onClose={() => {
+          if (!blockActionLoading) setBlockDialogOpen(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: getGlassDialogPaperSx(theme) }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Block @{displayUsername(profileUser?.username) || 'User'}?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            They will be unfollowed, won&apos;t be able to view your profile or follow you, and posts &amp; comments from either of you will be hidden from the other. You can unblock them anytime from Friends List → Blocked or from their profile.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.2 }}>
+          <Button
+            onClick={() => setBlockDialogOpen(false)}
+            disabled={blockActionLoading}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmBlockFromDialog}
+            disabled={blockActionLoading}
+            sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 999, px: 2.5 }}
+          >
+            {blockActionLoading ? 'Blocking...' : 'Block User'}
           </Button>
         </DialogActions>
       </Dialog>
