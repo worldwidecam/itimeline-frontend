@@ -65,7 +65,7 @@ function TermsOfService() {
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            Last Updated: May 17, 2026
+            Last Updated: November 4, 2026
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left', lineHeight: 1.6 }}>
@@ -90,7 +90,7 @@ function TermsOfService() {
 
             <Box>
               <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                2. User Eligibility & Accounts
+                2. User Eligibility &amp; Accounts
               </Typography>
               <Typography variant="body1" color="text.primary" sx={{ mb: 1 }}>
                 To create an account and register for the Service, you must be at least 13 years old (or the minimum legal age in your country). You agree to provide accurate, current, and complete information during registration.
@@ -104,24 +104,39 @@ function TermsOfService() {
 
             <Box>
               <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                3. User-Generated Content, Originality & Copyrights
+                3. User-Generated Content, Originality &amp; DMCA Copyright Policy
               </Typography>
               <Typography variant="body1" color="text.primary" sx={{ mb: 1.5 }}>
                 iTimeline allows you to create public and private timelines, post events (including text, images, audio, and videos), and share content. You retain ownership of all content you post.
               </Typography>
               <Typography variant="body1" color="text.primary" sx={{ mb: 1.5, fontWeight: 'medium' }}>
-                You acknowledge, warrant, and agree that any content you upload, post, or publish on the Service is your own original work, or that you have obtained all necessary licenses, rights, and permissions to publish it. You are strictly prohibited from uploading third-party copyrighted materials (such as full-length movies, television episodes, music tracks, or other proprietary media) that you do not own or have permission to distribute. Infringing copyright laws or uploading illegal materials will result in immediate content removal and account termination.
+                You acknowledge, warrant, and agree that any content you upload, post, or publish on the Service is your own original work, or that you have obtained all necessary licenses, rights, and permissions to publish it. You are strictly prohibited from uploading third-party copyrighted materials (such as full-length movies, television episodes, music tracks, or other proprietary media) that you do not own or have permission to distribute. Infringing copyright laws or uploading illegal materials will result in immediate content removal and account termination for repeat infringers.
               </Typography>
-              <Typography variant="body1" color="text.primary">
+              <Typography variant="body1" color="text.primary" sx={{ mb: 1.5 }}>
                 By posting content to public sections of the Service, you grant iTimeline a worldwide, non-exclusive, royalty-free, transferable license to host, store, run, use, distribute, modify, display, and translate your content for the purpose of operating and improving the Service.
               </Typography>
+              <Typography variant="body1" color="text.primary" sx={{ mb: 1, fontWeight: 'bold' }}>
+                DMCA Takedown Notices (17 U.S.C. § 512):
+              </Typography>
+              <Typography variant="body1" color="text.primary" sx={{ mb: 1 }}>
+                If you are a copyright owner (or authorized agent) and believe that user-submitted material on iTimeline infringes your copyright, please send a written takedown notice to our Designated Copyright Agent at{' '}
+                <Box component="span" sx={{ fontWeight: 'bold' }}>support@i-timeline.com</Box>
+                {' '}containing:
+              </Typography>
+              <ul>
+                <li>Identification of the copyrighted work claimed to have been infringed.</li>
+                <li>Identification of the specific URL or event on iTimeline where the allegedly infringing material is located.</li>
+                <li>Your contact information (name, mailing address, telephone number, and email address).</li>
+                <li>A statement that you have a good-faith belief that the disputed use is not authorized by the copyright owner, its agent, or the law.</li>
+                <li>A statement, made under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on the copyright owner&apos;s behalf, along with your physical or electronic signature.</li>
+              </ul>
             </Box>
 
             <Divider />
 
             <Box>
               <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                4. Code of Conduct & Prohibited Content
+                4. Code of Conduct &amp; Prohibited Content
               </Typography>
               <Typography variant="body1" color="text.primary" sx={{ mb: 1 }}>
                 You agree NOT to use the Service to upload, publish, or share any content that:
@@ -139,7 +154,7 @@ function TermsOfService() {
 
             <Box>
               <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                5. Moderation, Safeguards, & Account Suspension
+                5. Moderation, Safeguards, &amp; Account Suspension
               </Typography>
               <Typography variant="body1" color="text.primary" sx={{ mb: 1 }}>
                 We prioritize community safety and database compliance. iTimeline reserves the right to:
