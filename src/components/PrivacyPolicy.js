@@ -65,7 +65,7 @@ function PrivacyPolicy() {
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            Last Updated: October 1, 2026
+            Last Updated: November 4, 2026
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left', lineHeight: 1.6 }}>
@@ -91,13 +91,14 @@ function PrivacyPolicy() {
               </Typography>
               <ul>
                 <li><strong>Account info</strong> — your username, email address, and hashed password when you register.</li>
-                <li><strong>Profile content</strong> — any avatar, bio, or profile information you choose to add.</li>
+                <li><strong>Optional profile details</strong> — any avatar, bio, country flag badge, profile music track, Theory Board notes, profile wall texts, or date of birth that you choose to add in your settings.</li>
                 <li><strong>Timeline &amp; event content</strong> — timelines, events, comments, and media (images, videos, audio) that you create or upload.</li>
-                <li><strong>IP address</strong> — temporarily logged during login and registration to protect the platform from abuse and excessive automated requests. We do not sell or share this.</li>
-                <li><strong>Usage signals</strong> — basic interaction data (like which timelines you follow) used to power your personalized feed and recommendations.</li>
+                <li><strong>Safety &amp; moderation records</strong> — your personal block list (users you choose to block) and any content moderation reports you submit.</li>
+                <li><strong>IP address &amp; security checks</strong> — temporarily logged during login, registration, and rate-limited actions (alongside Cloudflare Turnstile bot protection) to protect the platform from abuse and automated attacks. We do not sell or share this.</li>
+                <li><strong>Usage signals &amp; local browser storage</strong> — basic interaction data (like which timelines you follow or vote on) to power your feeds, plus browser <code>localStorage</code> to keep you logged in and remember your light/dark theme preferences.</li>
               </ul>
               <Typography variant="body1" color="text.primary" sx={{ mt: 1 }}>
-                We do <strong>not</strong> collect payment information, location data, or anything from your device beyond what is listed above.
+                We do <strong>not</strong> use third-party advertising cookies or cross-site trackers, and we do <strong>not</strong> collect payment information, precise GPS location data, or device contacts.
               </Typography>
             </Box>
 
@@ -111,11 +112,12 @@ function PrivacyPolicy() {
                 Everything we collect has a clear purpose:
               </Typography>
               <ul>
-                <li><strong>Email &amp; password</strong> — so you can log in and recover your account if you forget your password.</li>
-                <li><strong>Username</strong> — your identity on the platform; how others find and mention you.</li>
-                <li><strong>IP address</strong> — to enforce rate limits and protect everyone from spam, bots, and brute-force attacks. We don't use it to identify or track you personally.</li>
-                <li><strong>Uploaded media</strong> — to display your content on your timelines and event cards exactly as you intended.</li>
-                <li><strong>Social graph (follows, friends)</strong> — to show you relevant content from people and timelines you care about.</li>
+                <li><strong>Email &amp; password</strong> — so you can log in and receive single-use recovery links if you forget your password.</li>
+                <li><strong>Username &amp; optional profile details</strong> — your identity on the platform, how others find and mention you, and (if you add a date of birth) to verify age eligibility and power your 18+ NSFW blur preferences.</li>
+                <li><strong>IP address &amp; Turnstile checks</strong> — to enforce rate limits and protect everyone from spam, bots, and brute-force login attempts. We never use it to track or profile you.</li>
+                <li><strong>Uploaded media &amp; profile modules</strong> — to display your content on your timelines, event cards, and profile page exactly as you intended.</li>
+                <li><strong>Social graph (follows, friends) &amp; block list</strong> — to show you relevant posts from people and timelines you care about, while filtering out users you have blocked.</li>
+                <li><strong>Moderation reports</strong> — to allow community moderators and site administrators to review flagged content and keep the platform safe.</li>
               </ul>
             </Box>
 
@@ -126,15 +128,15 @@ function PrivacyPolicy() {
                 4. How Long We Keep Your Data
               </Typography>
               <Typography variant="body1" color="text.primary" sx={{ mb: 1.5 }}>
-                We keep your data for as long as your account is active. When you delete your account:
+                We keep your account and content data for as long as your account is active. When you delete your account:
               </Typography>
               <ul>
-                <li>Your profile, username, email, and account credentials are permanently removed.</li>
+                <li>Your profile, username, email, date of birth, social follows, block list, and account credentials are permanently scrubbed.</li>
                 <li>Media files (images, videos, audio) you uploaded that are not shared across other timelines are permanently deleted from our storage.</li>
                 <li>Content shared or re-posted to community timelines by others may remain, attributed to a deleted/anonymous account, to preserve community context.</li>
               </ul>
               <Typography variant="body1" color="text.primary" sx={{ mt: 1 }}>
-                IP log entries used for rate limiting are not permanently stored — they expire automatically on a short rolling window.
+                Temporary security data expires automatically: IP rate-limiting counters clear on a short rolling window, and single-use password reset tokens expire shortly after they are issued or used.
               </Typography>
             </Box>
 
