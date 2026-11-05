@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.i_timeline.twa",
+      "sha256_cert_fingerprints": [
+        "8F:BC:F1:80:C8:24:E6:6D:89:0F:1F:70:9A:E4:07:6C:DB:78:9C:C5:89:19:DD:3B:4B:2F:88:9B:A7:F4:50:DF"
+      ]
+    }
+  }
+]
+
