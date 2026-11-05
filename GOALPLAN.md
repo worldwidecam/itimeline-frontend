@@ -20,7 +20,14 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ## Current TODOs
 
-* **[BLOCK] Block list option within friends list on home page.** (Implemented locally — awaiting confirmation)
+* **App Store, Google Play & Legitimacy Readiness**:
+  - ~~probably need a privacy policy.~~ (Completed — see `src/components/PrivacyPolicy.js`)
+  - ~~**Data & compliance**: Explain why we collect any data and for how long we intend to keep it~~ (Completed — updated `src/components/PrivacyPolicy.js` Sections 2, 3, and 4)
+  - ~~**IP infringement check**: Check `uspto.gov` for trademark conflicts around `iTimeline`.~~ (Completed — verified no active Class 009/042 conflict)
+  - ~~**Level 1 Web App Installability (`manifest.json`, `index.html`, `robots.txt`) & In-App DMCA Policy Text (`TermsOfService.js`)**~~ (Completed)
+  - ~~**DMCA Safe Harbor Registration**: Complete the official Designated Agent registration at `dmca.copyright.gov`~~ (Completed & paid — active through Nov 5, 2029)
+  - ~~**Google Search Console & Domain Verification**: Verify `i-timeline.com` ownership with Google.~~ (Completed — ownership verified via Cloudflare DNS)
+  - **Google Play Store Packaging & Submission**: Package via PWABuilder and set up Google Play Console.
 
 ---
 
@@ -68,8 +75,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 ### 🔵 Focus Group — Feature Requests (Lower Priority)
 
-* **[FG-A] Audit file upload path for zip-bomb protection.**
-  - When users upload files, do we guard against maliciously compressed archives that expand to enormous sizes server-side? Needs a security review.
+* ~~**[FG-A] Audit file upload path for zip-bomb protection.**~~ (Completed — see Completed)
 
 * **[FG-K] Add document upload support (PDF, DOCX).**
   - Current media uploader only handles image, video, and audio. Users want to be able to attach documents to events.
@@ -91,7 +97,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * voting on a hashtag on a post should also update its related event card. i know on refresh it does update but not in real-time, like it does for the popup
 
-* delete feature for users and timelines
+* ~~delete feature for users and timelines~~ (Completed — see lines 112 & 114)
 
 * add theory board module to community timelines.
 
@@ -105,10 +111,18 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
  - non statically hosted site 
 
 
-* look into making this an app on apple and google play stores.
- - ~~probably need a privacy policy.~~ (tracked above)
- - data and compliance. need to explain why we collect any data and for how long we intend to keep it.
- - IP infringement check. uspto.gov
+* **look into making this an app on apple and google play stores.** (In Progress — see `## Current TODOs`)
+ - ~~probably need a privacy policy.~~ (Completed)
+ - ~~data and compliance. need to explain why we collect any data and for how long we intend to keep it.~~ (Completed)
+ - ~~IP infringement check. uspto.gov~~ (Completed)
+ - **Remaining Store & Legitimacy Steps (Tracked in Current TODOs)**:
+   1. ~~**DMCA Safe Harbor Registration (\$6 for 3 years)**: Register `support@i-timeline.com` as the Designated Copyright Agent at `https://dmca.copyright.gov` (pairs with Section 3 of `src/components/TermsOfService.js`).~~ (Completed & paid — renews Nov 2029)
+   2. ~~**Google Search Console (\$0)**: Verify `i-timeline.com` in Google Search Console (`public/robots.txt` is already in place).~~ (Completed — ownership verified)
+   3. **Google Play Store First (\$25 one-time fee)**:
+      - Package the live PWA via `https://www.pwabuilder.com` into an Android App Bundle (`.aab`).
+      - For Personal Google Play Developer accounts, run the mandatory 14-day closed test with 12 opted-in family/friends testers before clicking "Publish to Production."
+   4. **Apple App Store Later (\$99/year — after Google Play traction)**:
+      - Wrap `build/` with `@capacitor/core` + `@capacitor/ios` and submit via Xcode on macOS (or a cloud Mac runner).
 
 * ~~deleting a timeline ability.~~ (Completed — safe re-homing for shared posts, R2 media purge for isolated posts, slug freeing, DeletedTimelineRedirect, and Admin Panel Danger Zone UI)
 
@@ -116,7 +130,7 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * voting on a hashtag on a post doesn't seem to update that event card , at least temporarily.
 
-* ~~block list option within friends list on home page.~~ (Moved to Current TODOs as [BLOCK])
+* ~~block list option within friends list on home page.~~ (Completed — see `[BLOCK]` in Completed)
 
 * sliding down a fullscreen media opened from a popup should slide down the media back to normal popup screen. it currently does not accurately.i somewhat fixed this on my own but still good to check. but what remains for sure is that if the inner description container on a popup isn't scrolled to its top already, then it doesn't let the popup itself be dragged downward to close.
 
@@ -128,16 +142,26 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 
 * i'm thinking we should have the navFAB absorb the timeline status message system, so that we do not need to have the timeline status message system displayed in the top bar any longer.
 
-* **Backend API security audit.** Review all backend routes for: correct auth/permission checks on every route, rate limits on sensitive calls, and data exposure (making sure responses never return more info than the caller should see). Came up while removing the public "Developer Tools" button from the landing page — note that hiding a frontend button does NOT secure the endpoint behind it.
+* ~~**Backend API security audit.**~~ (Completed — see Completed)
 ---
 
 ## Awaiting Confirmation
 
-* **[BLOCK] User Block List & Two-Way Content Filtering**: Added `user_blocks` table (`0012_user_blocks.sql`), block/unblock/list endpoints, two-way content hiding across feeds/timelines/comments/profile-texts/notifications, empty `[USER] has Blocked you.` profile state when blocked by target, and Block/Unblock actions in Friends List (`Blocked` filter), `UserCard` Actions menu, and `Profile` `NavFab`.
-
 ---
 
 ## Completed
+
+* **Google Search Console Domain Ownership Verification**: Verified ownership of `i-timeline.com` via Cloudflare DNS TXT record (zero user-tracking scripts). (Complete)
+
+* **DMCA Safe Harbor Registration (`dmca.copyright.gov`)**: Registered `iTimeline` / `i-timeline.com` and Designated Copyright Agent (`support@i-timeline.com` + Los Osos PO Box street-addressed location) with the U.S. Copyright Office under 17 U.S.C. § 512 (active for 3 years through Nov 2029). (Complete)
+
+* **Level 1 PWA Manifest/Meta/ServiceWorker Polish, In-App DMCA Policy Text (`TermsOfService.js`), & `robots.txt`**: Fixed `public/manifest.json` (`favicon.png` + separated `"any"` and `"maskable"` icon entries + app categories/scope/id for PWABuilder), added pass-through `public/sw.js` and registered it alongside full-screen mobile app meta tags in `index.html`, removed stale Create-React-App `public/index.html`, added Section 3 DMCA Takedown Notice procedure (17 U.S.C. § 512) to `src/components/TermsOfService.js`, and created `public/robots.txt`. (Complete)
+
+* **App Store Data & Compliance + Trademark Check**: Updated `src/components/PrivacyPolicy.js` (Sections 2, 3, and 4) to explicitly cover optional profile details (birthdate for age/NSFW blur settings, country flag, profile music, Theory Board & wall texts), safety/moderation records (block list & reports), Cloudflare Turnstile + browser `localStorage` usage (zero ad trackers), and automatic expiration of rate-limit IPs and single-use password reset tokens; verified USPTO Class 009/042 trademark availability for `iTimeline`. (Complete)
+
+* **Backend API Security Audit & [FG-A] File Upload Security Check**: Hardened `GET /api/v1/reports` (prevented `?scope=all` bypass by non-admins), `GET /api/v1/timelines/:id/members` (enforced `requireReadableTimeline` and required moderator/admin role for `?status=blocked`/`pending`), Theory Board node/edge & Profile Text delete/update routes (enforced `profileUserId === uid` ownership), Info Card update/delete routes (scoped `:cardId` to `:timelineId`), legacy upload routes (attached `RL.writeUser()` rate limiter), and `sniffMagicBytes` in `r2.ts` (added `10,000 × 10,000` px header dimension guard against pixel-flood / decompression bombs alongside existing magic-byte rejection of `.zip` archives). (Complete)
+
+* **[BLOCK] User Block List & Two-Way Content Filtering**: Added `user_blocks` table (`0012_user_blocks.sql`, migrated across local, staging, and production D1), block/unblock/list endpoints, two-way content hiding across feeds/timelines/comments/profile-texts/notifications, personal timeline viewer/member/follow revocation on block, SiteAdmin/SiteOwner block immunity, Timeline Moderator/Admin visibility exemption on managed timelines, Option B profile viewing with `[USER] has Blocked you.` empty state when blocked by target, and Block/Unblock UI in Friends List (`Blocked` filter), `UserCard` Actions menu, and `Profile` `NavFab`. (Complete)
 
 * **[FG-LAND-1] Landing Page Popular Posts Timeline Tool**: Replaced the outdated fake mystery demo timeline with a live, safety-filtered Popular Posts timeline. Added `/api/v1/events/popular/landing` with strict community safety checks (no NSFW, no open reports, no user account restrictions, 7-day author age minimum, 3-hour post age, 2-vote threshold, Reddit hot ranking, and 5-min KV caching). Updated landing page with instructional title/subtitle, Option 3 mission statement, removed Developer Tools, wired genuine Remark/News/Media hover cards, and added guest login redirection layer on `<EventPopup>`. (Complete)
 

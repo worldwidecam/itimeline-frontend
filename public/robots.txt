@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /site-control
+Disallow: /settings
+Disallow: /account-recovery
+Disallow: /required-username-change
+
