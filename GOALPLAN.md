@@ -27,7 +27,9 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
   - ~~**Level 1 Web App Installability (`manifest.json`, `index.html`, `robots.txt`) & In-App DMCA Policy Text (`TermsOfService.js`)**~~ (Completed)
   - ~~**DMCA Safe Harbor Registration**: Complete the official Designated Agent registration at `dmca.copyright.gov`~~ (Completed & paid — active through Nov 5, 2029)
   - ~~**Google Search Console & Domain Verification**: Verify `i-timeline.com` ownership with Google.~~ (Completed — ownership verified via Cloudflare DNS)
-  - **Google Play Store Packaging & Submission**: Package via PWABuilder and set up Google Play Console.
+  - **Google Play Store Packaging & Submission**:
+    - ~~Generate Android `.aab` / `.apk` + `signing.keystore` via PWABuilder (`com.i_timeline.twa`) and wire `public/.well-known/assetlinks.json`~~ (Completed)
+    - Set up Google Play Console account (\$25 one-time) & upload `.aab` to Closed Testing track.
 
 ---
 
@@ -150,6 +152,8 @@ maintain safety of PRODUCTION while making improvements from MAIN branch.
 ---
 
 ## Completed
+
+* **Android App Package (`com.i_timeline.twa`) & Digital Asset Links (`public/.well-known/assetlinks.json`)**: Generated Android `.aab` and `.apk` bundles via PWABuilder and wired the `sha256_cert_fingerprints` into `public/.well-known/assetlinks.json` for full-screen Trusted Web Activity verification on `i-timeline.com`. (Complete)
 
 * **Google Search Console Domain Ownership Verification**: Verified ownership of `i-timeline.com` via Cloudflare DNS TXT record (zero user-tracking scripts). (Complete)
 
