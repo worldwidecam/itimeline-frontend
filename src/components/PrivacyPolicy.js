@@ -65,7 +65,7 @@ function PrivacyPolicy() {
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            Last Updated: November 4, 2026
+            Last Updated: November 19, 2026
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left', lineHeight: 1.6 }}>
@@ -190,11 +190,23 @@ function PrivacyPolicy() {
 
             <Box>
               <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                7. Children's Privacy
+                7. Children&apos;s Privacy &amp; Child Safety Standards (Zero Tolerance for CSAE)
               </Typography>
-              <Typography variant="body1" color="text.primary">
+              <Typography variant="body1" color="text.primary" sx={{ mb: 1.5 }}>
                 iTimeline is not directed at children under the age of 13. We do not knowingly collect personal information from anyone under 13. If we become aware that a child under 13 has created an account, we will delete that account and its associated data promptly. If you believe a child has registered, please contact us at <strong>support@i-timeline.com</strong>.
               </Typography>
+              <Typography variant="body1" color="text.primary" sx={{ mb: 1, fontWeight: 'bold' }}>
+                Child Safety Standards &amp; Zero-Tolerance Policy:
+              </Typography>
+              <Typography variant="body1" color="text.primary" sx={{ mb: 1 }}>
+                iTimeline maintains a strict, zero-tolerance policy against Child Sexual Abuse and Exploitation (CSAE) and Child Sexual Abuse Material (CSAM). Any content, media, comment, timeline, or user behavior that depicts, promotes, solicits, or facilitates the exploitation or abuse of minors is strictly prohibited.
+              </Typography>
+              <ul>
+                <li><strong>In-App Reporting &amp; Blocking:</strong> Users can immediately flag objectionable posts or timelines using the in-app <strong>Report</strong> tool on any event card/popup (which places reported content into moderation review) and can block any user via the in-app <strong>Block</strong> tool.</li>
+                <li><strong>Prompt Action &amp; Account Termination:</strong> Upon obtaining knowledge of any CSAE or CSAM content, we immediately remove the offending content, permanently terminate the responsible account(s), and preserve relevant records as required by law.</li>
+                <li><strong>Legal Compliance &amp; Reporting to Authorities:</strong> iTimeline complies with all applicable child safety laws and reports confirmed CSAM/CSAE violations to the National Center for Missing &amp; Exploited Children (NCMEC) and relevant law enforcement authorities.</li>
+                <li><strong>Child Safety Point of Contact:</strong> For urgent child safety concerns, abuse reports, or law enforcement inquiries, contact our designated Child Safety Point of Contact at <strong>support@i-timeline.com</strong>.</li>
+              </ul>
             </Box>
 
             <Divider />
